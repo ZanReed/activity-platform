@@ -1,6 +1,6 @@
 # Graph-figure convergence — `GraphFigure.tsx` → `renderGraphSvg`
 
-**Status:** ENG-REVIEWED 2026-08-23 (10 findings + outside voice, 0 unresolved) — awaiting devex review, then build.
+**Status:** ENG-REVIEWED + DX-REVIEWED 2026-08-23 (10 eng findings + outside voice + 8 DX decisions, 0 unresolved) — ready to build.
 
 Closes the TODOS entry "Converge the two SVG engines" (filed by the
 choice-figures eng review, E2/CQ-2), which 2026-08-23 scoping turned from
@@ -90,7 +90,9 @@ zero diff — ruled, not assumed; `registry.ts` is inside that bundle), no deplo
         ▼
   renderGraphSvg(axis, drawables, block.id)      ← graph-kit/static-svg, static import
         │
-        ├── ''  (degenerate window)  ──►  <figure> 'Figure unavailable' (ruling 6A)
+        ├── ''  (degenerate window)  ──►  <figure> 'Figure unavailable'      (ruling 6A)
+        │                                   data-figure-unavailable=
+        │                                     "degenerate-axis"               (DX D7)
         │
         ▼
   <figure class="viewer-figure" role="img" aria-label="Graph figure">   (ruling 5A)
@@ -108,7 +110,10 @@ warns and skips, `markdownToTiptap.ts:2490`; the editor filters the kind).
 `loadSvgEngine`, `svgEngineResident`, `residentEngine`, the `useEffect`, the
 reserved-box placeholder and `data-figure-pending` all go. The graph branch
 becomes `drawGraph(graph, uid)` inline; the `''` case takes the same A8-style
-"Figure unavailable" span the image branch already has (ruling 6A). The header
+"Figure unavailable" span the image branch already has (ruling 6A), carrying
+`data-figure-unavailable="degenerate-axis"` so devtools and a failing test name
+the CAUSE, not just the symptom (DX D7). One cause exists today; a second makes
+the attribute an enum. The header
 paragraph claiming a preload and a readiness wait is deleted, and its ASCII
 data-path diagram redrawn without the lazy hop.
 
@@ -137,19 +142,22 @@ data-path diagram redrawn without the lazy hop.
    the engine emits `data-drawables="N"` and `printExpectations.ts:103` already
    has the expectation kind. That is the contract the other static figures use;
    "a `<path>` exists" is the weaker guard.
-2. **`figure/capped` is split** (OV-e / ruling 4A): today's comma-list target
-   `.viewer-image__img, .viewer-figure__svg` stays green via the image half
-   even when the figure half matches nothing. Two rows, each targeting markup
-   the viewer owns (`.viewer-figure > svg` for the figure), each with a
-   non-vacuity count in `print-rules.e2e` — the target must match ≥1 element
-   on the fixture route.
+2. **`figure/capped` is split** (OV-e / ruling 4A, amended by DX D6): today's
+   comma-list target `.viewer-image__img, .viewer-figure__svg` stays green via
+   the image half even when the figure half matches nothing. Two single-selector
+   rows, each targeting markup the viewer owns (`.viewer-figure > svg` for the
+   figure). **No new counting code** — `printChecks.ts:76-83` already returns
+   `status: 'absent'` for a zero-match selector and `:256` treats absent as a
+   failure, so a single-selector row cannot pass vacuously. Cite that in the row
+   comment; a comma-list target is the smell, not a missing assertion.
 3. **The viewer fixture's `graph_figure` gains a linear `curve`** beside its
    point, so every fixture-driven lane (print-rules, a11y, dark-contrast,
    baselines) exercises the path that was empty. Bond once that the sanitized
    projection carries `model` through (`sanitize: { strip: [] }`).
 4. **`GraphFigure.test.tsx`** (new): linear curve → a stroked `<path>` inside
    `.viewer-figure` and `data-drawables="2"`; zero drawables → axes only,
-   `data-drawables="0"`; degenerate axis → "Figure unavailable", no `<svg>`;
+   `data-drawables="0"`; degenerate axis → "Figure unavailable" carrying
+   `data-figure-unavailable="degenerate-axis"`, no `<svg>`;
    wrapper `role="img"` + label present, inner `<svg>` `aria-hidden`.
    **Mutation-test once:** stub the engine to skip curves and watch the first
    row go red.
@@ -230,43 +238,90 @@ No critical gaps: every path has a test and a handler, and no failure is silent.
 Sequential implementation, no parallelization opportunity — every step touches
 `packages/viewer/src/blocks/` or the fixtures those blocks are tested against.
 
+## Developer perspective (DX review, 2026-08-23)
+
+The developer this plan serves is **the next session picking up T1–T10 cold** —
+as likely an AI session as the author (persona D1). Traced against the real repo:
+
+> I read CLAUDE.md → STATE → the plan. The finding is clear. T1 says rewrite
+> `GraphFigure.tsx`; I open `ChoiceFigure.tsx` to copy its `drawGraph` cast and
+> find an 80-line lazy loader the plan tells me to delete. Fine. T1 says verify
+> with "`GraphFigure.test.tsx` rows 1-4" but not WHERE that file goes — I grep,
+> find `packages/viewer/tests/components/`, and mirror `choice-figures.test.tsx`.
+>
+> T4 says "non-vacuity counts"; `print-rules.e2e.ts:133` already counts passes
+> per block, so I am not sure whether to add a count per ROW. I guess.
+>
+> `pnpm verify` is green and prints that print-gates and a11y are NOT covered.
+> T7 says add a dark-contrast row — I read `playwright.config.ts` to learn which
+> lane runs it. T10 says "workflow_dispatch (V7 runbook)": which workflow, which
+> input, where does the artifact go? I grep to `ci.yml:383`.
+
+| Stage | Friction | Ruling |
+|---|---|---|
+| Orient (CLAUDE.md → STATE → plan) | none — the strongest part of this repo's DX | ok |
+| See the bug | nothing in the repo authors a `graph_figure`; the claim was code-read only | **fixed** (D9 — T0 dogfood activity, run first) |
+| Implement T1/T2 | test file location unstated; deleted exports uncited | **fixed** (D3 champion paths, D8 claims-grep) |
+| Real usage (T4) | plan asked for a guard the harness already provides | **fixed** (D6 — cite `printChecks.ts` `absent`) |
+| Debug a blank figure | fallback names the symptom, not the cause | **fixed** (D7 — `data-figure-unavailable`) |
+| Verify locally | `pnpm verify` covers it and says what it does not | ok |
+| T7 dark lane / T10 baselines | lane + workflow input undocumented in the plan | **fixed** (D3) |
+| Hand off | STATE/TODOS discipline established | ok |
+
+**TTHW target: champion (<10 min to first green), ruled D3** — every task below
+names its file, its command and its lane so no discovery grep is needed.
+
 ## Implementation Tasks
 
-- [ ] **T1 (P1, human: ~3h / CC: ~12 min)** — viewer/blocks — Rewrite `GraphFigure.tsx` on a static `renderGraphSvg` import; wrapper `role=img`; `''` → fallback; delete the false header
-  - Surfaced by: Step 0 finding; rulings 9A, 5A, 6A
+- [ ] **T0 (P1, human: ~30min / CC: ~5 min)** — dogfood — Author `scripts/graph-figure-test.md` and import it BEFORE any code change, to see the bug
+  - Surfaced by: DX D9. The fixture (T5) starts at "the viewer receives a document"; this starts at "a teacher types markdown", covering importer → draft → viewer → print, which no automated lane crosses.
+  - Content: a ```reference fence whose body is `title: Formula sheet`, a line of prose, then two back-to-back `graph: line y = 2x + 1` / `graph: line y = 2x - 3` lines (they share ONE grid — the block's stated reason to exist), plus a `graph: curve y = x^2` in a second figure.
+  - Precedent: `scripts/graph-feature-test.md` (the interactive-graph dogfood; it has NO reference fence, which is why `graph_figure` has never been authored in this repo — consistent with the zero-rows DB query).
+  - Run: `pnpm import:batch` (writes a draft; **leave it unpublished** — publishing makes it live at `/a/:id`). **Policy P7:** name the activity so it is obviously a test artifact and record it in STATE's residue note; it is a durable row.
+  - Verify (the RED half): open the activity, summon the reference panel, and confirm the figures render as EMPTY GRIDS. Screenshot it. That screenshot is the before half of T8's proof.
+  - ⚠ If the figures are NOT empty, stop — the premise of this whole plan is wrong and the finding needs re-deriving before any code moves.
+
+- [ ] **T1 (P1, human: ~3h / CC: ~12 min)** — viewer/blocks — Rewrite `GraphFigure.tsx` on a static `renderGraphSvg` import; wrapper `role=img`; `''` → fallback with `data-figure-unavailable`; delete the false header
+  - Surfaced by: Step 0 finding; rulings 9A, 5A, 6A, DX D7
   - Files: `packages/viewer/src/blocks/GraphFigure.tsx`
-  - Verify: `GraphFigure.test.tsx` rows 1-4; mutation-test row 1
+  - Verify: `pnpm --filter @activity/viewer exec vitest run tests/components/GraphFigure.test.tsx`
 - [ ] **T2 (P1, human: ~2h / CC: ~8 min)** — viewer/blocks — `ChoiceFigure.tsx`: delete the lazy loader, effect, placeholder, marker and header claims; redraw the ASCII diagram; `''` → fallback
-  - Surfaced by: P11 finding #1; rulings 9A, 6A
+  - Surfaced by: P11 finding #1; rulings 9A, 6A, DX D8
   - Files: `packages/viewer/src/blocks/ChoiceFigure.tsx`
-  - Verify: `choice-figures.test.tsx` green + new `''` row
-- [ ] **T3 (P1, human: ~1h / CC: ~5 min)** — viewer/styles + tokens — standalone cap token; `.viewer-figure svg` rule; print variant
-  - Surfaced by: OV-a; quality issue 4
+  - **Claims-grep before committing (policy P5, DX D8):** `grep -rn "loadSvgEngine\|svgEngineResident\|data-figure-pending\|choiceFigurePreload" packages docs --include='*.ts' --include='*.tsx' --include='*.md' | grep -v node_modules | grep -v /dist/` must return only the choice-figures design doc's corrected T0b line.
+  - Verify: `node --test scripts/tests/export-reachability.test.mjs` + `pnpm --filter @activity/viewer exec vitest run tests/components/choice-figures.test.tsx`
+- [ ] **T3 (P1, human: ~1h / CC: ~5 min)** — viewer/styles — `--vw-figure-cap-standalone` (20rem) + print variant; `.viewer-figure svg` rule
+  - Surfaced by: OV-a
   - Files: `packages/viewer/src/tokens/tokens.css`, `packages/viewer/src/styles/viewer.css`
-  - Verify: computed `max-width` in `print-rules.e2e`
-- [ ] **T4 (P1, human: ~1.5h / CC: ~6 min)** — viewer/registry — `graph_figure` row gets `drawable-count {zero:false}`; split `figure/capped` into per-selector rows with non-vacuity counts
-  - Surfaced by: OV-d, OV-e; ruling 4A
-  - Files: `packages/viewer/src/registry/printExpectations.ts`, `packages/app/e2e/print-rules.e2e.ts`
-  - Verify: both rows match ≥1 element on the fixture route; `drawable-count` reads 2
-- [ ] **T5 (P1, human: ~30min / CC: ~3 min)** — viewer/fixtures — `graph_figure` fixture gains a linear curve
+  - Verify: `pnpm --filter @activity/app exec playwright test print-rules`
+- [ ] **T4 (P1, human: ~1.5h / CC: ~6 min)** — viewer/registry — `graph_figure` row gets `drawable-count {zero:false}`; split `figure/capped` into two single-selector rows (no new counting code — cite `printChecks.ts:76-83`/`:256`)
+  - Surfaced by: OV-d, OV-e; rulings 4A, DX D6
+  - Files: `packages/viewer/src/registry/printExpectations.ts`
+  - Verify: `pnpm --filter @activity/app exec playwright test print-rules` — an `absent` outcome fails the row
+- [ ] **T5 (P1, human: ~30min / CC: ~3 min)** — viewer/fixtures — `graph_figure` fixture gains a linear `curve` beside its point
   - Surfaced by: D5.3
   - Files: `packages/viewer/src/fixtures/index.ts`
-  - Verify: `blockIndex.test.ts` still green; T4's count reads 2
-- [ ] **T6 (P2, human: ~20min / CC: ~2 min)** — viewer/print — delete `mode="print"` + cast at `DefinitionGlossary.tsx:133`
+  - Verify: `pnpm --filter @activity/viewer test` (blockIndex + T4's count reads 2)
+- [ ] **T6 (P2, human: ~20min / CC: ~2 min)** — viewer/print — delete `mode="print"` + the `as never` cast at `DefinitionGlossary.tsx:133`
   - Surfaced by: OV-c
   - Files: `packages/viewer/src/print/DefinitionGlossary.tsx`
-  - Verify: typecheck
-- [ ] **T7 (P2, human: ~1h / CC: ~6 min)** — app/e2e — dark-theme check in the browser + a figure row in `dark-contrast.e2e.ts`
+  - Verify: `pnpm typecheck`
+- [ ] **T7 (P2, human: ~1h / CC: ~6 min)** — app/e2e — verify the engine palette on the dark theme in a real browser, then add a figure row to `dark-contrast.e2e.ts`
   - Surfaced by: OV-b
   - Files: `packages/app/e2e/dark-contrast.e2e.ts`
-  - Verify: row passes AA on both themes
-- [ ] **T8 (P1, human: ~30min / CC: ~3 min)** — scripts — perf budget before/after in the commit message; `pnpm bundle:viewer-server` zero-diff check; `pnpm verify`
-  - Surfaced by: ruling 9A; OV-11
-  - Verify: numbers recorded; drift checks green
-- [ ] **T9 (P2, human: ~45min / CC: ~5 min)** — docs — choice-figures T0b + E1 corrected; DECISIONS entry; TODOS close + new degenerate-axis entry; STATE baseline-red note
+  - **Lane:** `dark-contrast.e2e.ts` runs in the **chromium** project (`playwright.config.ts:106`, `testIgnore` excludes only student/sw/perf/a11y/integration), i.e. the `editor-gates` CI job on every push.
+  - Verify: `pnpm --filter @activity/app exec playwright test dark-contrast --project=chromium`
+- [ ] **T8 (P1, human: ~30min / CC: ~3 min)** — scripts — record the perf delta and the mutation proof; prove no bundle drift
+  - Surfaced by: ruling 9A; OV-11; DX D4
+  - Verify: `node scripts/check-perf-budget.mjs` before/after (numbers in the commit message) · `pnpm bundle:viewer-server` then `git diff --stat` shows zero · `pnpm verify`
+  - **Mutation proof, recorded not just run (DX D4):** revert the curve case in `GraphFigure.tsx`, run T1's command, and paste the failing line into the commit message and the AS-BUILT note — the shape `numbering-output.test.tsx` established.
+  - **Dogfood proof (DX D9):** re-open T0's activity and confirm the two parallel lines now draw on one grid, on screen and in the print preview. The before/after pair goes in the AS-BUILT note. This is the only proof that crosses the importer → viewer boundary.
+- [ ] **T9 (P2, human: ~45min / CC: ~5 min)** — docs — choice-figures T0b + E1 corrected; DECISIONS entry; TODOS close; STATE baseline-red note; AS-BUILT section here
   - Surfaced by: D6; TODO ruling
-- [ ] **T10 (P1, author station)** — print baselines regenerated on Linux via `workflow_dispatch` and committed (V7 runbook)
+  - Files: `docs/design/choice-figures-and-nested-lists.md`, `docs/DECISIONS.md`, `TODOS.md`, `STATE.md`, this doc
+- [ ] **T10 (P1, author station)** — print baselines regenerated on Linux and committed
   - Surfaced by: D6
+  - **Runbook (DX D3):** GitHub Actions → **CI** workflow → *Run workflow* with the **`update_print_baselines`** input ticked (`.github/workflows/ci.yml:381-410`). The job runs `playwright test print-baselines --update-snapshots` and uploads a **`print-baselines`** artifact; unzip it over `packages/app/e2e/print-baselines.e2e.ts-snapshots/` and commit. CI's print-gates job is RED until it lands — that red is expected, and STATE says so.
 
 ## GSTACK REVIEW REPORT
 
@@ -276,9 +331,9 @@ Sequential implementation, no parallelization opportunity — every step touches
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 10 issues, 0 critical gaps; outside voice (claude) 13 findings → 1 accepted tension (9A), 5 folded, 1 refuted, 6 mooted |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
-| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | pending (requested) |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | score 6/10 → 9/10, 9 decisions, TTHW target champion (<10 min), mode DX POLISH |
 
 - **CROSS-MODEL:** the outside voice overturned the review's central architectural premise (lazy engine → static import, ruling 9A) on a measurement the review had estimated; the user accepted. Six review rulings superseded as a result.
-- **VERDICT:** ENG CLEARED — ready to implement after the DX review.
+- **VERDICT:** ENG + DX CLEARED — ready to implement, starting with T0.
 
 NO UNRESOLVED DECISIONS
