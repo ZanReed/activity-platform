@@ -1160,6 +1160,65 @@ fallback-window number directly.
 from a binary into three options by the S8 outside voice (2026-08-05, ruling D7); option 3
 built and measured the same day.
 
+## A DELTA guard for the two Edge Function bundles (2026-08-23)
+
+**The problem, measured rather than argued.** `VIEWER_SERVER_MAX_KIB` (1500) and
+`GRADING_SERVER_MAX_KIB` (4000) are ABSOLUTE ceilings, and `perf-budgets.mjs`
+says plainly what they are for: *"every real leak has been enormous — the two
+above were 3x and 23x the ceiling"* and *"if it jumps by a multiple, something is
+importing a component."* They are order-of-magnitude tripwires, not budgets.
+
+They still catch the two enormous incidents. **They no longer catch the smallest
+of the three recorded ones.** Tested 2026-08-23 against the actual figures:
+
+| recorded incident | viewer (964/1500) | grading (2535/4000) |
+|---|---|---|
+| component-tree leak (2.8 MB) | CAUGHT | CAUGHT |
+| graph-binding leak (21 MB) | CAUGHT | CAUGHT |
+| **MathLive via the barrel (~1 MB)** | CAUGHT | **MISSED** — 2535 + 1024 = 3559 < 4000 |
+
+That third one is real, not hypothetical: CLAUDE.md records it happening
+(*"importing scorers through the barrel put 1 MB of MathLive into the grading
+Edge Function (caught by the bundle's size ceiling)"*). It was caught **because
+the bundle was smaller then**. Grading has since grown legitimately into the
+headroom that caught it — so the guard weakened without anyone changing it, which
+is the "a budget that can only ever loosen is a fossil" concern running in the
+other direction.
+
+**DO NOT FIX THIS BY TIGHTENING THE CAP.** Grading legitimately grows when
+grading gains capability; a tight absolute ceiling there creates friction for
+real work and would be re-raised on its first legitimate collision, which is how
+a cap becomes meaningless. The absolute ceilings are correctly calibrated for
+what they do.
+
+**The idea: a DELTA row.** Fail when a committed bundle grows more than ~15-20%
+in a single commit, regardless of absolute headroom. A leak is a step change; a
+legitimate feature is incremental. This catches the 1 MB class at ANY bundle
+size, which is exactly the property the absolute cap loses as the bundle grows.
+
+**What has to be decided before building it (do not skip these):**
+1. **Where does the baseline live?** The committed bundle in git HEAD is the
+   obvious answer and needs no new state — `git show HEAD:<bundle> | wc -c`
+   against the working copy. Cheap, and it makes the check a diff property
+   rather than a stored number that can rot.
+2. **What about legitimate step changes?** This slice shrank both bundles 82 KiB
+   at once, and a future one could add as much. The guard needs a documented
+   override path, and the override must be a deliberate, explained commit — the
+   same discipline the SANITIZER_REV pin uses.
+3. **Does it belong in `perf-budgets.mjs` at all?** That file's two structures
+   (CHUNK_LEDGER, absence rows) are both about the built SPA. A delta check over
+   committed files is a different shape and may want to live with the bundle
+   drift checks in `verify-local.mjs` instead.
+4. **Mutation-test it.** A delta guard that has never been seen to fire is the
+   vacuity class this repo keeps finding — and note the trap this slice already
+   demonstrated: an unreferenced import gets tree-shaken away, so the mutation
+   has to USE what it imports.
+
+**Depends on:** nothing. **Not urgent** — the standing subpath rule in CLAUDE.md
+(*"Import graph-kit SUBPATHS, never the package barrel"*) exists precisely
+because of the incident this would re-catch, and it is the first line of defense.
+This is the second.
+
 ## Five dormant editor papercuts (moved out of STATE 2026-08-23)
 
 They sat in STATE's "Open questions" for weeks. **None blocks anything**, and
