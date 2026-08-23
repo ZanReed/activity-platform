@@ -1203,7 +1203,24 @@ one storage caller, `lib/uploadImage.ts`, makes its two calls as raw `fetch`.
 file's own budget policy warns about). Guarded by four absence rows in
 `scripts/check-perf-budget.mjs` and by `scripts/tests/supabase-stub-pin.test.mjs`.
 
-**THE LADDER'S REMAINING RUNGS — ALL PARKED** (ruling R7 — each is its own slice,
+**⏰ THE PARK EXPIRED 2026-08-23 — this is now a SCHEDULING decision, not a
+backlog item.** Both shell rows have fallen below the ~10% headroom policy at
+once: **JS 160.5 / 172 (7.2%)** and **CSS 13.13 / 15 after a deliberate raise**.
+The CSS row has no lever left — measured, the stylesheet is not fat (743 rules,
+12 repeated bodies, zero editor CSS in the student entry) and its one real
+saving, lazy print CSS at ~2 KiB gz, was refused because Ctrl+P bypasses the
+readiness barrier and paper is a first-class surface. **So the JS ladder is the
+only lever the shell has, and it is parked.**
+
+That is the whole argument for picking a rung now rather than at the next
+feature: `scripts/perf-budgets.mjs` says the ladder should be *scheduled, not
+discovered mid-feature*, and at 7.2% it gets discovered inside the next slice.
+**Rung 1 (the zod audit) needs a DESIGN PASS before any code** — the
+offline-restore path is parse-bearing, so "what may become a trust-the-bytes
+read and what must stay validated" is a correctness question with a student's
+saved work on the other side of it, not a size question.
+
+**THE LADDER'S REMAINING RUNGS** (ruling R7 — each is its own slice,
 deliberately NOT folded into slice 1; and see the stale-list warning above):
 1. **The zod audit.** `@activity/schema` parses in the shell, and the offline-restore
    path is parse-bearing — so this needs real thought about what may become a

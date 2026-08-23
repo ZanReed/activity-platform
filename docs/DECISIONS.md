@@ -232,6 +232,34 @@ Ground truth was established from `packages/graph-kit/src` (not the design doc) 
 
 The self-built calculator may feel like Desmos in **workflow** — an expression list, type-and-see graphing, sliders, a table-and-fit regression flow — because workflow is the non-protectable, functional layer. It stays clear of Desmos's protected expression: the **name** (never "Desmos" / "College Board" / "SAT" as branding), the **assets** (no copied icons/CSS/SVG/code), and the **skin** (own colour identity, own icons, own micro-layout — not a pixel clone of their distinctive palette/typography as a recognisable whole). Be a functional twin; be a visual stranger. Before any commercial launch this gets an hour of a real IP attorney's time. Was parked in [design/calculator-tool.md](design/calculator-tool.md) "Strategic posture" until 2026-08-23, where a standing constraint was easy to miss.
 
+### The shell CSS cap — raised 14 → 15 (2026-08-23)
+
+Raised at **13.13 KiB gz measured** — 6.6% headroom, under the ~10% policy. Set
+from *measurement + policy*, which is slice 1's rule run in the other direction:
+it TIGHTENED the JS cap 185 → 172 the day it shrank the shell, on ruling R6 that
+18% slack is a fossil. **The same arithmetic forbids 16 here.**
+
+**The reason is not "we hit it"** — that alone would make this the fossil R6
+warns about. It is that the row measures a STUDENT SURFACE that legitimately
+grew: the table block, choice figures, nested lists, and both floating tools
+ship CSS a student needs on first paint. The budget exists to catch a
+REGRESSION (a Tailwind blowup doubling the sheet), not to cap the product.
+
+**Checked before raising, rather than assumed — there is no slim to take.** 743
+rules, only 12 repeated declaration bodies (which gzip already collapses), and
+ZERO editor CSS in the student entry. The stylesheet is not fat; it grew.
+
+**Refused, and do not re-propose without clearing its blocker first:** lazily
+loading `@media print` (6 blocks, ~2.05 KiB gz, 15% of the row). Ctrl+P bypasses
+`PrintButton`'s readiness barrier BY DESIGN — the repo builds every print
+fallback to be legible precisely because a student can hit it at any moment — so
+this trades a measurable 2 KiB for an unstyled printout on a real path, and
+paper is a first-class surface with its own CI job. Blocker: the print/preview
+mirror guard in `viewer/tests/styles.test.ts` would have to span two stylesheets.
+
+**Tighten it again the moment anything shrinks it, in the same commit**, the way
+slice 1 did. A cap that can only ever loosen is the fossil below.
+
 ### Runtime size budget amendment (2026-07-10)
 
 > **[TOMBSTONE, S9 Drop 4 2026-08-14]** The inlined runtime and `scripts/bundle-renderer.mjs` no longer exist; the live ceilings are the 16 rows in `scripts/perf-budgets.mjs`. The reasoning below ("a budget that can only ever loosen is a fossil") is what survives.

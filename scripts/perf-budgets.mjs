@@ -129,9 +129,24 @@ export const SHELL_JS_GZ_KIB = 172;
  * reverse), so a Tailwind regression could double the stylesheet while the
  * combined number still passed. Two rows, two answers.
  *
- * Measured 2026-08-05: 11.3 KiB gz.
+ * Measured 2026-08-05: 11.3 KiB gz (cap set at 14).
+ *
+ * RAISED 14 -> 15 on 2026-08-23, at 13.13 KiB measured (6.6% headroom, under
+ * the ~10% policy). Set from measurement + policy — slice 1's rule in reverse,
+ * which tightened the JS cap 185 -> 172 the day it shrank the shell. 16 was
+ * refused: ruling R6 calls 18% slack a fossil.
+ *
+ * THE FULL REASONING IS IN docs/DECISIONS.md -> "The shell CSS cap", including
+ * the two things a future reader will otherwise re-derive: that the stylesheet
+ * has no slim left (measured — 743 rules, 12 repeated bodies, zero editor CSS
+ * in the student entry), and that lazily loading @media print (~2.05 KiB gz,
+ * 15% of this row) was REFUSED because Ctrl+P bypasses PrintButton's readiness
+ * barrier by design. Not restated here: one home per fact.
+ *
+ * TIGHTEN THIS AGAIN the moment anything shrinks it, in the same commit, the
+ * way slice 1 did.
  */
-export const SHELL_CSS_GZ_KIB = 14;
+export const SHELL_CSS_GZ_KIB = 15;
 
 /**
  * Service-worker precache budgets (S8 ruling D10; TODO ruling D19).

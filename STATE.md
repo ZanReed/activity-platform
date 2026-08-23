@@ -133,6 +133,18 @@ decision. What stays live:
 **Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
 
 
+## The shell budget — both rows at policy, only ONE has a lever
+
+**`SHELL_CSS_GZ_KIB` raised 14 → 15 (2026-08-23)** at 13.13 measured. The full
+reasoning — why 15 and not 16, why the stylesheet has no slim left, and why lazy
+print CSS was refused — is durable and lives in DECISIONS.md → "The shell CSS cap".
+
+**⏰ THE OPEN QUESTION IS THE JS ROW: 160.5 / 172 = 7.2% headroom, ladder parked.**
+CSS has no lever left, so JS is the shell's only one, and `perf-budgets.mjs`'s own
+policy is that the ladder gets *scheduled, not discovered mid-feature*. Rung 1 (the
+zod audit) is the biggest candidate and needs a DESIGN PASS before code — the
+offline-restore path is parse-bearing. See TODOS → the shell-slim ladder.
+
 ## Backlog / candidate arcs
 
 - **Re-architecture follow-ons (accepted 2026-07-28):** (1) Clever/ClassLink district SSO — demand-triggered; **IdP map recorded 2026-08-09** — LMSes are not IdPs; expansion order is Azure/Entra → Clever/ClassLink → LTI 1.3. (2) Realtime push arc — trigger = first named live feature. (3) Sampled behavioral telemetry — only after the census can't answer a concrete question AND the compliance pack is amended. (4) Print variants. (5) Solution-unlock pedagogy pass. (6) /design-consultation brand pass — includes replacing the system-ui chrome font stack (design-review ding, 2026-08-18).
