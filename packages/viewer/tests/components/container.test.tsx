@@ -14,7 +14,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import {
   CHECK_WIRE_VERSION,
@@ -441,5 +441,75 @@ describe('read-only tab (ruling 2.3A / S6-4)', () => {
   it('hides the takeover button when no handler is wired', () => {
     setup(docOf(blocksOf('paragraph')[0]), { readOnly: true });
     expect(screen.queryByRole('button', { name: /use it here/i })).toBeNull();
+  });
+});
+
+describe('the reference panel reaches the screen (sixth S9 orphan)', () => {
+  // reference-panel-tool.test.tsx owns the panel's own behaviour against a fake
+  // renderer. THIS owns the wiring: that ViewerContainer renders it at all,
+  // hands it the real block path, and keeps it off the print surface. The
+  // component and the wiring are separate failures — the field spent nine days
+  // orphaned with its renderer working perfectly.
+
+  /** A document whose panel carries one block, alongside the body. */
+  function withPanel(): SanitizedActivityDocument {
+    return {
+      ...docOf(blocksOf('paragraph')[0]),
+      referencePanel: {
+        title: 'Formula sheet',
+        blocks: blocksOf('math_block'),
+      },
+    } as SanitizedActivityDocument;
+  }
+
+  it('offers the summon on screen and renders the panel’s blocks through the real block path', () => {
+    // resolveComponent is injected so the assertion below is about the PATH,
+    // not about what a math_block happens to look like: seeing `Fine`'s output
+    // proves the panel went through resolveComponent + BlockSlot — the
+    // resolver, the boundary and the mode — and not some second render path.
+    setup(withPanel(), { resolveComponent: () => Fine });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Formula sheet' }));
+
+    // Scoped to the dialog on purpose: the PRINT box renders the same panel
+    // blocks into the DOM too (CSS hides it until @media print), so an unscoped
+    // getByText finds two and cannot tell which surface it found. Both existing
+    // at once is correct — that is the point of the last test in this block.
+    const dialog = screen.getByRole('dialog', { name: 'Formula sheet' });
+    expect(within(dialog).getByText('rendered math_block')).toBeInTheDocument();
+  });
+
+  it('offers NOTHING when the activity has no reference panel', () => {
+    setup(docOf(blocksOf('paragraph')[0]));
+    expect(screen.queryByRole('button', { name: /formula|reference/i })).toBeNull();
+  });
+
+  it('does NOT put a floating panel on the print surface', () => {
+    // ActivityPrint renders this container on SCREEN to show the teacher their
+    // print preview. A summon there is chrome that will not be on the paper —
+    // the same reason the calculator mounts from the route instead (C16).
+    render(
+      <ViewerContainer
+        document={withPanel()}
+        store={createViewerStore({
+          userId: TEST_USER_ID,
+          activityId: ACTIVITY,
+          versionId: VERSION,
+          checkService: createMockCheckService(),
+        })}
+        mode="print"
+        resolveComponent={() => Fine}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Formula sheet' })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('keeps the PRINT box independent of the screen surface', () => {
+    // Two surfaces, one field. The print box renders (CSS hides it until
+    // @media print) whether or not the panel has been summoned — and the
+    // screen tool must not have replaced it.
+    const { container } = setup(withPanel());
+    expect(container.querySelector('.viewer-reference-print')).not.toBeNull();
   });
 });

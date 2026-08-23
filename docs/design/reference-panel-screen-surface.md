@@ -1,6 +1,6 @@
 # The reference panel comes back to the screen
 
-**Status:** 🟡 **DESIGN PASS — decisions R1–R8 await author rulings. Nothing built.**
+**Status:** ✅ **BUILT 2026-08-23 — R1–R8 ruled as recommended, all shipped. See AS-BUILT at the end.**
 
 Closes the sixth S9 orphan: `ActivityDocument.referencePanel` is authored,
 stored, sanitized, censused — and on screen, seen by nobody. Deferred out of the
@@ -169,3 +169,86 @@ Specifically not sufficient: asserting the summon exists. What must be asserted
 is that clicking it puts the teacher's authored blocks on screen, that an
 activity with no panel renders no button at all, and that the print box is
 unaffected either way.
+
+---
+
+# AS-BUILT (2026-08-23)
+
+All eight rulings landed as recommended. The sixth and last S9 orphan is closed.
+
+## What a student gets
+
+An activity with a non-empty `referencePanel` shows a summon in the bottom-LEFT
+corner, named after the panel's title (falling back to "Reference"). Clicking it
+opens a fixed, non-modal 24rem panel holding the teacher's authored blocks. ×
+or Escape closes it and focus returns to the summon. An activity without one
+renders nothing.
+
+## Where the pieces live
+
+| Piece | File |
+|---|---|
+| The panel | `packages/viewer/src/container/ReferencePanelTool.tsx` |
+| Its wiring + the `mode === 'screen'` gate | `packages/viewer/src/container/ViewerContainer.tsx` |
+| Corner modifier + panel CSS | `packages/viewer/src/styles/viewer.css` |
+
+## Five things the build learned
+
+1. **A render prop, not an import.** `BlockSlot` is private to `ViewerContainer`
+   and exporting internal machinery to reach it would have been the wrong trade.
+   `ReferencePanelTool` takes `renderBlock` instead: the container keeps its
+   resolver, boundary and reset-key wiring in one place, and the panel is
+   drivable in a test by a fake renderer that needs no registry at all.
+
+2. **The interactivity question was created BY this slice, and was not in the
+   design pass.** Panel blocks already render into the DOM today (CSS-hidden
+   until print), so a pasted question already renders its radios — invisibly.
+   Making the panel visible would have let a student answer a block that is in
+   no section, and therefore never checked and never submitted: work silently
+   lost. The body is a permanently `disabled` fieldset, the viewer's own idiom,
+   whose rationale carries over exactly ("the browser disables every control
+   inside it, including ones a block type that does not exist yet will add").
+   Plus a CSS rule keeping the text at full contrast — a disabled fieldset dims
+   its contents in some engines, and this is material a student must READ.
+
+3. **Four things were already correct and needed nothing.** Numbering excludes
+   the panel *structurally* ("the guarantee is that those ids are simply never
+   in the map"); census walks it deliberately; and both lazy-asset preloaders
+   (`documentUsesMath`, `documentUsesGraphKit`) deep-walk the whole document, so
+   a panel carrying math or a graph already warms its chunk. Checked rather than
+   assumed — three of them would have been silent if wrong.
+
+4. **`--z-reference` is consumed at last.** All three z-tokens had zero `var()`
+   consumers before the calculator slice; this closes the set. Guarded, along
+   with the ordering that makes it right: the calculator (120) wins an overlap
+   over the panel (115), because the calculator is being USED and the panel is
+   being READ.
+
+5. **A PRE-EXISTING guard was half-built, and mutation found it.** The
+   print/preview mirror asserted only that everything hidden in `@media print`
+   is hidden in the in-page preview. The reverse was unguarded — and it is the
+   WORSE direction: hidden in the preview but not in print means a teacher signs
+   off on a clean preview and the chrome lands on thirty photocopies. Dropping
+   `.viewer-reference-float` from the print block left the pair asymmetric with
+   every existing check green. Now bidirectional.
+
+## The guard bar, discharged
+
+**17 mutations, all red**, across three lanes: 9 against the panel component and
+its container wiring, 8 against the stylesheet.
+
+The bar's warning ("assume this one will be vacuous, and go looking") paid off
+once, on finding #5 above. Two other first drafts failed usefully rather than
+silently: `defaultPrevented: true` in an event init, which React ignores because
+it derives that flag from a real `preventDefault()` call — so the shortcut would
+have tested nothing; and an unscoped `getByText` that found the panel's blocks
+twice, because the print box renders the same blocks into the DOM. Both are
+recorded at their assertions.
+
+## Coverage
+
+| Lane | Added |
+|---|---|
+| viewer jsdom — component | 11 specs (gating, summon, focus, Escape, non-answerable) |
+| viewer jsdom — container wiring | 4 specs (renders, gated off print, print box intact) |
+| viewer node — stylesheet | 5 specs + the mirror's missing direction |

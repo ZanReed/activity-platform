@@ -40,6 +40,7 @@ import type { ComponentType } from 'react';
 import { blockRegistry, familyOf } from '../registry/registry.js';
 import { buildNumbering, type ResolvedLabel } from '../numbering/numbering.js';
 import { resolveBlockComponent } from '../registry/resolveComponent.js';
+import { ReferencePanelTool } from './ReferencePanelTool.js';
 import type { BlockComponentProps, BlockType } from '../registry/types.js';
 import type {
   SanitizedActivityDocument,
@@ -267,11 +268,12 @@ export function ViewerContainer({
       />
 
       {/* The teacher's reference material as a static box at the top of the
-          sheet. On screen the panel is a summoned tool; on paper there is
-          nothing to summon, so it prints inline — but only when the teacher
-          left it on, because a reference sheet reprinted on every worksheet is
-          wasted paper. Scaffold: never scored, outside every section, so the
-          check path never sees it. */}
+          sheet. On screen the panel is a summoned tool (ReferencePanelTool,
+          just below — a claim this comment made for nine days before it was
+          true again); on paper there is nothing to summon, so it prints inline
+          — but only when the teacher left it on, because a reference sheet
+          reprinted on every worksheet is wasted paper. Scaffold: never scored,
+          outside every section, so the check path never sees it. */}
       {doc.referencePanel && print.printReferencePanel ? (
         <aside className="viewer-reference-print" data-block-category="scaffold">
           {doc.referencePanel.title ? (
@@ -290,6 +292,33 @@ export function ViewerContainer({
             />
           ))}
         </aside>
+      ) : null}
+
+      {/* The SCREEN half of the same panel, and the sixth S9 orphan closed.
+          Gated on screen mode (C16's second option) rather than mounted from
+          the route the way the calculator is: this renders React blocks, so it
+          needs the resolver and the per-block boundary that live HERE — and the
+          gate is what keeps a floating panel out of ActivityPrint's on-screen
+          print preview and out of DevViewer.
+
+          It is independent of `printReferencePanel`. That flag has always
+          described PRINT, and until this slice print was the panel's only
+          surface, so turning it off made authored content invisible everywhere
+          — a trap the schema comment had to document. Now the flag means what
+          it says. */}
+      {mode === 'screen' && doc.referencePanel ? (
+        <ReferencePanelTool
+          panel={doc.referencePanel}
+          renderBlock={(block) => (
+            <BlockSlot
+              block={block as SanitizedBlock}
+              mode={mode}
+              {...(versionId === undefined ? {} : { resetKey: versionId })}
+              resolveComponent={resolveComponent}
+              onCrash={handleCrash}
+            />
+          )}
+        />
       ) : null}
 
       {/* The stale-version advisory used to render HERE, independently of the

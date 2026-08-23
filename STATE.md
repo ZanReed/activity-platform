@@ -64,49 +64,37 @@ ordinary but not accidental, which is why it had never happened.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the CALCULATOR slice is BUILT; the reference panel is next
+## Current focus — the S9 ORPHAN ARC IS CLOSED; next comes from writing activities
 
-**✅ CALCULATOR SLICE SHIPPED (2026-08-23) — T1–T9 + T11; T10 deferred.** The
-fourth S9 orphan is closed: an activity with `calculator.enabled` now renders a
-summon in the student viewer, and clicking it mounts the real kit. Plan +
-AS-BUILT in
-[floating-tool-cluster.md](docs/design/floating-tool-cluster.md); the feature
-scope behind it (intersections/intercepts OUT, cross-row definitions MINIMUM
-only) is ruled in DECISIONS.md → "Calculator feature scope".
+**✅ ALL SIX S9 ORPHANS ARE SHIPPED (2026-08-22/23).** Choice figures, nested
+lists, the student calculator, and the reference panel's screen surface — plus a
+live answer-key leak found on the way. Narratives in
+[HISTORY.md](docs/HISTORY.md); each has an AS-BUILT in its design doc
+([calculator](docs/design/floating-tool-cluster.md),
+[reference panel](docs/design/reference-panel-screen-surface.md),
+[choice figures](docs/design/choice-figures-and-nested-lists.md)). What stays
+live from it:
 
-**NOTHING IS OWED TO THE AUTHOR — a finding, not an assumption.**
-`sanitizeActivityDocument` clones the document and strips *blocks* only, so
-`calculator` already reached the client on every served activity: no sanitizer
-change, **no `SANITIZER_REV` move, no redeploy**, no migration. Client-only.
-Beyond the wiring: kit chrome gained a **dark theme** (one generated role list,
-typed so a missing role is a compile error) and a **`--gk-z-panel` seam**
-replacing a `z-index: 120` literal that matched the token by coincidence; a
-**<480px bottom sheet** (it hung 123px off a 375px screen); and **T11** —
-`a = 10` then `a*2` reads `= 20` and plots nothing, where it silently drew a
-line at y = 20 before, so the feature was also a bug fix.
+- **The calculator's FEATURE SCOPE is ruled** — DECISIONS.md → "Calculator
+  feature scope". Intersections/intercepts are OUT on pedagogy grounds; do not
+  re-pitch them as cheap.
+- **All three z-tokens now have real `var()` consumers.** The ladder is load-
+  bearing again: tools 110 < reference 115 < calculator 120 < popovers 1000.
+- **A pasted question can reach a reference panel.** Its key no longer ships,
+  and the panel body is a permanently disabled fieldset so it cannot be
+  answered. Whether the EDITOR should refuse the paste is an open product
+  question with zero live instances.
+- **THREE orphan classes remain**, all knobs rather than content loss (graph
+  feedback, the flow modes, `hasConfidenceRating`/`allowTargetReuse`) — TODOS
+  carries them; each needs a wire-or-delete ruling.
 
-**⏭ NEXT: the reference panel's screen surface** — the sixth orphan, deferred
-from this plan with its content-shape questions unanswered (Columns inside a
-24rem window, full-size images, a periodic table). Its **sanitizer gap (D16) is
-live and independent**: `referencePanel.blocks` takes the full block union and
-the per-block strips never run there, so a pasted multiple-choice ships its key
-today. That one DOES move `SANITIZER_REV` and owe a redeploy.
-
-**⚠ Two guards were found vacuous this session, one pre-existing and one my
-own.** `styles.test.ts`'s "no raw box-shadow" had looped over zero declarations
-since it was written AND named a token namespace retired months ago; it is
-repaired and now asserts it saw a declaration (P9). My own `.tool-mount`
-stacking-context test located its rule with `indexOf`, matched the print-preview
-rule earlier in the file, and passed against the wrong body. Both were caught by
-mutation testing, which is the whole argument for it: **21 mutations, all red**
-after those fixes.
-
-**✅ CHOICE FIGURES + NESTED LISTS SHIPPED (2026-08-23)** — narrative in
-[HISTORY.md](docs/HISTORY.md), AS-BUILT in
-[choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md).
-**Three orphan classes remain open** in TODOS (graph feedback knobs, the flow
-modes, `hasConfidenceRating`/`allowTargetReuse`) — each needs a wire-or-delete
-ruling; the calculator's was "wire".
+**⚠ THREE guards were found VACUOUS across the arc, two of them pre-existing and
+years old** — `styles.test.ts`'s "no raw box-shadow" (looped over zero
+declarations AND named a retired token namespace) and the print/preview mirror
+(guarded only one direction; the unguarded one is the worse one — a clean
+preview with chrome on the paper). The third was my own. **All were caught by
+mutation testing and none by a passing suite**, which is the whole argument for
+the guard bar: a green check that never ran is worse than no check.
 
 **Everything that was blocking bulk authoring has shipped.** The batch importer
 (0038, `source_path` identity, file-wins re-runs), the drift guard (0039), the
@@ -177,7 +165,7 @@ decision. What stays live:
 | Scheduled jobs (pg_cron) | ✅ Installed 2026-08-05; both jobs active; first fire observed + verified 2026-08-06. **Verify the run, not the registration** |
 | Components-as-data slices S0–S9 | ✅ Complete — see the slice ledger; only author stations remain |
 | Print (baseline CSS → authored feature → viewer print + gate) | ✅ Complete through S5.5; print gates run in CI; sign-off evidence durable at tag `s5.5-print-signoff` |
-| Question types + pedagogical blocks + calculator + reference panel + typography | ✅ Live in the viewer. **The student CALCULATOR was wired 2026-08-23** (summon cluster in `StudentViewer`; dark chrome + <480px sheet in the kit) — it had been authored-but-unreachable since S9 Drop 4. **The REFERENCE PANEL is still screen-dead**: it renders ONLY into print (`ViewerContainer.tsx:275`, gated on `printReferencePanel`, which defaults ON). Its screen surface is the next slice, and its **sanitizer gap (D16) is live** — `referencePanel.blocks` takes the full block union and the per-block strips never run there |
+| Question types + pedagogical blocks + calculator + reference panel + typography | ✅ **All live in the viewer as of 2026-08-23** — the two FLOATING TOOLS were wired this session and were the last student-facing gaps. Calculator: summon cluster in `StudentViewer`, dark chrome + <480px sheet in the kit. Reference panel: bottom-LEFT summon in `ViewerContainer`, gated `mode === 'screen'` so it stays off the print preview, body a permanently disabled fieldset. The print box is unchanged and independent |
 | Phase 2.6 manual grading | ⚰️ **RETIRED at S9 Drop 3.** Blocks + rubric authoring survive in editor/schema/viewer; the dashboard + `lib/submissions`/`lib/grades` are deleted; `grades` kept empty. Successor SHIPPED 2026-08-16 as the checks-native grading slice (0034); `grades` + `can_grade_submission` dropped there |
 | Edge Functions (**2**) + deploy flags | ✅ **exactly two**, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`). **Versions are NOT pinned here** — they moved three times in six days and this row carried a different pair from the Pending section (drift audit 2026-08-21). Read them with `list_edge_functions`, from the **`version`** field and never the `entrypoint_path` suffix beside it; `supabase/config.toml` is the authoritative flag record |
 | Cloudflare R2 hosting | ⚰️ **DEAD.** Code-side at S9 Drop 4; the D-13 teardown ran 2026-08-15 (upload scripts + `.env.r2` deleted). Only the dashboard steps remain — see the standing constraints |

@@ -147,13 +147,13 @@ export type PrintHeader = z.infer<typeof PrintHeader>;
 //   printReferencePanel — whether the activity's reference panel prints as a
 //                    box at the top of the worksheet. On by default; a teacher
 //                    with a class set of charts can turn it off so it isn't
-//                    reprinted per activity. This gates PRINT alone — but note
-//                    that print is currently the panel's only surface at all:
-//                    the on-screen reference toolbar this comment used to point
-//                    at died with the renderer (S9 Drop 4) and its replacement
-//                    is a filed, deferred slice, so a teacher who turns this
-//                    off today makes the panel invisible everywhere. Read by
-//                    the viewer's print layer; not a container CSS var.
+//                    reprinted per activity. Gates PRINT alone, and as of
+//                    2026-08-23 that is true again rather than merely claimed:
+//                    the panel's SCREEN surface is back (a summoned panel in
+//                    the viewer), so turning this off means screen-only instead
+//                    of invisible-everywhere. Between S9 Drop 4 and that slice
+//                    print WAS the only surface, which made this flag a trap.
+//                    Read by the viewer's print layer; not a container CSS var.
 //   printDefinitionGlossary — whether inline vocabulary definitions print as a
 //                    glossary appendix at the END of the worksheet. OFF by
 //                    default, unlike printReferencePanel: on screen a definition

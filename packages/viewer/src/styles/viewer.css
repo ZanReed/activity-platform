@@ -1272,8 +1272,9 @@
 }
 
 /* The reference box is the PAPER form of the reference panel. On screen the
-   panel is a tool a student summons, so the box would be a duplicate of
-   material already available — it appears only when printing. Likewise the
+   panel is a tool a student summons (.viewer-reference-float below — true
+   again since 2026-08-23), so the box would be a duplicate of material already
+   available — it appears only when printing. Likewise the
    glossary: on screen each definition is a disclosure opened over its own
    word, which is a better affordance than an appendix; the appendix exists
    because paper has no disclosures. */
@@ -1373,7 +1374,8 @@
 :where([data-viewer-mode='print']) .viewer-number-line__canvas,
 :where([data-viewer-mode='print']) .viewer-data-plot__canvas,
 :where([data-viewer-mode='print']) .tool-corner,
-:where([data-viewer-mode='print']) .tool-mount {
+:where([data-viewer-mode='print']) .tool-mount,
+:where([data-viewer-mode='print']) .viewer-reference-float {
   display: none;
 }
 
@@ -2058,12 +2060,15 @@
 }
 
 /* =============================================================================
- * The tool cluster — the summonable calculator's corner
+ * The tool cluster — the summonable tools' corners
  * ---------------------------------------------------------------------------
- * Bottom-RIGHT by inherited convention (DECISIONS.md:195), which is also where
- * the kit pins its own panel — so the summon is covered by the tool it opens,
- * which is why it hides while open rather than sitting uselessly underneath.
- * The reference panel, when its own slice lands, anchors bottom-LEFT.
+ * Bottom-RIGHT for the calculator by inherited convention (DECISIONS.md:195),
+ * which is also where the kit pins its own panel — so the summon is covered by
+ * the tool it opens, which is why it hides while open rather than sitting
+ * uselessly underneath. The reference panel takes bottom-LEFT, and the two
+ * corners are the whole reason that convention exists: both panels can be open
+ * at once, and the calculator's kit hardcodes `right: 1rem; bottom: 1rem`, so a
+ * shared corner would bury the reference summon under an open calculator.
  * ========================================================================== */
 .tool-corner {
   bottom: var(--space-4);
@@ -2085,6 +2090,13 @@
  * coincidence. */
 .tool-mount {
   --gk-z-panel: var(--z-calculator);
+}
+
+/* Bottom-LEFT, for the reference panel (DECISIONS.md:195). */
+.tool-corner--left {
+  align-items: flex-start;
+  left: var(--space-4);
+  right: auto;
 }
 
 .tool-summon {
@@ -2130,12 +2142,132 @@
   padding: var(--space-2) var(--space-3);
 }
 
+/* =============================================================================
+ * The reference panel's floating screen form
+ * ---------------------------------------------------------------------------
+ * Below the calculator in the z-ladder (--z-reference 115 < --z-calculator 120)
+ * so an open calculator wins an overlap, which is the right precedence: the
+ * calculator is being USED, the panel is being READ.
+ *
+ * NO DRAG and no resize in v1 (ruling R2) — C5 already holds that drag is an
+ * enhancement and the panel must be fully usable parked. So unlike the
+ * calculator's kit chrome there is no header cursor, no inline geometry, and
+ * nothing for a stylesheet to lose a fight with.
+ *
+ * 24rem, clamped to the viewport (ruling R3). The observed content is a formula
+ * list; wide content scrolls INSIDE its own block rather than making the panel
+ * scroll sideways.
+ * ========================================================================== */
+.viewer-reference-float {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-window);
+  bottom: var(--space-4);
+  box-shadow: var(--vw-shadow-window);
+  display: flex;
+  flex-direction: column;
+  left: var(--space-4);
+  max-height: 60vh;
+  max-width: calc(100vw - 2 * var(--space-4));
+  position: fixed;
+  width: 24rem;
+  z-index: var(--z-reference);
+}
+
+.viewer-reference-float:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.viewer-reference-float__header {
+  align-items: center;
+  border-bottom: 1px solid var(--vw-color-line);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
+.viewer-reference-float__title {
+  font-family: var(--vw-font-chrome);
+  font-size: var(--type-meta);
+  font-weight: 700;
+  margin: 0;
+}
+
+.viewer-reference-float__close {
+  background: none;
+  border: none;
+  color: var(--vw-color-ink-muted);
+  cursor: pointer;
+  font-size: var(--type-h3);
+  line-height: 1;
+  padding: 0 var(--space-1);
+}
+
+.viewer-reference-float__close:hover {
+  color: var(--vw-color-ink);
+}
+
+.viewer-reference-float__close:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* The body scrolls; the panel does not. `min-height: 0` is what lets a flex
+ * child actually shrink enough to scroll instead of overflowing its parent. */
+.viewer-reference-float__body {
+  border: none;
+  margin: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+/* Wide content scrolls inside ITSELF. Without this a table or a figure wider
+ * than 24rem makes the whole panel scroll sideways, which drags the header and
+ * the close button off with it. */
+.viewer-reference-float__body :is(table, pre) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.viewer-reference-float__body img {
+  max-width: 100%;
+}
+
+/* A disabled fieldset greys its contents in some engines; this panel is
+ * reference material a student must READ, so the disable is about interaction
+ * only and must not dim the text. */
+.viewer-reference-float__body:disabled {
+  color: inherit;
+  opacity: 1;
+}
+
+/* Narrow screens: the same bottom sheet the calculator takes, capped lower.
+ * The panel is what a student reads WHILE working, so it must not bury the work
+ * it is being read for. */
+@media (max-width: 480px) {
+  .viewer-reference-float {
+    border-radius: var(--vw-radius-window) var(--vw-radius-window) 0 0;
+    bottom: 0;
+    left: 0;
+    max-height: 60vh;
+    max-width: none;
+    right: 0;
+    width: auto;
+  }
+}
+
 /* A summoned tool is screen-only scaffold: it contributes nothing to the paper
- * record, and the print surface never mounts it in the first place (C16). This
- * is the belt to that braces — a stray cluster must not cost a page. */
+ * record, and the print surface never mounts it in the first place (C16 for the
+ * calculator; the `mode === 'screen'` gate for the reference panel). This is
+ * the belt to that braces — a stray cluster must not cost a page. */
 @media print {
   .tool-corner,
-  .tool-mount {
+  .tool-mount,
+  .viewer-reference-float {
     display: none !important;
   }
 }

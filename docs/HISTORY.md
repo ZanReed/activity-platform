@@ -1227,3 +1227,56 @@ table of 5 rows / 10 cells.
 *(Prior entry:)* 2026-08-18 (shell slimming slice 1 built, pushed, CI-green at 32048169054; then its one leftover red — the sw offline rows — chased to root cause, fixed, pushed and CI-green at 32081815982. The rollup's first v2 run at 03:30 UTC is still the thing to check.)
 
 **Two lessons from the day, both about tests that were passing for the wrong reason.** (1) **The sw offline rows were green in CI because CI has no local Supabase stack** — the stub lanes and the integration lane shared one address they needed to mean opposite things. A lane that passes because of what is ABSENT from the machine is not passing, it is unobserved. Mechanism + the guard now holding it: `packages/app/e2e/helpers/e2eOrigins.ts`. (2) **Two of the shell-slim plan's own claims were wrong, and the tests written to honor them are what found it** — "vitest parity, dissolved by inspection" (vitest externalizes `node_modules`, so the alias never applied) and severe-finding-1's premise (an apikey-less upload does not 401); both written up in that plan's AS BUILT section. **The pattern to keep: when a review's own claims are the input, the build's first job is to make each one falsifiable.**
+
+
+## The S9 orphan arc — the session narrative (2026-08-23)
+
+## Current focus — the CALCULATOR slice is BUILT; the reference panel is next
+
+**✅ CALCULATOR SLICE SHIPPED (2026-08-23) — T1–T9 + T11; T10 deferred.** The
+fourth S9 orphan is closed: an activity with `calculator.enabled` now renders a
+summon in the student viewer, and clicking it mounts the real kit. Plan +
+AS-BUILT in
+[floating-tool-cluster.md](docs/design/floating-tool-cluster.md); the feature
+scope behind it (intersections/intercepts OUT, cross-row definitions MINIMUM
+only) is ruled in DECISIONS.md → "Calculator feature scope".
+
+**NOTHING IS OWED TO THE AUTHOR — a finding, not an assumption.**
+`sanitizeActivityDocument` clones the document and strips *blocks* only, so
+`calculator` already reached the client on every served activity: no sanitizer
+change, **no `SANITIZER_REV` move, no redeploy**, no migration. Client-only.
+Beyond the wiring: kit chrome gained a **dark theme** (one generated role list,
+typed so a missing role is a compile error) and a **`--gk-z-panel` seam**
+replacing a `z-index: 120` literal that matched the token by coincidence; a
+**<480px bottom sheet** (it hung 123px off a 375px screen); and **T11** —
+`a = 10` then `a*2` reads `= 20` and plots nothing, where it silently drew a
+line at y = 20 before, so the feature was also a bug fix.
+
+**✅ THE REFERENCE PANEL SHIPPED TOO (2026-08-23) — the sixth and LAST S9 orphan
+is closed.** A non-empty `referencePanel` now shows a bottom-LEFT summon opening
+a fixed 24rem non-modal panel; × or Escape closes it and focus returns.
+R1–R8 ruled as recommended — no drag in v1 (C5 already holds drag is an
+enhancement), no new teacher flag, no first-visit nudge. Plan + AS-BUILT:
+[reference-panel-screen-surface.md](docs/design/reference-panel-screen-surface.md).
+Two things worth carrying: the panel's body is a **permanently disabled
+fieldset** (a pasted question CAN reach a panel, and on screen a student could
+answer a block that is in no section — never checked, never submitted), and
+`--z-reference` is consumed at last, so **all three z-tokens now have real
+`var()` consumers**.
+
+**⚠ Two guards were found vacuous this session, one pre-existing and one my
+own.** `styles.test.ts`'s "no raw box-shadow" had looped over zero declarations
+since it was written AND named a token namespace retired months ago; it is
+repaired and now asserts it saw a declaration (P9). My own `.tool-mount`
+stacking-context test located its rule with `indexOf`, matched the print-preview
+rule earlier in the file, and passed against the wrong body. Both were caught by
+mutation testing, which is the whole argument for it: **21 mutations, all red**
+after those fixes.
+
+**✅ CHOICE FIGURES + NESTED LISTS SHIPPED (2026-08-23)** — narrative in
+[HISTORY.md](docs/HISTORY.md), AS-BUILT in
+[choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md).
+**Three orphan classes remain open** in TODOS (graph feedback knobs, the flow
+modes, `hasConfidenceRating`/`allowTargetReuse`) — each needs a wire-or-delete
+ruling; the calculator's was "wire".
+

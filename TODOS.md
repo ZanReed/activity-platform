@@ -196,7 +196,19 @@ before it existed is what produced the wrong ruling.) Note the sheet work
 already handled the <480px case; what is left is the DESKTOP default height on
 a short laptop viewport.
 
-## A SIXTH ORPHAN THE AUDIT MISSED — the reference panel has no SCREEN surface (2026-08-23)
+## ~~A SIXTH ORPHAN THE AUDIT MISSED — the reference panel has no SCREEN surface~~ ✅ FIXED 2026-08-23
+
+**CLOSED the same day it was filed**, by
+[reference-panel-screen-surface.md](docs/design/reference-panel-screen-surface.md)
+(design pass + AS-BUILT). `ReferencePanelTool` renders a bottom-LEFT summon and
+a fixed 24rem non-modal panel, wired in `ViewerContainer` behind a
+`mode === 'screen'` gate. The **sanitizer gap this entry pointed at was a real
+answer-key leak and is fixed separately** (`SANITIZER_ALGO_REV` 1→2; measured
+zero live instances). The original filing is kept below because two of its
+claims were later disproved and the corrections are the useful part.
+
+---
+
 
 Found while investigating the calculator, which is its twin.
 

@@ -253,6 +253,11 @@ export { ViewerContainer } from './container/ViewerContainer.js';
 // floating calculator (C16).
 export { ToolCluster } from './container/ToolCluster.js';
 export type { ToolClusterProps } from './container/ToolCluster.js';
+// The reference panel's screen surface. Unlike ToolCluster this is rendered BY
+// ViewerContainer (it needs the resolver and the per-block boundary), so it is
+// on the barrel for its own test rather than for a route to mount.
+export { ReferencePanelTool } from './container/ReferencePanelTool.js';
+export type { ReferencePanelToolProps } from './container/ReferencePanelTool.js';
 export type {
   CheckShortfall,
   ViewerContainerProps,

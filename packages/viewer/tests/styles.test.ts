@@ -370,6 +370,25 @@ describe('the in-page print preview mirrors the printed page (S5.5 D24)', () => 
     }
   });
 
+  it('hides on PAPER everything the preview hides — the other direction', () => {
+    // This half was missing until 2026-08-23, and it is the WORSE direction:
+    // hidden in the preview but not in print means a teacher signs off on a
+    // clean preview and the chrome lands on thirty photocopies. Found by
+    // mutation — dropping .viewer-reference-float from the @media print block
+    // left the pair asymmetric and every existing check stayed green.
+    const inPrint = hiddenSelectors(printBlock);
+    const inPreview = hiddenSelectors(previewBlock);
+
+    expect(inPreview.size).toBeGreaterThan(0);
+    for (const selector of inPreview) {
+      expect(
+        inPrint.has(selector),
+        `${selector} is hidden in the in-page preview but NOT in @media print ` +
+          '— the teacher approves a clean preview and the paper carries it',
+      ).toBe(true);
+    }
+  });
+
   it('reveals each affordance with the SAME display value print gives it', () => {
     // The presence check below is not enough, and this test exists because that
     // gap shipped a bug: the preview revealed .viewer-print-header with a
@@ -472,5 +491,58 @@ describe('the tool cluster — the seams that only exist in CSS', () => {
     // Below the reference panel and the calculator by the inherited ladder
     // (DECISIONS.md:195): tools 110 < reference 115 < calculator 120.
     expect(code).toMatch(/\.tool-corner \{[^}]*z-index:\s*var\(--z-tools\)/s);
+  });
+});
+
+describe('the reference panel’s floating form — stylesheet-only facts', () => {
+  it('consumes --z-reference, the last of the three z-tokens', () => {
+    // The ladder is tools 110 < reference 115 < calculator 120. Before the
+    // calculator slice all three had ZERO var() consumers — the tokens outlived
+    // the runtime that used them. This closes the set.
+    const rule = /(?:^|\n)\.viewer-reference-float \{([^}]*)\}/.exec(code);
+    expect(rule, '.viewer-reference-float has no standalone rule').not.toBeNull();
+    expect(rule![1]!).toMatch(/z-index:\s*var\(--z-reference\)/);
+  });
+
+  it('sits BELOW the calculator, which is the right precedence', () => {
+    // Both can be open at once. The calculator is being USED; the panel is
+    // being READ, so the calculator wins an overlap.
+    const tokens = readFileSync(
+      new URL('../src/tokens/tokens.css', import.meta.url),
+      'utf8',
+    );
+    const value = (name: string) =>
+      Number(new RegExp(`${name}:\\s*(\\d+)`).exec(tokens)?.[1]);
+    expect(value('--z-reference')).toBeLessThan(value('--z-calculator'));
+    expect(value('--z-tools')).toBeLessThan(value('--z-reference'));
+  });
+
+  it('anchors bottom-LEFT so an open calculator never collides', () => {
+    // DECISIONS.md:195. The calculator's kit hardcodes right:1rem/bottom:1rem,
+    // so a shared corner would bury one summon under the other's panel.
+    const rule = /(?:^|\n)\.tool-corner--left \{([^}]*)\}/.exec(code);
+    expect(rule, '.tool-corner--left has no rule').not.toBeNull();
+    expect(rule![1]!).toMatch(/left:/);
+    expect(rule![1]!).toMatch(/right:\s*auto/);
+  });
+
+  it('scrolls its BODY, never itself', () => {
+    // If the panel scrolls instead of the body, the header and the close button
+    // scroll away with the content — and a student who scrolled down has no way
+    // to shut it.
+    const body = /(?:^|\n)\.viewer-reference-float__body \{([^}]*)\}/.exec(code);
+    expect(body, 'no body rule').not.toBeNull();
+    expect(body![1]!).toMatch(/overflow-y:\s*auto/);
+    // min-height:0 is what actually lets a flex child shrink enough to scroll.
+    expect(body![1]!).toMatch(/min-height:\s*0/);
+  });
+
+  it('keeps its text at full contrast despite the disabled fieldset', () => {
+    // The body is a permanently-disabled fieldset (reference material is not
+    // answerable). Some engines grey a disabled fieldset's contents, and this
+    // is material a student must READ.
+    expect(code).toMatch(
+      /\.viewer-reference-float__body:disabled \{[^}]*opacity:\s*1/s,
+    );
   });
 });
