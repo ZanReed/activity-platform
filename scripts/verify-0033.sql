@@ -31,10 +31,41 @@ select 'attestation_columns',
          where table_name = 'users'
            and column_name in ('educator_attested_at','educator_attested_version','teacher_caps_exempt')) = 3,
        'R3/D6: attestation rides POLICY_VERSION; caps exemption is per-account';
+-- ⚠ SCOPED TO THE ALLOWLIST DOOR 2026-08-24, AND THAT IS A CORRECTION, NOT A
+-- WEAKENING. As written this asserted that NO teacher is capped — but capping
+-- the self-serve ones is the entire point of 0033 §G, whose own source comment
+-- says so ("teacher_caps_exempt stays FALSE: self-serve teachers are capped").
+-- The assertion's message always described the narrower property; only its
+-- predicate was wide. It began reporting correct behaviour as a failure the
+-- moment the self-serve door produced its first teacher (2026-08-19, two
+-- accounts), and it fails identically on the LOCAL database for the same
+-- reason — the integration lane's teacher claims through claim_teacher.
+--
+-- `educator_attested_at is null` IS the allowlist door: claim_teacher stamps
+-- it, the trigger's allowlist branch does not, and the column comment says so
+-- outright ("NULL for allowlist teachers"). Preferred over allowlist
+-- membership, which can be edited after the fact.
 select 'existing_teachers_exempt',
        not exists (select 1 from users
-                    where role in ('teacher','admin') and teacher_caps_exempt = false),
+                    where role in ('teacher','admin')
+                      and educator_attested_at is null
+                      and teacher_caps_exempt = false),
        'allowlist teachers predate the caps and stay uncapped';
+-- The COMPLEMENT, which nothing asserted before — and it is the half that is a
+-- security property rather than a migration artifact (P3: the caps gate had no
+-- liveness proof). Net coverage goes UP: one over-wide row becomes two exact
+-- ones.
+-- ⚠ IF THE AUTHOR DELIBERATELY LIFTS ONE ACCOUNT'S CAP, this goes red. That is
+-- intended — a hand-granted exemption is a security-relevant, not-reproducible-
+-- from-migrations fact (the `display_name` class), and having to write down
+-- WHICH account and WHY is the cheapest audit trail there is. Amend the row
+-- with the reason; do not widen the predicate back.
+select 'self_serve_teachers_capped',
+       not exists (select 1 from users
+                    where role in ('teacher','admin')
+                      and educator_attested_at is not null
+                      and teacher_caps_exempt = true),
+       '§G: claiming teacher does NOT buy an exemption — the author lifts it per-account';
 select 'redeem_not_anon_reachable',
        not has_function_privilege('anon', 'redeem_join_code(text)', 'execute')
        and has_function_privilege('authenticated', 'redeem_join_code(text)', 'execute'),
