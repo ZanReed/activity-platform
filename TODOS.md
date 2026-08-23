@@ -1222,9 +1222,23 @@ saved work on the other side of it, not a size question.
 
 **THE LADDER'S REMAINING RUNGS** (ruling R7 — each is its own slice,
 deliberately NOT folded into slice 1; and see the stale-list warning above):
-1. **The zod audit.** `@activity/schema` parses in the shell, and the offline-restore
-   path is parse-bearing — so this needs real thought about what may become a
-   trust-the-bytes read and what must stay validated. Biggest remaining candidate.
+1. **The zod audit.** 🟡 **DESIGN PASS DONE 2026-08-23 —
+   [shell-slim-zod.md](docs/design/shell-slim-zod.md), Z1–Z7 await rulings.**
+   ⚠ **The description that stood here was WRONG and is corrected in that doc:**
+   it said "the offline-restore path is parse-bearing — so this needs real
+   thought about what may become a trust-the-bytes read and what must stay
+   validated." Measured: **the student path contains ZERO zod parses.**
+   `readClient.ts:188` casts the served document; `documentCache.ts` casts the
+   cached body after checking only the envelope. Every parse in the workspace
+   outside tests is an EDITOR path, and those are lazy chunks. So zod is in the
+   shell as IMPORT cost, not validation cost, and there is no trust to trade —
+   which makes this the smallest rung, not the scariest one.
+   The anchor is ONE EDGE (`block-predicates.ts:32` value-imports `tableBlankIds`
+   from a zod schema module); extraction + `"sideEffects": false` took a probe
+   from 19.2 → 0.77 KiB gz with zod ABSENT, and `sideEffects` ALONE was measured
+   and refuted. The trust-posture question the old text imagined is real but
+   separate, and is filed as Z7 — it must not ride this slice, because adding
+   validation would put zod straight back.
 2. **The router.** react-router v7's data APIs cost more than this app's route table
    needs; a swap is mechanical but touches every route file.
 3. **Preact/compat.** Largest single win and largest blast radius (Tiptap, floating-ui
