@@ -485,9 +485,19 @@ all**: no corner, no hidden button.
 ## The guard bar, discharged
 
 Every guard was mutation-tested — the wiring reverted, the test required to go
-red. **21 mutations, all red**, across three lanes: 11 against the cluster
+red. **23 mutations, all red**, across four lanes: 11 against the cluster
 component and T11's decision, 5 against the stylesheet guards (viewer + kit),
-and 5 against the browser lane.
+5 against the browser lane, and 2 against the ROUTE WIRING.
+
+That last pair closes the gap that made this an orphan in the first place. The
+component test proves `ToolCluster` works; the browser lane proves the kit
+works; neither can see whether `StudentViewer` actually passes the served
+document's `calculator` into it. Three specs in
+`packages/app/src/__tests__/StudentViewer.test.tsx` assert the summon appears
+for a calculator-bearing activity and does NOT for an absent or disabled one —
+**a component that works, wired to nothing, is precisely this repo's signature
+defect**, and it is invisible to every test that stops at the component
+boundary.
 
 **And the bar was right that one would be vacuous.** The first draft of the
 ".tool-mount opens no stacking context" test located the rule with
@@ -511,6 +521,7 @@ disabled outright, detection result discarded — both went red.
 | graph-kit node | 13 scope-calculation specs |
 | graph-kit jsdom | 10 stylesheet specs |
 | app chromium e2e | 10 specs (sheet geometry, dark chrome, z-seam, T11 rendered) |
+| app jsdom (route) | 3 specs — the wiring itself |
 
 Coverage of the plan's diagram: **12/12 new code paths**, 8/8 flows. The one
 `[→E2E]` row (the <480px sheet) landed in the browser lane as planned.

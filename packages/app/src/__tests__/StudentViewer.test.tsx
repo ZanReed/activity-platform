@@ -577,3 +577,67 @@ describe('the banner dedup chain (D9/D4/A15)', () => {
         expect(screen.queryByText(/try again/i)).toBeNull();
     });
 });
+
+describe('the tool cluster reaches the student (calculator slice)', () => {
+    // THE WIRING, and nothing else. ToolCluster's own behaviour is pinned in
+    // packages/viewer/tests/components/tool-cluster.test.tsx and the kit's in
+    // the browser lane; what neither can see is whether this ROUTE passes the
+    // served document's calculator into it. That gap is exactly how the field
+    // became an orphan in the first place — a component that works, wired to
+    // nothing — so it gets its own guard on the student's side of the seam.
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+
+    function servedWith(calculator?: unknown) {
+        const document = servedFixtureDocument() as Record<string, unknown>;
+        if (calculator === undefined) delete document.calculator;
+        else document.calculator = calculator;
+        return {
+            activityId: ACTIVITY,
+            versionId: 'v1',
+            versionNum: 1,
+            title: 'Linear Systems',
+            document,
+        };
+    }
+
+    it('offers the summon when the teacher enabled a calculator', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedWith({
+            enabled: true,
+            restrictions: { mode: 'graphing' },
+        });
+        renderRoute();
+
+        expect(
+            await screen.findByRole('button', { name: 'Calculator' }),
+        ).toBeInTheDocument();
+    });
+
+    it('offers NOTHING on an activity with no calculator', async () => {
+        // The fixture's own shape, which is every activity a teacher has not
+        // opted in for. A summon here would put a calculator on the whole
+        // platform's worksheets.
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedWith(undefined);
+        renderRoute();
+
+        // Wait for the worksheet itself before asserting an absence — asserting
+        // "not there" against a page that has not loaded passes for the wrong
+        // reason.
+        await screen.findAllByRole('textbox');
+        expect(
+            screen.queryByRole('button', { name: 'Calculator' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers nothing when a calculator exists but is switched off', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = servedWith({ enabled: false, restrictions: {} });
+        renderRoute();
+
+        await screen.findAllByRole('textbox');
+        expect(
+            screen.queryByRole('button', { name: 'Calculator' }),
+        ).not.toBeInTheDocument();
+    });
+});
