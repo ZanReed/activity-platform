@@ -1,6 +1,6 @@
 # The floating tool cluster — the calculator and the reference panel come back
 
-**Status:** 🟢 **PLAN — REVISED 2026-08-23 after a completed eng review + outside voice. SCOPE CUT to the calculator; C6 and C12 REVERTED. Cleared to build.**
+**Status:** ✅ **BUILT 2026-08-23 — T1–T9 + T11 shipped, T10 deferred. See AS-BUILT at the end.** *(Was: PLAN — REVISED 2026-08-23 after a completed eng review + outside voice; SCOPE CUT to the calculator; C6 and C12 REVERTED.)*
 
 > ⚠ **READ THIS FIRST — three of this plan's own rulings were wrong, and the
 > outside voice caught them.** The first eng review was run from memory and
@@ -308,37 +308,37 @@ Both are now ruled (C7b, C15) and tasked.
 
 ## Implementation Tasks (revised — calculator only)
 
-- [ ] **T1 (P1)** — viewer — `<ToolCluster>`: the corner, the summon button,
+- [x] **T1 (P1)** — viewer — `<ToolCluster>`: the corner, the summon button,
   open/close state. **Mounted in `StudentViewer`, or gated `mode === 'screen'`
   (C16).** Renders nothing when no calculator is configured.
-- [ ] **T2 (P1)** — viewer — Mount/unmount lifecycle: dynamic import,
+- [x] **T2 (P1)** — viewer — Mount/unmount lifecycle: dynamic import,
   `floating: true`, cancelled-mid-load guard (copy `CalculatorPreview`),
   destroy on unmount.
-- [ ] **T3 (P1)** — viewer — Summon states: pending (`aria-busy`,
+- [x] **T3 (P1)** — viewer — Summon states: pending (`aria-busy`,
   inert-not-disabled) and **failed** (catch → restore → "unavailable offline",
   retryable) per C7/C7b.
-- [ ] **T4 (P1)** — **graph-kit** — `z-index: var(--gk-z-panel, 120)` (C12) and
+- [x] **T4 (P1)** — **graph-kit** — `z-index: var(--gk-z-panel, 120)` (C12) and
   overridable chrome colours for dark mode (C14). **One kit edit serves both.**
   Check the editor drawer preview still renders correctly.
-- [ ] **T5 (P1)** — viewer — `close()` not `destroy()` on put-away (C15);
+- [x] **T5 (P1)** — viewer — `close()` not `destroy()` on put-away (C15);
   destroy only on activity unmount.
-- [ ] **T6 (P1)** — viewer/styles — The <480px sheet (C8). **Check the existing
+- [x] **T6 (P1)** — viewer/styles — The <480px sheet (C8). **Check the existing
   `@container gkcal (max-width:23rem)` first** — it is dead code today and may
   do most of the work behind a `min-width` override.
-- [ ] **T7 (P1)** — tests (jsdom) — Cluster logic + both failure paths, with a
+- [x] **T7 (P1)** — tests (jsdom) — Cluster logic + both failure paths, with a
   stubbed rejecting import. **Mutation-tested.** Not sufficient: asserting a
   wrapper exists.
-- [ ] **T8 (P2)** — tests (e2e) — Sheet geometry <480px, real mount, focus
+- [x] **T8 (P2)** — tests (e2e) — Sheet geometry <480px, real mount, focus
   return via `toBeFocused`.
-- [ ] **T9 (P2)** — docs — Fix `document.ts:150` ("on-SCREEN reference toolbar"
+- [x] **T9 (P2)** — docs — Fix `document.ts:150` ("on-SCREEN reference toolbar"
   as live) and `printExpectations.ts:843` ("the screen tool never prints").
   ⚠ **Do NOT rewrite DECISIONS.md:193-195** — the earlier plan would have, on a
   misreading. The convention stands.
-- [ ] **T10 (P3)** — measure the calculator's default 26rem height against a
+- [ ] **T10 (P3, NOT DONE — still open)** — measure the calculator's default 26rem height against a
   640px viewport and rule on a smaller default. This is the actual occlusion
   lever C6 mistook for a panel-count problem.
 
-- [ ] **T11 (P2)** — **graph-kit** — cross-row definitions, MINIMUM: in
+- [x] **T11 (P2)** — **graph-kit** — cross-row definitions, MINIMUM: in
   `expression-list.ts` classify slider rows first, then retry the calculation
   branch for variable-bearing x-free rows against the live scope so `a*2`
   shows `= 20` and plots NOTHING (today it plots a horizontal line — a bug).
@@ -410,3 +410,107 @@ replaces it. The lesson is the one the whole arc keeps producing: **a green
 result from a check that did not run is worse than no check.**
 
 NO UNRESOLVED DECISIONS
+
+---
+
+# AS-BUILT (2026-08-23)
+
+Shipped: **T1–T9 and T11.** Deferred: **T10** (the 26rem-default-height
+measurement) — it is a polish question about the desktop default, independent of
+everything here, and it is the one item still open on this plan.
+
+## What the student gets
+
+An activity with `calculator.enabled` renders a summon button in a fixed
+bottom-right corner. Clicking it lazy-imports the kit and mounts the real
+floating panel; the button hides while the panel is up and comes back — focused
+— when the panel closes. An activity without a calculator renders **nothing at
+all**: no corner, no hidden button.
+
+## Where the pieces live
+
+| Piece | File |
+|---|---|
+| The component | `packages/viewer/src/container/ToolCluster.tsx` |
+| The lazy seam (5th in the file, 1st non-block) | `packages/viewer/src/blocks/kitSurfaces.ts` |
+| Corner + mount CSS | `packages/viewer/src/styles/viewer.css` |
+| The mount point (C16) | `packages/app/src/routes/StudentViewer.tsx` |
+| Kit chrome: dark + z-seam + sheet | `packages/graph-kit/src/calculator.ts` |
+| Dark palette | `packages/graph-kit/src/graph-colors.ts` (`GK_CHROME_DARK`) |
+| T11's decision (pure) | `packages/graph-kit/src/evaluate.ts` (`scopeCalculation`) |
+
+## Six things the build learned that the plan did not know
+
+1. **No sanitizer change, no `SANITIZER_REV`, no redeploy.**
+   `sanitizeActivityDocument` `structuredClone`s the document and strips
+   *blocks* only, and `SanitizedActivityDocument` is
+   `Omit<ActivityDocument,'sections'> & {…}` — so `calculator` already reaches
+   the client, typed, on every served activity. This slice is client-only.
+   **Nothing is owed to the author for it.**
+
+2. **The focus-return had a real bug, and the test caught it.** The kit reports
+   its close through `onToggle` *before* React re-renders the button, so a
+   direct `buttonRef.current?.focus()` targeted a null ref and silently did
+   nothing. Fixed as a request-flag plus an effect keyed on status. This is the
+   flake the plan warned about (`toBeFocused`, not a one-shot probe) showing up
+   as a genuine defect rather than a flake.
+
+3. **C8's hint was half right.** `@container gkcal (max-width: 23rem)` was
+   indeed dead — but dropping `min-width` does not by itself make it fire at
+   375px (375px = 23.4rem, still above the 23rem = 368px query). What it does
+   is make the rule *reachable* on narrower phones; the 27rem rule already
+   fired. The sheet needed real CSS **and** a JS half: inline geometry from
+   drag/remembered-position had to be suppressed, or it wins over the
+   stylesheet. Drag is disabled while sheeted (a full-bleed sheet has nowhere
+   to go), and sheet geometry is never remembered.
+
+4. **jsdom cannot host the widget at all** — `MathfieldElement is not a
+   constructor` in mathlive's node build, verified by probe, not assumed. That
+   is *why* D12's split is right, and it is why T11's decision was extracted
+   into a pure function in `evaluate.ts`: the rendered half is pinned in the
+   browser lane instead.
+
+5. **Light and dark chrome are GENERATED from one role list**
+   (`CAL_CHROME_ROLES`), not written twice. `GK_CHROME_DARK` is typed
+   `Record<GkChromeRole, string>`, so a role added to `GK_CHROME` without a dark
+   value is a compile error rather than a white patch a student finds.
+
+6. **A pre-existing guard was vacuous and is now live.** `styles.test.ts`'s
+   "declares no raw box-shadow" looped over ZERO declarations (the tool
+   summon's shadow is viewer.css's first), and its regex named `--shadow-*`, a
+   namespace retired when tokens moved behind `--vw-`. Both fixed, and it now
+   asserts it saw at least one declaration so it cannot quietly go vacuous
+   again (P9).
+
+## The guard bar, discharged
+
+Every guard was mutation-tested — the wiring reverted, the test required to go
+red. **21 mutations, all red**, across three lanes: 11 against the cluster
+component and T11's decision, 5 against the stylesheet guards (viewer + kit),
+and 5 against the browser lane.
+
+**And the bar was right that one would be vacuous.** The first draft of the
+".tool-mount opens no stacking context" test located the rule with
+`indexOf('.tool-mount {')`, which matched the **print-preview** rule earlier in
+the file, inspected its `display: none` body, and passed with a stacking
+context sitting in the real rule. Anchored to a rule-initial selector, and it
+now asserts it found the right rule before asserting the negative.
+
+Two other mutations were bad mutations rather than vacuous guards, and both are
+worth recording because each looked like a pass at first: removing `min-width`
+from the sheet's *graphing* rule changed nothing (the base `[data-sheet='on']`
+rule sets it too), and stubbing the theme call left an unused import that broke
+the build instead of the test. Re-run against the real levers — sheet mode
+disabled outright, detection result discarded — both went red.
+
+## Coverage delta
+
+| Lane | Added |
+|---|---|
+| viewer jsdom | 11 cluster specs + 3 CSS-seam specs |
+| graph-kit node | 13 scope-calculation specs |
+| graph-kit jsdom | 10 stylesheet specs |
+| app chromium e2e | 10 specs (sheet geometry, dark chrome, z-seam, T11 rendered) |
+
+Coverage of the plan's diagram: **12/12 new code paths**, 8/8 flows. The one
+`[→E2E]` row (the <480px sheet) landed in the browser lane as planned.

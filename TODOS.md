@@ -190,8 +190,11 @@ already carries `@container gkcal (max-width: 23rem)` (`calculator.ts:944`)
 which **can never fire** while `min-width: 24rem` stands — compaction machinery
 that exists and is unreachable.
 
-**Depends on:** the calculator slice landing, so there is something real to
-measure. Guessing now is what produced the wrong ruling.
+**Depends on:** nothing any more — ✅ **UNBLOCKED 2026-08-23**, the calculator
+slice landed, so there is a real student surface to measure against. (Guessing
+before it existed is what produced the wrong ruling.) Note the sheet work
+already handled the <480px case; what is left is the DESKTOP default height on
+a short laptop viewport.
 
 ## A SIXTH ORPHAN THE AUDIT MISSED — the reference panel has no SCREEN surface (2026-08-23)
 
@@ -215,10 +218,12 @@ comes back — this one came back in a day. **The sweep only walked
 `packages/schema/src/blocks/`; `ActivityDocument`'s top-level fields
 (`referencePanel`, `calculator`) were never in its scope.** Widen it.
 
-**It shares ONE fix with the calculator.** Both are floating tools in the same
-bottom cluster, both need the same host component, and the z-ladder they were
-designed against is fully orphaned — `--z-tools`, `--z-reference`,
-`--z-calculator` have **zero** `var()` consumers across viewer + app.
+**It shares the cluster with the calculator, but NOT a host component** (see
+the deferral note below). ⚠ **The z-ladder claim in this entry is now out of
+date, by this entry's own twin:** the calculator slice consumes `--z-tools`
+(`.tool-corner`) and `--z-calculator` (`.tool-mount`, which hands it to the kit
+through `--gk-z-panel`). **`--z-reference` is the one still with zero `var()`
+consumers** — this slice inherits the corner and the ladder, not a rebuild.
 DECISIONS.md:193-195 still specifies the cluster: summon hides while open,
 Esc/× closes, focus returns to the button, `role="dialog"` non-modal,
 reference anchors bottom-LEFT so an open calculator (bottom-right) never
@@ -241,7 +246,7 @@ table is genuinely happier wide. The outside voice argues a plain `<details>`
 disclosure in the worksheet flow may beat a floating window on a Chromebook —
 worth pricing before assuming the window.
 
-## S9 left FIVE MORE ORPHAN CLASSES — **TWO FIXED 2026-08-22, THREE OPEN** (drift audit §9)
+## S9 left FIVE MORE ORPHAN CLASSES — **THREE FIXED, TWO OPEN** (drift audit §9)
 
 The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
 against the viewer's rendering set and the grading server. Everything below has
@@ -279,14 +284,16 @@ what reaches paper/screen as CONTENT LOSS first:
    invokes, which makes `graph-kit/src/mistakes.ts` (the classifier catalogue)
    production-unreachable. `GraphSettings.tsx` still exposes all of it.
    Contrast: BLANK-level `mistakeFeedback` IS live (`grading/blanks.ts`).
-4. **The student calculator no longer exists** *(status corrected 2026-08-22: `calculator-tool.md`, STATE and ROADMAP no longer claim it is live)* — `ActivityDocument.calculator`
-   (`document.ts:305-347`). `mountCalculator`'s only callers are the editor's
-   config-drawer preview and `/dev/calculator`; the student summon was the
-   runtime's. `calculator-tool.md`, STATE's status row and ROADMAP 2.7's
-   done-when all said "live" until this audit corrected them. Wiring it means a
-   viewer summon surface + the lazy chunk on the student path (a perf-budget
-   question); deleting it means the config drawer section and the schema
-   `calculator` object go too.
+4. ~~**The student calculator no longer exists**~~ — ✅ **FIXED 2026-08-23**:
+   [floating-tool-cluster.md](docs/design/floating-tool-cluster.md) (plan +
+   AS-BUILT). `ActivityDocument.calculator` (`document.ts:305-347`) is read by
+   `ToolCluster` in the viewer, mounted from `StudentViewer` (never from
+   `ViewerContainer`, so it cannot leak into the print preview). The perf
+   question this entry flagged resolved as a non-issue: summon is on CLICK, so
+   a student who never opens it pays 0 bytes, and no budget row moved. The
+   FEATURE SCOPE behind the wiring was ruled first — DECISIONS.md → "Calculator
+   feature scope" (intersections/intercepts OUT; cross-row definitions MINIMUM
+   only, shipped as T11).
 5. **Section checkpoints and the activity flow modes** — `Section.isCheckpoint`,
    `meta.submissionMode`, `meta.revisionMode`, `meta.answerFeedback`,
    `meta.gradingMode`, `meta.activityType` (`document.ts:38,44-86,234-238`; the

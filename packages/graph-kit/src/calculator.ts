@@ -23,7 +23,8 @@ import { fitModel, type RegressionModel } from './regression.js';
 import { equationText, r2Text } from './fit-format.js';
 import { createDataTable, type DataTableHandle } from './data-table.js';
 import { createExpressionList } from './expression-list.js';
-import { GK_CHROME } from './graph-colors.js';
+import { GK_CHROME, GK_CHROME_DARK, detectBoardTheme } from './graph-colors.js';
+import type { GkChromeRole } from './graph-colors.js';
 // Type-only — erased at build time, so the static JSXGraph dependency in
 // board.ts stays in its own lazily-imported chunk (the lazy-split).
 import type { BoardController, PlotItem } from './board.js';
@@ -593,6 +594,19 @@ export function mountCalculator(
   });
   closeBtn.addEventListener('click', () => setOpen(false));
 
+  // ---- Host conditions the panel must FOLLOW (C8 sheet, C14 theme) ---------
+  // Declared here because the drag/geometry block below reads isSheet() during
+  // mount; the listeners that USE them install after the panel is in the DOM
+  // (detectBoardTheme needs a computed style). Every listener is torn off in
+  // destroy() — a widget whose observers outlive its panel is a leak.
+  const teardown: Array<() => void> = [];
+  // Below 480px the floating window does not fit: the graphing panel's
+  // min-width alone is 24rem = 384px against a 375px phone, and min-width beats
+  // max-width: 95vw — it hung 123px off-screen. CSS turns it into a full-width
+  // bottom sheet; the JS half is that INLINE geometry must not fight it.
+  const sheetQuery = window.matchMedia?.('(max-width: 480px)');
+  const isSheet = (): boolean => floating && (sheetQuery?.matches ?? false);
+
   // Drag-to-move (floating only): grab the header bar to slide the panel off
   // the work, Desmos-style. Starts from the CSS default corner; on first drag
   // we pin left/top and clamp so the header can never be lost off-screen. Drags
@@ -604,6 +618,9 @@ export function mountCalculator(
     let dragging = false;
     header.addEventListener('pointerdown', (e) => {
       if ((e.target as HTMLElement).closest('button')) return;
+      // A bottom sheet spans the viewport — there is nowhere to drag it TO, and
+      // pinning left/top would strand it half off a 375px screen.
+      if (isSheet()) return;
       dragging = true;
       const r = panel.getBoundingClientRect();
       panel.style.left = r.left + 'px';
@@ -643,6 +660,9 @@ export function mountCalculator(
     header.addEventListener('pointercancel', endDrag);
 
     // Restore this session's remembered size + position (a prior drag/resize).
+    // Skipped in sheet mode: applySheet() below owns geometry there, and a
+    // remembered desktop width would reintroduce the off-screen overflow.
+    if (!isSheet()) {
     if (remembered.width) panel.style.width = remembered.width;
     if (remembered.height) panel.style.height = remembered.height;
     if (remembered.left != null && remembered.top != null) {
@@ -651,9 +671,59 @@ export function mountCalculator(
       panel.style.right = 'auto';
       panel.style.bottom = 'auto';
     }
+    }
   }
 
   mount.appendChild(panel);
+
+  // ---- Apply + track those conditions ---------------------------------------
+  // Not sampled once: a student can flip the OS theme or rotate a Chromebook
+  // with the tool open.
+  function applyTheme(): void {
+    panel.dataset.theme = detectBoardTheme(panel);
+  }
+  applyTheme();
+  const darkQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+  if (darkQuery) {
+    darkQuery.addEventListener('change', applyTheme);
+    teardown.push(() => darkQuery.removeEventListener('change', applyTheme));
+  }
+  // The app's own light/dark toggle stamps data-theme on <html>, which changes
+  // the inherited color-scheme without any media query firing.
+  if (typeof MutationObserver !== 'undefined') {
+    const themeObserver = new MutationObserver(applyTheme);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    teardown.push(() => themeObserver.disconnect());
+  }
+
+  // Drag and remembered position are suppressed while sheeted; the inline
+  // styles a prior desktop-width drag left behind are cleared here.
+  function applySheet(): void {
+    if (!floating) return;
+    const on = isSheet();
+    panel.dataset.sheet = on ? 'on' : 'off';
+    if (on) {
+      // Hand every geometry property back to the stylesheet.
+      for (const prop of ['left', 'top', 'right', 'bottom', 'width', 'height']) {
+        panel.style.removeProperty(prop);
+      }
+    } else if (remembered.left != null && remembered.top != null) {
+      panel.style.left = remembered.left + 'px';
+      panel.style.top = remembered.top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    }
+  }
+  if (floating) {
+    applySheet();
+    if (sheetQuery) {
+      sheetQuery.addEventListener('change', applySheet);
+      teardown.push(() => sheetQuery.removeEventListener('change', applySheet));
+    }
+  }
 
   // Graphing input relies on MathLive's virtual keyboard (the custom pad is
   // gone). Render it INSIDE the panel (not docked at the screen bottom) and use
@@ -733,10 +803,13 @@ export function mountCalculator(
     destroy: () => {
       // Remember the session's size (the native resize handle writes inline
       // width/height) so a re-open keeps it.
-      if (floating) {
+      // Sheet geometry is the stylesheet's, not the student's — remembering it
+      // would carry a full-bleed size onto the next desktop-width mount.
+      if (floating && !isSheet()) {
         if (panel.style.width) remembered.width = panel.style.width;
         if (panel.style.height) remembered.height = panel.style.height;
       }
+      for (const off of teardown) off();
       // Blur math-fields BEFORE removing them. Removing a focused MathLive
       // field makes its onBlur fire against a half-torn-down model
       // ("Cannot read properties of undefined (reading 'options')"). Blurring
@@ -753,39 +826,53 @@ export function mountCalculator(
   };
 }
 
-// Own visual identity (the "visual stranger" half of the legal posture): a plain
-// neutral card with a blue accent — deliberately not a Desmos palette clone.
-const KIT_CSS = `
+// The chrome roles the calculator's CSS actually reads. ONE list drives BOTH
+// the light and the dark `--gk-*` blocks below, so the pair cannot drift — the
+// failure this repo keeps paying for is a declaration that outlives what reads
+// it, and two hand-written 26-line blocks are two chances to add a role to one
+// and forget the other. (The four overlay/shadowSoft roles are absent on
+// purpose: the question mounters draw those as inline styles, not vars.)
+const CAL_CHROME_ROLES: readonly GkChromeRole[] = [
+  'bg', 'inkStrong', 'ink', 'text2', 'textSecondary', 'muted', 'faint',
+  'border', 'surface', 'surface2', 'hover',
+  'accent', 'accentText', 'accentBorder', 'accentBg', 'accentBgActive',
+  'accentAlt', 'accentAltBg', 'accentAltBg2',
+  'error', 'errorBg', 'success', 'successAccent', 'successBg',
+  'overlayChip', 'shadow',
+];
+
+// camelCase role -> CSS custom property, with digits treated as their own word
+// so `text2` is `--gk-text-2` (matching the names the CSS below already uses).
+function chromeVarName(role: string): string {
+  return (
+    '--gk-' +
+    role.replace(/([A-Z])/g, '-$1').replace(/(\d+)/g, '-$1').toLowerCase()
+  );
+}
+
+function chromeVarBlock(palette: Record<GkChromeRole, string>): string {
+  return CAL_CHROME_ROLES.map(
+    (role) => `  ${chromeVarName(role)}: ${palette[role]};`,
+  ).join('\n');
+}
+
+// Own visual identity (the "visual stranger" half of the legal posture, now a
+// standing rule in docs/DECISIONS.md): a plain neutral card with a blue accent
+// — deliberately not a Desmos palette clone.
+//
+// EXPORTED for its guard (tests/kit-chrome.test.ts), which checks the things
+// that can only be checked against the whole sheet: that every var(--gk-*) the
+// rules READ is one the theme blocks DEFINE, that light and dark define the
+// same set, and that the sheet rules follow the ones they override. It is not
+// on the package barrel — a stylesheet is not public API (A17: tests import the
+// module file directly).
+export const KIT_CSS = `
 .gk-cal {
-  /* Chrome tokens — single-sourced from GK_CHROME (graph-colors.ts). Defined on
-     the widget root so the whole calculator reads var(--gk-*); a later
-     published-dark pass re-points these under .gk-cal[data-theme='dark']. */
-  --gk-bg: ${GK_CHROME.bg};
-  --gk-ink-strong: ${GK_CHROME.inkStrong};
-  --gk-ink: ${GK_CHROME.ink};
-  --gk-text-2: ${GK_CHROME.text2};
-  --gk-text-secondary: ${GK_CHROME.textSecondary};
-  --gk-muted: ${GK_CHROME.muted};
-  --gk-faint: ${GK_CHROME.faint};
-  --gk-border: ${GK_CHROME.border};
-  --gk-surface: ${GK_CHROME.surface};
-  --gk-surface-2: ${GK_CHROME.surface2};
-  --gk-hover: ${GK_CHROME.hover};
-  --gk-accent: ${GK_CHROME.accent};
-  --gk-accent-text: ${GK_CHROME.accentText};
-  --gk-accent-border: ${GK_CHROME.accentBorder};
-  --gk-accent-bg: ${GK_CHROME.accentBg};
-  --gk-accent-bg-active: ${GK_CHROME.accentBgActive};
-  --gk-accent-alt: ${GK_CHROME.accentAlt};
-  --gk-accent-alt-bg: ${GK_CHROME.accentAltBg};
-  --gk-accent-alt-bg-2: ${GK_CHROME.accentAltBg2};
-  --gk-error: ${GK_CHROME.error};
-  --gk-error-bg: ${GK_CHROME.errorBg};
-  --gk-success: ${GK_CHROME.success};
-  --gk-success-accent: ${GK_CHROME.successAccent};
-  --gk-success-bg: ${GK_CHROME.successBg};
-  --gk-overlay-chip: ${GK_CHROME.overlayChip};
-  --gk-shadow: ${GK_CHROME.shadow};
+  /* Chrome tokens — single-sourced from GK_CHROME (graph-colors.ts) and
+     defined on the widget root so the whole calculator reads var(--gk-*). The
+     dark block below re-points the SAME list; the panel picks its theme by
+     self-detecting the host's color-scheme at mount (C14). */
+${chromeVarBlock(GK_CHROME)}
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -798,11 +885,20 @@ const KIT_CSS = `
   box-shadow: 0 8px 28px var(--gk-shadow);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
+/* Dark chrome (C14). The viewer ships a full dark theme and the app follows the
+   OS, so a dark-mode student summoning a hard-coded white panel over a dark
+   worksheet is the bug this fixes. Attribute-scoped (0-2-0) so it beats the
+   .gk-cal defaults above; set by the mount from detectBoardTheme(). */
+.gk-cal[data-theme='dark'] {
+${chromeVarBlock(GK_CHROME_DARK)}
+}
 /* Floating window (published page): pinned to a viewport corner by default,
    draggable by its header. The in-flow default (editor preview) is unchanged. */
 .gk-cal-floating {
   position: fixed; right: 1rem; bottom: 1rem;
-  z-index: 120; /* above the reference bar; the summon button hides while open */
+  /* The host re-points this (the viewer sets --gk-z-panel: var(--z-calculator));
+     120 is the standalone fallback and equals the token's value. */
+  z-index: var(--gk-z-panel, 120);
   max-height: 92vh;
 }
 .gk-cal-header { display: flex; align-items: center; gap: 0.5rem; }
@@ -920,8 +1016,37 @@ const KIT_CSS = `
 }
 /* MathLive renders its virtual keyboard into the panel (container = panel).
    Keep it inside the popup's rounded frame and above the board. */
-.gk-cal-floating .ML__keyboard { position: absolute; z-index: 130; }
+.gk-cal-floating .ML__keyboard { position: absolute; z-index: calc(var(--gk-z-panel, 120) + 10); }
 
+/* ---- Narrow screens: a full-width bottom sheet (C8) ----------------------
+   Chromebooks are the stated target, so this is the secondary case — but a
+   375px phone got a 482px panel hanging 123px off-screen, and "undesigned" is
+   how a tool ends up unusable on the one device a student actually has.
+   Written AFTER the graphing block on purpose: [data-sheet] and
+   [data-mode] are both 0-2-0, so source order decides the base rule, and the
+   two-attribute selectors below beat the graphing sizes outright.
+   The panel's JS half (mountCalculator) clears inline geometry and suppresses
+   drag while this is on — otherwise a dragged left/top would win over it. */
+.gk-cal-floating[data-sheet='on'] {
+  left: 0; right: 0; bottom: 0; top: auto;
+  width: auto; min-width: 0; max-width: none;
+  border-radius: 12px 12px 0 0;
+  resize: none;
+}
+.gk-cal-floating[data-sheet='on'][data-mode='graphing'] {
+  width: auto; min-width: 0;
+  height: 72vh; min-height: 0; max-height: 88vh;
+  /* Two columns inside 375px gives the board ~130px. Stack instead: the list
+     and the board each get the full width, and the col-resize splitter (which
+     would resize the wrong axis) is hidden. */
+  container-type: inline-size;
+}
+.gk-cal-floating[data-sheet='on'] .gk-cal-body { flex-direction: column; }
+.gk-cal-floating[data-sheet='on'] .gk-cal-left { flex: 0 0 auto; }
+.gk-cal-floating[data-sheet='on'] .gk-cal-splitter { display: none; }
+.gk-cal-floating[data-sheet='on'][data-mode='graphing'] .gk-cal-graph {
+  flex: 1 1 auto; min-height: 8rem;
+}
 /* Responsive keyboard: the graphing panel is a size-query container, so the
    in-panel virtual keyboard (and the expression field) scale DOWN as the panel
    is resized narrower — otherwise the keys cram. MathLive reads these custom

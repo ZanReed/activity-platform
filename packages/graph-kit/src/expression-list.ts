@@ -17,7 +17,13 @@
 // =============================================================================
 
 import { MathfieldElement } from 'mathlive';
-import { classifyExpression, type EvalOptions, type ExpressionRow } from './evaluate.js';
+import {
+  classifyExpression,
+  freeVariables,
+  scopeCalculation,
+  type EvalOptions,
+  type ExpressionRow,
+} from './evaluate.js';
 import { solveForY, curveSide, verticalSide, inDomain, type ParsedDomain } from './solve.js';
 import type { PlotItem } from './board.js';
 import { EXPRESSION_PALETTE, CURVE } from './graph-colors.js';
@@ -76,6 +82,10 @@ interface Row {
   sliderBox: HTMLDivElement;
   lastText: string | null; // null = classification cache invalid
   classified: ExpressionRow;
+  /** Free variables of the RAW row text, cached beside the classification.
+   * Only computed for rows that classified as a curve — the only kind that can
+   * turn out to be a scope calculation (see scopeCalculation). */
+  freeVars: string[] | null;
   dragValue: number | null; // slider override from dragging (survives rebuilds)
 }
 
@@ -94,6 +104,15 @@ function clipToDomain(
 ): (x: number) => number {
   if (!domain) return fn;
   return (x) => (inDomain(x, domain) ? fn(x) : NaN);
+}
+
+// The DOM-side adapter for the cross-row definition rule; the decision itself
+// is scopeCalculation() in evaluate.ts, where it is testable without MathLive.
+// Only a row that classified as a curve can turn out to be one.
+function rowScopeValue(row: Row, scope: Record<string, number>): number | null {
+  if (row.classified.kind !== 'function' || row.freeVars === null) return null;
+  const fn = row.classified.fn;
+  return scopeCalculation(row.freeVars, scope, (vars) => fn(0, vars));
 }
 
 // Solve one inequality row against the live slider scope: boundary fn / x are
@@ -177,6 +196,11 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       const text = row.field.getValue('ascii-math');
       if (text !== row.lastText) {
         row.classified = classifyExpression(text, deps.opts());
+        // Parse the free variables ONCE per text change, not once per rebuild:
+        // a slider drag re-samples the board, but any typed edit anywhere
+        // rebuilds every row.
+        row.freeVars =
+          row.classified.kind === 'function' ? freeVariables(text) : null;
         row.lastText = text;
         row.dragValue = null; // typed edit wins over a previous drag
       }
@@ -195,6 +219,9 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
     const items: PlotItem[] = [];
     for (const row of rows) {
       const c = row.classified;
+      // Computed per rebuild, never cached: the row's text is unchanged when a
+      // slider it references is retyped, but its VALUE is not.
+      const scopeValue = rowScopeValue(row, scope);
       let noteError: string | null = null;
       if (c.kind === 'inequality') {
         const item = solveInequalityItem(c, scope, row.color);
@@ -209,6 +236,9 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       } else if (c.kind === 'calculation') {
         row.note.textContent = '= ' + formatNumber(c.value);
         row.note.dataset.kind = 'calc';
+      } else if (scopeValue !== null) {
+        row.note.textContent = '= ' + formatNumber(scopeValue);
+        row.note.dataset.kind = 'calc';
       } else {
         row.note.textContent = '';
         delete row.note.dataset.kind;
@@ -216,7 +246,7 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       row.sliderBox.hidden = c.kind !== 'slider';
       if (c.kind === 'slider') renderSlider(row, c.name);
       else row.sliderBox.textContent = '';
-      if (c.kind === 'function') {
+      if (c.kind === 'function' && scopeValue === null) {
         const fn = c.fn;
         items.push({
           kind: 'curve',
@@ -280,6 +310,7 @@ export function createExpressionList(deps: ExpressionListDeps): ExpressionListHa
       sliderBox: document.createElement('div'),
       lastText: null,
       classified: { kind: 'empty' },
+      freeVars: null,
       dragValue: null,
     };
     row.wrap.className = 'gk-exprrow';

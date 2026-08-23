@@ -247,6 +247,12 @@ export type { BlockCrash, BlockBoundaryProps } from './container/BlockBoundary.j
 export { ViewerProvider, useViewer } from './container/context.js';
 export type { BlockPhase, ViewerContextValue } from './container/context.js';
 export { ViewerContainer } from './container/ViewerContainer.js';
+// The summonable tool corner. Mounted by the STUDENT surface, never by
+// ViewerContainer: the container is also what ActivityPrint (a screen render of
+// the teacher's print preview) and DevViewer render, and neither should grow a
+// floating calculator (C16).
+export { ToolCluster } from './container/ToolCluster.js';
+export type { ToolClusterProps } from './container/ToolCluster.js';
 export type {
   CheckShortfall,
   ViewerContainerProps,
@@ -292,6 +298,8 @@ export {
   numberLineSurface,
   setDataPlotSurface,
   dataPlotSurface,
+  setCalculatorSurface,
+  calculatorSurface,
 } from './blocks/kitSurfaces.js';
 export type {
   GraphSurface,
@@ -306,6 +314,8 @@ export type {
   DataPlotSurfaceConfig,
   DataPlotSurfaceHandle,
   DataPlotSurfaceResponse,
+  CalculatorSurface,
+  CalculatorSurfaceHandle,
 } from './blocks/kitSurfaces.js';
 export { StatePill } from './blocks/StatePill.js';
 export type { PillState, StatePillProps } from './blocks/StatePill.js';

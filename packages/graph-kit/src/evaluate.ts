@@ -355,6 +355,45 @@ export function freeVariables(ascii: string): string[] {
   return [...names];
 }
 
+// ---- Cross-row definitions, MINIMUM scope (ruled 2026-08-23) ----------------
+// `a = 10` on one row makes `a*2` on the next read "= 20" instead of silently
+// plotting the horizontal line y = 20 (which is what it did — a row with no x
+// left to vary is not a curve). A row qualifies when it classified as a
+// FUNCTION but every free variable it mentions is a DEFINED slider.
+//
+// Pure, and separated from the expression list on purpose: the list cannot be
+// imported outside a browser (MathfieldElement does not exist in mathlive's
+// node build), so the whole DECISION lives here where it is testable, and the
+// list keeps only the DOM.
+//
+// Callers pass the free variables of the RAW row text, and that is load-bearing:
+// `y = a` keeps its `y`, `y` is never a slider name (the slider pattern excludes
+// x, y and e), so it fails the test and still plots its horizontal line —
+// matching the existing rule that `y = 5` is a function and a bare `5` is a
+// calculation.
+//
+// Deliberately NOT a dependency graph. `b = a + 1` is still a row error, named
+// functions do not exist, and a definition BELOW its use does not resolve —
+// each needs topological ordering and cycle detection, which is its own feature
+// with its own ruling. An undefined name (`b*2` with no `b`) also stays a blank
+// curve, exactly as before: no new behaviour and no new error text.
+export function scopeCalculation(
+  freeVars: readonly string[],
+  scope: Readonly<Record<string, number>>,
+  evalInScope: (vars: Record<string, number>) => number,
+): number | null {
+  // No free variables at all is already a `calculation` from the classifier;
+  // reaching here with none means the two parses disagreed — leave it alone.
+  if (freeVars.length === 0) return null;
+  // `x` is the plot variable, never a binding. The `in scope` test below covers
+  // it today (x cannot be a slider name), but state it: a future scope entry
+  // named x must not silently turn every curve into a number.
+  if (freeVars.includes('x')) return null;
+  if (freeVars.some((name) => !(name in scope))) return null;
+  const value = evalInScope({ ...scope });
+  return Number.isFinite(value) ? value : null;
+}
+
 // ---- Stage 4: expression-row classification ----------------------------------
 // The multi-expression list accepts more than y = f(x): a `(a, b)` row plots a
 // point; a `a = 3` row defines a slider variable other rows can reference.

@@ -73,6 +73,10 @@ const ALLOWLIST = new Map([
   ['setGraphSurface', 'test seam (kit surface injection)'],
   ['setNumberLineSurface', 'test seam (kit surface injection)'],
   ['setDataPlotSurface', 'test seam (kit surface injection)'],
+  // The calculator seam (2026-08-23). Same category as the three above, and
+  // it earns it harder: the states it exists to drive — a PENDING ~515 KiB
+  // load and a REJECTED one — are unreachable in jsdom against the real kit.
+  ['setCalculatorSurface', 'test seam (kit surface injection)'],
   ['resetMarksForTest', 'test seam (says so in its name)'],
   ['CheckError', 'thrown in-module; export = suite surface (app branches on kind)'],
   ['documentUsesMath', 'in-module consumer (preloadMathIfNeeded); export = suite surface'],

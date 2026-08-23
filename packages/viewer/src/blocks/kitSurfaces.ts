@@ -330,3 +330,57 @@ const kitMathPromptsSurface: MathPromptsSurface = async (host, opts) => {
   const mounted = kit.mountMathPrompts(host, opts);
   return { destroy: () => mounted.destroy() };
 };
+
+
+// ---- The calculator tool (the floating scaffold, not a block) ---------------
+// The fifth seam, and the first that is NOT a block: the calculator is an
+// activity-level scaffold a student SUMMONS. Same three decisions as the four
+// above — lazy import, narrowed surface, injectable for tests — which is why it
+// lives here rather than growing its own file.
+//
+// Two things make the injectability load-bearing rather than tidy. The mount
+// pulls MathLive AND (in graphing mode) JSXGraph — ~515 KiB gz on first click,
+// so the PENDING state is a normal path, not an edge case; and the failed load
+// (offline, or a chunk 404 after a deploy) is a designed state the cluster has
+// to recover from. Neither is reachable in jsdom against the real kit, and both
+// are exactly what a fake surface can drive.
+//
+// The config is the teacher's `CalculatorTool['restrictions']` verbatim. It
+// carries no answer key and no scoring: the calculator is ungraded scaffold by
+// design (a `scaffold` category, never a `question`), so unlike the four seams
+// above there is nothing here to narrow AWAY.
+
+export interface CalculatorSurfaceHandle {
+  readonly isOpen: boolean;
+  open(): void;
+  /** Put the tool away WITHOUT tearing down the student's expressions (C15). */
+  close(): void;
+  toggle(): void;
+  /** Tear down for real — activity unmount only. */
+  destroy(): void;
+}
+
+export interface CalculatorSurface {
+  (
+    mount: HTMLElement,
+    restrictions: unknown,
+    hooks: { onToggle?: (open: boolean) => void; floating?: boolean },
+  ): Promise<CalculatorSurfaceHandle>;
+}
+
+let calculatorOverride: CalculatorSurface | null = null;
+
+export function setCalculatorSurface(surface: CalculatorSurface | null): void {
+  calculatorOverride = surface;
+}
+
+export function calculatorSurface(): CalculatorSurface {
+  return calculatorOverride ?? kitCalculatorSurface;
+}
+
+const kitCalculatorSurface: CalculatorSurface = async (mount, restrictions, hooks) => {
+  const kit = await import('@activity/graph-kit');
+  // The kit's own mountCalculator is already async (it splits MathLive into a
+  // second chunk behind the entry), so this awaits two boundaries, not one.
+  return kit.mountCalculator(mount, restrictions, hooks);
+};

@@ -42,34 +42,49 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the CALCULATOR slice is PLANNED, scope RULED, cleared to build
+## Current focus — the CALCULATOR slice is BUILT; the reference panel is next
 
-**⏭ NEXT SESSION STARTS HERE: build the calculator slice, T1–T11.** The
-feature-scope question is ANSWERED (2026-08-23) — ground truth was read from
-`packages/graph-kit/src` (one probe run, not inferred from the design doc) and
-ruled feature by feature; table in
-[floating-tool-cluster.md](docs/design/floating-tool-cluster.md) → "Feature
-scope", reasoning in DECISIONS.md → "Calculator feature scope". Short form:
-multi-line plotting, regression, bare arithmetic and all six teacher flags
-already exist and are read end-to-end; **clickable intersections/intercepts are
-OUT** (nothing exists, and it is a solver + interaction-model arc on the wrong
-side of the Tier B pedagogy line); **`a=10` / `a*2 → = 20` ships as the MINIMUM
-only** (new T11, graph-kit, no flag — today that row silently plots y=20, so
-it is also a bug fix). The legal posture (functional twin, visual stranger)
-was promoted from the design doc to DECISIONS.md as a standing rule.
+**✅ CALCULATOR SLICE SHIPPED (2026-08-23) — T1–T9 + T11; T10 deferred.** The
+fourth S9 orphan is closed: an activity with `calculator.enabled` now renders a
+summon in the student viewer, and clicking it mounts the real kit. Plan +
+AS-BUILT in
+[floating-tool-cluster.md](docs/design/floating-tool-cluster.md); the feature
+scope behind it (intersections/intercepts OUT, cross-row definitions MINIMUM
+only) is ruled in DECISIONS.md → "Calculator feature scope".
 
-**✅ CALCULATOR SLICE — PLANNED, NOT BUILT (2026-08-23).** Cleared to build. Notable: two of the plan's own rulings
-were REVERTED by the completed eng review (C6 and C12), and the first eng-review
-pass reported "clean" while having skipped four of its six steps. Both
-corrections are in the plan's banner.
+**NOTHING IS OWED TO THE AUTHOR — a finding, not an assumption.**
+`sanitizeActivityDocument` clones the document and strips *blocks* only, so
+`calculator` already reached the client on every served activity: no sanitizer
+change, **no `SANITIZER_REV` move, no redeploy**, no migration. Client-only.
+Beyond the wiring: kit chrome gained a **dark theme** (one generated role list,
+typed so a missing role is a compile error) and a **`--gk-z-panel` seam**
+replacing a `z-index: 120` literal that matched the token by coincidence; a
+**<480px bottom sheet** (it hung 123px off a 375px screen); and **T11** —
+`a = 10` then `a*2` reads `= 20` and plots nothing, where it silently drew a
+line at y = 20 before, so the feature was also a bug fix.
 
-**✅ CHOICE FIGURES + NESTED LISTS SHIPPED (2026-08-23, CI-green).** Two orphan
-classes closed; guards mutation-tested; Linux print baselines read before
-pinning. Narrative in [HISTORY.md](docs/HISTORY.md); plan +  AS-BUILT in
+**⏭ NEXT: the reference panel's screen surface** — the sixth orphan, deferred
+from this plan with its content-shape questions unanswered (Columns inside a
+24rem window, full-size images, a periodic table). Its **sanitizer gap (D16) is
+live and independent**: `referencePanel.blocks` takes the full block union and
+the per-block strips never run there, so a pasted multiple-choice ships its key
+today. That one DOES move `SANITIZER_REV` and owe a redeploy.
+
+**⚠ Two guards were found vacuous this session, one pre-existing and one my
+own.** `styles.test.ts`'s "no raw box-shadow" had looped over zero declarations
+since it was written AND named a token namespace retired months ago; it is
+repaired and now asserts it saw a declaration (P9). My own `.tool-mount`
+stacking-context test located its rule with `indexOf`, matched the print-preview
+rule earlier in the file, and passed against the wrong body. Both were caught by
+mutation testing, which is the whole argument for it: **21 mutations, all red**
+after those fixes.
+
+**✅ CHOICE FIGURES + NESTED LISTS SHIPPED (2026-08-23)** — narrative in
+[HISTORY.md](docs/HISTORY.md), AS-BUILT in
 [choice-figures-and-nested-lists.md](docs/design/choice-figures-and-nested-lists.md).
 **Three orphan classes remain open** in TODOS (graph feedback knobs, the flow
-modes, `hasConfidenceRating`/`allowTargetReuse`), each needing a wire-or-delete
-ruling.
+modes, `hasConfidenceRating`/`allowTargetReuse`) — each needs a wire-or-delete
+ruling; the calculator's was "wire".
 
 **Everything that was blocking bulk authoring has shipped.** The batch importer
 (0038, `source_path` identity, file-wins re-runs), the drift guard (0039), the
@@ -100,9 +115,9 @@ first real test.
 
 **The backlog is large and none of it is table-related** — 20+ items in
 [TODOS.md](TODOS.md). The ones that look most load-bearing from here: **the
-five orphan classes S9 left behind** (TODOS → "S9 left FIVE MORE ORPHAN CLASSES" —
-choice figures and nested lists are CONTENT LOSS on paper, and the student calculator
-is gone; each needs a wire-or-delete ruling), the
+orphan classes S9 left behind** (TODOS → "S9 left FIVE MORE ORPHAN CLASSES";
+choice figures, nested lists and the calculator are now CLOSED — the reference
+panel's screen surface and three knob classes remain), the
 document walk duplicated five times, the orphaned `number` override field, the
 check-rollup arming arc, and the parked shell-slimming. All of them will be
 easier to prioritise after 20 activities have said what actually gets in the way.
@@ -140,7 +155,7 @@ decision. What stays live:
 | Scheduled jobs (pg_cron) | ✅ Installed 2026-08-05; both jobs active; first fire observed + verified 2026-08-06. **Verify the run, not the registration** |
 | Components-as-data slices S0–S9 | ✅ Complete — see the slice ledger; only author stations remain |
 | Print (baseline CSS → authored feature → viewer print + gate) | ✅ Complete through S5.5; print gates run in CI; sign-off evidence durable at tag `s5.5-print-signoff` |
-| Question types + pedagogical blocks + calculator + reference panel + typography | ✅ Live in the viewer — **EXCEPT the two FLOATING TOOLS, both dead since S9 Drop 4.** The **student calculator** has no summon surface, and the **reference panel** renders ONLY into print (`ViewerContainer.tsx:275`, gated on `printReferencePanel`) — on screen a student sees neither. Both are authored, stored, and importable today. One fix serves both (the tool cluster); TODOS carries it. ⚠ The 2026-08-22 audit caught the calculator and MISSED the reference panel, then asserted "live in the viewer" for both — a half-fix, corrected 2026-08-23 |
+| Question types + pedagogical blocks + calculator + reference panel + typography | ✅ Live in the viewer. **The student CALCULATOR was wired 2026-08-23** (summon cluster in `StudentViewer`; dark chrome + <480px sheet in the kit) — it had been authored-but-unreachable since S9 Drop 4. **The REFERENCE PANEL is still screen-dead**: it renders ONLY into print (`ViewerContainer.tsx:275`, gated on `printReferencePanel`, which defaults ON). Its screen surface is the next slice, and its **sanitizer gap (D16) is live** — `referencePanel.blocks` takes the full block union and the per-block strips never run there |
 | Phase 2.6 manual grading | ⚰️ **RETIRED at S9 Drop 3.** Blocks + rubric authoring survive in editor/schema/viewer; the dashboard + `lib/submissions`/`lib/grades` are deleted; `grades` kept empty. Successor SHIPPED 2026-08-16 as the checks-native grading slice (0034); `grades` + `can_grade_submission` dropped there |
 | Edge Functions (**2**) + deploy flags | ✅ **exactly two**, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`). **Versions are NOT pinned here** — they moved three times in six days and this row carried a different pair from the Pending section (drift audit 2026-08-21). Read them with `list_edge_functions`, from the **`version`** field and never the `entrypoint_path` suffix beside it; `supabase/config.toml` is the authoritative flag record |
 | Cloudflare R2 hosting | ⚰️ **DEAD.** Code-side at S9 Drop 4; the D-13 teardown ran 2026-08-15 (upload scripts + `.env.r2` deleted). Only the dashboard steps remain — see the standing constraints |

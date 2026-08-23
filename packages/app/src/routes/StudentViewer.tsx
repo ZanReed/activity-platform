@@ -34,6 +34,7 @@ import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@
 import { useParams } from 'react-router';
 import {
   PrintButton,
+  ToolCluster,
   ViewerContainer,
   ViewerLoadError,
   createBrowserConnectivity,
@@ -668,6 +669,12 @@ export default function StudentViewer() {
         }}
         {...(takeOver ? { onTakeOver: takeOver } : {})}
       />
+      {/* The summonable tool corner, mounted HERE rather than inside
+          ViewerContainer (C16): the container is also what ActivityPrint — a
+          screen render of the teacher's print preview — and DevViewer render,
+          and a floating calculator belongs in neither. Renders nothing at all
+          unless this activity has a calculator enabled. */}
+      <ToolCluster calculator={state.served.document.calculator} />
     </>
   );
 }

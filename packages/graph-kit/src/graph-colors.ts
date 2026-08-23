@@ -100,6 +100,48 @@ export const GK_CHROME = {
 
 export type GkChromeRole = keyof typeof GK_CHROME;
 
+// The DARK counterpart of GK_CHROME, for the calculator panel's `--gk-*` block
+// (the question mounters keep using chromeColors() below — that resolves the
+// smaller strip/pill set they draw as INLINE styles, which cannot use vars).
+//
+// Typed `Record<GkChromeRole, string>` on purpose: a role added to GK_CHROME
+// without a dark value is a COMPILE error, not a light-mode leak discovered by
+// a student. Elevation, not inversion — the panel (slate-800) floats above the
+// dark page (slate-900), and the light ramp 900→400 becomes 50→500 rather than
+// a mechanical channel flip.
+export const GK_CHROME_DARK: Record<GkChromeRole, string> = {
+    bg: '#1e293b', // panel / field background (slate-800, above the slate-900 page)
+    inkStrong: '#f8fafc', // result + expression text (slate-50)
+    ink: '#e2e8f0', // panel text (slate-200)
+    text2: '#cbd5e1', // board-nav / secondary controls (slate-300)
+    textSecondary: '#94a3b8', // labels (slate-400)
+    muted: '#94a3b8', // hints, muted meta (slate-400)
+    faint: '#64748b', // remove/×, inert glyphs (slate-500)
+    border: '#475569', // field / control borders (slate-600)
+    surface: '#0f172a', // field fill — a WELL is darker than the panel (slate-900)
+    surface2: '#334155', // keypad button fill — raised above the panel (slate-700)
+    hover: '#475569', // hover fill / dividers (slate-600)
+    accent: '#60a5fa', // interactive blue (blue-400; #2563eb dies on slate-800)
+    accentText: '#93c5fd', // active keyboard text (blue-300)
+    accentBorder: '#3b82f6', // active accent border (blue-500)
+    accentBg: '#1e3a8a', // accent tint (blue-900)
+    accentBgActive: '#1d4ed8', // active accent tint (blue-700)
+    accentAlt: '#a5b4fc', // keyboard accent (indigo-300)
+    accentAltBg: '#312e81', // keyboard accent tint (indigo-900)
+    accentAltBg2: '#3730a3', // keyboard accent hover (indigo-800)
+    error: '#fca5a5', // error text (red-300)
+    errorBg: '#7f1d1d', // error tint (red-900)
+    success: '#86efac', // valid/success text (green-300)
+    successAccent: '#4ade80', // success accent (green-400)
+    successBg: '#14532d', // success tint (green-900)
+    overlayChip: 'rgba(30, 41, 59, 0.92)', // on-board readout chips
+    overlayBar: 'rgba(30, 41, 59, 0.88)', // control strips over the board
+    overlayPanel: 'rgba(30, 41, 59, 0.97)', // floating popover panel
+    overlayFooter: 'rgba(30, 41, 59, 0.9)', // footer strip
+    shadow: 'rgba(0, 0, 0, 0.5)', // panel drop shadow — deeper on dark
+    shadowSoft: 'rgba(0, 0, 0, 0.35)', // popover soft shadow
+};
+
 // ── 4. Board theming (dark mode) ─────────────────────────────────────────────
 // The boards (JSXGraph + hand-built SVG) reach published pages and can't read
 // CSS custom properties, so board dark mode is a JS resolver, not light-dark().

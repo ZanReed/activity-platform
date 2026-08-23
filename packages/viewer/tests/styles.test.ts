@@ -52,8 +52,22 @@ describe('token-only component CSS', () => {
   });
 
   it('declares no raw box-shadow (shadows are tokens)', () => {
-    for (const decl of code.match(/box-shadow\s*:[^;]+;/g) ?? []) {
-      expect(decl).toMatch(/var\(--shadow-/);
+    // THIS GUARD WAS VACUOUS UNTIL 2026-08-23 — twice over, and the tool
+    // cluster's summon (viewer.css's first and only box-shadow) is what
+    // exposed it. It looped over ZERO declarations, so nothing ever ran; and
+    // its regex named `--shadow-*`, a namespace that has not existed since the
+    // tokens moved behind the `--vw-` prefix to escape Tailwind's `@theme`
+    // (tokens.css's own header records that rename). Had a raw shadow ever
+    // been written, the check would have failed a CORRECT tokenised value and
+    // passed nothing.
+    //
+    // The count assertion is the P9 half — "when a check's headline lesson is
+    // that it was vacuous, re-run that lesson over the fix." Without it, this
+    // silently returns to guarding nothing the day the last shadow moves.
+    const declarations = code.match(/box-shadow\s*:[^;]+;/g) ?? [];
+    expect(declarations.length).toBeGreaterThan(0);
+    for (const decl of declarations) {
+      expect(decl).toMatch(/var\(--vw-shadow-/);
     }
   });
 
@@ -415,5 +429,48 @@ describe('the in-page print preview mirrors the printed page (S5.5 D24)', () => 
         `${selector} prints but is not revealed in the in-page preview`,
       ).toContain(selector);
     }
+  });
+});
+
+describe('the tool cluster — the seams that only exist in CSS', () => {
+  // The component test (tests/components/tool-cluster.test.tsx) owns behaviour.
+  // These three properties live nowhere else: they are stylesheet facts whose
+  // failure is silent and visual, and two of them exist to keep a FIXED panel
+  // from being trapped or buried by its own container.
+
+  it('hands the kit its z-index through the token, not a coincidence', () => {
+    // graph-kit reads `z-index: var(--gk-z-panel, 120)`; this is the other half
+    // of that seam (C12/D18). Before it, the kit hard-coded 120 and the token
+    // said 120 — agreement by luck, which survives exactly until one moves.
+    expect(code).toMatch(
+      /\.tool-mount \{[^}]*--gk-z-panel:\s*var\(--z-calculator\)/s,
+    );
+  });
+
+  it('gives .tool-mount no position and no z-index of its own', () => {
+    // THE load-bearing negative. A positioned, z-indexed ancestor opens a
+    // stacking context, and the kit's `position: fixed` panel would be trapped
+    // inside it at the CLUSTER's level (110) — sliding under popovers (1000)
+    // no matter what the panel's own z-index says. The mount is deliberately an
+    // inert div; the corner beside it is what carries the layer.
+    //
+    // Mutation note: the first draft of this located the rule with
+    // indexOf('.tool-mount {') and was VACUOUS — the print-preview block
+    // declares `:where([data-viewer-mode='print']) .tool-mount` EARLIER in the
+    // file, so it inspected that rule's `display: none` body and passed with a
+    // stacking context sitting in the real one. Anchor to a rule that BEGINS
+    // the selector.
+    const rule = /(?:^|\n)\.tool-mount \{([^}]*)\}/.exec(code);
+    expect(rule, '.tool-mount has no standalone rule').not.toBeNull();
+    const body = rule![1]!;
+    expect(body).toMatch(/--gk-z-panel/); // proves we found the RIGHT rule
+    expect(body).not.toMatch(/position\s*:/);
+    expect(body).not.toMatch(/z-index\s*:/);
+  });
+
+  it('puts the summon corner on the tools layer', () => {
+    // Below the reference panel and the calculator by the inherited ladder
+    // (DECISIONS.md:195): tools 110 < reference 115 < calculator 120.
+    expect(code).toMatch(/\.tool-corner \{[^}]*z-index:\s*var\(--z-tools\)/s);
   });
 });

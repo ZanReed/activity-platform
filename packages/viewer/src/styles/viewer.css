@@ -1371,7 +1371,9 @@
 :where([data-viewer-mode='print']) .viewer-mc__choice input,
 :where([data-viewer-mode='print']) .viewer-graph__canvas,
 :where([data-viewer-mode='print']) .viewer-number-line__canvas,
-:where([data-viewer-mode='print']) .viewer-data-plot__canvas {
+:where([data-viewer-mode='print']) .viewer-data-plot__canvas,
+:where([data-viewer-mode='print']) .tool-corner,
+:where([data-viewer-mode='print']) .tool-mount {
   display: none;
 }
 
@@ -2052,5 +2054,88 @@
      only the break rule. */
   .viewer-written-key {
     break-inside: avoid;
+  }
+}
+
+/* =============================================================================
+ * The tool cluster — the summonable calculator's corner
+ * ---------------------------------------------------------------------------
+ * Bottom-RIGHT by inherited convention (DECISIONS.md:195), which is also where
+ * the kit pins its own panel — so the summon is covered by the tool it opens,
+ * which is why it hides while open rather than sitting uselessly underneath.
+ * The reference panel, when its own slice lands, anchors bottom-LEFT.
+ * ========================================================================== */
+.tool-corner {
+  bottom: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  position: fixed;
+  right: var(--space-4);
+  z-index: var(--z-tools);
+}
+
+/* The kit's panel mounts HERE, outside .tool-corner, and this element carries
+ * no position and no z-index on purpose: it must not open a stacking context,
+ * or the fixed panel inside it would be trapped at --z-tools and slide under
+ * anything above 110. Its only job is to hand the kit its z-index through an
+ * inherited custom property — the seam graph-kit gained for this (C12/D18),
+ * replacing a bare `z-index: 120` literal that agreed with the token by
+ * coincidence. */
+.tool-mount {
+  --gk-z-panel: var(--z-calculator);
+}
+
+.tool-summon {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-pill);
+  box-shadow: var(--vw-shadow-window);
+  color: var(--vw-color-ink);
+  cursor: pointer;
+  font-family: var(--vw-font-chrome);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+}
+
+.tool-summon:hover {
+  border-color: var(--vw-color-accent);
+  color: var(--vw-color-accent);
+}
+
+.tool-summon:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* Pending is a NORMAL path here, not a bad-connection edge case: the first
+ * summon pulls MathLive and JSXGraph (~515 KiB gz). The button stays focusable
+ * while it loads — disabling would blur a keyboard user out of the corner — so
+ * the busy state is carried by aria-busy and a cursor, not by [disabled]. */
+.tool-summon[aria-busy='true'] {
+  cursor: progress;
+  color: var(--vw-color-ink-muted);
+}
+
+.tool-summon-note {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
+  margin: 0;
+  max-width: 18rem;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* A summoned tool is screen-only scaffold: it contributes nothing to the paper
+ * record, and the print surface never mounts it in the first place (C16). This
+ * is the belt to that braces — a stray cluster must not cost a page. */
+@media print {
+  .tool-corner,
+  .tool-mount {
+    display: none !important;
   }
 }
