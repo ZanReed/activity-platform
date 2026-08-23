@@ -94,6 +94,15 @@ function makeHealthyDist(overrides = {}) {
         'assets/mathlive-fixture.js': 'class MathfieldElement extends HTMLElement{}',
         'assets/jsx-fixture.js': 'JXG.Board = function(){}',
         'assets/pm-fixture.js': 'class ReplaceError extends Error{}',
+        // One per ledger row — and that is enforced, not merely tidy: a ledger
+        // row matching NO chunk is a failure by design (a row exists to cap a
+        // payload that is supposed to be there), so adding a row without adding
+        // its fixture chunk turns this whole file red. That is the row's
+        // self-verification working; it is why zod got a ledger row rather than
+        // a bare shell-absence row (docs/design/shell-slim-zod.md).
+        // The marker is the minified SHAPE: zod assigns the class name as a
+        // string literal, which is what survives minification.
+        'assets/zod-fixture.js': 'class E extends Error{constructor(){this.name="ZodError"}}',
     };
     for (const [file, body] of Object.entries(chunks)) {
         writeFileSync(join(dir, file), body);

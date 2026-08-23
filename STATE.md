@@ -133,17 +133,22 @@ decision. What stays live:
 **Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
 
 
-## The shell budget — both rows at policy, only ONE has a lever
+## The shell budget — the 150 KiB target is MET
 
-**`SHELL_CSS_GZ_KIB` raised 14 → 15 (2026-08-23)** at 13.13 measured. The full
-reasoning — why 15 and not 16, why the stylesheet has no slim left, and why lazy
-print CSS was refused — is durable and lives in DECISIONS.md → "The shell CSS cap".
+**`SHELL_JS_GZ_KIB` tightened 172 → 158 (2026-08-23)** after the zod slice took
+the student's entry chunk **160.5 → 143.2 KiB gz (−17.3)**. **P1A's ~150 KiB
+target is met for the first time.** ⚠ 158 is coincidentally almost the PRE-slice
+measurement (158.5) — the cap did move, and `perf-budgets.mjs` carries the
+derivation so a skimmer does not read it as unchanged.
 
-**⏰ THE OPEN QUESTION IS THE JS ROW: 160.5 / 172 = 7.2% headroom, ladder parked.**
-CSS has no lever left, so JS is the shell's only one, and `perf-budgets.mjs`'s own
-policy is that the ladder gets *scheduled, not discovered mid-feature*. Rung 1 (the
-zod audit) is the biggest candidate and needs a DESIGN PASS before code — the
-offline-restore path is parse-bearing. See TODOS → the shell-slim ladder.
+**`SHELL_CSS_GZ_KIB` raised 14 → 15** earlier the same day at 13.13 measured.
+Reasoning for both is durable and lives in DECISIONS.md → "The shell CSS cap"
+and docs/design/shell-slim-zod.md.
+
+**⏭ NEXT RUNG, if the shell needs one:** the remaining ladder is the router,
+preact/compat, and auth-js (listed but NOT a plan — it runs constantly and is
+security-relevant). None is urgent now: JS sits at 143.2/158 and CSS at 13.2/15,
+both back inside the ~10% policy.
 
 ## Backlog / candidate arcs
 
