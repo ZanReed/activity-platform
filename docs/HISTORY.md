@@ -1,5 +1,424 @@
 # HISTORY.md
 
+## Archived from TODOS 2026-08-23 — ten resolved entries (TODOS housekeeping)
+
+Moved verbatim so TODOS holds only open work. Each was marked ✅/⚰/resolved in
+place and had been sitting in the backlog for up to nine days after closing.
+
+## ✅ Native TABLE block — BUILT 2026-08-21 (all four slices)
+
+Schema, viewer, server, editor and import all shipped; see
+[docs/design/table-block.md](../docs/design/table-block.md) and read each slice's
+**AS BUILT** note, not the plan above it — five rulings changed shape at build
+time and T4 changed outright (it could not call `publish_activity`, which
+authorizes on `auth.uid()`; it reports instead, via `pnpm report:stale`).
+
+**What is left is author-side and routine**, recorded in STATE.md: re-run
+`import:batch` to upgrade the catalogue's tables in place, then `report:stale`
+to find the published ones worth refreshing.
+
+**Deliberately NOT built, and still not planned:** merged cells (colspan/rowspan
+are pinned to 1 and stripped on paste), nested blocks in cells, a `caption`
+field, and column-scoped `~` grouping. The reasoning is in the design doc's
+§10 — check there before adding any of them.
+
+## ✅ The editor e2e lane is IN CI (2026-08-22)
+
+`editor-gates` runs `--project=chromium` on every push and PR, reusing the
+`check` job's `app-dist` so the preview server in playwright's webServer array
+does not rebuild the app for a lane that never touches it.
+
+Two flake classes were fixed first, and they were different:
+
+- **`blank-signifier.e2e.ts` sampled asynchronous state.** `expect(await
+  blankCount(page))` and a `document.activeElement` probe read once, against a
+  key chord that has to reach the browser, be handled by ProseMirror, re-render,
+  and then have a React effect move focus. Replaced with auto-retrying
+  assertions (`expect.poll`, `toBeFocused`) — the fix is waiting for the state
+  rather than sampling it.
+- **Two `print-rules` specs timed out at the 5s default** waiting on a
+  `/dev/viewer` route the vite DEV server had not compiled yet. Not a spec bug:
+  the editor lane is the only one served by `pnpm dev`, and it is the biggest
+  suite here. The chromium project now sets `expect: { timeout: 15_000 }`, with
+  the reasoning in playwright.config.ts.
+
+Verified by three consecutive clean full-lane runs: 224 passed each. (A fourth,
+earlier run showed six failures and was a harness artifact — consecutive runs
+collided on `--strictPort` before the previous server had released it. Worth
+knowing if you ever loop the lane: free 5174/5175 between runs.)
+
+## ~~The reference-panel SANITIZER GAP is live today~~ ✅ FIXED + DEPLOYED 2026-08-23
+
+⚠ **This entry said "Not dormant. Not theoretical. Open right now." and stayed a
+P1 for several hours after it was fixed** — caught by the session close-out, not
+by the drift audit that ran in between. A closed P1 left open is worse than an
+open one: the next reader triages it first.
+
+**What shipped:** `sanitizeActivityDocument` now runs the per-block strips over
+`referencePanel.blocks` too, and **`SANITIZER_ALGO_REV` was hand-bumped 1 → 2** —
+the rev is computed from sanitize DECLARATIONS, none of which changed, so without
+the hand bump every cached row would have kept serving the leak after the fix
+shipped. Deployed and **verified by grepping the deployed source**, not by a
+version number. Measured exposure at the time: **0 of 29 published versions
+carried a reference panel at all**, so nothing had ever leaked.
+
+**What remains, and it is a PRODUCT question rather than a security one:** the
+editor still accepts a pasted question into a panel (the node types are
+registered to satisfy the column content schema). Its key no longer ships and the
+panel body is a permanently disabled fieldset, so it cannot be answered. Whether
+the editor should REFUSE the paste is unruled, with zero live instances.
+
+*(Original filing below, kept because its analysis of the registration is still
+accurate.)*
+
+`ReferencePanelEditor.tsx:96-110` deliberately registers `MultipleChoice`,
+`Matching`, `Ordering` and `InteractiveGraph` so pasted content parses. And
+`sanitize.ts:355-370` runs the per-block strips ONLY over
+`sections → rows → columns → blocks` — `referencePanel.blocks` gets the in-band
+deep walk and nothing else. So **a multiple-choice question pasted into a
+reference panel ships `choices[].correct` to every student's devtools today.**
+
+⚠ **The eng review first ruled this away** by deciding the new screen surface
+would render static families only. That is a blindfold, not a fix: the payload
+is identical either way. It was ruled that way partly to protect an unrelated
+slice's "no redeploy needed" claim, which is the tail wagging the dog. Caught
+by the outside voice.
+
+⚠ **`ReferencePanelEditor.tsx:86` justifies the registration with "a pasted one
+renders inert… the runtime never scores it" — citing the DELETED runtime.**
+Policy P5, and it is the exact assumption the blindfold leaned on.
+
+**The fix:** run `sanitizeBlockMut` over `referencePanel.blocks`. It moves
+`SANITIZER_REV`, orphans the read cache and owes a `get-activity` redeploy —
+pay that on its merits.
+
+**Depends on:** nothing. Independent of the calculator slice.
+
+## ~~A SIXTH ORPHAN THE AUDIT MISSED — the reference panel has no SCREEN surface~~ ✅ FIXED 2026-08-23
+
+**CLOSED the same day it was filed**, by
+[reference-panel-screen-surface.md](../docs/design/reference-panel-screen-surface.md)
+(design pass + AS-BUILT). `ReferencePanelTool` renders a bottom-LEFT summon and
+a fixed 24rem non-modal panel, wired in `ViewerContainer` behind a
+`mode === 'screen'` gate. The **sanitizer gap this entry pointed at was a real
+answer-key leak and is fixed separately** (`SANITIZER_ALGO_REV` 1→2; measured
+zero live instances). The original filing is kept below because two of its
+claims were later disproved and the corrections are the useful part.
+
+---
+
+
+Found while investigating the calculator, which is its twin.
+
+`ViewerContainer.tsx:275` renders `doc.referencePanel` **only** when
+`print.printReferencePanel` is set, into a static `.viewer-reference-print`
+box. There is no screen surface at all. The collapsible drag-resizable
+bottom-bar toolbar ROADMAP describes was the published-page runtime's and died
+at S9 Drop 4 with everything else.
+
+**Consequence for a teacher today:** author a formula chart in the reference
+panel, leave the print checkbox unticked (it is not on by default), and the
+content is authored, stored, sanitized, censused — and seen by nobody, ever.
+
+⚠ **The 2026-08-22 audit's §9 sweep MISSED this**, and then made it worse: it
+"corrected" ROADMAP's dead "live on published pages" to "live in the viewer"
+without checking whether the viewer had picked the surface up. It had not.
+That is a half-fix, and the drift-audit skill's own §9 note says a half-fix
+comes back — this one came back in a day. **The sweep only walked
+`packages/schema/src/blocks/`; `ActivityDocument`'s top-level fields
+(`referencePanel`, `calculator`) were never in its scope.** Widen it.
+
+**It shares the cluster with the calculator, but NOT a host component** (see
+the deferral note below). ⚠ **The z-ladder claim in this entry is now out of
+date, by this entry's own twin:** the calculator slice consumes `--z-tools`
+(`.tool-corner`) and `--z-calculator` (`.tool-mount`, which hands it to the kit
+through `--gk-z-panel`). **`--z-reference` is the one still with zero `var()`
+consumers** — this slice inherits the corner and the ladder, not a rebuild.
+DECISIONS.md:193-195 still specifies the cluster: summon hides while open,
+Esc/× closes, focus returns to the button, `role="dialog"` non-modal,
+reference anchors bottom-LEFT so an open calculator (bottom-right) never
+collides.
+
+**Depends on:** nothing. ⚠ **DEFERRED from the calculator slice on 2026-08-23**
+(eng review D15): the "they share a host component" argument was FALSE.
+DECISIONS.md forbids the reference panel using the graph-kit for chrome
+("would cost hundreds of KiB") and the deleted sidecar reimplemented drag in
+~40 lines. The genuinely shared surface is a corner div and two buttons.
+
+⚠ **Do not re-litigate the screen FORM without reading DECISIONS.md:193** — it
+already rules "Screen = summonable floating window (calculator pattern)",
+author-requested 2026-07-08, superseding the bottom bar. A design review
+"reversed" that in the same direction a month later, having misread it.
+
+**Unsolved before building:** content shapes. The panel editor allows Columns
+(a 2-column chart inside a ~24rem window) and full-size images, and a periodic
+table is genuinely happier wide. The outside voice argues a plain `<details>`
+disclosure in the worksheet flow may beat a floating window on a Chromebook —
+worth pricing before assuming the window.
+
+## ✅ FIXED 2026-08-22 — the drift-audit skill's `Status:` grep
+
+It matched two of the four spellings in `docs/design/`, so the 2026-08-22 audit
+reported `activities-list-surface.md` as status-less when its line sits inside a
+blockquote — the same false-positive class the skill already carried a warning
+about from 2026-08-17, in a new spelling. Widened to one expression covering all
+four (`^>? *\*{0,2}Status:`), with the two-audits-same-mistake note attached so
+the next gap gets a wider expression rather than a fifth special case. Recovered
+4 of 7 reported false positives; the 3 real ones are `graph-systems.md` and
+`ux-lens.md` (instruments, not feature designs — no status wanted) and
+`print-and-printables.md`, which was a SHIPPED feature with no status line and
+now has one.
+
+## The answer-key slice's three recorded follow-ups (T7 + two rulings, 2026-08-20)
+
+*(Archived 2026-08-23: items 1/1b and V7 are done; items 2 and 3 survive as their own
+TODOS entries — "Answer/solution editing UI in FreeResponseView" and "Remove the dead
+`problem` block".)*
+
+Left open deliberately by [problem-answer-key.md](../docs/design/problem-answer-key.md); T1–T6 shipped.
+
+**1. ✅ T7 — FULLY DONE** (the blocked half is unblocked; see 1b).
+Shipped 2026-08-20: a `printExpectations.ts` universal row (the written answer key never prints on a
+student worksheet, with its non-vacuity pair named in `print-answer-key.e2e.ts`), and an a11y row
+that scans the **post-check** worksheet — a state this lane had never scanned at all, and which is
+where the answer-key slice's new solution-disclosure DOM lives. Both verified in a real browser.
+
+**1b. ✅ RESOLVED 2026-08-20 — the viewer renders no problem number for any block type.**
+*(Kept in full because the finding is the useful part; the fix is recorded at the end.)*
+
+*The finding, verified in the dev harness:* `fill_in_blank`, `multiple_choice`, `matching`,
+`ordering`, `number_line` and `faded_worked_example` all declare `numbered: 'always'` in the
+registry, and **not one of them renders a number** on screen or on paper. `ViewerContainer`'s block
+slot emits `data-block-id/-type/-category/-family/-align` and nothing about numbering; no CSS
+counter exists; `pageLabel()` has no consumer outside the schema's own tests.
+
+*How it happened:* the surface that rendered numbering was the renderer's `isNumberedBlock`, which
+wrote "Problem N" into published HTML. It died with `packages/renderer` at **S9 Drop 4**, and the
+viewer — now the only student surface — never inherited the job. The registry declaration and its
+guard test survived the deletion, so the contract still *looks* honoured.
+
+*Why it matters more now:* ruling E7 (answer-key slice) made `short_answer` and `essay` numbered on
+the stated premise that "numbers render on screen and on paper from the one existing numbering
+walk". That premise is false for this surface. Paper-first workflows are the reason the slice
+exists — a printed worksheet whose questions have no numbers cannot be marked against a key, and
+the scan-grading arc's paper→block mapping has nothing to key on.
+
+**✅ BUILT — [viewer-numbering.md](../docs/design/viewer-numbering.md), eng-reviewed (D2–D10) and
+DX-reviewed, shipped as V1–V6 + V9 on 2026-08-20.** A pure `buildNumbering` walk producing an
+id-keyed map, rendered by the SHARED block wrapper so the grid is declared once and every numbered
+type inherits it — including types that do not exist yet. All three label modes honoured, sub-part
+lettering back, the number announced once from a labelled group.
+
+**The part that matters most is the guard.** `numbering-output.test.tsx` binds `numbered:'always'`
+to RENDERED OUTPUT instead of to another declaration. Proven against the original bug: with the
+render path removed, `registry.test.ts` reports 43 passed — green, exactly as it was for four
+months — while the new guard reports 3 failed, naming all eight types.
+
+**The generalisable lesson, recorded because it outlives this item:** when a package is deleted, its
+surviving DECLARATIONS need a consumer audit. A guard comparing two declarations outlives the
+implementation that made them true, and is then worse than no guard, because it reads as coverage.
+
+**Still owed — V7:** regenerate the 22 Linux print baselines (~10 change) via `workflow_dispatch`
+and commit the artifact. CI's print-gates job is red until it lands, and that red is EXPECTED.
+
+*What the work is (its own slice, not a sweep):* give the viewer a numbering pass over the served
+document — sequence walk, the three `label` modes (`number` / `custom` / `none`, already in the
+schema), the on-screen and print renderings, and the a11y association between the number and its
+question. **Then** the two rules T7 could not declare become declarable: a `printExpectations.ts`
+row for the number on paper, and the a11y check that it is announced with the question rather than
+read as loose text. Do it for every numbered type at once — a numbering surface that serves two
+block types is worse than none, because the sheet's numbers would then skip.
+
+*Cross-reference:* the note at the top of `printExpectations.ts`'s universal block records the same
+finding where the future implementer will be standing.
+
+**2. A full answer/solution EDITING UI in the editor (ruling E10 deferred it).** What ships today is
+read-only display in `FreeResponseView` — a collapsed, teacher-only panel showing whatever the
+importer brought in. The authoring surface is the .md file plus the batch importer's
+re-import-updates flow. Build this only when a teacher actually needs to edit a key without touching
+the file; the round-trip it would have to preserve is already pinned (`serialize.test.ts`).
+
+**3. Remove the `problem` block type (ruling E1).** It carries a tombstone comment
+([packages/schema/src/blocks/problem.ts](../packages/schema/src/blocks/problem.ts)) and nothing but the
+schema and the viewer's read-only `Problem.tsx` still touches it. Removal is a **migration**
+question, not a deletion — documents in `activity_versions` may contain one and the schema is what
+must keep reading them. **Policy P5 applies: the removal audits every comment that cites `problem`**
+(a claims-grep), because several files explain their own behaviour by contrast with it.
+
+## ✅ RESOLVED 2026-08-18 — the `sw` lane fails while the local Supabase stack is running (recorded 2026-08-14)
+
+**Fixed in `cc24700`.** The two offline-reopen rows in `e2e/sw/service-worker.e2e.ts` now pass
+with `supabase start` UP; proven both directions (73/73 across the four CI lanes with the stack
+running, and on clean `main` moving only the port turned the same two rows green).
+
+**⚠ THE RECORDED MECHANISM WAS WRONG, and the entry said so — which is the lesson.** This entry
+hypothesised *contention*: "the rows kill a disposable preview server and race a service-worker
+fetch, and the Docker VM makes that timing much worse — but that was not proven, so treat the
+mechanism as a hypothesis." Honest, and correctly hedged. **But the RULING it carried —
+"a local environment interaction, not a product defect... recorded, not fixed" — rested on that
+unproven hypothesis anyway, and stood for four days.**
+
+**The real mechanism, tool-proven:** the stub lanes and the integration lane shared one address,
+`127.0.0.1:54321`, that they needed to mean OPPOSITE things — the stub lanes need it
+**unreachable** (their offline rows are built on a real connection refusal), the integration lane
+needs the **real stack** there. With a stack up, Kong answered with a genuine
+`401 {"error":"Expected 3 parts in JWT; got 1"}` (the harness's fake `access_token` is
+deliberately not a JWT), `readClient` mapped 401 → `unauthenticated`, and the page showed "Please
+sign in again" instead of the offline banner. Not timing at all; nothing to do with Docker load.
+
+**So it WAS a defect — in the harness, and fixable.** Stub lanes moved to `127.0.0.1:54399`
+(outside the CLI's whole default range, so the origin is dead by construction), one home per
+origin with everything else importing it, a preflight that fails with a named fix, and
+`scripts/tests/e2e-origins.test.mjs` pinning the constant ↔ `playwright.config.ts` ↔ `ci.yml`
+three-way agreement. Full story: `packages/app/e2e/helpers/e2eOrigins.ts`.
+
+**The advice this entry used to give is now obsolete** — you no longer need `supabase stop` before
+a plain sweep. Both lanes run with the stack up.
+
+**Two things to carry forward:**
+1. **A hypothesis flagged as unproven should not carry a ruling.** "Treat the mechanism as a
+   hypothesis" and "not a product defect, record don't fix" cannot both be honest in one entry —
+   the second is a conclusion the first says you have not earned.
+2. **A lane that passes because of what is ABSENT from the machine is not passing, it is
+   unobserved.** CI was green on these rows only because CI has no local stack.
+
+**Related trap, STILL LIVE and unrelated to the above:** heavy background load (a game client at
+~80 % CPU, plus Docker) turned a 40-second four-lane run into 14.5 minutes and failed five
+`failure-matrix` rows that are green on a quiet machine — including rows nobody had touched.
+**Local e2e timing results are not trustworthy under load; CI is the arbiter.** Check `uptime`
+before believing a local e2e failure.
+
+## ✅ NOT A GAP — viewer data plots in dark mode (raised and DISPROVED 2026-08-18)
+
+**Recorded so nobody re-finds it.** A drift-audit pass claimed the viewer renders data plots
+with light structural colors in dark mode, reasoning that `--gk-board-axis/label/ink` are
+defined only in `packages/app/src/editor/editor.css` while the viewer imports
+`renderDataPlotSvg`. **The claim was wrong, and the design is correct.** Disproved in a real
+browser at `/dev/viewer?type=data_plot` with `theme=dark` set BEFORE mount:
+
+| Observed | Value |
+|---|---|
+| board axis stroke | `#94a3b8` — the **BOARD_DARK** value, not light `#64748b` |
+| board label fill | `#cbd5e1` — the dark value |
+| viewer page background | `#020617` |
+| `[data-print-svg]` display | **`none`** |
+
+**Two mechanisms, and the audit conflated them:**
+1. **On screen, the live board draws** — `detectBoardTheme(container)` reads the computed
+   `color-scheme`, which `packages/app/src/index.css` sets at `:root` (`light dark` /
+   `light` / `dark`), and `boardColors('dark')` supplies a real dark palette. Nothing to do
+   with CSS custom properties. Graphs, number lines and data-plot boards all work this way.
+2. **`renderDataPlotSvg` is the PRINT TWIN** (`blocks/printTwin.tsx`), `display: none` on
+   screen (`viewer.css:914`), revealed only under `@media print` / `[data-viewer-mode='print']`
+   — and print forces `color-scheme: light` (`index.css`, pinned by the "print forces light
+   even for a dark-theme user" row in `dark-contrast.e2e.ts`). So the LIGHT fallback hexes are
+   the *correct* values on the only viewer surface that renders that SVG: paper.
+
+The editor defines the tokens because the editor shows that same static SVG **on screen** as
+the DataPlotView preview — exactly the case `graph-kit-board-dark.md` describes. Two surfaces,
+two mechanisms, both right.
+
+**⚠ The trap that produced the false finding, worth knowing before touching this:** grepping
+"viewer imports renderDataPlotSvg" + "viewer does not define the tokens" looks conclusive and
+is not. **Check whether the element is visible on the surface you are reasoning about.** The
+`data-plot-svg.ts` header comment actively misled here — it still described *published pages*
+(dead since S9) as the surface that leaves the tokens undefined; corrected 2026-08-18 to name
+the viewer's print path instead.
+
+**One thing genuinely NOT verified** (small, teacher-only): the teacher print ROUTE renders the
+twin on screen via `[data-viewer-mode='print']`. Whether that route forces a light surface on
+screen for a dark-theme teacher was not tested — only `@media print` was. If someone touches
+the print route, check it; it is a preview-fidelity question, not a student-facing one.
+
+## ⚰ MOOT at S9 (struck 2026-08-13) — Anonymous assignment-link validation at page load
+
+**Why struck:** this entry proposed a new anonymous endpoint so PUBLISHED PAGES
+could preflight `?a=` assignment links — the entire world it serves (published
+static pages, the anonymous wire, get-feedback as the precedent to copy) is
+demolished by the S9 cutover (plan: docs/design/s9-cutover.md, Drops 3/4;
+rulings D-5/D-6). Students reach activities through the signed-in viewer at
+`/a/:id`; there are no anonymous assignment links left to validate. Kept (not
+deleted) because the September-observation trigger below names Kia/Felice
+classes — if a *viewer-era* dead-link problem ever appears, it is a NEW design
+against `class_activities`, not this endpoint. Original entry follows for the
+record:
+
+**What:** A tiny anonymous endpoint (get-feedback's `--no-verify-jwt` pattern, or a new
+action on it) that a published page calls at bootstrap when `?a=` is present, so a dead
+assignment link surfaces BEFORE the student starts working, not at submit.
+
+**Why:** The scoping train's ruling D14 (2026-07-24) made token death non-destructive —
+on 401 the work is preserved in the pending blob and retries with a fresh link — so the
+remaining harm is only "student learns late." That downgraded the preflight check from
+requirement to polish, and it was deferred because it adds a real anonymous surface
+(deploy flag, CORS, enumeration thinking — tokens are ~72-bit so enumeration is cold, but
+it's still a new no-JWT function to maintain).
+
+**Trigger:** the September observation (Kia/Felice classes) shows students actually
+hitting dead links.
+
+**Pros:** dead link discovered in second 1, not minute 40. **Cons:** one more anonymous
+Edge Function surface to secure and redeploy correctly (`--no-verify-jwt` footgun applies).
+
+**Where to start:** `supabase/functions/get-feedback` (the anonymous-endpoint precedent);
+the runtime bootstrap in `packages/renderer/src/runtime/init.ts` for the call site.
+
+**Context:** surfaced by the outside-voice pass of /plan-eng-review on 2026-07-24
+(finding OV-4, option B content, deferred by ruling D14/D19).
+
+## ✅ RESOLVED 2026-08-14 (S9 Drop 5, D-9): offline reopen PROVEN — and the worker WAS broken
+
+**The "Where to start" hunch below was right, twice over.** The server-stop
+harness (an in-test child-process preview server killed mid-test —
+`e2e/helpers/disposablePreview.ts`) reproduced the failure against a genuinely
+dead server, and the diagnosis found a REAL product bug: static hosts send
+`Vary: Origin` on assets (vite preview does; CDNs can) and `Cache.match`
+HONORS Vary — parse-time `<script type=module>`/`<link>` requests carry a
+different Origin-header shape than the stored key, MISS the cache, and hit
+the dead network. That was the whole "fetch() 200s while parse-time dies"
+mystery: page-script fetch happens to match the stored shape. Fix:
+`matchOptions: { ignoreVary: true }` on the CacheFirst route (the assets are
+content-hashed — the hash IS the identity), proven red→green. Two more
+harness findings, both encoded in the un-parked rows' comments: a page that
+ever carried `page.route` handlers blocks the worker from serving a
+NAVIGATION even after `unrouteAll` (the reopen runs in a FRESH page — which
+is also the honest student story), and a `fill()` racing a navigation loses
+the debounced buffer write (the kill now waits until the buffer provably
+holds the work). Both rows green 5/5 solo + 3/3 full-lane. The un-parked
+rows in `sw/service-worker.e2e.ts` are the living record; the original
+parking note survives in git history. Original entry kept below for the
+reasoning trail.
+
+**What (original):** Get the two parked rows in `packages/app/e2e/sw/service-worker.e2e.ts`
+(`offline reopen`, currently `test.fixme`) running green, or establish that the
+worker genuinely cannot serve a navigation offline and fix the worker.
+
+**Why:** Offline reopen is ruling TV2-A's user-visible promise — a student who
+opened an activity in class can open it again at home with no signal. Everything
+around it is verified: the worker installs, claims the page, and handles both the
+navigation and subresources online (`workerStart` non-zero for the entry chunk),
+the precache holds index.html, assets land in `activity-viewer:cache:shell`, and
+V6's per-user document cache holds the content. The promise itself is the one
+part still unproven.
+
+**What was already ruled out:** Playwright request routing (fails identically
+with no interception at all), and the runtime route not matching (it matches
+online). Under `context.setOffline(true)` the navigation returns 200 and the page
+stays controlled, but parse-time subresource requests die with `net::ERR_FAILED`
+while a `fetch()` for the same URL from page script resolves 200 moments later.
+Aborting every route instead of emulating offline behaves the same.
+
+**Where to start:** try stopping the preview server instead of emulating offline
+(a real unreachable origin rather than an emulated one) — the emulation is the
+prime suspect. If that reproduces the failure, the worker is at fault and
+`packages/app/vite.config.ts`'s runtimeCaching is where to look; if it passes,
+the harness needs the server-stop approach and the rows can be un-parked.
+
+**Depends on:** nothing. Should land **before S9 cutover**, which is when
+students actually meet this path.
+
+**Context:** surfaced by /plan-eng-review's S6 build, V9 (2026-08-02).
+
 ## Archived from STATE 2026-08-23 — the check-prune slice (built and running)
 
 ### the check-prune slice (0035/0036) is BUILT and RUNNING

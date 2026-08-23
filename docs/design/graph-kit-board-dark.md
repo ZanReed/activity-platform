@@ -22,7 +22,7 @@
 > **print twin**, `display:none` on screen and revealed only for print, where the light fallbacks
 > are the correct values. The editor defines the tokens because the editor shows that same static
 > SVG on screen as the DataPlotView preview. Two surfaces, two mechanisms, both correct. Full
-> evidence and the trap that produced the false claim: TODOS.md, "NOT A GAP — viewer data plots".
+> evidence and the trap that produced the false claim: docs/HISTORY.md, "NOT A GAP — viewer data plots" (archived from TODOS 2026-08-23).
 
 Status: ✅ **SHIPPED + DEPLOYED 2026-07-19** (the queued deploy ran same day — kits `NNS6KNUS` then `NXZNIEUK` with the color pass; see [HISTORY.md](../HISTORY.md)).
 The live graph-kit boards (interactive graph, point/system answer, display,
