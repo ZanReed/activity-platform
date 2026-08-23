@@ -1,12 +1,35 @@
 # The floating tool cluster — the calculator and the reference panel come back
 
-**Status:** 🟢 **PLAN — ruled C1–C13, design-reviewed AND eng-reviewed 2026-08-23. CLEARED to build; no code yet.**
+**Status:** 🟢 **PLAN — REVISED 2026-08-23 after a completed eng review + outside voice. SCOPE CUT to the calculator; C6 and C12 REVERTED. Cleared to build.**
 
-Wires the two FLOATING TOOLS a student lost at S9 Drop 4: the calculator
-(orphan #4 of the 2026-08-22 audit) and the reference panel's screen surface
-(a sixth orphan the audit missed, filed 2026-08-23).
+> ⚠ **READ THIS FIRST — three of this plan's own rulings were wrong, and the
+> outside voice caught them.** The first eng review was run from memory and
+> skipped its own procedure (Code Quality, Tests, Performance, and the outside
+> voice). Re-run properly on 2026-08-23:
+>
+> - **C6 (one tool open at a time) is REVERTED.** Its headline measurement —
+>   "two panels occlude 68%" — measures the CALCULATOR ALONE (640 − 206 = 434 ≈
+>   its own 418px + margin). Closing the second panel recovers **zero** readable
+>   strip. The other half of the argument used a reference-panel width **I
+>   invented for the wireframe**, so the "overlap below 896px" threshold was
+>   never real. The convention C6 retired stays.
+> - **C12 (the `--gk-*` seam needs no kit change) is REVERTED.** The z-index is
+>   a bare literal (`calculator.ts:805`) and the kit's chrome properties are
+>   declared ON `.gk-cal` itself, so a viewer ancestor cannot re-point them. My
+>   "54 properties" was a line count; it is **27**.
+> - **C2 (both tools behind one host) is DROPPED with the scope cut.**
+>   DECISIONS.md already forbids the reference panel using the kit for chrome
+>   ("would cost hundreds of KiB"); the deleted sidecar reimplemented drag in
+>   ~40 lines. The shared surface was a corner div and two buttons.
+>
+> The lesson is the arc's own: **a measurement is not a finding until the
+> inference from it is checked too.**
 
-They are one slice because they are one component. Both are summonable panels
+Wires **the calculator** (orphan #4 of the 2026-08-22 audit), which a student
+lost at S9 Drop 4. The reference panel's screen surface (a sixth orphan, filed
+2026-08-23) is **DEFERRED to its own slice** — see NOT in scope.
+
+~~They are one slice because they are one component.~~ Both are summonable panels
 in the same bottom cluster, both were specified together in
 DECISIONS.md:193-195, and the z-ladder they were designed against —
 `--z-tools`, `--z-reference`, `--z-calculator` — has **zero `var()` consumers
@@ -56,8 +79,13 @@ inlines dynamic imports and reports a misleading 609 KiB gz):
 `kitSurfaces.ts` already `await import('@activity/graph-kit')`s in four places,
 and `kitPreload` warms it for kit-bearing documents. **On an activity that
 already has a graph block or a math gap, a calculator costs 8.3 KiB gz and
-nothing else.** Worst case — calculator on a document with neither — is ~281
-KiB gz on first click, post-click and cached, off the shell entirely. It
+nothing else.** Worst case — calculator on a document with neither — was stated as ~281 KiB gz.
+⚠ **That omitted JSXGraph**, which graphing mode needs, and the one motivating
+activity is `calculator: graphing`. Measured against the real build: ~8.7
+(calculator) + 262.8 (MathLive) + 238 (JSXGraph) + ~7 (board) + ~6 (kit entry)
+≈ **515+ KiB gz** on first click, post-click and cached, off the shell
+entirely. That also falsifies C7's "this pending state only appears on a bad
+connection" — on school wifi it is the normal state. It
 matches the design doc's own 2026-06-21 spike. **No ledger row moves, no shell
 row moves, no cap needs raising** (shell JS 159.2/172, mathlive 264/290,
 jsxgraph 247.8/265).
@@ -89,9 +117,13 @@ ships anyway for graph blocks. The size argument supports neither side; this
 is a product call and the product answer is that a digital-SAT-style
 calculator is a thing a math teacher expects to be able to switch on.
 
-**C2. Both tools, one host.** A shared cluster component owns the corner,
-the z-ladder, the summon buttons and the open/close grammar. Neither tool
-re-implements chrome.
+**C2 — DROPPED with the scope cut.** ~~Both tools, one host.~~ The premise was
+false: DECISIONS.md already rules that the reference panel must NOT use the kit
+for chrome ("Pulling the graph-kit for window chrome would cost hundreds of
+KiB"), and the deleted sidecar reimplemented drag in ~40 lines. `mountCalculator`
+builds its chrome as framework-agnostic DOM inside itself; it is not exported
+and cannot wrap React block components. The genuinely shared surface was a
+corner div, two buttons and a z-index.
 
 **C3. Mobile is designed, not deferred** *(superseded in detail by C8 below —
 the measurement turned this one-liner into a specification)*. A 30rem fixed panel on a 375px phone
@@ -101,10 +133,9 @@ Chromebooks are the stated target, so this is the secondary case — but
 "undesigned" is how a panel ends up half off-screen on the one device a
 student actually has.
 
-**C4. Bind the z-index to the token.** The kit hardcodes `z-index: 120` in its
-own injected stylesheet and `--z-calculator: 120` agrees **by coincidence**.
-The kit must read the token (or the viewer must set the kit's variable) so the
-next token change cannot silently desync the two.
+**C4. Bind the z-index to the token** — the intent stands; the mechanism was
+wrong and is corrected in C12 below. The kit hardcodes `z-index: 120` and
+`--z-calculator: 120` agrees **by coincidence**.
 
 **C5. Already ruled — not reopened.** Summon on CLICK, never on presence
 (graded blocks import on presence; the calculator does not). Scaffold
@@ -116,105 +147,59 @@ localStorage. Drag/resize is an ENHANCEMENT — the panel must be fully usable
 parked at its default position. Functional twin, visual stranger: no Desmos
 name, assets or skin.
 
-## Design-review rulings (2026-08-23, D3–D6) — measured, not argued
+## Revised rulings after the completed eng review (2026-08-23)
 
-A wireframe of the cluster at true sizes, using the calculator's own declared
-geometry (30rem × 26rem graphing, `min-width: 24rem`) and the viewer's real
-tokens. Artifact:
-`~/.gstack/projects/ZanReed-activity-platform/designs/tool-cluster-20260823/wireframe.html`
+**C6 — REVERTED.** See the banner. One-tool-at-a-time is dropped; the
+`summon hides while open` convention in DECISIONS.md:195 **stands unchanged**
+and is load-bearing: both summon buttons share the bottom-right `.tool-corner`,
+and the kit hardcodes `right:1rem; bottom:1rem`, so an open calculator covers
+its own button regardless. The real occlusion lever is the calculator's 26rem
+default height on a 640px viewport — **unmeasured, and the honest next
+question** (filed, not guessed at here).
 
-**C6. ONE TOOL OPEN AT A TIME** (D3 — the finding that changed the design).
-Measured on a Chromebook-height viewport: both panels open occlude **68% of it**,
-leaving a **206px readable strip** of worksheet. And the two panels **overlap
-each other below 896px viewport width** — reference 384 + calculator 480 +
-32px margins = 896 exactly. **The inherited "reference bottom-left, calculator
-bottom-right, so they never collide" rule was written for a bigger screen than
-students have.** So the cluster permits a single open panel: opening one closes
-the other.
+**C7 — KEPT, with its premise corrected.** The pending state stays. But
+"appears only on a bad connection" is false at ~515 KiB first-click for
+graphing mode, so it is a **normal-path state**, not an edge case, and it gets
+a real test rather than a lane that can never see it.
 
-⚠ **This RETIRES the inherited "summon hides while open" convention**
-(DECISIONS.md:193-195), and that is the point rather than a side effect: the
-rule existed only because both tools shared ONE corner. With one panel possible
-at a time, **both summon buttons stay visible always** and the open tool's
-button is its own toggle — which is also the more discoverable arrangement.
-Accepted cost: a student comparing a formula against a calculation must flip.
+**C7b / D10 — the FAILED load is a designed state too.** `mountCalculator` is
+awaited with **no `.catch()`** in either existing caller
+(`ActivityConfigDrawer.tsx:1055`, `DevCalculator.tsx`), the service worker
+precaches exactly one file (`globPatterns: ['index.html']`, 979 B), and
+**offline reopen is a shipped, proven capability**. So an offline tap rejects
+unhandled and the pending spinner runs forever. Ruled: catch, clear pending,
+restore the button, show "Calculator unavailable offline", stay retryable.
 
-**C7. The first click and the first visit are designed states** (D4).
-The engine chunk downloads on first click, so the summon shows a **pending
-state** — `aria-busy`, a spinner, label unchanged, still clickable-but-inert —
-because on school wifi the alternative is a student tapping a button that
-appears dead. **This state only ever appears on a bad connection, so it will
-never surface in testing; it needs its own test.** Separately, on a student's
-first visit to an activity that HAS reference content, the reference summon
-carries a brief **one-time highlight**: the panel holds the teacher's own
-material, and a student who never notices the button never learns it exists —
-which is the same outcome as the bug being fixed, with a button on screen.
-(Needs per-activity state; the session-only geometry rule does not cover it, so
-this is a deliberate exception, not an oversight.)
+**C8 — KEPT, and probably cheaper than assumed.** The 375px overflow is real
+(482px panel, 123px off-screen; `min-width:24rem` beats `max-width:95vw`). Note
+for the builder: the kit already contains
+`@container gkcal (max-width: 23rem)` (`calculator.ts:944`) which **can never
+fire** while `min-width:24rem` stands — the compaction machinery may already
+exist, and the sheet could be close to a single `min-width` override.
 
-**C8. The mobile sheet, specified** (D5, replacing C3's one-liner).
-Measured at 375px: the panel renders **482px wide and hangs 123px off the left
-edge**, because its own `min-width: 24rem` (384px) exceeds the viewport and in
-CSS `min-width` beats `max-width`. It does not shrink; it overflows. Below the
-existing 480px breakpoint the panel therefore pins **left/right/bottom**, takes
-~64% of viewport height, gets a rounded top with a grab handle, and **stacks the
-graphing body vertically** (plot above, keypad below) instead of side by side —
-a 14rem expression column beside a plotting grid leaves each ~160px otherwise.
-Dismiss: close button, Escape, or swipe-down on the handle. **This requires
-overriding the kit's own `min-width` and its two-column body from outside the
-kit**, which is the real work in this ruling.
+**C12 — REVERTED and replaced (D18).** The kit gains
+`z-index: var(--gk-z-panel, 120)`, matching the `var(x, fallback)` shape it
+already uses for board colours that `editor.css:161` sets today. **This is a
+graph-kit change**, and it is the same edit that unlocks C14.
 
-**C9. The reference panel matches the calculator's shape** (D6). Same chrome,
-same close grammar, anchored bottom-left, with height growing to fit content up
-to a cap — one formula gets a small panel, a periodic table gets a tall
-scrollable one. This **reverses the original bottom-bar decision**, and the
-reason it can: that shape was chosen when the bar owned the bottom edge alone,
-and C6 has just made a full-width bar unnecessary. Accepted cost: genuinely wide
-content (a periodic table) is happier in a bar than a panel.
+**C14 — DARK MODE IS IN SCOPE, not a follow-up** (D17). The viewer ships a full
+dark theme and the app follows the OS by default, while the kit's chrome is
+hard-coded light literals declared on `.gk-cal`. A dark-mode student summons a
+white panel over a dark worksheet. Same kit edit as C12, so it is done once.
 
-## Eng-review rulings (2026-08-23, D8–D9 + ARCH findings)
+**C15. `close()`, never `destroy()`, when putting the tool away** (D13).
+The handle exposes both; `destroy()` (`calculator.ts:733`) saves only geometry
+and tears down the MathLive fields. Closing keeps the student's in-progress
+expression, which is the whole point of the tool. Destroy only on activity
+unmount.
 
-**C10. The screen surface renders STATIC block families only** (D8 — a dormant
-gap C9 would have made live). `ReferencePanel.blocks` is `z.array(Block)`, the
-**full block union**, and `sanitizeActivityDocument` runs `sanitizeBlockMut`
-**only** over `sections → rows → columns → blocks`. Reference-panel blocks get
-only the in-band deep walk, on the strength of a comment asserting those
-surfaces "carry no declared answer keys" — **an assumption, not an
-enforcement**. Harmless while nothing rendered them; C9 renders them. So the
-screen surface renders paragraph / heading / list / image / table / math /
-callout and **skips gradable blocks**, warning at dev time rather than silently
-dropping. Rejected the alternative (extend the sanitizer) because it moves
-`SANITIZER_REV`, orphans the read cache and owes a redeploy — and still leaves
-a graded question sitting in a reference panel, which is a strange thing for a
-student to meet.
-
-⚠ **This is what keeps the "no bundle, no redeploy" claim true.** Fixing the gap
-the other way would have falsified it.
-
-**C11. The nudge is SESSION-scoped, never persisted** (D9). Once per page load
-for an activity carrying reference content. The viewer already persists
-responses to localStorage, so the machinery exists — but a behavioural flag is
-a different KIND of thing from a student's answers, the compliance data map
-documents everything stored about a student, and that map is read by counsel
-rather than by tests. Session scope gets nearly all the discovery benefit and
-adds nothing to the pack. Accepted cost: a student who reloads sees it again.
-
-**C12. The kit seam already exists — use it, do not invent one.** The
-calculator reads **54 `var(--gk-*)` custom properties** and `editor.css:161`
-already sets them from outside. So **C4 (z-index) needs NO graph-kit change**:
-the viewer sets `--gk-*` exactly as the editor does. **C8's two-column restack
-DOES need a kit change**, because layout structure is not expressible as a
-variable — it lands as a documented `sheet`/`compact` mode on the kit, NOT as
-the viewer fighting the kit's injected stylesheet with specificity. Specificity
-wars against a stylesheet the kit injects into `document.head` are the failure
-mode to avoid; it is not the viewer's stylesheet to win against.
-
-**C13. `remembered` is module-level and shared.** The kit's geometry memory
-(`calculator.ts:196-203`) is a module singleton: every mount shares it and
-nothing resets it. Two panels would share one memory, and it **leaks between
-tests**. The cluster must not assume per-panel geometry, and viewer tests that
-mount the calculator need an explicit reset or they will pass or fail based on
-what ran before them.
+**C16. Mount in the student surface, not in `ViewerContainer`.** My claim that
+"`ViewerContainer` has no chrome layer at all" was misleading:
+`StudentViewer.tsx:557` renders `<header className="viewer-topbar">`
+(`viewer.css:952`) and already hosts a Print button. Mounting as a sibling of
+`.viewer-worksheet` in `ViewerContainer` would also put a floating calculator
+into `ActivityPrint` (a SCREEN render of the teacher's print preview) and
+`DevViewer`. **Mount in `StudentViewer`, or gate on `mode === 'screen'`.**
 
 ## Cluster conventions already specified (DECISIONS.md:193-195)
 
@@ -251,72 +236,155 @@ existing is what the old runtime had; what must be asserted is that clicking it
 mounts a panel a student can use, and that an activity WITHOUT the flag renders
 no button at all.
 
-## Implementation Tasks
+## Test coverage (eng review §3)
 
-- [ ] **T1 (P1)** — viewer — `<ToolCluster>` host: the corner, both summon
-  buttons, single-open state machine (C6), z-ladder bound to the tokens (C4) —
-  **by setting `--gk-*`, which needs no kit change (C12)**.
-  Mounts as a sibling after `.viewer-worksheet`; `ViewerContainer` has no chrome
-  layer today, so this creates one.
-- [ ] **T2 (P1)** — viewer — Calculator summon + mount. Dynamic import,
-  `floating: true`, destroy on unmount, cancelled-mid-load race handled (copy
-  `CalculatorPreview`, which already does).
-- [ ] **T3 (P1)** — viewer — Reference panel screen surface (C9), sharing the
-  panel chrome; content-sized height with a cap. **Static families only (C10)**,
-  gradable blocks skipped with a dev-time warning.
-- [ ] **T4 (P1)** — viewer — Pending state on the summon (C7): `aria-busy`,
-  spinner, inert-but-not-disabled. **Only appears on a slow connection, so it
-  gets its own test rather than relying on a lane to surface it.**
-- [ ] **T5 (P1)** — viewer/styles **+ graph-kit** — The mobile sheet (C8): pin
-  three edges, grab handle, ~64% height. Geometry via `--gk-*` (C12); the
-  two-column restack lands as a documented `sheet` mode ON THE KIT, not as a
-  specificity war against the stylesheet it injects into `document.head`.
-  **The one graph-kit change in the slice.**
-- [ ] **T6 (P2)** — viewer — First-visit nudge on the reference summon (C7),
-  **session-scoped, nothing persisted (C11)**.
-- [ ] **T7 (P1)** — tests — Output-bound, mutation-tested guards. Not
-  sufficient: "the button exists". Must assert that clicking mounts a usable
-  panel, that an activity WITHOUT the flag renders no button, that opening one
-  closes the other, and the 480px sheet geometry.
-- [ ] **T8 (P2)** — a11y — Two non-modal dialogs: focus moves panel ↔ button,
-  Escape closes, tab order sane, and the panel over a `<fieldset disabled>`
-  worksheet behaves.
-- [ ] **T9 (P2)** — docs — **DECISIONS.md:193-195 retires its "summon hides
-  while open" convention** (C6). Policy P5: retiring a rule means auditing every
-  comment that cites it. Also update ROADMAP 2.7's done-when and the reference
-  panel entry, both currently corrected-but-stale.
-- [ ] **T10 (P2)** — viewer — Reset the kit's module-level `remembered` between
-  viewer tests (C13), or they pass/fail on what ran before them.
-- [ ] **T11 (P3)** — viewer — Dark mode: the kit injects a global stylesheet
-  outside the viewer's token scope, so panel chrome will not follow the theme.
+Framework: vitest (`packages/viewer/vitest.config.ts`) units, Playwright
+(`packages/app/playwright.config.ts`) lanes; `pnpm verify` is the gate.
+**Split ruled at D12:** jsdom owns the cluster's logic and failure paths; the
+browser lanes own geometry and the real mount; graph-kit's internals stay
+graph-kit's.
 
-## Out of scope (filed, not fixed)
+```
+CODE PATHS                                        USER FLOWS
+[+] ToolCluster (new)                             [+] Summon
+ ├── no calculator  → renders NOTHING     [GAP]    ├── [GAP] click, panel appears
+ └── calculator on  → one button          [GAP]    ├── [GAP] close via x / Escape
+                                                   └── [GAP] focus returns to button
+[+] Mount lifecycle                                │        (toBeFocused, NOT a
+ ├── import OK → mount → handle           [GAP]    │         one-shot activeElement
+ ├── import FAILS → catch + restore       [GAP]★   │         probe — recorded flake)
+ ├── cancelled mid-load → destroy         [GAP]
+ ├── close (C15) keeps expression         [GAP]   [+] Failure + edge
+ └── unmount → destroy                    [GAP]    ├── [GAP]★ offline: chunk fails,
+                                                   │        button restored + message
+[+] Chrome (kit change)                            ├── [GAP] slow: aria-busy pending
+ ├── z-index var w/ fallback (C12)        [GAP]    │        (NORMAL path at ~515 KiB)
+ └── dark-mode chrome (C14)               [GAP]    └── [GAP] [→E2E] <480px sheet
 
-- Per-section calculator override (deferred by the original design).
-- Reference-panel print behaviour — unchanged; this slice adds the screen half.
-- The remaining three orphan classes: the graph feedback knobs,
-  `isCheckpoint` + the flow modes, and `hasConfidenceRating`/`allowTargetReuse`.
+[+] Surface gating (C16)                          [+] Regression surface (MUST NOT BREAK)
+ └── absent in ActivityPrint / DevViewer  [GAP]    ├── [★★] editor drawer preview
+                                                   ├── [★★] print box on/off —
+[+] Schema/config (pre-existing)                   │    print-document-layer.test.tsx:172
+ ├── [★★] parse + defaults — schema/tests/calculator.test.ts
+ ├── [★ ] fingerprint — activityChangeKey.test.ts:32
+ └── [★★] importer writes it — applyImportedMeta.test.ts:35
+
+COVERAGE: 5/17 (29%)  |  New paths: 0/12 (0%)  |  Flows: 3/8 (38%)
+QUALITY: ★★:4 ★:1  |  GAPS: 12 (1 →E2E, 2 critical ★)
+```
+
+**No regressions** (all new code), but the four ★★ rows are the surface it must
+not break — especially the editor drawer preview, which mounts the same widget
+and will see the C12/C14 kit change.
+
+## Failure modes (eng review, required output)
+
+| Codepath | Realistic production failure | Test? | Error handling? | Silent? |
+|---|---|---|---|---|
+| Chunk import | Offline / chunk 404 after deploy | **NO → T4** | **NO today** (C7b fixes) | **YES → critical gap** |
+| Mount | Kit throws mid-mount | NO → T4 | same catch | would be silent |
+| Cancelled load | Student navigates away mid-load | NO → T2 | `cancelled` flag exists in the drawer; copy it | leak, not visible |
+| Close vs destroy | Expression lost on tool switch | NO → T5 | C15 | **silent data loss** |
+| Dark mode | White panel on dark worksheet | NO → T7 | none | visible, looks broken |
+| Print surface | Calculator appears in print preview | NO → T3 | none (C16 fixes) | visible to teacher |
+
+Two entries are **critical gaps** by the skill's definition (no test AND no
+error handling AND silent): the chunk import failure, and close-vs-destroy.
+Both are now ruled (C7b, C15) and tasked.
+
+## Implementation Tasks (revised — calculator only)
+
+- [ ] **T1 (P1)** — viewer — `<ToolCluster>`: the corner, the summon button,
+  open/close state. **Mounted in `StudentViewer`, or gated `mode === 'screen'`
+  (C16).** Renders nothing when no calculator is configured.
+- [ ] **T2 (P1)** — viewer — Mount/unmount lifecycle: dynamic import,
+  `floating: true`, cancelled-mid-load guard (copy `CalculatorPreview`),
+  destroy on unmount.
+- [ ] **T3 (P1)** — viewer — Summon states: pending (`aria-busy`,
+  inert-not-disabled) and **failed** (catch → restore → "unavailable offline",
+  retryable) per C7/C7b.
+- [ ] **T4 (P1)** — **graph-kit** — `z-index: var(--gk-z-panel, 120)` (C12) and
+  overridable chrome colours for dark mode (C14). **One kit edit serves both.**
+  Check the editor drawer preview still renders correctly.
+- [ ] **T5 (P1)** — viewer — `close()` not `destroy()` on put-away (C15);
+  destroy only on activity unmount.
+- [ ] **T6 (P1)** — viewer/styles — The <480px sheet (C8). **Check the existing
+  `@container gkcal (max-width:23rem)` first** — it is dead code today and may
+  do most of the work behind a `min-width` override.
+- [ ] **T7 (P1)** — tests (jsdom) — Cluster logic + both failure paths, with a
+  stubbed rejecting import. **Mutation-tested.** Not sufficient: asserting a
+  wrapper exists.
+- [ ] **T8 (P2)** — tests (e2e) — Sheet geometry <480px, real mount, focus
+  return via `toBeFocused`.
+- [ ] **T9 (P2)** — docs — Fix `document.ts:150` ("on-SCREEN reference toolbar"
+  as live) and `printExpectations.ts:843` ("the screen tool never prints").
+  ⚠ **Do NOT rewrite DECISIONS.md:193-195** — the earlier plan would have, on a
+  misreading. The convention stands.
+- [ ] **T10 (P3)** — measure the calculator's default 26rem height against a
+  640px viewport and rule on a smaller default. This is the actual occlusion
+  lever C6 mistook for a panel-count problem.
+
+## NOT in scope (considered and explicitly deferred)
+
+- **The reference panel's screen surface** — deferred to its own slice (D15).
+  Its shared-host justification was false, and its content-shape questions
+  (Columns inside a 24rem window, full-size images, a periodic table) are
+  unanswered. The orphan stays open and filed.
+- **The reference-panel sanitizer gap** — `referencePanel.blocks` accepts the
+  full block union and the per-block strips never run there, so a pasted
+  multiple-choice already ships its key today. **Live now, independent of this
+  slice**, and filed as its own fix (D16) because it moves `SANITIZER_REV` and
+  owes a redeploy — a cost that should be paid on its merits, not dodged.
+- **The first-visit nudge** — dropped with the reference half; it was the most
+  speculative item and the only reason the plan needed a persisted-state
+  exception.
+- **Per-section calculator override** — deferred by the original design.
+- **Reference-panel print behaviour** — unchanged.
+- **The remaining orphan classes** — graph feedback knobs, `isCheckpoint` + the
+  flow modes, `hasConfidenceRating` / `allowTargetReuse`.
+
+## Worktree parallelization
+
+Two independent lanes, then a join:
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| T4 (kit chrome: z-index + dark) | `packages/graph-kit/` | — |
+| T1–T3, T5 (cluster + lifecycle) | `packages/viewer/`, `packages/app/src/routes/` | — |
+| T6 (sheet CSS) | `packages/viewer/src/styles/` | T4 |
+| T7–T8 (tests) | `packages/viewer/tests/`, `packages/app/e2e/` | T1–T6 |
+
+`Lane A: T4 (graph-kit, independent)` · `Lane B: T1 → T2 → T3 → T5 (shared viewer modules, sequential)`
+Launch A and B in parallel worktrees; merge both; then T6, then T7–T8.
+**Conflict flag:** none — A touches only `graph-kit/`, B only `viewer/` + `app/routes/`.
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | wire-vs-delete settled by evidence |
-| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | not run |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | **clean (2026-08-23)** | 5 architecture findings, 4 rulings (C10–C13); **1 plan premise corrected** |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | clean (2026-08-23) | 4/10 → 9/10, 4 decisions, 1 inherited convention retired |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | **not run** | the outside voice flagged this: "wire vs delete" was never adversarially tested |
+| Outside Voice | Claude subagent (Codex not installed) | Independent challenge | 1 | **issues_found (2026-08-23)** | 6 verified-false or overstated claims; 2 rulings reverted; scope cut |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | **clean (2026-08-23, re-run)** | §1–4 + outside voice; 12 findings, 8 rulings, coverage diagram, test plan artifact |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | **issues_found — its headline ruling was REVERTED** | 4/10 → 9/10, but C6's inference did not follow from its measurement |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | clean (2026-08-20, prior plan) | stale for this plan |
 
-**VERDICT:** ENG + DESIGN CLEARED — ready to implement.
+**CODEX:** not installed; an independent Claude subagent ran the outside voice.
 
-Both reviews earned their place by falsifying something. The design review
-measured that two open panels occlude **68%** of a Chromebook viewport and
-overlap below 896px, which retired an inherited convention. The eng review
-found that **`printReferencePanel` defaults to `true`**, so the plan's claim
-that reference content reaches nobody was wrong (it reaches paper, never
-screen); that **`ReferencePanel.blocks` accepts the full block union while the
-sanitizer's per-block strips skip that surface**, a dormant gap C9 would have
-made live; and that the **`--gk-*` seam already exists**, so C4 needs no
-graph-kit change at all.
+**CROSS-MODEL:** the outside voice overturned more than the review did. Verified
+against code: the z-index is a bare literal (C12 wrong); the kit's chrome
+properties are declared on `.gk-cal` so a viewer ancestor cannot re-point them;
+`StudentViewer` DOES have a chrome layer; DECISIONS.md:193 already ruled the
+reference panel's screen form a floating window a month before a design review
+"reversed" it; the perf worst case omitted JSXGraph (~515 KiB, not 281); and
+shell CSS has 1.2 KiB of headroom. Most importantly it checked the arithmetic
+behind C6 and found the 68% occlusion was the calculator alone.
+
+**VERDICT:** ENG CLEARED (re-run) — ready to implement, calculator only.
+
+⚠ **The first eng-review pass reported "clean" while having skipped Code
+Quality, Tests, Performance, the outside voice, the prior-learnings search and
+the TODOS pass.** It was Architecture-complete, not review-complete. This report
+replaces it. The lesson is the one the whole arc keeps producing: **a green
+result from a check that did not run is worse than no check.**
 
 NO UNRESOLVED DECISIONS

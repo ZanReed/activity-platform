@@ -149,6 +149,50 @@ interaction must keep both properties or the letters stop matching the bank.
 **Depends on:** the choice-figures slice landing first (it makes the case
 concrete and adds the fixtures a drag interaction would need to test against).
 
+## The reference-panel SANITIZER GAP is live today (2026-08-23) — P1
+
+**Not dormant. Not theoretical. Open right now.**
+
+`ReferencePanelEditor.tsx:96-110` deliberately registers `MultipleChoice`,
+`Matching`, `Ordering` and `InteractiveGraph` so pasted content parses. And
+`sanitize.ts:355-370` runs the per-block strips ONLY over
+`sections → rows → columns → blocks` — `referencePanel.blocks` gets the in-band
+deep walk and nothing else. So **a multiple-choice question pasted into a
+reference panel ships `choices[].correct` to every student's devtools today.**
+
+⚠ **The eng review first ruled this away** by deciding the new screen surface
+would render static families only. That is a blindfold, not a fix: the payload
+is identical either way. It was ruled that way partly to protect an unrelated
+slice's "no redeploy needed" claim, which is the tail wagging the dog. Caught
+by the outside voice.
+
+⚠ **`ReferencePanelEditor.tsx:86` justifies the registration with "a pasted one
+renders inert… the runtime never scores it" — citing the DELETED runtime.**
+Policy P5, and it is the exact assumption the blindfold leaned on.
+
+**The fix:** run `sanitizeBlockMut` over `referencePanel.blocks`. It moves
+`SANITIZER_REV`, orphans the read cache and owes a `get-activity` redeploy —
+pay that on its merits.
+
+**Depends on:** nothing. Independent of the calculator slice.
+
+## Measure the calculator's default size against a real viewport (2026-08-23)
+
+The successor to a ruling that was wrong. The design review measured "two open
+panels occlude 68% of a Chromebook viewport" and concluded only one tool may be
+open at a time. **The 68% is the calculator ALONE** (640 − 206 = 434 ≈ its own
+418px + margin) — closing a second panel recovers nothing. The lever is SIZE,
+not count.
+
+The kit declares 30rem × 26rem for graphing (min 24rem × 20rem). On a 640px
+viewport that is roughly two thirds of the screen. Worth knowing: the kit
+already carries `@container gkcal (max-width: 23rem)` (`calculator.ts:944`)
+which **can never fire** while `min-width: 24rem` stands — compaction machinery
+that exists and is unreachable.
+
+**Depends on:** the calculator slice landing, so there is something real to
+measure. Guessing now is what produced the wrong ruling.
+
 ## A SIXTH ORPHAN THE AUDIT MISSED — the reference panel has no SCREEN surface (2026-08-23)
 
 Found while investigating the calculator, which is its twin.
@@ -180,8 +224,22 @@ Esc/× closes, focus returns to the button, `role="dialog"` non-modal,
 reference anchors bottom-LEFT so an open calculator (bottom-right) never
 collides.
 
-**Depends on:** the calculator ruling — decide them together or the survivor is
-a one-tool "cluster" that re-strands the same tokens.
+**Depends on:** nothing. ⚠ **DEFERRED from the calculator slice on 2026-08-23**
+(eng review D15): the "they share a host component" argument was FALSE.
+DECISIONS.md forbids the reference panel using the graph-kit for chrome
+("would cost hundreds of KiB") and the deleted sidecar reimplemented drag in
+~40 lines. The genuinely shared surface is a corner div and two buttons.
+
+⚠ **Do not re-litigate the screen FORM without reading DECISIONS.md:193** — it
+already rules "Screen = summonable floating window (calculator pattern)",
+author-requested 2026-07-08, superseding the bottom bar. A design review
+"reversed" that in the same direction a month later, having misread it.
+
+**Unsolved before building:** content shapes. The panel editor allows Columns
+(a 2-column chart inside a ~24rem window) and full-size images, and a periodic
+table is genuinely happier wide. The outside voice argues a plain `<details>`
+disclosure in the worksheet flow may beat a floating window on a Chromebook —
+worth pricing before assuming the window.
 
 ## S9 left FIVE MORE ORPHAN CLASSES — **TWO FIXED 2026-08-22, THREE OPEN** (drift audit §9)
 
