@@ -1,6 +1,6 @@
 # Choice figures + nested lists — wiring two S9 orphans
 
-**Status:** ✅ **COMPLETE 2026-08-22 — all 17 tasks done, baselines pinned, print rules asserted, CI green.** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
+**Status:** ✅ **COMPLETE 2026-08-22 — 16 of 17 tasks done; T0b was ticked and never built.** ⚠ Amended 2026-08-24: T0b (preload + print-readiness marker) was checked off while neither mechanism existed, and is now MOOT — [graph-figure-convergence.md](graph-figure-convergence.md) made the SVG engine a static import, so there is no chunk to preload. T0's dynamic import is partly reversed by the same slice. Baselines pinned, print rules asserted, CI green.** Ruled + design-reviewed (5/10 → 9/10) + eng-reviewed (3 premises corrected), 0 unresolved.
 
 Wires two of the five orphan classes the 2026-08-22 drift audit filed
 (TODOS.md → "S9 left FIVE MORE ORPHAN CLASSES"). Both are **content loss**: a
