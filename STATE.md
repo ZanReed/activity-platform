@@ -193,14 +193,15 @@ decision. What stays live:
 
 ---
 
-**Last updated:** 2026-08-23 (the two content-loss orphans SHIPPED and CI-green;
-the calculator slice planned + design-reviewed + eng-reviewed, scope cut to the
-calculator alone; a SIXTH orphan found — the reference panel has no screen
-surface; the reference-panel sanitizer gap found LIVE and filed; CI actions
-bumped to the node24 runtime. ⚠ Two of my own claims were corrected by reviews
-this session — the reference-panel print default, and C6's inference from its
-own measurement.) *(Prior entry:)* 2026-08-22, second entry (full drift audit — 22 files; `supabase/functions/README.md` rewritten for the two-function world after carrying an eight-day-old "rewrite me" tombstone; 11 design docs annotated; ROADMAP and the migrations README caught up to 0039; the audit skill itself corrected in three places; one live fact left for the author — the `display_name` count). *(Earlier the same day:)* the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
+**Last updated:** 2026-08-23 (**ALL SIX S9 ORPHANS SHIPPED** — choice figures,
+nested lists, the student calculator, the reference panel's screen surface —
+plus a live answer-key LEAK found and fixed on the way, and the calculator's
+feature scope ruled before any of it was built. ⚠ Three of my own claims were
+corrected this session by reviews, by mutation testing, or by measurement: the
+reference-panel print default, C6's inference from its own measurement, and my
+own "the leak is urgent" before I checked the database and found zero
+instances.) *(Prior entry:)* 2026-08-22, second entry (full drift audit — 22 files; `supabase/functions/README.md` rewritten for the two-function world after carrying an eight-day-old "rewrite me" tombstone; 11 design docs annotated; ROADMAP and the migrations README caught up to 0039; the audit skill itself corrected in three places; one live fact left for the author — the `display_name` count). *(Earlier the same day:)* the TABLE BLOCK arc shipped end to end (four slices, proven on real content), the editor e2e lane joined CI after two flake fixes, a stale-build incident was diagnosed and made self-healing, and a drift audit cleared six items.
 
-**The lesson of the session, and it is the one this repo keeps paying for: a DECLARATION outlives its implementation, and the suite stays green because the guard compares two declarations.** The count reached EIGHT (registry `numbered`, `LABELED_BLOCK_TYPES`, block `workSpace`, `Row.gridLines`, fence `**bold**`, and this week `showCellLabels`, `hasConfidenceRating`, `allowTargetReuse`). Two corollaries earned the hard way: **a guard must bind to rendered OUTPUT** — mutation-test it by reverting the wiring and watching it go red — and **a finding that gets half-acted-on comes back**, as `hasConfidenceRating` did after eng review A10 deleted its print row in August and left the schema fields standing. The per-session close-out in CLAUDE.md exists to catch the next one at the moment it is written rather than at the next audit.
+**The lesson of the session is the SECOND half of the one this repo keeps paying for.** The first half is known: a DECLARATION outlives its implementation, and the suite stays green because the guard compares two declarations (the count reached EIGHT — registry `numbered`, `LABELED_BLOCK_TYPES`, block `workSpace`, `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`, `allowTargetReuse`). **The second half, learned this session: A GUARD OUTLIVES ITS OWN VALIDITY THE SAME WAY.** Three were found vacuous across the arc, two of them pre-existing and years old — `styles.test.ts`'s "no raw box-shadow" looped over ZERO declarations *and* named a token namespace retired when tokens moved behind `--vw-`; the print/preview mirror guarded one direction and left the worse one open (a clean preview with chrome on the paper). **Every one was found by MUTATION, none by a passing suite** — which is what "a guard must bind to rendered OUTPUT and be mutation-tested" is actually for, and why running it on the guards you INHERIT matters as much as on the ones you write. Corollary unchanged: **a finding that gets half-acted-on comes back.**
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._
