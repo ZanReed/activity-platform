@@ -20,14 +20,29 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**FOUR ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
+**FIVE ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
 
-⚠ **A `get-activity` redeploy is arguably owed and deliberately NOT flagged as
-urgent.** R4's schema deletion regenerated `viewer-server.bundle.js`, so
-deployed ≠ repo for that function — but the change is inert on the read path
-(zod strips the two dead keys either way, no student-visible difference) and
-`SANITIZER_REV` did not move, so no cache is orphaned. Fold it into the next
-`get-activity` deploy rather than doing one for this.
+⚠ **BOTH FUNCTIONS NEED A REDEPLOY — and `get-activity` is now URGENT, which
+it was not before (2026-08-25, misconception bindings).**
+
+- **`pnpm deploy:get-activity`** — `SANITIZER_REV` MOVED (`2-59a68ddc` →
+  `2-050ad6e2`): the strip list gained `choices[].misconceptionId`, so the
+  deployed read path does NOT yet strip it. **Deploy this BEFORE publishing
+  any activity that carries bindings** — an id names which choices were
+  written to be wrong, so serving it pre-check hands a client the distractor
+  map (OV-7 ordering: the server contract lands before the data that needs
+  it). The moved rev orphans stale read-cache rows automatically once live.
+  *(This supersedes the old "arguably owed, not urgent" note: that reasoning
+  rested on `SANITIZER_REV` not having moved, which is no longer true.)*
+- **`pnpm deploy:check`** (no `--no-verify-jwt`) — grading now returns
+  `misconceptionIds` on wrong answers and matches numeric mistakes by value.
+  Until it lands, checking works exactly as before; nothing breaks, the
+  sensor simply records nothing.
+
+**Verify after deploying** with `list_edge_functions` for the flags, and prove
+the CODE with `get_edge_function` + a grep for `2-050ad6e2` (get-activity) and
+`misconceptionIds` (check-activity) — a version number that did not move is
+not evidence.
 
 
 
