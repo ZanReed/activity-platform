@@ -129,6 +129,71 @@ badges in the blank popover, `MultipleChoiceView`, and `GraphSettings` mistake
 rows, before any colleague authors over an imported activity blind.
 **Depends on:** the co-ownership arc.
 
+## `{{…}}` inside `$…$` is SWALLOWED WHOLE, silently — and it leaks the answer (2026-08-25)
+
+**Found by the first real catalogue content, exactly as the authoring-first
+ruling predicted.** `activity-04-proportional-consolidation.md` authored
+`$k = {{=8 | !0.125 :: … :: mis.rate.ratio-inverted}}$`. A `{{…}}` inside inline
+math is not extracted as a blank: the whole brace expression is absorbed into
+the `mathInline` node's `latex`, with **zero warnings**.
+
+```
+{"type":"mathInline","attrs":{"latex":"k = {{=8 | !0.125 :: wrong way :: mis.rate.ratio-inverted}}"}}
+```
+
+**Three failures at once, in descending order of how bad they are:**
+
+1. **The answer is displayed to the student.** `8` — the thing being asked for —
+   renders inside the equation, along with the feedback prose and the
+   misconception id. This is an answer LEAK through the importer, and the
+   `\gap{}` path two lines away exists precisely because the stored equation
+   must empty the gap so the answer never leaks.
+2. **The item is not gradeable.** No blank node exists, so nothing is scored and
+   the teacher sees no response for an item the student was asked to fill.
+3. **The binding vanishes** — the sensor silently records "students didn't make
+   this mistake."
+
+**Why nothing caught it.** No importer warning; `--strict` exits 0; the
+binding-manifest compile-check only inspects bindings that REACHED the
+document, so a swallowed one is invisible to it. It was caught by hand, by
+diffing the manifest's per-id counts against a grep of the source files — the
+manifest credited `mis.rate.ratio-inverted` to two files when three carried it.
+
+**The fix for authors (already applied to the corpus):** close the math before
+the blank (`$k =$ {{=8 | …}}`, the form `activity-02` already used and the form
+that works), or use `\gap{answer}` inside the math. ⚠ **`\gap{}` cannot carry a
+binding** — `|`-alternates are not parsed inside math (format doc line 70), so a
+mistake sensor inside an equation has no spelling today. That is a real gap, not
+just a syntax preference.
+
+**The fix for the platform (proposed, not built):** warn at import when a
+`mathInline`/`math_block` `latex` contains `{{`. It is a one-line predicate over
+a node the importer already constructs, and it converts a silent answer-leak
+into a named warning that `--strict` fails on. Guard it against RENDERED OUTPUT
+per the close-out rule, and mutation-test the guard by reverting the corpus fix.
+
+**MEASURED — the swallow is universal across math contexts.** Every one of
+these absorbs `{{=8}}` into the latex, emits a blank node for nothing, and warns
+about nothing:
+
+| context | swallowed | blank emitted | warnings |
+| --- | --- | --- | --- |
+| `$…$` inline · `$$…$$` display | yes | no | none |
+| `worked` · `callout` · `faded` fences | yes | no | none |
+| table cell · `mc` choice | yes | no | none |
+| `definitions` fence | not reproduced (different storage path — recheck when fixing) | no | none |
+
+**⚠ A FOURTH INSTANCE PREDATES THIS ARC AND IS ALREADY IN THE DATABASE.**
+`unit-3/unit-rate.md:49` (authored 2026-08-21, imported since) held
+`$$\frac{4.50}{3} = {{=1.50}}$$` inside its `faded` fence — so a live activity
+row has been showing students the answer `1.50` in the equation, with that item
+ungradeable, for four days. Fixed in the file to `\gap{1.50}`; **the live row
+does not change until that file is re-imported.** This is the reason to treat
+the defect as a leak rather than a papercut: it was never noticed, and the
+corpus was three files long.
+
+**Depends on:** nothing — this is a standalone importer warning.
+
 ## Misconception id RENAMES have no alias path to stored rows (2026-08-25)
 
 `import:batch`'s registry check catches a taxonomy rename in the FILES on next
