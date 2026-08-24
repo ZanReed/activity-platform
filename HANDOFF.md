@@ -1,4 +1,4 @@
-# Handoff — 2026-08-24 (late)
+# Handoff — 2026-08-25
 
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
@@ -7,39 +7,39 @@ context for a human deciding whether the handoff is accurate.
 
 ## What happened in the session that wrote this
 
-**The activity flow modes shipped end to end and are LIVE.** Six knobs that
-described how an activity flows for a student, none of which was read by
-anything, became: check groups (`{checkpoint}` now covers every section since
-the previous one, and the end of the activity is always a checkpoint), a
-server-enforced `locked` mode derived from the stored document (migration 0040
-+ `check-activity` v20), `activityType` as a printed label, and two knobs
-deleted outright.
+**The misconception sensor shipped end to end and is LIVE.** A distractor can
+now name the misconception it senses, in markdown, and that id survives import
+→ serialize → grading → the stored check verdict. Both Edge Functions are
+deployed and code-verified. The same arc deleted the last three orphan knobs.
 
-**Three things were then found broken that nobody had noticed**, none of them
-part of the slice:
+**It went through two reviews, and both outside voices were right.** Nine
+cross-model tensions were raised across `/plan-eng-review` and
+`/plan-devex-review`; the author accepted all nine. The eng review's outside
+voice found that the ratified storage premise was **false against the
+retention design** — misconception ids live on non-latest attempts, exactly
+the rows `prune_section_checks` deletes. That became a blocking step on the
+arming checklist.
 
-1. `verify-0033`'s caps assertion had been failing since the self-serve teacher
-   door opened on 2026-08-19 — the predicate was wider than its own message.
-2. `verify-0036`'s rollup matrix was green only 3.5 hours a day, which made the
-   check-prune's **arming evidence invalid**.
-3. A CI claim in STATE cited a run id as proof of green; that run had failed.
+**Then the build falsified one of the reviews.** X3 split the graph nudge text
+out partly on a bundle-cost argument; measuring it both ways showed the split
+saved **10.5 KiB, not 108** — the ~98 KiB is the formula parser, which the id
+feature needs anyway. The split still stands on its UX ground. Recorded,
+because "a claim with a number attached is still a claim."
 
-**Two structural rulings landed** (both the author's): STATE's `~150 lines` rule
-became a **~1,500 word budget** with a guard, and **constraints are hardened out
-of STATE only after the code they describe stops moving** — which is why STATE
-sits deliberately over budget.
-
-**The closing drift audit found 2 findings, both self-created** — including an
-orphan field (`implicitEnd`) shipped by the very slice written to end that
-defect class.
+**The most useful thing built was a test.** Three seam tests passed while the
+chain was broken end to end: importer, serializer and grader were each correct
+and an authored binding still reached no student. The cross-package
+`misconceptionEndToEnd.test.ts` caught it, then caught a second instance
+minutes later.
 
 ## What the next session should know before trusting anything here
 
-- **`HANDOFF.md` is REPLACED, not appended** — like STATE. This file is not in
-  CLAUDE.md's doc map (checked); it is a transient baton, not a durable doc.
-- Everything is **pushed and CI-green**; verify before building on it.
-- The ordering below distinguishes **RULED** from **my reading**. Do not treat
-  the second kind as settled.
+- **`HANDOFF.md` is REPLACED, not appended** — like STATE. It is a transient
+  baton, not a durable doc, and it is not in CLAUDE.md's doc map.
+- Everything is **pushed**; confirm CI green before building on it
+  (`gh run list`).
+- The catalogue still has **3 files and zero bindings**. Nothing about the
+  sensor has been exercised by real content.
 
 ---
 
@@ -48,100 +48,90 @@ defect class.
 I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
 then TODOS.md.
 
-## Where things stand (2026-08-24, all pushed, CI green)
+## Where things stand (2026-08-25, pushed)
 
-The activity flow modes shipped and are LIVE: check groups, the server-enforced
-lock (migration 0040 + check-activity v20), two deleted schema knobs
-(revisionMode, gradingMode), activityType as a printed label. Live
-`verify:auth --target live` = 168/0. `pnpm verify` = 8/8. 104 script guards.
+The misconception-sensors arc SHIPPED and is live: authored `:: mis.*`
+bindings on blanks / MC choices / graph `mistake:` lines reach the stored
+check verdict. Both functions deployed and CODE-verified. Design doc +
+both review passes + as-built corrections:
+`docs/design/misconception-sensors.md`.
 
-Three unrelated defects were also found and fixed: verify-0033's caps assertion
-(over-scoped since the self-serve door opened 2026-08-19), verify-0036's rollup
-matrix (green only 3.5 hours a day — it made the check-prune's ARMING EVIDENCE
-invalid), and a CI-green claim in STATE that cited a run which had failed.
+```
+{{12 | !21 :: digits reversed :: mis.place-value.digit-reversal}}
+( ) $4 per kg :: mis.roc.uses-endpoint-value
+mistake: y = x + 2 :: The coefficient is the slope. :: mis.slope.reads-intercept
+```
 
-TODOS has ~51 entries / ~15k words. Do NOT work it top-to-bottom.
+`pnpm verify` = 8/8. Script guards 130. All orphan classes are closed.
 
 ## The ordering — RULED vs my reading
 
-RULED BY THE AUTHOR:
+RULED BY THE AUTHOR (still standing from 2026-08-24):
 
-1. **Writing activities comes before more code.** ~150 markdown files planned in
-   `~/activity-catalogue-pilot/`, currently 3. This is the stated source of the
-   next real information and it has been validated twice: authoring a single
-   test file surfaced a four-month-old content-loss bug (graph_figure skipped
-   every curve), and the corpus keeps finding what the fixture set cannot. Use
-   `pnpm import:batch <folder> --owner <email>` (always `--dry-run` first).
-   Two capabilities no real activity exercises yet: a blank inside a table cell,
-   and a graph_figure.
-2. **Do NOT harden constraints out of STATE yet.** STATE sits ~2.4x over its
-   word budget deliberately. Reducing it means promoting constraints into
-   CLAUDE.md/DECISIONS.md, which are read as SETTLED — hardening one
-   mid-bug-fix records the wrong rule where it is hardest to correct. The cut
-   waits for the re-architecture's bug tail to close, and is then done by
-   PROMOTION, not deletion. (CLAUDE.md → Working style, first bullet.)
+1. **Writing activities comes before more code.** ~150 markdown files planned
+   in `~/activity-catalogue-pilot/`, still **3**, and **none carries a
+   binding**. The sensor, the manifest, the registry check and the
+   dead-binding detector are all built and all unexercised by real content.
+   The single highest-value next action is authoring — and the first binding
+   written is also the first real test of the tooling.
+2. **Do NOT harden constraints out of STATE yet.** It sits over its word
+   budget deliberately; the cut is by PROMOTION when the bug tail closes.
 
 HARD DEPENDENCIES (facts, not preferences):
 
-3. **The check-rollup ARMING arc cannot count green nights before 2026-08-24.**
-   verify-0036 — the instrument that demonstrates the rollup is trustworthy —
-   was green only 00:00–03:30 UTC and red the other 20.5 hours, so a scheduler
-   inside that window would have produced N green nights that meant nothing.
-   Fixed; counting can begin now. Still also gated on counsel question Q10.
-4. **`answerFeedback: 'immediate'` is blocked on a commit seam that does not
-   exist.** All eleven input components write to the store per keystroke. This
-   is a cross-cutting slice of its own. Three design constraints are already
-   settled for it — read the TODOS entry, do not re-derive them.
-5. **The teacher unlock (flow modes T3) belongs to the teacher-grading slice**,
-   and would be the first teacher-facing write that DESTROYS student work. Read
-   `prune_section_checks`' arming discipline before designing it.
-6. **The two remaining orphan classes need an AUTHOR RULING first** (wire it or
-   delete it), not engineering: the interactive-graph feedback knobs
-   (partialCredit / builtinFeedback / graph-level mistakeFeedback) and
-   hasConfidenceRating / allowTargetReuse. Confirmed still orphaned 2026-08-24.
+3. 🚫 **The check-prune CANNOT be armed until misconceptions roll up.** Ids
+   live on NON-latest attempts — precisely what `prune_section_checks`
+   deletes — and no rollup table has a misconception dimension. The amendment
+   naming the four open design questions is
+   `docs/design/check-retention-and-rollup.md` §II.6; the blocking step is on
+   the ARMING checklist in TODOS. Also still gated on counsel Q10.
+4. **The UNITS slice's syntax is UNPINNED, and its old spelling was
+   unimplementable.** Three code-verified tokenizer collisions killed it —
+   worst: `unit: km/h|kph` would make the literal string "kph" an ACCEPTED
+   ANSWER, because the blank grammar splits on `|` before any unit parsing.
+   Read X2 in the design doc before designing; do not re-derive.
+5. **The graph nudge TEXT is a separate slice with its own UX pass.** It is
+   first-ever student-visible feedback on graph blocks and would default ON
+   for every published graph activity.
 
-~~7. Cheap self-contained items between authoring sessions.~~ **DONE
-2026-08-24** — the static-SVG palette (viewer half) and the a11y GAP-2 capture.
-Both were re-filed rather than closed; read those two TODOS entries for what
-remains, which in both cases is smaller and better specified than before.
+MY READING (not ruled):
+
+6. The offline misconception match-rate query (T6) is worth writing early, as
+   the first real consumer of the stored ids — but it depends on attempt rows,
+   so it is bound by the same prune ordering as #3.
 
 ## Traps that cost this session real time
 
-- **Mutation-test every guard the day you write it.** The flow-modes slice —
-  written specifically to end this repo's declaration-outlives-implementation
-  defect class — committed it THREE times in its own new code. Two were caught
-  by mutation-testing on the day; one only by the drift audit hours later.
-  **"Bound to rendered output" is NOT checkable by reading your own test:** the
-  vacuous one DID query the DOM, and the vacuity was in the FIXTURE, one level
-  away.
-- **A claim with a number attached is still a claim.** STATE cited a CI run id
-  as proof of green; that run had failed, and predated the fix by 11 minutes.
-  Open the run.
-- **A single observation of a time-dependent bug is not its behaviour.** The
-  verify-0036 diagnosis was measured, mechanised, confirmed — and wrong,
-  because every observation came from the same instant.
-- **verify-*.sql carry unstated data-state AND time-state preconditions.**
-  "It's just the fixtures" is a hypothesis to TEST, not a category to file a
-  red in.
-- **Answer the entry's own blocking question by measurement before designing
-  around it.** Both item-7 fixes turned on one probe each: does `var()` resolve
-  in an SVG presentation attribute (yes), and is tokens.css even loaded by the
-  editor (no). Each took a minute and each changed the plan.
+- **A seam test cannot see a gap between two correct halves.** Three passing
+  unit tests, one broken chain. Write the end-to-end walk FIRST for anything
+  that crosses packages.
+- **Mutation-test the guard, and pick a mutation that can actually be
+  observed.** One mutation here "passed" because an `isFinite` check downstream
+  masked it — the guard was fine, the mutation was badly chosen. If a mutation
+  does not go red, ask whether it changes behaviour at all before trusting the
+  test.
+- **A review's confident number can be wrong.** Measure before acting on it.
+- **`get_edge_function` CANNOT read `check-activity`** (2.6 MB; 3/3 errors).
+  Download + `shasum` instead — byte-identical is a stronger proof than any
+  marker grep. The method is in CLAUDE.md's deploy-verification rule.
+- **The docs race the shipping and the docs lose.** The closing drift audit
+  found 6 findings and 5 were self-created hours earlier — a status line
+  saying PLAN on shipped code, STATE's "current focus" still on the previous
+  arc, and three entries describing just-fixed things in the present tense.
 
 ## House rules that bite hardest here
 
 - Never `git push` — the author pushes. Check `git branch --show-current` is
   `main` before committing.
-- `pnpm verify` is the definition of done for CI's check job; it prints the
-  browser lanes it does NOT cover.
-- A schema change means both bundles regenerate in the same commit and a
-  `get-activity` redeploy is owed.
-- STATE.md is measured in WORDS (~1,500 target, 4,000 enforced ceiling via
-  `scripts/tests/state-budget.test.mjs`). Do not raise the ceiling to make a
-  commit pass — ask where the content belongs.
+- `pnpm verify` is the definition of done for CI's check job.
+- A schema change means both bundles regenerate in the SAME commit, and a
+  redeploy is owed.
+- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling). Do not raise
+  the ceiling to make a commit pass.
 
 ## Start here
 
 Say which of 1–6 you're taking and why, before touching anything. If it's (1),
 you are authoring, not coding — and the interesting output is the bugs the
-corpus finds.
+corpus finds. Run `pnpm import:batch ~/activity-catalogue-pilot --dry-run`
+first: it now prints a binding manifest, and today that manifest is empty.

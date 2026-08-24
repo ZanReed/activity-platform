@@ -2,6 +2,15 @@
 
 > ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names the `ingest-submission` deploy order, the `STORAGE_SCHEMA_VERSION` 6→7 bump, and `publish-activity` after `bundle:renderer` as live. `publish-activity` died at S9 Drop 1, `ingest-submission` at Drop 3, and `packages/renderer` (with `bundle:renderer` and `STORAGE_SCHEMA_VERSION`) at Drop 4 (2026-08-14). Both block types now render in `packages/viewer/src/blocks/` and are graded server-side in `check-activity`; the deploy steps are `pnpm bundle:viewer-server`/`bundle:grading-server` + `deploy:get-activity`/`deploy:check`. The text below is left intact as the record of how the feature shipped.
 
+> ⚠ **SCHEMA ANNOTATION (2026-08-25).** Two fields this document specifies are
+> GONE, and the text below is kept as the record of how the block shipped, not
+> as current schema. **`allowTargetReuse` was deleted** — many-to-one is now
+> ALWAYS allowed (the student surface never enforced one-to-one, so the flag
+> promised something only the editor honoured), and **`hasConfidenceRating` was
+> deleted** across all seven block types. DECISIONS.md → "The last orphan
+> classes". Everything else here — the pairing model, distractors, per-pair
+> scoring, the letters-are-never-authored rule — is unchanged and live.
+
 **Status: BUILT (2026-07-10, same session) — implemented per the decisions below; browser-verified on a bundle-rendered published page; DEPLOYED 2026-07-10, author-confirmed.**
 
 **As-built deltas from this contract:** (1) the ```match separator splits on the

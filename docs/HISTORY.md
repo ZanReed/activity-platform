@@ -1,5 +1,37 @@
 # HISTORY.md
 
+**▶ ACTIVITY FLOW MODES — shipped 2026-08-24, narrative moved out of STATE 2026-08-25 when the misconception arc took the current-focus slot.** Kept verbatim as it stood in STATE:
+
+
+**✅ THE ACTIVITY FLOW MODES ARE SHIPPED, LIVE AND CI-GREEN (2026-08-24)** —
+[activity-flow-modes.md](docs/design/activity-flow-modes.md). **Read its AS
+BUILT section, not just the plan: five things changed shape at build time.**
+Eight commits, `596e36b`..`43d7c05`. **F11 is DONE — the slice is LIVE** (0040
+applied, `check-activity` at v20, verify-0040 7/0; see Pending for the two
+non-blocking follow-ups).
+
+**What a student gets that they did not have yesterday.** A `{checkpoint}`
+heading now DOES something: its Check covers every section since the previous
+checkpoint, and **the end of the activity is always a checkpoint**, so no
+section is silently un-checkable. The group is a visible region, because
+otherwise a buttonless section reads as "my work here isn't counted".
+`locked` freezes what it checked — at PRESS, per section — and the server
+refuses the second check from a document-derived flag the browser cannot omit.
+`revisionMode` and `gradingMode` are deleted; `activityType` prints as a label.
+
+**Three findings worth carrying forward** (the full ledger is in AS BUILT):
+- **TWO NEW GUARDS WERE VACUOUS ON THEIR FIRST DRAFT** — caught by mutation,
+  not by a passing suite. See the closing note at the bottom of this file;
+  it is the lesson of the session.
+- **A plan's task text can contradict its own rulings, and the rulings win.**
+  F3 said "a per-group `<fieldset disabled>`", but OV#15 calls a 429 mid-group
+  "a PARTIAL LOCK" and guard 9 wants Retry to fire only the unlanded member.
+  Freeze is per SECTION. **Read AS BUILT before trusting a task line.**
+- **D4 assumed a screen surface that did not exist** ("the course/unit line
+  that already renders there" — the top bar rendered the title only).
+
+
+
 ## Archived from STATE 2026-08-24 — the activity flow modes going LIVE (F11)
 
 The slice itself is [activity-flow-modes.md](design/activity-flow-modes.md)

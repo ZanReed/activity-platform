@@ -1,5 +1,15 @@
 # Graph systems — multi-answer interactive-graph questions (design) — 2026-07-18
 
+> ⚠ **SCHEMA ANNOTATION (2026-08-25).** The block-level **`partialCredit` flag
+> is DELETED** — it was never read by the grading server (`scoreGraphBlock`
+> returns a boolean), so fractional per-object scoring was authored but never
+> reachable. The kit's `*Partial` scorers SURVIVE and are still exported: the
+> system scorers use their `earned` to derive `correct`. What died is the flag
+> and the branches gated on it. DECISIONS.md → "The last orphan classes".
+> Separately, graph `mistakeFeedback` is now LIVE server-side (authored
+> anticipated mistakes reach the student and carry a misconception id) —
+> `docs/design/misconception-sensors.md`.
+
 **Status:** SHIPPED — both phases BUILT + DEPLOYED 2026-07-18 (see STATUS section below)
 
 `/office-hours` (product framing) + `/plan-eng-review` (architecture) for the

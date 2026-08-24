@@ -24,14 +24,9 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 ✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
 misconception strip is live, so **activities carrying bindings are safe to
-publish**. Proof was taken the way the three-generation trap requires — not
-from the version number (25), but by grepping the deployed source: the new
-declaration `choices[].misconceptionId` is PRESENT (and `misconceptionId`
-appears 11×), while `partialCredit` / `hasConfidenceRating` /
-`allowTargetReuse` are all ABSENT — both directions, so it is the new bundle
-and not a stale one. `SANITIZER_REV` moved `2-59a68ddc` → `2-050ad6e2` (a
-computed value, so it is not a literal in the bundle — the strip declaration
-is the marker to grep), which orphans stale read-cache rows on its own.
+publish**. Verified by grepping the deployed source in BOTH directions (the new
+strip declaration present, the three deleted knobs absent) — never the version
+field. `SANITIZER_REV` moved, which orphans stale read-cache rows on its own.
 
 ✅ **`check-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** Flag is
 correctly `verify_jwt: true`. **The sensor is now live end to end** — an
@@ -92,34 +87,50 @@ cheap to change, but the sentence that made them free has expired).
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the flow modes are SHIPPED AND LIVE; the arc is closed
+## Current focus — MISCONCEPTION SENSORS shipped and live (2026-08-25)
 
-**✅ THE ACTIVITY FLOW MODES ARE SHIPPED, LIVE AND CI-GREEN (2026-08-24)** —
-[activity-flow-modes.md](docs/design/activity-flow-modes.md). **Read its AS
-BUILT section, not just the plan: five things changed shape at build time.**
-Eight commits, `596e36b`..`43d7c05`. **F11 is DONE — the slice is LIVE** (0040
-applied, `check-activity` at v20, verify-0040 7/0; see Pending for the two
-non-blocking follow-ups).
+**✅ THE SENSOR IS LIVE END TO END** —
+[misconception-sensors.md](docs/design/misconception-sensors.md). A distractor
+can now name the misconception it senses, in markdown, and that id reaches the
+stored check verdict where it can be aggregated:
 
-**What a student gets that they did not have yesterday.** A `{checkpoint}`
-heading now DOES something: its Check covers every section since the previous
-checkpoint, and **the end of the activity is always a checkpoint**, so no
-section is silently un-checkable. The group is a visible region, because
-otherwise a buttonless section reads as "my work here isn't counted".
-`locked` freezes what it checked — at PRESS, per section — and the server
-refuses the second check from a document-derived flag the browser cannot omit.
-`revisionMode` and `gradingMode` are deleted; `activityType` prints as a label.
+    {{12 | !21 :: digits reversed :: mis.place-value.digit-reversal}}
+    ( ) $4 per kg :: mis.roc.uses-endpoint-value
 
-**Three findings worth carrying forward** (the full ledger is in AS BUILT):
-- **TWO NEW GUARDS WERE VACUOUS ON THEIR FIRST DRAFT** — caught by mutation,
-  not by a passing suite. See the closing note at the bottom of this file;
-  it is the lesson of the session.
-- **A plan's task text can contradict its own rulings, and the rulings win.**
-  F3 said "a per-group `<fieldset disabled>`", but OV#15 calls a 429 mid-group
-  "a PARTIAL LOCK" and guard 9 wants Retry to fire only the unlanded member.
-  Freeze is per SECTION. **Read AS BUILT before trusting a task line.**
-- **D4 assumed a screen surface that did not exist** ("the course/unit line
-  that already renders there" — the top bar rendered the title only).
+Five commits, `8e2a1f3`..`f2829d2`. Both functions deployed and CODE-verified
+(the grading bundle is byte-identical to the committed one). The same arc
+deleted the last three orphan knobs end to end.
+
+**What the AUTHOR gets that they did not have yesterday.** `pnpm import:batch`
+now writes a binding manifest, compile-checks that each binding CAN fire,
+validates ids against `--registry`, and fails the run under `--strict`. Numeric
+blanks match mistakes by VALUE, so `!0.5` fires for a student who typed `1/2` —
+most of the real signal. **The catalogue carries no bindings yet, so the
+manifest is honestly empty; it fills on the first one written.**
+
+**Two pieces are deliberately unbuilt, each with a named discharger:** the
+UNITS slice (syntax unpinned — three verified tokenizer collisions, one of
+which would have scored the literal word "kph" correct) and the graph nudge
+TEXT. 🚫 **A new blocking step landed on the check-prune arming checklist** —
+misconception ids live on NON-latest attempts, exactly the rows the prune
+deletes, and no rollup table carries them yet.
+
+**The lesson worth carrying.** Three seam tests passed while the CHAIN was
+broken: importer, serializer and grader were each correct and an authored
+binding still reached no student. Only the cross-package end-to-end test
+caught it — then caught a second instance minutes later. **A seam test
+supplies its own input; it cannot see a gap between two correct halves.**
+
+## The flow modes — SHIPPED AND LIVE (2026-08-24); arc closed
+
+[activity-flow-modes.md](docs/design/activity-flow-modes.md) — **read its
+AS BUILT section, not just the plan; five things changed shape at build
+time.** Check groups, the server-enforced `locked` mode (0040 +
+`check-activity` v20), `activityType` as a printed label; `revisionMode`
+and `gradingMode` deleted. **`answerFeedback: immediate` is still
+deferred** — it needs a commit seam that does not exist, and
+`scripts/tests/flow-field-readers.test.mjs` fails if that deferral ever
+ends silently. Full narrative: HISTORY.md.
 
 ## The S9 orphan arc — closed; narrative in HISTORY
 
@@ -131,9 +142,11 @@ class 2026-08-24. What stays LIVE:
   re-pitch them as cheap.
 - **All three z-tokens have real `var()` consumers**: tools 110 < reference 115
   < calculator 120 < popovers 1000.
-- **TWO orphan classes remain**, both knobs rather than content loss (graph
-  feedback, `hasConfidenceRating`/`allowTargetReuse`) — TODOS carries them;
-  each needs a wire-or-delete ruling. ⚠ **The flow-modes fix wrote the
+- **✅ THE ORPHAN CLASSES ARE ALL CLOSED (2026-08-25).** The last two were
+  ruled and executed in the misconception arc: graph `mistakeFeedback` /
+  `builtinFeedback` WIRED (`mistakes.ts` is production-reachable for the first
+  time), and `partialCredit` / `hasConfidenceRating` / `allowTargetReuse`
+  DELETED end to end. DECISIONS.md → "The last orphan classes". ⚠ **The flow-modes fix wrote the
   reachability guard those entries asked for, but scoped to the flow fields by
   name** (`scripts/tests/flow-field-readers.test.mjs`) — so these two are still
   guarded by nothing but that list.

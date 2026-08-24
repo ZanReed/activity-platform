@@ -464,7 +464,15 @@ what reaches paper/screen as CONTENT LOSS first:
    native nesting; `BulletList.tsx`/`OrderedList.tsx` map `items[].content`
    only. Any indented sub-list a teacher types is flattened for students.
    **Print-affecting.**
-3. **The interactive-graph feedback knobs are inert end to end** —
+3. ~~**The interactive-graph feedback knobs are inert end to end**~~ ✅
+   **RESOLVED 2026-08-25** — `partialCredit` DELETED; `mistakeFeedback` +
+   `builtinFeedback` WIRED in `server/grading/graphs.ts` (`selectGraphMistake`),
+   which makes `graph-kit/src/mistakes.ts` production-reachable for the first
+   time. The paragraph below is the 2026-08-22 finding, kept as the record of
+   what was wrong; **every present-tense claim in it is now false.** One
+   deliberate exception: the builtin classifier TEXT is still unwired (X3 —
+   student-visible nudges need their own UX pass), so `builtinFeedback` remains
+   authored-but-unread until that slice. Original finding:
    `partialCredit`, `builtinFeedback`, graph-level `mistakeFeedback`
    (`interactive-graph.ts:237-260`, all described in the present tense). The
    registry strips them for students, `server/grading/graphs.ts` reads neither,
@@ -530,7 +538,7 @@ misconception arc (wishlist #1, one design pass covers both);
 `partialCredit` is DELETE. The "Minor, same class" fields and the comment
 claims still want their own small rulings.
 
-## TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse` (2026-08-22) — **RULED: DELETE BOTH (2026-08-24)**
+## ~~TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse`~~ ✅ DELETED 2026-08-25 (`8e2a1f3`)
 
 Found by the drift audit's §9 sweep run across **every** schema field rather
 than only the new ones. Same class as the `number` override below, and the same
@@ -540,8 +548,17 @@ question: **wire it or delete it.**
 end-to-end** — schema fields, editor controls, the wire's confidence slot, and
 every comment citing them (P5). Execution folds into the misconception arc's
 schema commit (or a small slice ahead of it) so one bundle-regen +
-`get-activity` redeploy covers everything. Entry closes when the deletions
-land.
+`get-activity` redeploy covers everything.
+
+✅ **DONE 2026-08-25** — both deleted end to end in `8e2a1f3` (schema ×7 block
+types, the editor's toggle and reuse field, `submission.ts`'s confidence slot
+and `ConfidenceLevel`, serialize both directions, the importer's `confidence`
+and `reuse` fence options, seeds, e2e). Deletion-pinning tests assert the keys
+are STRIPPED rather than merely absent, so an old stored document still parses.
+⚠ One thing the 2026-08-22 finding understated: `allowTargetReuse` was NOT
+inert — the editor's MatchingView and serialize enforced one-to-one when it was
+off, a promise the student surface never kept. Many-to-one is now always
+allowed, everywhere.
 
 **1. `hasConfidenceRating` — on SEVEN block types, with nothing anywhere that
 renders it.** The schema describes it in the present tense ("students see a

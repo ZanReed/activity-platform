@@ -1,7 +1,16 @@
 # Misconception sensors — ids on distractors, live graph feedback, unit-bearing blanks
 
-**Status: PLAN, greenlit 2026-08-24 (author: "all yes" on the nine decisions).**
-AS-BUILT section to be appended when the arc lands.
+**Status: SHIPPED and LIVE (2026-08-25).** Greenlit 2026-08-24 ("all yes" on
+the nine decisions), amended by `/plan-eng-review` and `/plan-devex-review`,
+built the same arc. Both Edge Functions are deployed and code-verified, so an
+authored binding records a misconception id on a real student's check.
+
+**Read "What the BUILD corrected" below, not just the decisions** — three
+things only writing the code could establish, including a bundle-cost claim
+from the eng review that measurement falsified. **Two pieces are deliberately
+NOT built** and each has a named discharger: the units slice (decisions 7–8,
+syntax UNPINNED — see X2's three tokenizer collisions) and the graph nudge
+text (X3). 12 of 14 tasks done; T5/T6 closed by ruling rather than by code.
 
 ## Why
 
