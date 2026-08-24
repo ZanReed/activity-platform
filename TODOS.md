@@ -3,6 +3,91 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
+
+Source: the catalogue builder's direct answer to "what do you need to be
+satisfied?", relayed by the author 2026-08-24. This is the first structured
+output of the authoring-before-code ruling — the counts are the builder's own
+(73 planned activities against its skill registry), the platform-side facts
+below were verified against this repo the same day. Fallbacks per item are what
+the builder ships in the meantime; an item being here does NOT cap authoring —
+it caps specific activities at draft (the builder's D6 rule) or defers specific
+data (D8/D10).
+
+**Greenlit order (author, 2026-08-24): #1 + #4 as the next code slice, #2
+alongside as a cheap win, then #5 → #3 → #6.** Each still gets its own design
+pass with numbered decisions before code.
+
+1. **Misconception ids on distractors, in the markdown.** (Blocks all 73 — or
+   rather, blocks the DATA LAYER on all of them.) **Verified truly absent, not
+   editor-only** (2026-08-24): "misconception" appears nowhere in the format
+   doc, the importer, the schema, or any package — the feedback TEXT channels
+   exist (`!wrong :: message`, mc `:: feedback`, graph `mistake:`) but no id
+   field exists at any layer, and the `mis.*` registry lives only in the
+   builder's project. Proposed syntax: a third `::` segment
+   (`!0.5 :: divided the wrong way :: mis.roc.uses-endpoint-value`) and/or a
+   `misconception:` line in the fences. ⚠ **The orphan trap, by design this
+   time:** an id parsed and stored but read by nothing is the ninth instance of
+   this repo's most expensive defect class. Minimum honest wiring: the id rides
+   the distractor through import → schema → sanitize → **into
+   `check-activity`'s stored graded-response rows**, guarded by a
+   mutation-tested check that a checked wrong answer carries its id
+   server-side. Aggregation/analytics on top is a later arc — stored ids are
+   aggregable; unstored ones are gone. Cost: format doc + importer + schema +
+   both server bundles + `SANITIZER_REV` bump + migration-before-deploy +
+   `check-activity` redeploy. **Intersects the graph-feedback-knobs orphan
+   ruling** (item 3 of "S9 left FIVE MORE ORPHAN CLASSES", below) —
+   graph `mistake:` is one of the binding sites, so rule them together.
+   Fallback until shipped: feedback text only; the sensor data does not exist.
+
+2. **`graded_polynomial` — cubic-and-up curve grading.** (Blocks ~11: the
+   derivative chains.) Verified: `regression.ts:25` grades exactly
+   `linear | quadratic | exponential | logarithmic`. Cheapest of the graph
+   items — extends an existing well-tested enum through `regression.ts` →
+   `fit-format.ts` → `graph-score.ts`. Design question: degree-3 or degree-n.
+   Grading-engine change → `pnpm bundle:grading-server` same commit +
+   `check-activity` redeploy owed. Fallback: fill-blank/mc, activities capped
+   at draft.
+
+3. **Unit-bearing numeric blanks** — `{{=1.5 unit: km/h}}`. (Blocks ~10
+   contextual DoLs; the units-dropped misconception family runs the full
+   spine.) Today units live in prose, so every units-requiring item is
+   rubric-graded shortanswer and the misconception is only deferred data.
+   ⚠ Design constraint: **do not widen `BlankResponse.answer` to a union**
+   (standing rule) — keep the unit spec in the blank's attrs and grade it
+   server-side, either inside the numeric compare or as a parallel field.
+   Pairs naturally with #1 (same slice greenlit).
+
+4. **`nway_correspondence` — 4-way match with per-edge partial credit.**
+   (Blocks ~5: same-function-across-representations.) Verified: `match` is
+   strictly two-column pairs. A new block type — full add-a-block-type
+   checklist (schema, editor, viewer, print CSS, scorer, both bundles).
+   Fallback: chained two-column matches, lossy, no per-edge signal.
+
+5. **`draggable_curve` — drag-then-type disagreement diagnostic.** (Blocks
+   ~11: the transformation band.) The most expensive item: a new graph-kit
+   interaction mode plus capturing WHERE the student drags independent of what
+   they type — that separation is the diagnostic. Depends on the #1/graph-knobs
+   ruling for where its mistake signal lands. Fallback: "which graph shows…"
+   mc with choice-graphs (possible since 2026-08-22), which cannot separate
+   the two signals.
+
+6. **`seeded_data` — parameterised datasets.** (Blocks fewest here but is the
+   print-integrity/A-B-versions/statistics-sampling lever.) The deepest cut:
+   breaks the every-dataset-is-a-literal assumption across import, publish
+   snapshotting, and grading — the server must grade against THIS student's
+   seed. Own arc, ranked last deliberately.
+
+**Print tier (wanted, does not block authoring):** page-break/keep-together
+control (mostly print CSS + a small format knob — cheap); a problem-group
+wrapper for NCEA a/b/c structures mixing auto + rubric parts under one stem
+(container-model change — not cheap); true ruled writing lines (`work:` gives
+blank room, `columns: ruled` gives boxes, nothing gives lines); per-term
+definition control on print (all-or-nothing glossary today).
+
+**Depends on:** the graph-feedback-knobs author ruling (for #1/#5's signal
+path); otherwise nothing — design passes can start in greenlit order.
+
 ## Does MathLive's post-mount focus grab affect a real student? (2026-08-22)
 
 **What was observed:** on a worksheet carrying a gap-bearing `math_block`,
