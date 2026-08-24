@@ -193,6 +193,23 @@ ANY runtime, year-round". That is true of the DAY KEYS and was never true of
 their relationship to the watermark — two different properties, one comment,
 read as promising both.
 
+## The a11y GAP-2 row needs ONE CAPTURED FAILURE (moved out of STATE 2026-08-24)
+
+⚠ **The a11y GAP-2 row has flaked TWICE (runs 31852826598 and 2026-08-22 local) and is a fix-it item, not a watch item — but it needs ONE CAPTURED FAILURE to be fixable.** The instrumented output (`e6b2872`) has never been read: both times it went green again before anyone looked. **Capture it before re-running on the next sighting.** Green since: seventeen runs to 32048169054, plus **3/3 local this session** (baseline, with the new locked-freeze row, and under a deliberate mutation). **Read the flaky COUNT on every run, not this conclusion.**
+
+**Why it moved here:** it is a fix-it item with an owner and a precondition —
+which is what this file is for. It sat under STATE's "Pending author actions"
+heading, where it was neither pending nor an author action, and where STATE's
+replace-every-session rule meant it could vanish without being done.
+
+## P8 boomerang — the multi-station duration datapoints (moved out of STATE 2026-08-24)
+
+**P8 boomerang — still uncollected, deliberately.** The duration datapoints for a multi-station apply day were voided by construction for the 0027 run (two password resets, a pooler lockout, no Docker, an unplanned migration mid-station, a materially faster author across the run). **The slot stays open for the NEXT representative multi-station day.**
+
+**Why it moved here:** a deliberately-open measurement slot is open work, not
+current status. P8 ("review-time promises go on a tracked checklist with an
+owner slice, never only in prose") is the policy that says so about itself.
+
 ## `answerFeedback: 'immediate'` — deferred out of the flow-modes slice (2026-08-24)
 
 Filed by [activity-flow-modes.md](docs/design/activity-flow-modes.md) R3/T2.

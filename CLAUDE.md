@@ -54,12 +54,17 @@ Answer each out loud in the final message, including "n/a":
    registry `numbered` set, `LABELED_BLOCK_TYPES`, block `workSpace`,
    `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`,
    `allowTargetReuse`). Wire it with a guard bound to RENDERED OUTPUT — and mutation-test the guard once by reverting the wiring and watching it go red — or do not add the field.
-2. **Touched a migration, a deploy, or a version constant?** Re-read STATE's
-   baseline row live — `list_edge_functions` for flags+versions (the `version`
-   field, NOT the `entrypoint_path` suffix) and
-   `select count(*) from supabase_migrations.schema_migrations` for the range.
-   That row went three migrations and two function versions stale while telling
-   readers "never claim-read".
+2. **Touched a migration, a deploy, or a version constant?** Read the live
+   state — `list_edge_functions` for the `verify_jwt` flags,
+   `select count(*), max(version) from supabase_migrations.schema_migrations`
+   for the range, and `get_edge_function` + a grep for a change-unique marker
+   to prove CODE (a version number is not evidence — a real deploy once left
+   `version`, `updated_at` and `ezbr_sha256` all unchanged).
+   ⚠ **STATE no longer carries a baseline snapshot to re-read** (removed
+   2026-08-24 after it went stale three times, the last time reporting "14
+   activities" when 6 of the 14 were soft-deleted). It carries the commands
+   instead. **Do not put the numbers back** — that row is the reason this
+   question exists.
 3. **Deleted or retired anything?** Grep the repo for surviving references —
    docs, comments, scripts, skills. A deletion leaves its declarations behind,
    and a doc naming a dead mechanism reads as live forever (S9 left five docs

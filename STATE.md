@@ -8,36 +8,6 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **FOUR ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
 
-✅ **F11 IS DONE — the activity flow modes are LIVE (2026-08-24).** The author
-applied 0040 and deployed `check-activity`; the verification below was run
-against the live project afterwards and is recorded here because the next
-session must not re-do it:
-
-- **0040 applied.** `schema_migrations` = **40**, max `0040`. `record_check` is
-  `(uuid,uuid,uuid,text,jsonb,jsonb,text,integer,integer,boolean)` — **exactly
-  ONE overload**, `p_locked` present.
-- **`check-activity` deployed.** `version` 19 → **20** with a CHANGED
-  `ezbr_sha256` (`18c59d9…` → `c1f4d77…`), `verify_jwt` still **true**.
-  ⚠ The version moving is not the proof (CLAUDE.md); the proof is that the
-  **deployed entrypoint is byte-identical to the committed one**, including the
-  `p_locked: args.locked` line that did not exist before that session
-  (`supabase functions download check-activity --use-api`, diffed against HEAD).
-- **verify-0040 live: 7 PASS, 0 FAIL** — including B2, the one that matters
-  (a lost-response retry of the LOCKING check replays instead of 409ing).
-- **verify-0020's Structure section live: D1, D2, D3 all pass**, plus
-  `service_role` is the ONLY non-postgres grantee. That is the half a signature
-  change could have broken.
-- **P7 residue: NONE.** `section_checks` printed **0 before and 0 after**.
-
-✅ **Both verify files then ran VERBATIM against live** via
-`pnpm verify:auth --target live` (the password was pasted in the same day):
-`verify-0040 → check-lock-matrix PASS`, `verify-0020 → grading-surface-matrix
-PASS`, suite **168 passed, 0 failed across 15 scripts**. ⚠ This paragraph
-briefly said the opposite — that verify-0020's behavioural half was unrun and
-the verify-0040 result was a transcription rather than the file. Both were
-true when written and both were resolved hours later in the same session; the
-drift audit caught the stale caveats. Nothing is owed here.
-
 ⚠ **A `get-activity` redeploy is arguably owed and deliberately NOT flagged as
 urgent.** R4's schema deletion regenerated `viewer-server.bundle.js`, so
 deployed ≠ repo for that function — but the change is inert on the read path
@@ -45,25 +15,33 @@ deployed ≠ repo for that function — but the change is inert on the read path
 `SANITIZER_REV` did not move, so no cache is orphaned. Fold it into the next
 `get-activity` deploy rather than doing one for this.
 
-**⏳ `.env.supabase` line 23 holds a PRE-RESET database password.** The author rotated it after it was printed to a session transcript, so `pnpm verify:auth --target live` fails until the new connection string is pasted in. Unrelated to the table arc; still owed.
 
-⚠ **THE CONSEQUENCE IS THE PART TO READ, not the observation.** CLAUDE.md's warning has now fired: 0036 writes the watermark nightly, so **`prune_section_checks`'s schema gate is GONE** and the only things holding it disarmed are that it is **unscheduled** and **dry-run by default**. Arming is the eight-step checklist in [TODOS.md](TODOS.md) (blocking steps include counsel question **Q10** and N green nights of a non-drifting reconciliation pair). Read the checklist, not a summary of it.
 
 **⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
 
 **Gate 4 — seed `student_domain` + live-verify the trigger's student branch** (deliberately LAST; needs a real district domain). Prerequisite MET (0027 live). ⚠ Never seed a consumer domain — the rule now lives in CLAUDE.md → Things NOT to do.
 
-**P8 boomerang — still uncollected, deliberately.** The duration datapoints for a multi-station apply day were voided by construction for the 0027 run (two password resets, a pooler lockout, no Docker, an unplanned migration mid-station, a materially faster author across the run). **The slot stays open for the NEXT representative multi-station day.**
-
 **📌 NOT reproducible from migrations: three teacher `display_name`s are NULL by direct data edits** (confirmed 2026-08-22). **Live consequence:** the two accounts created 2026-08-19 through the self-serve door DO carry Google's `full_name`, so anything they publish serves that name to anonymous visitors via `get_activity_public_meta`. Both are the author's test accounts, so nothing is exposed — but this is the first live instance of default-on name attribution, and the fix is a one-row `update … set display_name = null`, **not a migration**. The opt-in control is in Backlog. *(Full history: HISTORY.md → display_name.)*
 
-**Baseline facts — RE-READ LIVE 2026-08-24, never trusted.** Migrations applied **through 0040** (40 rows, `max(version)` = `0040`, re-read live 2026-08-24 after the apply) · exactly **TWO** Edge Functions, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`) — ⚠ **FUNCTION VERSIONS ARE DELIBERATELY NOT PINNED HERE any more.** This row said `v22`/`v18` and went stale for the THIRD time (live was v24 when the 2026-08-23 close-out read it), while instructing readers to never claim-read. Worse, this session proved a version number is not evidence of anything: a real, successful `deploy:get-activity` left `version`, `updated_at` and `ezbr_sha256` all **unchanged**. **Read flags with `list_edge_functions`; prove CODE by grepping the deployed source (`get_edge_function`) for a marker unique to the change** — the rule in CLAUDE.md. · live rows: **6 users** (**5 teachers + 1 student**), **14 activity rows — of which 8 are LIVE and 6 are soft-deleted** (⚠ this row said a bare "14 activities" until 2026-08-24 and read as fourteen usable activities; `deleted_at` splits it 8/6, and 9 rows are `status = 'published'`), 1 class (`7NE9M2`), **0 checks, 0 submissions** (⚠ this row counted `0 grades` until 2026-08-24 — the `grades` TABLE was DROPPED by 0034, which the Status-by-area row below has said all along; a count for a dropped table is not a fact), and the dormant assignment tables still **0/0** · both pg_cron jobs active; `analytics_rolled_boundary()` non-NULL and advancing.
+**Baseline facts — THERE IS NO SNAPSHOT HERE ANY MORE, DELIBERATELY.** This
+row pinned migration ranges, function versions and live row counts, and went
+stale three times while instructing readers never to claim-read — the last
+time reporting "14 activities" when 6 of the 14 were soft-deleted. It is the
+last row in this file to have carried live numbers, and the repo already
+settled what to do about that three times over (bundle sizes, test counts,
+function versions all became commands). **Read it live, every time:**
 
-⚠ **A dated snapshot rots exactly as fast as an undated one** — this row went three migrations and two function versions stale before the 2026-08-22 audit, while telling readers never to claim-read. The commands are in CLAUDE.md's close-out question 2; run them, don't trust the line above.
+| what | how |
+|---|---|
+| migration range | `select count(*), max(version) from supabase_migrations.schema_migrations` |
+| function flags | `list_edge_functions` — the `verify_jwt` field |
+| function CODE | `get_edge_function` + grep for a marker unique to the change. **A version number is not evidence** — a real deploy once left `version`, `updated_at` and `ezbr_sha256` all unchanged |
+| live rows | `execute_sql` — and split `activities` by `deleted_at`, or the count lies |
+| cron + watermark | `select * from cron.job`; `analytics_rolled_boundary()` |
 
-⚠ **"No real student data exists yet" is NO LONGER TRUE** — one real second account is enrolled. It is the author's own throwaway, so the compliance answers stay cheap to change, but the sentence that made them free has expired.
-
-⚠ **The a11y GAP-2 row has flaked TWICE (runs 31852826598 and 2026-08-22 local) and is a fix-it item, not a watch item — but it needs ONE CAPTURED FAILURE to be fixable.** The instrumented output (`e6b2872`) has never been read: both times it went green again before anyone looked. **Capture it before re-running on the next sighting.** Green since: seventeen runs to 32048169054, plus **3/3 local this session** (baseline, with the new locked-freeze row, and under a deliberate mutation). **Read the flaky COUNT on every run, not this conclusion.**
+⚠ **"No real student data exists yet" is NO LONGER TRUE** — one real second
+account is enrolled (the author's own throwaway, so the compliance answers stay
+cheap to change, but the sentence that made them free has expired).
 
 **Archived to [HISTORY.md](docs/HISTORY.md):** all S9 author stations, the station HEADs (OV-DX-9), the closed gate-9 ledger, and this session's 0034 apply + purge-liveness + CI narrative.
 
@@ -74,14 +52,20 @@ deployed ≠ repo for that function — but the change is inert on the read path
 - **Retention is COMPLETE and proven end to end (0022–0025).** The one thing to know when touching it: **`users.deleted_at` means "account disabled", NOT "retention clock running"** — `join_class` refuses accounts that have it set, so student dormancy is DERIVED live from `class_members`/`classes` (400-day window) and the purge job never writes that column. Don't "simplify" it into a stored flag; that reintroduces a between-terms lockout. "Who is dormant right now" has no column to read — the query is `scripts/verify-0025.sql` section D.
 - **⚠ `purge_soft_deleted` was re-created by 0029** minus its `submissions.student_id` guards (the nightly cron job would have died otherwise). It is live and running; treat it as the current definition.
 - **✅ Teacher grading — SHIPPED 2026-08-16** ([teacher-grading.md](docs/design/teacher-grading.md)). Kept in the backlog only for what it left behind: the **by-student queue view** and **rich-text teacher feedback** (plain text is v1) are named follow-ons. Its pruning/rollup inheritance is now DISCHARGED into 0035 + the arming-arc TODOS entry.
-- **⚠ "Local verify reds are just seeded-data preconditions" WAS WRONG ABOUT AT LEAST ONE ROW, for eight days.** This bullet used to file verify-**0033** `existing_teachers_exempt` under that heading ("e2e-fixture teachers aren't caps-exempt"). It was never a data-state issue: the assertion said NO teacher may be capped, while capping self-serve teachers is 0033 §G's entire purpose. Measured on BOTH databases 2026-08-24 — it failed on both, for the same correct reason — and **fixed**, with its complement (`self_serve_teachers_capped`) added. The heading still holds as advice (read WHICH rows failed; live is the arbiter) — but "it's just the fixtures" is a hypothesis to TEST, not a category to file things in. Live now: **168 passed, 0 failed**, and that is genuinely clean as of 2026-08-24 — verify-0036's behavioural matrix WAS a 3.5-hour-a-day flake (green only 00:00–03:30 UTC, before the nightly cron re-stamped the watermark past its fixtures) and is **fixed**: section E now establishes its own watermark instead of inheriting one. ⚠ **Any "green nights" recorded before 2026-08-24 are not arming evidence** — outside that window the check could not tell a working rollup from a skipped one. Details + the live proof in TODOS.
+- **⚠ A red verify row is a HYPOTHESIS, not a category.** "It's just the
+  fixtures / seeded data" was this file's standing explanation for local reds,
+  and on 2026-08-24 it was wrong about both live examples: verify-0033's caps
+  assertion was over-scoped (failing on BOTH databases for the same correct
+  reason) and verify-0036's rollup matrix was time-dependent (green only 3.5
+  hours a day). Both fixed; the mechanisms are in TODOS. Read WHICH rows failed
+  and TEST the precondition before filing it under anything.
 - **⚠ Unexplained one-off:** `sanitize.test.ts` → "differs across students and across versions" failed once (2026-08-01) and did not reproduce in 13 runs. Recorded so a second sighting is treated as a pattern.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 - **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — the flow modes are BUILT; one author action ships them
+## Current focus — the flow modes are SHIPPED AND LIVE; the arc is closed
 
-**✅ THE ACTIVITY FLOW MODES SLICE IS BUILT 2026-08-24** —
+**✅ THE ACTIVITY FLOW MODES ARE SHIPPED, LIVE AND CI-GREEN (2026-08-24)** —
 [activity-flow-modes.md](docs/design/activity-flow-modes.md). **Read its AS
 BUILT section, not just the plan: five things changed shape at build time.**
 Eight commits, `596e36b`..`43d7c05`. **F11 is DONE — the slice is LIVE** (0040
@@ -142,7 +126,16 @@ rulings in [DECISIONS.md](docs/DECISIONS.md). Nothing in that table is a live
 decision. What stays live:
 
 **Timing calibration** — `TIMING_TARGET_MS` = medians of 5 post-cutover green runs (`9b78496`). Recalibrate only by that rule: median of ≥5 green runs, never local darwin, never one run.
-**Suite — NUMBERS DELIBERATELY NOT PINNED HERE (drift audit 2026-08-21).** This row used to list five per-package counts in the same sentence that told readers to run `pnpm test` instead; four of the five had rotted. **Run `pnpm test` for unit counts and `node --test scripts/tests/*.test.mjs` for the script guards.** What is durable: WHICH lanes exist — the print e2e lane, and the editor/student/sw/perf/**a11y** lanes, plus the local-only integration lane. ⚠ **Their ROW COUNTS were pinned right here until 2026-08-24, in the same sentence that told readers not to pin numbers** — and they had rotted (the row claimed a11y was 11 and the four lanes 73; measured that day: a11y **14**, the four lanes **76**, integration **10**). Removed rather than corrected, because correcting them just restarts the clock. Run the lanes. All lanes were green locally 2026-08-24 with the local Supabase stack running — the configuration that used to be red (see the e2e-origins trap under Standing constraints above). ⚠ **This line does NOT pin the bundle sizes any more** (drift audit 2026-08-17: three different entry-chunk numbers were in circulation across two STATE rows). **`node scripts/check-perf-budget.mjs` prints the real numbers and its caps live in `scripts/perf-budgets.mjs` with their reasoning** — read those, never a doc's copy. Same for test counts: `pnpm test`.
+**Suite — no counts here, by rule.** Run `pnpm test` (unit), `node --test
+scripts/tests/*.test.mjs` (script guards), `node scripts/check-perf-budget.mjs`
+(budgets + their caps). What is durable is WHICH lanes exist: the print lane,
+and the editor / student / sw / perf / a11y lanes, plus the local-only
+integration lane. Every one was green locally 2026-08-24 with the local
+Supabase stack running — the configuration that used to be red (see the
+e2e-origins trap under Standing constraints). *(Three separate rows here once
+pinned counts or sizes and all three rotted; the removals are recorded in
+HISTORY, not re-argued here.)*
+
 **Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
 
 

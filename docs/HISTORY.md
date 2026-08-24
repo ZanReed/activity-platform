@@ -1,5 +1,46 @@
 # HISTORY.md
 
+## Archived from STATE 2026-08-24 — the activity flow modes going LIVE (F11)
+
+The slice itself is [activity-flow-modes.md](design/activity-flow-modes.md)
+(read its AS BUILT). What is archived here is the LIVE VERIFICATION record,
+which sat in STATE's "Pending author actions" as a ✅ item for a day. It is
+finished work with evidence — the two things STATE is worst at holding.
+
+✅ **F11 IS DONE — the activity flow modes are LIVE (2026-08-24).** The author
+applied 0040 and deployed `check-activity`; the verification below was run
+against the live project afterwards and is recorded here because the next
+session must not re-do it:
+
+- **0040 applied.** `schema_migrations` = **40**, max `0040`. `record_check` is
+  `(uuid,uuid,uuid,text,jsonb,jsonb,text,integer,integer,boolean)` — **exactly
+  ONE overload**, `p_locked` present.
+- **`check-activity` deployed.** `version` 19 → **20** with a CHANGED
+  `ezbr_sha256` (`18c59d9…` → `c1f4d77…`), `verify_jwt` still **true**.
+  ⚠ The version moving is not the proof (CLAUDE.md); the proof is that the
+  **deployed entrypoint is byte-identical to the committed one**, including the
+  `p_locked: args.locked` line that did not exist before that session
+  (`supabase functions download check-activity --use-api`, diffed against HEAD).
+- **verify-0040 live: 7 PASS, 0 FAIL** — including B2, the one that matters
+  (a lost-response retry of the LOCKING check replays instead of 409ing).
+- **verify-0020's Structure section live: D1, D2, D3 all pass**, plus
+  `service_role` is the ONLY non-postgres grantee. That is the half a signature
+  change could have broken.
+- **P7 residue: NONE.** `section_checks` printed **0 before and 0 after**.
+
+✅ **Both verify files then ran VERBATIM against live** via
+`pnpm verify:auth --target live` (the password was pasted in the same day):
+`verify-0040 → check-lock-matrix PASS`, `verify-0020 → grading-surface-matrix
+PASS`, suite **168 passed, 0 failed across 15 scripts**. ⚠ This paragraph
+briefly said the opposite — that verify-0020's behavioural half was unrun and
+the verify-0040 result was a transcription rather than the file. Both were
+true when written and both were resolved hours later in the same session; the
+drift audit caught the stale caveats. Nothing is owed here.
+
+*(The same evidence is stated in the design doc's "✅ F11 — SHIPPED AND
+VERIFIED LIVE" section; this is the STATE copy, preserved because it is the one
+a reader of STATE's history would look for.)*
+
 ## Archived from STATE 2026-08-23 (late) — the S9 orphan arc's closing narrative
 
 Moved at the graph-figure convergence close-out, when STATE went over its
