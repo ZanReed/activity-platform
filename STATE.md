@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**FOUR ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
+**THREE ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
 
 ✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
 misconception strip is live, so **activities carrying bindings are safe to
@@ -33,12 +33,16 @@ and not a stale one. `SANITIZER_REV` moved `2-59a68ddc` → `2-050ad6e2` (a
 computed value, so it is not a literal in the bundle — the strip declaration
 is the marker to grep), which orphans stale read-cache rows on its own.
 
-⚠ **`pnpm deploy:check` — STILL OWED** (never `--no-verify-jwt`; the live flag
-is correctly `verify_jwt: true`). Grading returns `misconceptionIds` on wrong
-answers and matches numeric mistakes by value. Until it lands, checking behaves
-exactly as before and **every authored binding records nothing** — the sensor
-is inert, not broken. Verify the same way: `get_edge_function` + grep for
-`misconceptionIds`, never the version field.
+✅ **`check-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** Flag is
+correctly `verify_jwt: true`. **The sensor is now live end to end** — an
+authored binding records a misconception id on a real student's check.
+
+Proven by **byte-identical sha256** between the deployed bundle and the
+committed one, not by marker-grepping — `get_edge_function` cannot read this
+function at all. **That technique is now a standing rule in CLAUDE.md** (deploy
+verification), because this section gets replaced and the method should not go
+with it. Marker greps agreed as a cross-check (`misconceptionIds` ×5,
+`answerType === "numeric"` ×2; the three deleted knobs all 0).
 
 
 
