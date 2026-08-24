@@ -5,7 +5,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 ## Doc map
 
 - **README.md** — durable orientation: packages, commands, architecture invariants, the add-a-block-type checklist.
-- **STATE.md** — current status. Update at end of session (replace, don't append; keep under ~150 lines). Move finished-work narratives to `docs/HISTORY.md`.
+- **STATE.md** — current status. Update at end of session (replace, don't append). **Budget: ~1,500 WORDS, not lines** — the old "~150 lines" rule was broken continuously because a 1,273-character row costs it one line, so the cheapest way to obey it was to write longer lines. `scripts/tests/state-budget.test.mjs` enforces a CEILING (a stop on growth) and records the target; read its header before touching either number. Move finished-work narratives to `docs/HISTORY.md`.
 - **ROADMAP.md** — long-term phases. STATE wins over ROADMAP; code wins over both.
 - ~~packages/renderer/RUNTIME.md~~ — DEAD at S9 Drop 4 with the renderer package (published pages no longer exist; the viewer at `/a/:id` is the only student surface).
 - **docs/DECISIONS.md** — architecture decisions + reasoning, by area. Check before re-deciding anything.
@@ -34,6 +34,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 
 ## Working style
 
+- **HARDEN A CONSTRAINT ONLY AFTER THE CODE IT DESCRIBES HAS STOPPED MOVING (author ruling, 2026-08-24).** STATE is the holding pen for constraints that are still in flight; CLAUDE.md and DECISIONS.md are where they go once they are settled. Promoting one early is the expensive mistake, because these two documents are read as SETTLED — a constraint hardened mid-bug-fix records the wrong rule, durably, in the place that is hardest to correct and most likely to be believed. This is why STATE currently sits ~2.4x over its word budget **on purpose**: the re-architecture's bug tail is still closing, and the cut waits for it. When that tail closes, the over-run is resolved by PROMOTING the proven constraints, not by deleting them.
 - Best-practice over shortcut; ask before assuming on anything ambiguous; give rationale alongside actions; skip ceremony.
 - Design pass → green light → code drop: before large changes, surface the real decisions as a numbered list and wait for the author's yes/no per item.
 - UX is a priority: performance budget, optimistic autosave, visible state indicators, predictable shortcuts.

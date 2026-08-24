@@ -1,6 +1,20 @@
 # STATE.md
 
-A living "where am I" snapshot. Update at the end of each work session — replace the relevant sections, don't append. Keep it under ~150 lines: move finished-work narratives to [docs/HISTORY.md](docs/HISTORY.md), durable reasoning to [docs/DECISIONS.md](docs/DECISIONS.md). Project rules live in [CLAUDE.md](CLAUDE.md).
+A living "where am I" snapshot. Update at the end of each work session —
+replace the relevant sections, don't append. Move finished-work narratives to
+[docs/HISTORY.md](docs/HISTORY.md), open work with an owner to
+[TODOS.md](TODOS.md), durable reasoning to [docs/DECISIONS.md](docs/DECISIONS.md),
+standing rules to [CLAUDE.md](CLAUDE.md), and live numbers to **no document at
+all** — they are commands.
+
+**Budget: ~1,500 WORDS** (not lines — the old line rule was satisfiable by
+writing longer lines, and was 55% breached for weeks). `pnpm test` runs
+`scripts/tests/state-budget.test.mjs`, which enforces a ceiling rather than the
+target. ⚠ **This file is deliberately ~2.4x over the target right now**: the
+re-architecture's bug tail is still closing, and STATE is the holding pen for
+constraints that are still MOVING. The over-run gets resolved by PROMOTING the
+settled ones into CLAUDE.md/DECISIONS — not by deleting them, and not before
+they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 ## Pending author actions
 
