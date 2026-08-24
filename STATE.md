@@ -20,29 +20,25 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**FIVE ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
+**FOUR ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
 
-⚠ **BOTH FUNCTIONS NEED A REDEPLOY — and `get-activity` is now URGENT, which
-it was not before (2026-08-25, misconception bindings).**
+✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
+misconception strip is live, so **activities carrying bindings are safe to
+publish**. Proof was taken the way the three-generation trap requires — not
+from the version number (25), but by grepping the deployed source: the new
+declaration `choices[].misconceptionId` is PRESENT (and `misconceptionId`
+appears 11×), while `partialCredit` / `hasConfidenceRating` /
+`allowTargetReuse` are all ABSENT — both directions, so it is the new bundle
+and not a stale one. `SANITIZER_REV` moved `2-59a68ddc` → `2-050ad6e2` (a
+computed value, so it is not a literal in the bundle — the strip declaration
+is the marker to grep), which orphans stale read-cache rows on its own.
 
-- **`pnpm deploy:get-activity`** — `SANITIZER_REV` MOVED (`2-59a68ddc` →
-  `2-050ad6e2`): the strip list gained `choices[].misconceptionId`, so the
-  deployed read path does NOT yet strip it. **Deploy this BEFORE publishing
-  any activity that carries bindings** — an id names which choices were
-  written to be wrong, so serving it pre-check hands a client the distractor
-  map (OV-7 ordering: the server contract lands before the data that needs
-  it). The moved rev orphans stale read-cache rows automatically once live.
-  *(This supersedes the old "arguably owed, not urgent" note: that reasoning
-  rested on `SANITIZER_REV` not having moved, which is no longer true.)*
-- **`pnpm deploy:check`** (no `--no-verify-jwt`) — grading now returns
-  `misconceptionIds` on wrong answers and matches numeric mistakes by value.
-  Until it lands, checking works exactly as before; nothing breaks, the
-  sensor simply records nothing.
-
-**Verify after deploying** with `list_edge_functions` for the flags, and prove
-the CODE with `get_edge_function` + a grep for `2-050ad6e2` (get-activity) and
-`misconceptionIds` (check-activity) — a version number that did not move is
-not evidence.
+⚠ **`pnpm deploy:check` — STILL OWED** (never `--no-verify-jwt`; the live flag
+is correctly `verify_jwt: true`). Grading returns `misconceptionIds` on wrong
+answers and matches numeric mistakes by value. Until it lands, checking behaves
+exactly as before and **every authored binding records nothing** — the sensor
+is inert, not broken. Verify the same way: `get_edge_function` + grep for
+`misconceptionIds`, never the version field.
 
 
 

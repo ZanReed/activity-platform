@@ -136,7 +136,21 @@ the ones the in-house review missed.
   which is the reason that survives. Recorded because "a claim with a number
   attached is still a claim" — this one came from a review and went unchecked
   into a ruling.
-- ⚡ **X4 — the sensor must be able to report its own health.** Every failure
+- **X4 AMENDED 2026-08-25 (author): the unmatched-wrong SIGNAL is DROPPED in
+  favour of an offline recompute; the reconciliation half ships.** The signal
+  would have written a field recording "this wrong answer matched no mapped
+  distractor" — but that is **derivable from what is already stored**, and
+  storing derivable data on the check hot path buys nothing:
+  `section_checks` keeps the student's `responses` AND the
+  `activity_version_id`, and a version's document is immutable, so for any
+  stored attempt you can replay which bindings the item carried and whether
+  the answer matched one. Match rate is therefore a query written whenever
+  someone wants it, against history that already exists — including history
+  recorded before the query was written, which a wire field could never cover.
+  ⚠ **One dependency this inherits:** the recompute needs the ATTEMPT rows, so
+  it must run (or be materialized) before `prune_section_checks` deletes
+  non-latest attempts — the same X1 blocker, one more reason arming waits.
+- ⚡ **X4 (original ruling) — the sensor must be able to report its own health.** Every failure
   mode is silent: a typo'd prefix (`misc.roc.x`) does not start with `mis.` so
   it does not even warn and becomes feedback text; blank matching is normalized
   exact-string, so `!0.5` never fires for a student who types `.5`; graph
@@ -355,10 +369,16 @@ finding above. Checkbox as you ship.
   - Surfaced by: X1 — the prune deletes exactly the rows the ids live on
   - Files: `docs/design/check-retention-and-rollup.md`, `TODOS.md` (the ARMING arc entry)
   - Verify: arming checklist names the blocker; no code change yet
-- [ ] **T6 (P2, human: ~4h / CC: ~30min)** — sensor health — `report:misconceptions` script + unmatched-wrong signal
+- [x] **T6 (P2)** — sensor health — SPLIT, and the wire half was CUT
   - Surfaced by: X4 — broken sensor and quiet sensor are otherwise indistinguishable
-  - Files: `scripts/report-misconceptions.mjs`, `server/grading/index.ts`
-  - Verify: script lists distinct ids with counts across drafts
+  - **Authoring-time half: SHIPPED** as the `import:batch` binding manifest
+    (T11), which is where a dead binding is cheapest to catch — before publish.
+    A separate `report:misconceptions` script was not needed; the manifest is
+    that report, and it runs in the command the author already types.
+  - **Live-data half: CUT 2026-08-25 (author ruling)** — the unmatched-wrong
+    wire field is derivable from stored `responses` + the immutable versioned
+    document, so it becomes an offline query rather than a stored field. See
+    the X4 amendment above, including the ordering dependency on the prune.
 - [x] **T7 (P2, human: ~1h / CC: ~10min)** — cleanup — delete `annotateMistake` + its dead plumbing; cap the id at 120 chars; teach `check/mock.ts`
   - Surfaced by: A2, C1, C2
   - Files: `packages/graph-kit/src/graph-question.ts`, `packages/schema/src/{inline,blocks/*}.ts`, `packages/viewer/src/check/mock.ts`
