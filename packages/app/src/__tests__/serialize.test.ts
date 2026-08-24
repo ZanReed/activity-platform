@@ -3457,3 +3457,159 @@ describe('graph figure ⇄ tiptap (reference-panel content)', () => {
         expect(ReferencePanel.safeParse(bare).success).toBe(true);
     });
 });
+
+// =============================================================================
+// Misconception bindings
+// -----------------------------------------------------------------------------
+// The opaque `misconceptionId` tag rides on three carriers (blank
+// mistakeFeedback, multiple_choice options, interactive_graph mistakeFeedback).
+// It is optional everywhere, so each site is pinned twice: once bound (the id
+// survives tiptap → activity → tiptap unchanged) and once unbound (no
+// `misconceptionId` KEY comes back — toEqual can't see the difference between
+// an absent key and an undefined one, hence the explicit key assertions).
+// =============================================================================
+
+describe('misconception bindings', () => {
+    const BLANK_ID = '550e8400-e29b-41d4-a716-446655440401';
+    const CHOICE_A = '550e8400-e29b-41d4-a716-446655440411';
+    const CHOICE_B = '550e8400-e29b-41d4-a716-446655440412';
+    const AXIS = {
+        xMin: -10, xMax: 10, yMin: -10, yMax: 10,
+        xGridStep: 1, yGridStep: 1,
+        showGrid: true, snapToGrid: true,
+    };
+
+    function blankDoc(entry: Record<string, unknown>): JSONContent {
+        return {
+            type: 'doc',
+            content: [
+                {
+                    type: 'fillInBlank',
+                    content: [
+                        {
+                            type: 'blank',
+                            attrs: {
+                                id: BLANK_ID,
+                                answer: '7',
+                                acceptableAnswers: [],
+                                interchangeableWithPrevious: false,
+                                mistakeFeedback: [entry],
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+    }
+
+    function mcDoc(choices: Array<Record<string, unknown>>): JSONContent {
+        return {
+            type: 'doc',
+            content: [
+                {
+                    type: 'multipleChoice',
+                    attrs: { id: 'mc-mis', choices, multiSelect: false },
+                    content: [{ type: 'text', text: 'What is 2 + 2?' }],
+                },
+            ],
+        };
+    }
+
+    function graphDoc(mistakeFeedback: Array<Record<string, unknown>>): JSONContent {
+        return {
+            type: 'doc',
+            content: [
+                {
+                    type: 'interactiveGraph',
+                    attrs: {
+                        id: 'g-mis',
+                        axisConfig: AXIS,
+                        interaction: { type: 'plot_point', correctPoints: [[3, 4]], tolerance: 0.25 },
+                        mistakeFeedback,
+                        solution: null,
+                        skills: [],
+                    },
+                    content: [{ type: 'text', text: 'Plot the point (3, 4).' }],
+                },
+            ],
+        };
+    }
+
+    function blankMistakeFeedback(doc: JSONContent): Array<Record<string, unknown>> {
+        const blank = doc.content?.[0]?.content?.[0];
+        return (blank?.attrs?.mistakeFeedback ?? []) as Array<Record<string, unknown>>;
+    }
+
+    it('round-trips a misconceptionId on a blank mistakeFeedback entry', () => {
+        const entry = {
+            match: '5',
+            feedback: [{ type: 'text', text: 'Check the sign.', marks: [] }],
+            misconceptionId: 'mis.sign-error',
+        };
+        expect(blankMistakeFeedback(roundTrip(blankDoc(entry)))).toEqual([entry]);
+        const activity = tiptapToActivity(blankDoc(entry), META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('leaves misconceptionId absent on a blank entry without one', () => {
+        const entry = {
+            match: '5',
+            feedback: [{ type: 'text', text: 'Check the sign.', marks: [] }],
+        };
+        const out = blankMistakeFeedback(roundTrip(blankDoc(entry)));
+        expect(out).toEqual([entry]);
+        expect(Object.keys(out[0]!)).not.toContain('misconceptionId');
+    });
+
+    it('round-trips a misconceptionId on a multiple_choice distractor', () => {
+        const choices = [
+            { id: CHOICE_A, content: [{ type: 'text', text: '4', marks: [] }], correct: true },
+            {
+                id: CHOICE_B,
+                content: [{ type: 'text', text: '5', marks: [] }],
+                correct: false,
+                misconceptionId: 'mis.off-by-one',
+            },
+        ];
+        const mc = roundTrip(mcDoc(choices)).content?.[0];
+        expect(mc?.attrs?.choices).toEqual(choices);
+        const activity = tiptapToActivity(mcDoc(choices), META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('leaves misconceptionId absent on a choice without one', () => {
+        const choices = [
+            { id: CHOICE_A, content: [{ type: 'text', text: '4', marks: [] }], correct: true },
+            { id: CHOICE_B, content: [{ type: 'text', text: '5', marks: [] }], correct: false },
+        ];
+        const mc = roundTrip(mcDoc(choices)).content?.[0];
+        const out = mc?.attrs?.choices as Array<Record<string, unknown>>;
+        expect(out).toEqual(choices);
+        expect(Object.keys(out[1]!)).not.toContain('misconceptionId');
+    });
+
+    it('round-trips a misconceptionId on an interactive_graph mistakeFeedback entry', () => {
+        const mistakeFeedback = [
+            {
+                match: '(4, 3)',
+                feedback: [{ type: 'text', text: 'x comes first.', marks: [] }],
+                misconceptionId: 'mis.coordinate-swap',
+            },
+        ];
+        const g = roundTrip(graphDoc(mistakeFeedback)).content?.[0];
+        expect(g?.attrs?.mistakeFeedback).toEqual(mistakeFeedback);
+        const activity = tiptapToActivity(graphDoc(mistakeFeedback), META);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('drops a non-string or empty misconceptionId but keeps the entry', () => {
+        const feedback = [{ type: 'text', text: 'Check the sign.', marks: [] }];
+        for (const bad of [42, '', null, { id: 'x' }]) {
+            const out = blankMistakeFeedback(
+                roundTrip(blankDoc({ match: '5', feedback, misconceptionId: bad })),
+            );
+            expect(out).toEqual([{ match: '5', feedback }]);
+            expect(Object.keys(out[0]!)).not.toContain('misconceptionId');
+        }
+    });
+});

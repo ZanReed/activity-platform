@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { InlineNode } from '../inline.js';
+import { InlineNode, MisconceptionId } from '../inline.js';
 import { labelFields } from '../label.js';
 import { sizingFields } from '../sizing.js';
 import {
@@ -251,9 +251,12 @@ export const InteractiveGraphBlock = z.object({
   // tolerances as scoring. First match wins, and an authored match beats a
   // built-in classifier. `feedback` is rich inline content, shown (post-check
   // only) in the block's feedback line.
+  // `misconceptionId` binds the entry to a named misconception (opaque
+  // `mis.*` tag), same contract as BlankToken.mistakeFeedback.
   mistakeFeedback: z.array(z.object({
     match: z.string(),
     feedback: z.array(InlineNode),
+    misconceptionId: MisconceptionId.optional(),
   })).default([]),
   solution: z.array(InlineNode).optional(),
   skills: z.array(z.string()).default([]),

@@ -35,6 +35,7 @@ import {
   scoreBlank,
   scoreBlankGroup,
   selectBlankFeedback,
+  selectBlankMisconception,
   type BlankKey,
 } from './blanks.js';
 import {
@@ -42,9 +43,10 @@ import {
   scoreMultipleChoice,
   scoreOrdering,
   selectChoiceFeedback,
+  selectChoiceMisconceptions,
   type ItemVerdict,
 } from './choices.js';
-import { scoreGraphBlock } from './graphs.js';
+import { scoreGraphBlock, selectGraphMistake } from './graphs.js';
 import { findSection, inventorySection, type RawSection } from './walk.js';
 
 export { MalformedDocumentError } from './walk.js';
@@ -101,9 +103,15 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
         const verdict = verdicts[i];
         if (verdict === null || verdict === undefined) return; // unanswered
         const feedback = selectBlankFeedback(raws[i] ?? '', key, verdict);
+        const misconceptionId = selectBlankMisconception(
+          raws[i] ?? '',
+          key,
+          verdict,
+        );
         items[key.id] = {
           verdict: verdict ? 'correct' : 'incorrect',
           ...(feedback ? { feedback: sanitizeOut(feedback) } : {}),
+          ...(misconceptionId ? { misconceptionIds: [misconceptionId] } : {}),
         };
       });
     }
@@ -121,9 +129,13 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     const feedback = mc.choices
       .filter((c) => perChoice.has(c.id))
       .flatMap((c) => perChoice.get(c.id) ?? []);
+    const misconceptionIds = verdict
+      ? []
+      : selectChoiceMisconceptions(selected, mc.choices);
     items[mc.blockId] = {
       verdict: verdict ? 'correct' : 'incorrect',
       ...(feedback.length ? { feedback: sanitizeOut(feedback) } : {}),
+      ...(misconceptionIds.length ? { misconceptionIds } : {}),
     };
   }
 
@@ -152,7 +164,18 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     if (work === undefined) continue;
     const verdict: ItemVerdict = scoreGraphBlock(g.block, work);
     if (verdict === null) continue;
-    items[g.blockId] = { verdict: verdict ? 'correct' : 'incorrect' };
+    // Wrong interactive_graph answers carry their authored mistakeFeedback
+    // match: rich feedback + misconception id. Built-in classifier text is
+    // deliberately absent — see selectGraphMistake (X3).
+    const mistake = verdict ? null : selectGraphMistake(g.block, work);
+    const feedback = mistake?.feedback ? sanitizeOut(mistake.feedback) : undefined;
+    items[g.blockId] = {
+      verdict: verdict ? 'correct' : 'incorrect',
+      ...(feedback?.length ? { feedback } : {}),
+      ...(mistake?.misconceptionId
+        ? { misconceptionIds: [mistake.misconceptionId] }
+        : {}),
+    };
   }
 
   // ---- free text ------------------------------------------------------------

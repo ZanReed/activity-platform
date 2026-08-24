@@ -123,6 +123,23 @@ describe('checkSection (one batched call, ruling P2A)', () => {
     ]);
   });
 
+  it('carries scripted misconception ids through to the section result', async () => {
+    const { store } = makeStore({
+      verdicts: { 'blank-1': 'incorrect' },
+      misconceptionIds: { 'blank-1': ['mis.slope-intercept-swap'] },
+    });
+    store.setBlank('blank-1', '4');
+
+    await store.checkSection('sec-1', { blanks: ['blank-1'] });
+
+    const status = store.getState().sections['sec-1'];
+    if (status?.phase !== 'checked') throw new Error('unreachable');
+    expect(status.result.items['blank-1']).toEqual({
+      verdict: 'incorrect',
+      misconceptionIds: ['mis.slope-intercept-swap'],
+    });
+  });
+
   it('snapshots CURRENT values at fire time — later edits never mutate an in-flight request (2.2A)', async () => {
     const { store, service } = makeStore();
     const release = service.gate();

@@ -161,6 +161,19 @@ export interface CheckItemResult {
   /** Server-selected feedback (authored hint / mistakeFeedback / per-choice
    * feedback — ruling 2.1A). Absent = mark-only, the designed default. */
   feedback?: SanitizedInlineNode[];
+  /** The matched distractors' misconception bindings (opaque `mis.*` tags from
+   * the author's registry), present only on an `incorrect` verdict whose
+   * matched mistake/choice carries one. Additive-optional — no wire bump.
+   *
+   * A LIST because one item can demonstrate several misconceptions at once: a
+   * multi-select student who ticks two mapped distractors demonstrated both,
+   * and a single-string shape would drop one silently AND force a dual-shape
+   * migration once rows existed (eng review A1). Blanks and graphs emit one
+   * element; the field is absent, never empty, when nothing matched.
+   *
+   * Stored verbatim with the verdicts row (S4-B4), which is what makes the
+   * misconception signal aggregable; the client may ignore it. */
+  misconceptionIds?: string[];
 }
 
 export interface SectionCheckResult {

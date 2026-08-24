@@ -123,7 +123,15 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
         acceptableAnswers: [STR],
         width: 8,
         hint: [text('HINT_SURVIVES')],
-        mistakeFeedback: [{ match: STR, feedback: sentinelInline() }],
+        mistakeFeedback: [
+          {
+            match: STR,
+            feedback: sentinelInline(),
+            // RELEASABLE-class: stripped from the read path, returned by the
+            // check response when this entry matches (decision 4, 2026-08-24).
+            misconceptionId: `mis.probe.${RELEASABLE}`,
+          },
+        ],
         answerType: 'math',
         tolerance: NUM,
         equivalence: 'exact-form',
@@ -223,7 +231,12 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
         correct: true,
         feedback: sentinelInline(),
       },
-      { id: uuid(), content: [text('wrong')], correct: false },
+      {
+        id: uuid(),
+        content: [text('wrong')],
+        correct: false,
+        misconceptionId: `mis.probe.${RELEASABLE}`,
+      },
     ],
     solution: sentinelInline(),
   });

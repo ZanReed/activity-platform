@@ -34,23 +34,35 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 import {
+    bindingWarningsFor,
+    canNeverFire,
     canonicalJson,
+    collectBindings,
     convertOne,
     describeChanges,
+    editDistanceWithin,
     findMarkdownFiles,
     fingerprintDocument,
+    isBindingWarning,
     loadPipeline,
     makeDb,
+    MISCONCEPTION_ID,
+    nearDuplicateIds,
     parseArgs,
+    parseNumericValue,
+    parseRegistry,
     planIdentity,
     rejectUnusableKey,
+    renderManifest,
     splitDriftedUpdates,
+    summarizeBindings,
     titleFromPath,
 } from '../batch-import.mjs';
 
@@ -833,4 +845,413 @@ test('§H a draft that CHANGED is stale — the case the report exists for', () 
         },
     ]);
     assert.deepEqual(stale.map((r) => r.source_path), ['upgraded.md']);
+});
+
+// =============================================================================
+// §I — misconception bindings: the manifest, the registry, the dead ones
+// -----------------------------------------------------------------------------
+// Every one of these rows is bound to the CONVERTED DOCUMENT, not to the
+// markdown and not to a declaration. That is the point: a binding's whole
+// failure mode is silence — the file parses, the row writes, the activity
+// renders, and the only thing wrong is that a sensor never fires. The three
+// authoring sites are read out of a real conversion here for the same reason §A
+// bundles the pipeline: a test that trusted the parser's own account of what it
+// produced would go on passing after serialize dropped the field.
+//
+// (It really does drop one: the id-ONLY blank form documented in
+// markdown-import-format.md — `{{12 | !21 :: mis.x}}` with no feedback prose —
+// is discarded by sanitizeMistakeFeedback, which throws away any entry whose
+// feedback is empty and takes the binding with it. That is a serialize bug, not
+// a manifest one, so it is not pinned here; the row below uses the two-segment
+// form deliberately.)
+// =============================================================================
+
+const BINDINGS_MD = [
+    '# Rates',
+    '',
+    'Cost per kg: {{=3.50 | !7 :: You used the total. :: mis.roc.uses-endpoint-value}}',
+    '',
+    'Reversed: {{12 | !21 :: Digits swapped. :: mis.place-value.digit-reversal}}',
+    '',
+    '```mc',
+    'prompt: Which is the unit rate?',
+    '( ) $4 per kg :: Check what you divided by. :: mis.roc.uses-endpoint-value',
+    '(x) $3.50 per kg',
+    '( ) $14 per kg :: That is the total. :: mis.roc.total-not-rate',
+    '```',
+].join('\n');
+
+test('§I every authoring site reaches the manifest, named by where it sits', () => {
+    const { document } = convertOne(pipeline, BINDINGS_MD, null, 'unit-3/rates.md');
+    const { bindings } = collectBindings(document);
+
+    assert.deepEqual(
+        bindings.map((b) => `${b.id} @ ${b.where}`),
+        [
+            'mis.roc.uses-endpoint-value @ fill_in_blank #1, blank #1',
+            'mis.place-value.digit-reversal @ fill_in_blank #2, blank #1',
+            'mis.roc.uses-endpoint-value @ multiple_choice #1, choice A',
+            'mis.roc.total-not-rate @ multiple_choice #1, choice C',
+        ],
+    );
+});
+
+test('§I a binding NESTED inside a fence is found too', () => {
+    // The walk is generic precisely so that the containers it has never heard
+    // of still work. A faded worked example holds blanks several levels down,
+    // and an enumerated walk would have missed every one of them.
+    const md = [
+        '# Practice',
+        '',
+        '```faded',
+        'title: Guided',
+        'A 3 m ribbon costs $4.50.',
+        'Per metre: {{=1.50 | !4.50 :: You copied the total. :: mis.roc.total-not-rate}}',
+        '```',
+    ].join('\n');
+
+    const { document } = convertOne(pipeline, md, null, 'x.md');
+    const { bindings } = collectBindings(document);
+
+    assert.deepEqual(bindings.map((b) => b.id), ['mis.roc.total-not-rate']);
+    // Labelled by the INNERMOST container the blank actually sits in (the
+    // fence nests a fill_in_blank of its own), which is the useful half of the
+    // address — ordinals are per type across the whole document, so it is
+    // unambiguous either way.
+    assert.match(bindings[0].where, /fill_in_blank #\d+, blank #1/);
+    // And the fence really did nest it, rather than the fence being ignored:
+    // a walk that only visited top-level blocks would have found nothing.
+    assert.match(
+        JSON.stringify(document),
+        /"type":"faded_worked_example"/,
+        'the fixture no longer nests the blank — the test proves nothing',
+    );
+});
+
+test('§I the id pattern is a COPY, and the copy has not drifted', () => {
+    // The script cannot import the .ts source of truth, so it duplicates the
+    // regex. A duplicate nobody compares is a duplicate that diverges, and this
+    // one diverging would mean the two halves of the same feature disagree
+    // about what an id is: the importer would bind a token the manifest calls
+    // suspect, or the reverse.
+    const source = readFileSync(
+        join(repoRoot, 'packages/app/src/lib/misconceptionBinding.ts'),
+        'utf8',
+    );
+    const match = /^const VALID_ID = (\/.*\/);$/m.exec(source);
+    assert.ok(match, 'VALID_ID is no longer a single-line regex literal there');
+    assert.equal(
+        `/${MISCONCEPTION_ID.source}/`,
+        match[1],
+        'scripts/batch-import.mjs MISCONCEPTION_ID has drifted from misconceptionBinding.ts',
+    );
+});
+
+// ---- dead bindings ----------------------------------------------------------
+
+test('§I a mistake that IS the answer can never fire', () => {
+    const blank = { answer: '12', acceptableAnswers: [] };
+    assert.match(canNeverFire(blank, '12'), /scores correct/);
+    assert.equal(canNeverFire(blank, '21'), null);
+});
+
+test('§I an acceptable answer shadows a mistake too', () => {
+    const blank = { answer: 'yes', acceptableAnswers: ['y', 'Yes'] };
+    assert.match(canNeverFire(blank, 'Yes'), /scores correct/);
+    assert.equal(canNeverFire(blank, 'no'), null);
+});
+
+test('§I on a NUMERIC blank the comparison is numeric, not textual', () => {
+    // The case the whole check exists for: `!0.5` against an answer of `1/2`
+    // looks like a different string and is the same number, so the mistake is
+    // unreachable and the data would report the misconception as never made.
+    const blank = { answer: '1/2', acceptableAnswers: [], answerType: 'numeric' };
+    assert.match(canNeverFire(blank, '0.5'), /numerically equal/);
+    assert.match(canNeverFire(blank, '.50'), /numerically equal/);
+    assert.equal(canNeverFire(blank, '2'), null);
+});
+
+test('§I a numeric blank’s tolerance widens what can never fire', () => {
+    const blank = {
+        answer: '3.5',
+        acceptableAnswers: [],
+        answerType: 'numeric',
+        tolerance: 0.1,
+    };
+    assert.match(canNeverFire(blank, '3.55'), /numerically equal/);
+    assert.equal(canNeverFire(blank, '3.7'), null);
+});
+
+test('§I a case-only difference is NOT dead — scoring is case-sensitive', () => {
+    // Scoring compares case-sensitively; mistake matching is the looser,
+    // case-INSENSITIVE side. So `!Cat` against an answer of `cat` really does
+    // fire, and reporting it dead would send an author to delete a live sensor.
+    assert.equal(canNeverFire({ answer: 'cat', acceptableAnswers: [] }, 'Cat'), null);
+});
+
+test('§I a math blank is left alone — its equivalence needs the kit', () => {
+    // 2a and a+a are the same answer to a math blank and this file has no way
+    // to know it. Guessing would produce false "can never fire" reports, which
+    // under --strict fail a run for no reason.
+    const blank = { answer: '2a', acceptableAnswers: [], answerType: 'math' };
+    assert.equal(canNeverFire(blank, 'a+a'), null);
+});
+
+test('§I a dead binding is reported through the whole path, named', () => {
+    const md = 'Cost: {{=3.50 | !3.5 :: Same number. :: mis.roc.uses-endpoint-value}}';
+    const collected = collectBindings(
+        convertOne(pipeline, `# H\n\n${md}`, null, 'dead.md').document,
+    );
+    assert.equal(collected.dead.length, 1);
+
+    const warnings = bindingWarningsFor('dead.md', collected, null);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /^dead\.md: /);
+    assert.match(warnings[0], /can NEVER FIRE/);
+    assert.match(warnings[0], /mis\.roc\.uses-endpoint-value/);
+});
+
+test('§I a dead mistake with NO binding is reported too', () => {
+    // Same defect, one `::` earlier in its life. Under --strict it fails the
+    // run, so it is pinned rather than left to a reader's assumption.
+    const md = 'Answer: {{12 | !12 :: You wrote the right answer.}}';
+    const collected = collectBindings(
+        convertOne(pipeline, `# H\n\n${md}`, null, 'unbound.md').document,
+    );
+    assert.deepEqual(collected.bindings, []);
+    const warnings = bindingWarningsFor('unbound.md', collected, null);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /can NEVER FIRE/);
+    assert.doesNotMatch(warnings[0], /mis\./);
+});
+
+// ---- the registry -----------------------------------------------------------
+
+test('§I a registry file is ids only — comments and blank lines are not ids', () => {
+    const ids = parseRegistry(
+        ['# the taxonomy', '', 'mis.roc.uses-endpoint-value', '  ', 'mis.a.b # trailing'].join('\n'),
+    );
+    assert.deepEqual([...ids].sort(), ['mis.a.b', 'mis.roc.uses-endpoint-value']);
+});
+
+test('§I an id outside the registry warns, naming the file and the id', () => {
+    const collected = collectBindings(
+        convertOne(pipeline, BINDINGS_MD, null, 'unit-3/rates.md').document,
+    );
+    const registry = {
+        path: 'taxonomy.txt',
+        ids: parseRegistry('mis.roc.uses-endpoint-value\nmis.place-value.digit-reversal'),
+    };
+    const warnings = bindingWarningsFor('unit-3/rates.md', collected, registry);
+
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /unit-3\/rates\.md/);
+    assert.match(warnings[0], /mis\.roc\.total-not-rate/);
+    assert.match(warnings[0], /taxonomy\.txt/);
+});
+
+test('§I a known id is silent, and one unknown id warns ONCE', () => {
+    // The same wrong id used in five places is one thing to fix, not five lines
+    // in a 150-file run.
+    const collected = {
+        bindings: [
+            { id: 'mis.a.b', where: 'w1' },
+            { id: 'mis.a.b', where: 'w2' },
+            { id: 'mis.known.id', where: 'w3' },
+        ],
+        dead: [],
+    };
+    const warnings = bindingWarningsFor('f.md', collected, {
+        path: 'r.txt',
+        ids: new Set(['mis.known.id']),
+    });
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /mis\.a\.b/);
+});
+
+test('§I with NO registry there is nothing to check an id against', () => {
+    const collected = { bindings: [{ id: 'mis.a.b', where: 'w' }], dead: [] };
+    assert.deepEqual(bindingWarningsFor('f.md', collected, null), []);
+});
+
+test('§I a suspect id from the importer is recognizable as a binding warning', () => {
+    // isBindingWarning couples to suspectWarning()'s sentence. Pinned against
+    // the REAL string the pipeline emits, so a reword goes red here rather than
+    // silently exempting suspect ids from --strict.
+    const md = '# H\n\nPick: {{2 | !3 :: A typo lurks. :: msi.slope.reads-intercept}}';
+    const { warnings } = convertOne(pipeline, md, null, 'suspect.md');
+    assert.equal(warnings.filter(isBindingWarning).length, 1);
+    assert.equal(
+        warnings.filter((w) => !isBindingWarning(w)).length,
+        0,
+        'a non-binding warning was misread as a binding warning (or vice versa)',
+    );
+});
+
+// ---- near duplicates --------------------------------------------------------
+
+test('§I near-duplicate ids are the ones within two edits', () => {
+    assert.equal(editDistanceWithin('mis.a.value', 'mis.a.values', 2), 1);
+    assert.equal(editDistanceWithin('mis.a.b', 'msi.a.b', 2), 2);
+    assert.equal(editDistanceWithin('mis.a.b', 'mis.a.b', 2), 0);
+    assert.equal(editDistanceWithin('mis.roc.slope-as-y', 'mis.roc.uses-endpoint', 2), Infinity);
+});
+
+test('§I the heuristic flags the typo pair and leaves real siblings alone', () => {
+    // The rejected alternative — "identical except the last dotted segment" —
+    // would have flagged the two deliberate siblings here, which is how a
+    // warning becomes something nobody reads.
+    const pairs = nearDuplicateIds([
+        'mis.roc.uses-endpoint-value',
+        'mis.roc.uses-endpoint-values',
+        'mis.roc.slope-as-y-value',
+        'mis.place-value.digit-reversal',
+    ]);
+    assert.deepEqual(
+        pairs.map((p) => [p.a, p.b, p.distance]),
+        [['mis.roc.uses-endpoint-value', 'mis.roc.uses-endpoint-values', 1]],
+    );
+});
+
+// ---- the manifest -----------------------------------------------------------
+
+const MANIFEST_INPUT = [
+    {
+        sourcePath: 'unit-3/unit-rate.md',
+        bindings: [
+            { id: 'mis.roc.uses-endpoint-value', where: 'a' },
+            { id: 'mis.roc.uses-endpoint-value', where: 'b' },
+            { id: 'mis.place-value.digit-reversal', where: 'c' },
+        ],
+        dead: [],
+    },
+    {
+        sourcePath: 'unit-4/rate-of-change.md',
+        bindings: [{ id: 'mis.roc.uses-endpoint-values', where: 'd' }],
+        dead: [],
+    },
+];
+
+test('§I the summary counts bindings per file and across the folder', () => {
+    const summary = summarizeBindings(MANIFEST_INPUT);
+    assert.equal(summary.total, 4);
+    assert.deepEqual(
+        summary.ids.map((i) => [i.id, i.count]),
+        [
+            ['mis.place-value.digit-reversal', 1],
+            ['mis.roc.uses-endpoint-value', 2],
+            ['mis.roc.uses-endpoint-values', 1],
+        ],
+    );
+    // The console ordering is count-first: "what does this activity mostly
+    // sense" is the question in front of the author reading a run.
+    assert.deepEqual(summary.files[0].byCount.map(([id]) => id), [
+        'mis.roc.uses-endpoint-value',
+        'mis.place-value.digit-reversal',
+    ]);
+    assert.deepEqual(summary.singletons, [
+        'mis.place-value.digit-reversal',
+        'mis.roc.uses-endpoint-values',
+    ]);
+    assert.equal(summary.nearDuplicates.length, 1);
+});
+
+test('§I an id used in two files names both, sorted', () => {
+    const summary = summarizeBindings([
+        { sourcePath: 'b.md', bindings: [{ id: 'mis.a.b', where: 'x' }], dead: [] },
+        { sourcePath: 'a.md', bindings: [{ id: 'mis.a.b', where: 'y' }], dead: [] },
+    ]);
+    assert.deepEqual(summary.ids[0].files, ['a.md', 'b.md']);
+});
+
+test('§I the manifest is deterministic — same input, byte-identical output', () => {
+    // The artifact is committed so that a binding change is a reviewable diff.
+    // A timestamp, a run mode, or a count that depends on the DATABASE would
+    // make every run a diff and the review worthless.
+    const first = renderManifest(summarizeBindings(MANIFEST_INPUT));
+    const second = renderManifest(summarizeBindings(MANIFEST_INPUT));
+    assert.equal(first, second);
+    assert.doesNotMatch(first, /\d{4}-\d{2}-\d{2}/, 'the manifest carries a date');
+    assert.doesNotMatch(first, /DRY RUN|skipped|refused/, 'the manifest carries run state');
+});
+
+test('§I the manifest says it is not a CI artifact, in the file itself', () => {
+    // The next reader's obvious idea is a drift gate. It cannot pass: the .md
+    // files are outside the repo. The file has to say so where that reader is
+    // standing, which is in the file.
+    const text = renderManifest(summarizeBindings(MANIFEST_INPUT));
+    assert.match(text, /NOT A CI-GATED ARTIFACT/);
+    assert.match(text, /OUTSIDE this repository/);
+});
+
+test('§I the manifest lists ids alphabetically, for the diff', () => {
+    const text = renderManifest(summarizeBindings(MANIFEST_INPUT));
+    const rows = text
+    .split('\n')
+    .filter((line) => line.startsWith('| `mis.'))
+    .map((line) => line.split('`')[1]);
+    assert.deepEqual(rows, [...rows].sort());
+});
+
+test('§I an empty catalogue still produces a manifest, not a stale one', () => {
+    // Removing the last binding has to show up as a diff too, which it cannot
+    // do if the file is only written when there is something to write.
+    const text = renderManifest(summarizeBindings([]));
+    assert.match(text, /No misconception bindings/);
+    assert.match(text, /NOT A CI-GATED ARTIFACT/);
+});
+
+// ---- the flags --------------------------------------------------------------
+
+test('§I --strict and --registry parse, in either form', () => {
+    assert.deepEqual(
+        parseArgs(['~/cat', '--strict', '--registry', 'tax.txt', '--owner=me']),
+        {
+            folder: '~/cat',
+            owner: 'me',
+            dryRun: false,
+            force: false,
+            strict: true,
+            registry: 'tax.txt',
+        },
+    );
+    assert.equal(parseArgs(['~/cat', '--registry=tax.txt']).registry, 'tax.txt');
+    assert.equal(parseArgs(['~/cat']).strict, false);
+    assert.equal(parseArgs(['~/cat']).registry, null);
+});
+
+// §I.22 — the ported numeric parser must agree with the one that MARKS.
+// The dead-binding check answers "would this match score correct?", and on a
+// numeric blank that is a numeric question. Its parser is a COPY of the
+// server's (the check runs synchronously; the pipeline loads async), so the
+// copy is bound to the original by behaviour rather than by a promise: drift
+// either reports a live binding dead — failing an author's run under --strict
+// for no reason — or misses a dead one, which is the silent-sensor failure the
+// whole arc exists to prevent.
+test('§I.22 the ported numeric parser matches the server grader exactly', () => {
+    const real = pipeline.parseNumericValue;
+    assert.equal(
+        typeof real,
+        'function',
+        'the pipeline must expose the server parser, or this guard is vacuous',
+    );
+    // A DELIBERATE mutation proves this guard is not vacuous: widen the copy's
+    // DECIMAL_RE (say, to accept a trailing dot) and '3.' below diverges.
+    const cases = [
+        // the accepted forms numeric.ts documents
+        '3', '-2.5', '.75', '+4', '1e3', '2.5E-2',
+        '3/4', '-3/4', '1.5/3', '1 1/2', '-2 3/4',
+        '1,234.5', '$3.50', '$1,000',
+        // and the rejections, which matter just as much: a form the copy
+        // accepted but the grader did not would invent a dead binding
+        'no solution', '', '   ', 'abc', '1/0', '3..4', '--5', '1 1/0', '3.', '.', '1e', '$', '1 1/2 1/2',
+        '0.5', '.5', '0.50', '1/2', '2/4',
+    ];
+    for (const input of cases) {
+        assert.deepEqual(
+            parseNumericValue(input),
+            real(input),
+            `parser disagreement on ${JSON.stringify(input)}`,
+        );
+    }
 });

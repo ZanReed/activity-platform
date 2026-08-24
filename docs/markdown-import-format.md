@@ -644,6 +644,59 @@ prompt: Put the steps for solving $2x + 3 = 11$ in order.
 - `solution:` as in the other fences.
 - At least two item lines are required.
 
+## Misconception bindings (`:: mis.*`)
+
+**Batch-workflow feature.** This is deliberately NOT taught by the Copy-AI
+prompt above: an assistant with no copy of your registry would invent
+plausible-looking ids and fragment the data. Author bindings in files you
+import with `pnpm import:batch`, which validates them against your registry.
+
+A wrong answer can name the misconception it senses. The binding is an opaque
+tag from **your** registry (the platform never owns the taxonomy) and it is
+what turns targeted feedback into aggregate data: the id rides the check
+verdict and is stored with the student's attempt.
+
+**The id.** `mis.` followed by dot-separated kebab-case segments —
+`mis.roc.uses-endpoint-value`, `mis.place-value.digit-reversal`. Anything else
+is not a binding.
+
+**The syntax, at all three sites: append `:: <id>`.** The id is recognized by
+its SHAPE, wherever it sits, so the feedback text is optional:
+
+```
+{{12 | !21 :: You reversed the digits. :: mis.place-value.digit-reversal}}
+{{12 | !21 :: mis.place-value.digit-reversal}}
+```
+```
+( ) $4 per kg :: Check which quantity you divided by. :: mis.roc.uses-endpoint-value
+( ) $4 per kg :: mis.roc.uses-endpoint-value
+```
+```
+mistake: y = x + 2 :: The coefficient is the slope. :: mis.slope.reads-intercept
+mistake: y = x + 2 :: mis.slope.reads-intercept
+```
+
+**What has to MATCH for a binding to fire** — a binding that can never match is
+worse than none, because the data then says "students didn't make this mistake":
+
+| Site | The `match` is compared… |
+| --- | --- |
+| Blank, plain | exact text (trim + case-insensitive) |
+| Blank, numeric (`{{=…}}`) | **as a NUMBER**, within the blank's tolerance — write `!0.5` once and `.5`, `1/2`, `0.50` all match |
+| Multiple choice | the choice itself — no matching involved |
+| Graph `mistake:` | the same freeform answer grammar as `answer:`, compared with the same tolerances |
+
+Two consequences worth knowing: a graph `mistake:` whose text the parser cannot
+read compiles to a matcher that never fires (write it the way you would write
+`answer:`), and a blank mistake that equals the correct answer can never fire
+either, because correctness is decided first.
+
+**When something looks wrong, you get a warning, never a hard failure** — but
+the warning is the whole safety net, so read it. An id-shaped token that is not
+a valid id (`msi.roc.…`, a prefix typo) warns and stays visible as feedback
+text; ordinary prose containing dots (`e.g.`, `3.14`) never trips it. Ids
+outside your registry warn. `--strict` turns these into a failed run.
+
 ## Learning-objectives blocks (```objectives fence)
 
 A fenced code block with the `objectives` language tag becomes a learning-objectives list. An optional `title:` line names it; every other non-empty line is one objective (inline `$math$` ok, leading list markers stripped).

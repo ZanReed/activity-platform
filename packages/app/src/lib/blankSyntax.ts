@@ -11,6 +11,11 @@
 // understood `{{answer|alt}}` and stored `~`/`=`/`?`/`!` as literal text.
 // =============================================================================
 
+import {
+    splitMisconceptionBinding,
+    suspectWarning,
+} from './misconceptionBinding.js';
+
 // Trailing tolerance clause on a numeric blank's answer: "3.14 +- 0.01" or
 // "3.14 ± 0.01". The answer part is non-greedy so the LAST +-/± wins only
 // when followed by a bare number at the end.
@@ -31,7 +36,7 @@ export interface BlankSpec {
     // Raw hint text (each consumer builds the InlineNode[] its own way).
     hint: string | null;
     // Anticipated wrong answers paired with raw feedback text.
-    mistakes: { match: string; feedbackText: string }[];
+    mistakes: { match: string; feedbackText: string; misconceptionId?: string }[];
     // Human-readable notes about anything ambiguous/dropped (missing `::`,
     // empty match/feedback, a second hint). The importer routes these to
     // ctx.warnings so a fill_in_blank surfaces authoring mistakes the way ```mc
@@ -93,7 +98,11 @@ export function parseBlankSpec(
 
     const acceptableAnswers: string[] = [];
     let hint: string | null = null;
-    const mistakes: { match: string; feedbackText: string }[] = [];
+    const mistakes: {
+        match: string;
+        feedbackText: string;
+        misconceptionId?: string;
+    }[] = [];
     for (const rawSeg of altsRaw.split('|')) {
         const seg = rawSeg.trim();
         if (seg.length === 0) continue;
@@ -125,20 +134,34 @@ export function parseBlankSpec(
                 continue;
             }
             const match = body.slice(0, idx).trim();
-            const feedbackText = body.slice(idx + 2).trim();
+            const binding = splitMisconceptionBinding(body.slice(idx + 2));
+            const feedbackText = binding.text;
             if (match.length === 0) {
                 warnings.push(
                     'Fill-in-the-blank: a mistake hint needs the wrong answer before “::” — skipped.',
                 );
                 continue;
             }
-            if (feedbackText.length === 0) {
+            if (binding.suspect) {
+                warnings.push(
+                    suspectWarning('Fill-in-the-blank', binding.suspect),
+                );
+            }
+            // Feedback may be empty when the entry carries only a binding —
+            // the sensor is the point, the prose is optional.
+            if (feedbackText.length === 0 && !binding.misconceptionId) {
                 warnings.push(
                     'Fill-in-the-blank: a mistake hint needs feedback after “::” — skipped.',
                 );
                 continue;
             }
-            mistakes.push({ match, feedbackText });
+            mistakes.push({
+                match,
+                feedbackText,
+                ...(binding.misconceptionId
+                    ? { misconceptionId: binding.misconceptionId }
+                    : {}),
+            });
             continue;
         }
         acceptableAnswers.push(seg);
@@ -177,7 +200,11 @@ export interface BlankNodeAttrs {
     answerType: 'text' | 'numeric' | 'math';
     tolerance?: number;
     hint?: InlineTextNode[];
-    mistakeFeedback?: { match: string; feedback: InlineTextNode[] }[];
+    mistakeFeedback?: {
+        match: string;
+        feedback: InlineTextNode[];
+        misconceptionId?: string;
+    }[];
 }
 
 export function blankAttrsFromSpec(spec: BlankSpec): BlankNodeAttrs {
@@ -193,6 +220,9 @@ export function blankAttrsFromSpec(spec: BlankSpec): BlankNodeAttrs {
         attrs.mistakeFeedback = spec.mistakes.map((m) => ({
             match: m.match,
             feedback: plainInline(m.feedbackText),
+            ...(m.misconceptionId
+                ? { misconceptionId: m.misconceptionId }
+                : {}),
         }));
     }
     return attrs;

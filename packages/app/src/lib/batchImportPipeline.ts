@@ -76,3 +76,23 @@ export { ActivityDocument } from '@activity/schema';
  */
 export { createEmptyDocument } from '@activity/schema';
 export type { ActivityMeta } from '@activity/schema';
+
+/**
+ * The numeric parser the SERVER grades with.
+ *
+ * Re-exported so the batch importer's dead-binding check can ask "would this
+ * mistake match score as correct?" with the same arithmetic that decides real
+ * marks. That question is numeric on a `{{=…}}` blank — `!0.5` against an
+ * answer of `1/2` is the same value, so the mistake can never fire even though
+ * the strings differ — and answering it with a SECOND copy of the parser is how
+ * the check starts lying: `numeric.ts` is itself a parity port kept
+ * character-for-character on purpose, and a third copy drifting means the
+ * importer reports live bindings as dead (or misses dead ones) with nothing to
+ * catch it. The module is a pure leaf (zero imports), so bundling it for node
+ * costs nothing.
+ */
+export {
+    parseNumericValue,
+    coerceTolerance,
+    numericallyClose,
+} from '../../../viewer/src/server/grading/numeric';

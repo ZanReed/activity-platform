@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { InlineNode } from '../inline.js';
+import { InlineNode, MisconceptionId } from '../inline.js';
 import { labelFields } from '../label.js';
 import { AxisConfig, Drawable } from './interactive-graph.js';
 
@@ -63,6 +63,12 @@ export const MultipleChoiceOption = z.object({
   // Optional per-choice explanation, revealed post-check when this choice was
   // selected. Rich inline content, like blank mistakeFeedback entries.
   feedback: z.array(InlineNode).optional(),
+  // Binds a distractor to a named misconception (opaque `mis.*` tag; the
+  // taxonomy lives in the author's catalogue project). Returned on the check
+  // verdict when the student selects this choice and it is wrong; the stored
+  // verdicts row carries the aggregate signal. Meaningless on a correct
+  // choice — the grader never emits it for one.
+  misconceptionId: MisconceptionId.optional(),
   // Optional figure below the choice text — the additive widening the header
   // comment reserved. Both may technically coexist (image renders first);
   // the editor UI treats them as a single figure slot.

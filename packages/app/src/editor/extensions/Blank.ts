@@ -19,7 +19,10 @@ import { parseBlankSpec, blankAttrsFromSpec } from '../../lib/blankSyntax';
 //     (rich text + inline math). Opaque JSON here; serialize/the nested
 //     mini-editor own its shape.
 //   - mistakeFeedback: optional array of {match, feedback} pairs where feedback
-//     is an InlineNode[] (same opaque-JSON treatment as hint).
+//     is an InlineNode[] (same opaque-JSON treatment as hint). An entry may also
+//     carry a misconceptionId — the parse filter narrows the shape it REQUIRES
+//     without stripping other keys, so the binding survives an HTML round-trip
+//     even though no editor surface renders it yet.
 //
 // Editing path:
 //   updateBlankAttrs — `preserveSelection` (default true) re-applies
@@ -196,7 +199,11 @@ export const Blank = Node.create({
             },
             mistakeFeedback: {
                 default: undefined as
-                    | Array<{ match: string; feedback: unknown[] }>
+                    | Array<{
+                          match: string;
+                          feedback: unknown[];
+                          misconceptionId?: string;
+                      }>
                     | undefined,
                 parseHTML: (element) => {
                     const raw = element.getAttribute('data-mistake-feedback');
@@ -218,7 +225,11 @@ export const Blank = Node.create({
                 },
                 renderHTML: (attributes) => {
                     const v = attributes.mistakeFeedback as
-                        | Array<{ match: string; feedback: unknown[] }>
+                        | Array<{
+                              match: string;
+                              feedback: unknown[];
+                              misconceptionId?: string;
+                          }>
                         | undefined;
                     return v && v.length > 0
                         ? { 'data-mistake-feedback': JSON.stringify(v) }

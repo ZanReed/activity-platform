@@ -90,3 +90,21 @@ export {
   fiveNumberSummary,
 } from './data-plot-score.js';
 export type { FiveNumberSummary } from './data-plot-score.js';
+
+// Mistake classification — authored matchers + built-in classifiers. Pure
+// (formula parser + scorers only); the server's check path uses these to
+// annotate a wrong graph answer with feedback and a misconception id.
+export {
+  compileMistakeMatchers,
+  matchAuthoredMistake,
+  classifyPointMistake,
+  classifyFunctionMistake,
+  classifyInequalityMistake,
+  classifyRayMistake,
+  classifySegmentMistake,
+} from './mistakes.js';
+export type {
+  CompiledMistake,
+  MistakeCompileContext,
+  StudentGraphAnswer,
+} from './mistakes.js';

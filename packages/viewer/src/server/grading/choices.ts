@@ -65,6 +65,31 @@ export function selectChoiceFeedback(
   return out;
 }
 
+/** Misconception ids for a wrong MC answer: EVERY selected choice that is not
+ * correct and carries an id, in the block's choice order (the same order the
+ * concatenated feedback reads in).
+ *
+ * All of them, not the first: a student who ticks two mapped distractors
+ * demonstrated two misconceptions, and dropping one would under-count exactly
+ * the co-occurrence the data layer exists to measure (eng review A1).
+ *
+ * The caller gates on a wrong verdict; a correct choice never emits its id,
+ * and an id is never emitted for a choice the student did NOT select — that
+ * would record a misconception nobody demonstrated. */
+export function selectChoiceMisconceptions(
+  selected: string[],
+  choices: Array<{ id: string; correct?: boolean; misconceptionId?: string }>,
+): string[] {
+  const out: string[] = [];
+  for (const choice of choices) {
+    if (choice.correct === true) continue;
+    if (!choice.misconceptionId) continue;
+    if (selected.indexOf(choice.id) === -1) continue;
+    out.push(choice.misconceptionId);
+  }
+  return out;
+}
+
 // ---- matching ---------------------------------------------------------------
 
 export interface MatchScore {

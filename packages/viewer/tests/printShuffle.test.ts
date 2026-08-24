@@ -341,7 +341,13 @@ describe('the declaration is where it is for a reason', () => {
     // change, the hash recomputed itself, the mechanism working. Both server
     // bundles regenerate in the same commit; get-activity redeploy queued as a
     // pending author action.
-    expect(SANITIZER_REV).toBe('2-aa0152c4');
+    //
+    // AND AGAIN same day: '2-aa0152c4' → '2-050ad6e2'. The misconception-id
+    // slice added `choices[].misconceptionId` to multiple_choice's strip list
+    // (the distractor→registry binding is server-side metadata; a pre-check
+    // client could otherwise read which wrong answers were anticipated).
+    // Declaration change, hash recomputed itself, same redeploy discipline.
+    expect(SANITIZER_REV).toBe('2-050ad6e2');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

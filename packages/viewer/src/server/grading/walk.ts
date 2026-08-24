@@ -85,7 +85,12 @@ export interface GradableInventory {
   multipleChoice: Array<{
     blockId: string;
     correctIds: string[];
-    choices: Array<{ id: string; feedback?: unknown[] }>;
+    choices: Array<{
+      id: string;
+      correct?: boolean;
+      feedback?: unknown[];
+      misconceptionId?: string;
+    }>;
   }>;
   matching: Array<{
     blockId: string;
@@ -138,7 +143,11 @@ function blankTokenToKey(node: Record<string, unknown>): BlankKey {
     tolerance: typeof node.tolerance === 'number' ? node.tolerance : 0,
     equivalence: node.equivalence === 'exact-form' ? 'exact-form' : 'value',
     mistakeFeedback: Array.isArray(node.mistakeFeedback)
-      ? (node.mistakeFeedback as Array<{ match: string; feedback: unknown[] }>)
+      ? (node.mistakeFeedback as Array<{
+          match: string;
+          feedback: unknown[];
+          misconceptionId?: string;
+        }>)
       : [],
     hint: Array.isArray(node.hint) ? (node.hint as unknown[]) : undefined,
     interchangeableWithPrevious: node.interchangeableWithPrevious === true,
@@ -397,8 +406,12 @@ function visit(
           .map((c) => String(c.id)),
         choices: choices.map((c) => ({
           id: String(c.id),
+          correct: c.correct === true,
           ...(Array.isArray(c.feedback)
             ? { feedback: c.feedback as unknown[] }
+            : {}),
+          ...(typeof c.misconceptionId === 'string' && c.misconceptionId
+            ? { misconceptionId: c.misconceptionId }
             : {}),
         })),
       });

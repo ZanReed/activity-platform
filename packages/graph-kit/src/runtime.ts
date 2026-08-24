@@ -335,8 +335,6 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
       answerKey: chrome.answerKey,
       allowNoSolution: chrome.allowNoSolution,
       noSolutionCorrect: chrome.noSolutionCorrect,
-      mistakes: chrome.mistakes,
-      builtinFeedback: chrome.builtinFeedback,
     };
 
     // A "system" is a graph_inequality whose answer key has more than one
@@ -380,8 +378,6 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
         gs.endpoints = resp.endpoints;
         gs.parts = resp.parts; // the N-boundary inequality-system answer (else undefined)
         gs.curveParts = resp.curveParts; // the N-curve function-system answer (else undefined)
-        gs.mistakeIndex = resp.mistakeIndex;
-        gs.mistakeText = resp.mistakeText;
         ctx.onUpdate();
       },
     })

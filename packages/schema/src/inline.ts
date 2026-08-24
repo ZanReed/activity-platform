@@ -435,6 +435,18 @@ export const TextNode = z.object({
 });
 export type TextNode = z.infer<typeof TextNode>;
 
+// ---- Misconception binding --------------------------------------------------
+// An opaque tag binding an anticipated wrong answer to a named misconception in
+// the AUTHOR'S registry (which lives in their catalogue project, not here — the
+// platform deliberately does not own the taxonomy). Bounded in SHAPE, never in
+// meaning: the length cap keeps a pasted paragraph out of every stored check
+// row, since documents reach this schema from the importer, the editor, AND raw
+// stored jsonb, and only this layer sees all three. Pattern validation is the
+// IMPORTER's job (a warning, never an error) so a future `skill.*` taxonomy
+// needs no platform change.
+export const MisconceptionId = z.string().min(1).max(120);
+export type MisconceptionId = z.infer<typeof MisconceptionId>;
+
 // ---- InlineNode union -------------------------------------------------------
 // InlineNode is the standard inline alphabet. Used by all blocks except
 // fill_in_blank. Defined before BlankToken because the blank's rich feedback
@@ -479,9 +491,14 @@ export const BlankToken = z.object({
   // match; the strategy-dispatch hook in the runtime supports smarter
   // matching later), the corresponding feedback is shown instead of the
   // generic hint. First match wins. `feedback` is rich inline content.
+  // `misconceptionId` binds the anticipated mistake to a named misconception
+  // (an opaque `mis.*` tag — the taxonomy lives in the author's catalogue
+  // project, not here). The grader returns it on the check verdict, and the
+  // stored verdicts row is what makes the aggregate signal queryable.
   mistakeFeedback: z.array(z.object({
     match: z.string(),
     feedback: z.array(InlineNode),
+    misconceptionId: MisconceptionId.optional(),
   })).optional(),
   // Order-independent answer grouping. When true, this blank's answer is
   // interchangeable with the blank immediately before it (in document order,

@@ -24,6 +24,8 @@
 // =============================================================================
 
 import {
+  compileMistakeMatchers,
+  matchAuthoredMistake,
   scoreBoxplot,
   scoreDotplot,
   scoreFunction,
@@ -37,6 +39,8 @@ import {
   scoreRay,
   scoreRegion,
   scoreSegment,
+  type MistakeCompileContext,
+  type StudentGraphAnswer,
 } from '@activity/graph-kit/scorers';
 import type { GraphWork } from '../../check/wire.js';
 import type { ItemVerdict } from './choices.js';
@@ -50,6 +54,13 @@ export interface RawGraphBlock {
   /** interactive_graph only. */
   allowNoSolution?: boolean;
   noSolutionCorrect?: boolean;
+  /** interactive_graph only — mistake annotation (selectGraphMistake). */
+  builtinFeedback?: boolean;
+  mistakeFeedback?: Array<{
+    match: string;
+    feedback: unknown[];
+    misconceptionId?: string;
+  }>;
   /** data_plot only — its answer key is COMPUTED from the dataset. */
   data?: number[];
   config?: Record<string, unknown>;
@@ -112,6 +123,103 @@ export function scoreGraphBlock(
     default:
       return null;
   }
+}
+
+// ---- mistake annotation (interactive_graph) ---------------------------------
+
+/** What selectGraphMistake found for a wrong answer: the authored entry's rich
+ * feedback and its optional misconception id. */
+export interface GraphMistakeHit {
+  feedback?: unknown[];
+  misconceptionId?: string;
+}
+
+/** A domain-restricted plot_function sends its curve as points; a system sends
+ * parts. Either way the single-curve scorer wants one point list. */
+function curveOf(work: GraphWork): [number, number][] {
+  const first = work.parts?.[0]?.points;
+  return first?.length ? first : work.points;
+}
+
+/**
+ * Annotate a WRONG interactive_graph answer with the first AUTHORED
+ * `mistakeFeedback` match — its feedback and its misconception id.
+ *
+ * BUILT-IN CLASSIFIER TEXT IS DELIBERATELY NOT HERE (DX/eng review X3,
+ * 2026-08-25). The kit's `classify*Mistake` functions would ship first-ever
+ * student-visible nudge text on graph blocks, defaulting ON for every
+ * already-published graph activity — a student-facing behavior change that
+ * belongs in a slice with its own UX pass, not riding a data-layer arc.
+ * `builtinFeedback` therefore stays authored-but-unread until that slice;
+ * `scripts/tests/flow-field-readers.test.mjs` is where a deferral like this
+ * gets its guard.
+ *
+ * Scope matches what the kit's matcher compiler supports: the single-object
+ * plot_point / plot_function / graph_inequality / plot_ray / plot_segment.
+ * Systems, regions, number lines and data plots return null (mark-only).
+ *
+ * The caller invokes this only when the verdict is `false` — a correct,
+ * unanswered, or no-solution response never carries a mistake annotation.
+ */
+export function selectGraphMistake(
+  block: RawGraphBlock,
+  work: GraphWork,
+): GraphMistakeHit | null {
+  if (block.type !== 'interactive_graph') return null;
+  const interaction = block.interaction;
+  const type = interaction?.type;
+  if (!interaction || !type) return null;
+  if (work.noSolution === true) return null;
+
+  const models = interaction.models as GraphModel[] | undefined;
+  const keys = interaction.inequalities as InequalityKey[] | undefined;
+
+  // SYSTEMS ARE MARK-ONLY. The matcher compiles against ONE key and compares
+  // against ONE curve, so on a multi-object question it could only ever look at
+  // the student's first part — recording a misconception (or not) based on
+  // which curve they happened to draw first, while the SCORER matches parts
+  // order-independently. Arbitrary data is worse than no data in a sensor.
+  if ((models?.length ?? 0) > 1 || (keys?.length ?? 0) > 1) return null;
+
+  const part = work.parts?.[0];
+  const side = (part?.side ?? null) as StudentGraphAnswer['side'];
+  const strict = part?.strict === true;
+
+  const ans: StudentGraphAnswer = {
+    points: type === 'plot_function' ? curveOf(work) : work.points,
+    strict,
+    side,
+    shape: work.shape ?? null,
+    endpointStyles: work.endpointStyles,
+  };
+
+  const entries = block.mistakeFeedback ?? [];
+  if (entries.length) {
+    const ctx: MistakeCompileContext = { interactionType: type };
+    if (type === 'plot_point') {
+      ctx.pointTolerance = num(interaction.tolerance, 0.1);
+    }
+    if (type === 'plot_function' && models?.length) {
+      ctx.keyModel = models[0] as never;
+    }
+    if (type === 'graph_inequality' && keys?.length) {
+      ctx.keyModel = (keys[0] as { boundary?: unknown }).boundary as never;
+    }
+    const matchers = compileMistakeMatchers(
+      entries.map((e) => e.match),
+      ctx,
+    );
+    const idx = matchAuthoredMistake(matchers, ans);
+    const hit = idx !== null ? entries[idx] : undefined;
+    if (hit) {
+      return {
+        feedback: hit.feedback,
+        ...(hit.misconceptionId ? { misconceptionId: hit.misconceptionId } : {}),
+      };
+    }
+  }
+
+  return null;
 }
 
 // ---- interactive_graph ------------------------------------------------------
@@ -197,13 +305,6 @@ function scoreInteractiveGraph(
     default:
       return null;
   }
-}
-
-/** A domain-restricted plot_function sends its curve as points; a system sends
- * parts. Either way the single-curve scorer wants one point list. */
-function curveOf(work: GraphWork): [number, number][] {
-  const first = work.parts?.[0]?.points;
-  return first?.length ? first : work.points;
 }
 
 // ---- number_line ------------------------------------------------------------

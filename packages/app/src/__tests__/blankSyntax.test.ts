@@ -136,3 +136,73 @@ describe('blankAttrsFromSpec (editor node attrs, plain-text feedback)', () => {
         ).toMatchObject({ answer: '3.14', answerType: 'numeric', tolerance: 0.01 });
     });
 });
+
+describe('misconception bindings (the sensor grammar)', () => {
+    // The binding is PATTERN-decided, not positional (DX review X1): the last
+    // `::`-segment is the id when it looks like one, wherever it sits. The
+    // first design made it "the third segment", which left an id-without-
+    // feedback unspellable — authors wrote the natural two-segment form and
+    // silently shipped a raw taxonomy string for students to read.
+    const spec = (alts: string) => parseBlankSpec('12', alts);
+
+    it('binds an id after feedback text', () => {
+        const s = spec('|!21 :: digits reversed :: mis.place-value.digit-reversal');
+        expect(s?.mistakes).toEqual([
+            {
+                match: '21',
+                feedbackText: 'digits reversed',
+                misconceptionId: 'mis.place-value.digit-reversal',
+            },
+        ]);
+        expect(s?.warnings).toEqual([]);
+    });
+
+    it('binds an id with NO feedback text (the elision the old grammar could not spell)', () => {
+        const s = spec('|!21 :: mis.place-value.digit-reversal');
+        expect(s?.mistakes).toEqual([
+            {
+                match: '21',
+                feedbackText: '',
+                misconceptionId: 'mis.place-value.digit-reversal',
+            },
+        ]);
+        expect(s?.warnings).toEqual([]);
+    });
+
+    it('leaves feedback alone when no segment looks like an id', () => {
+        const s = spec('|!21 :: you reversed the digits');
+        expect(s?.mistakes[0]).toEqual({
+            match: '21',
+            feedbackText: 'you reversed the digits',
+        });
+    });
+
+    it('WARNS on an id-shaped token that is not a valid id, and keeps it visible', () => {
+        // The likeliest AI failure: a prefix typo. Under the ratified rule this
+        // was silent (it does not start with `mis.`), so a student would read
+        // "Check your work. msi.roc.uses-endpoint-value" after checking.
+        const s = spec('|!21 :: Check your work. :: msi.roc.uses-endpoint-value');
+        expect(s?.mistakes[0]?.misconceptionId).toBeUndefined();
+        expect(s?.mistakes[0]?.feedbackText).toContain('msi.roc.uses-endpoint-value');
+        expect(s?.warnings.join(' ')).toContain('msi.roc.uses-endpoint-value');
+        expect(s?.warnings.join(' ')).toContain('looks like a misconception id');
+    });
+
+    it('does NOT warn on ordinary prose that happens to contain dots', () => {
+        for (const prose of [
+            '!21 :: Check the ratio, e.g. 3:1 vs 1:3',
+            '!21 :: The answer is 3.14, not 3.41',
+            '!21 :: Try again.',
+        ]) {
+            const s = spec(`|${prose}`);
+            expect(s?.warnings, prose).toEqual([]);
+            expect(s?.mistakes[0]?.misconceptionId, prose).toBeUndefined();
+        }
+    });
+
+    it('still rejects a mistake segment with neither feedback nor a binding', () => {
+        const s = spec('|!21 :: ');
+        expect(s?.mistakes).toEqual([]);
+        expect(s?.warnings.join(' ')).toContain('needs feedback');
+    });
+});

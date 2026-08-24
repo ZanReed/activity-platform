@@ -82,6 +82,17 @@ describe('wire-level leak tests (TV4-A)', () => {
     expect(wire).not.toContain(String(NUM));
   });
 
+  it('no misconception BINDING survives — not the ids, not the field name', () => {
+    // A binding names which wrong answers the teacher anticipated, so on the
+    // read path it is answer-adjacent: a pre-check client holding the list of
+    // mapped distractors knows which choices were written to be wrong. The
+    // values ride the RELEASABLE sentinel above; this pins the FIELD NAME too,
+    // so a future block type that carries a binding cannot leak it by being
+    // added to the schema without a strip entry.
+    expect(wire).not.toContain('misconceptionId');
+    expect(wire).not.toContain('mis.probe.');
+  });
+
   it('covers every registered block type (fixture completeness guard)', () => {
     const covered = [...fixturesByType().keys()].sort();
     expect(covered).toEqual([...registeredBlockTypes].sort());

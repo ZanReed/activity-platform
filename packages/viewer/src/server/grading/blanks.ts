@@ -55,8 +55,13 @@ export interface BlankKey {
   tolerance: number;
   /** Only consulted for answerType 'math'. Absent ⇒ 'value'. */
   equivalence: 'value' | 'exact-form';
-  /** Per-wrong-answer feedback. MathPrompts never carry it. */
-  mistakeFeedback: Array<{ match: string; feedback: unknown[] }>;
+  /** Per-wrong-answer feedback. MathPrompts never carry it. `misconceptionId`
+   * is the entry's opaque `mis.*` tag, returned on the check verdict. */
+  mistakeFeedback: Array<{
+    match: string;
+    feedback: unknown[];
+    misconceptionId?: string;
+  }>;
   /** Generic help, shown when no mistakeFeedback entry matched. */
   hint: unknown[] | undefined;
   /** True when this blank continues the previous blank's interchangeable run. */
@@ -250,14 +255,61 @@ export function matchMistakeFeedback(
   raw: string,
   key: BlankKey,
 ): unknown[] | null {
-  const needle = prepareStudentValue(raw).toLowerCase();
+  return matchMistakeEntry(raw, key)?.feedback ?? null;
+}
+
+/** The full matched mistakeFeedback entry (same matching rules), so the caller
+ * can read the misconception id alongside the feedback. */
+export function matchMistakeEntry(
+  raw: string,
+  key: BlankKey,
+): BlankKey['mistakeFeedback'][number] | null {
+  const prepared = prepareStudentValue(raw);
+  const needle = prepared.toLowerCase();
   if (needle === '') return null;
+
+  // On a NUMERIC blank, compare as numbers within the blank's tolerance —
+  // reusing the same parser and closeness test that scoring uses, never a
+  // second implementation (policy P2). An author who anticipates "divided the
+  // wrong way" writes `!0.5` once; the student who types `1/2` or `.50`
+  // demonstrated the same misconception and must match, or the sensor
+  // under-counts by an unknowable factor and the student loses the targeted
+  // feedback they earned. A non-numeric match string (e.g. "no solution")
+  // falls through to the string comparison below, exactly as scoreNumeric
+  // falls back for non-numeric key entries.
+  if (key.answerType === 'numeric') {
+    const studentValue = parseNumericValue(prepared);
+    if (studentValue !== null) {
+      const tolerance = coerceTolerance(key.tolerance);
+      for (const entry of key.mistakeFeedback) {
+        const entryValue = parseNumericValue(prepareKeyValue(entry.match));
+        if (
+          entryValue !== null &&
+          numericallyClose(studentValue, entryValue, tolerance)
+        ) {
+          return entry;
+        }
+      }
+    }
+  }
+
   for (const entry of key.mistakeFeedback) {
     if (trimValue(prepareKeyValue(entry.match)).toLowerCase() === needle) {
-      return entry.feedback;
+      return entry;
     }
   }
   return null;
+}
+
+/** The matched entry's misconception id for a WRONG answer, or undefined.
+ * Same gate as selectBlankFeedback: only a `false` verdict can carry one. */
+export function selectBlankMisconception(
+  raw: string,
+  key: BlankKey,
+  verdict: BlankVerdict,
+): string | undefined {
+  if (verdict !== false) return undefined;
+  return matchMistakeEntry(raw, key)?.misconceptionId;
 }
 
 /**
@@ -280,6 +332,10 @@ export function selectBlankFeedback(
 ): unknown[] | undefined {
   if (verdict !== false) return undefined;
   const mistake = matchMistakeFeedback(raw, key);
-  if (mistake) return mistake;
+  // An entry may carry a binding and NO prose (`!21 :: mis.x`) — the author
+  // wanted the sensor, not a message. That is not targeted feedback, so it
+  // falls through to the hint like any unmatched wrong answer, and the empty
+  // array never reaches the wire as a feedback field with nothing in it.
+  if (mistake && mistake.length > 0) return mistake;
   return key.hint ?? undefined;
 }

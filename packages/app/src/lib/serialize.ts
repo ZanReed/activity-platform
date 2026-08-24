@@ -166,21 +166,43 @@ function readMathPrompts(node: JSONContent): MathPrompt[] {
     return out;
 }
 
-// Mistake-feedback entries ({match, feedback}) for blanks and graph blocks
-// share one drop rule: a non-string or empty match, or feedback that
-// sanitizes away to nothing, makes the entry unusable — drop it, keep the
-// rest. One helper so the two call sites can't drift.
+// Mistake-feedback entries ({match, feedback, misconceptionId?}) for blanks and
+// graph blocks share one drop rule: a non-string or empty match, or feedback
+// that sanitizes away to nothing, makes the entry unusable — drop it, keep the
+// rest. One helper so the two call sites can't drift. The optional
+// misconceptionId is an opaque tag — carried when it is a non-empty string,
+// dropped (entry kept) otherwise; the schema owns its length cap.
 function sanitizeMistakeFeedback(
     raw: unknown,
-): Array<{ match: string; feedback: InlineNode[] }> {
+): Array<{ match: string; feedback: InlineNode[]; misconceptionId?: string }> {
     if (!Array.isArray(raw)) return [];
     return (raw as unknown[]).flatMap((entry) => {
         if (!entry || typeof entry !== 'object') return [];
-        const e = entry as { match?: unknown; feedback?: unknown };
+        const e = entry as {
+            match?: unknown;
+            feedback?: unknown;
+            misconceptionId?: unknown;
+        };
         if (typeof e.match !== 'string' || e.match.length === 0) return [];
         const feedback = sanitizeInlineNodes(e.feedback);
-        if (feedback.length === 0) return [];
-        return [{ match: e.match, feedback }];
+        const bound =
+            typeof e.misconceptionId === 'string' && e.misconceptionId.length > 0;
+        // Empty feedback used to make an entry unusable, so it was dropped. A
+        // BOUND entry is still useful with no prose: `!21 :: mis.x` records the
+        // misconception and shows the student the generic ✗, which is a legal
+        // authored form. Dropping it here discarded the binding silently — the
+        // exact data-loss shape this arc exists to end.
+        if (feedback.length === 0 && !bound) return [];
+        return [
+            {
+                match: e.match,
+                feedback,
+                ...(typeof e.misconceptionId === 'string' &&
+                e.misconceptionId.length > 0
+                    ? { misconceptionId: e.misconceptionId }
+                    : {}),
+            },
+        ];
     });
 }
 
@@ -819,6 +841,7 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
             content?: unknown;
             correct?: unknown;
             feedback?: unknown;
+            misconceptionId?: unknown;
             image?: unknown;
             graph?: unknown;
         };
@@ -833,6 +856,18 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
         const feedback = sanitizeInlineNodes(c.feedback);
         if (feedback.length > 0) {
             option.feedback = feedback;
+        }
+        // Opaque misconception tag — carried only when it is a non-empty
+        // string, so a choice that never bound one serializes without a
+        // phantom key. The schema owns the length cap.
+        // Opaque misconception tag — carried only when it is a non-empty
+        // string, so a choice that never bound one serializes without a
+        // phantom key. The schema owns the length cap.
+        if (
+            typeof c.misconceptionId === 'string' &&
+            c.misconceptionId.length > 0
+        ) {
+            option.misconceptionId = c.misconceptionId;
         }
         // Optional figures: validate with the real schemas (same "drop
         // malformed, keep the rest" posture as the row-level sanitize) so a

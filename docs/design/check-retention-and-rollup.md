@@ -411,6 +411,56 @@ OPTIONAL cron-hour call (II.1.3, honest version — either hour deprioritizes on
 Arming itself stays out: after ≥ N green nights of ledger rows + Q10's answer, the author flips
 the cron per §4. Nothing in this arc deletes a row.
 
+## II.6 — AMENDMENT: the rollup must carry a misconception dimension (2026-08-25)
+
+**Raised by the misconception-sensors eng review (X1), which found this spec's
+premise incompatible with that arc's storage claim.** Recorded here because
+this document is the ruled input the arming arc inherits, and the gap is in
+the ruling, not in the build.
+
+**The collision.** The misconception arc records `misconceptionIds` on wrong
+answers inside `section_checks.verdicts`. A misconception id therefore appears
+almost exclusively on **non-latest** attempts: it is emitted when a student is
+wrong, and the latest attempt for a (student, version, section) is usually the
+corrected one. `prune_section_checks` (0035 §C clause 1) deletes every row NOT
+in `section_checks_latest`. So the prune deletes the misconception dataset
+almost in its entirety, and keeps the rows least likely to carry any of it.
+
+**Why the existing rollup does not save it.** Both tables in §5/II.2 are
+misconception-blind. `check_item_rollup_daily` is
+`(version, day, item_id) → verdicts_all, correct_all, incorrect_all,
+recorded_all, students`. Verdict counts survive the prune; WHICH misconception
+a wrong answer demonstrated does not. The arc's "durable with zero new storage
+machinery" reasoning was true about the WRITE and false about the LIFETIME.
+
+**What the amendment must decide** (deliberately not decided here — this is the
+input to that design pass, and this doc's own discipline is that rulings are
+made once, with their reasoning, in the pass that owns them):
+
+1. **Shape.** A third table keyed `(activity_version_id, day, item_id,
+   misconception_id)` versus an added grain on the item table. The third-table
+   shape keeps `check_item_rollup_daily`'s PK and its "one row per item per
+   day" reading intact, which every II.2 ruling assumes; the added-grain shape
+   avoids a third table but changes that PK, which would ripple through the
+   self-heal and reconciliation pair.
+2. **Unnesting.** `misconceptionIds` is an ARRAY (a multi-select student can
+   demonstrate two at once). One rolled row per id — a wrong answer with two
+   ids counts once for each — so per-misconception counts sum correctly while
+   the per-item incorrect count does not double.
+3. **Renames.** Stored rows keep the old id string forever. Whether the rollup
+   resolves through an alias map at READ time (the `census_key` precedent from
+   II.2, which exists exactly so rolled history can be re-attributed) or
+   freezes the string as rolled. The `census_key` pattern is the obvious
+   candidate and the reason to decide this BEFORE the table exists.
+4. **Students-per-misconception.** Whether a distinct-student count is rolled
+   per misconception. ⚠ Same trap as the existing `students` columns: uniques
+   do not compose, so no RPC may ever offer their SUM, and the figure cannot be
+   recomputed once pruning runs — which makes it the one column that must be
+   decided before arming rather than added later.
+
+**Until this ships, `prune_section_checks` must not be armed** — recorded as a
+blocking step on the arming checklist (TODOS → "The check-rollup ARMING arc").
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

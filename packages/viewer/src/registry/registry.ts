@@ -247,7 +247,15 @@ export const blockRegistry: BlockRegistry = {
     analyticsKey: 'multiple_choice',
     sanitize: {
       // Per-choice feedback returns via the check RPC (2.1A), like blanks'.
-      strip: ['choices[].correct', 'choices[].feedback', 'solution'],
+      // misconceptionId is server-side metadata (a distractor→registry
+      // binding); a pre-check client could otherwise read which wrong
+      // answers were anticipated.
+      strip: [
+        'choices[].correct',
+        'choices[].feedback',
+        'choices[].misconceptionId',
+        'solution',
+      ],
     },
     print: {
       breakInside: 'avoid',

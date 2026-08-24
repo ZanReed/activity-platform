@@ -1363,6 +1363,81 @@ describe('schema round-trip', () => {
     });
 });
 
+describe('misconception bindings on mc and graph fences', () => {
+    it('binds an mc distractor after its feedback', () => {
+        const { blocks, warnings } = convert(
+            '```mc\nprompt: pick\n( ) 3 :: Check the ratio. :: mis.roc.uses-endpoint-value\n(x) 4\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const choices = blocks[0]!.attrs!.choices as Array<{
+            feedback?: JSONContent[];
+            misconceptionId?: string;
+        }>;
+        expect(choices[0]!.misconceptionId).toBe('mis.roc.uses-endpoint-value');
+        expect(choices[0]!.feedback).toEqual([
+            { type: 'text', text: 'Check the ratio.', marks: [] },
+        ]);
+        expect(choices[1]!.misconceptionId).toBeUndefined();
+    });
+
+    it('binds an mc distractor with NO feedback text', () => {
+        const { blocks, warnings } = convert(
+            '```mc\nprompt: pick\n( ) 3 :: mis.roc.uses-endpoint-value\n(x) 4\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const choices = blocks[0]!.attrs!.choices as Array<{
+            content: JSONContent[];
+            feedback?: JSONContent[];
+            misconceptionId?: string;
+        }>;
+        expect(choices[0]!.misconceptionId).toBe('mis.roc.uses-endpoint-value');
+        expect(choices[0]!.feedback).toBeUndefined();
+        // The choice TEXT must survive intact — the binding is not part of it.
+        expect(choices[0]!.content).toEqual([{ type: 'text', text: '3', marks: [] }]);
+    });
+
+    it('warns on an id-shaped mc segment that is not a valid id', () => {
+        const { blocks, warnings } = convert(
+            '```mc\nprompt: pick\n( ) 3 :: Check. :: msi.roc.uses-endpoint-value\n(x) 4\n```',
+        );
+        expect(warnings.join(' ')).toContain('msi.roc.uses-endpoint-value');
+        const choices = blocks[0]!.attrs!.choices as Array<{
+            misconceptionId?: string;
+        }>;
+        expect(choices[0]!.misconceptionId).toBeUndefined();
+    });
+
+    it('binds a graph mistake line', () => {
+        const { blocks, warnings } = convert(
+            '```graph\nprompt: Graph it.\nanswer: y = 2x + 1\nmistake: y = x + 2 :: The coefficient is the slope. :: mis.slope.reads-intercept\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const mistakes = blocks[0]!.attrs!.mistakeFeedback as Array<{
+            match: string;
+            feedback: JSONContent[];
+            misconceptionId?: string;
+        }>;
+        expect(mistakes[0]!.match).toBe('y = x + 2');
+        expect(mistakes[0]!.misconceptionId).toBe('mis.slope.reads-intercept');
+        expect(mistakes[0]!.feedback).toEqual([
+            { type: 'text', text: 'The coefficient is the slope.', marks: [] },
+        ]);
+    });
+
+    it('binds a graph mistake line with no feedback text', () => {
+        const { blocks, warnings } = convert(
+            '```graph\nprompt: Graph it.\nanswer: y = 2x + 1\nmistake: y = x + 2 :: mis.slope.reads-intercept\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const mistakes = blocks[0]!.attrs!.mistakeFeedback as Array<{
+            match: string;
+            misconceptionId?: string;
+        }>;
+        expect(mistakes[0]!.match).toBe('y = x + 2');
+        expect(mistakes[0]!.misconceptionId).toBe('mis.slope.reads-intercept');
+    });
+});
+
 describe('```graph fence (Drop 7)', () => {
     it('imports a graded line with axes + prompt + options', () => {
         const md = '```graph\naxes: -5..5, -5..5\nprompt: Graph the line.\nanswer: 2x + 3y = 6\noptions: allow-no-solution\n```';

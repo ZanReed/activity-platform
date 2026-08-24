@@ -42,16 +42,6 @@ import {
   type LinearShape,
   type LinearPieceStudentAnswer,
 } from './graph-score.js';
-import {
-  compileMistakeMatchers,
-  matchAuthoredMistake,
-  classifyPointMistake,
-  classifyFunctionMistake,
-  classifyInequalityMistake,
-  classifyRayMistake,
-  classifySegmentMistake,
-  type StudentGraphAnswer,
-} from './mistakes.js';
 import type {
   PointAnswerConfig,
   PointAnswerController,
@@ -433,11 +423,6 @@ export interface GraphQuestionConfig {
   allowNoSolution?: boolean;
   /** Trick question: no-solution IS the correct answer (Drop 4). */
   noSolutionCorrect?: boolean;
-  /** Authored anticipated-mistake match strings (freeform answer syntax),
-   *  index-aligned with the block's feedback templates (Drop B). */
-  mistakes?: string[];
-  /** Built-in mistake classifiers on/off (Drop B). Default ON. */
-  builtinFeedback?: boolean;
 }
 
 // What the widget reports on every change and at gather time. `answered` lets
@@ -491,12 +476,6 @@ export interface GraphResponseData {
     points: [number, number][];
     correct: boolean;
   }[];
-  /** Drop B: matched authored anticipated mistake (index into the block's
-   *  feedback templates). Only set when the answer is wrong. */
-  mistakeIndex?: number;
-  /** Drop B: built-in classifier message for a recognized wrong answer.
-   *  Only set when the answer is wrong and no authored entry matched. */
-  mistakeText?: string;
 }
 
 /** Extra widget state restored alongside the points on reload. */
@@ -735,69 +714,8 @@ export async function mountGraphQuestion(
   // pre-drawn; null until the student picks.
   let linear: LinearControls | null = null;
 
-  // Drop B: authored anticipated-mistake matchers, parsed once at mount with
-  // the kit's own freeform parser + the block's scoring tolerances.
-  // Ungraded mode has no key to match against, and the server owns feedback
-  // selection there (ruling 2.1A) — so compile nothing.
-  const mistakeMatchers = ungraded
-    ? compileMistakeMatchers([], { interactionType })
-    : compileMistakeMatchers(cfg.mistakes ?? [], {
-        interactionType,
-        pointTolerance:
-          interactionType === 'plot_point'
-            ? readAnswerKey(cfg.answerKey).tolerance
-            : undefined,
-        keyModel:
-          interactionType === 'plot_function'
-            ? readModel(cfg.answerKey)
-            : isInequality
-              ? ineqKey!.boundary
-              : undefined,
-      });
-
-  // Annotate a WRONG answer with mistake feedback: first authored match wins;
-  // built-in classifiers (unless disabled) are the fallback. Correct/unanswered
-  // /no-solution responses carry nothing — feedback only ever nudges a miss.
-  function annotateMistake(resp: GraphResponseData): GraphResponseData {
-    // Ungraded: the client has no key and no opinion; the server annotates.
-    if (ungraded) return resp;
-    if (!resp.answered || resp.correct || resp.noSolution) return resp;
-    const ans: StudentGraphAnswer = {
-      points: resp.studentPoints,
-      strict,
-      side,
-      shape: linear?.state.shape ?? null,
-      endpointStyles: linearAnswer(resp.studentPoints).endpointStyles,
-    };
-    const idx = matchAuthoredMistake(mistakeMatchers, ans);
-    if (idx !== null) {
-      resp.mistakeIndex = idx;
-      return resp;
-    }
-    if (cfg.builtinFeedback === false) return resp;
-    let text: string | null = null;
-    if (interactionType === 'plot_point') {
-      text = classifyPointMistake(readAnswerKey(cfg.answerKey), resp.studentPoints);
-    } else if (interactionType === 'plot_function') {
-      text = classifyFunctionMistake(readModel(cfg.answerKey), resp.studentPoints);
-    } else if (isInequality && ineqKey) {
-      const parts = scoreInequalityParts(ineqKey, {
-        points: resp.studentPoints,
-        strict,
-        side: side ?? 'above',
-      });
-      text = classifyInequalityMistake(parts, side !== null);
-    } else if (isRay && rayKey) {
-      text = classifyRayMistake(rayKey, linearAnswer(resp.studentPoints));
-    } else if (isSegment && segmentKey) {
-      text = classifySegmentMistake(segmentKey, linearAnswer(resp.studentPoints));
-    }
-    if (text) resp.mistakeText = text;
-    return resp;
-  }
-
   function build(): GraphResponseData {
-    const resp = annotateMistake(buildBase());
+    const resp = buildBase();
     if (ungraded) {
       // The single place ungraded truth is stamped: `correct` is forced to a
       // meaningless false and flagged as unscored, so no consumer can read a
@@ -806,8 +724,6 @@ export async function mountGraphQuestion(
       resp.scored = false;
       delete resp.earned;
       delete resp.total;
-      delete resp.mistakeIndex;
-      delete resp.mistakeText;
     }
     return resp;
   }

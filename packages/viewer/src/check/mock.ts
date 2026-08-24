@@ -13,7 +13,7 @@
 //     fall back to `defaultVerdict` ('correct').
 //   - freeText responses ALWAYS grade 'recorded' (family spec — the mock
 //     refuses to script a judgment verdict onto the recorded family).
-//   - `feedback` / `solutions`: per-id content to return.
+//   - `feedback` / `misconceptionIds` / `solutions`: per-id content to return.
 //   - `failWith`: reject every check (offline / RPC-down states).
 //   - `gate()`: hold responses un-resolved until `release()` — how tests
 //     freeze the pending state deterministically (no timers).
@@ -37,6 +37,8 @@ export interface MockCheckScript {
   defaultVerdict?: 'correct' | 'incorrect';
   /** Feedback content returned for an item id (post-check). */
   feedback?: Record<string, SanitizedInlineNode[]>;
+  /** Misconception ids returned for an item id (post-check). */
+  misconceptionIds?: Record<string, string[]>;
   /** Solution content revealed per BLOCK id after a section check. */
   solutions?: Record<string, SanitizedInlineNode[]>;
   /** Released teacher feedback for fetchReleasedFeedback. Default ungraded. */
@@ -96,6 +98,9 @@ export function createMockCheckService(
         items[id] = {
           verdict: script.verdicts?.[id] ?? fallback,
           ...(script.feedback?.[id] ? { feedback: script.feedback[id] } : {}),
+          ...(script.misconceptionIds?.[id]
+            ? { misconceptionIds: script.misconceptionIds[id] }
+            : {}),
         };
       }
       // The recorded family is never judged — scripted verdicts are ignored

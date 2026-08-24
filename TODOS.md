@@ -90,6 +90,56 @@ definition control on print (all-or-nothing glossary today).
 `partialCredit` (DECISIONS.md → "The last orphan classes"). Nothing blocks —
 design passes proceed in greenlit order.
 
+## graph-kit's legacy runtime should be deleted WHOLE, not gutted (2026-08-25)
+
+`packages/graph-kit/src/runtime.ts` is the published-page data-attribute
+runtime. **Re-verified unreachable 2026-08-25**: `attachGraphRuntime` and
+`renderGraphChrome` have no callers outside graph-kit, and `runtime.ts` is not
+in the package's `exports` map (only `runtime-contract` is, and only for
+types). The viewer mounts widgets through `kitSurfaces.ts` instead.
+
+The misconception arc deleted the widget's `annotateMistake`, which removed the
+only in-repo WRITERS of `GraphBlockState.mistakeIndex` / `.mistakeText`. Their
+READERS survive in `runtime.ts`'s feedback-render branch (authored-template
+cloning + generic fallback, 4 tests in `runtime.test.ts`), plus
+`chrome.mistakeTemplates` and `chrome.mistakes`/`builtinFeedback` which are now
+parsed from data attributes and forwarded nowhere.
+
+**Deliberately NOT gutted further.** That branch is coherent, well-tested code;
+removing just its inputs would leave a more confusing module, not a cleaner
+one, and the tests being deleted are good ones. The honest move is deleting the
+legacy runtime AS A UNIT — `runtime.ts`, its contract's page-only fields, and
+its tests — the same way `packages/renderer` went at S9 Drop 4. Until then, the
+no-writer fields are dead fields in a dead module, which is consistent, rather
+than a live declaration with no implementation.
+
+**Depends on:** nothing. Do it whenever the legacy-runtime teardown is worth a
+slice; check the `exports` map and `kitSurfaces.ts` again first, since that is
+what makes the deletion safe.
+
+## Editor cannot SHOW misconception bindings (DX review deferral, 2026-08-25)
+
+The misconception-sensors arc round-trips `misconceptionId`s through the editor
+(serialize both directions) but no editor view renders them — a teacher editing
+in-app cannot see that a distractor is bound. Ruled ACCEPTABLE while the
+".md is the source" rule holds (file-backed activities are edited in markdown,
+where bindings are visible text). **Becomes real work when the fall
+co-ownership arc gives colleagues in-app authoring** — then: read-only binding
+badges in the blank popover, `MultipleChoiceView`, and `GraphSettings` mistake
+rows, before any colleague authors over an imported activity blind.
+**Depends on:** the co-ownership arc.
+
+## Misconception id RENAMES have no alias path to stored rows (2026-08-25)
+
+`import:batch`'s registry check catches a taxonomy rename in the FILES on next
+import, but `section_checks.verdicts` rows keep the old id string forever —
+a rename fragments the longitudinal data. Ruled: **no mechanism until the
+first real rename happens AND the rollup exists to consume an alias map**
+(building one now is the orphan pattern). The rollup-spec amendment (eng
+review X1, this arc's T5) must name aliasing as a design input so the rollup's
+misconception dimension doesn't foreclose it. **Depends on:** the check-rollup
+amendment arc.
+
 ## Does MathLive's post-mount focus grab affect a real student? (2026-08-22)
 
 **What was observed:** on a worksheet carrying a gap-bearing `math_block`,
@@ -980,6 +1030,26 @@ inert-by-construction era is over; from here the checklist is the only guard.
 
 **What remains:** apply 0036 live → watch the ledger for N green nights → work the arming
 checklist below → the author flips the cron command to `prune_section_checks(false)`.
+
+🚫 **NEW BLOCKING STEP — MISCONCEPTIONS MUST ROLL UP BEFORE ARMING (eng review X1,
+2026-08-25).** The misconception-sensors arc records a `misconceptionIds` array on wrong
+answers, stored inside `section_checks.verdicts`. **Those ids live almost exclusively on
+NON-latest attempts** — a misconception appears when the student is wrong, and the latest
+attempt is usually the corrected one. `prune_section_checks` deletes precisely the rows that
+are not in `section_checks_latest`, so arming as currently specified **deletes the
+misconception dataset and keeps the rows that carry none of it.** Neither rollup table has a
+misconception dimension: `check_item_rollup_daily` is verdict counts only
+(`verdicts_all / correct_all / incorrect_all / recorded_all / students`), so nothing survives
+the prune to carry the signal.
+
+**Do not arm until a misconception aggregate exists and has been running long enough to
+cover the window the prune will delete.** Design decisions still open (they belong to the
+rollup amendment, not to this checklist): whether the dimension is a third table keyed
+`(version, day, item_id, misconception_id)` or an additional grain on the existing item
+table; how the array is unnested (one row per id — a wrong answer with two ids counts once
+for each); and how a taxonomy RENAME is handled at read time, since stored rows keep the old
+string forever (see the id-rename TODO). Everything else in this arc's design is inherited,
+not re-derived — but this dimension was never in it.
 
 **Trigger for ARMING:** real check growth on the `analytics_job_runs.section_check_rows` ledger
 (still 0 as of 2026-08-16 — 11 runs, all zero). No date; read the ledger. Building the rollup

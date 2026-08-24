@@ -154,7 +154,10 @@ export type SanitizeBlockType<B> = B extends { type: 'math_block' }
           }
         : B extends { type: 'multiple_choice'; choices: readonly (infer C)[] }
           ? Omit<DeepSanitizeInline<B>, 'solution' | 'choices'> & {
-              choices: Omit<DeepSanitizeInline<C>, 'correct' | 'feedback'>[];
+              choices: Omit<
+                DeepSanitizeInline<C>,
+                'correct' | 'feedback' | 'misconceptionId'
+              >[];
             }
           : B extends { type: 'matching' }
             ? Omit<DeepSanitizeInline<B>, 'key' | 'solution'>

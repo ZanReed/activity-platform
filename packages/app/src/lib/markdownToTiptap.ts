@@ -73,6 +73,10 @@ import {
 import { toCurveDomain } from './graphDomain';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
+import {
+    splitMisconceptionBinding,
+    suspectWarning,
+} from './misconceptionBinding';
 import { normalizeTags } from './normalizeTags';
 import { parseWorkSpace } from './workSpaceUnits';
 import { asPedagogicalRole, type PedagogicalRole } from './pedagogicalRole';
@@ -1164,6 +1168,9 @@ function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | n
         attrs.mistakeFeedback = spec.mistakes.map((m) => ({
             match: m.match,
             feedback: inlineSchemaContent(m.feedbackText, ctx),
+            ...(m.misconceptionId
+                ? { misconceptionId: m.misconceptionId }
+                : {}),
         }));
     }
     return { type: 'blank', attrs };
@@ -1527,12 +1534,21 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             const correct = (choiceMatch[2] ?? '') !== '';
             let body = (choiceMatch[3] ?? '').trim();
             let feedback: InlineNode[] | undefined;
+            let misconceptionId: string | undefined;
             const sep = body.indexOf('::');
             if (sep !== -1) {
-                const feedbackText = body.slice(sep + 2).trim();
+                // The choice text ends at the FIRST `::`; everything after it
+                // is the feedback tail, which may itself end in a binding.
+                const binding = splitMisconceptionBinding(body.slice(sep + 2));
                 body = body.slice(0, sep).trim();
-                if (feedbackText) {
-                    feedback = schemaInlineContent(feedbackText, ctx);
+                if (binding.suspect) {
+                    ctx.warnings.add(
+                        suspectWarning('Multiple-choice block', binding.suspect),
+                    );
+                }
+                misconceptionId = binding.misconceptionId;
+                if (binding.text) {
+                    feedback = schemaInlineContent(binding.text, ctx);
                 }
             }
             // A `graph: <show-spec>` choice is a static graph FIGURE (ChoiceGraph)
@@ -1579,6 +1595,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                 content: schemaInlineContent(body, ctx),
                 correct,
                 ...(feedback ? { feedback } : {}),
+                ...(misconceptionId ? { misconceptionId } : {}),
                 ...(image ? { image } : {}),
                 ...(graph ? { graph } : {}),
             });
@@ -3447,18 +3464,31 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                 prompt = value;
                 break;
             case 'mistake': {
-                // "mistake: <wrong answer> :: <feedback>" — an authored
-                // anticipated mistake. The wrong answer uses the same freeform
-                // syntax as answer:; feedback is plain text (rich feedback is
-                // an editor affordance).
+                // "mistake: <wrong answer> :: <feedback> [:: mis.id]" — an
+                // authored anticipated mistake, optionally bound to a named
+                // misconception. The wrong answer uses the same freeform syntax
+                // as answer:; feedback is plain text (rich feedback is an
+                // editor affordance).
                 const sep = value.indexOf('::');
                 if (sep === -1) return fail('mistake lines look like "mistake: (3, 4) :: feedback text"');
                 const match = value.slice(0, sep).trim();
-                const feedbackText = value.slice(sep + 2).trim();
-                if (!match || !feedbackText) return fail('mistake lines need both a wrong answer and feedback text');
+                const binding = splitMisconceptionBinding(value.slice(sep + 2));
+                if (binding.suspect) {
+                    ctx.warnings.add(
+                        suspectWarning('Graph block', binding.suspect),
+                    );
+                }
+                if (!match || (!binding.text && !binding.misconceptionId)) {
+                    return fail('mistake lines need both a wrong answer and feedback text');
+                }
                 mistakes.push({
                     match,
-                    feedback: [{ type: 'text', text: feedbackText, marks: [] }],
+                    feedback: binding.text
+                        ? [{ type: 'text', text: binding.text, marks: [] }]
+                        : [],
+                    ...(binding.misconceptionId
+                        ? { misconceptionId: binding.misconceptionId }
+                        : {}),
                 });
                 break;
             }

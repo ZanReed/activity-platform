@@ -66,7 +66,14 @@ const NEVER_RELEASE = [
  * are skipped by the collector — otherwise the solution text a student is
  * supposed to read would be indistinguishable from a leak.
  */
-const RELEASABLE_FIELDS = new Set(['solution', 'hint', 'feedback']);
+const RELEASABLE_FIELDS = new Set([
+  'solution',
+  'hint',
+  'feedback',
+  // The matched distractor's mis.* binding — released post-check by design
+  // (decision 4, misconception-sensors.md); the read path still strips it.
+  'misconceptionId',
+]);
 
 /** Every scalar stored anywhere under a never-release field. */
 function collectForbiddenValues(value: unknown, out = new Set<string>()): Set<string> {
