@@ -55,17 +55,12 @@ describe('R1 — a checkpoint checks everything since the previous one', () => {
 
   it('a document with no checkpoint at all is exactly one Check at the end', () => {
     const index = indexOf(section('a'), section('b'), section('c'));
-    const groups = checkGroups(index, 'free');
-    expect(idsOf(groups)).toEqual([['a', 'b', 'c']]);
-    expect(groups[0]!.implicitEnd).toBe(true);
+    expect(idsOf(checkGroups(index, 'free'))).toEqual([['a', 'b', 'c']]);
   });
 
   it('a checkpoint ON the last section does not mint an empty trailing group', () => {
     const index = indexOf(section('a'), section('b', true));
-    const groups = checkGroups(index, 'free');
-    expect(idsOf(groups)).toEqual([['a', 'b']]);
-    // The boundary was AUTHORED here, not supplied by the end-of-document rule.
-    expect(groups[0]!.implicitEnd).toBe(false);
+    expect(idsOf(checkGroups(index, 'free'))).toEqual([['a', 'b']]);
   });
 
   it('consecutive checkpoints each get their own single-section group', () => {
@@ -93,9 +88,7 @@ describe('R2 — single ignores every marker', () => {
       section('c', true),
       section('d'),
     );
-    const groups = checkGroups(index, 'single');
-    expect(idsOf(groups)).toEqual([['a', 'b', 'c', 'd']]);
-    expect(groups[0]!.implicitEnd).toBe(true);
+    expect(idsOf(checkGroups(index, 'single'))).toEqual([['a', 'b', 'c', 'd']]);
   });
 
   it('single ≡ free with every marker stripped (OV#12, spelled out)', () => {

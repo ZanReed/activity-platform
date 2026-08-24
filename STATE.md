@@ -29,18 +29,14 @@ session must not re-do it:
   change could have broken.
 - **P7 residue: NONE.** `section_checks` printed **0 before and 0 after**.
 
-⚠ **TWO THINGS ARE STILL WORTH DOING, neither blocking:**
-1. **Run `scripts/verify-0020.sql` VERBATIM** (all 23 assertions, SQL editor).
-   Only its structural half was re-checked live; the behavioural half (the
-   authorization chain, the rate ceiling) was not re-run after 0040 rewrote the
-   function body. verify-0040's B1 covers the closest case (re-checking still
-   increments) but is not the same thing.
-2. ⚠ **The live verify-0040 run was a faithful TRANSCRIPTION of the file's
-   assertions, not the file itself** — the MCP path returns no `RAISE NOTICE`
-   output, so the counts were surfaced through a temp table instead. Same
-   assertions, same order, same values; but the canonical run is the file, and
-   `pnpm verify:auth --target live` is what runs it. Blocked only on the
-   password below.
+✅ **Both verify files then ran VERBATIM against live** via
+`pnpm verify:auth --target live` (the password was pasted in the same day):
+`verify-0040 → check-lock-matrix PASS`, `verify-0020 → grading-surface-matrix
+PASS`, suite **168 passed, 0 failed across 15 scripts**. ⚠ This paragraph
+briefly said the opposite — that verify-0020's behavioural half was unrun and
+the verify-0040 result was a transcription rather than the file. Both were
+true when written and both were resolved hours later in the same session; the
+drift audit caught the stale caveats. Nothing is owed here.
 
 ⚠ **A `get-activity` redeploy is arguably owed and deliberately NOT flagged as
 urgent.** R4's schema deletion regenerated `viewer-server.bundle.js`, so

@@ -43,10 +43,15 @@ export interface CheckGroup {
   id: string;
   /** Sections covered by this group's Check, document order, at least one. */
   sections: SectionIndex[];
-  /** True when this group's boundary is the end of the document rather than an
-   * authored `{checkpoint}`. Nothing renders differently today; it exists so
-   * the coverage guard can mutate the implicit-end rule and watch it fail. */
-  implicitEnd: boolean;
+  // ⚰ `implicitEnd: boolean` lived here for one day (2026-08-24) and was
+  // deleted by the same session's drift audit. It was declared, computed, and
+  // read ONLY by this module's own tests — the §9 orphan shape exactly, in the
+  // slice written to end that defect class. Its comment claimed "it exists so
+  // the coverage guard can mutate the implicit-end rule and watch it fail",
+  // and that was simply untrue: guard 5 presses buttons in the DOM and
+  // compares covered section ids, and the implicit-end mutation was proven by
+  // editing `closes` below. A field whose stated consumer does not consume it
+  // is the thing this repo keeps paying for. Do not re-add it speculatively.
 }
 
 /**
@@ -72,11 +77,7 @@ export function checkGroups(
     const closes =
       isLast || (submissionMode !== 'single' && section.isCheckpoint);
     if (!closes) return;
-    groups.push({
-      id: section.sectionId,
-      sections: run,
-      implicitEnd: isLast && !(submissionMode !== 'single' && section.isCheckpoint),
-    });
+    groups.push({ id: section.sectionId, sections: run });
     run = [];
   });
 
