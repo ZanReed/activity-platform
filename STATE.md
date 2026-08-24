@@ -105,8 +105,10 @@ deleted the last three orphan knobs end to end.
 now writes a binding manifest, compile-checks that each binding CAN fire,
 validates ids against `--registry`, and fails the run under `--strict`. Numeric
 blanks match mistakes by VALUE, so `!0.5` fires for a student who typed `1/2` —
-most of the real signal. **The catalogue carries no bindings yet, so the
-manifest is honestly empty; it fills on the first one written.**
+most of the real signal. **The catalogue now carries 13 bindings, 4 files, all
+4 ratified ids — each verified to FIRE against the shipped grader, not merely
+to import.** That first real content found an answer leak: `{{…}}` inside
+`$…$` is swallowed silently (TODOS).
 
 **Two pieces are deliberately unbuilt, each with a named discharger:** the
 UNITS slice (syntax unpinned — three verified tokenizer collisions, one of
