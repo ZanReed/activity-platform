@@ -37,8 +37,6 @@ declare module '@tiptap/core' {
 //   - solution: worked explanation shown post-check (Stage 15). Stored as
 //     canonical InlineNode[] (rich text + inline math); opaque JSON here, with
 //     serialize/the nested mini-editor owning its shape.
-//   - hasConfidenceRating: when true, the block asks for a confidence rating
-//     before checking (Stage 15).
 //   - skills: universal skill tags. Carried through round-trips so imported
 //     or future-authored tags survive; the editing UI is deferred to Phase 2
 //     (no control surfaces this attr yet).
@@ -104,15 +102,6 @@ export const FillInBlank = Node.create({
                                            ? { 'data-solution': JSON.stringify(v) }
                                            : {};
                                        },
-                                               },
-                                               hasConfidenceRating: {
-                                                   default: false,
-                                                       parseHTML: (element) =>
-                                                       element.getAttribute('data-has-confidence-rating') === 'true',
-                                       renderHTML: (attributes) =>
-                                       attributes.hasConfidenceRating
-                                       ? { 'data-has-confidence-rating': 'true' }
-                                       : {},
                                                },
                                                skills: {
                                                    default: [] as string[],

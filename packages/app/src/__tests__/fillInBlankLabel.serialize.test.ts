@@ -25,7 +25,6 @@ const fibNode = (label: unknown): JSONContent => ({
     attrs: {
         id: 'regenerated',
         solution: null,
-        hasConfidenceRating: false,
         skills: [],
         workSpace: null,
         label,

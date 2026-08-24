@@ -205,9 +205,9 @@ const rubricField: AdvancedField = {
 
 // --- Shared question-block settings ----------------------------------------
 // multiple_choice / fill_in_blank / matching / ordering carry the identical
-// block-level trio (solution / confidence / print work space). One shared
-// group list keeps them uniform; the old per-NodeView "⚙ Settings" footers are
-// deleted (drawer = the single settings home, same as the free-text blocks).
+// block-level pair (solution / print work space). One shared group list keeps
+// them uniform; the old per-NodeView "⚙ Settings" footers are deleted
+// (drawer = the single settings home, same as the free-text blocks).
 
 const questionAdvanced: AdvancedGroup[] = [
     {
@@ -217,14 +217,6 @@ const questionAdvanced: AdvancedGroup[] = [
                 kind: 'custom',
                 label: 'Worked solution',
                 render: renderSolutionField,
-            },
-            {
-                kind: 'toggle',
-                label: 'Ask for a confidence rating',
-                help: 'Students rate how sure they are before checking.',
-                get: (node) => Boolean(node.attrs.hasConfidenceRating),
-                set: (editor, pos, value) =>
-                    setNodeAttr(editor, pos, 'hasConfidenceRating', value),
             },
         ],
     },
@@ -385,43 +377,6 @@ const multiSelectField: AdvancedField = {
 // the universal actions + ⚙ settings. Only `image` carries a primary.
 // ============================================================================
 
-/** Matching's "options may be used more than once" — turning reuse OFF keeps
- * only the FIRST item matched to each target (the old inline toggle's
- * collapse). */
-const allowTargetReuseField: AdvancedField = {
-    kind: 'toggle',
-    label: 'Reuse options',
-    help: 'Options may be matched to more than one item.',
-    get: (node) => Boolean(node.attrs.allowTargetReuse),
-    set: (editor, pos, value) => {
-        const node = editor.state.doc.nodeAt(pos);
-        if (!node) return;
-        if (value) {
-            setNodeAttr(editor, pos, 'allowTargetReuse', true);
-            return;
-        }
-        const items = (node.attrs.items as Array<{ id: string }>) ?? [];
-        const key = (node.attrs.key as Record<string, string>) ?? {};
-        const seen = new Set<string>();
-        const collapsed: Record<string, string> = {};
-        for (const item of items) {
-            const t = key[item.id];
-            if (t && !seen.has(t)) {
-                collapsed[item.id] = t;
-                seen.add(t);
-            }
-        }
-        editor
-            .chain()
-            .command(({ tr }) => {
-                tr.setNodeAttribute(pos, 'allowTargetReuse', false);
-                tr.setNodeAttribute(pos, 'key', collapsed);
-                return true;
-            })
-            .run();
-    },
-};
-
 // --- Image drawer fields ---------------------------------------------------
 // Alt / caption move off the popover into the drawer (the ruling's
 // decomposition); Reset crop is a custom action control (CR-S4).
@@ -564,11 +519,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         simple: [multiSelectField, lockChoiceOrderField],
         advanced: questionAdvancedWithNumbering,
     },
-    matching: {
-        primary: [],
-        simple: [allowTargetReuseField],
-        advanced: questionAdvancedWithNumbering,
-    },
+    matching: { primary: [], advanced: questionAdvancedWithNumbering },
     ordering: { primary: [], advanced: questionAdvancedWithNumbering },
     // interactive_graph settings are interaction-dependent (per-type tolerance
     // rows, display is axis-only) → one custom drawer field (GraphSettings).
@@ -584,9 +535,9 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
             numberingGroup,
         ],
     },
-    // number_line settings (line window + tolerance + snap + solution +
-    // confidence) → one custom drawer field (NumberLineSettings), same pattern
-    // as data_plot / interactive_graph.
+    // number_line settings (line window + tolerance + snap + solution) → one
+    // custom drawer field (NumberLineSettings), same pattern as data_plot /
+    // interactive_graph.
     numberLine: {
         primary: [],
         advanced: [

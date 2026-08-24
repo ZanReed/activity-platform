@@ -96,7 +96,6 @@ describe('DataPlotInteraction', () => {
 describe('DataPlotBlock', () => {
   it('parses a minimal block and fills defaults', () => {
     const block = DataPlotBlock.parse(basePlot());
-    expect(block.hasConfidenceRating).toBe(false);
     expect(block.skills).toEqual([]);
     expect(block.config.snapToTick).toBe(true);
   });

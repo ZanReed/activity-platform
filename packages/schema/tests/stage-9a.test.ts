@@ -129,20 +129,19 @@ describe('ProblemBlock — optional solution + skills', () => {
   });
 });
 
-describe('FillInBlankBlock — optional solution + confidence + skills', () => {
+describe('FillInBlankBlock — optional solution + skills', () => {
   it('factory produces a schema-valid block with the new-field defaults', () => {
     const parsed = FillInBlankBlock.parse(createFillInBlankBlock());
-    expect(parsed.hasConfidenceRating).toBe(false);
     expect(parsed.skills).toEqual([]);
     expect(parsed.solution).toBeUndefined();
   });
 
-  it('accepts hasConfidenceRating: true', () => {
+  it('strips the deleted hasConfidenceRating key (orphan ruling 2026-08-24)', () => {
     const parsed = FillInBlankBlock.parse({
       ...createFillInBlankBlock(),
       hasConfidenceRating: true,
     });
-    expect(parsed.hasConfidenceRating).toBe(true);
+    expect('hasConfidenceRating' in parsed).toBe(false);
   });
 });
 

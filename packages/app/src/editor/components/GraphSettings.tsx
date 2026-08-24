@@ -118,7 +118,6 @@ function GraphSettingsPanel({
     const interaction = node.attrs.interaction as GraphInteraction;
     const axisConfig = node.attrs.axisConfig as GraphAxisConfig;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isDisplay = interaction.type === 'display';
     const isEditable = editor.isEditable;
 
@@ -311,19 +310,6 @@ function GraphSettingsPanel({
                         />
                     </div>
 
-                    <ToggleRow
-                        checked={hasConfidenceRating}
-                        disabled={!isEditable}
-                        onChange={(v) => setNodeAttr(editor, pos, 'hasConfidenceRating', v)}
-                        label="Ask for a confidence rating"
-                    />
-                    <ToggleRow
-                        checked={Boolean(node.attrs.partialCredit)}
-                        disabled={!isEditable}
-                        onChange={(v) => setNodeAttr(editor, pos, 'partialCredit', v)}
-                        label="Partial credit"
-                        help="Score each part separately."
-                    />
                     <ToggleRow
                         checked={Boolean(node.attrs.allowNoSolution)}
                         disabled={!isEditable}

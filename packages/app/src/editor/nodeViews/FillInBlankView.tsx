@@ -37,8 +37,8 @@ import { problemNumberAt, fadedStepContextAt } from '../problemNumbering';
 //   Mirrors .math-block-wrapper.is-selected — blue outline + tinted bg.
 //
 // Block settings:
-//   `solution` / `hasConfidenceRating` / `workSpace` live in the descriptor
-//   drawer (blockControls.ts → questionAdvanced), reached via the quick-bar ⚙.
+//   `solution` / `workSpace` live in the descriptor drawer
+//   (blockControls.ts → questionAdvanced), reached via the quick-bar ⚙.
 //   The block keeps only a display-only QuestionSettingsSummary — the old
 //   inline "⚙ Settings" footer is gone (drawer = the single settings home).
 //   `skills` has no control yet (Phase 2); the attr still round-trips through
@@ -53,7 +53,6 @@ export default function FillInBlankView({
 }: NodeViewProps) {
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasSolution = solution.length > 0;
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const workSpace =
         typeof node.attrs.workSpace === 'number'
             ? (node.attrs.workSpace as number)
@@ -202,7 +201,6 @@ export default function FillInBlankView({
             )}
             <QuestionSettingsSummary
                 hasSolution={hasSolution}
-                hasConfidenceRating={hasConfidenceRating}
                 workSpace={workSpace}
             />
         </NodeViewWrapper>

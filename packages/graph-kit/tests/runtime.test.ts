@@ -95,7 +95,6 @@ describe('buildGraphChrome', () => {
     expect(chrome.answerKey).toEqual({ correctPoints: [[3, 4]], tolerance: 0.1 });
     expect(chrome.feedbackEl).not.toBeNull();
     expect(chrome.solutionEl).not.toBeNull();
-    expect(chrome.partialCredit).toBe(false);
     expect(chrome.mistakes).toEqual([]);
     expect(chrome.handle).toBeNull();
   });

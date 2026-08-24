@@ -324,12 +324,6 @@ export const InteractiveGraph = Node.create({
                         ? { 'data-graph-solution': JSON.stringify(attrs.solution) }
                         : {},
             },
-            partialCredit: {
-                default: false,
-                parseHTML: (el) => el.getAttribute('data-graph-partial-credit') === 'true',
-                renderHTML: (attrs) =>
-                    attrs.partialCredit ? { 'data-graph-partial-credit': 'true' } : {},
-            },
             allowNoSolution: {
                 default: false,
                 parseHTML: (el) => el.getAttribute('data-graph-allow-no-solution') === 'true',
@@ -360,15 +354,6 @@ export const InteractiveGraph = Node.create({
                 renderHTML: (attrs) =>
                     Array.isArray(attrs.mistakeFeedback) && attrs.mistakeFeedback.length > 0
                         ? { 'data-graph-mistake-feedback': JSON.stringify(attrs.mistakeFeedback) }
-                        : {},
-            },
-            hasConfidenceRating: {
-                default: false,
-                parseHTML: (el) =>
-                    el.getAttribute('data-has-confidence-rating') === 'true',
-                renderHTML: (attrs) =>
-                    attrs.hasConfidenceRating
-                        ? { 'data-has-confidence-rating': 'true' }
                         : {},
             },
             skills: {
@@ -421,7 +406,6 @@ export const InteractiveGraph = Node.create({
                                 axisConfig: fresh.axisConfig,
                                 interaction: fresh.interaction,
                                 solution: null,
-                                hasConfidenceRating: false,
                                 skills: [],
                             },
                         })
@@ -439,7 +423,6 @@ export const InteractiveGraph = Node.create({
                                 axisConfig: fresh.axisConfig,
                                 interaction: defaultDisplayInteraction(),
                                 solution: null,
-                                hasConfidenceRating: false,
                                 skills: [],
                             },
                         })

@@ -97,7 +97,7 @@ export interface GraphBlockState {
   side?: 'above' | 'below' | 'left' | 'right';
   /** The student chose "cannot be graphed / no solution". */
   noSolution?: boolean;
-  /** Partial credit: parts earned / parts total (partialCredit blocks only). */
+  /** Partial credit: parts earned / parts total. */
   earned?: number;
   total?: number;
   /** Domain-restricted plot_function: endpoint positions + open/closed. */

@@ -225,7 +225,6 @@ export const blockRegistry: BlockRegistry = {
         'mistakeFeedback',
         'solution',
         'noSolutionCorrect',
-        'partialCredit',
         'builtinFeedback',
       ],
     },

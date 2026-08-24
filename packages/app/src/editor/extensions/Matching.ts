@@ -22,9 +22,9 @@ import type { GraphAxisConfig, DrawableAttr } from './InteractiveGraph';
 //     targets by their text, never by a letter.
 //   - key: Record<itemId, targetId> — the correct pairing. Incomplete keys
 //     are legal to SAVE (mid-edit drafts autosave); the NodeView warns.
-//   - allowTargetReuse: many-to-one docking ("categorization-lite").
-//   - solution / hasConfidenceRating / skills / workSpace: block-level fields
-//     identical to MultipleChoice's (same settings footer UI).
+//     Docking is many-to-one: several items may share a target.
+//   - solution / skills / workSpace: block-level fields identical to
+//     MultipleChoice's (same settings footer UI).
 // ============================================================================
 
 export interface EditorMatchSide {
@@ -141,15 +141,6 @@ export const Matching = Node.create({
                         : {};
                 },
             },
-            allowTargetReuse: {
-                default: false,
-                parseHTML: (element) =>
-                    element.getAttribute('data-allow-target-reuse') === 'true',
-                renderHTML: (attributes) =>
-                    attributes.allowTargetReuse
-                        ? { 'data-allow-target-reuse': 'true' }
-                        : {},
-            },
             solution: {
                 default: null as unknown[] | null,
                 parseHTML: (element) => {
@@ -165,15 +156,6 @@ export const Matching = Node.create({
                         ? { 'data-solution': JSON.stringify(v) }
                         : {};
                 },
-            },
-            hasConfidenceRating: {
-                default: false,
-                parseHTML: (element) =>
-                    element.getAttribute('data-has-confidence-rating') === 'true',
-                renderHTML: (attributes) =>
-                    attributes.hasConfidenceRating
-                        ? { 'data-has-confidence-rating': 'true' }
-                        : {},
             },
             skills: {
                 default: [] as string[],

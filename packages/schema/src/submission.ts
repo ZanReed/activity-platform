@@ -46,6 +46,14 @@
 //                       (FreeResponse: ungraded free text, just { text }). Never
 //                       scored. v8 rows migrate on read by setting
 //                       schemaVersion: 9.
+//   confidence DELETED (2026-08-24, no version bump): the optional per-response
+//                       `confidence` field and ConfidenceLevel were removed
+//                       end-to-end with `hasConfidenceRating` (author ruling —
+//                       DECISIONS.md → "The last orphan classes"). The
+//                       submissions table has held zero rows since the 0029
+//                       wipe, and zod strips unknown keys, so a hypothetical
+//                       stray row still parses; the v1→v2 history above is
+//                       kept as history.
 //
 // Extension pattern — adding new response shapes (Phase 2+):
 //   When a new question category needs a different response shape — MC
@@ -76,15 +84,8 @@
 
 import { z } from 'zod';
 
-// Confidence rating captured before a student checks a section. Only
-// present when the blank's parent FillInBlankBlock has hasConfidenceRating
-// === true. Three-point scale captures metacognitive calibration without
-// being so granular that students can't decide.
-export const ConfidenceLevel = z.enum(['unsure', 'think_so', 'certain']);
-export type ConfidenceLevel = z.infer<typeof ConfidenceLevel>;
-
-// One blank's response: what the student typed, whether the runtime scored
-// it correct, and optionally their confidence rating. The `correct` boolean
+// One blank's response: what the student typed and whether the runtime scored
+// it correct. The `correct` boolean
 // is computed CLIENT-SIDE in the runtime JS of the published HTML — the
 // answer key is baked into the HTML, so this is convenience for the
 // teacher viewer, not authoritative grading. (See the security ceiling
@@ -92,14 +93,13 @@ export type ConfidenceLevel = z.infer<typeof ConfidenceLevel>;
 export const BlankResponse = z.object({
   answer: z.string(),
                                       correct: z.boolean(),
-                                      confidence: ConfidenceLevel.optional(),
-});
+                                    });
 export type BlankResponse = z.infer<typeof BlankResponse>;
 
 // One interactive-graph block's response (Phase 2.7). Mirrors the block's
 // interaction discriminated union — each variant carries the student's
-// structured geometric input plus the same correctness/confidence fields
-// blanks have. Like BlankResponse, `correct` is computed CLIENT-SIDE in the
+// structured geometric input plus the same correctness field blanks have.
+// Like BlankResponse, `correct` is computed CLIENT-SIDE in the
 // published page's lazy-loaded kit (the answer key is baked into the HTML) —
 // convenience for the teacher viewer, not authoritative grading. Kept a
 // discriminated union so plot_line / shade_region add a variant here with no
@@ -110,7 +110,6 @@ export const PointResponse = z.object({
   // correctPoints for multi-point questions; a single point is the common case.
   studentPoints: z.array(z.tuple([z.number(), z.number()])),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type PointResponse = z.infer<typeof PointResponse>;
 
@@ -122,7 +121,6 @@ export const FunctionResponse = z.object({
   type: z.literal('plot_function'),
   studentPoints: z.array(z.tuple([z.number(), z.number()])),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type FunctionResponse = z.infer<typeof FunctionResponse>;
 
@@ -131,7 +129,6 @@ export const RegionResponse = z.object({
   type: z.literal('shade_region'),
   studentPoints: z.array(z.tuple([z.number(), z.number()])),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type RegionResponse = z.infer<typeof RegionResponse>;
 
@@ -143,7 +140,6 @@ export const InequalityResponse = z.object({
   strict: z.boolean(),
   side: z.enum(['above', 'below', 'left', 'right']),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type InequalityResponse = z.infer<typeof InequalityResponse>;
 
@@ -161,7 +157,6 @@ export const RayResponse = z.object({
   shape: z.enum(['ray_positive', 'ray_negative', 'segment']).optional(),
   fromStyle: z.enum(['open', 'closed']),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type RayResponse = z.infer<typeof RayResponse>;
 
@@ -171,7 +166,6 @@ export const SegmentResponse = z.object({
   shape: z.enum(['ray_positive', 'ray_negative', 'segment']).optional(),
   endpoints: z.tuple([z.enum(['open', 'closed']), z.enum(['open', 'closed'])]),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type SegmentResponse = z.infer<typeof SegmentResponse>;
 
@@ -181,8 +175,9 @@ export type SegmentResponse = z.infer<typeof SegmentResponse>;
 // own boundary points + side + style, so mixed strict/inclusive boundaries are
 // per-part). `correct` is the match-all AND — every authored inequality paired,
 // order-independently, with a distinct student part; `earned`/`total` (via
-// V4Extras below) carry per-inequality partial credit (matched / N) when the
-// block's partialCredit flag is on. Like BlankResponse, `correct` is computed
+// V4Extras below) carried per-inequality partial credit (matched / N) under
+// the block's partialCredit flag, DELETED 2026-08-24 with nothing ever
+// consuming the fraction. Like BlankResponse, `correct` is computed
 // CLIENT-SIDE in the published page's lazy kit — convenience for the teacher
 // viewer, not authoritative grading. A NEW additive member: pages that emit it
 // are published AFTER the ingest redeploy, and widening the union only ACCEPTS
@@ -195,7 +190,6 @@ export const SystemInequalityResponse = z.object({
   // scorer/parse total (an under-count can't match every authored key → wrong).
   parts: z.array(InequalityResponse).min(1),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type SystemInequalityResponse = z.infer<typeof SystemInequalityResponse>;
 
@@ -214,7 +208,6 @@ export const SystemFunctionResponse = z.object({
   // every authored model → wrong).
   parts: z.array(FunctionResponse).min(1),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type SystemFunctionResponse = z.infer<typeof SystemFunctionResponse>;
 
@@ -228,8 +221,9 @@ export type GraphResponse = z.infer<typeof GraphResponse>;
 
 // v4 graph responses widen every variant with the Drop 4 optionals: `noSolution`
 // (the student chose "cannot be graphed"; studentPoints may be empty) and
-// `earned`/`total` (per-part partial credit, present only when the block's
-// partialCredit flag is on). Applied as an extension of each variant so v3 rows
+// `earned`/`total` (per-part partial credit, gated by the block-level
+// partialCredit flag that was deleted 2026-08-24 — the optionals stay because
+// v4 is a historical shape). Applied as an extension of each variant so v3 rows
 // (no such fields) remain valid v4 rows.
 const V4Extras = {
   noSolution: z.boolean().optional(),
@@ -267,7 +261,7 @@ export type GraphResponseV4 = z.infer<typeof GraphResponseV4>;
 // single-mode submissions or for sections without isCheckpoint = true.
 export const CheckpointResult = z.object({
   checkedAt: z.string().datetime(),                  // ISO timestamp from runtime
-                                         score: z.number().nonnegative(), // fractional under partialCredit (v4)
+                                         score: z.number().nonnegative(), // was fractional under the v4-era partialCredit flag (deleted 2026-08-24)
                                          total: z.number().int().positive(),
 });
 export type CheckpointResult = z.infer<typeof CheckpointResult>;
@@ -352,7 +346,7 @@ export type SubmissionResponsesV4 = z.infer<typeof SubmissionResponsesV4>;
 
 // One multiple_choice block's response: which choice ids the student selected
 // (one for single-select, any number for multi-select) plus the same
-// correctness/confidence fields blanks have. Like BlankResponse, `correct` is
+// correctness field blanks have. Like BlankResponse, `correct` is
 // computed CLIENT-SIDE in the published page's runtime (the answer key is
 // baked into the HTML) — convenience for the teacher viewer, not authoritative
 // grading. All-or-nothing: correct means the selected SET equals the correct
@@ -364,7 +358,6 @@ export const ChoiceResponse = z.object({
   // omission), like an unanswered graph.
   selected: z.array(z.string().uuid()).min(1),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type ChoiceResponse = z.infer<typeof ChoiceResponse>;
 
@@ -398,7 +391,6 @@ export const MatchResponse = z.object({
   correct: z.boolean(),
   earned: z.number().int().nonnegative(),
   total: z.number().int().positive(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type MatchResponse = z.infer<typeof MatchResponse>;
 
@@ -410,7 +402,6 @@ export type MatchResponse = z.infer<typeof MatchResponse>;
 export const OrderResponse = z.object({
   order: z.array(z.string().uuid()).min(2),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type OrderResponse = z.infer<typeof OrderResponse>;
 
@@ -425,7 +416,6 @@ export const NumberLinePointResponse = z.object({
   // correctPoints for multi-point questions; a single point is the common case.
   studentPoints: z.array(z.number()),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type NumberLinePointResponse = z.infer<typeof NumberLinePointResponse>;
 
@@ -439,7 +429,6 @@ export const NumberLineIntervalResponse = z.object({
   max: z.number().optional(),
   maxStyle: z.enum(['open', 'closed']).optional(),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type NumberLineIntervalResponse = z.infer<
   typeof NumberLineIntervalResponse
@@ -465,7 +454,6 @@ export const DataPlotDotplotResponse = z.object({
   // omission (absent from the map), like an unanswered graph or number line.
   studentValues: z.array(z.number()).min(1),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type DataPlotDotplotResponse = z.infer<typeof DataPlotDotplotResponse>;
 
@@ -475,7 +463,6 @@ export const DataPlotHistogramResponse = z.object({
   type: z.literal('build_histogram'),
   studentBins: z.array(z.number()).min(1),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type DataPlotHistogramResponse = z.infer<
   typeof DataPlotHistogramResponse
@@ -492,7 +479,6 @@ export const DataPlotBoxplotResponse = z.object({
     max: z.number(),
   }),
   correct: z.boolean(),
-  confidence: ConfidenceLevel.optional(),
 });
 export type DataPlotBoxplotResponse = z.infer<typeof DataPlotBoxplotResponse>;
 

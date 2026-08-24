@@ -160,7 +160,6 @@ export type { UpgradeResult } from './upgrade.js';
 export {
   BlankResponse,
   CheckpointResult,
-  ConfidenceLevel,
   PointResponse,
   FunctionResponse,
   RegionResponse,

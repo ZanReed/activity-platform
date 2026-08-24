@@ -181,7 +181,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     axes: -10..10, -10..10        (optional; this is the default window)
     prompt: Graph the inequality.
     answer: y > 2x + 1
-    options: partial-credit, allow-no-solution
+    options: allow-no-solution
 - The answer line takes ANY equation format (y = 2x + 3, 2x + 3y = 6,
   y - 5 = 2(x - 1), x^2 - 4, x = 4), an inequality (the <, <=, >, >= sign
   sets the dotted/solid boundary and the shaded side), a point list like
@@ -196,7 +196,6 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     mistake: (4, 3) :: Coordinates are (x, y) - x comes first.
     mistake: segment (1, 2) to (3, 4) :: Think about whether the graph should stop or keep going.
 - options: (comma-separated) turn on grading behaviours:
-    partial-credit        score a multi-part answer per object (no effect on a single-object answer)
     allow-no-solution     give the student a "no solution" choice
     no-solution-correct   make "no solution" THE correct answer and any drawn answer a decoy (a trick question)
     no-builtin-feedback   turn OFF the automatic mistake hints (swapped coordinates, swapped slope/intercept, …), which are on by default
@@ -219,7 +218,7 @@ NUMBER LINES (a fenced block with the `numberline` tag becomes a 1-D number-line
   >= and <= draw a closed (filled) endpoint; > and < draw an open one.
 - axis: -10..10 step 2 (optional) sets the window and tick step; left out,
   the axis fits the answer automatically.
-- Optional lines:  solution: <worked explanation>   and   options: confidence
+- Optional line:  solution: <worked explanation>
 
 DATA PLOTS (a fenced block with the `dataplot` tag becomes a statistics-chart question)
 - ```dataplot … ``` with one statement per line:
@@ -237,7 +236,7 @@ DATA PLOTS (a fenced block with the `dataplot` tag becomes a statistics-chart qu
   is also the bar (bin) width.
 - A boxplot answer may add how close each of the five handles must be:
   answer: boxplot tolerance 1   (default 0.5).
-- Optional lines:  solution: <worked explanation>   and   options: confidence
+- Optional line:  solution: <worked explanation>
 
 MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice question)
 - ```mc … ``` with one statement per line:
@@ -249,7 +248,7 @@ MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice ques
   square brackets [x] / [ ] instead for a "select all that apply" question
   (marking more than one (x) also makes it multi-select automatically).
 - Optional feedback after :: on any choice is shown to a student who picks it.
-- Optional lines:  solution: <worked explanation>   and   options: confidence
+- Optional line:  solution: <worked explanation>
 - Choice text and the prompt may include $inline$ math.
 - A choice may carry an image, shown below its text:  (x) ![a square](https://…)
   — the choice text may be the image alone.
@@ -268,8 +267,8 @@ MATCHING (a fenced block with the `match` tag becomes a matching question)
 - A line starting with = (or ->) adds an extra wrong option (a distractor).
 - Students see the options shuffled and lettered automatically — never write
   the letters yourself.
-- Optional lines:  solution: <worked explanation>   and   options: confidence
-  (add options: reuse when several items share one option, e.g. classifying).
+- Optional line:  solution: <worked explanation>. Several items may share one
+  option (categorization-style) — always allowed.
 - Either side may include $inline$ math or an image ![alt](https://…).
 - A side can be a static graph — "match the graph to its equation". Use -> as
   the separator (the graph formula contains =):  graph: line y = 2x -> slope 2
@@ -283,7 +282,7 @@ ORDERING (a fenced block with the `order` tag becomes a put-in-order question)
     3. Check the solution
 - Leading numbers like "1." are optional decoration — the listed order is
   what counts.
-- Optional lines:  solution: <worked explanation>   and   options: confidence
+- Optional line:  solution: <worked explanation>
 
 LEARNING OBJECTIVES (a fenced block with the `objectives` tag becomes a goals list)
 - ```objectives … ``` with one objective per line:
@@ -529,7 +528,7 @@ A fenced code block with the `graph` language tag becomes an interactive-graph b
 axes: -10..10, -10..10
 prompt: Graph the inequality.
 answer: y > 2x + 1
-options: partial-credit, allow-no-solution
+options: allow-no-solution
 ```⠀
 ```
 
@@ -538,7 +537,7 @@ options: partial-credit, allow-no-solution
 - `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`; on a ray/segment question either figure matches (the classic ray mistake is its segment version).
 - `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
 - `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
-- `options:` `partial-credit` (score a multi-part answer per object), `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (turn off the automatic swapped-coordinate / swapped-slope mistake hints, which are on by default).
+- `options:` `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (turn off the automatic swapped-coordinate / swapped-slope mistake hints, which are on by default).
 
 A malformed graph block imports as plain text with a warning, never silently guessing.
 
@@ -550,7 +549,6 @@ A fenced code block with the `numberline` language tag becomes a number-line (1-
 ```numberline
 prompt: Graph the solution set.
 answer: -2 <= x < 5
-options: confidence
 ```⠀
 ```
 
@@ -559,7 +557,7 @@ options: confidence
   - **An inequality** → an interval or ray. A single inequality gives a ray: `x >= 3` (min 3, closed, extends right), `x < 5` (max 5, open, extends left). A compound inequality gives a bounded interval: `-2 <= x < 5`. `>=`/`<=` draw a **closed** (filled) endpoint, `>`/`<` an **open** one. The variable may be on either side (`3 < x` ≡ `x > 3`).
 - `axis: -10..10 step 2` (optional) — the window and tick step (step optional, default 1). Left out, the window auto-fits the answer values (padded a step each side so points and endpoints aren't jammed at the edge, and a ray visibly extends). An answer value outside an *explicit* window imports with a warning (the student couldn't place it there).
 - `prompt:` the question text (optional). Accepts `$inline$` math; `{{…}}` blanks stay literal here.
-- `solution:` optional worked explanation; `options: confidence` asks for a confidence rating.
+- `solution:` optional worked explanation.
 - There is **no `show:` line** — unlike the graph and data-plot fences, the number-line block has no static display mode; both interactions are graded.
 
 A malformed number-line block imports as plain text with a warning.
@@ -573,7 +571,6 @@ A fenced code block with the `dataplot` language tag becomes a data-plot (statis
 prompt: Make a dot plot of the data.
 data: 3, 5, 5, 6, 8
 answer: dotplot
-options: confidence
 ```⠀
 ```
 
@@ -582,7 +579,7 @@ options: confidence
 - `show:` the same three chart names — a **static, ungraded chart** the student reads (pair it with a sibling question). Exactly one of `answer:`/`show:` per block.
 - `axis: 0..20 step 5` (optional) — the number-line window and tick step (step optional, default 1). Left out, the window auto-fits the data, rounded out to the step. For a histogram the step doubles as the bar (bin) width. Data outside an explicit window imports with a warning (it wouldn't appear on the chart).
 - `prompt:` the question text (optional). Accepts `$inline$` math; `{{…}}` blanks stay literal here.
-- `solution:` optional worked explanation; `options: confidence` asks for a confidence rating.
+- `solution:` optional worked explanation.
 
 Scoring is all-or-nothing per chart (exact frequencies for dot plot/histogram; all five handles within tolerance for box plot). A malformed dataplot block imports as plain text with a warning.
 
@@ -597,7 +594,6 @@ prompt: What is $2 + 2$?
 (x) 4
 ( ) 22
 solution: Add the ones column.
-options: confidence
 ```⠀
 ```
 
@@ -606,7 +602,6 @@ options: confidence
 - `prompt:` the question text. Both it and choice text accept `$inline$` math.
 - **Per-choice images**: a markdown image — `![alt](https://…)` — anywhere in a choice's text becomes the choice's figure, rendered below the text ("which diagram shows…"). The image markdown is stripped from the text; an image-only choice is legal. An unparseable URL stays as literal text so the author notices. **Per-choice graphs**: `graph: <show-spec>` on a choice line — e.g. `(x) graph: line y = 2x` — using the same `show:` forms as elsewhere (point/line/curve/segment/ray/region). One drawable per choice, and `expression` is refused (it needs the calculator's parser, which the static renderer does not carry). `graph:` and `![](…)` are mutually exclusive on one choice; a graph-only choice is legal. *(This sentence used to say per-choice graphs had no fence syntax and were editor-only. That was wrong from the day the importer learned to parse them — corrected 2026-08-22, and the corresponding renderer now exists, so the figure a teacher authors actually reaches the student.)*
 - `solution:` optional worked explanation revealed post-check.
-- `options: confidence` asks students for a confidence rating.
 - At least two choices and at least one `(x)` are required — a fence without a marked correct answer imports as plain text with a warning.
 
 ## Matching blocks (```match fence)
@@ -620,7 +615,6 @@ y = 2x = 2
 y = -x -> -1
 = 0
 solution: Read the slope off the x coefficient.
-options: confidence
 ```⠀
 ```
 
@@ -628,8 +622,8 @@ options: confidence
 - **Distractor lines** — a line starting with `=` (or `->`) adds an option that matches nothing (defeats process-of-elimination).
 - **Letters are never authored.** The published page shuffles the options deterministically and letters them by position; the editor's key picker refers to options by their text for the same reason.
 - **Per-side images**: `![alt](https://…)` on either side becomes that side's figure (the MC choice-image contract: stripped from the text, image-only sides legal, bad URLs stay literal). **Per-side graphs**: `graph: <show-spec>` works on either side too — prefer the `->` separator on a graph line, since the formula usually contains `=`. *(Also previously documented as editor-only; corrected 2026-08-22.)*
-- `options: reuse` allows several items to share one option (categorization-style); without it each option docks on at most one item.
-- `options: confidence` asks students for a confidence rating; `solution:` is the optional worked explanation.
+- Several items may share one option (categorization-style) — always allowed; each option card copies on dock when reused.
+- `solution:` is the optional worked explanation.
 - At least two pair lines are required. Scoring is **per pair** (each item is one point).
 
 ## Ordering blocks (```order fence)
@@ -647,7 +641,7 @@ prompt: Put the steps for solving $2x + 3 = 11$ in order.
 
 - Leading list markers (`1.`, `2)`, `-`) are tolerated decoration and stripped — the listed order is the answer either way.
 - Students see the items shuffled (publish-time deterministic, never the correct order) and drag them back into sequence. Scoring is **all-or-nothing** on the exact sequence.
-- `solution:` and `options: confidence` as in the other fences.
+- `solution:` as in the other fences.
 - At least two item lines are required.
 
 ## Learning-objectives blocks (```objectives fence)

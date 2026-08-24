@@ -36,7 +36,6 @@ describe('MultipleChoiceBlock', () => {
   it('parses a minimal valid block and applies defaults', () => {
     const parsed = MultipleChoiceBlock.parse(validBlock());
     expect(parsed.multiSelect).toBe(false);
-    expect(parsed.hasConfidenceRating).toBe(false);
     expect(parsed.skills).toEqual([]);
     expect(parsed.solution).toBeUndefined();
     expect(parsed.workSpace).toBeUndefined();

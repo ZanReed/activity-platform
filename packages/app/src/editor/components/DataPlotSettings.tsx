@@ -30,7 +30,7 @@ function setNodeAttr(
 // DataPlotSettings — the data_plot block's settings, rendered as a single
 // `custom` drawer field (blockControls). The fields are interaction-dependent
 // (bin width only for histograms, tolerance only for boxplots, worked
-// solution/confidence only when graded), which the static typed-field model
+// solution only when graded), which the static typed-field model
 // can't express — so the panel branches on the live node. Replaces the block's
 // old inline "⚙ Advanced settings" disclosure; reached now via the quick-bar ⚙.
 // ============================================================================
@@ -105,21 +105,6 @@ function DataPlotSettingsPanel({
                 <div className="block-advanced-drawer__group">
                     <div className="block-advanced-drawer__group-title">Grading</div>
                     {renderSolutionField({ editor, node, pos })}
-                    <label className="block-advanced-drawer__field block-advanced-drawer__field--toggle">
-                        <input
-                            type="checkbox"
-                            checked={Boolean(node.attrs.hasConfidenceRating)}
-                            disabled={!isEditable}
-                            onChange={(e) =>
-                                setNodeAttr(editor, pos, 'hasConfidenceRating', e.target.checked)
-                            }
-                        />
-                        <span className="block-advanced-drawer__field-text">
-                            <span className="block-advanced-drawer__label">
-                                Ask for a confidence rating
-                            </span>
-                        </span>
-                    </label>
                 </div>
             )}
         </div>

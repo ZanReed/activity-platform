@@ -149,7 +149,6 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
     allowNoSolution: true,
     noSolutionCorrect: true,
-    partialCredit: true,
     builtinFeedback: true,
     mistakeFeedback: [{ match: `y = ${STR}`, feedback: sentinelInline() }],
     solution: sentinelInline(),

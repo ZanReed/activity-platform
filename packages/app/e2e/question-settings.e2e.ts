@@ -6,9 +6,9 @@ import { test, expect, type Page } from '@playwright/test';
 // The four classic question blocks (multiple_choice / fill_in_blank /
 // matching / ordering) moved their block-level settings out of inline
 // footers into the descriptor system: MC gets `Multiple answers` as a simple
-// toggle (matching gets `Reuse options`), and all four share the Grading
-// (worked solution / confidence) + Print (work space) drawer groups. The old
-// "⚙ Settings" footers are gone; a display-only summary line remains.
+// toggle, and all four share the Grading (worked solution) + Print
+// (work space) drawer groups. The old "⚙ Settings" footers are gone; a
+// display-only summary line remains.
 // ============================================================================
 
 const BAR = '.block-command-bar';
@@ -159,7 +159,7 @@ test('turning Multiple answers OFF collapses to the first correct choice', async
     expect(corrects).toEqual([true, false, false, false].slice(0, corrects.length));
 });
 
-test('the shared Grading + Print drawer works on MC (confidence + summary)', async ({
+test('the shared Grading + Print drawer works on MC (work space + summary)', async ({
     page,
 }) => {
     await insertAndSelect(page, 'insertMultipleChoice', 'multipleChoice');
@@ -170,18 +170,7 @@ test('the shared Grading + Print drawer works on MC (confidence + summary)', asy
     await expect(drawer.getByText('Print')).toBeVisible();
     await expect(drawer.getByText('Worked solution')).toBeVisible();
 
-    // Confidence toggle → attr + the block's display-only summary line.
-    await drawer
-        .getByRole('checkbox', { name: /confidence rating/ })
-        .check();
-    expect(
-        await attrOfFirst(page, 'multipleChoice', 'hasConfidenceRating'),
-    ).toBe(true);
-    await expect(
-        page.locator('.mc-block .question-settings-summary'),
-    ).toHaveText('confidence');
-
-    // Work space number → attr + summary extends.
+    // Work space number → attr + the block's display-only summary line.
     const workSpace = drawer.getByRole('spinbutton', {
         name: 'Work space (rem)',
     });
@@ -190,7 +179,7 @@ test('the shared Grading + Print drawer works on MC (confidence + summary)', asy
     expect(await attrOfFirst(page, 'multipleChoice', 'workSpace')).toBe(4);
     await expect(
         page.locator('.mc-block .question-settings-summary'),
-    ).toHaveText('confidence · work space 4rem');
+    ).toHaveText('work space 4rem');
 });
 
 test('the worked-solution rich field writes the solution attr', async ({
@@ -209,17 +198,6 @@ test('the worked-solution rich field writes the solution attr', async ({
     expect(Array.isArray(attr)).toBe(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((attr as any[])[0].text).toContain('Divide');
-});
-
-test('matching gets the Reuse options simple toggle', async ({ page }) => {
-    await insertAndSelect(page, 'insertMatching', 'matching');
-    await gear(page).click();
-    const toggle = page
-        .locator(BAR)
-        .getByRole('button', { name: 'Reuse options' });
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    expect(await attrOfFirst(page, 'matching', 'allowTargetReuse')).toBe(true);
 });
 
 test('data-plot: inline settings bar gone; settings live in the drawer', async ({

@@ -5,8 +5,8 @@ import { AxisConfig, Drawable } from './interactive-graph.js';
 
 // Multiple-choice question block. One prompt, 2+ choices, radio (single) or
 // checkbox ("select all that apply") via multiSelect. Scored all-or-nothing:
-// the selected set must equal the correct set (per-choice partial credit is a
-// future additive flag, mirroring the graph block's partialCredit precedent).
+// the selected set must equal the correct set (per-choice partial credit, if
+// ever wanted, is a future additive flag).
 //
 // Choice content is rich inline (formatted text + inline math) — the same
 // alphabet as problem prose, so math answer choices render properly. Richer
@@ -18,9 +18,9 @@ import { AxisConfig, Drawable } from './interactive-graph.js';
 // distractors are usually authored BECAUSE they're anticipated mistakes, so
 // each choice can carry an explanation shown post-check when it was selected.
 //
-// Block-level fields mirror FillInBlankBlock for parity (solution,
-// hasConfidenceRating, skills, workSpace) — one problem chrome, one runtime
-// treatment, one dashboard row shape.
+// Block-level fields mirror FillInBlankBlock for parity (solution, skills,
+// workSpace) — one problem chrome, one runtime treatment, one dashboard row
+// shape.
 //
 // Deliberately NOT schema-enforced: "at least one choice is marked correct."
 // A mid-edit draft (teacher hasn't picked the right answer yet) must still
@@ -92,7 +92,6 @@ export const MultipleChoiceBlock = z.object({
   // Worked explanation for the whole problem, revealed post-check regardless
   // of correctness (same contract as FillInBlankBlock.solution).
   solution: z.array(InlineNode).optional(),
-  hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
   // Per-problem print work-space override (rem); absent = inherit the
   // activity-level default (see FillInBlankBlock.workSpace for the CSS

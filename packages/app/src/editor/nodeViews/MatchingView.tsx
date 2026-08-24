@@ -64,10 +64,8 @@ export default function MatchingView({
     const items = (node.attrs.items as EditorMatchSide[]) ?? [];
     const targets = (node.attrs.targets as EditorMatchSide[]) ?? [];
     const key = (node.attrs.key as Record<string, string>) ?? {};
-    const allowTargetReuse = Boolean(node.attrs.allowTargetReuse);
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasSolution = solution.length > 0;
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const workSpace =
         typeof node.attrs.workSpace === 'number'
             ? (node.attrs.workSpace as number)
@@ -107,14 +105,7 @@ export default function MatchingView({
         if (targetId === '') {
             delete next[itemId];
         } else {
-            if (!allowTargetReuse) {
-                // One-to-one: the picked target leaves any other item.
-                for (const [otherItem, otherTarget] of Object.entries(next)) {
-                    if (otherTarget === targetId && otherItem !== itemId) {
-                        delete next[otherItem];
-                    }
-                }
-            }
+            // Many-to-one: several items may share a target.
             next[itemId] = targetId;
         }
         updateAttributes({ key: next });
@@ -362,7 +353,6 @@ export default function MatchingView({
                 </div>
                 <QuestionSettingsSummary
                     hasSolution={hasSolution}
-                    hasConfidenceRating={hasConfidenceRating}
                     workSpace={workSpace}
                 />
             </div>

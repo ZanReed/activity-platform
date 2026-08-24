@@ -169,14 +169,13 @@ test('P6: graph_inequality has no tolerance row; shared settings still present',
     await expect(drawer.getByText('Worked solution')).toBeVisible();
 });
 
-test('P7: display graph shows axis only — no solution/confidence/mistakes', async ({
+test('P7: display graph shows axis only — no solution/mistakes', async ({
     page,
 }) => {
     await insertGraph(page, INTERACTIONS.display);
     const drawer = await openDrawer(page);
     await expect(drawer.getByLabel('xMin')).toBeVisible();
     await expect(drawer.getByText('Worked solution')).toHaveCount(0);
-    await expect(drawer.getByText(/confidence rating/)).toHaveCount(0);
     await expect(drawer.getByText('Mistake feedback')).toHaveCount(0);
 });
 

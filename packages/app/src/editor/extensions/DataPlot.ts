@@ -144,15 +144,6 @@ export const DataPlot = Node.create({
                         ? { 'data-dataplot-solution': JSON.stringify(attrs.solution) }
                         : {},
             },
-            hasConfidenceRating: {
-                default: false,
-                parseHTML: (el) =>
-                    el.getAttribute('data-has-confidence-rating') === 'true',
-                renderHTML: (attrs) =>
-                    attrs.hasConfidenceRating
-                        ? { 'data-has-confidence-rating': 'true' }
-                        : {},
-            },
             skills: {
                 default: [] as string[],
                 parseHTML: (el) =>
@@ -204,7 +195,6 @@ export const DataPlot = Node.create({
                                 config: fresh.config,
                                 interaction: fresh.interaction,
                                 solution: null,
-                                hasConfidenceRating: false,
                                 skills: [],
                             },
                         })

@@ -839,7 +839,6 @@ function fillInBlankNode(content: JSONContent[]): JSONContent {
         attrs: {
             id: crypto.randomUUID(),
             solution: null,
-            hasConfidenceRating: false,
             skills: [],
             workSpace: null,
         },
@@ -1263,7 +1262,7 @@ function removeLast(arr: string[], value: string): void {
 //   prompt: Graph the inequality.
 //   answer: y > 2x + 1
 //   show: point (2, 3) closed
-//   options: partial-credit, allow-no-solution
+//   options: allow-no-solution
 //   ```
 //
 // answer forms: an equation (plot_function), an inequality (graph_inequality),
@@ -1494,7 +1493,6 @@ function inlineSchemaContent(placeholdered: string, ctx: Ctx): InlineNode[] {
 //   ( ) 3 :: Check your addition.     (a choice; optional "::" feedback)
 //   (x) 4                             (x marks a correct choice)
 //   solution: Add the ones.           (optional worked solution)
-//   options: confidence               (optional flags)
 // Parens ( ) author a single-answer question; square brackets [ ] author
 // "select all that apply". Mixing is tolerated: ANY square bracket — or more
 // than one correct choice — makes the block multi-select (a single-select
@@ -1509,7 +1507,6 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
-    let hasConfidenceRating = false;
     let sawSquare = false;
     const choices: {
         id: string;
@@ -1606,8 +1603,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                 for (const opt of value
                     .split(',')
                     .map((o) => o.trim().toLowerCase())) {
-                    if (opt === 'confidence') hasConfidenceRating = true;
-                    else if (opt) return fail(`unknown option "${opt}"`);
+                    if (opt) return fail(`unknown option "${opt}"`);
                 }
                 break;
         }
@@ -1627,7 +1623,6 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             choices,
             multiSelect,
             solution,
-            hasConfidenceRating,
             skills: [],
             workSpace: null,
         },
@@ -1666,7 +1661,6 @@ function extractSideImage(body: string): {
 //                               contain "=")
 //   = 0                        (option-only line: a distractor)
 //   solution: Read off the x coefficient.
-//   options: confidence, reuse
 //
 // The separator is the LAST unescaped " = " on the line (so equation items
 // like "y = 2x + 1 = A" split before the final term), or the FIRST " -> "
@@ -1682,8 +1676,6 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
-    let hasConfidenceRating = false;
-    let allowTargetReuse = false;
     type Side = {
         id: string;
         content: InlineNode[];
@@ -1736,9 +1728,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
                     for (const opt of value
                         .split(',')
                         .map((o) => o.trim().toLowerCase())) {
-                        if (opt === 'confidence') hasConfidenceRating = true;
-                        else if (opt === 'reuse') allowTargetReuse = true;
-                        else if (opt) return fail(`unknown option "${opt}"`);
+                        if (opt) return fail(`unknown option "${opt}"`);
                     }
                     break;
             }
@@ -1796,9 +1786,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
             items,
             targets,
             key,
-            allowTargetReuse,
             solution,
-            hasConfidenceRating,
             skills: [],
             workSpace: null,
         },
@@ -1814,7 +1802,6 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
 //   2. Divide both sides by 2
 //   3. Check the solution
 //   solution: Undo operations in reverse.
-//   options: confidence
 function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
     const fail = (msg: string): null => {
         ctx.warnings.add('Ordering block: ' + msg + ' — imported as plain text.');
@@ -1823,7 +1810,6 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
-    let hasConfidenceRating = false;
     const items: { id: string; content: InlineNode[] }[] = [];
 
     for (const rawLine of src.split('\n')) {
@@ -1844,8 +1830,7 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
                     for (const opt of value
                         .split(',')
                         .map((o) => o.trim().toLowerCase())) {
-                        if (opt === 'confidence') hasConfidenceRating = true;
-                        else if (opt) return fail(`unknown option "${opt}"`);
+                        if (opt) return fail(`unknown option "${opt}"`);
                     }
                     break;
             }
@@ -1865,7 +1850,6 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
             id: '',
             items,
             solution,
-            hasConfidenceRating,
             skills: [],
             workSpace: null,
         },
@@ -3024,7 +3008,6 @@ function joinKeyLines(lines: string[], ctx: Ctx): InlineNode[] | null {
 //                                           constructs the chart of the data)
 //   show: boxplot                          (OR a static ungraded chart)
 //   solution: Count each value's dots.     (optional)
-//   options: confidence                    (optional)
 // Exactly one of answer:/show:. The correct plot is COMPUTED from the data
 // (schema decision 3a) — there is no separately-authored key. A box-plot answer
 // takes an optional trailing "tolerance <n>" (line units, default 0.5); the
@@ -3038,7 +3021,6 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
-    let hasConfidenceRating = false;
     const data: number[] = [];
     let axis: { min: number; max: number } | null = null;
     let step = 1;
@@ -3064,8 +3046,7 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
                 break;
             case 'options':
                 for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
-                    if (opt === 'confidence') hasConfidenceRating = true;
-                    else if (opt) return fail(`unknown option "${opt}"`);
+                    if (opt) return fail(`unknown option "${opt}"`);
                 }
                 break;
             case 'data': {
@@ -3156,7 +3137,6 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
             config: { min, max, tickStep: step, minorTicksPerStep: 0, snapToTick: true },
             interaction,
             solution,
-            hasConfidenceRating,
             skills: [],
         },
         content: graphPromptContent(prompt, ctx),
@@ -3169,7 +3149,6 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
 //   answer: x >= -2                       (an inequality → an interval/ray)
 //   axis: -10..10 step 2                  (optional; omitted → auto-fit)
 //   solution: A closed dot means "or equal to".
-//   options: confidence
 // The answer is EITHER a point list — bare numbers, "answer: -3, 4" — OR a
 // single/compound inequality that becomes an interval or ray:
 //   x >= 3        min 3 closed, no max  (ray → +∞)
@@ -3188,7 +3167,6 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
-    let hasConfidenceRating = false;
     let axis: { min: number; max: number } | null = null;
     let step = 1;
     let interaction: Record<string, unknown> | null = null;
@@ -3211,8 +3189,7 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
                 break;
             case 'options':
                 for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
-                    if (opt === 'confidence') hasConfidenceRating = true;
-                    else if (opt) return fail(`unknown option "${opt}"`);
+                    if (opt) return fail(`unknown option "${opt}"`);
                 }
                 break;
             case 'axis': {
@@ -3292,7 +3269,6 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
             config: { min, max, tickStep: step, minorTicksPerStep: 0, snapToTick: true },
             interaction,
             solution,
-            hasConfidenceRating,
             skills: [],
         },
         content: graphPromptContent(prompt, ctx),
@@ -3443,7 +3419,6 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     let interaction: Record<string, unknown> | null = null;
     const drawables: Record<string, unknown>[] = [];
     let prompt = '';
-    let partialCredit = false;
     let allowNoSolution = false;
     let noSolutionCorrect = false;
     let builtinFeedback = true;
@@ -3489,8 +3464,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             }
             case 'options':
                 for (const opt of value.split(',').map((o) => o.trim().toLowerCase())) {
-                    if (opt === 'partial-credit') partialCredit = true;
-                    else if (opt === 'allow-no-solution') allowNoSolution = true;
+                    if (opt === 'allow-no-solution') allowNoSolution = true;
                     else if (opt === 'no-solution-correct') { allowNoSolution = true; noSolutionCorrect = true; }
                     else if (opt === 'no-builtin-feedback') builtinFeedback = false;
                     else if (opt) return fail(`unknown option "${opt}"`);
@@ -3574,12 +3548,10 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             axisConfig: axis,
             interaction: finalInteraction,
             solution: null,
-            partialCredit,
             allowNoSolution,
             noSolutionCorrect,
             builtinFeedback,
             mistakeFeedback: mistakes,
-            hasConfidenceRating: false,
             skills: [],
         },
         content: graphPromptContent(prompt, ctx),

@@ -21,8 +21,8 @@ import type { GraphAxisConfig, DrawableAttr } from './InteractiveGraph';
 //   - choices: Array<{ id, content: InlineNode[], correct, feedback? }> —
 //     canonical schema shape, opaque JSON here.
 //   - multiSelect: single answer (radios) vs select-all-that-apply.
-//   - solution / hasConfidenceRating / skills / workSpace: block-level
-//     fields identical to FillInBlank's (same settings footer UI).
+//   - solution / skills / workSpace: block-level fields identical to
+//     FillInBlank's (same settings footer UI).
 // ============================================================================
 
 export interface EditorMcChoice {
@@ -129,15 +129,6 @@ export const MultipleChoice = Node.create({
                         ? { 'data-solution': JSON.stringify(v) }
                         : {};
                 },
-            },
-            hasConfidenceRating: {
-                default: false,
-                parseHTML: (element) =>
-                    element.getAttribute('data-has-confidence-rating') === 'true',
-                renderHTML: (attributes) =>
-                    attributes.hasConfidenceRating
-                        ? { 'data-has-confidence-rating': 'true' }
-                        : {},
             },
             skills: {
                 default: [] as string[],

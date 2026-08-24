@@ -160,7 +160,6 @@ export default function NumberLineView({
     const config = node.attrs.config as NumberLineConfigAttr;
     const interaction = node.attrs.interaction as NumberLineInteractionAttr;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const sizing = readSizingAttrs(node.attrs);
     const isEditable = editor.isEditable;
 
@@ -362,7 +361,6 @@ export default function NumberLineView({
             {!preview && (
                 <QuestionSettingsSummary
                     hasSolution={solution.length > 0}
-                    hasConfidenceRating={hasConfidenceRating}
                     workSpace={null}
                 />
             )}

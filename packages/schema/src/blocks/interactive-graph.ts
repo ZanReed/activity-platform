@@ -218,9 +218,9 @@ export const GraphInteraction = z.discriminatedUnion('type', [
 export type GraphInteraction = z.infer<typeof GraphInteraction>;
 
 // ---- The block --------------------------------------------------------------
-// Auto-numbered like ProblemBlock / FillInBlankBlock. hasConfidenceRating +
-// skills follow the same opt-in patterns FillInBlankBlock established; solution
-// is shown post-check regardless of correctness.
+// Auto-numbered like ProblemBlock / FillInBlankBlock. skills follows the same
+// opt-in pattern FillInBlankBlock established; solution is shown post-check
+// regardless of correctness.
 export const InteractiveGraphBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('interactive_graph'),
@@ -229,12 +229,6 @@ export const InteractiveGraphBlock = z.object({
   prompt: z.array(InlineNode),
   axisConfig: AxisConfig,
   interaction: GraphInteraction,
-  // When true, a multi-part graph (several points, a system of curves/regions,
-  // or — from Drop 4 — an inequality's line + side + style) scores fractionally
-  // per object and the dashboard itemizes it; when false (default) it is all-or-
-  // nothing. The flag + the kit's per-object scoring engine land here (Drop 2);
-  // the runtime + submission consume the fraction at the Drop 4 wire bump.
-  partialCredit: z.boolean().default(false),
   // When true, the student gets a "cannot be graphed / no solution" choice, and
   // the answer key may mark THAT as the correct answer (trick questions). The
   // flag lands here (Drop 2); the student control + no-solution response ride the
@@ -262,7 +256,6 @@ export const InteractiveGraphBlock = z.object({
     feedback: z.array(InlineNode),
   })).default([]),
   solution: z.array(InlineNode).optional(),
-  hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   // Author-set display footprint for the figure; renderer honors it via the

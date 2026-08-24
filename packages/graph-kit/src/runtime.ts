@@ -97,7 +97,6 @@ export interface GraphChromeRef {
   confidenceRadios: HTMLInputElement[];
   config: unknown;
   answerKey: unknown;
-  partialCredit: boolean;
   allowNoSolution: boolean;
   noSolutionCorrect: boolean;
   mistakes: string[];
@@ -161,7 +160,6 @@ export function buildGraphChrome(
       blockId,
       'data-graph-answer-key',
     ),
-    partialCredit: el.dataset.graphPartialCredit === 'true',
     allowNoSolution: el.dataset.graphAllowNoSolution === 'true',
     noSolutionCorrect: el.dataset.graphNoSolutionCorrect === 'true',
     mistakes,
@@ -335,7 +333,6 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
       interactionType: chrome.interactionType,
       axisConfig: chrome.config,
       answerKey: chrome.answerKey,
-      partialCredit: chrome.partialCredit,
       allowNoSolution: chrome.allowNoSolution,
       noSolutionCorrect: chrome.noSolutionCorrect,
       mistakes: chrome.mistakes,

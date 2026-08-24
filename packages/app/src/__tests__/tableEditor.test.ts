@@ -215,7 +215,6 @@ describe('Q14 — a blank id is unique, however the duplicate arrives', () => {
                 { type: 'text' as const, text: 'x = ', marks: [] },
                 createBlankToken('4'),
             ],
-            hasConfidenceRating: false,
             skills: [],
         };
         doc.sections[0]!.rows = [

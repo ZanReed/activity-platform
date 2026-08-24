@@ -334,7 +334,14 @@ describe('the declaration is where it is for a reason', () => {
     // than a declaration, this test staying green is the warning sign, not the
     // all-clear. Bump SANITIZER_ALGO_REV by hand — that is the only thing that
     // orphans the cache. Same redeploy discipline as every move above.
-    expect(SANITIZER_REV).toBe('2-59a68ddc');
+    //
+    // MOVED AGAIN 2026-08-24, deliberately: '2-59a68ddc' → '2-aa0152c4'. The
+    // schema dropped `partialCredit` from interactive_graph, so its registry
+    // strip entry (and the sanitized-types Omit) went with it — a declaration
+    // change, the hash recomputed itself, the mechanism working. Both server
+    // bundles regenerate in the same commit; get-activity redeploy queued as a
+    // pending author action.
+    expect(SANITIZER_REV).toBe('2-aa0152c4');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

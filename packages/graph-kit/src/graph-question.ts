@@ -16,7 +16,6 @@
 
 import {
   scorePoints,
-  scorePointsPartial,
   scoreFunction,
   scoreRegion,
   scoreInequalityParts,
@@ -430,8 +429,6 @@ export interface GraphQuestionConfig {
     /** shade_region polygon vertices. Defaults to 3. */
     vertexCount?: number;
   };
-  /** Per-part fractional scoring (Drop 4). earned/total ride the response. */
-  partialCredit?: boolean;
   /** Offer a "cannot be graphed / no solution" choice (Drop 4). */
   allowNoSolution?: boolean;
   /** Trick question: no-solution IS the correct answer (Drop 4). */
@@ -446,7 +443,7 @@ export interface GraphQuestionConfig {
 // What the widget reports on every change and at gather time. `answered` lets
 // the runtime distinguish "student engaged" from the untouched starting point.
 // The Drop 4 optionals: strict/side for graph_inequality, noSolution when the
-// student chose "cannot be graphed", earned/total under partialCredit.
+// student chose "cannot be graphed".
 export interface GraphResponseData {
   studentPoints: [number, number][];
   /** In ungraded mode this is always false and MEANINGLESS — read `scored`
@@ -825,19 +822,11 @@ export async function mountGraphQuestion(
     if (noSolution) {
       resp.noSolution = true;
       resp.correct = cfg.noSolutionCorrect === true;
-      if (cfg.partialCredit) {
-        resp.earned = resp.correct ? 1 : 0;
-        resp.total = 1;
-      }
       return resp;
     }
     if (cfg.noSolutionCorrect === true) {
       // Trick question: anything drawn is wrong by definition.
       resp.correct = false;
-      if (cfg.partialCredit) {
-        resp.earned = 0;
-        resp.total = 1;
-      }
       return resp;
     }
     if ((isRay && rayKey) || (isSegment && segmentKey)) {
@@ -855,17 +844,9 @@ export async function mountGraphQuestion(
       if (isRay && rayKey) {
         const parts = scoreRayParts(rayKey, ans);
         resp.correct = parts.shape && parts.placement && parts.style;
-        if (cfg.partialCredit) {
-          resp.earned = Number(parts.shape) + Number(parts.placement) + Number(parts.style);
-          resp.total = 3;
-        }
       } else if (segmentKey) {
         const parts = scoreSegmentParts(segmentKey, ans);
         resp.correct = parts.earned === parts.total;
-        if (cfg.partialCredit) {
-          resp.earned = parts.earned;
-          resp.total = parts.total;
-        }
       }
       return resp;
     }
@@ -877,10 +858,6 @@ export async function mountGraphQuestion(
       // An unpicked side is an unanswered part, never a lucky default.
       const sideOk = side !== null && parts.side;
       resp.correct = parts.boundary && sideOk && parts.style;
-      if (cfg.partialCredit) {
-        resp.earned = Number(parts.boundary) + Number(sideOk) + Number(parts.style);
-        resp.total = 3;
-      }
       return resp;
     }
     resp.correct = recipe.scorer(pts);
@@ -894,21 +871,7 @@ export async function mountGraphQuestion(
       const dp = scoreDomainParts(domainKey, ans);
       const curveOk = resp.correct;
       resp.correct = curveOk && dp.earned === dp.total;
-      if (cfg.partialCredit) {
-        resp.earned = Number(curveOk) + dp.earned;
-        resp.total = 1 + dp.total;
-      }
       return resp;
-    }
-    if (cfg.partialCredit) {
-      if (interactionType === 'plot_point') {
-        const partial = scorePointsPartial(readAnswerKey(cfg.answerKey), pts);
-        resp.earned = partial.earned;
-        resp.total = partial.total;
-      } else {
-        resp.earned = resp.correct ? 1 : 0;
-        resp.total = 1;
-      }
     }
     return resp;
   }
@@ -1135,7 +1098,7 @@ export async function mountGraphQuestion(
 // per-boundary control row (solid/dotted + shade side); the overlapping
 // translucent shades render the running intersection. Reports the N-boundary
 // answer as GraphResponseData.parts, scored order-independently, match-all by
-// scoreInequalitySystem, honoring the block's partialCredit flag (matched / N).
+// scoreInequalitySystem.
 // The single-inequality path (mountGraphQuestion) is untouched — N=1 never
 // reaches here; the runtime routes by inequalities.length.
 export async function mountGraphSystemQuestion(
@@ -1207,10 +1170,6 @@ export async function mountGraphSystemQuestion(
       answered,
       parts,
     };
-    if (cfg.partialCredit) {
-      resp.earned = sys.earned;
-      resp.total = sys.total;
-    }
     return resp;
   }
 
@@ -1417,9 +1376,9 @@ export async function mountGraphSystemQuestion(
 // lines"). Mounts N draggable curves on ONE shared plane (createSystemAnswerBoard
 // with NO shade/control bar — curves, not boundaries; the student just places
 // each curve's handles). Reports the N-curve answer as GraphResponseData.curveParts,
-// scored order-independently, match-all by scoreFunctionSystem (matched / N under
-// partialCredit). N=1 never reaches here; the runtime routes by models.length, so
-// a single curve stays the unchanged mountGraphQuestion.
+// scored order-independently, match-all by scoreFunctionSystem. N=1 never
+// reaches here; the runtime routes by models.length, so a single curve stays
+// the unchanged mountGraphQuestion.
 export async function mountGraphFunctionSystemQuestion(
   mount: HTMLElement,
   rawConfig: unknown,
@@ -1462,10 +1421,6 @@ export async function mountGraphFunctionSystemQuestion(
       answered,
       curveParts,
     };
-    if (cfg.partialCredit) {
-      resp.earned = sys.earned;
-      resp.total = sys.total;
-    }
     return resp;
   }
 

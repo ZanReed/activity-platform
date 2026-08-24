@@ -232,7 +232,6 @@ describe('blanks → fillInBlank', () => {
                 type: 'fillInBlank',
                 attrs: {
                     solution: null,
-                    hasConfidenceRating: false,
                     skills: [],
                     workSpace: null,
                 },
@@ -519,17 +518,24 @@ describe('multiple-choice fence (```mc)', () => {
         expect(blocks[0]!.attrs).toMatchObject({ multiSelect: true });
     });
 
-    it('solution and options: confidence carry through', () => {
+    it('solution carries through', () => {
         const { blocks } = convert(
-            '```mc\nprompt: Pick.\n(x) yes\n( ) no\nsolution: Because $x = 1$.\noptions: confidence\n```',
+            '```mc\nprompt: Pick.\n(x) yes\n( ) no\nsolution: Because $x = 1$.\n```',
         );
         const mc = blocks[0]!;
-        expect(mc.attrs).toMatchObject({ hasConfidenceRating: true });
         expect(mc.attrs!.solution).toEqual([
             { type: 'text', text: 'Because ', marks: [] },
             { type: 'math_inline', latex: 'x = 1' },
             { type: 'text', text: '.', marks: [] },
         ]);
+    });
+
+    it('the retired options: confidence degrades with an unknown-option warning', () => {
+        const { blocks, warnings } = convert(
+            '```mc\nprompt: Pick.\n(x) yes\n( ) no\noptions: confidence\n```',
+        );
+        expect(blocks[0]!.type).not.toBe('multipleChoice');
+        expect(warnings.some((w) => w.includes('unknown option "confidence"'))).toBe(true);
     });
 
     it('no correct choice degrades to plain text with a warning', () => {
@@ -641,17 +647,21 @@ describe('matching fence (```match)', () => {
         expect(items[0]!.content).toEqual([{ type: 'text', text: 'a = b', marks: [] }]);
     });
 
-    it('options: reuse + confidence and solution carry through', () => {
+    it('solution carries through', () => {
         const { blocks } = convert(
-            '```match\na = 1\nb = 1\nsolution: Same slope.\noptions: reuse, confidence\n```',
+            '```match\na = 1\nb = 1\nsolution: Same slope.\n```',
         );
-        expect(blocks[0]!.attrs).toMatchObject({
-            allowTargetReuse: true,
-            hasConfidenceRating: true,
-        });
         expect(blocks[0]!.attrs!.solution).toEqual([
             { type: 'text', text: 'Same slope.', marks: [] },
         ]);
+    });
+
+    it('the retired options: reuse and confidence degrade with an unknown-option warning', () => {
+        const { blocks, warnings } = convert(
+            '```match\na = 1\nb = 1\noptions: reuse, confidence\n```',
+        );
+        expect(blocks[0]!.type).not.toBe('matching');
+        expect(warnings.some((w) => w.includes('unknown option "reuse"'))).toBe(true);
     });
 
     it('an image on a side becomes that side\'s figure', () => {
@@ -705,11 +715,21 @@ describe('ordering fence (```order)', () => {
         ]);
     });
 
-    it('solution and options: confidence carry through', () => {
+    it('solution carries through', () => {
         const { blocks } = convert(
-            '```order\na\nb\nsolution: Reverse the operations.\noptions: confidence\n```',
+            '```order\na\nb\nsolution: Reverse the operations.\n```',
         );
-        expect(blocks[0]!.attrs).toMatchObject({ hasConfidenceRating: true });
+        expect(blocks[0]!.attrs!.solution).toEqual([
+            { type: 'text', text: 'Reverse the operations.', marks: [] },
+        ]);
+    });
+
+    it('the retired options: confidence degrades with an unknown-option warning', () => {
+        const { blocks, warnings } = convert(
+            '```order\na\nb\noptions: confidence\n```',
+        );
+        expect(blocks[0]!.type).not.toBe('ordering');
+        expect(warnings.some((w) => w.includes('unknown option "confidence"'))).toBe(true);
     });
 
     it('fewer than two items degrades with a warning', () => {
@@ -732,7 +752,6 @@ describe('data-plot fence (```dataplot)', () => {
             interaction: { type: 'build_dotplot' },
             // auto-fit: floor(3)..ceil(8) at the default step 1
             config: { min: 3, max: 8, tickStep: 1, snapToTick: true },
-            hasConfidenceRating: false,
         });
         expect(plot.content).toEqual([
             { type: 'text', text: 'Make a dot plot of ' },
@@ -794,14 +813,21 @@ describe('data-plot fence (```dataplot)', () => {
         expect(blocks[0]!.attrs).toMatchObject({ data: [1, 2, 3, 4, 5] });
     });
 
-    it('solution and options: confidence carry through', () => {
+    it('solution carries through', () => {
         const { blocks } = convert(
-            '```dataplot\ndata: 1, 2\nanswer: dotplot\nsolution: Stack a dot per value.\noptions: confidence\n```',
+            '```dataplot\ndata: 1, 2\nanswer: dotplot\nsolution: Stack a dot per value.\n```',
         );
-        expect(blocks[0]!.attrs).toMatchObject({ hasConfidenceRating: true });
         expect(blocks[0]!.attrs!.solution).toEqual([
             { type: 'text', text: 'Stack a dot per value.', marks: [] },
         ]);
+    });
+
+    it('the retired options: confidence degrades with an unknown-option warning', () => {
+        const { blocks, warnings } = convert(
+            '```dataplot\ndata: 1, 2\nanswer: dotplot\noptions: confidence\n```',
+        );
+        expect(blocks[0]!.type).not.toBe('dataPlot');
+        expect(warnings.some((w) => w.includes('unknown option "confidence"'))).toBe(true);
     });
 
     it('data outside an explicit axis window imports with a warning', () => {
@@ -863,7 +889,7 @@ describe('data-plot fence (```dataplot)', () => {
 
     it('the imported block survives the schema bridge and Zod-validates', () => {
         const md =
-            '```dataplot\nprompt: Build the box plot.\ndata: 1, 2, 4, 6, 7\nanswer: boxplot tolerance 1\nsolution: Order the data first.\noptions: confidence\n```';
+            '```dataplot\nprompt: Build the box plot.\ndata: 1, 2, 4, 6, 7\nanswer: boxplot tolerance 1\nsolution: Order the data first.\n```';
         // The save-boundary path: Tiptap doc → ActivityDocument → Zod parse.
         const doc = { type: 'doc', content: convert(md).blocks };
         const activity = tiptapToActivity(doc, META);
@@ -938,14 +964,21 @@ describe('number-line fence (```numberline)', () => {
         });
     });
 
-    it('solution and options: confidence carry through', () => {
+    it('solution carries through', () => {
         const nl = convert(
-            '```numberline\nanswer: 5\nsolution: A dot marks the value.\noptions: confidence\n```',
+            '```numberline\nanswer: 5\nsolution: A dot marks the value.\n```',
         ).blocks[0]!;
-        expect(nl.attrs).toMatchObject({ hasConfidenceRating: true });
         expect(nl.attrs!.solution).toEqual([
             { type: 'text', text: 'A dot marks the value.', marks: [] },
         ]);
+    });
+
+    it('the retired options: confidence degrades with an unknown-option warning', () => {
+        const { blocks, warnings } = convert(
+            '```numberline\nanswer: 5\noptions: confidence\n```',
+        );
+        expect(blocks[0]!.type).not.toBe('numberLine');
+        expect(warnings.some((w) => w.includes('unknown option "confidence"'))).toBe(true);
     });
 
     it('an answer value outside an explicit window imports with a warning', () => {
@@ -958,7 +991,7 @@ describe('number-line fence (```numberline)', () => {
 
     it('the imported block survives the schema bridge and Zod-validates', () => {
         const md =
-            '```numberline\nprompt: Graph the solution.\nanswer: -2 <= x < 5\nsolution: Note the endpoints.\noptions: confidence\n```';
+            '```numberline\nprompt: Graph the solution.\nanswer: -2 <= x < 5\nsolution: Note the endpoints.\n```';
         const doc = { type: 'doc', content: convert(md).blocks };
         const activity = tiptapToActivity(doc, META);
         const block = activity.sections
@@ -1332,16 +1365,23 @@ describe('schema round-trip', () => {
 
 describe('```graph fence (Drop 7)', () => {
     it('imports a graded line with axes + prompt + options', () => {
-        const md = '```graph\naxes: -5..5, -5..5\nprompt: Graph the line.\nanswer: 2x + 3y = 6\noptions: partial-credit\n```';
+        const md = '```graph\naxes: -5..5, -5..5\nprompt: Graph the line.\nanswer: 2x + 3y = 6\noptions: allow-no-solution\n```';
         const { blocks, warnings } = convert(md);
         expect(warnings).toEqual([]);
         const g = blocks.find((b) => b.type === 'interactiveGraph')!;
         expect(g.attrs!.axisConfig.xMin).toBe(-5);
-        expect(g.attrs!.partialCredit).toBe(true);
+        expect(g.attrs!.allowNoSolution).toBe(true);
         const models = g.attrs!.interaction.models;
         expect(models[0].family).toBe('linear');
         expect(models[0].slope).toBeCloseTo(-2 / 3, 4);
         expect(g.content).toEqual([{ type: 'text', text: 'Graph the line.' }]);
+    });
+
+    it('the retired options: partial-credit degrades with an unknown-option warning', () => {
+        const md = '```graph\nanswer: y = 2x + 1\noptions: partial-credit\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => w.includes('unknown option "partial-credit"'))).toBe(true);
     });
 
     it('imports an inequality answer', () => {

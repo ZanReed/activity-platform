@@ -456,7 +456,7 @@ export type InlineNode = z.infer<typeof InlineNode>;
 // because the renderer has a sensible default (~6 chars).
 //
 // hint and mistakeFeedback are the per-blank feedback layers (block-level
-// fields — solution, hasConfidenceRating, skills — live on FillInBlankBlock).
+// fields — solution, skills — live on FillInBlankBlock).
 // Both carry rich inline content (InlineNode[]: formatted text + inline math)
 // so feedback can include the same formatting and math as problem prose.
 // The runtime reads both at init but does NOT inject anything into the DOM

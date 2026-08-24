@@ -418,7 +418,6 @@ export default function InteractiveGraphView({
     const interaction = node.attrs.interaction as GraphInteraction;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const sizing = readSizingAttrs(node.attrs);
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const isEditable = editor.isEditable;
 
     const isDisplay = interaction.type === 'display';
@@ -428,8 +427,6 @@ export default function InteractiveGraphView({
     const mistakeCount = ((node.attrs.mistakeFeedback ?? []) as unknown[]).length;
     const graphSummary = [
         solution.length > 0 && 'solution',
-        hasConfidenceRating && 'confidence',
-        Boolean(node.attrs.partialCredit) && 'partial credit',
         Boolean(node.attrs.allowNoSolution) && 'no-solution option',
         mistakeCount > 0 &&
             `${mistakeCount} mistake ${mistakeCount === 1 ? 'hint' : 'hints'}`,

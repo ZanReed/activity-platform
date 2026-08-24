@@ -772,7 +772,6 @@ function tiptapFillInBlankToActivity(node: JSONContent): FillInBlankBlock {
         id: crypto.randomUUID(),
         type: 'fill_in_blank',
         content: tiptapFillInBlankInlineToActivity(node.content ?? []),
-        hasConfidenceRating: Boolean(node.attrs?.hasConfidenceRating),
         skills: Array.isArray(node.attrs?.skills)
         ? (node.attrs.skills as unknown[]).filter(
             (s): s is string => typeof s === 'string',
@@ -857,7 +856,6 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
         // Omitted when off, so a question that never touched this setting
         // serializes exactly as it did before the flag existed (D17A).
         ...(attrs.lockChoiceOrder === true ? { lockChoiceOrder: true } : {}),
-        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter(
                   (s): s is string => typeof s === 'string',
@@ -921,14 +919,10 @@ function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
     const targets = sanitizeMatchSides(attrs.targets);
     while (targets.length < 2) targets.push(createMatchingTarget());
 
-    const allowTargetReuse = attrs.allowTargetReuse === true;
-
-    // Key: keep only entries whose item AND target actually exist; without
-    // reuse, additionally keep only the first item using each target (the
+    // Key: keep only entries whose item AND target actually exist (the
     // NodeView enforces this live — this is the save-boundary backstop).
     const itemIds = new Set(items.map((i) => i.id));
     const targetIds = new Set(targets.map((t) => t.id));
-    const usedTargets = new Set<string>();
     const key: Record<string, string> = {};
     const rawKey =
         attrs.key && typeof attrs.key === 'object' && !Array.isArray(attrs.key)
@@ -937,10 +931,8 @@ function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
     for (const item of items) {
         const t = rawKey[item.id];
         if (typeof t !== 'string' || !targetIds.has(t)) continue;
-        if (!allowTargetReuse && usedTargets.has(t)) continue;
         if (!itemIds.has(item.id)) continue;
         key[item.id] = t;
-        usedTargets.add(t);
     }
 
     const block: MatchingBlock = {
@@ -950,8 +942,6 @@ function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
         items,
         targets,
         key,
-        allowTargetReuse,
-        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter(
                   (s): s is string => typeof s === 'string',
@@ -994,7 +984,6 @@ function tiptapOrderingToActivity(node: JSONContent): OrderingBlock {
         type: 'ordering',
         prompt: tiptapInlineToActivity(node.content ?? []),
         items,
-        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter(
                   (s): s is string => typeof s === 'string',
@@ -1027,13 +1016,11 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
         // dropped them. The schema Zod-validates on the save boundary.
         axisConfig: (attrs.axisConfig as InteractiveGraphBlock['axisConfig']) ?? fresh.axisConfig,
         interaction: (attrs.interaction as InteractiveGraphBlock['interaction']) ?? fresh.interaction,
-        partialCredit: Boolean(attrs.partialCredit),
         allowNoSolution: Boolean(attrs.allowNoSolution),
         noSolutionCorrect: Boolean(attrs.noSolutionCorrect),
         // Built-in mistake classifiers default ON (absent attr = true).
         builtinFeedback: attrs.builtinFeedback !== false,
         mistakeFeedback: sanitizeMistakeFeedback(attrs.mistakeFeedback),
-        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
             : [],
@@ -1078,7 +1065,6 @@ function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
         // schema Zod-validates on the save boundary.
         config: (attrs.config as NumberLineBlock['config']) ?? fresh.config,
         interaction: (attrs.interaction as NumberLineBlock['interaction']) ?? fresh.interaction,
-        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
             : [],
@@ -1106,7 +1092,6 @@ function tiptapDataPlotToActivity(node: JSONContent): DataPlotBlock {
             : fresh.data,
         config: (attrs.config as DataPlotBlock['config']) ?? fresh.config,
         interaction: (attrs.interaction as DataPlotBlock['interaction']) ?? fresh.interaction,
-        hasConfidenceRating: Boolean(attrs.hasConfidenceRating),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
             : [],
@@ -1694,7 +1679,6 @@ function activityFillInBlankToTiptap(block: FillInBlankBlock): JSONContent {
         attrs: {
             id: block.id,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
             // `label` is attached centrally by applyLabelToNode (dispatcher wrapper).
@@ -1714,7 +1698,6 @@ function activityMultipleChoiceToTiptap(block: MultipleChoiceBlock): JSONContent
             multiSelect: block.multiSelect,
             lockChoiceOrder: block.lockChoiceOrder === true,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
         },
@@ -1732,9 +1715,7 @@ function activityMatchingToTiptap(block: MatchingBlock): JSONContent {
             items: block.items,
             targets: block.targets,
             key: block.key,
-            allowTargetReuse: block.allowTargetReuse,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
         },
@@ -1749,7 +1730,6 @@ function activityOrderingToTiptap(block: OrderingBlock): JSONContent {
             id: block.id,
             items: block.items,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
         },
@@ -1764,13 +1744,11 @@ function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONCon
             id: block.id,
             axisConfig: block.axisConfig,
             interaction: block.interaction,
-            partialCredit: block.partialCredit,
             allowNoSolution: block.allowNoSolution,
             noSolutionCorrect: block.noSolutionCorrect,
             builtinFeedback: block.builtinFeedback,
             mistakeFeedback: block.mistakeFeedback,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             ...sizingTiptapAttrs(block),
         },
@@ -1786,7 +1764,6 @@ function activityNumberLineToTiptap(block: NumberLineBlock): JSONContent {
             config: block.config,
             interaction: block.interaction,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             ...sizingTiptapAttrs(block),
         },
@@ -1803,7 +1780,6 @@ function activityDataPlotToTiptap(block: DataPlotBlock): JSONContent {
             config: block.config,
             interaction: block.interaction,
             solution: block.solution ?? null,
-            hasConfidenceRating: block.hasConfidenceRating,
             skills: block.skills,
             ...sizingTiptapAttrs(block),
         },

@@ -95,12 +95,11 @@ export const NumberLineInteraction = z.discriminatedUnion('type', [
 export type NumberLineInteraction = z.infer<typeof NumberLineInteraction>;
 
 // ---- The block --------------------------------------------------------------
-// Auto-numbered like the other question blocks. hasConfidenceRating + skills +
-// solution follow the same opt-in patterns FillInBlankBlock / InteractiveGraph
-// established. Deliberately LEAN for slice 1 (no partialCredit / allowNoSolution
-// / mistakeFeedback) — all-or-nothing scoring (design decision 6); those fields
-// are additive later if asked for (YAGNI), exactly as the graph block reserved
-// them across drops.
+// Auto-numbered like the other question blocks. skills + solution follow the
+// same opt-in patterns FillInBlankBlock / InteractiveGraph established.
+// Deliberately LEAN for slice 1 (no allowNoSolution / mistakeFeedback) —
+// all-or-nothing scoring (design decision 6); those fields are additive later
+// if asked for (YAGNI), exactly as the graph block reserved them across drops.
 export const NumberLineBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('number_line'),
@@ -110,7 +109,6 @@ export const NumberLineBlock = z.object({
   config: NumberLineConfig,
   interaction: NumberLineInteraction,
   solution: z.array(InlineNode).optional(),
-  hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   // Additive/optional — no schemaVersion bump.

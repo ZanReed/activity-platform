@@ -8,8 +8,8 @@ import type { InlineNodes } from '../../lib/serialize';
 // QuestionSettings — the shared block-level settings of the four classic
 // question blocks (multiple_choice, fill_in_blank, matching, ordering).
 // ----------------------------------------------------------------------------
-// All four carry the identical trio: `solution` (a worked explanation revealed
-// post-check), `hasConfidenceRating`, and `workSpace` (print rem). They used
+// All four carry the identical pair: `solution` (a worked explanation revealed
+// post-check) and `workSpace` (print rem). They used
 // to live in a per-NodeView "⚙ Settings" footer; the MC-coherence pass moved
 // them into the descriptor drawer (blockControls.ts), leaving only a
 // display-only summary line in the block. This module holds the drawer's
@@ -106,16 +106,13 @@ export function renderSolutionField({
  */
 export function QuestionSettingsSummary({
     hasSolution,
-    hasConfidenceRating,
     workSpace,
 }: {
     hasSolution: boolean;
-    hasConfidenceRating: boolean;
     workSpace: number | null;
 }) {
     const parts = [
         hasSolution && 'solution',
-        hasConfidenceRating && 'confidence',
         workSpace !== null && `work space ${workSpace}rem`,
     ].filter(Boolean);
     if (parts.length === 0) return null;

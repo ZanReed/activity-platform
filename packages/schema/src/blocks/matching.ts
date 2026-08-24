@@ -9,10 +9,10 @@ import { ChoiceImage, ChoiceGraph } from './multiple-choice.js';
 // Design: docs/design/matching-ordering-questions.md (decided 2026-07-10).
 //
 // Distractors: targets may exceed items — an unmatched target is simply
-// referenced by no key entry. allowTargetReuse (off by default) lets several
-// items share one target ("categorization-lite": classify each expression as
-// linear/quadratic/exponential); the UI then COPIES the card on dock instead
-// of moving it.
+// referenced by no key entry. Several items may share one target
+// ("categorization-lite": classify each expression as linear/quadratic/
+// exponential) — always allowed; the allowTargetReuse gate was deleted
+// 2026-08-24 after shipping inert in both directions.
 //
 // Scored PER PAIR (earned/total — the fractional CheckpointResult precedent
 // from wire v4): each item is one point, correct when the student's target
@@ -65,14 +65,11 @@ export const MatchingBlock = z.object({
   // are assigned by position AFTER the publish-time shuffle, never authored.
   targets: z.array(MatchingTarget).min(2),
   // The correct pairing: item id → target id. Partial during authoring (see
-  // header); multiple items may share a target only under allowTargetReuse.
+  // header); many-to-one is allowed (the grader's item→target key scores it
+  // naturally, and the viewer never restricted docking a target twice).
   key: z.record(z.string().uuid(), z.string().uuid()),
-  // false = one-to-one (docking moves the card; a used target can't be used
-  // again). true = many-to-one allowed (docking copies the card).
-  allowTargetReuse: z.boolean().default(false),
   // MC-parity problem chrome (one problem shape, one dashboard row shape).
   solution: z.array(InlineNode).optional(),
-  hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
   workSpace: z.number().min(0).optional(),
 });

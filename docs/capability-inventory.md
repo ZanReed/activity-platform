@@ -157,7 +157,8 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
   `mistakeFeedback`).
 - **Per-choice image:** `(x) ![alt](url)` anywhere in the choice; choice may be
   image-only (`markdownToTiptap.ts:972–988`). ✅
-- **Options:** `confidence` only (`markdownToTiptap.ts:1013–1019`).
+- **Options:** none (`confidence` was deleted 2026-08-24 with the orphan
+  rulings).
 - **Constraints / gaps:**
   - **NOT importable:** per-choice **`graph` figure** (`ChoiceGraph`,
     `multiple-choice.ts:45–49`) — the "which graph shows…" case is editor-only.
@@ -176,9 +177,10 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
 - **Graded:** per pair, one point each; block-correct when all pairs right
   (`matching.ts:17–21`). Targets shuffled + lettered at publish; letters never
   authored (`matching.ts:64–66`).
-- **Options:** `confidence`, `reuse` (`allowTargetReuse` → one target serves
-  many items; card copies instead of moves) (`markdownToTiptap.ts:1128–1135`;
-  `matching.ts:70–72`).
+- **Target reuse:** several items may share one target (categorization-style)
+  — always allowed since 2026-08-24 (the `allowTargetReuse` gate and the
+  `confidence`/`reuse` options were deleted with the orphan rulings; the card
+  copies on dock when reused).
 - **Figures:** `![alt](url)` on either side becomes that side's image
   (`extractSideImage`, `markdownToTiptap.ts:1050–1068`). ✅
 - **Constraints / gaps:** **NOT importable:** item/target **`graph` figure**
@@ -194,7 +196,7 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
 - **Graded:** exact sequence equality, all-or-nothing
   (`ordering.ts:10–13`). Untouched list = omission, not an answer
   (`ordering.ts:15–17`).
-- **Options:** `confidence`. Needs ≥2 items.
+- **Options:** none (`confidence` deleted 2026-08-24). Needs ≥2 items.
 - **Constraints:** no figure slot on ordering items in the schema
   (`ordering.ts:19–20`).
 
@@ -241,9 +243,9 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
   classifier (`markdownToTiptap.ts:1914–1928`;
   `interactive-graph.ts:413–423`). ✅
 - **`options:`** (`markdownToTiptap.ts:1930–1937`):
-  - `partial-credit` — fractional per-object scoring (multi-part answers). ✅
-    documented.
   - `allow-no-solution` — student gets a "no solution" choice. ✅ documented.
+    (`partial-credit` was deleted 2026-08-24 — the flag was never read by the
+    grading server.)
   - `no-solution-correct` — **"no solution" IS the key; the drawn answer is a
     decoy** (implies allow-no-solution). ❗ **importable, undocumented.**
   - `no-builtin-feedback` — turns OFF the kit's built-in mistake classifiers
@@ -262,8 +264,7 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
 
 - **Invoke:** ```` ```numberline ````. ✅
 - **Lines:** `prompt:`, `answer:`, `axis:` (`-10..10 step 2`, optional →
-  auto-fit), `solution:`, `options: confidence`
-  (`markdownToTiptap.ts:1759–1836`).
+  auto-fit), `solution:` (`markdownToTiptap.ts:1759–1836`).
 - **`answer:` is EITHER** a point list (`-3, 4` → `plot_point`, ± 0.1) **OR** a
   single/compound inequality (`x >= 3`, `x < 5`, `-2 <= x < 5` → `plot_interval`
   ray/interval, ± 0.1). `>=`/`<=` closed endpoints, `>`/`<` open
@@ -277,7 +278,7 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
 - **Invoke:** ```` ```dataplot ````. ✅
 - **Lines:** `prompt:`, `data:` (commas/spaces, repeatable), `axis:`
   (`0..20 step 5`, optional; step doubles as histogram bin width),
-  exactly one of `answer:` / `show:`, `solution:`, `options: confidence`
+  exactly one of `answer:` / `show:`, `solution:`
   (`markdownToTiptap.ts:1609–1739`).
 - **The answer is COMPUTED from `data:`** — there is no separately authored key
   (`data-plot.ts:21–26`). `answer: dotplot|histogram|boxplot` → graded build;
@@ -390,10 +391,10 @@ None of these are expressible in pasted markdown; they live in
 The prompt is kept close to the parser (there's a guard test), so this list is
 **short** — no outright false syntax was found. The nuances:
 
-1. **`options: partial-credit` is oversold for single-object graph answers.**
-   Partial credit only does anything for multi-part answers (systems, multiple
-   points/regions); on a single curve it's a no-op
-   (`interactive-graph.ts:392–397`). The prompt presents it as a general option.
+1. ~~**`options: partial-credit` is oversold for single-object graph
+   answers.**~~ Resolved by deletion 2026-08-24: the flag was never read by the
+   grading server and was removed from the schema, the importer, and the
+   prompt with the orphan rulings.
 2. **"domains clip" under graph `show:`** is fine, but the prompt's earlier
    graph section never says domain-restricted *answers* are rejected — an author
    who writes `answer: y = 2x for x >= 0` gets a plain-text fallback

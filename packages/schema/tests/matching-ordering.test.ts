@@ -39,8 +39,6 @@ function validMatching() {
 describe('MatchingBlock', () => {
   it('parses a minimal valid block and applies defaults', () => {
     const parsed = MatchingBlock.parse(validMatching());
-    expect(parsed.allowTargetReuse).toBe(false);
-    expect(parsed.hasConfidenceRating).toBe(false);
     expect(parsed.skills).toEqual([]);
     expect(parsed.solution).toBeUndefined();
     expect(parsed.workSpace).toBeUndefined();
@@ -72,11 +70,12 @@ describe('MatchingBlock', () => {
     expect(MatchingBlock.safeParse(block).success).toBe(true);
   });
 
-  it('accepts a shared target under the same schema (reuse is a runtime/editor concern)', () => {
+  it('accepts a shared target, and strips the deleted allowTargetReuse key (orphan ruling 2026-08-24)', () => {
     const block = { ...validMatching(), allowTargetReuse: true };
     block.key = { [ITEM_A]: TARGET_A, [ITEM_B]: TARGET_A };
     const parsed = MatchingBlock.parse(block);
-    expect(parsed.allowTargetReuse).toBe(true);
+    expect(Object.values(parsed.key)).toEqual([TARGET_A, TARGET_A]);
+    expect('allowTargetReuse' in parsed).toBe(false);
   });
 
   it('accepts image and graph figures on items and targets', () => {
@@ -119,7 +118,6 @@ function validOrdering() {
 describe('OrderingBlock', () => {
   it('parses a minimal valid block and applies defaults', () => {
     const parsed = OrderingBlock.parse(validOrdering());
-    expect(parsed.hasConfidenceRating).toBe(false);
     expect(parsed.skills).toEqual([]);
     expect(parsed.solution).toBeUndefined();
   });

@@ -117,12 +117,6 @@ function NumberLineSettingsPanel({
             <div className="block-advanced-drawer__group">
                 <div className="block-advanced-drawer__group-title">Grading</div>
                 {renderSolutionField({ editor, node, pos })}
-                <ToggleRow
-                    checked={Boolean(node.attrs.hasConfidenceRating)}
-                    disabled={!isEditable}
-                    onChange={(v) => setNodeAttr(editor, pos, 'hasConfidenceRating', v)}
-                    label="Ask for a confidence rating"
-                />
             </div>
         </div>
     );

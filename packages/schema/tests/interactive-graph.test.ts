@@ -40,13 +40,12 @@ describe('AxisConfig', () => {
 describe('InteractiveGraphBlock', () => {
   it('parses with defaults applied', () => {
     const parsed = InteractiveGraphBlock.parse(baseGraph());
-    expect(parsed.hasConfidenceRating).toBe(false);
     expect(parsed.skills).toEqual([]);
     expect(parsed.interaction.tolerance).toBe(0.1);
     expect(parsed.axisConfig.snapToGrid).toBe(true);
   });
 
-  it('accepts multiple correct points, a custom tolerance, confidence + skills', () => {
+  it('accepts multiple correct points, a custom tolerance + skills', () => {
     const parsed = InteractiveGraphBlock.parse({
       ...baseGraph(),
       interaction: {
@@ -54,12 +53,11 @@ describe('InteractiveGraphBlock', () => {
         correctPoints: [[1, 2], [3, 4]],
         tolerance: 0.5,
       },
-      hasConfidenceRating: true,
       skills: ['plotting points'],
     });
     expect(parsed.interaction.correctPoints).toHaveLength(2);
     expect(parsed.interaction.tolerance).toBe(0.5);
-    expect(parsed.hasConfidenceRating).toBe(true);
+    expect(parsed.skills).toEqual(['plotting points']);
   });
 
   it('requires at least one correct point', () => {
@@ -232,20 +230,20 @@ describe('interactive_graph flags (Drop 2)', () => {
     interaction: { type: 'plot_point' as const, correctPoints: [[1, 1]] },
   });
 
-  it('defaults partialCredit and allowNoSolution to false', () => {
+  it('defaults allowNoSolution to false and strips the deleted partialCredit key', () => {
     const parsed = InteractiveGraphBlock.parse(base());
-    expect(parsed.partialCredit).toBe(false);
     expect(parsed.allowNoSolution).toBe(false);
+    expect('partialCredit' in parsed).toBe(false);
   });
 
-  it('carries partialCredit and allowNoSolution when set', () => {
+  it('carries allowNoSolution when set (partialCredit stays stripped — orphan ruling 2026-08-24)', () => {
     const parsed = InteractiveGraphBlock.parse({
       ...base(),
       partialCredit: true,
       allowNoSolution: true,
     });
-    expect(parsed.partialCredit).toBe(true);
     expect(parsed.allowNoSolution).toBe(true);
+    expect('partialCredit' in parsed).toBe(false);
   });
 });
 

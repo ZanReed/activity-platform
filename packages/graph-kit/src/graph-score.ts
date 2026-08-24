@@ -75,8 +75,7 @@ export function isPointCorrect(
 
 // Partial credit for plot_point: how many of the correct points the student
 // landed (consume-once), out of the total. `earned === total` is the all-or-
-// nothing boolean; the fraction is `earned / total`. The runtime consumes this
-// when partialCredit is on (wired at the Drop 4 bump); scorePoints stays the
+// nothing boolean; the fraction is `earned / total`. scorePoints stays the
 // boolean gate for the all-or-nothing default.
 export function scorePointsPartial(
   key: PointAnswerKey,
@@ -348,8 +347,8 @@ export function scoreFunctionsPartial(
 // matching (same guarantee as the inequality system — a fully-correct student is
 // never false-negatived when two curves are near each other). `studentCurves[p]`
 // is the point set the student placed for the p-th plotted curve; `earned` =
-// matched models; `correct` = all N matched; earned/total = matched / N under
-// partialCredit. Total: never throws on a short/long/mismatched studentCurves.
+// matched models; `correct` = all N matched; earned/total = matched / N.
+// Total: never throws on a short/long/mismatched studentCurves.
 export function scoreFunctionSystem(
   models: FunctionModel[],
   studentCurves: [number, number][][],
@@ -424,7 +423,7 @@ export function scoreInequalityPartial(
 // exists it is always found, regardless of the order the student plotted in.
 //
 // `earned` = matched inequalities; `total` = N; `correct` = all N matched.
-// Partial credit (when the block's partialCredit flag is on) is per-inequality:
+// Partial credit is per-inequality:
 // earned / total = matched / N (an inequality counts only if fully correct),
 // mirroring scorePointsPartial / scoreFunctionsPartial / scoreRegionsPartial —
 // NOT the sub-part granularity of scoreInequalityPartial. This is a TOTAL

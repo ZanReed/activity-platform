@@ -165,7 +165,6 @@ export function createFillInBlankBlock(): FillInBlankBlock {
     id: uuid(),
     type: 'fill_in_blank',
     content: [],
-    hasConfidenceRating: false,
     skills: [],
   };
 }
@@ -189,7 +188,6 @@ export function createMultipleChoiceBlock(): MultipleChoiceBlock {
       createMultipleChoiceOption(),
     ],
     multiSelect: false,
-    hasConfidenceRating: false,
     skills: [],
   };
 }
@@ -220,8 +218,6 @@ export function createMatchingBlock(): MatchingBlock {
     items,
     targets,
     key,
-    allowTargetReuse: false,
-    hasConfidenceRating: false,
     skills: [],
   };
 }
@@ -238,7 +234,6 @@ export function createOrderingBlock(): OrderingBlock {
     type: 'ordering',
     prompt: [],
     items: [createOrderingItem(), createOrderingItem(), createOrderingItem()],
-    hasConfidenceRating: false,
     skills: [],
   };
 }
@@ -284,12 +279,10 @@ export function createInteractiveGraphBlock(): InteractiveGraphBlock {
     prompt: [],
     axisConfig: AxisConfig.parse({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
     interaction: { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 },
-    partialCredit: false,
     allowNoSolution: false,
     noSolutionCorrect: false,
     builtinFeedback: true,
     mistakeFeedback: [],
-    hasConfidenceRating: false,
     skills: [],
   };
 }
@@ -304,7 +297,6 @@ export function createNumberLineBlock(): NumberLineBlock {
     prompt: [],
     config: NumberLineConfig.parse({ min: 0, max: 10 }),
     interaction: { type: 'plot_point', correctPoints: [5], tolerance: 0.1 },
-    hasConfidenceRating: false,
     skills: [],
   };
 }
@@ -322,7 +314,6 @@ export function createDataPlotBlock(): DataPlotBlock {
     data: [3, 5, 5, 6, 8],
     config: DataPlotConfig.parse({ min: 0, max: 10 }),
     interaction: { type: 'build_dotplot' },
-    hasConfidenceRating: false,
     skills: [],
   };
 }

@@ -68,7 +68,6 @@ describe('interactive graph block', () => {
             },
             interaction: { type: 'plot_point', correctPoints: [[3, 4]], tolerance: 0.25 },
             solution: [{ type: 'text', text: 'It is up and to the right.', marks: [] }],
-            hasConfidenceRating: true,
             skills: ['plotting points'],
         },
         content: [{ type: 'text', text: 'Plot the point (3, 4).' }],
@@ -80,7 +79,6 @@ describe('interactive graph block', () => {
         const g = out.content!.find((n) => n.type === 'interactiveGraph')!;
         expect(g.attrs!.axisConfig).toEqual(graphNode.attrs!.axisConfig);
         expect(g.attrs!.interaction).toEqual(graphNode.attrs!.interaction);
-        expect(g.attrs!.hasConfidenceRating).toBe(true);
         expect(g.attrs!.skills).toEqual(['plotting points']);
         expect(g.attrs!.solution).toEqual(graphNode.attrs!.solution);
         expect(g.content).toEqual([{ type: 'text', text: 'Plot the point (3, 4).' }]);
@@ -97,7 +95,6 @@ describe('interactive graph block', () => {
                     models: [{ family: 'linear', slope: 2, intercept: 3, slopeTolerance: 0.1, interceptTolerance: 0.1 }],
                 },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Graph y = 2x + 3.' }],
@@ -121,7 +118,6 @@ describe('interactive graph block', () => {
                     regions: [{ correctVertices: [[0, 0], [4, 0], [2, 4]], minOverlap: 0.9 }],
                 },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Shade the triangle.' }],
@@ -145,7 +141,6 @@ describe('interactive graph block', () => {
                     { match: '(4, 3)', feedback: [{ type: 'text', text: 'x comes first.', marks: [] }] },
                 ],
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Plot the point (3, 4).' }],
@@ -166,7 +161,6 @@ describe('interactive graph block', () => {
                 axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
                 interaction,
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Draw it.' }],
@@ -190,7 +184,6 @@ describe('interactive graph block', () => {
                 axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
                 interaction,
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Graph the system.' }],
@@ -222,7 +215,6 @@ describe('interactive graph block', () => {
                 axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
                 interaction,
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Graph both curves.' }],
@@ -280,7 +272,6 @@ describe('interactive graph block', () => {
                     ],
                 },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Use the graph below.' }],
@@ -300,7 +291,6 @@ describe('interactive graph block', () => {
                 axisConfig: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
                 interaction: { type: 'display', drawables: [] },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
         };
@@ -322,7 +312,6 @@ describe('number line block', () => {
             config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
             interaction: { type: 'plot_point', correctPoints: [3], tolerance: 0.1 },
             solution: [{ type: 'text', text: 'Three tick marks right of zero.', marks: [] }],
-            hasConfidenceRating: true,
             skills: ['number line'],
         },
         content: [{ type: 'text', text: 'Plot the point at 3.' }],
@@ -334,7 +323,6 @@ describe('number line block', () => {
         const n = out.content!.find((x) => x.type === 'numberLine')!;
         expect(n.attrs!.config).toEqual(pointNode.attrs!.config);
         expect(n.attrs!.interaction).toEqual(pointNode.attrs!.interaction);
-        expect(n.attrs!.hasConfidenceRating).toBe(true);
         expect(n.attrs!.skills).toEqual(['number line']);
         expect(n.attrs!.solution).toEqual(pointNode.attrs!.solution);
         expect(n.content).toEqual([{ type: 'text', text: 'Plot the point at 3.' }]);
@@ -352,7 +340,6 @@ describe('number line block', () => {
                     tolerance: 0.1,
                 },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Graph -2 <= x < 4.' }],
@@ -376,7 +363,6 @@ describe('number line block', () => {
                     tolerance: 0.1,
                 },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Graph x >= 3.' }],
@@ -408,7 +394,6 @@ describe('data plot block', () => {
             config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
             interaction: { type: 'build_dotplot' },
             solution: [{ type: 'text', text: 'Stack the dots per value.', marks: [] }],
-            hasConfidenceRating: true,
             skills: ['statistics'],
         },
         content: [{ type: 'text', text: 'Build a dot plot of the data.' }],
@@ -421,7 +406,6 @@ describe('data plot block', () => {
         expect(n.attrs!.data).toEqual([3, 5, 5, 6, 8]);
         expect(n.attrs!.config).toEqual(buildNode.attrs!.config);
         expect(n.attrs!.interaction).toEqual(buildNode.attrs!.interaction);
-        expect(n.attrs!.hasConfidenceRating).toBe(true);
         expect(n.attrs!.skills).toEqual(['statistics']);
         expect(n.attrs!.solution).toEqual(buildNode.attrs!.solution);
         expect(n.content).toEqual([{ type: 'text', text: 'Build a dot plot of the data.' }]);
@@ -436,7 +420,6 @@ describe('data plot block', () => {
                 config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
                 interaction: { type: 'display', chart: 'boxplot' },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Box plot of the sample:' }],
@@ -468,7 +451,6 @@ describe('data plot block', () => {
                 config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true, binWidth: 5 },
                 interaction: { type: 'build_histogram' },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Build a histogram.' }],
@@ -490,7 +472,6 @@ describe('data plot block', () => {
                 config: { min: 0, max: 10, tickStep: 1, minorTicksPerStep: 0, snapToTick: true },
                 interaction: { type: 'build_boxplot', tolerance: 0.25 },
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
             },
             content: [{ type: 'text', text: 'Build a box plot.' }],
@@ -1548,7 +1529,6 @@ describe('lists', () => {
                 ],
                 multiSelect: false,
                 solution: [{ type: 'text', text: 'Add them.', marks: [] }],
-                hasConfidenceRating: true,
                 skills: [],
                 workSpace: null,
             };
@@ -1571,7 +1551,6 @@ describe('lists', () => {
                 choices: attrs.choices,
                 multiSelect: false,
                 solution: attrs.solution,
-                hasConfidenceRating: true,
             });
             expect(mc.content).toEqual([
                 { type: 'text', text: 'What is 2 + 2?' },
@@ -1607,7 +1586,7 @@ describe('lists', () => {
             }
         });
 
-        it('round-trips a matching block (items, targets, key, reuse, figure)', () => {
+        it('round-trips a matching block (items, targets, key, figure)', () => {
             const i1 = '550e8400-e29b-41d4-a716-446655440201';
             const i2 = '550e8400-e29b-41d4-a716-446655440202';
             const t1 = '550e8400-e29b-41d4-a716-446655440211';
@@ -1632,9 +1611,7 @@ describe('lists', () => {
                     { id: t3, content: [{ type: 'text', text: '0', marks: [] }] },
                 ],
                 key: { [i1]: t1, [i2]: t2 },
-                allowTargetReuse: false,
                 solution: [{ type: 'text', text: 'Read the slope.', marks: [] }],
-                hasConfidenceRating: true,
                 skills: [],
                 workSpace: null,
             };
@@ -1657,16 +1634,14 @@ describe('lists', () => {
                 items: attrs.items,
                 targets: attrs.targets,
                 key: attrs.key,
-                allowTargetReuse: false,
                 solution: attrs.solution,
-                hasConfidenceRating: true,
             });
             expect(match.content).toEqual([
                 { type: 'text', text: 'Match each slope.' },
             ]);
         });
 
-        it('sanitizes a matching key: dangling refs dropped; duplicate targets collapsed without reuse', () => {
+        it('sanitizes a matching key: dangling refs dropped; shared targets kept', () => {
             const i1 = '550e8400-e29b-41d4-a716-446655440221';
             const i2 = '550e8400-e29b-41d4-a716-446655440222';
             const t1 = '550e8400-e29b-41d4-a716-446655440231';
@@ -1690,10 +1665,9 @@ describe('lists', () => {
                             ],
                             key: {
                                 [i1]: t1,
-                                [i2]: t1, // duplicate use without reuse
+                                [i2]: t1, // shared target (many-to-one)
                                 'not-an-item': t1, // dangling item
                             },
-                            allowTargetReuse: false,
                         },
                         content: [],
                     },
@@ -1703,7 +1677,7 @@ describe('lists', () => {
             const block = flatBlocks(activity.sections[0]!)[0]!;
             expect(block.type).toBe('matching');
             if (block.type === 'matching') {
-                expect(block.key).toEqual({ [i1]: t1 });
+                expect(block.key).toEqual({ [i1]: t1, [i2]: t1 });
             }
         });
 
@@ -1719,7 +1693,6 @@ describe('lists', () => {
                     { id: o3, content: [{ type: 'text', text: 'Check', marks: [] }] },
                 ],
                 solution: null,
-                hasConfidenceRating: false,
                 skills: [],
                 workSpace: null,
             };
@@ -1774,7 +1747,7 @@ describe('lists', () => {
     });
 
     describe('fill_in_blank block-level fields (Stage 15)', () => {
-        it('round-trips solution, hasConfidenceRating, and skills', () => {
+        it('round-trips solution and skills', () => {
             const doc: JSONContent = {
                 type: 'doc',
                 content: [
@@ -1789,7 +1762,6 @@ describe('lists', () => {
                                     marks: [],
                                 },
                             ],
-                            hasConfidenceRating: true,
                             skills: ['distributing', 'simplifying'],
                         },
                         content: [
@@ -1811,7 +1783,6 @@ describe('lists', () => {
             expect(fib.attrs?.solution).toEqual([
                 { type: 'text', text: 'Distribute the 2 to get 2x + 6.', marks: [] },
             ]);
-            expect(fib.attrs?.hasConfidenceRating).toBe(true);
             expect(fib.attrs?.skills).toEqual(['distributing', 'simplifying']);
         });
 
@@ -1826,7 +1797,6 @@ describe('lists', () => {
                             solution: [
                                 { type: 'text', text: 'Worked answer.', marks: [] },
                             ],
-                            hasConfidenceRating: true,
                             skills: ['factoring'],
                         },
                         content: [
@@ -1849,7 +1819,6 @@ describe('lists', () => {
             expect(block.solution).toEqual([
                 { type: 'text', text: 'Worked answer.', marks: [] },
             ]);
-            expect(block.hasConfidenceRating).toBe(true);
             expect(block.skills).toEqual(['factoring']);
         });
 
@@ -1877,14 +1846,12 @@ describe('lists', () => {
             const block = flatBlocks(activity.sections[0]!)[0]!;
             if (block.type !== 'fill_in_blank') throw new Error('unreachable');
             expect(block.solution).toBeUndefined();
-            expect(block.hasConfidenceRating).toBe(false);
             expect(block.skills).toEqual([]);
 
             // And the reverse direction emits explicit defaults for the editor.
             const back = roundTrip(doc);
             const fib = back.content?.[0] as JSONContent;
             expect(fib.attrs?.solution).toBeNull();
-            expect(fib.attrs?.hasConfidenceRating).toBe(false);
             expect(fib.attrs?.skills).toEqual([]);
             expect(fib.attrs?.workSpace).toBeNull();
         });
@@ -2013,7 +1980,6 @@ describe('rows (multi-column layout)', () => {
                                         },
                                         interaction: { type: 'plot_point', correctPoints: [[1, 2]], tolerance: 0.1 },
                                         solution: null,
-                                        hasConfidenceRating: false,
                                         skills: [],
                                     },
                                     content: [{ type: 'text', text: 'Plot (1, 2).' }],

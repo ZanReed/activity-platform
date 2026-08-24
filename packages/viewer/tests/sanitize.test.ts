@@ -151,7 +151,6 @@ describe('wire-level leak tests (TV4-A)', () => {
     for (const graph of byType('interactive_graph')) {
       expect('noSolutionCorrect' in graph).toBe(false);
       expect('mistakeFeedback' in graph).toBe(false);
-      expect('partialCredit' in graph).toBe(false);
       expect('builtinFeedback' in graph).toBe(false);
       // allowNoSolution SURVIVES — it renders the "no solution" control.
       expect((graph as { allowNoSolution?: boolean }).allowNoSolution).toBe(true);

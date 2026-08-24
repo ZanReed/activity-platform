@@ -130,11 +130,11 @@ export type DataPlotInteraction = z.infer<typeof DataPlotInteraction>;
 // ---- The block --------------------------------------------------------------
 // Auto-numbered like the other question blocks WHEN GRADED — a `display`
 // data_plot pulls no number (the renderer's isNumberedBlock returns false for
-// it, exactly as it does for a display interactive_graph). hasConfidenceRating
-// + skills + solution follow the same opt-in patterns the graph / number-line
-// blocks established, and (like them) matter only in build mode. Deliberately
-// LEAN for slice 1 (no partialCredit / mistakeFeedback) — all-or-nothing
-// scoring (decision 8); those fields are additive later if asked for (YAGNI).
+// it, exactly as it does for a display interactive_graph). skills + solution
+// follow the same opt-in patterns the graph / number-line blocks established,
+// and (like them) matter only in build mode. Deliberately LEAN for slice 1
+// (no mistakeFeedback) — all-or-nothing scoring (decision 8); those fields
+// are additive later if asked for (YAGNI).
 export const DataPlotBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('data_plot'),
@@ -147,7 +147,6 @@ export const DataPlotBlock = z.object({
   config: DataPlotConfig,
   interaction: DataPlotInteraction,
   solution: z.array(InlineNode).optional(),
-  hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   // Additive/optional — no schemaVersion bump.

@@ -32,7 +32,7 @@ describe('SubmissionResponses (v9 — current)', () => {
     expect(SubmissionResponses.safeParse(data).success).toBe(true);
   });
 
-  it('parses responses with optional confidence and checkpointResults', () => {
+  it('parses responses with checkpointResults (legacy confidence keys are stripped, not rejected)', () => {
     const blankId = crypto.randomUUID();
     const sectionId = crypto.randomUUID();
     const data = {
@@ -147,13 +147,14 @@ describe('SubmissionResponses (v9 — current)', () => {
     expect(SubmissionResponses.safeParse(data).success).toBe(false);
   });
 
-  it('rejects an invalid confidence value', () => {
+  it('strips a stray confidence key (field deleted 2026-08-24 with hasConfidenceRating)', () => {
     const id = crypto.randomUUID();
     const data = {
       schemaVersion: 9,
-      blanks: { [id]: { answer: 'x+2', correct: true, confidence: 'maybe' } },
+      blanks: { [id]: { answer: 'x+2', correct: true, confidence: 'certain' } },
     };
-    expect(SubmissionResponses.safeParse(data).success).toBe(false);
+    const parsed = SubmissionResponses.parse(data);
+    expect('confidence' in (parsed.blanks[id] ?? {})).toBe(false);
   });
 });
 
@@ -166,7 +167,7 @@ describe('graph systems — graph_inequality_system (additive member, no schemaV
     correct: true,
   });
 
-  it('GS-M1: parses a graph_inequality_system with parts + partial-credit earned/total + confidence', () => {
+  it('GS-M1: parses a graph_inequality_system with parts + partial-credit earned/total', () => {
     const graphId = crypto.randomUUID();
     const data = {
       schemaVersion: 9,
@@ -185,7 +186,7 @@ describe('graph systems — graph_inequality_system (additive member, no schemaV
     expect(SubmissionResponses.safeParse(data).success).toBe(true);
   });
 
-  it('GS-M1: earned/total/confidence are optional (all-or-nothing block omits them)', () => {
+  it('GS-M1: earned/total are optional (all-or-nothing block omits them)', () => {
     const graphId = crypto.randomUUID();
     const data = {
       schemaVersion: 9,
@@ -264,7 +265,7 @@ describe('graph systems — plot_function_system (additive member, no schemaVers
     correct: true,
   });
 
-  it('FS-M1: parses a plot_function_system with parts + partial-credit earned/total + confidence', () => {
+  it('FS-M1: parses a plot_function_system with parts + partial-credit earned/total', () => {
     const graphId = crypto.randomUUID();
     const data = {
       schemaVersion: 9,

@@ -147,7 +147,6 @@ export type SanitizeBlockType<B> = B extends { type: 'math_block' }
             | 'mistakeFeedback'
             | 'solution'
             | 'noSolutionCorrect'
-            | 'partialCredit'
             | 'builtinFeedback'
           > & {
             interaction: SanitizedGraphInteraction;

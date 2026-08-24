@@ -39,7 +39,6 @@ export const OrderingBlock = z.object({
   items: z.array(OrderingItem).min(2),
   // MC-parity problem chrome (one problem shape, one dashboard row shape).
   solution: z.array(InlineNode).optional(),
-  hasConfidenceRating: z.boolean().default(false),
   skills: z.array(z.string()).default([]),
   workSpace: z.number().min(0).optional(),
 });

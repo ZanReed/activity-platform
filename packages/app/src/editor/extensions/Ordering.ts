@@ -14,8 +14,8 @@ import OrderingView from '../nodeViews/OrderingView';
 // Attrs:
 //   - id: stable UUID (serialize mints fresh ones per round trip).
 //   - items: Array<{ id, content: InlineNode[] }> in the correct order.
-//   - solution / hasConfidenceRating / skills / workSpace: block-level fields
-//     identical to MultipleChoice's (same settings footer UI).
+//   - solution / skills / workSpace: block-level fields identical to
+//     MultipleChoice's (same settings footer UI).
 // ============================================================================
 
 export interface EditorOrderItem {
@@ -95,15 +95,6 @@ export const Ordering = Node.create({
                         ? { 'data-solution': JSON.stringify(v) }
                         : {};
                 },
-            },
-            hasConfidenceRating: {
-                default: false,
-                parseHTML: (element) =>
-                    element.getAttribute('data-has-confidence-rating') === 'true',
-                renderHTML: (attributes) =>
-                    attributes.hasConfidenceRating
-                        ? { 'data-has-confidence-rating': 'true' }
-                        : {},
             },
             skills: {
                 default: [] as string[],

@@ -31,7 +31,6 @@ export default function OrderingView({
     const items = (node.attrs.items as EditorOrderItem[]) ?? [];
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
     const hasSolution = solution.length > 0;
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const workSpace =
         typeof node.attrs.workSpace === 'number'
             ? (node.attrs.workSpace as number)
@@ -167,7 +166,6 @@ export default function OrderingView({
                 </div>
                 <QuestionSettingsSummary
                     hasSolution={hasSolution}
-                    hasConfidenceRating={hasConfidenceRating}
                     workSpace={workSpace}
                 />
             </div>

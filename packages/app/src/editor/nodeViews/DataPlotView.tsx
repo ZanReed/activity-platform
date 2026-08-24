@@ -71,7 +71,6 @@ export default function DataPlotView({
     const config = node.attrs.config as DataPlotConfigAttr;
     const interaction = node.attrs.interaction as DataPlotInteractionAttr;
     const solution = (node.attrs.solution as InlineNodes | null) ?? [];
-    const hasConfidenceRating = Boolean(node.attrs.hasConfidenceRating);
     const sizing = readSizingAttrs(node.attrs);
     const isEditable = editor.isEditable;
     const isGraded = interaction.type !== 'display';
@@ -236,7 +235,6 @@ export default function DataPlotView({
             {isGraded && !preview && (
                 <QuestionSettingsSummary
                     hasSolution={solution.length > 0}
-                    hasConfidenceRating={hasConfidenceRating}
                     workSpace={null}
                 />
             )}
