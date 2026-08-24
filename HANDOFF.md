@@ -100,6 +100,69 @@ MY READING (not ruled):
    the first real consumer of the stored ids — but it depends on attempt rows,
    so it is bound by the same prune ordering as #3.
 
+## The builder's first misconception ids — VALIDATED against the shipped code
+
+The catalogue builder proposed four ids for the `chain.rate.proportional`
+chain, awaiting the author's ratification (the taxonomy is theirs; the platform
+never owns it). **Everything below was run through the real importer and
+grader, not reasoned about:**
+
+```
+mis.rate.ratio-inverted                     VALID
+mis.rate.compares-totals                    VALID
+mis.proportional.one-pair-assumed-constant  VALID
+mis.proportional.line-misses-origin         VALID
+```
+
+All four pass the shipped `VALID_ID` pattern, and all three binding FORMS they
+wrote (blank `!`, mc choice, graph `mistake:`) import with **zero warnings**
+and produce the right attrs. Two prefixes is fine — ids are opaque to the
+platform, and distinct prefixes actually help the manifest's near-duplicate
+detector (Levenshtein ≤ 2 over the whole id) avoid false pairs.
+
+⚠ **ONE BINDING IS PARTIALLY DEAD, and partially dead is worse than dead**
+— it fires for some students who made the mistake and not others, so the count
+is silently biased while looking healthy. Activity 1 item 1 is `3 muffins cost
+$4.50`, so the inverted value is 3 ÷ 4.50 = **0.666…, which does not
+terminate**. Measured against the live grader:
+
+| student types | binding fires |
+|---|---|
+| `0.67` · `.67` · `67/100` | ✅ |
+| `0.66` · `0.667` · `0.6667` · `2/3` | ❌ (marked wrong, but NO id recorded) |
+
+Numeric mistake matching compares by VALUE within the blank's tolerance, and
+that tolerance is the ANSWER's — so it cannot be loosened for the mistake
+without also loosening what counts as correct.
+
+**Two fixes, both verified:**
+- **Preferred — choose numbers whose inverted value terminates.** `4 muffins
+  cost $5.00` → answer `1.25`, inverted `0.8`: one binding then catches `0.8`,
+  `.80`, `0.80` AND `4/5`. This is the general authoring principle worth
+  adopting: *pick the numbers so the anticipated wrong answer is exact.*
+- Or repeat the `!` segment with the same id (`!0.67 … | !0.66 … | !2/3 …`) —
+  works, but it is whack-a-mole and still missed `0.6667` in the test.
+
+Their Activity 2 bindings have no such problem: `!0.5` and `!0.2` are exact.
+
+**One limitation to know for `mis.proportional.line-misses-origin`** (from the
+implementation, not measured): a graph `mistake:` compiles ONE curve and
+compares the student's drawing to it, so `mistake: y = 3x + 2` senses that
+line, not the class "any line missing the origin". The **mc choice** binding
+they also propose is the more reliable sensor for that misconception, because
+mc matching is by choice identity rather than geometry.
+
+**Their deferred `mis.rate.units-dropped` call is correct** — and firmer than
+they know: the units slice's syntax is UNPINNED because three tokenizer
+collisions were verified (X2). Their proposed workaround — an error-analysis mc
+showing a unit-less answer — **works today** with the shipped feature and needs
+nothing new.
+
+**To wire the registry check:** `--registry <file>` takes plain text, one id
+per line, `#` comments and blank lines ignored. In batch mode a registry is
+REQUIRED once any file carries bindings, and `--strict` turns binding warnings
+into a failed run.
+
 ## Traps that cost this session real time
 
 - **A seam test cannot see a gap between two correct halves.** Three passing
