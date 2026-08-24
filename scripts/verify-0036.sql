@@ -177,9 +177,15 @@ declare
   v_version  uuid;
   v_b1 uuid := gen_random_uuid();
   v_b2 uuid := gen_random_uuid();
-  -- Deterministic day-boundary instants (valid at ANY runtime, year-round):
-  -- yesterday 20:00 UTC is a Chicago afternoon (same UTC date) but an Auckland
-  -- MORNING of the NEXT date — the Chicago/Auckland day keys provably differ.
+  -- Deterministic day-boundary instants: yesterday 20:00 UTC is a Chicago
+  -- afternoon (same UTC date) but an Auckland MORNING of the NEXT date — the
+  -- Chicago/Auckland day keys provably differ.
+  --
+  -- ⚠ "valid at ANY runtime, year-round" is what this comment used to claim,
+  -- and it is true of the DAY KEYS only. It is NOT true of these instants'
+  -- relationship to the rolled watermark, which is what section E depends on —
+  -- see the note there. Two different properties; the comment asserted the
+  -- weaker one and was read as promising both.
   v_d0 timestamptz := date_trunc('day', now()) - interval '1 day' + interval '10 hours';
   v_d1 timestamptz := date_trunc('day', now()) - interval '1 day' + interval '20 hours';
   v_d2 timestamptz := date_trunc('day', now()) - interval '1 day' + interval '22 hours';
@@ -262,6 +268,40 @@ begin
                         v_b2::text, jsonb_build_object('verdict', 'recorded')), v_d2);
 
   -- E: roll liveness (P3) --------------------------------------------------
+  -- ⚠ THE WATERMARK IS ESTABLISHED, NOT INHERITED — and that is the whole
+  -- point of these two lines (fixed 2026-08-24).
+  --
+  -- This section used to call run_analytics_maintenance() against whatever
+  -- boundary the database happened to be carrying. The roll's scope is
+  -- [analytics_rolled_boundary(), now() - 5min), so on any database whose
+  -- nightly cron has run, the ambient boundary sits AHEAD of these fixtures
+  -- and the roll correctly skips every one of them — `got 0 / 0`.
+  --
+  -- It was not a permanent failure, which is what made it dangerous: the
+  -- fixtures are dated `date_trunc('day', now()) - 1 day`, so at UTC midnight
+  -- they jump a day forward and land ahead of the boundary again. Live cron is
+  -- `30 3 * * *` stamping now()-5min, so the section PASSED between 00:00 and
+  -- 03:30 UTC and FAILED the other 20.5 hours. A check that is green for 15%
+  -- of the day is worse than one that is always red: "N green nights" run by a
+  -- scheduler inside that window is false evidence, and N green nights of a
+  -- non-drifting reconciliation pair is a BLOCKING step before
+  -- `prune_section_checks` may be armed.
+  --
+  -- The fix is the idiom section G below already uses — clear the watermark
+  -- rows and insert a known one — rather than re-dating the fixtures, because
+  -- v_d0/v_d1/v_d2 are chosen so that 20:00 UTC is a Chicago afternoon but an
+  -- Auckland MORNING of the next date. That day-split IS section D's subject
+  -- and the reason the author's US/NZ timezone question has an answer; moving
+  -- the instants to chase a watermark would destroy it.
+  --
+  -- Everything here is inside the transaction this section deliberately rolls
+  -- back (@expect-error EXPECTED ROLLBACK), exactly as G's identical writes
+  -- are. `analytics_rolled_boundary()` reads `order by id desc limit 1`, so the
+  -- inserted row wins; the delete makes the starting state fully determined
+  -- rather than "whatever was there", which is the defect being fixed.
+  delete from analytics_job_runs where rolled_through is not null;
+  insert into analytics_job_runs (job_name, rolled_through)
+  values ('analytics', v_d0 - interval '1 hour');
   select run_analytics_maintenance() into v_run_id;
   select rolled_through into v_wm from analytics_job_runs where id = v_run_id;
   if v_wm is null or v_wm > now() - interval '5 minutes' then

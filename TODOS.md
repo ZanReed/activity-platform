@@ -144,79 +144,54 @@ before it existed is what produced the wrong ruling.) Note the sheet work
 already handled the <480px case; what is left is the DESKTOP default height on
 a short laptop viewport.
 
-## ⚠ verify-0036's behavioural matrix is a 3.5-HOUR-A-DAY FLAKE on live — arming evidence (2026-08-24)
+## ~~verify-0036's behavioural matrix is a 3.5-hour-a-day flake on live~~ ✅ FIXED 2026-08-24
 
-Found by the first `pnpm verify:auth --target live` run in a while, then
-**corrected within the hour by a second run that passed** — which is the most
-useful thing about this entry, so read the correction before the mechanism.
+**Section E now ESTABLISHES its watermark instead of inheriting one** — the
+idiom section G in the same file already used. Two lines, inside the
+transaction the section already rolls back.
 
-**FIRST DIAGNOSIS, WRONG:** "fails every time, structurally, on any database
-whose cron has run." **ACTUAL:** it passes for about 3.5 hours a day and fails
-for the other 20.5. I measured it at 23:56 UTC (failing), wrote it up as
-permanent, and re-ran at 00:03 UTC — green, 168/0. UTC midnight had moved the
-fixtures forward a day. **A single observation of a time-dependent bug is not
-its behaviour**; this repo already has that lesson filed under an unexplained
-`sanitize.test.ts` one-off, and this is the same shape with the cause visible.
+**What it was.** The roll's scope is `[analytics_rolled_boundary(), now()-5min)`.
+E called `run_analytics_maintenance()` against whatever boundary the database
+happened to carry. Live cron is `30 3 * * *` stamping `now()-5min`, and the
+fixtures are dated `date_trunc('day', now()) - 1 day + 10h/20h/22h` — so at UTC
+midnight the fixtures jumped a day forward and landed ahead of the boundary
+(**passing**), and at 03:30 the cron re-stamped past them (**failing**, `got
+0 / 0`) for the next 20.5 hours. Green ~15% of the day.
 
-**The mechanism, measured:**
+**Why that was worse than a permanent red:** "N green nights of a non-drifting
+reconciliation pair" is a BLOCKING step before `prune_section_checks` may be
+armed. A scheduler running inside the pass window would have produced N green
+nights that meant nothing. ⚠ **Any green nights recorded before 2026-08-24 are
+not evidence — the check could not distinguish a working rollup from a skipped
+one outside 00:00–03:30 UTC.**
 
-| | value |
-|---|---|
-| `analytics-maintenance` cron | `30 3 * * *` (UTC) |
-| watermark it stamps | `now() - 5 min` ⇒ **03:25 UTC** |
-| fixtures the script inserts | `date_trunc('day', now()) - 1 day` **+10h, +20h, +22h** |
-| passes while | watermark **<** oldest fixture |
+**Why not re-date the fixtures:** `v_d0/v_d1/v_d2` are chosen so 20:00 UTC is a
+Chicago afternoon but an Auckland MORNING of the next date. That day-split IS
+section D's subject and the reason the author's US/NZ timezone question has an
+answer. Chasing the watermark with the instants would have destroyed it.
 
-Walk it: at 00:00 UTC on any day, "yesterday" advances, so the fixtures jump to
-`D 10:00 … D 22:00` while the watermark still reads `D 03:25` — the fixtures
-are ahead of it and everything rolls. **PASS.** At 03:30 the cron re-stamps to
-`D+1 03:25`, which is past `D 22:00` — the rollup correctly skips every
-fixture. **FAIL, `expected 1 Chicago day / 3 checks, got 0 / 0`,** for the rest
-of the day.
+**Proven, not argued:**
+- The live failure was REPRODUCED ON DEMAND locally by advancing the local
+  watermark past the fixtures — the exact message, `expected 1 Chicago day /
+  3 checks, got 0 / 0`.
+- Mutation 1: remove the rewind under that advanced watermark → fails.
+- Mutation 2: rewind to AFTER the fixtures (`v_d2 + 1h`) instead of before →
+  fails. So the VALUE is load-bearing, not just the presence of the lines.
+- **Proven on LIVE** by running section C with the watermark deliberately set
+  to `now()` — the worst case — inside a rolled-back transaction: PASS E,
+  PASS F, PASS G, then the designed `EXPECTED ROLLBACK`. A green live run in
+  the old pass window would have proved nothing; this does.
+- **Residue: none, on both databases.** Live afterwards: 0 checks, 0 rollup
+  rows, 0 fabricated ledger rows, and the watermark byte-identical at
+  `2026-08-23 03:25:00.100469+00`. The local simulation row was identified by
+  `notes is null` and removed.
 
-**So the pass window is 00:00–03:30 UTC.** For the author in NZ that is
-roughly midday–15:30 NZST; for US colleagues it is the small hours. Anyone who
-runs it outside that window sees a red that looks like a rollup defect and is
-not one — **the rollup is correct in both states.**
+**Full suites after the fix: local 168/0, live 168/0.**
 
-Locally it always passes for a different reason: a freshly reset database has
-a NULL watermark, so every fixture is ahead of it. Measured today: local 20/0,
-live 167/1 then 168/0.
-
-**WHY THIS MATTERS MORE THAN A FLAKY TEST.** CLAUDE.md and the arming checklist
-list **"N green nights of a non-drifting reconciliation pair"** as a BLOCKING
-step before `prune_section_checks` may be armed, and verify-0036 is what
-demonstrates the rollup is trustworthy. A check that is green for 15% of the
-day and red for 85% cannot produce that evidence — and worse, it can produce
-FALSE evidence, because "N green nights" run by a scheduler in the pass window
-would look like N genuine passes. **Do not count green nights until this is
-fixed.**
-
-**The fix is NOT "re-date the fixtures later".** The three instants are chosen
-so yesterday-20:00Z is a Chicago afternoon but an Auckland MORNING of the next
-date — that day-split IS section D's point and the reason the author's US/NZ
-timezone question has an answer. Re-dating relative to the watermark destroys
-it; the post-watermark window can be any few hours wide and need not span a day
-boundary in either zone.
-
-**The shape that probably works:** the section already runs inside a
-transaction it deliberately rolls back (`@expect-error EXPECTED ROLLBACK`), so
-it can REWIND `analytics_job_runs.rolled_through` inside that transaction,
-insert the fixtures at their chosen instants, roll, assert, and roll back. Keeps
-the timezone property, works at any hour, on any database. ⚠ It writes the
-table the arming gate reads, so the rollback must be PROVEN and the residue
-printed before AND after (P7).
-
-**Not caused by the flow-modes slice** — verify-0036 inserts into
-`section_checks` directly and never calls `record_check`; 0040 changed only
-`record_check`. Ruled out before filing.
-
-**Residue:** none across three live runs — `section_checks` = 0 and
-`check_rollup_daily` = 0, printed each time. The failure raises, which aborts
-the transaction.
-
-**Depends on:** nothing technically; the fix touches the check-rollup arc, so
-read the arming checklist first.
+Also amended: the `v_d0/v_d1/v_d2` comment claimed the instants were "valid at
+ANY runtime, year-round". That is true of the DAY KEYS and was never true of
+their relationship to the watermark — two different properties, one comment,
+read as promising both.
 
 ## `answerFeedback: 'immediate'` — deferred out of the flow-modes slice (2026-08-24)
 
