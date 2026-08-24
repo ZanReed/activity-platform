@@ -202,31 +202,38 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-24 (**THE ACTIVITY FLOW MODES ARE BUILT** — check
-groups, the server-enforced lock, two deleted knobs, one printed label; six
-commits, every guard mutation-proven, one author action left. The 2026-08-23
-entry — all six S9 orphans, the live answer-key leak, the calculator scope
-ruling — is archived in HISTORY.)
+**Last updated:** 2026-08-24 — **ARC CLOSED.** The activity flow modes are
+BUILT, SHIPPED, LIVE and CI-green: check groups, the server-enforced lock
+(0040 + `check-activity` v20), two deleted knobs, one printed label. Along the
+way two verify scripts were found broken in ways nobody had noticed —
+`verify-0033`'s caps assertion (over-scoped since the self-serve door opened)
+and `verify-0036`'s behavioural matrix (green only 3.5 hours a day) — both
+fixed and proven. Live `verify:auth`: **168/0**. A full drift audit closed the
+session with 2 findings, both self-created.
 
-**The lesson of the session is the THIRD generation of the one this repo keeps
-paying for, and it is the most uncomfortable yet.** Generation one: a
-DECLARATION outlives its implementation and the suite stays green because the
-guard compares two declarations (eight instances). Generation two, 2026-08-23:
-A GUARD OUTLIVES ITS OWN VALIDITY THE SAME WAY — three found vacuous, every one
-by MUTATION and none by a passing suite. **Generation three, this session: THE
-SLICE WRITTEN TO END THAT DEFECT CLASS COMMITTED IT TWICE, IN ITS OWN NEW
-GUARDS.** The OV#14 solution gate scripted a service that returned no
+**The lesson is the THIRD generation of the one this repo keeps paying for, and
+the most uncomfortable yet.** Generation one: a DECLARATION outlives its
+implementation and the suite stays green because the guard compares two
+declarations. Generation two (2026-08-23): A GUARD OUTLIVES ITS OWN VALIDITY
+the same way — three found vacuous, every one by MUTATION. **Generation three:
+THE SLICE WRITTEN TO END THAT DEFECT CLASS COMMITTED IT THREE TIMES, IN ITS OWN
+NEW CODE.** The OV#14 solution gate scripted a service that returned no
 solutions, so "nothing is revealed" was true whether the gate existed or not.
-Guard 7 — the reachability net for the orphaned flow fields — matched a bare
-token, so unwiring `doc.meta.submissionMode` left it green, because a
-PARAMETER of that name still appeared. Both were caught by mutation-testing the
-guard on the day it was written, which is the only reason they are a footnote
-rather than the next audit's finding.
+Guard 7 matched a bare token, so unwiring `doc.meta.submissionMode` left it
+green because a PARAMETER of that name still appeared. And `CheckGroup.
+implicitEnd` shipped as a field read only by its own tests, carrying a comment
+that named a consumer which never consumed it. Two were caught by
+mutation-testing the guard on the day it was written; the third by this
+session's own drift audit, hours later.
 
-**The corollary to carry:** "bind the guard to rendered output" is not a
-property you can check by reading your own test. The test that scripted an
-empty `solutions: {}` LOOKED bound to output — it queried the DOM. What made it
-vacuous was the FIXTURE, one level away. Mutation is the only thing that sees
-that, and it costs about ninety seconds per guard.
+**The corollaries worth carrying:**
+- **"Bound to rendered output" is not checkable by reading your own test.** The
+  solutions test DID query the DOM; what made it vacuous was the FIXTURE, one
+  level away. Only mutation sees that, and it costs ~90 seconds per guard.
+- **A claim with a number attached is still a claim.** STATE cited a CI run id
+  as proof of green; that run had failed, and predated the fix by 11 minutes.
+- **A single observation of a time-dependent bug is not its behaviour.** The
+  `verify-0036` diagnosis was measured, mechanised, confirmed — and wrong,
+  because every observation came from the same instant.
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._
