@@ -39,6 +39,42 @@ For the hard rules distilled from these (standing constraints, things NOT to do)
 - ~~**Two revision modes.**~~ ⚰ `revisionMode` was DELETED 2026-08-24 (activity flow modes, R4): it governed resubmission after a final submit, and there has been no submit since S9.
 - **Attempt tracking:** each resubmit is a new `submissions` row with incremented server-derived `attempt_number`. Teacher dashboard has toggle: all attempts vs best score + count.
 
+### The last orphan classes — four rulings, driven by the author's wishlist (2026-08-24)
+
+The two remaining orphan-field classes from the drift audits went to the author
+for wire-or-delete, with the catalogue builder's capability wishlist (TODOS →
+"THE AUTHOR'S CAPABILITY WISHLIST") as evidence. All four rulings:
+
+- **Graph-level `mistakeFeedback` + `builtinFeedback`: WIRE, inside the
+  misconception arc.** Not standalone — wishlist #1 (misconception ids on
+  distractors) makes graph `mistake:` a binding site and needs the same server
+  grading path, so one design pass covers both and the orphan closes with that
+  slice. Deleting was rejected because #1 and draggable_curve would re-add
+  equivalents within weeks.
+- **Graph `partialCredit`: DELETE.** `scoreGraphBlock` is boolean, so this was
+  never wiring — it was a grading-semantics change nothing asked for. The only
+  planned partial credit is per-edge on the future `nway_correspondence`
+  block, which owns its own semantics. Re-adding later with real meaning beats
+  keeping a knob that lies.
+- **`hasConfidenceRating`: DELETE end-to-end** — the seven schema fields, the
+  editor setting, and the submission wire's per-blank confidence slot. The
+  rendering died with the renderer at S9; eng review A10 already deleted the
+  print row in 2026-08-06 and left the rest standing. Decisive evidence: the
+  builder's exhaustive data-layer wishlist never mentions confidence — its
+  priorities are misconceptions and units. If calibration data ever earns a
+  place, it returns as a designed feature.
+- **`allowTargetReuse` (matching): DELETE.** Inert in both directions (viewer
+  never restricts double-docking; grader's `itemId → targetId` key scores
+  many-to-one correctly regardless). The queued matching-interaction redesign
+  or `nway_correspondence` re-introduces reuse semantics deliberately if a
+  real activity needs them.
+
+The three deletions are schema changes — bundle regeneration + `get-activity`
+redeploy discipline applies; fold them into the misconception arc's schema
+commit so one redeploy covers everything, or run them as their own small slice
+first. Either way, "go all the way this time" (the TODOS entry's own words):
+fields, editor controls, wire slot, and every comment that cites them (P5).
+
 ### Activity flow modes (2026-08-24) — [design](design/activity-flow-modes.md)
 
 Six authored knobs described how an activity flows for a student and **none was

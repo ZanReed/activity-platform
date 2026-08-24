@@ -85,8 +85,10 @@ wrapper for NCEA a/b/c structures mixing auto + rubric parts under one stem
 blank room, `columns: ruled` gives boxes, nothing gives lines); per-term
 definition control on print (all-or-nothing glossary today).
 
-**Depends on:** the graph-feedback-knobs author ruling (for #1/#5's signal
-path); otherwise nothing — design passes can start in greenlit order.
+**Depends on:** ~~the graph-feedback-knobs author ruling~~ **RULED 2026-08-24**
+— WIRE `mistakeFeedback`/`builtinFeedback` inside the #1 arc, DELETE
+`partialCredit` (DECISIONS.md → "The last orphan classes"). Nothing blocks —
+design passes proceed in greenlit order.
 
 ## Does MathLive's post-mount focus grab affect a real student? (2026-08-22)
 
@@ -471,15 +473,25 @@ instead of the code. ⚠ **So item 3 and the "Minor, same class" fields below ar
 still guarded by NOTHING but this list.** Extending the guard to them means
 naming their scope the same way, one ruling at a time.
 
-**Depends on:** author rulings per item (wire / delete). Item 3 is the last of
-the five and is not content loss — it is graph feedback knobs the grader never
-reads.
+**Depends on:** ~~author rulings per item (wire / delete)~~ **RULED 2026-08-24**
+(DECISIONS.md → "The last orphan classes"): item 3 splits —
+`mistakeFeedback` + `builtinFeedback` are WIRE, implemented inside the
+misconception arc (wishlist #1, one design pass covers both);
+`partialCredit` is DELETE. The "Minor, same class" fields and the comment
+claims still want their own small rulings.
 
-## TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse` (2026-08-22)
+## TWO MORE ORPHAN FIELDS — `hasConfidenceRating` and `allowTargetReuse` (2026-08-22) — **RULED: DELETE BOTH (2026-08-24)**
 
 Found by the drift audit's §9 sweep run across **every** schema field rather
 than only the new ones. Same class as the `number` override below, and the same
 question: **wire it or delete it.**
+
+**RULED 2026-08-24 (DECISIONS.md → "The last orphan classes"): DELETE, both,
+end-to-end** — schema fields, editor controls, the wire's confidence slot, and
+every comment citing them (P5). Execution folds into the misconception arc's
+schema commit (or a small slice ahead of it) so one bundle-regen +
+`get-activity` redeploy covers everything. Entry closes when the deletions
+land.
 
 **1. `hasConfidenceRating` — on SEVEN block types, with nothing anywhere that
 renders it.** The schema describes it in the present tense ("students see a
