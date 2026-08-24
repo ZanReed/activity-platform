@@ -1,126 +1,147 @@
-# Handoff — 2026-08-24
+# Handoff — 2026-08-24 (late)
 
-Paste the block at the bottom into a new chat. Everything above it is context
-for a human deciding whether the handoff is accurate.
+Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
+context for a human deciding whether the handoff is accurate.
 
 ---
 
 ## What happened in the session that wrote this
 
-Two things shipped and one is planned.
+**The activity flow modes shipped end to end and are LIVE.** Six knobs that
+described how an activity flows for a student, none of which was read by
+anything, became: check groups (`{checkpoint}` now covers every section since
+the previous one, and the end of the activity is always a checkpoint), a
+server-enforced `locked` mode derived from the stored document (migration 0040
++ `check-activity` v20), `activityType` as a printed label, and two knobs
+deleted outright.
 
-1. **The graph-figure convergence SHIPPED** (`docs/design/graph-figure-convergence.md`,
-   COMPLETE, CI green). It began as a TODOS cleanup item ("two SVG engines,
-   converge them") and turned out to be content loss: **there is no `line`
-   drawable kind** — a line is `{kind:'curve', model:{family:'linear'}}` — and
-   `GraphFigure.tsx` skipped curves, so every line a teacher drew on a formula
-   sheet rendered as an empty grid for the student while the editor's own
-   preview showed it correctly. Zero live instances, so nothing was lost.
-2. **TODOS housekeeping**: ten resolved entries archived to HISTORY, a duplicate
-   merged, `printShuffle`'s coin-flip assertion replaced with a seed-space
-   property.
-3. **The activity flow modes are PLANNED, NOT BUILT**
-   (`docs/design/activity-flow-modes.md`) — eng-reviewed and design-reviewed,
-   0 unresolved, ~15 tasks. This is the next thing to build.
+**Three things were then found broken that nobody had noticed**, none of them
+part of the slice:
 
-## What the next session should know before touching anything
+1. `verify-0033`'s caps assertion had been failing since the self-serve teacher
+   door opened on 2026-08-19 — the predicate was wider than its own message.
+2. `verify-0036`'s rollup matrix was green only 3.5 hours a day, which made the
+   check-prune's **arming evidence invalid**.
+3. A CI claim in STATE cited a run id as proof of green; that run had failed.
 
-- **`main` has unpushed commits.** The author pushes; never `git push`.
-- **`pnpm verify` is the definition of done** for the check job. Print, perf,
-  a11y and integration lanes are separate and it prints which.
-- The plan doc's **AS BUILT / "What the eng review changed" sections outrank the
-  plan text above them.** Both docs have one, and in both cases things changed
-  shape at review or build time.
+**Two structural rulings landed** (both the author's): STATE's `~150 lines` rule
+became a **~1,500 word budget** with a guard, and **constraints are hardened out
+of STATE only after the code they describe stops moving** — which is why STATE
+sits deliberately over budget.
+
+**The closing drift audit found 2 findings, both self-created** — including an
+orphan field (`implicitEnd`) shipped by the very slice written to end that
+defect class.
+
+## What the next session should know before trusting anything here
+
+- **`HANDOFF.md` is REPLACED, not appended** — like STATE. This file is not in
+  CLAUDE.md's doc map (checked); it is a transient baton, not a durable doc.
+- Everything is **pushed and CI-green**; verify before building on it.
+- The ordering below distinguishes **RULED** from **my reading**. Do not treat
+  the second kind as settled.
 
 ---
 
 # PASTE FROM HERE
 
-I'm picking up the activity-platform repo cold. Read `CLAUDE.md`, then
-`STATE.md`, then `docs/design/activity-flow-modes.md` — including its
-**"What the eng review changed"** section and the **"The student-facing design"**
-section, both of which outrank the plan text above them.
+I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
+then TODOS.md.
 
-## The task
+## Where things stand (2026-08-24, all pushed, CI green)
 
-Build the activity flow modes slice. It is fully ruled: 6 author rulings, an
-eng review (8 findings + a 20-finding outside voice, 4 tensions), and a design
-review (3/10 → 9/10, 8 decisions). Zero unresolved decisions. Do not re-open
-settled questions; the doc records why each landed where it did.
+The activity flow modes shipped and are LIVE: check groups, the server-enforced
+lock (migration 0040 + check-activity v20), two deleted schema knobs
+(revisionMode, gradingMode), activityType as a printed label. Live
+`verify:auth --target live` = 168/0. `pnpm verify` = 8/8. 104 script guards.
 
-Work the task list in the doc (F1–F11 + D1–D8 folded in). Suggested order is in
-its "Worktree parallelization" section: **Lane A (F1 → F2 → F3) first**, since
-the group fold and store composition are what everything else renders on.
+Three unrelated defects were also found and fixed: verify-0033's caps assertion
+(over-scoped since the self-serve door opened 2026-08-19), verify-0036's rollup
+matrix (green only 3.5 hours a day — it made the check-prune's ARMING EVIDENCE
+invalid), and a CI-green claim in STATE that cited a run which had failed.
 
-## What the slice does, in one paragraph
+TODOS has ~51 entries / ~15k words. Do NOT work it top-to-bottom.
 
-Six authored knobs describe how an activity flows for a student
-(`isCheckpoint`, `submissionMode`, `revisionMode`, `gradingMode`,
-`activityType`, `answerFeedback`) and **not one is read by anything** — their
-implementations died with `packages/renderer` at S9 and the declarations
-survived. The slice makes `{checkpoint}` real (a checkpoint's Check covers
-every section since the previous one; the end of the activity is always a
-checkpoint, so no section is ever silently un-checked), adds `locked` (freeze
-at press, server-enforced), deletes `revisionMode` + `gradingMode`, makes
-`activityType` a printed label, and defers `answerFeedback: 'immediate'` to its
-own slice. The author is about to write ~150 activities and wants the system to
-carry every expected feature first, so the corpus is authored against real
-behaviour.
+## The ordering — RULED vs my reading
 
-## Five things that will bite you if you skip them
+RULED BY THE AUTHOR:
 
-1. **The server derives the lock from `meta.submissionMode`, NOT from a flag the
-   client sends.** The eng review originally ruled the opposite; the outside
-   voice pointed out a student's browser can simply omit a flag. The refusal
-   lives INSIDE `record_check`, after the idempotent-replay lookup, in the same
-   transaction — otherwise a lost-response retry 409s on a check that landed.
-2. **Migration 0040 must be applied live BEFORE `check-activity` deploys**
-   (standing rule). And `CREATE OR REPLACE` with a changed signature creates a
-   SECOND overload with default PUBLIC EXECUTE — drop the old signature and
-   re-`revoke`/`grant` (the pattern is at `0020:336-339`).
-3. **In `locked` mode the button reads "Check and lock" and confirms first.**
-   This deliberately breaks the "Check everywhere" ruling, because there is **no
-   unlock** — not for the student, not for the teacher; a republish is the only
-   one and it resets every student.
-4. **A check group is a VISIBLE region** (rule + grouped background, explicitly
-   NOT a card). R1 removes most Check buttons, and without the region a
-   buttonless section reads to a student as "my work here isn't counted".
-5. **The five new state strings are specified in the doc.** Use them verbatim —
-   they extend `statusLabel`'s existing doctrine (`ViewerContainer.tsx:116-140`:
-   the failure KIND decides the sentence, and never say "try again" when
-   retrying cannot work).
+1. **Writing activities comes before more code.** ~150 markdown files planned in
+   `~/activity-catalogue-pilot/`, currently 3. This is the stated source of the
+   next real information and it has been validated twice: authoring a single
+   test file surfaced a four-month-old content-loss bug (graph_figure skipped
+   every curve), and the corpus keeps finding what the fixture set cannot. Use
+   `pnpm import:batch <folder> --owner <email>` (always `--dry-run` first).
+   Two capabilities no real activity exercises yet: a blank inside a table cell,
+   and a graph_figure.
+2. **Do NOT harden constraints out of STATE yet.** STATE sits ~2.4x over its
+   word budget deliberately. Reducing it means promoting constraints into
+   CLAUDE.md/DECISIONS.md, which are read as SETTLED — hardening one
+   mid-bug-fix records the wrong rule where it is hardest to correct. The cut
+   waits for the re-architecture's bug tail to close, and is then done by
+   PROMOTION, not deletion. (CLAUDE.md → Working style, first bullet.)
 
-## House rules that matter most here
+HARD DEPENDENCIES (facts, not preferences):
 
-- **Guards bind to RENDERED OUTPUT, never to another declaration.** This repo's
-  most expensive defect class is a declaration outliving its implementation —
-  ten instances. The doc's guard 5 (the set of Check buttons in the DOM × the
-  section ids each fires covers `doc.sections` exactly) is the load-bearing one.
-- **Mutation-test every new guard once** and record the failing output in the
-  commit message. Precedent: `numbering-output.test.tsx`, and this session's
-  graph-figure work (revert the fix → 3 of 11 rows fail, named).
-- **Never `git push`.** Commit locally; the author pushes.
-- **Check `git branch --show-current` is `main` before committing.**
-- A schema change means both bundles regenerate in the same commit
-  (`pnpm bundle:viewer-server`, `pnpm bundle:grading-server`) and a
-  `get-activity` redeploy is owed as a pending author action.
-- Run `pnpm verify` before handing back. It prints the browser lanes it does
-  NOT cover; this slice needs `--project=student`, `--project=a11y`,
-  and `playwright test print-rules` too.
+3. **The check-rollup ARMING arc cannot count green nights before 2026-08-24.**
+   verify-0036 — the instrument that demonstrates the rollup is trustworthy —
+   was green only 00:00–03:30 UTC and red the other 20.5 hours, so a scheduler
+   inside that window would have produced N green nights that meant nothing.
+   Fixed; counting can begin now. Still also gated on counsel question Q10.
+4. **`answerFeedback: 'immediate'` is blocked on a commit seam that does not
+   exist.** All eleven input components write to the store per keystroke. This
+   is a cross-cutting slice of its own. Three design constraints are already
+   settled for it — read the TODOS entry, do not re-derive them.
+5. **The teacher unlock (flow modes T3) belongs to the teacher-grading slice**,
+   and would be the first teacher-facing write that DESTROYS student work. Read
+   `prune_section_checks`' arming discipline before designing it.
+6. **The two remaining orphan classes need an AUTHOR RULING first** (wire it or
+   delete it), not engineering: the interactive-graph feedback knobs
+   (partialCredit / builtinFeedback / graph-level mistakeFeedback) and
+   hasConfidenceRating / allowTargetReuse. Confirmed still orphaned 2026-08-24.
 
-## State of the repo
+~~7. Cheap self-contained items between authoring sessions.~~ **DONE
+2026-08-24** — the static-SVG palette (viewer half) and the a11y GAP-2 capture.
+Both were re-filed rather than closed; read those two TODOS entries for what
+remains, which in both cases is smaller and better specified than before.
 
-- `main`, clean tree, **unpushed commits** the author will push.
-- CI green as of the last push.
-- Live: 6 users (5 teachers, 1 student), 14 activities, 1 class, 0 checks,
-  0 submissions, 39 migrations applied. Re-read live, never trust a doc.
-- A drift audit ran 2026-08-24 (4 findings, all fixed). Don't re-run it; the
-  trigger list is in `.claude/skills/drift-audit/SKILL.md`.
-- Four author actions are pending in STATE; none blocks this slice.
+## Traps that cost this session real time
 
-## Where to start
+- **Mutation-test every guard the day you write it.** The flow-modes slice —
+  written specifically to end this repo's declaration-outlives-implementation
+  defect class — committed it THREE times in its own new code. Two were caught
+  by mutation-testing on the day; one only by the drift audit hours later.
+  **"Bound to rendered output" is NOT checkable by reading your own test:** the
+  vacuous one DID query the DOM, and the vacuity was in the FIXTURE, one level
+  away.
+- **A claim with a number attached is still a claim.** STATE cited a CI run id
+  as proof of green; that run had failed, and predated the fix by 11 minutes.
+  Open the run.
+- **A single observation of a time-dependent bug is not its behaviour.** The
+  verify-0036 diagnosis was measured, mechanised, confirmed — and wrong,
+  because every observation came from the same instant.
+- **verify-*.sql carry unstated data-state AND time-state preconditions.**
+  "It's just the fixtures" is a hypothesis to TEST, not a category to file a
+  red in.
+- **Answer the entry's own blocking question by measurement before designing
+  around it.** Both item-7 fixes turned on one probe each: does `var()` resolve
+  in an SVG presentation attribute (yes), and is tokens.css even loaded by the
+  editor (no). Each took a minute and each changed the plan.
 
-Read the doc, confirm you agree with F1's shape (`checkGroups` as a pure fold
-over `DocumentIndex.sections` — not a sixth copy of the document walk), then
-build Lane A. Ask before deviating from a ruling; each one has a recorded
-reason.
+## House rules that bite hardest here
+
+- Never `git push` — the author pushes. Check `git branch --show-current` is
+  `main` before committing.
+- `pnpm verify` is the definition of done for CI's check job; it prints the
+  browser lanes it does NOT cover.
+- A schema change means both bundles regenerate in the same commit and a
+  `get-activity` redeploy is owed.
+- STATE.md is measured in WORDS (~1,500 target, 4,000 enforced ceiling via
+  `scripts/tests/state-budget.test.mjs`). Do not raise the ceiling to make a
+  commit pass — ask where the content belongs.
+
+## Start here
+
+Say which of 1–6 you're taking and why, before touching anything. If it's (1),
+you are authoring, not coding — and the interesting output is the bugs the
+corpus finds.
