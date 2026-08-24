@@ -82,6 +82,17 @@
   --vw-color-accent-strong: #1d4ed8;
   --vw-color-accent-wash: #eff6ff;
 
+  /* ---- Static-SVG graph palette (graph-kit/static-svg) ------------------
+   * `renderGraphSvg` emits these as SVG presentation attributes via
+   * `var(--gk-svg-*, <paper hex>)`. These LIGHT values are byte-identical to
+   * the engine's own fallbacks, so defining them changes nothing in light
+   * mode or on paper — they exist so DARK has somewhere to differ. Only the
+   * viewer loads this file; the editor's previews still get the fallbacks
+   * (measured 2026-08-24 — see TODOS). */
+  --gk-svg-grid: #cbd5e1;
+  --gk-svg-axis: #64748b;
+  --gk-svg-label: #475569;
+
   /* ---- State vocabulary (rulings 7.2A / 2.1A / TV3-A) --------------------
    * ONE trio + recorded, reused everywhere a state pill, blank, row, or
    * banner appears:
@@ -246,6 +257,17 @@
     --vw-color-accent-strong: #93c5fd;
     --vw-color-accent-wash: #172554;
 
+    /* THE GRID WAS LOUDER THAN THE DATA (measured 2026-08-23: 12:1 on
+     * #0f172a, against axes at 3.75:1). A reference grid shouting over the
+     * curve drawn on it is backwards, so on dark it drops to the line
+     * token's value — present, quiet, no longer competing. Axes and labels
+     * keep the paper values; the tick labels are already re-pointed at
+     * --vw-color-ink-muted by viewer.css, which outranks a presentation
+     * attribute. */
+    --gk-svg-grid: #1e293b;
+    --gk-svg-axis: #64748b;
+    --gk-svg-label: #475569;
+
     --state-correct-ink: #34d399;
     --state-correct-border: #34d399;
     --state-correct-surface: #022c22;
@@ -298,6 +320,17 @@
   --vw-color-accent-strong: #93c5fd;
   --vw-color-accent-wash: #172554;
 
+  /* THE GRID WAS LOUDER THAN THE DATA (measured 2026-08-23: 12:1 on
+   * #0f172a, against axes at 3.75:1). A reference grid shouting over the
+   * curve drawn on it is backwards, so on dark it drops to the line
+   * token's value — present, quiet, no longer competing. Axes and labels
+   * keep the paper values; the tick labels are already re-pointed at
+   * --vw-color-ink-muted by viewer.css, which outranks a presentation
+   * attribute. */
+  --gk-svg-grid: #1e293b;
+  --gk-svg-axis: #64748b;
+  --gk-svg-label: #475569;
+
   --state-correct-ink: #34d399;
   --state-correct-border: #34d399;
   --state-correct-surface: #022c22;
@@ -349,6 +382,12 @@
     --vw-color-accent: #000000;
     --vw-color-accent-strong: #000000;
     --vw-color-accent-wash: transparent;
+
+    /* Paper wins: the static-SVG palette returns to its grayscale-safe
+     * values regardless of the screen theme the print started from. */
+    --gk-svg-grid: #cbd5e1;
+    --gk-svg-axis: #64748b;
+    --gk-svg-label: #475569;
 
     /* A printed worksheet is the BLANK version — scored state is neutralized
      * (standing print constraint), so the state roles flatten to ink/paper. */

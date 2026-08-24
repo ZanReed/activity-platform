@@ -41,10 +41,28 @@ type CurveDomain = NonNullable<Extract<Drawable, { kind: 'curve' }>['domain']>;
 
 // ViewBox size (square, like the on-screen canvas) and palette. Grayscale-safe:
 // grid is light, axes mid, ink near-black — survives a monochrome printer.
+//
+// THEMEABLE VIA CUSTOM PROPERTY, WITH THE PAPER VALUE AS THE FALLBACK. These
+// land as SVG presentation attributes (`stroke="…"`), and `var()` DOES resolve
+// there — measured in Chromium 2026-08-24 rather than assumed, because the
+// whole approach dies if it does not:
+//
+//   stroke="var(--gk-svg-grid, #cbd5e1)"     with the var set → rgb(10,20,30)
+//   stroke="var(--gk-svg-missing, #cbd5e1)"  unset            → rgb(203,213,225)
+//
+// The fallback is today's exact value, so **a consumer that defines nothing
+// renders byte-identically** — which is the property that lets the viewer opt
+// in without touching the editor, print, or any future caller. The viewer
+// defines these in tokens.css (light = these same values, dark = quieter grid,
+// print = forced back to paper).
+//
+// ⚠ The EDITOR does not load tokens.css at all (measured 2026-08-24 — only
+// StudentViewer / ActivityPrint / DevViewer import it), so its previews keep
+// the paper palette in dark mode. That is a separate slice; see TODOS.
 const SIZE = 400;
-const GRID_COLOR = '#cbd5e1';
-const AXIS_COLOR = '#64748b';
-const LABEL_COLOR = '#475569';
+const GRID_COLOR = 'var(--gk-svg-grid, #cbd5e1)';
+const AXIS_COLOR = 'var(--gk-svg-axis, #64748b)';
+const LABEL_COLOR = 'var(--gk-svg-label, #475569)';
 // Half-plane / polygon fills use the drawable's color at a floored opacity so a
 // pale swatch still reads over the grid (matches board.ts's SHADE_FILL_OPACITY).
 const SHADE_FILL_OPACITY = 0.18;

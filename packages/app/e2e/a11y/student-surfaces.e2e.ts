@@ -231,39 +231,58 @@ test.describe('gap 2 — the full keyboard path', () => {
         ).length + 40,
     );
 
+    // ⚠ THE TRAIL IS THE POINT (2026-08-24). This row has flaked twice and both
+    // times went green again before anyone read the instrumentation, so it has
+    // stayed unfixable for weeks: `expect(reachedInput).toBe(true)` tells you
+    // "false" and nothing else. The walk now RECORDS where focus actually
+    // landed at every step and puts the tail of that trail in the assertion
+    // message — so the next failure diagnoses itself, in CI, with nobody
+    // watching. Playwright keeps the message in the report and the trace.
+    // Do not "simplify" this back to a boolean.
+    const walk = async (selector: string, budget: number) => {
+      const trail: string[] = [];
+      for (let i = 0; i < budget; i++) {
+        const step = await page.evaluate((sel) => {
+          const el = document.activeElement;
+          if (!el) return { hit: false, desc: '<none>' };
+          const id = el.id ? `#${el.id}` : '';
+          const cls = typeof el.className === 'string' && el.className
+            ? `.${el.className.trim().split(/\s+/).slice(0, 2).join('.')}`
+            : '';
+          const block = el.closest('[data-block-type]')?.getAttribute('data-block-type');
+          return {
+            hit: el.matches(sel),
+            desc: `${el.tagName.toLowerCase()}${id}${cls}${block ? ` «${block}»` : ''}`,
+          };
+        }, selector);
+        trail.push(step.desc);
+        if (step.hit) return { reached: true, trail };
+        await page.keyboard.press('Tab');
+      }
+      return { reached: false, trail };
+    };
+
     // Tab from the top of the document until the first blank has focus.
     await page.locator('body').press('Tab');
-    let reachedInput = false;
-    for (let i = 0; i < tabBudget; i++) {
-      const isInput = await page.evaluate(
-        () =>
-          document.activeElement?.matches(
-            '[data-section-id] input[type="text"]',
-          ) ?? false,
-      );
-      if (isInput) {
-        reachedInput = true;
-        break;
-      }
-      await page.keyboard.press('Tab');
-    }
-    expect(reachedInput, 'a blank must be reachable by Tab alone').toBe(true);
+    const toInput = await walk('[data-section-id] input[type="text"]', tabBudget);
+    expect(
+      toInput.reached,
+      'a blank must be reachable by Tab alone. Focus trail (last 12 stops):\n  ' +
+        toInput.trail.slice(-12).join('\n  ') +
+        `\n(${toInput.trail.length} stops walked, budget ${tabBudget})`,
+    ).toBe(true);
 
     await page.keyboard.type('42');
 
-    // Keep tabbing to the section's Check button.
-    let reachedCheck = false;
-    for (let i = 0; i < tabBudget; i++) {
-      const isCheck = await page.evaluate(
-        () => document.activeElement?.matches('.viewer-section__check') ?? false,
-      );
-      if (isCheck) {
-        reachedCheck = true;
-        break;
-      }
-      await page.keyboard.press('Tab');
-    }
-    expect(reachedCheck, 'Check must be reachable by Tab alone').toBe(true);
+    // Keep tabbing to the group's Check button — same instrumented walk.
+    const toCheck = await walk('.viewer-section__check', tabBudget);
+    const reachedCheck = toCheck.reached;
+    expect(
+      reachedCheck,
+      'Check must be reachable by Tab alone. Focus trail (last 12 stops):\n  ' +
+        toCheck.trail.slice(-12).join('\n  ') +
+        `\n(${toCheck.trail.length} stops walked, budget ${tabBudget})`,
+    ).toBe(true);
 
     // SECOND SIGHTING, MECHANISM CONFIRMED, so this now presses on the LOCATOR
     // rather than on whatever happens to hold focus.

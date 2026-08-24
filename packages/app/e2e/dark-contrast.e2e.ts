@@ -180,10 +180,12 @@ for (const theme of ['light', 'dark'] as const) {
                 el = el.parentElement;
             }
 
+            // The engine emits grid first, then axes (graph-svg.ts).
             const groups = svg.querySelectorAll('g[stroke]');
             const out = {
                 surface: rgb(bg),
                 label: rgb(getComputedStyle(svg.querySelector('text')!).fill),
+                grid: rgb(getComputedStyle(groups[0]!).stroke),
                 axis: rgb(getComputedStyle(groups[1]!).stroke),
             };
             if (prev) root.setAttribute('data-theme', prev);
@@ -202,5 +204,24 @@ for (const theme of ['light', 'dark'] as const) {
             contrast(measured.axis, measured.surface),
             `${theme}: the axes must be distinguishable from the page`,
         ).toBeGreaterThanOrEqual(3);
+
+        // ⚠ RELATIVE, NOT ABSOLUTE, AND THAT IS THE POINT. The defect this
+        // catches was never a contrast FAILURE — on dark the grid measured
+        // 12:1 while the axes measured 3.75:1, so the reference grid was
+        // shouting four times louder than the data drawn on it. Both numbers
+        // pass every absolute floor; only their ORDER is wrong. A threshold
+        // could not have seen it.
+        expect(
+            contrast(measured.grid, measured.surface),
+            `${theme}: the grid is louder than the axes — a reference grid must ` +
+                `never out-shout the data drawn on it`,
+        ).toBeLessThan(contrast(measured.axis, measured.surface));
+
+        // ...and still present. "Quieter" has a floor: an invisible grid is a
+        // different defect, not a fix for this one.
+        expect(
+            contrast(measured.grid, measured.surface),
+            `${theme}: the grid vanished into the page`,
+        ).toBeGreaterThan(1.1);
     });
 }

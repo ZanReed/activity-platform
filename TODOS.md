@@ -32,48 +32,48 @@ call for the row — focus stability across a 76-stop walk is not an a11y proper
 
 **Depends on:** nothing.
 
-## The static-SVG engine's palette is light-only (2026-08-23, convergence follow-on)
+## ~~The static-SVG engine's palette is light-only~~ ✅ VIEWER FIXED 2026-08-24 — the EDITOR half remains
 
-**What:** `renderGraphSvg` hardcodes grid `#cbd5e1`, axes `#64748b` and tick
-labels `#475569` as presentation ATTRIBUTES (`graph-svg.ts:45-47`). It is the
-print/no-JS renderer and it predates dark mode, so the palette assumes white
-paper.
+**The blocking question is answered, by measurement.** The entry said "⚠ Verify
+`var()` actually resolves in a presentation attribute in the target browsers
+before committing to it." It does (Chromium, 2026-08-24):
 
-**Measured, not argued (2026-08-23, live browser on `#0f172a`):** tick labels
-**2.36:1**, below even the 3:1 floor for graphics, on a figure a student reads
-coordinates off. Axes 3.75:1, grid 12:1 (the grid shouting louder than the data
-drawn on it).
+```
+stroke="var(--gk-svg-grid, rgb…)"     var set   → resolves to the variable
+stroke="var(--gk-svg-missing, #cbd5e1)" var unset → falls back to #cbd5e1
+```
 
-**What is already fixed:** the convergence slice re-points the TICK LABELS at
-`--vw-color-ink-muted` in `viewer.css` for both viewer surfaces
-(`.viewer-figure > svg text` and `.viewer-choice-figure__graph svg text`),
-taking them from 2.36:1 to 6.96:1 on dark while leaving light AA. Guarded by
-two rows in `dark-contrast.e2e.ts`, mutation-proven.
+**What shipped.** `graph-svg.ts`'s three palette constants became
+`var(--gk-svg-{grid,axis,label}, <today's hex>)`. **The fallback is the exact
+paper value, so a consumer that defines nothing renders byte-identically** —
+which is what let the viewer opt in without touching print, the editor, or any
+future caller. The viewer's `tokens.css` now declares all three as colour
+ROLES (so the token guard forces every theme block to have an opinion): light =
+the paper values, print = forced back to them, dark = **grid dropped to
+`#1e293b`**.
 
-**What is still open, and why it was NOT fixed in CSS.** The grid and axes keep
-the light palette. That is not a WCAG failure (dark axes measure 3.75:1, over
-the 3:1 graphics floor) but the grid at 12:1 is LOUDER than the data drawn on
-it, which is backwards. It was deliberately not fixed viewer-side: the only
-selector that reaches those groups matches the engine's own hex
-(`g[stroke="#cbd5e1"]`), and `styles.test.ts`'s token-only guard correctly
-refuses a colour literal in `viewer.css`. The fix belongs in the engine.
+**The defect that fixes:** the grid measured 12:1 on dark against axes at
+3.75:1 — a reference grid shouting four times louder than the data drawn on it.
+Neither number was a contrast FAILURE; only their ORDER was wrong.
 
-Also still open: the fix is a VIEWER override of an ENGINE default, so every
-other consumer of `renderGraphSvg` keeps the light-only palette — the editor's
-`GraphFigureView` preview and `ChoiceFigureEditor` thumbnails most obviously,
-which is where a teacher authors in dark mode and sees chrome the student does
-not get.
+**Guarded relatively, because a threshold could not have caught it.**
+`dark-contrast.e2e.ts`'s graph row now asserts `contrast(grid) <
+contrast(axis)` plus a `> 1.1` floor so "quieter" cannot become invisible.
+Mutation-proven: revert the dark grid to the paper value → the row fails
+naming the rule. Print lane re-run: 69 passed, paper unchanged.
 
-**Where to start:** the kit already solved this for the INTERACTIVE board — it
-consumes `--gk-board-*` as `var(x, fallback)` in inline SVG attributes, so the
-same shape works here (`graph-svg.ts`'s three constants become
-`var(--gk-svg-grid, #cbd5e1)` etc.). ⚠ Verify `var()` actually resolves in a
-presentation attribute in the target browsers before committing to it — the
-viewer's CSS-override approach works precisely because it does not depend on
-that. And whatever ships must keep PRINT black-on-white (tokens.css's
-`@media print` block is what currently guarantees that).
+**⚠ STILL OPEN — THE EDITOR, and it is bigger than it looks.** `tokens.css` is
+imported by **StudentViewer, ActivityPrint and DevViewer only** (measured
+2026-08-24). The editor's `GraphFigureView` preview and `MultipleChoiceView`
+thumbnails never load the token layer at all, so they keep the paper palette in
+dark mode — a teacher authoring in dark sees chrome the student does not get.
 
-**Depends on:** nothing. Not urgent — the two student-facing surfaces are fixed.
+**Where to start:** decide whether the editor should import
+`@activity/viewer/tokens.css` (simple, but pulls the whole viewer token layer
+into the editor bundle — check the shell budget) or declare just the three
+`--gk-svg-*` roles in the app's own CSS (cheaper, but forks the vocabulary and
+the token guard will not see the copy). **Depends on:** nothing. Not urgent —
+both student-facing surfaces are correct.
 
 ## The matching interaction the registry already claims — drag / select-then-place (2026-08-22)
 
@@ -193,14 +193,37 @@ ANY runtime, year-round". That is true of the DAY KEYS and was never true of
 their relationship to the watermark — two different properties, one comment,
 read as promising both.
 
-## The a11y GAP-2 row needs ONE CAPTURED FAILURE (moved out of STATE 2026-08-24)
+## The a11y GAP-2 row — ✅ CAPTURE IS NOW AUTOMATIC (2026-08-24); still needs one sighting
 
-⚠ **The a11y GAP-2 row has flaked TWICE (runs 31852826598 and 2026-08-22 local) and is a fix-it item, not a watch item — but it needs ONE CAPTURED FAILURE to be fixable.** The instrumented output (`e6b2872`) has never been read: both times it went green again before anyone looked. **Capture it before re-running on the next sighting.** Green since: seventeen runs to 32048169054, plus **3/3 local this session** (baseline, with the new locked-freeze row, and under a deliberate mutation). **Read the flaky COUNT on every run, not this conclusion.**
+**The blocker was never the bug — it was that nobody was watching.** The row
+has flaked twice (run 31852826598, and locally 2026-08-22) and both times went
+green again before anyone read the instrumentation, so it stayed unfixable for
+weeks. `expect(reachedInput).toBe(true)` tells you `false` and nothing else.
 
-**Why it moved here:** it is a fix-it item with an owner and a precondition —
-which is what this file is for. It sat under STATE's "Pending author actions"
-heading, where it was neither pending nor an author action, and where STATE's
-replace-every-session rule meant it could vanish without being done.
+**Fixed 2026-08-24:** the Tab walk now RECORDS where focus actually landed at
+every step and puts the tail of that trail into the assertion message, so a
+failure diagnoses itself — in CI, with nobody watching. Playwright keeps the
+message in the report and the trace.
+
+Verified by forcing a failure rather than waiting for one:
+
+```
+Error: Check must be reachable by Tab alone. Focus trail (last 12 stops):
+  div#gk-answer-5 «interactive_graph»
+  button «interactive_graph»
+  ...
+  div.viewer-graph__canvas «interactive_graph»
+(25 stops walked, budget 117)
+```
+
+**Still open:** one real sighting. The next flake is now self-documenting —
+**read the failure message, do not re-run first.** A re-run is what destroyed
+the evidence both previous times.
+
+**Noticed in passing:** the trail is dominated by `interactive_graph` stops,
+which is direct evidence for the separate "Canvas blocks add ~17 keyboard
+stops" entry below — that entry can now be measured from any failing run of
+this one rather than by hand.
 
 ## P8 boomerang — the multi-station duration datapoints (moved out of STATE 2026-08-24)
 

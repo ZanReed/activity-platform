@@ -25,6 +25,16 @@ export const colorTokens = [
   '--vw-color-accent',
   '--vw-color-accent-strong',
   '--vw-color-accent-wash',
+  // The static-SVG graph palette. Colour ROLES like the rest, so every theme
+  // block must re-declare them — which is what forces dark and print to have
+  // an opinion instead of silently inheriting paper. Consumed by graph-kit's
+  // `renderGraphSvg` through `var(--gk-svg-*, <paper hex>)` in an SVG
+  // presentation attribute; the fallback is the paper value, so a surface that
+  // does not load tokens.css (the EDITOR, measured 2026-08-24) renders exactly
+  // as it did before these existed.
+  '--gk-svg-grid',
+  '--gk-svg-axis',
+  '--gk-svg-label',
   '--state-correct-ink',
   '--state-correct-border',
   '--state-correct-surface',
