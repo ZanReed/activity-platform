@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**THREE ITEMS ARE OWED.** *(The flow-modes slice's F11 is DONE — see the ✅ below.)*
+**OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 ✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
 misconception strip is live, so **activities carrying bindings are safe to
@@ -144,14 +144,13 @@ class 2026-08-24. What stays LIVE:
   re-pitch them as cheap.
 - **All three z-tokens have real `var()` consumers**: tools 110 < reference 115
   < calculator 120 < popovers 1000.
-- **✅ THE ORPHAN CLASSES ARE ALL CLOSED (2026-08-25).** The last two were
-  ruled and executed in the misconception arc: graph `mistakeFeedback` /
-  `builtinFeedback` WIRED (`mistakes.ts` is production-reachable for the first
-  time), and `partialCredit` / `hasConfidenceRating` / `allowTargetReuse`
-  DELETED end to end. DECISIONS.md → "The last orphan classes". ⚠ **The flow-modes fix wrote the
-  reachability guard those entries asked for, but scoped to the flow fields by
-  name** (`scripts/tests/flow-field-readers.test.mjs`) — so these two are still
-  guarded by nothing but that list.
+- **⚠ ORPHAN CLASSES ARE NOT ALL CLOSED** — this row claimed they were and the
+  drift audit falsified it hours later (2026-08-25). The misconception arc did
+  close its two (DECISIONS → "The last orphan classes"), but **`skills` is a
+  ninth, orphaned at BOTH grains**, unnoticed because the reachability guard is
+  scoped BY NAME to the flow fields (`flow-field-readers.test.mjs`). A by-name
+  guard cannot report a field nobody listed — that is how a closed-set claim
+  survived an open instance. TODOS → "CURRICULUM-ARCHITECTURE ALIGNMENT".
 
 **⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not more code.**
 ~150 markdown files planned in `~/activity-catalogue-pilot/`, currently 3.

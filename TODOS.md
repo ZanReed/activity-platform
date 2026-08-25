@@ -90,6 +90,128 @@ definition control on print (all-or-nothing glossary today).
 `partialCredit` (DECISIONS.md → "The last orphan classes"). Nothing blocks —
 design passes proceed in greenlit order.
 
+## CURRICULUM-ARCHITECTURE ALIGNMENT — four gaps found 2026-08-25
+
+**Source:** the author's `curriculum-architecture.md` (lives in the AUTHORING
+project, NOT this repo — deliberately not copied here, because a second copy is
+exactly the hand-carried sync its own §14.2 names as the system's known weak
+point). Decision refs `D1–D17` / `§1–§16` are that document's, not this repo's.
+Every claim below was checked against code on 2026-08-25, not read off the prose.
+
+### 1. `skills` is an ORPHAN FIELD AT BOTH GRAINS — and it is the spine of the model
+
+The document's §2.2 is *"Everything references skill ids, never activity ids."*
+**This codebase cannot record a skill id at all.**
+
+| grain | evidence |
+| --- | --- |
+| block | `markdownToTiptap.ts` hardcodes `skills: []` at **7 sites** (846, 1643, 1807, 1870, 3157, 3289, 3585). No markdown syntax authors one. |
+| block | **Nothing in `packages/viewer/src` reads `skills`** — grep returns empty. Only `serialize.ts` round-trips it. |
+| activity | `meta.skills` exists (`schema/src/document.ts:108`) but `ActivityConfigDrawer.tsx:377` says "skills UI is still deferred to Phase 2". |
+
+Authored by nothing, read by nothing, rendered by nothing — the **ninth**
+instance of this repo's most expensive defect class, and the one that matters
+most, because an entire curriculum model is specified on top of it.
+
+**The concrete proof it is already costing something:** the document states "47
+skills in the graph, **0 covered**". Four activities covering unit rate and
+proportionality were published 2026-08-25. Coverage is structurally blind — and
+because D3 forbids storing derived state, coverage is COMPUTED, so it will keep
+confidently reporting zero rather than failing loudly.
+
+**Do not fix this by adding a field.** Close-out rule 1: ship the consumer, or a
+guard bound to RENDERED OUTPUT, and mutation-test the guard by reverting the
+wiring. A skill-id channel that stops at the schema is this defect again, larger.
+
+**Depends on:** nothing. Blocks: coverage, burndown, review selection (the
+ancestors × staleness × distance × error-rate query the graph exists for).
+
+### 2. `source_path` encodes the two things the model calls DISPOSABLE and omits the one it calls PERMANENT
+
+⚠ **NEXT ITEM — decide this while it is four files.** Path IS identity
+(batch-importer D1). Current shape:
+
+    year-8/rates-and-proportional-relationships/activity-01-unit-rate.md
+    └─ band          └─ "unit"                   └─ ordinal
+
+| segment | the model says | the problem |
+| --- | --- | --- |
+| `year-8` | bands are **dual and deliberately unsynced** (`band_nz`/`band_us`, D14) | privileges NZ; a skill landing at a different US grade has nowhere to go |
+| `rates-and-…` | "unit" is **not one of the five entities** (skill/chain/activity/misconception/capability) | an invented level with no home in the model |
+| `activity-01` | activities are **disposable** — split, rewritten, forked (D1) | splitting activity-02 forces renumbering → new `source_path` → **orphan + new row + lost published history** |
+
+The **chain** — permanent, and the owner of both ordering and the `hooks: []`
+pool — appears nowhere in the path.
+
+**Proposed:** `chain.rate.proportional/<stable-slug>.md`, with order carried by
+chain metadata rather than filename digits.
+
+**Cost curve, which is the whole argument:** 4 renames today on activities with
+`section_checks` = 0 and `submissions` = 0, versus the same operation at 150
+files on rows carrying real attempt history. ⚠ **Not free even now** — a rename
+orphans the row (D1/D2), so the four activities need re-publishing after.
+
+**Interacts with #1:** if skill ids become first-class, the path scheme matters
+*less*, because the chain relationship stops depending on the filesystem. Decide
+#1's direction before committing to a path, but do not let that defer #2 past
+the point where it is cheap.
+
+### 3. §11's validator is TWO validators, and the split is not written down
+
+Of the document's 13 checkable rules, this repo can own about four: the `mis.*`
+registry check, the id-shape warning, `--strict`, and partially
+distractor-on-a-non-auto-scored-type. The rest — faded beat (hard error), DoL
+shape, hook count ≥ `ceil(activities/2)`, the approval gate, review reach,
+`planting_for` — need **chain, skill, DoL and status concepts the platform
+schema does not have**. Verified 2026-08-25: no chain, no DoL, no locale, no
+hook concept exists (the greps that hit were React hooks and print locale).
+
+§11 currently reads as one set. It is two, across two systems, and rules fall
+down the gap between them unless the ownership is explicit.
+
+**One rule IS cheap here and is unbuilt on both sides:** *"nothing a review item
+retrieves appears on the activity's `reference` panel"* (§15 amendment, marked
+*to build*). The importer already sees the `reference` fence and the review
+items in a single pass, so this is a same-document check — the only §11 rule
+this repo is well placed to enforce.
+
+### 4. The document's §8 grading claim is FALSE about this platform
+
+> "Auto-scores are **client-computed** and advisory."
+
+Auto-scoring is **server-computed**. `gradeSection` lives in
+`packages/viewer/src/server/grading/`, reaches production only via
+`_shared/grading-server.bundle.js`, and is called by `check-activity`. Grepped
+2026-08-25 for a client caller: **there is none.**
+
+This is filed as a defect rather than a typo because the document is explicitly
+"reference for the codebase". A session told to make the code line up with that
+sentence would move grading client-side and reopen the answer-leak surface the
+entire sanitize/strip design exists to close (`MATH_PROMPT_SECRET_FIELDS`,
+`BLANK_SECRET_FIELDS`, `choices[].misconceptionId`).
+
+**The second half is true and worth keeping** — *only teacher-entered grades are
+server-authoritative* is a correct statement about GRADEBOOK authority. The
+sentence needs splitting: auto-scores are server-computed, but they are not the
+official grade. **Owner: the author, in the authoring project's doc.**
+
+### 5. "Review" names two different things
+
+The document: a **component inside every activity** (review → lesson → DoL).
+This repo: an activity-level `role` enum, `lesson | review | practice`
+(`markdownToTiptap.ts`, `asPedagogicalRole`). The four Year 8 files declare
+`role: lesson` while each CONTAINS a review section — both correct under their
+own vocabulary. Anyone mapping the model onto `role` will conflate them. Cheap
+to fix in prose; expensive if it reaches code as an assumption.
+
+### Evidence FOR one of the document's open questions
+
+§15 leaves the misconception prefix subdivision "unratified". The 13 live
+bindings split `mis.rate.*` (computation) from `mis.proportional.*` (conceptual),
+and distinct prefixes measurably help the manifest's near-duplicate detector
+(Levenshtein ≤ 2 over the whole id) avoid false pairs. Working in practice —
+that is a datapoint for keeping it, not a decision.
+
 ## graph-kit's legacy runtime should be deleted WHOLE, not gutted (2026-08-25)
 
 `packages/graph-kit/src/runtime.ts` is the published-page data-attribute

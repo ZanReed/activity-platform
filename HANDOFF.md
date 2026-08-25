@@ -150,16 +150,38 @@ the phantom returns on the next run. Full entry + proposed fix in TODOS. It
 matters because it inverts D5's promise: a preview that cries wolf on every row
 is a preview nobody reads the real `title` change out of.
 
-## The ordering — RULED vs my reading
+## The ordering — the author has named the next item
+
+**⚠ NEXT ITEM, AUTHOR-DIRECTED (2026-08-25): decide the catalogue PATH SCHEME.**
+TODOS → "CURRICULUM-ARCHITECTURE ALIGNMENT" §2 carries the full evidence. The
+short version: `source_path` IS identity, and the current path
+`year-8/rates-and-proportional-relationships/activity-01-unit-rate.md` encodes a
+band (dual and deliberately unsynced, D14), a "unit" (not one of the model's five
+entities), and an ordinal (activities are disposable and get split) — while the
+CHAIN, which is permanent and owns both ordering and the hook pool, appears
+nowhere. Proposed: `chain.<domain>.<name>/<stable-slug>.md`.
+
+**Do it now because the cost curve is brutal:** 4 renames today on activities
+with zero student data, versus the same operation at 150 files on rows carrying
+real attempt history. It is not free even today — a rename orphans the row
+(D1/D2), so the four activities need re-publishing after.
+
+**Read §1 before committing to a scheme.** If skill ids become first-class, the
+path matters less, because the chain relationship stops depending on the
+filesystem. Decide §1's DIRECTION first; do not let that defer the path past the
+point where it is cheap.
 
 RULED BY THE AUTHOR (still standing):
 
-1. **Writing activities comes before more code.** Still true, and now producing
-   returns: the first 4 files found a leak that 130 script guards and a full
-   `pnpm verify` never saw. Keep authoring.
-2. **Do NOT harden constraints out of STATE yet.** ⚠ But STATE is now at **3981
-   words against a 4000 ceiling**. The next session touching it should do the
-   PROMOTION, not squeeze — there is no room left to defer again.
+1. **Writing activities comes before more code.** Still true, and now paying:
+   the first 4 real files found an answer leak that 130 script guards and a full
+   `pnpm verify` never saw.
+2. **Do NOT harden constraints out of STATE yet.** 🚨 **This has now run out of
+   room.** STATE sits at **exactly 4000 words against a 4000-word ceiling** —
+   the budget test passes with ZERO headroom, so the next session cannot add a
+   sentence without failing `pnpm test`. The deferral is over: the next session
+   touching STATE does the PROMOTION into CLAUDE.md/DECISIONS. Deleting to make
+   room is the one thing the rule forbids.
 
 HARD DEPENDENCIES (facts, not preferences):
 
@@ -174,12 +196,11 @@ HARD DEPENDENCIES (facts, not preferences):
 
 MY READING (not ruled):
 
-6. **The importer warning above is the best next code slice** — it is small, it
-   is proven by real content rather than argued from principle, and it closes an
-   answer leak. It also has no dependencies, unlike everything in the wishlist.
-7. The offline misconception match-rate query (T6) is still worth writing early
-   as the first consumer of stored ids, but it is bound by the same prune
-   ordering as #3.
+6. **`skills` being an orphan (§1) is the deepest of the four gaps** — an entire
+   curriculum model is specified on a field that is authored by nothing and read
+   by nothing. It is also the one that makes coverage permanently report zero.
+7. **The importer's swallowed-blank warning is the best small code slice** —
+   proven by real content, no dependencies, closes an answer leak.
 
 ## Authoring facts worth not re-deriving
 
@@ -195,6 +216,43 @@ MY READING (not ruled):
   students, not others, so the count is biased while looking healthy.
 - **Publishing clears the draft** (`publish_activity` sets `draft_content =
   null`), so a published activity with no draft is up to date, not stale.
+
+## Drift audit — run 2026-08-25, 2 confirmed findings (both fixed)
+
+Triggered by a deletion plus a session that changed reality and wrote about it.
+§0–§8 clean; the two findings were both §9, and both were **self-created hours
+earlier** — the pattern the skill's own trigger notes predict.
+
+- **CLAUDE.md said "eight instances" of the orphan class; it is nine.** Fixed,
+  with `skills` named.
+- **STATE said "✅ THE ORPHAN CLASSES ARE ALL CLOSED (2026-08-25)".** False the
+  same day. Fixed. **The mechanism is the interesting part:** the reachability
+  guard is scoped BY NAME to the flow fields
+  (`scripts/tests/flow-field-readers.test.mjs`), and a by-name guard cannot
+  report a field nobody added to the list — so a closed-set claim survived an
+  open instance. A guard that enumerates cannot prove exhaustiveness.
+
+Also corrected: STATE's hand-maintained "THREE ITEMS ARE OWED" tally, replaced
+by naming the items (a count in a section that gets replaced is a number with an
+expiry date).
+
+**A method fix worth keeping:** §9's sweep has a false-positive class it did not
+name. Answer-key fields (`correctPoints`, `models`, `mistakeFeedback`, …) have
+no viewer consumer BY DESIGN — sanitize strips them and the SERVER grader reads
+them. Checking `graph-kit/src` and `viewer/src/server/` cut 19 candidates to 1.
+That caveat is now in CLAUDE.md's close-out rule so the next sweep does not
+re-report nineteen phantoms.
+
+Clean sections, stated rather than skipped: version constants (§1 — every
+`SANITIZER_REV` literal is a HISTORY observation or sits beside its guard);
+budgets (§2 — 18/18 pass, tightest is `ledger: prosemirror` at 96% of cap,
+no movement baseline to compare against); design-doc statuses (§3 — only
+`ux-lens.md` lacks one, the documented false positive, correctly classified as a
+procedure doc); ROADMAP (§4); STATE links (§5 — all resolve); deploy state
+(§6 — `config.toml` lists exactly `get-activity` + `check-activity`, matching
+the functions dir); compliance (§7 — no migration touched personal data this
+session; `data-map-coverage` and `retention-windows` both green); guards (§8 —
+130 script tests pass).
 
 ## Traps that cost this session real time
 
