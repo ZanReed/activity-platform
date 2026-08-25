@@ -1,4 +1,4 @@
-# Handoff — 2026-08-25
+# Handoff — 2026-08-25 (evening)
 
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
@@ -7,39 +7,39 @@ context for a human deciding whether the handoff is accurate.
 
 ## What happened in the session that wrote this
 
-**The misconception sensor shipped end to end and is LIVE.** A distractor can
-now name the misconception it senses, in markdown, and that id survives import
-→ serialize → grading → the stored check verdict. Both Edge Functions are
-deployed and code-verified. The same arc deleted the last three orphan knobs.
+**Authoring started, and the tooling met real content for the first time.** The
+catalogue went from 3 files / 0 bindings to 7 files / 13 bindings across all
+four ratified `mis.*` ids. The author ran the real import; it created 4 and
+updated 3. Verified live afterwards: 13 stored ids in `draft_content`, matching
+the manifest per file.
 
-**It went through two reviews, and both outside voices were right.** Nine
-cross-model tensions were raised across `/plan-eng-review` and
-`/plan-devex-review`; the author accepted all nine. The eng review's outside
-voice found that the ratified storage premise was **false against the
-retention design** — misconception ids live on non-latest attempts, exactly
-the rows `prune_section_checks` deletes. That became a blocking step on the
-arming checklist.
+**The first real content immediately found a defect the whole test suite was
+blind to.** `{{…}}` inside `$…$` is absorbed whole into the LaTeX — no blank, no
+grading, no warning, and the ANSWER plus the binding id rendered to the student.
+It is an answer leak, it is universal across math contexts, and `--strict`
+cannot see it. Filed in TODOS with a proposed one-line importer warning.
 
-**Then the build falsified one of the reviews.** X3 split the graph nudge text
-out partly on a bundle-cost argument; measuring it both ways showed the split
-saved **10.5 KiB, not 108** — the ~98 KiB is the formula parser, which the id
-feature needs anyway. The split still stands on its UX ground. Recorded,
-because "a claim with a number attached is still a claim."
+**A fourth instance of that defect predates the arc and is STILL LIVE in
+published snapshots.** `unit-3/unit-rate.md` has carried it since 2026-08-21.
+Measured blast radius is zero (no checks, no submissions), but it proves the
+leak class is real and reaches `activity_versions`, not just drafts.
 
-**The most useful thing built was a test.** Three seam tests passed while the
-chain was broken end to end: importer, serializer and grader were each correct
-and an authored binding still reached no student. The cross-package
-`misconceptionEndToEnd.test.ts` caught it, then caught a second instance
-minutes later.
+**The four new activities were published at session end** (v1 each, verified
+clean). The leaky legacy one was not — see the owed action below.
+
+**The verification method is the reusable part.** Bindings were proven by
+deriving one case per binding FROM the serialized documents and running each
+through the shipped `gradeSection` — then mutation-testing that harness so its
+green meant something. It found 12 of 13; the 13th was missing because of the
+swallow bug, which the manifest-vs-grep diff caught.
 
 ## What the next session should know before trusting anything here
 
-- **`HANDOFF.md` is REPLACED, not appended** — like STATE. It is a transient
-  baton, not a durable doc, and it is not in CLAUDE.md's doc map.
-- Everything is **pushed**; confirm CI green before building on it
-  (`gh run list`).
-- The catalogue still has **3 files and zero bindings**. Nothing about the
-  sensor has been exercised by real content.
+- **`HANDOFF.md` is REPLACED, not appended** — like STATE. A transient baton,
+  not a durable doc, and not in CLAUDE.md's doc map.
+- Everything is **pushed and CI-green at `129117c`**. Confirm with `gh run list`.
+- **One author action is still OWED** (republish `unit-3/unit-rate.md` — see
+  below). Verified still outstanding at session end with the query given.
 
 ---
 
@@ -48,139 +48,157 @@ minutes later.
 I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
 then TODOS.md.
 
-## Where things stand (2026-08-25, pushed)
+## Where things stand (2026-08-25 evening, pushed, CI green at `129117c`)
 
-The misconception-sensors arc SHIPPED and is live: authored `:: mis.*`
-bindings on blanks / MC choices / graph `mistake:` lines reach the stored
-check verdict. Both functions deployed and CODE-verified. Design doc +
-both review passes + as-built corrections:
-`docs/design/misconception-sensors.md`.
+**Authoring is underway — the ruling from 2026-08-24 is being executed, not
+still pending.** The catalogue at `~/activity-catalogue-pilot/` now holds:
 
 ```
-{{12 | !21 :: digits reversed :: mis.place-value.digit-reversal}}
-( ) $4 per kg :: mis.roc.uses-endpoint-value
-mistake: y = x + 2 :: The coefficient is the slope. :: mis.slope.reads-intercept
+misconception-registry.txt                          ← the taxonomy, 4 ratified ids
+unit-3/{unit-rate,proportional-graphs}.md           ← legacy Algebra I test fixtures
+unit-4/rate-of-change.md                            ←   (pre-date the real catalogue)
+year-8/rates-and-proportional-relationships/
+  activity-0{1,2,3,4}-*.md                          ← the real content, 13 bindings
 ```
 
-`pnpm verify` = 8/8. Script guards 130. All orphan classes are closed.
+Run it with:
+
+```
+pnpm import:batch ~/activity-catalogue-pilot --owner <email> --dry-run --strict \
+  --registry ~/activity-catalogue-pilot/misconception-registry.txt
+```
+
+13 bindings · 4 distinct ids · `--strict` exit 0. `pnpm verify` 8/8.
+
+**All four Year 8 activities are PUBLISHED** (v1 each, 2026-08-25) — so the
+sensor is live on real student-reachable content for the first time. The
+bindings themselves never reach the student: `choices[].misconceptionId` and
+the whole `mistakeFeedback` array are on the sanitizer's strip lists, and that
+is bound to output by `tests/sanitize.test.ts` (`expect(wire).not.toContain`)
+plus `tests/check-leak.test.ts`, both in `pnpm verify`.
+
+## The one author action still OWED
+
+**Republish "Unit Rate from a Table" from the app** — the Algebra I one in the
+legacy `unit-3/` folder, NOT one of the four new Year 8 activities.
+`unit-3/unit-rate.md` authored `$$\frac{4.50}{3} = {{=1.50}}$$`, which the
+importer swallows (see below). All three `activity_versions` snapshots (v1–v3,
+last 2026-08-22) carry it, and those are what `get-activity` serves at
+`/a/:id`. **The 2026-08-25 re-import fixed the DRAFT only** — a re-import never
+touches published snapshots. A republish mints a clean v4.
+
+⚠ **This was attempted and missed at session end**: the author published the
+four NEW activities (all clean, v1 each) but not this one, because "republish
+the unit-rate activity" reads ambiguously when the catalogue now contains both
+`unit-3/unit-rate.md` and `year-8/…/activity-01-unit-rate.md`. Confirmed still
+at v3. **Verify, do not assume:**
+
+```sql
+select v.version_num, position('{{=1.50}}' in v.content::text) > 0 as still_leaks
+from activity_versions v join activities a on a.id = v.activity_id
+where a.source_path = 'unit-3/unit-rate.md' order by v.version_num desc;
+```
+
+Blast radius was measured at zero — `section_checks` = 0, `submissions` = 0 —
+so this is untidy, not an incident.
+
+## The defect the corpus found — the highest-value small slice available
+
+**`{{…}}` inside `$…$` is swallowed whole into the latex, silently.**
+
+```
+{"type":"mathInline","attrs":{"latex":"k = {{=8 | !0.125 :: … :: mis.rate.ratio-inverted}}"}}
+```
+
+Three failures at once: the **answer is shown to the student**, the item is
+**not gradeable**, and the **binding vanishes** (so the sensor reports "nobody
+made this mistake"). Measured as universal — inline, display, `worked`,
+`callout`, `faded`, table cells, mc choices. Only the `definitions` fence did
+not reproduce, and that is unexplained, not cleared.
+
+⚠ **Sanitize structurally cannot fix this, and that is the interesting part.**
+It strips `prompts[].answer` on `PROMPT_CARRIER_TYPES`. A swallowed blank
+produces **no `prompts` array at all** — the answer sits in `latex`, which is
+content, not a secret field. Every layer below the importer behaves correctly
+and the answer still lands on the page. The fix has to be at the importer.
+
+**Proposed (not built):** warn when a `mathInline`/`math_block` latex contains
+`{{`. One predicate over a node the importer already constructs; converts a
+silent answer-leak into a `--strict` failure. Guard it against RENDERED OUTPUT
+and mutation-test it by reverting the corpus fix. Full entry in TODOS.
+
+⚠ **Do not "fix" this by telling authors to use `\gap{}` and stopping there.**
+`\gap{}` is correct inside math AND puts the answer where the sanitizer can
+reach it — but **`\gap{}` cannot carry a misconception binding**, because
+`|`-alternates are not parsed inside math (format doc line 70). So a mistake
+sensor inside an equation has no spelling today. That is a real capability gap
+worth its own decision, not a syntax preference.
 
 ## The ordering — RULED vs my reading
 
-RULED BY THE AUTHOR (still standing from 2026-08-24):
+RULED BY THE AUTHOR (still standing):
 
-1. **Writing activities comes before more code.** ~150 markdown files planned
-   in `~/activity-catalogue-pilot/`, still **3**, and **none carries a
-   binding**. The sensor, the manifest, the registry check and the
-   dead-binding detector are all built and all unexercised by real content.
-   The single highest-value next action is authoring — and the first binding
-   written is also the first real test of the tooling.
-2. **Do NOT harden constraints out of STATE yet.** It sits over its word
-   budget deliberately; the cut is by PROMOTION when the bug tail closes.
+1. **Writing activities comes before more code.** Still true, and now producing
+   returns: the first 4 files found a leak that 130 script guards and a full
+   `pnpm verify` never saw. Keep authoring.
+2. **Do NOT harden constraints out of STATE yet.** ⚠ But STATE is now at **3981
+   words against a 4000 ceiling**. The next session touching it should do the
+   PROMOTION, not squeeze — there is no room left to defer again.
 
 HARD DEPENDENCIES (facts, not preferences):
 
-3. 🚫 **The check-prune CANNOT be armed until misconceptions roll up.** Ids
-   live on NON-latest attempts — precisely what `prune_section_checks`
-   deletes — and no rollup table has a misconception dimension. The amendment
-   naming the four open design questions is
-   `docs/design/check-retention-and-rollup.md` §II.6; the blocking step is on
-   the ARMING checklist in TODOS. Also still gated on counsel Q10.
-4. **The UNITS slice's syntax is UNPINNED, and its old spelling was
-   unimplementable.** Three code-verified tokenizer collisions killed it —
-   worst: `unit: km/h|kph` would make the literal string "kph" an ACCEPTED
-   ANSWER, because the blank grammar splits on `|` before any unit parsing.
-   Read X2 in the design doc before designing; do not re-derive.
-5. **The graph nudge TEXT is a separate slice with its own UX pass.** It is
-   first-ever student-visible feedback on graph blocks and would default ON
-   for every published graph activity.
+3. 🚫 **The check-prune CANNOT be armed until misconceptions roll up.** Ids live
+   on NON-latest attempts, exactly what `prune_section_checks` deletes.
+   `docs/design/check-retention-and-rollup.md` §II.6; blocking step on the
+   ARMING checklist in TODOS. Also still gated on counsel Q10.
+4. **The UNITS slice's syntax is UNPINNED** — three verified tokenizer
+   collisions, worst being `unit: km/h|kph` making the literal "kph" an accepted
+   answer. Read X2 in the design doc before designing; do not re-derive.
+5. **The graph nudge TEXT is a separate slice with its own UX pass.**
 
 MY READING (not ruled):
 
-6. The offline misconception match-rate query (T6) is worth writing early, as
-   the first real consumer of the stored ids — but it depends on attempt rows,
-   so it is bound by the same prune ordering as #3.
+6. **The importer warning above is the best next code slice** — it is small, it
+   is proven by real content rather than argued from principle, and it closes an
+   answer leak. It also has no dependencies, unlike everything in the wishlist.
+7. The offline misconception match-rate query (T6) is still worth writing early
+   as the first consumer of stored ids, but it is bound by the same prune
+   ordering as #3.
 
-## The builder's first misconception ids — VALIDATED against the shipped code
+## Authoring facts worth not re-deriving
 
-The catalogue builder proposed four ids for the `chain.rate.proportional`
-chain, awaiting the author's ratification (the taxonomy is theirs; the platform
-never owns it). **Everything below was run through the real importer and
-grader, not reasoned about:**
-
-```
-mis.rate.ratio-inverted                     VALID
-mis.rate.compares-totals                    VALID
-mis.proportional.one-pair-assumed-constant  VALID
-mis.proportional.line-misses-origin         VALID
-```
-
-All four pass the shipped `VALID_ID` pattern, and all three binding FORMS they
-wrote (blank `!`, mc choice, graph `mistake:`) import with **zero warnings**
-and produce the right attrs. Two prefixes is fine — ids are opaque to the
-platform, and distinct prefixes actually help the manifest's near-duplicate
-detector (Levenshtein ≤ 2 over the whole id) avoid false pairs.
-
-⚠ **ONE BINDING IS PARTIALLY DEAD, and partially dead is worse than dead**
-— it fires for some students who made the mistake and not others, so the count
-is silently biased while looking healthy. Activity 1 item 1 is `3 muffins cost
-$4.50`, so the inverted value is 3 ÷ 4.50 = **0.666…, which does not
-terminate**. Measured against the live grader:
-
-| student types | binding fires |
-|---|---|
-| `0.67` · `.67` · `67/100` | ✅ |
-| `0.66` · `0.667` · `0.6667` · `2/3` | ❌ (marked wrong, but NO id recorded) |
-
-Numeric mistake matching compares by VALUE within the blank's tolerance, and
-that tolerance is the ANSWER's — so it cannot be loosened for the mistake
-without also loosening what counts as correct.
-
-**Two fixes, both verified:**
-- **Preferred — choose numbers whose inverted value terminates.** `4 muffins
-  cost $5.00` → answer `1.25`, inverted `0.8`: one binding then catches `0.8`,
-  `.80`, `0.80` AND `4/5`. This is the general authoring principle worth
-  adopting: *pick the numbers so the anticipated wrong answer is exact.*
-- Or repeat the `!` segment with the same id (`!0.67 … | !0.66 … | !2/3 …`) —
-  works, but it is whack-a-mole and still missed `0.6667` in the test.
-
-Their Activity 2 bindings have no such problem: `!0.5` and `!0.2` are exact.
-
-**One limitation to know for `mis.proportional.line-misses-origin`** (from the
-implementation, not measured): a graph `mistake:` compiles ONE curve and
-compares the student's drawing to it, so `mistake: y = 3x + 2` senses that
-line, not the class "any line missing the origin". The **mc choice** binding
-they also propose is the more reliable sensor for that misconception, because
-mc matching is by choice identity rather than geometry.
-
-**Their deferred `mis.rate.units-dropped` call is correct** — and firmer than
-they know: the units slice's syntax is UNPINNED because three tokenizer
-collisions were verified (X2). Their proposed workaround — an error-analysis mc
-showing a unit-less answer — **works today** with the shipped feature and needs
-nothing new.
-
-**To wire the registry check:** `--registry <file>` takes plain text, one id
-per line, `#` comments and blank lines ignored. In batch mode a registry is
-REQUIRED once any file carries bindings, and `--strict` turns binding warnings
-into a failed run.
+- **`source_path` is the activity's IDENTITY** (D1). Moving or renaming a `.md`
+  orphans its row and creates a new one. The `year-8/<unit>/` layout was chosen
+  this session and is cheap to change ONLY while the row is disposable.
+- **The registry is required in batch mode** once any file carries bindings.
+  Plain text, one id per line, `#` comments. Adding an id there IS the
+  ratification step.
+- **Pick numbers so the anticipated wrong answer is exact.** All four
+  `ratio-inverted` bindings invert to terminating values (3÷5, 3÷6, 4÷20, 3÷24).
+  A non-terminating inverse gives a PARTIALLY dead binding — fires for some
+  students, not others, so the count is biased while looking healthy.
+- **Publishing clears the draft** (`publish_activity` sets `draft_content =
+  null`), so a published activity with no draft is up to date, not stale.
 
 ## Traps that cost this session real time
 
-- **A seam test cannot see a gap between two correct halves.** Three passing
-  unit tests, one broken chain. Write the end-to-end walk FIRST for anything
-  that crosses packages.
-- **Mutation-test the guard, and pick a mutation that can actually be
-  observed.** One mutation here "passed" because an `isFinite` check downstream
-  masked it — the guard was fine, the mutation was badly chosen. If a mutation
-  does not go red, ask whether it changes behaviour at all before trusting the
-  test.
-- **A review's confident number can be wrong.** Measure before acting on it.
-- **`get_edge_function` CANNOT read `check-activity`** (2.6 MB; 3/3 errors).
-  Download + `shasum` instead — byte-identical is a stronger proof than any
-  marker grep. The method is in CLAUDE.md's deploy-verification rule.
-- **The docs race the shipping and the docs lose.** The closing drift audit
-  found 6 findings and 5 were self-created hours earlier — a status line
-  saying PLAN on shipped code, STATE's "current focus" still on the previous
-  arc, and three entries describing just-fixed things in the present tense.
+- **A manifest count is a cross-check no test replaces.** The swallow bug was
+  invisible to the importer, to `--strict`, and to a harness that derives its
+  cases from the document — because a swallowed binding never reaches the
+  document. It was caught by diffing the manifest's per-id counts against a
+  grep of the source files. Do that diff whenever bindings change.
+- **Derive test cases from the artifact, then mutation-test the deriver.** The
+  first harness silently collapsed two distinct mc choices sharing one id into
+  one case (bad de-dup key) and reported 12/13 as if complete.
+- **`browse` handoff did not preserve the login session.** The daemon restarted
+  between `handoff` and `resume` and came back headless with empty
+  localStorage; `connect` gave a headed browser on a fresh profile, also
+  unauthenticated. Supabase keeps the session in localStorage, so
+  `cookie-import-browser` would not have helped either. **Publishing from the
+  app is an author action in practice** — plan around it rather than through it.
+- **Check who pushed.** Three commits reached origin without this session
+  running `git push` (the author pushed mid-session). `git ls-remote` and the
+  `origin/main` reflog settle it; the local ref alone can mislead.
 
 ## House rules that bite hardest here
 
@@ -188,13 +206,12 @@ into a failed run.
   `main` before committing.
 - `pnpm verify` is the definition of done for CI's check job.
 - A schema change means both bundles regenerate in the SAME commit, and a
-  redeploy is owed.
-- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling). Do not raise
-  the ceiling to make a commit pass.
+  redeploy is owed. **Nothing this session touched schema** — no redeploy owed.
+- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling, currently 3981).
+  Do not raise the ceiling to make a commit pass.
 
 ## Start here
 
-Say which of 1–6 you're taking and why, before touching anything. If it's (1),
-you are authoring, not coding — and the interesting output is the bugs the
-corpus finds. Run `pnpm import:batch ~/activity-catalogue-pilot --dry-run`
-first: it now prints a binding manifest, and today that manifest is empty.
+Say which of 1–7 you're taking and why, before touching anything. Then run the
+dry-run above — the manifest is no longer empty, and its per-id counts are the
+first thing to reconcile against the files.
