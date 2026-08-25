@@ -109,9 +109,20 @@ The document's §2.2 is *"Everything references skill ids, never activity ids."*
 | block | **Nothing in `packages/viewer/src` reads `skills`** — grep returns empty. Only `serialize.ts` round-trips it. |
 | activity | `meta.skills` exists (`schema/src/document.ts:108`) but `ActivityConfigDrawer.tsx:377` says "skills UI is still deferred to Phase 2". |
 
-Authored by nothing, read by nothing, rendered by nothing — the **ninth**
-instance of this repo's most expensive defect class, and the one that matters
-most, because an entire curriculum model is specified on top of it.
+⚠ **This is NOT the orphan defect class, and calling it that was wrong** (said
+here first on 2026-08-25, corrected the same day). The repo has an explicit,
+reasoned position: `flow-field-readers.test.mjs`'s scoping note calls `skills`
+"legitimately editor-and-catalog-only" — a teacher-facing tagging field like
+`tags`, which has no business rendering to students. On its own terms that is
+coherent and deliberate.
+
+**The accurate finding is narrower and still real.** `skills` is *reserved*
+rather than editor-only: the block grain is hardcoded `[]` with no way to author
+one, and the activity grain's UI is deferred to Phase 2. So it is declared at
+both grains, authorable at NEITHER, and read by nothing. That is fine for a
+tagging field nobody uses yet. It is **not** fine as the spine of a curriculum
+model — and that is the gap: §2.2 needs a first-class skill-id channel, which is
+a CAPABILITY to build, not a defect to fix.
 
 **The concrete proof it is already costing something:** the document states "47
 skills in the graph, **0 covered**". Four activities covering unit rate and
@@ -683,7 +694,13 @@ bottom of this file). **Depends on:** a ruling on whether an unlock deletes
 the attempt or records a new one — the analytics rollup reads these rows, and
 "deleted" and "superseded" are different facts to it.
 
-## S9 left FIVE MORE ORPHAN CLASSES — **FOUR FIXED, ONE OPEN** (drift audit §9)
+## S9 left FIVE MORE ORPHAN CLASSES — **ALL FIVE FIXED** (drift audit §9)
+
+⚠ *Header corrected 2026-08-25: it read "FOUR FIXED, ONE OPEN" after item 5 was
+fixed 2026-08-24 — the item was ticked and the tally was not. What IS still open
+is the "Minor, same class" list at the foot of this entry, which nothing has ever
+closed. A tally maintained separately from the items it counts will drift; the
+ticks are the truth.*
 
 The 2026-08-22 full audit swept **every** field in `packages/schema/src` (~180)
 against the viewer's rendering set and the grading server. Everything below has

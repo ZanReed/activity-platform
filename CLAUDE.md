@@ -51,12 +51,10 @@ Answer each out loud in the final message, including "n/a":
 1. **Added or changed a schema field?** Grep it against
    `packages/viewer/src/blocks/`, `container/`, and the print CSS. A field read
    only by the editor, only by `serialize.ts`, or only by its own tests is an
-   ORPHAN — the repo's most expensive defect class (**nine** instances now: the
+   ORPHAN — the repo's most expensive defect class (eight instances: the
    registry `numbered` set, `LABELED_BLOCK_TYPES`, block `workSpace`,
    `Row.gridLines`, fence `**bold**`, `showCellLabels`, `hasConfidenceRating`,
-   `allowTargetReuse`, and **`skills`** — found 2026-08-25, orphaned at BOTH
-   grains, and the one an entire curriculum model is specified on top of
-   (TODOS → "CURRICULUM-ARCHITECTURE ALIGNMENT")). Wire it with a guard bound to RENDERED OUTPUT — and mutation-test the guard once by reverting the wiring and watching it go red — or do not add the field.
+   `allowTargetReuse`). Wire it with a guard bound to RENDERED OUTPUT — and mutation-test the guard once by reverting the wiring and watching it go red — or do not add the field.
    ⚠ **The sweep has a known false-positive class:** answer-key fields
    (`correctPoints`, `models`, `mistakeFeedback`, …) have no viewer consumer BY
    DESIGN — they are stripped by sanitize and read by the server grader. Check

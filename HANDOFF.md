@@ -223,14 +223,25 @@ Triggered by a deletion plus a session that changed reality and wrote about it.
 §0–§8 clean; the two findings were both §9, and both were **self-created hours
 earlier** — the pattern the skill's own trigger notes predict.
 
-- **CLAUDE.md said "eight instances" of the orphan class; it is nine.** Fixed,
-  with `skills` named.
-- **STATE said "✅ THE ORPHAN CLASSES ARE ALL CLOSED (2026-08-25)".** False the
-  same day. Fixed. **The mechanism is the interesting part:** the reachability
-  guard is scoped BY NAME to the flow fields
-  (`scripts/tests/flow-field-readers.test.mjs`), and a by-name guard cannot
-  report a field nobody added to the list — so a closed-set claim survived an
-  open instance. A guard that enumerates cannot prove exhaustiveness.
+- **STATE said "✅ THE ORPHAN CLASSES ARE ALL CLOSED".** Not true — three
+  *Minor, same class* items at the foot of TODOS → "S9 left FIVE MORE" have
+  never been closed by anything: `ShortAnswerBlock.placeholder` (Essay honours
+  its own, ShortAnswer does not), `RubricCriterion.description`,
+  `inlineBlankSecrets`, plus the `blank.hint` comment claim that is still
+  fiction. Fixed.
+- **TODOS' own header said "FOUR FIXED, ONE OPEN" when all five items were
+  ticked ✅.** Item 5 was fixed 2026-08-24 and the tally was not updated. Fixed.
+  Same lesson as STATE's "THREE ITEMS ARE OWED": **a tally maintained separately
+  from the items it counts will drift — the ticks are the truth.**
+
+⚠ **A finding this audit got WRONG, recorded because the method failed, not just
+the fact.** The first pass called `skills` "the ninth orphan instance" and wrote
+that into CLAUDE.md, STATE and TODOS. It is not: `flow-field-readers.test.mjs`
+already carries a reasoned ruling that `skills` is "legitimately
+editor-and-catalog-only". The audit swept the CODE and never read the TODOS
+entry that had already adjudicated the field — so it re-litigated a settled
+question and put the wrong answer in the two most-read documents. Retracted the
+same day. **Check whether a finding has already been ruled on before filing it.**
 
 Also corrected: STATE's hand-maintained "THREE ITEMS ARE OWED" tally, replaced
 by naming the items (a count in a section that gets replaced is a number with an

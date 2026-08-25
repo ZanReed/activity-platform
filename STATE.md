@@ -144,13 +144,12 @@ class 2026-08-24. What stays LIVE:
   re-pitch them as cheap.
 - **All three z-tokens have real `var()` consumers**: tools 110 < reference 115
   < calculator 120 < popovers 1000.
-- **⚠ ORPHAN CLASSES ARE NOT ALL CLOSED** — this row claimed they were and the
-  drift audit falsified it hours later (2026-08-25). The misconception arc did
-  close its two (DECISIONS → "The last orphan classes"), but **`skills` is a
-  ninth, orphaned at BOTH grains**, unnoticed because the reachability guard is
-  scoped BY NAME to the flow fields (`flow-field-readers.test.mjs`). A by-name
-  guard cannot report a field nobody listed — that is how a closed-set claim
-  survived an open instance. TODOS → "CURRICULUM-ARCHITECTURE ALIGNMENT".
+- **The NAMED orphan classes are closed; three MINOR ones are still open** and
+  were never closed by anything (TODOS → "S9 left FIVE MORE" → *Minor, same
+  class*): `ShortAnswerBlock.placeholder` (Essay honours its own, ShortAnswer
+  does not), `RubricCriterion.description`, `inlineBlankSecrets`. Plus the
+  stale comment claims beside them — `blank.hint` "survives sanitization as a
+  pre-check affordance" is still fiction; nothing reads it.
 
 **⏭ THE NEXT REAL INFORMATION COMES FROM WRITING ACTIVITIES, not more code.**
 ~150 markdown files planned in `~/activity-catalogue-pilot/`, currently 3.
