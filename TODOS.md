@@ -129,6 +129,47 @@ badges in the blank popover, `MultipleChoiceView`, and `GraphSettings` mistake
 rows, before any colleague authors over an imported activity blind.
 **Depends on:** the co-ownership arc.
 
+## Every PUBLISHED activity reports a phantom `course`/`unit` change, forever (2026-08-25)
+
+**Surfaced by the first publish of file-backed content.** After the four Year 8
+activities were published, `pnpm import:batch --dry-run` reported all four as
+needing `course "Algebra II" → "Year 8 Mathematics"` and `unit <unset> → …`.
+**Nothing is actually stale** — the `course` column already held the right value.
+
+**The mechanism, verified live, not inferred:**
+
+1. `publish_activity` sets `draft_content = null` (confirmed: all four rows show
+   `draft_content is null` and a correctly stamped `course`).
+2. The change preview computes `priorCourse` from `existingRow.draftMeta`
+   (`scripts/batch-import.mjs:340`) — the DRAFT DOCUMENT's meta, not the row's
+   column.
+3. With the draft cleared, `prior.course` is undefined, so it falls back to
+   `pipeline.DEFAULT_COURSE` ("Algebra II") and diffs the file against a default.
+
+The importer deliberately never writes the `course`/`unit` COLUMNS — they are
+publish-truth (0037 R1), stamped only by `publish_activity` from the snapshot.
+So the preview is comparing the file against the wrong source on exactly the
+rows where the right source has been emptied by design.
+
+**Why it is worth fixing rather than tolerating.** It is cosmetic at 4 files and
+noise at 150 — but it inverts D5's headline promise. D5 says "on a re-import the
+file wins, and every field it changes is printed"; a reader who trusts the
+printout now sees changes that are not changes, on every published activity,
+every run. The failure mode is habituation: once the preview cries wolf on every
+row, the one real `title` change in the batch stops being read.
+
+**Not the same shape as an unpublished row.** `unit-3/proportional-graphs.md`
+(never published, draft intact) correctly reported NO change while its `course`
+column disagreed with its file — the mirror image. Both behaviours follow from
+the same line.
+
+**Proposed:** compute `priorCourse`/`priorUnit` from the row's columns when
+`draftMeta` is absent, falling back to `DEFAULT_COURSE` only for a genuinely new
+row. Guard it with a case that publishes, re-runs the preview, and asserts an
+EMPTY change list — the assertion that would have caught this.
+
+**Depends on:** nothing.
+
 ## `{{…}}` inside `$…$` is SWALLOWED WHOLE, silently — and it leaks the answer (2026-08-25)
 
 **Found by the first real catalogue content, exactly as the authoring-first

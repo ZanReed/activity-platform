@@ -8,10 +8,11 @@ context for a human deciding whether the handoff is accurate.
 ## What happened in the session that wrote this
 
 **Authoring started, and the tooling met real content for the first time.** The
-catalogue went from 3 files / 0 bindings to 7 files / 13 bindings across all
-four ratified `mis.*` ids. The author ran the real import; it created 4 and
-updated 3. Verified live afterwards: 13 stored ids in `draft_content`, matching
-the manifest per file.
+catalogue went from 3 throwaway fixtures / 0 bindings to **4 real activities
+carrying 13 bindings** across all four ratified `mis.*` ids. The author imported
+and published them; the three old fixtures were then deleted from both sides.
+Verified live at every step, against the database rather than the script's own
+summary.
 
 **The first real content immediately found a defect the whole test suite was
 blind to.** `{{…}}` inside `$…$` is absorbed whole into the LaTeX — no blank, no
@@ -19,13 +20,18 @@ grading, no warning, and the ANSWER plus the binding id rendered to the student.
 It is an answer leak, it is universal across math contexts, and `--strict`
 cannot see it. Filed in TODOS with a proposed one-line importer warning.
 
-**A fourth instance of that defect predates the arc and is STILL LIVE in
-published snapshots.** `unit-3/unit-rate.md` has carried it since 2026-08-21.
-Measured blast radius is zero (no checks, no submissions), but it proves the
-leak class is real and reaches `activity_versions`, not just drafts.
+**A fourth instance of that defect predated the arc and reached PUBLISHED
+snapshots** — `unit-3/unit-rate.md`, since 2026-08-21. It proves the leak class
+reaches `activity_versions`, not just drafts. That instance is now moot (the
+activity was deleted), but the CLASS is untouched and unguarded.
 
-**The four new activities were published at session end** (v1 each, verified
-clean). The leaky legacy one was not — see the owed action below.
+**The four new activities were published** (v1 each, verified clean), so the
+sensor is live on student-reachable content for the first time.
+
+**A second, smaller importer finding landed at the end:** every PUBLISHED
+activity now reports a phantom `course`/`unit` change on every dry-run, because
+publish clears the draft the change-preview reads. Cosmetic at 4 files, noise at
+150. Filed.
 
 **The verification method is the reusable part.** Bindings were proven by
 deriving one case per binding FROM the serialized documents and running each
@@ -38,8 +44,9 @@ swallow bug, which the manifest-vs-grep diff caught.
 - **`HANDOFF.md` is REPLACED, not appended** — like STATE. A transient baton,
   not a durable doc, and not in CLAUDE.md's doc map.
 - Everything is **pushed and CI-green at `129117c`**. Confirm with `gh run list`.
-- **One author action is still OWED** (republish `unit-3/unit-rate.md` — see
-  below). Verified still outstanding at session end with the query given.
+- **No author actions are owed.** The one that was (a republish) was retired by
+  deleting the activity instead — see below.
+- The last commit here may be **unpushed**; the author pushes.
 
 ---
 
@@ -55,11 +62,13 @@ still pending.** The catalogue at `~/activity-catalogue-pilot/` now holds:
 
 ```
 misconception-registry.txt                          ← the taxonomy, 4 ratified ids
-unit-3/{unit-rate,proportional-graphs}.md           ← legacy Algebra I test fixtures
-unit-4/rate-of-change.md                            ←   (pre-date the real catalogue)
 year-8/rates-and-proportional-relationships/
   activity-0{1,2,3,4}-*.md                          ← the real content, 13 bindings
 ```
+
+The catalogue is now ONLY real content — the three Algebra I test fixtures were
+deleted 2026-08-25 (see below). A dry-run reports `0 orphans`, which is the
+proof both halves of that deletion happened.
 
 Run it with:
 
@@ -77,30 +86,23 @@ the whole `mistakeFeedback` array are on the sanitizer's strip lists, and that
 is bound to output by `tests/sanitize.test.ts` (`expect(wire).not.toContain`)
 plus `tests/check-leak.test.ts`, both in `pnpm verify`.
 
-## The one author action still OWED
+## The legacy test fixtures are GONE — and that closed the owed republish
 
-**Republish "Unit Rate from a Table" from the app** — the Algebra I one in the
-legacy `unit-3/` folder, NOT one of the four new Year 8 activities.
-`unit-3/unit-rate.md` authored `$$\frac{4.50}{3} = {{=1.50}}$$`, which the
-importer swallows (see below). All three `activity_versions` snapshots (v1–v3,
-last 2026-08-22) carry it, and those are what `get-activity` serves at
-`/a/:id`. **The 2026-08-25 re-import fixed the DRAFT only** — a re-import never
-touches published snapshots. A republish mints a clean v4.
+The three initial-test activities (`unit-3/unit-rate.md`,
+`unit-3/proportional-graphs.md`, `unit-4/rate-of-change.md`) were deleted
+2026-08-25: the author soft-deleted the rows in the app, and the `.md` files
+were removed from the catalogue. Both halves — a deleted file alone is only an
+orphan (D2), and a deleted row alone leaves the file re-creating it next run.
 
-⚠ **This was attempted and missed at session end**: the author published the
-four NEW activities (all clean, v1 each) but not this one, because "republish
-the unit-rate activity" reads ambiguously when the catalogue now contains both
-`unit-3/unit-rate.md` and `year-8/…/activity-01-unit-rate.md`. Confirmed still
-at v3. **Verify, do not assume:**
+**This retired the one owed author action.** `unit-3/unit-rate.md` carried the
+swallowed-blank answer leak in published snapshots v1–v3 and needed a republish
+to mint a clean v4. It never got one, and no longer needs one:
+`get_published_activity` filters `a.deleted_at is null` (verified against the
+live function definition), so the leaky version is no longer served. Blast
+radius was zero throughout — `section_checks` = 0, `submissions` = 0.
 
-```sql
-select v.version_num, position('{{=1.50}}' in v.content::text) > 0 as still_leaks
-from activity_versions v join activities a on a.id = v.activity_id
-where a.source_path = 'unit-3/unit-rate.md' order by v.version_num desc;
-```
-
-Blast radius was measured at zero — `section_checks` = 0, `submissions` = 0 —
-so this is untidy, not an incident.
+⚠ **The leak CLASS is not closed** — only this instance is. The importer defect
+below is still live and still unguarded.
 
 ## The defect the corpus found — the highest-value small slice available
 
@@ -133,6 +135,20 @@ reach it — but **`\gap{}` cannot carry a misconception binding**, because
 `|`-alternates are not parsed inside math (format doc line 70). So a mistake
 sensor inside an equation has no spelling today. That is a real capability gap
 worth its own decision, not a syntax preference.
+
+## A phantom change you will see on the very first dry-run
+
+Every PUBLISHED activity reports `course "Algebra II" → "Year 8 Mathematics"`
+and `unit <unset> → …` on every run. **Nothing is stale.** `publish_activity`
+sets `draft_content = null`; the change preview reads `existingRow.draftMeta`
+(`scripts/batch-import.mjs:340`), finds nothing, and diffs the file against
+`DEFAULT_COURSE`. The `course` COLUMN is already correct — the importer never
+writes it (publish-truth, 0037 R1).
+
+Do not "fix" it by re-importing; the re-import writes the same document meta and
+the phantom returns on the next run. Full entry + proposed fix in TODOS. It
+matters because it inverts D5's promise: a preview that cries wolf on every row
+is a preview nobody reads the real `title` change out of.
 
 ## The ordering — RULED vs my reading
 
