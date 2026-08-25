@@ -183,14 +183,33 @@ about nothing:
 | table cell · `mc` choice | yes | no | none |
 | `definitions` fence | not reproduced (different storage path — recheck when fixing) | no | none |
 
-**⚠ A FOURTH INSTANCE PREDATES THIS ARC AND IS ALREADY IN THE DATABASE.**
-`unit-3/unit-rate.md:49` (authored 2026-08-21, imported since) held
-`$$\frac{4.50}{3} = {{=1.50}}$$` inside its `faded` fence — so a live activity
-row has been showing students the answer `1.50` in the equation, with that item
-ungradeable, for four days. Fixed in the file to `\gap{1.50}`; **the live row
-does not change until that file is re-imported.** This is the reason to treat
-the defect as a leak rather than a papercut: it was never noticed, and the
-corpus was three files long.
+**⚠ A FOURTH INSTANCE PREDATES THIS ARC AND IS IN PUBLISHED VERSIONS, NOT JUST
+A DRAFT.** `unit-3/unit-rate.md:49` (authored 2026-08-21) held
+`$$\frac{4.50}{3} = {{=1.50}}$$` inside its `faded` fence. Verified live
+2026-08-25: **all three `activity_versions` snapshots (v1–v3, last 2026-08-22)
+carry it**, and those are what `get-activity` serves at `/a/:id`:
+
+    {"type": "math_block", "latex": "\\frac{4.50}{3} = {{=1.50}}"}
+
+**The sanitizer structurally cannot help here, and that is the point.** It
+strips `prompts[].answer` on `PROMPT_CARRIER_TYPES` (`registry.ts` →
+`MATH_PROMPT_SECRET_FIELDS`). A swallowed blank produces **no `prompts` array at
+all** — the answer sits in `latex`, which is content, not a secret field. So
+every layer downstream of the importer is working correctly and the answer still
+reaches the student. Compare the repaired row, where `\gap{}` puts the answer
+where the sanitizer can reach it:
+
+    "latex": "\\frac{4.50}{3} = \\placeholder[g72277e2…]{}"
+    "prompts": [{"id": "g72277e2…", "answer": "1.50"}]
+
+**Measured blast radius: zero.** `section_checks` = 0 and `submissions` = 0 for
+this activity — no student ever engaged with it. The published page is reachable
+by link, but nothing was seen.
+
+**The draft is fixed (re-imported 2026-08-25); the PUBLISHED versions are not.**
+A re-import updates `draft_content` only. Clearing this needs an author
+republish from the app, which snapshots a clean v4. Until then v3 is what the
+share link serves.
 
 **Depends on:** nothing — this is a standalone importer warning.
 
