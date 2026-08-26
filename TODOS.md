@@ -137,7 +137,20 @@ wiring. A skill-id channel that stops at the schema is this defect again, larger
 **Depends on:** nothing. Blocks: coverage, burndown, review selection (the
 ancestors × staleness × distance × error-rate query the graph exists for).
 
-### 2. `source_path` encodes the two things the model calls DISPOSABLE and omits the one it calls PERMANENT
+### 2. ✅ CLOSED 2026-08-26 — `source_path` is no longer identity
+
+Built as Lane A: identity is a declared `key:` (migration 0041), the path became
+organization + teaching order, and the chain is the folder with its title in
+`chain-registry.txt`. Full rulings: [curriculum-alignment.md](docs/design/curriculum-alignment.md).
+The analysis below stands as the reasoning; the proposal in it was superseded on
+two points — the band left the path as proposed, but the ordinal STAYED (it is
+safe once identity is declared) and the chain ordinal moved into the folder name
+rather than the unit title, because `unit` turned out to be student-visible in
+both the on-screen header and the printed worksheet.
+
+<details><summary>The original analysis (2026-08-25)</summary>
+
+#### `source_path` encodes the two things the model calls DISPOSABLE and omits the one it calls PERMANENT
 
 ⚠ **NEXT ITEM — decide this while it is four files.** Path IS identity
 (batch-importer D1). Current shape:
@@ -167,7 +180,20 @@ orphans the row (D1/D2), so the four activities need re-publishing after.
 #1's direction before committing to a path, but do not let that defer #2 past
 the point where it is cheap.
 
-### 3. §11's validator is TWO validators, and the split is not written down
+</details>
+
+### 3. ✅ SPLIT WRITTEN DOWN 2026-08-26 — and rule 9 moved to the builder
+
+The ownership table is in [curriculum-alignment.md](docs/design/curriculum-alignment.md) §4.
+Two rules became platform-checked (`skill:` exactly one; skill id in registry).
+**Rule 9 — nothing a review item retrieves appears on the reference panel — is
+now the BUILDER's**, at its own request: a rule owned by a party that has
+deferred it is a rule nobody runs, and with item-level skill data in the file it
+is a lookup rather than semantic overlap detection. The analysis below stands.
+
+<details><summary>The original analysis (2026-08-25)</summary>
+
+#### §11's validator is TWO validators, and the split is not written down
 
 Of the document's 13 checkable rules, this repo can own about four: the `mis.*`
 registry check, the id-shape warning, `--strict`, and partially
@@ -186,7 +212,18 @@ retrieves appears on the activity's `reference` panel"* (§15 amendment, marked
 items in a single pass, so this is a same-document check — the only §11 rule
 this repo is well placed to enforce.
 
-### 4. The document's §8 grading claim is FALSE about this platform
+</details>
+
+### 4. ✅ CORRECTED BY THE BUILDER 2026-08-26 — the §8 grading claim
+
+Filed, accepted, and amended on the builder's side as a note on its D8 rather
+than a reopening: only the *where it computes* clause was wrong, and the half the
+decision rests on (only teacher-entered grades are server-**authoritative**)
+survives. The analysis below stands.
+
+<details><summary>The original analysis (2026-08-25)</summary>
+
+#### The document's §8 grading claim is FALSE about this platform
 
 > "Auto-scores are **client-computed** and advisory."
 
@@ -206,7 +243,13 @@ server-authoritative* is a correct statement about GRADEBOOK authority. The
 sentence needs splitting: auto-scores are server-computed, but they are not the
 official grade. **Owner: the author, in the authoring project's doc.**
 
-### 5. "Review" names two different things
+</details>
+
+### 5. ✅ CORRECTED IN PROSE 2026-08-26 — "Review" names two different things
+
+<details><summary>The original analysis (2026-08-25)</summary>
+
+#### "Review" names two different things
 
 The document: a **component inside every activity** (review → lesson → DoL).
 This repo: an activity-level `role` enum, `lesson | review | practice`
@@ -215,13 +258,53 @@ This repo: an activity-level `role` enum, `lesson | review | practice`
 own vocabulary. Anyone mapping the model onto `role` will conflate them. Cheap
 to fix in prose; expensive if it reaches code as an assumption.
 
-### Evidence FOR one of the document's open questions
+</details>
+
+### ✅ RATIFIED 2026-08-26 — the misconception prefix subdivision
+
+The builder moved it from "proposed, awaiting ratification" to ratified on this
+evidence.
+
+<details><summary>The original evidence (2026-08-25)</summary>
+
+#### Evidence FOR one of the document's open questions
 
 §15 leaves the misconception prefix subdivision "unratified". The 13 live
 bindings split `mis.rate.*` (computation) from `mis.proportional.*` (conceptual),
 and distinct prefixes measurably help the manifest's near-duplicate detector
 (Levenshtein ≤ 2 over the whole id) avoid false pairs. Working in practice —
 that is a datapoint for keeping it, not a decision.
+
+</details>
+
+## Lane B — sort the activities list by catalogue path (2026-08-26)
+
+**What:** the activities list groups by unit and sorts WITHIN a group by edit
+recency. Chain order is therefore invisible on the one screen a teacher teaches
+from. Lane B adds `source_path` to the list query and sorts each unit group by
+it — natural/numeric-aware, rows without a path last, then recency — and orders
+the GROUPS by each group's lowest `source_path`.
+
+**Why it is not just cosmetic:** it is what keeps the chain ordinal out of the
+unit title. `unit` is student-visible in BOTH surfaces (`StudentViewer.tsx:556`
+renders `course · unit · type`; `PrintDocumentLayer` prints the same line), so
+numbering the unit string puts curriculum bookkeeping in front of students on
+every worksheet. Ordering by path is the alternative, and it makes one mechanism
+(the path) the source of all ordering.
+
+⚠ **Two traps, both verified:**
+1. The query MUST keep `.order('updated_at', desc)` — `Activities.tsx:343`
+   slices `recent` off that array for the recency strip. Sort inside the
+   grouper, not the query.
+2. This supersedes the list-surface **D5** naming convention ("1: Quadratics"),
+   which existed only because there was no order to read. Say so in that design
+   doc when this lands.
+
+**Why it is safe to change a ruled sort:** D4's recently-edited strip already
+serves resume-work at page level, so within-unit recency was redundant with a
+feature that had already shipped.
+
+**Depends on:** nothing. Lane A does not block it and it does not block Lane A.
 
 ## graph-kit's legacy runtime should be deleted WHOLE, not gutted (2026-08-25)
 
@@ -303,7 +386,29 @@ EMPTY change list — the assertion that would have caught this.
 
 **Depends on:** nothing.
 
-## `{{…}}` inside `$…$` is SWALLOWED WHOLE, silently — and it leaks the answer (2026-08-25)
+## `{{…}}` inside `$…$` — ✅ DETECTOR SHIPPED 2026-08-26; the REPAIR is still open
+
+⚠ **Read this header before the entry below it, which was written before the
+detector existed.** The silent half is fixed: `mathAttrs` (the one function
+every math surface funnels through) now warns when a constructed math node's
+latex contains a blank, `--strict` fails on it, and the check lives in the
+SHARED parser so a teacher pasting markdown is covered too. Mutation-tested.
+
+**What is still open is the REPAIR** — making a blank work inside maths, which
+is the capability gap: `\gap{}` grades correctly inside an equation but cannot
+carry a misconception binding, so a sensor inside an equation still has no
+spelling. That is a design question, not a bug fix, and the builder has filed it
+as a capability wish on its side.
+
+**Implementation note worth keeping:** the check tests the constructed node, NOT
+a scan between `$` delimiters. The catalogue is full of `\$6.00`, so a
+delimiter scan re-derives every escaping rule the tokenizer already applied and
+false-positives on prose about money. Known false positive of the shipped shape,
+stated rather than claimed away: valid TeX that doubles its braces (`x^{{2}}`).
+
+---
+
+### The original entry (2026-08-25)
 
 **Found by the first real catalogue content, exactly as the authoring-first
 ruling predicted.** `activity-04-proportional-consolidation.md` authored

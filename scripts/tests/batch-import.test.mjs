@@ -44,21 +44,30 @@ import {
     bindingWarningsFor,
     canNeverFire,
     canonicalJson,
+    chainFolderOf,
+    coverageJson,
     collectBindings,
     convertOne,
     describeChanges,
+    duplicateChainTitles,
     editDistanceWithin,
     findMarkdownFiles,
     fingerprintDocument,
     isBindingWarning,
     loadPipeline,
     makeDb,
+    missingColumnFrom,
     MISCONCEPTION_ID,
     nearDuplicateIds,
     parseArgs,
+    parseChainRegistry,
     parseNumericValue,
     parseRegistry,
     planIdentity,
+    renderCoverageManifest,
+    scanSourceKey,
+    suggestKeyFor,
+    summarizeCoverage,
     rejectUnusableKey,
     renderManifest,
     splitDriftedUpdates,
@@ -1213,6 +1222,7 @@ test('§I --strict and --registry parse, in either form', () => {
             force: false,
             strict: true,
             registry: 'tax.txt',
+            skillsRegistry: null,
         },
     );
     assert.equal(parseArgs(['~/cat', '--registry=tax.txt']).registry, 'tax.txt');
@@ -1254,4 +1264,292 @@ test('§I.22 the ported numeric parser matches the server grader exactly', () =>
             `parser disagreement on ${JSON.stringify(input)}`,
         );
     }
+});
+
+// =============================================================================
+// §K — DECLARED IDENTITY, chains, and skill coverage (Lane A, 2026-08-26)
+// -----------------------------------------------------------------------------
+// Plan + rulings: docs/design/curriculum-alignment.md.
+//
+// THE LOAD-BEARING ROW IS "a moved keyed file is an update, not an orphan".
+// That single behaviour is the whole reason this slice exists: under
+// path-identity every editorial act the curriculum model calls normal — split,
+// rename, re-file a chain — orphaned a row and minted a duplicate. Everything
+// else here supports it or reports on it.
+// =============================================================================
+
+const keyedRow = (over = {}) => ({
+    id: 'row-1',
+    title: 'Unit Rates',
+    source_path: '01-chain.rate.proportional/01-unit-rate.md',
+    source_key: 'act.rate.unit-rate',
+    status: 'published',
+    ...over,
+});
+
+test('§K a MOVED keyed file updates its row and reports no orphan', () => {
+    // The regression this slice exists to prevent. Before declared identity
+    // this exact input produced one create and one orphan, and the activity's
+    // published history was stranded on the row nobody pointed at.
+    const { creates, updates, orphans } = planIdentity(
+        [{ sourcePath: '02-chain.rate.proportional/03-unit-rate.md', key: 'act.rate.unit-rate' }],
+        [keyedRow()],
+    );
+    assert.equal(creates.length, 0);
+    assert.equal(orphans.length, 0);
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0].matchedBy, 'key');
+    assert.equal(updates[0].moved, true);
+    assert.equal(updates[0].row.id, 'row-1');
+});
+
+test('§K the CUTOVER: a keyed file adopts a row that has only a path', () => {
+    // Step 3 of the cutover, and the reason path matching is not merely the
+    // keyless fallback: with paths untouched, one run teaches every existing
+    // row its key. A key-only matcher would make this N creates and N orphans.
+    const { creates, updates, orphans } = planIdentity(
+        [{ sourcePath: 'year-8/rates/activity-01.md', key: 'act.rate.unit-rate' }],
+        [keyedRow({ source_path: 'year-8/rates/activity-01.md', source_key: null })],
+    );
+    assert.equal(creates.length, 0);
+    assert.equal(orphans.length, 0);
+    assert.equal(updates[0].matchedBy, 'path');
+    assert.equal(updates[0].adoptsKey, true);
+});
+
+test('§K a keyless file still matches on its path, and adopts nothing', () => {
+    const { updates } = planIdentity(
+        [{ sourcePath: 'year-8/rates/activity-01.md', key: null }],
+        [keyedRow({ source_path: 'year-8/rates/activity-01.md', source_key: null })],
+    );
+    assert.equal(updates[0].matchedBy, 'path');
+    assert.equal(updates[0].adoptsKey, false);
+});
+
+test('§K a key edited IN PLACE is a conflict, never a silent second activity', () => {
+    // "Retire and mint" is an editorial act with a link cost; it cannot be done
+    // by editing a line, because the old row still holds the path and 0038's
+    // index would reject the new row with an opaque 23505.
+    const { creates, updates, conflicts } = planIdentity(
+        [{ sourcePath: '01-chain.rate.proportional/01-unit-rate.md', key: 'act.rate.renamed' }],
+        [keyedRow()],
+    );
+    assert.equal(creates.length, 0);
+    assert.equal(updates.length, 0);
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].was, 'act.rate.unit-rate');
+    assert.equal(conflicts[0].now, 'act.rate.renamed');
+});
+
+test('§K a genuinely deleted file is still an orphan', () => {
+    // The other half of the same rule: orphans are computed from what was
+    // CONSUMED, so making moves invisible must not make deletions invisible.
+    const { orphans } = planIdentity([], [keyedRow()]);
+    assert.equal(orphans.length, 1);
+    assert.equal(orphans[0].id, 'row-1');
+});
+
+test('§K hand-made rows (no path, no key) are invisible in both directions', () => {
+    const { creates, updates, orphans } = planIdentity(
+        [{ sourcePath: 'a.md', key: 'act.a' }],
+        [{ id: 'hand', title: 'Made in the app', source_path: null, source_key: null }],
+    );
+    assert.equal(creates.length, 1);
+    assert.equal(updates.length, 0);
+    assert.equal(orphans.length, 0);
+});
+
+// ---- the key pre-scan, and its cross-check ----------------------------------
+
+test('§K scanSourceKey reads the key the REAL parser reads', () => {
+    // The pre-scan exists because identity must be known before conversion.
+    // Two readers of one syntax is a defect unless they are compared, so the
+    // importer compares them on every file — this is that comparison, run over
+    // the shapes most likely to diverge.
+    const cases = [
+        ['```meta\nkey: act.rate.unit-rate\ntitle: T\n```\n\n# Body', 'act.rate.unit-rate'],
+        ['# Body first\n\n```meta\ntitle: T\nkey:   act.spaced   \n```', 'act.spaced'],
+        ['```meta\ntitle: T\n```', null],
+        ['# No fence at all', null],
+    ];
+    for (const [markdown, expected] of cases) {
+        assert.equal(scanSourceKey(markdown), expected, `scan: ${JSON.stringify(markdown)}`);
+        const viaParser = convertOne(pipeline, markdown, null, 'x.md').sourceKey;
+        assert.equal(viaParser, expected, `parser: ${JSON.stringify(markdown)}`);
+    }
+});
+
+test('§K suggestKeyFor turns a path into a copy-pasteable key', () => {
+    assert.equal(
+        suggestKeyFor('01-chain.rate.proportional/02-unit-rate.md'),
+        'act.rate.unit-rate',
+    );
+    assert.equal(suggestKeyFor('loose-file.md'), 'act.loose-file');
+});
+
+// ---- the chain registry -----------------------------------------------------
+
+test('§K parseChainRegistry splits on the FIRST = and ignores comments', () => {
+    // A title may contain anything, including the `:` an early draft of this
+    // format put in front of it — so the split cannot be on punctuation inside
+    // the value.
+    const { titles } = parseChainRegistry(
+        '# a comment\n\n01-chain.rate.proportional = 1: Rates = and more\nbad-line\n',
+    );
+    assert.equal(titles.get('01-chain.rate.proportional'), '1: Rates = and more');
+    assert.equal(titles.size, 1);
+});
+
+test('§K two chains sharing a title are flagged', () => {
+    // Invisible otherwise: the activities list groups by the unit STRING, so
+    // the two chains merge into one outline group with nothing to show they
+    // were ever separate.
+    const { titles } = parseChainRegistry(
+        '01-chain.a = Rates\n02-chain.b = rates\n03-chain.c = Slope\n',
+    );
+    const dupes = duplicateChainTitles(titles);
+    assert.equal(dupes.length, 1);
+    assert.deepEqual(dupes[0].sort(), ['01-chain.a', '02-chain.b']);
+});
+
+test('§K chainFolderOf reads the first segment, or null in the root', () => {
+    assert.equal(chainFolderOf('01-chain.rate.proportional/01-unit-rate.md'), '01-chain.rate.proportional');
+    assert.equal(chainFolderOf('loose.md'), null);
+});
+
+test('§K a chain title fills `unit`, and a file may still override it', () => {
+    const withoutUnit = [
+        '```meta',
+        'title: Unit Rates',
+        'key: act.rate.unit-rate',
+        '```',
+        '',
+        'Body text.',
+    ].join('\n');
+    const filled = convertOne(pipeline, withoutUnit, null, '01-chain.rate/01-x.md', {
+        chainTitle: 'Rates and Proportional Relationships',
+    });
+    assert.equal(filled.document.meta.unit, 'Rates and Proportional Relationships');
+    assert.equal(filled.unitOverride, null);
+
+    const stated = convertOne(pipeline, SAMPLE, null, '01-chain.rate/01-x.md', {
+        chainTitle: 'Rates and Proportional Relationships',
+    });
+    assert.equal(stated.document.meta.unit, 'Unit 3'); // the file wins
+    assert.equal(stated.unitOverride.stated, 'Unit 3');
+});
+
+test('§K repeating the chain title verbatim is NOT an override', () => {
+    // The property that keeps the override report readable. A drafting prompt
+    // that emits `unit:` on every file would otherwise make every file an
+    // override, and a report that fires on 100% of rows is a report nobody
+    // reads the real divergence out of.
+    const md = ['```meta', 'title: T', 'unit: Rates', '```', '', 'Body.'].join('\n');
+    const out = convertOne(pipeline, md, null, '01-chain.rate/01-x.md', {
+        chainTitle: 'Rates',
+    });
+    assert.equal(out.unitOverride, null);
+});
+
+test('§K a chain rename beats the value already on the row', () => {
+    // Precedence: file > registry > prior. Reading the prior value first would
+    // pin every existing activity to the name it was imported under, which is
+    // exactly what a rename is trying to change.
+    const md = ['```meta', 'title: T', 'key: act.a', '```', '', 'Body.'].join('\n');
+    const row = { title: 'T', tags: [], draftMeta: { unit: 'Old Name', course: 'Algebra I' } };
+    const out = convertOne(pipeline, md, row, '01-chain.rate/01-x.md', {
+        chainTitle: 'New Name',
+    });
+    assert.equal(out.document.meta.unit, 'New Name');
+});
+
+// ---- skill coverage ---------------------------------------------------------
+
+const COVERAGE_FILES = [
+    { sourcePath: 'a.md', primarySkill: 'rate.unit-rate', supportingSkills: [], published: true },
+    {
+        sourcePath: 'b.md',
+        primarySkill: 'rate.constant',
+        supportingSkills: ['rate.unit-rate'],
+        published: false,
+    },
+    { sourcePath: 'c.md', primarySkill: null, supportingSkills: [], published: false },
+];
+
+test('§K coverage answers "N of the registry covered", not "N mentioned"', () => {
+    // The whole reason the registry is required: without it the uncovered list
+    // — the only actionable half — cannot be computed at all.
+    const summary = summarizeCoverage(
+        COVERAGE_FILES,
+        new Set(['rate.unit-rate', 'rate.constant', 'rate.compare', 'proportional.graph']),
+    );
+    assert.equal(summary.covered.length, 2);
+    assert.deepEqual(summary.uncovered, ['proportional.graph', 'rate.compare']);
+    assert.deepEqual(summary.withoutPrimary, ['c.md']);
+});
+
+test('§K a skill covered only by a DRAFT is not counted as published', () => {
+    // The curriculum model excludes drafts from progress counts; folding them
+    // in would make the burndown measure generation rather than curriculum.
+    const summary = summarizeCoverage(COVERAGE_FILES, new Set(['rate.unit-rate', 'rate.constant']));
+    const unitRate = summary.covered.find((e) => e.id === 'rate.unit-rate');
+    const constant = summary.covered.find((e) => e.id === 'rate.constant');
+    assert.equal(unitRate.published, true);
+    assert.equal(constant.published, false);
+});
+
+test('§K a skill outside the registry is reported, never silently counted', () => {
+    const summary = summarizeCoverage(
+        [{ sourcePath: 'a.md', primarySkill: 'rate.typo', supportingSkills: [], published: true }],
+        new Set(['rate.unit-rate']),
+    );
+    assert.deepEqual(summary.unregistered, ['rate.typo']);
+    assert.deepEqual(summary.uncovered, ['rate.unit-rate']);
+});
+
+test('§K the coverage manifest NAMES the uncovered skills', () => {
+    // A count cannot be acted on. This artifact exists so "0 covered" becomes a
+    // work list rather than a number.
+    const text = renderCoverageManifest(
+        summarizeCoverage(COVERAGE_FILES, new Set(['rate.unit-rate', 'rate.compare'])),
+    );
+    assert.match(text, /1 of 2 skills covered/);
+    assert.match(text, /## Uncovered/);
+    assert.match(text, /rate\.compare/);
+    assert.match(text, /NEVER CI-GATED/);
+});
+
+test('§K both coverage artifacts are deterministic — no timestamp, no run facts', () => {
+    // Same discipline as the misconception manifest beside it: the file is a
+    // pure function of the folder, so a git diff shows coverage changes and
+    // nothing else. The builder's staleness guard reads the `files` list
+    // instead, which is exact where a timestamp is a proxy.
+    const summary = summarizeCoverage(COVERAGE_FILES, new Set(['rate.unit-rate']));
+    const once = renderCoverageManifest(summary);
+    const twice = renderCoverageManifest(summary);
+    assert.equal(once, twice);
+    assert.doesNotMatch(once, /\d{4}-\d{2}-\d{2}T/);
+    const json = coverageJson(summary);
+    assert.equal(json.schema, 'activity-platform/skill-coverage@1');
+    assert.deepEqual(json.files, ['a.md', 'b.md', 'c.md']);
+    assert.doesNotMatch(JSON.stringify(json), /\d{4}-\d{2}-\d{2}T/);
+});
+
+test('§K the missing-column refusal routes on what the DATABASE named', () => {
+    // A real defect, caught by running the importer against the live database
+    // rather than by reading the code: the thrown error embeds the request
+    // path, the path carries the whole select list, and a substring test
+    // therefore matched a column that was present. The run told the author to
+    // apply a migration they had applied five days earlier.
+    const real =
+        'GET /activities?owner_id=eq.abc&select=id,source_path,source_key,status,' +
+        'title,draft_content,source_fingerprint → 400: ' +
+        '{"code":"42703","message":"column activities.source_key does not exist"}';
+    assert.equal(missingColumnFrom(real), 'source_key');
+
+    const other = real.replace('source_key does not exist', 'source_fingerprint does not exist');
+    assert.equal(missingColumnFrom(other), 'source_fingerprint');
+
+    assert.equal(missingColumnFrom('GET /activities → 401: bad key'), null);
+    assert.equal(missingColumnFrom(undefined), null);
 });

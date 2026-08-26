@@ -150,6 +150,33 @@ export interface ImportedMeta {
     course?: string;
     unit?: string;
     tags?: string[];
+    /**
+     * CATALOGUE-ONLY FIELDS (`key`, `skill`, `supporting_skills`, `x_*`).
+     *
+     * These four are parsed here so the ONE meta parser stays the one meta
+     * parser, and they are read ONLY by scripts/batch-import.mjs. None of them
+     * reaches `ActivityMeta`: applyImportedMeta merges named fields explicitly,
+     * so a field it does not name cannot leak into the document — which is the
+     * property that keeps `key` (row identity) out of a document a teacher can
+     * paste, and keeps skill ids off the student wire.
+     *
+     * sourceKey is the activity's PERMANENT identity (`key:`), matched on by
+     * the importer ahead of the file path. Minted once, never reused.
+     */
+    sourceKey?: string;
+    /** The one primary skill this activity targets (`skill:`). Validated
+     *  against the author's registry by the batch importer, never here. */
+    primarySkill?: string;
+    /** Additional skills the activity touches (`supporting_skills:`). */
+    supportingSkills?: string[];
+    /**
+     * Names of `x_*` keys seen and deliberately ignored. The importer prints
+     * these as a per-run receipt: the namespace is unvalidated BY DESIGN (it
+     * carries the curriculum builder's own item-level data, which this platform
+     * stores nothing of), so a typo like `x_reivew_skills` is otherwise
+     * invisible forever. The receipt is that namespace's only sensor.
+     */
+    reservedKeys?: string[];
     pedagogicalRole?: PedagogicalRole;
     // Activity-level SETTINGS. Every one of these was editor-only before, so
     // an imported activity arrived needing a drawer visit to become what its
@@ -394,11 +421,45 @@ function resolveMathGaps(
     return { latex: out, prompts };
 }
 
+// A `{{…}}` that reached the inside of a math span. Deliberately the SAME
+// grammar the blank tokenizer uses (BLANK_SUB below), because the question this
+// answers is "would this have been a blank had it not been inside math" — and
+// only the blank grammar can answer it.
+const BLANK_INSIDE_MATH = /\{\{[^{}|]+(?:\|[^{}|]+)*\}\}/;
+
 // The attrs for a math node (mathInline / mathBlock) built from a span's latex,
 // resolving any `\gap{…}` gaps. `prompts` is emitted only when non-empty, so a
 // gap-free equation re-serializes byte-identically (the schema's optional-no-
 // default MathPrompt discipline).
+//
+// ⚠ THE ANSWER-LEAK DETECTOR LIVES HERE, and here is the whole reason it works.
+// Math spans are lifted out BEFORE inline tokenization, so a `{{…}}` inside
+// `$…$` never meets the blank grammar: it is absorbed whole into the latex, and
+// three things fail at once and silently — the ANSWER renders to the student,
+// the item is not gradeable, and any `:: mis.*` binding vanishes so the sensor
+// data reports that nobody made the mistake. It was measured as universal
+// across inline, display, worked, faded, callout, table cells and mc choices —
+// which is exactly the set that funnels through THIS function. One predicate at
+// the chokepoint covers all of them; a per-surface check would have missed the
+// surface nobody thought of.
+//
+// Why this is not a scan between `$` delimiters (the shape first proposed): the
+// catalogue is full of `\$6.00` and `\$1.50 per apple`, so a delimiter scan has
+// to re-derive every escaping rule the tokenizer already applied, and a check
+// that false-positives on prose about money is a check somebody turns off. By
+// the time we are here, the parser has already decided what is math.
+//
+// KNOWN FALSE POSITIVE, stated rather than claimed away (P11): valid TeX that
+// doubles its braces — `x^{{2}}` — matches the blank grammar and warns. The
+// message names the rewrite. It is the right trade: the miss it prevents is a
+// published answer key, and the cost it imposes is one set of braces.
 function mathAttrs(latex: string, ctx: Ctx): Record<string, unknown> {
+    if (BLANK_INSIDE_MATH.test(latex)) {
+        const snippet = latex.length > 60 ? `${latex.slice(0, 60)}…` : latex;
+        ctx.warnings.add(
+            `Math: “${snippet}” contains a {{…}} blank INSIDE the equation, where it is not a blank at all — the answer stays in the maths and is shown to the student, the question is not marked, and any “:: mis.*” binding is lost. Move the blank outside the $…$, or use \\gap{…} inside the equation (which grades, but cannot carry a misconception binding). If you meant literal TeX braces, write x^{2} rather than x^{{2}}.`,
+        );
+    }
     const { latex: resolved, prompts } = resolveMathGaps(latex, ctx);
     return prompts.length > 0 ? { latex: resolved, prompts } : { latex: resolved };
 }
@@ -2615,6 +2676,18 @@ function parseMetaFence(src: string, ctx: Ctx): void {
         }
         const key = (m[1] ?? '').toLowerCase();
         const value = (m[2] ?? '').trim();
+        // The RESERVED NAMESPACE, checked before every other arm including the
+        // empty-value guard: `x_*` is the curriculum builder's own metadata
+        // (which review items target which skills, and so on). We store
+        // nothing, read nothing and validate nothing — we only agree not to
+        // warn, so that the .md can stay the single source of truth for an
+        // activity instead of growing a sidecar file. Recorded rather than
+        // dropped: see ImportedMeta.reservedKeys for why silence alone is the
+        // wrong default.
+        if (key.startsWith('x_')) {
+            meta.reservedKeys = [...new Set([...(meta.reservedKeys ?? []), key])];
+            continue;
+        }
         if (value === '') {
             ctx.warnings.add(`Meta: “${key}:” had no value and was skipped.`);
             continue;
@@ -2628,6 +2701,43 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                 break;
             case 'unit':
                 meta.unit = value;
+                break;
+            case 'key':
+                // Row IDENTITY, not document content. Carried out to the batch
+                // importer and dropped everywhere else — a paste into the app
+                // has no row to identify, so this key is inert there.
+                meta.sourceKey = value;
+                break;
+            case 'skill': {
+                // Exactly one primary skill (the curriculum model's rule: an
+                // activity targets exactly one). A comma here is the author
+                // reaching for the plural key, so name it rather than silently
+                // taking the whole string as one id.
+                if (value.includes(',')) {
+                    ctx.warnings.add(
+                        `Meta: skill “${value}” lists more than one id — an activity targets exactly ONE primary skill. Put the others in “supporting_skills”. Ignored.`,
+                    );
+                    break;
+                }
+                meta.primarySkill = value;
+                break;
+            }
+            case 'supporting_skills': {
+                const ids = [...new Set(
+                    value.split(',').map((s) => s.trim()).filter((s) => s !== ''),
+                )];
+                if (ids.length > 0) meta.supportingSkills = ids;
+                break;
+            }
+            case 'skills':
+                // NAMED, not swept into the default arm. `skill` and `skills`
+                // differ by one character and carry different meanings, and the
+                // plural is the likelier typo — it would leave the activity with
+                // no primary skill at all, which is why the plural key is spelled
+                // `supporting_skills` instead.
+                ctx.warnings.add(
+                    'Meta: “skills” isn’t a key — the primary skill is “skill” (exactly one) and any others go in “supporting_skills”. Ignored.',
+                );
                 break;
             case 'tags': {
                 const tags = normalizeTags(value.split(','));
@@ -2724,7 +2834,7 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             }
             default:
                 ctx.warnings.add(
-                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, feedback, calculator, work) and was skipped.`,
+                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, feedback, calculator, work, and — for catalogue files — key, skill, supporting_skills) and was skipped.`,
                 );
         }
     }

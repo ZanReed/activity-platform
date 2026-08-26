@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-24-draft-7`. Mirrors migrations 0001–**0040**, verified
+> Version `2026-08-26-draft-8`. Mirrors migrations 0001–**0041**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,20 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-8` (2026-08-26) — 0041 adds NO personal data.** The
+> curriculum-alignment slice adds one column, `activities.source_key`: the
+> author-minted permanent identity of a catalogue `.md` file
+> (`act.rate.unit-rate`), plus a partial unique index on
+> `(owner_id, source_key)`. It is activity metadata in exactly the sense
+> `source_path` is — a name the author chose for a file in their own catalogue
+> folder — so it does not match the person-column sweep, and `activities` was
+> already mapped via `owner_id`. It is never shown to a student, never part of
+> a URL, and never derived from anything about a person. `retention-policy.md`
+> does not move (the 0038 / 0039 / 0040 precedent): no new table, no
+> student-derived rows, and no change to what is retained or for how long.
+> Stated explicitly rather than by silence, per 0027 / 0035 / 0038 / 0039 /
+> 0040 — the range moves to 0041 on that basis.
 >
 > **`draft-7` (2026-08-24) — 0040 adds NO personal data, and no column at all.**
 > The activity-flow-modes slice changes exactly one function, `record_check`:

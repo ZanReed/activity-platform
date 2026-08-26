@@ -11,13 +11,19 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getSchema } from '@tiptap/core';
 import type { JSONContent } from '@tiptap/react';
-import { ActivityMeta, DataPlotBlock, NumberLineBlock } from '@activity/schema';
+import {
+    ActivityMeta,
+    createEmptyDocument,
+    DataPlotBlock,
+    NumberLineBlock,
+} from '@activity/schema';
 import {
     getMarkdownImporter,
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
 import { wrapBlocksStrict } from '../editor/strictGrid';
 import { importMetaSummary } from '../lib/importMetaSummary';
+import { applyImportedMeta, DEFAULT_TITLE } from '../lib/applyImportedMeta';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import {
     activityToTiptapBare as activityToTiptap,
@@ -2876,6 +2882,159 @@ describe('hand-numbering: what the pilot found (2026-08-21)', () => {
         // steps inside an example carry no problem numbers to collide with.
         const [example] = blocks('```worked\n1. first step\n2. second step\n```');
         expect(example!.content!.map((c) => c.type)).toEqual(['orderedList']);
+    });
+});
+
+describe('```meta catalogue keys — key / skill / supporting_skills (2026-08-26)', () => {
+    // The curriculum-alignment contract's authoring surface. All three are
+    // CARRIED, never applied: they are read by scripts/batch-import.mjs and by
+    // nothing else. The guard that matters most here is the last one — that
+    // none of them can reach the document — because `key` is row identity and a
+    // skill id is curriculum vocabulary, and neither belongs on a student wire.
+
+    it('carries key, skill and supporting_skills off the fence', () => {
+        const { meta } = convert(
+            '```meta\nkey: act.rate.unit-rate\nskill: rate.unit-rate\n' +
+            'supporting_skills: ratio.equivalent-ratios, rate.compare\n```',
+        );
+        expect(meta?.sourceKey).toBe('act.rate.unit-rate');
+        expect(meta?.primarySkill).toBe('rate.unit-rate');
+        expect(meta?.supportingSkills).toEqual([
+            'ratio.equivalent-ratios',
+            'rate.compare',
+        ]);
+    });
+
+    it('refuses more than one id on skill:, and says why', () => {
+        // "Targets exactly one primary skill" is the curriculum model's rule and
+        // the platform's half of the validator split. Taking the whole comma
+        // string as one id would produce an id that can never match a registry.
+        const { meta, warnings } = convert(
+            '```meta\nskill: rate.unit-rate, ratio.equivalent\n```',
+        );
+        expect(meta?.primarySkill).toBeUndefined();
+        expect(warnings.join(' ')).toMatch(/exactly ONE primary skill/i);
+    });
+
+    it('names `skills` rather than sweeping it into "unrecognized"', () => {
+        // skill/skills differ by one character with different meanings, and the
+        // plural is the likelier typo — it would leave the activity with no
+        // primary skill at all. Hence the plural key is `supporting_skills`.
+        const { warnings } = convert('```meta\nskills: rate.unit-rate\n```');
+        expect(warnings.join(' ')).toMatch(/isn.t a key/i);
+        expect(warnings.join(' ')).toMatch(/supporting_skills/);
+    });
+
+    it('NONE of them reaches the document, through the merge the importer uses', () => {
+        // ⚠ THE FIRST VERSION OF THIS TEST WAS VACUOUS and was caught by
+        // mutation, not by review (2026-08-26). It parsed the importer's own
+        // return value straight into ActivityMeta — which only proved that zod
+        // strips unknown keys, a property true whether or not anything is
+        // wired. Leaking `primarySkill` into applyImportedMeta left it GREEN.
+        //
+        // The real path is the one a create takes: fence → applyImportedMeta →
+        // ActivityMeta. Run that, and assert over the serialized document,
+        // because the document is what publish snapshots and what get-activity
+        // serves to a student.
+        const { meta } = convert(
+            '```meta\ntitle: Rates\nkey: act.rate.unit-rate\n' +
+            'skill: rate.unit-rate\nsupporting_skills: ratio.equivalent\n' +
+            'x_review_skills: ratio.equivalent\n```',
+        );
+        const out = applyImportedMeta(meta ?? {}, {
+            meta: createEmptyDocument({ title: DEFAULT_TITLE }).meta,
+            tags: [],
+            pedagogicalRole: null,
+            calculator: undefined,
+        });
+        const serialized = JSON.stringify(ActivityMeta.parse(out.meta));
+        expect(out.meta.title).toBe('Rates'); // the merge really did run
+        expect(serialized).not.toContain('act.rate.unit-rate');
+        expect(serialized).not.toContain('rate.unit-rate');
+        expect(serialized).not.toContain('ratio.equivalent');
+        expect(out.meta.skills).toEqual([]);
+    });
+});
+
+describe('```meta x_ reserved namespace (2026-08-26)', () => {
+    // The curriculum builder's own item-level data lives in the activity file
+    // so the .md stays single-source. The platform stores nothing and validates
+    // nothing — it only agrees not to warn. But silence alone would make a
+    // typo'd namespace invisible forever, so the names are RECORDED and the
+    // importer prints them as a per-run receipt.
+
+    it('skips x_ keys silently and records their names', () => {
+        const { meta, warnings } = convert(
+            '```meta\ntitle: Rates\nx_review_skills: ratio.equivalent\n' +
+            'x_dol_skills: rate.unit-rate, ratio.equivalent\n```',
+        );
+        expect(warnings.join(' ')).not.toMatch(/x_review_skills/);
+        expect(warnings.join(' ')).not.toMatch(/isn.t a recognized key/i);
+        expect(meta?.reservedKeys).toEqual(['x_review_skills', 'x_dol_skills']);
+        expect(meta?.title).toBe('Rates');
+    });
+
+    it('stays silent even when an x_ key has no value', () => {
+        // The empty-value guard runs AFTER the namespace check on purpose:
+        // "skipped silently" has to mean silently, or the receipt is not the
+        // only sensor on the namespace any more.
+        const { warnings, meta } = convert('```meta\nx_dol_skills:\n```');
+        expect(warnings.join(' ')).toBe('');
+        expect(meta?.reservedKeys).toEqual(['x_dol_skills']);
+    });
+
+    it('still warns on a key that is merely unrecognized', () => {
+        // The namespace is a deliberate exemption, not a general amnesty — an
+        // ordinary typo must keep its warning.
+        const { warnings } = convert('```meta\nreivew: yes\n```');
+        expect(warnings.join(' ')).toMatch(/isn.t a recognized key/i);
+    });
+});
+
+describe('{{…}} inside $…$ — the answer-leak detector (2026-08-26)', () => {
+    // A blank inside math is absorbed whole into the latex: the ANSWER renders
+    // to the student, the item is not gradeable, and any :: mis.* binding
+    // vanishes so the sensor reports that nobody made the mistake. Measured as
+    // universal across every math-bearing surface, which is why the detector
+    // sits at mathAttrs — the one function all of them funnel through.
+
+    it('warns for an inline $…$ blank, naming the leak', () => {
+        const { warnings } = convert('Find $k = {{=8}}$ for the table.');
+        const text = warnings.join(' ');
+        expect(text).toMatch(/inside the equation/i);
+        expect(text).toMatch(/shown to the student/i);
+    });
+
+    it('warns for display math, worked fences and mc choices alike', () => {
+        // One case per surface the leak was measured on. If the chokepoint ever
+        // moves, these go red together rather than one at a time.
+        expect(convert('$$y = {{=2x}}$$').warnings.length).toBeGreaterThan(0);
+        expect(
+            convert('```worked\ntitle: T\n$$k = {{=8}}$$\n```').warnings.length,
+        ).toBeGreaterThan(0);
+        expect(
+            convert('```mc\nQ?\n( ) $x = {{=4}}$\n(x) 5\n```').warnings.length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('carries the misconception-binding form too', () => {
+        // The worst instance: the binding id renders to the student beside the
+        // answer, AND the sensor goes dark.
+        const { warnings } = convert(
+            'Rate: $k = {{=8 | !0.125 :: inverted :: mis.rate.ratio-inverted}}$',
+        );
+        expect(warnings.join(' ')).toMatch(/mis\.\*|misconception/i);
+    });
+
+    it('leaves ordinary maths, prose blanks and \\gap{} alone', () => {
+        // The false-positive floor. `\$6.00` appears throughout the catalogue,
+        // so a delimiter-scanning check would have fired on prose about money —
+        // this one cannot, because it runs after the parser decided what maths
+        // is.
+        expect(convert('The identity $E = mc^2$ holds.').warnings.length).toBe(0);
+        expect(convert('A shop sells 4 apples for \\$6.00 today.').warnings.length).toBe(0);
+        expect(convert('Divide to get {{=1.5}} dollars per apple.').warnings.length).toBe(0);
+        expect(convert('$k = \\gap{8}$').warnings.length).toBe(0);
     });
 });
 

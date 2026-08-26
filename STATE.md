@@ -41,6 +41,18 @@ with it. Marker greps agreed as a cross-check (`misconceptionIds` ×5,
 
 
 
+🔨 **APPLY MIGRATION 0041 — the curriculum-alignment slice's only author action.**
+`supabase db push`, then re-run `pnpm verify:auth --target live` (no
+`verify-0041.sql` exists — the proof is the importer's own refusal path, which
+names 0041 by number if the column is missing). It adds
+`activities.source_key` + a partial unique index and narrows `source_path`'s
+comment. **No Edge Function deploy, no bundle regeneration, no republish** —
+nothing in `packages/schema`, the viewer's sanitize/registry source, the viewer
+server or graph-kit's scorers was touched. ⚠ **Do NOT reorganize the catalogue
+folder before the cutover's first import run** — steps 1–3 in
+[curriculum-alignment.md](docs/design/curriculum-alignment.md) §5 are what make
+the reorganization free, and only in that order.
+
 **⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
 
 **Gate 4 — seed `student_domain` + live-verify the trigger's student branch** (deliberately LAST; needs a real district domain). Prerequisite MET (0027 live). ⚠ Never seed a consumer domain — the rule now lives in CLAUDE.md → Things NOT to do.
@@ -73,55 +85,46 @@ cheap to change, but the sentence that made them free has expired).
 
 - **✅ R2 is dead and the D-13 teardown RAN** — the full account (what survives, what the author still owes on the dashboard, where the 283-object archive is) is a STANDING rule and lives in **CLAUDE.md**, not here: this section gets replaced every session and that is not a fact that should expire with it.
 - **Known limitation (stated, not hidden): offline boot needs a token that has not expired.** Expired token + no network ⇒ the pre-auth gate — refreshing needs the network, and reading Supabase's session storage directly in shipped code is a dependency worth refusing. (Offline *reopen* itself is proven as of S9 Drop 5; it had never actually worked before then — `Vary: Origin` defeated `Cache.match`.)
-- **Retention is COMPLETE and proven end to end (0022–0025).** The one thing to know when touching it: **`users.deleted_at` means "account disabled", NOT "retention clock running"** — `join_class` refuses accounts that have it set, so student dormancy is DERIVED live from `class_members`/`classes` (400-day window) and the purge job never writes that column. Don't "simplify" it into a stored flag; that reintroduces a between-terms lockout. "Who is dormant right now" has no column to read — the query is `scripts/verify-0025.sql` section D.
 - **⚠ `purge_soft_deleted` was re-created by 0029** minus its `submissions.student_id` guards (the nightly cron job would have died otherwise). It is live and running; treat it as the current definition.
 - **✅ Teacher grading — SHIPPED 2026-08-16** ([teacher-grading.md](docs/design/teacher-grading.md)). Kept in the backlog only for what it left behind: the **by-student queue view** and **rich-text teacher feedback** (plain text is v1) are named follow-ons. Its pruning/rollup inheritance is now DISCHARGED into 0035 + the arming-arc TODOS entry.
-- **⚠ A red verify row is a HYPOTHESIS, not a category.** "It's just the
-  fixtures / seeded data" was this file's standing explanation for local reds,
-  and on 2026-08-24 it was wrong about both live examples: verify-0033's caps
-  assertion was over-scoped (failing on BOTH databases for the same correct
-  reason) and verify-0036's rollup matrix was time-dependent (green only 3.5
-  hours a day). Both fixed; the mechanisms are in TODOS. Read WHICH rows failed
-  and TEST the precondition before filing it under anything.
+- **Promoted OUT of this file 2026-08-26** (they had stopped moving, and this section is replaced every session): the three **e2e origin traps** and the **red-verify-row rule** are in [CLAUDE.md](CLAUDE.md); the **retention `users.deleted_at`** constraint is in [DECISIONS.md](docs/DECISIONS.md).
 - **⚠ Unexplained one-off:** `sanitize.test.ts` → "differs across students and across versions" failed once (2026-08-01) and did not reproduce in 13 runs. Recorded so a second sighting is treated as a pattern.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
-- **Three e2e traps worth re-reading before touching the lanes:** verify env-sensitive work with `.env.local` moved aside (`mv` → run → restore, OV-DX-13); `E2E_SKIP_BUILD` over a dist built from `.env.local` puts every signed-in spec on the sign-in screen — let the lanes build their own dist; and **the STUB lanes' Supabase origin must be an address NOTHING listens on** (`packages/app/e2e/helpers/e2eOrigins.ts` — the offline rows prove themselves with a real connection refusal). The third one was a live defect until 2026-08-18: the stub lanes and the integration lane shared `127.0.0.1:54321`, so `supabase start` made the sw lane's two offline rows red with a symptom that named nothing ("Please sign in again", from Kong's real `401 Expected 3 parts in JWT; got 1`). Stub lanes now sit on **54399**, outside the CLI's whole default range; `scripts/tests/e2e-origins.test.mjs` pins the separation + CI's build env, and the rows preflight the origin with a named fix.
 
-## Current focus — MISCONCEPTION SENSORS shipped and live (2026-08-25)
+## Current focus — CURRICULUM ALIGNMENT, Lane A built (2026-08-26)
 
-**✅ THE SENSOR IS LIVE END TO END** —
-[misconception-sensors.md](docs/design/misconception-sensors.md). A distractor
-can now name the misconception it senses, in markdown, and that id reaches the
-stored check verdict where it can be aggregated:
+**The catalogue's organization now matches the curriculum model it is authored
+against** — [curriculum-alignment.md](docs/design/curriculum-alignment.md),
+R1–R18, ruled through an eng review plus a four-letter written exchange with the
+curriculum builder (twelve positions moved, four of them ours reversing).
 
-    {{12 | !21 :: digits reversed :: mis.place-value.digit-reversal}}
-    ( ) $4 per kg :: mis.roc.uses-endpoint-value
+**The defect it closes.** The file PATH was the activity's database identity, so
+every editorial act the model calls normal — split, rename, re-file a chain —
+orphaned the row and stranded its published history. Identity is now a declared
+`key:` in the file; the path became organization, and therefore the teaching
+order. ⚠ **The path fallback is not merely the keyless case** — it is how a
+keyed file ADOPTS a row that predates the column, which is the entire cutover.
 
-Five commits, `8e2a1f3`..`f2829d2`. Both functions deployed and CODE-verified
-(the grading bundle is byte-identical to the committed one). The same arc
-deleted the last three orphan knobs end to end.
+**Also in Lane A:** `skill:`/`supporting_skills:` + `--skills-registry` and a
+committed coverage manifest (`.md` for humans, `.json` for the builder), which
+turns "47 skills, 0 covered" from structurally unanswerable into a named work
+list; `chain-registry.txt` mapping chain folder → unit title; the `x_` reserved
+namespace plus the per-run receipt that is its only sensor; and **a detector for
+the in-math answer leak** — a `{{…}}` inside `$…$` renders the answer to the
+student, and it now warns from the SHARED parser, so the teacher paste path is
+covered too.
 
-**What the AUTHOR gets that they did not have yesterday.** `pnpm import:batch`
-now writes a binding manifest, compile-checks that each binding CAN fire,
-validates ids against `--registry`, and fails the run under `--strict`. Numeric
-blanks match mistakes by VALUE, so `!0.5` fires for a student who typed `1/2` —
-most of the real signal. **The catalogue now carries 13 bindings, 4 files, all
-4 ratified ids — each verified to FIRE against the shipped grader, not merely
-to import.** That first real content found an answer leak: `{{…}}` inside
-`$…$` is swallowed silently (TODOS).
+**Lane B is designed and NOT built:** sorting the activities list's unit groups
+by `source_path`, which is what keeps chain ordinals out of student-visible
+titles. TODOS carries it.
 
-**Two pieces are deliberately unbuilt, each with a named discharger:** the
-UNITS slice (syntax unpinned — three verified tokenizer collisions, one of
-which would have scored the literal word "kph" correct) and the graph nudge
-TEXT. 🚫 **A new blocking step landed on the check-prune arming checklist** —
-misconception ids live on NON-latest attempts, exactly the rows the prune
-deletes, and no rollup table carries them yet.
-
-**The lesson worth carrying.** Three seam tests passed while the CHAIN was
-broken: importer, serializer and grader were each correct and an authored
-binding still reached no student. Only the cross-package end-to-end test
-caught it — then caught a second instance minutes later. **A seam test
-supplies its own input; it cannot see a gap between two correct halves.**
+**Six guards, each mutation-tested the day it was written** — and one of them
+was VACUOUS on the first attempt and only mutation found it: a test that
+"nothing catalogue-only reaches the document" parsed the importer's own return
+value instead of the merge path, so it proved that zod strips unknown keys and
+nothing else. Leaking a skill id into `applyImportedMeta` left it green. That is
+the repo's most expensive defect class, caught this time in the same hour it was
+written rather than months later.
 
 ## The flow modes — SHIPPED AND LIVE (2026-08-24); arc closed
 
@@ -237,38 +240,25 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-24 — **ARC CLOSED.** The activity flow modes are
-BUILT, SHIPPED, LIVE and CI-green: check groups, the server-enforced lock
-(0040 + `check-activity` v20), two deleted knobs, one printed label. Along the
-way two verify scripts were found broken in ways nobody had noticed —
-`verify-0033`'s caps assertion (over-scoped since the self-serve door opened)
-and `verify-0036`'s behavioural matrix (green only 3.5 hours a day) — both
-fixed and proven. Live `verify:auth`: **168/0**. A full drift audit closed the
-session with 2 findings, both self-created.
+**Last updated:** 2026-08-26 — **CURRICULUM ALIGNMENT, LANE A BUILT.** Declared
+identity (0041, prepared not applied), skill registry + coverage manifests, the
+chain registry, the `x_` namespace, the in-math answer-leak detector, and a
+generated catalogue-authoring prompt that retires the one hand-carried sync in
+the builder's system. `pnpm verify` 8/8.
 
-**The lesson is the THIRD generation of the one this repo keeps paying for, and
-the most uncomfortable yet.** Generation one: a DECLARATION outlives its
-implementation and the suite stays green because the guard compares two
-declarations. Generation two (2026-08-23): A GUARD OUTLIVES ITS OWN VALIDITY
-the same way — three found vacuous, every one by MUTATION. **Generation three:
-THE SLICE WRITTEN TO END THAT DEFECT CLASS COMMITTED IT THREE TIMES, IN ITS OWN
-NEW CODE.** The OV#14 solution gate scripted a service that returned no
-solutions, so "nothing is revealed" was true whether the gate existed or not.
-Guard 7 matched a bare token, so unwiring `doc.meta.submissionMode` left it
-green because a PARAMETER of that name still appeared. And `CheckGroup.
-implicitEnd` shipped as a field read only by its own tests, carrying a comment
-that named a consumer which never consumed it. Two were caught by
-mutation-testing the guard on the day it was written; the third by this
-session's own drift audit, hours later.
+**The lesson, and it is generation FOUR of the one this repo keeps paying for.**
+Generations one to three: a declaration outlives its implementation; a guard
+outlives its own validity; the slice written to end that class commits it three
+times in its own new code. **Generation four: the guard written by the session
+that KNEW all three was vacuous anyway** — and vacuous in the documented way, by
+asserting over the wrong artifact one level from the thing it claimed to check.
+Mutation found it in minutes. The rule that keeps working is not "write good
+guards", it is **watch every new guard fail once, on the day you write it**.
 
-**The corollaries worth carrying:**
-- **"Bound to rendered output" is not checkable by reading your own test.** The
-  solutions test DID query the DOM; what made it vacuous was the FIXTURE, one
-  level away. Only mutation sees that, and it costs ~90 seconds per guard.
-- **A claim with a number attached is still a claim.** STATE cited a CI run id
-  as proof of green; that run had failed, and predated the fix by 11 minutes.
-- **A single observation of a time-dependent bug is not its behaviour.** The
-  `verify-0036` diagnosis was measured, mechanised, confirmed — and wrong,
-  because every observation came from the same instant.
+**Also worth carrying:** the builder's reply corrected two of our rulings and
+caught an id we had INVENTED — `proportional.graph-through-origin` appeared in
+an example we wrote to demonstrate a file format, and had no source. It nearly
+got ratified into their registry as a second id for a skill that already had
+one. An example is a claim.
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._

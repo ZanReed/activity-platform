@@ -1152,3 +1152,10 @@ re-points those three at surface tokens (presentation attributes lose to any
 CSS rule, so this costs one selector and no engine change), with tokens chosen
 so **light mode does not move**. The DRAWABLES keep the engine's colours:
 they carry authored meaning, and they must look the same on paper as on screen.
+
+## Retention: `users.deleted_at` is not the retention clock
+
+*(Promoted out of STATE.md 2026-08-26 — shipped 0022–0025, unchanged since, and
+STATE is replaced every session.)*
+
+- **Retention is COMPLETE and proven end to end (0022–0025).** The one thing to know when touching it: **`users.deleted_at` means "account disabled", NOT "retention clock running"** — `join_class` refuses accounts that have it set, so student dormancy is DERIVED live from `class_members`/`classes` (400-day window) and the purge job never writes that column. Don't "simplify" it into a stored flag; that reintroduces a between-terms lockout. "Who is dormant right now" has no column to read — the query is `scripts/verify-0025.sql` section D.

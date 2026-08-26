@@ -67,6 +67,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **Inline math has a guard.** A lone `$` or currency like `$5 and $10` is *not* treated as math — only a properly closed `$…$` with no space just inside the delimiters.
 - **Write real LaTeX in math.** Backslash commands (`\frac`, `\sum`, `\int`, `\,`) are preserved exactly.
 - **Vocabulary definitions (`[[…::…]]`).** `[[term :: definition]]` marks the term so a student can tap it for a pop-up showing the definition (plain text + `$inline$` math). Works anywhere inline — prose, headings, prompts. The `::` splits term from definition (first one wins); neither side may contain square brackets, and a `[[bracketed phrase]]` with no `::` stays literal text. For anything richer than a sentence — a displayed equation, a list, a figure — use the [```definitions fence](#rich-definitions-definitions-fence) and reference it with `[[term]]`.
+- 🚨 **Never put a `{{…}}` blank inside `$…$` or `$$…$$`.** A blank inside maths is not a blank: it is absorbed whole into the equation, so **the answer is rendered to the student**, the question is not marked, and any `:: mis.*` binding disappears — which makes the sensor data say nobody made that mistake. Use `\gap{…}` (below) inside an equation, or move the blank into the surrounding prose. The importer now **warns** on this and `--strict` fails the run, but the warning is the safety net, not the rule.
 - **In-equation gaps (`\gap{…}`, Model A).** Inside `$…$` or `$$…$$`, `\gap{answer}` becomes a gradeable gap *inside* the rendered equation — the natural "complete the step" authoring for a faded worked example or a math-completion problem (`$$2x = \gap{8}$$`). The answer is graded by math equivalence (any equivalent form counts, so `8` / `8.0` / `4+4` all pass); the stored equation empties the gap so the answer never leaks to the student. Balanced braces work (`\gap{\frac{1}{2}}`). `|`-alternates aren't parsed (a `|` is a real LaTeX token); acceptable-answer lists, exact-form matching, and tolerances are added in the editor.
 - **Image URLs must be absolute** (`https://…`). A relative or empty URL is skipped with a warning.
 - **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence is unwrapped automatically on import. (A plain ```` ``` ```` code block in the *middle* of your content is still treated as a code block and flattened — only outer fences are stripped.)
@@ -971,6 +972,40 @@ Plain `key: value` lines, one per line:
 | `unit` | where it sits in the year (e.g. `Quadratics`). Optional. |
 | `tags` | comma-separated topic labels, used to find activities **across** units. Normalized on the way in: lower-cased, trimmed, inner spaces collapsed, duplicates dropped. Accents and macrons are preserved. |
 | `role` | exactly one of `lesson`, `review`, or `practice` — how the activity is used in the sequence. Anything else warns and is skipped. |
+
+### Catalogue keys — only for files imported by `pnpm import:batch`
+
+Three keys exist for the **curriculum catalogue** — the folder of `.md` files the
+batch importer reads. They are **carried, never applied**: nothing in the
+document, nothing a student is served, nothing the editor shows. A paste into
+the app may contain them and they are inert there.
+
+| Key | Meaning |
+|---|---|
+| `key` | The activity's **permanent identity**, e.g. `act.rate.unit-rate`. This is what lets you move, rename or re-file the `.md` without orphaning its activity — the importer matches on this first and treats the path as "where the file currently sits". **Minted once, never changed, never reused after an activity is deleted.** Changing it in place is retiring one activity and minting another, and the importer refuses it with that explanation rather than doing it silently. Required under `--strict`. |
+| `skill` | The **one** primary skill this activity targets, e.g. `rate.unit-rate`. Validated against `--skills-registry`. Exactly one — a comma here warns and is ignored, because "targets exactly one primary skill" is the rule this key exists to make checkable. Required under `--strict`. |
+| `supporting_skills` | Other skills the activity touches, comma-separated. Same validation. **Spelled in full rather than `skills`** deliberately: `skill` and `skills` differ by one character and mean different things, and the plural is the likelier typo — it would leave the activity with no primary skill at all. A file that says `skills:` gets a warning naming both keys. |
+
+**`unit` usually comes from the chain, not from the file.** A catalogue with a
+`chain-registry.txt` in its root maps each chain folder to the unit title, so
+renaming a chain is one line rather than an edit to every activity in it. A file
+may still state its own `unit:` and it wins — and the run reports that as an
+override, but only where it **differs** from the chain's registered title.
+
+#### `x_` — the reserved namespace
+
+Any key beginning `x_` is **skipped silently**: no warning, no storage, no
+validation. It exists so the curriculum builder's own bookkeeping (which skills
+each review item retrieves, and so on) can live in the activity file instead of
+a parallel document that would drift from it.
+
+    x_review_skills: ratio.equivalent-ratios, rate.unit-rate
+    x_dol_skills: rate.unit-rate, ratio.equivalent-ratios
+
+Because nothing validates the namespace, a typo in one of these names is
+invisible — so every run prints a **receipt** naming the `x_` keys it ignored
+and how many files carry each. That line is the namespace's only sensor; read it
+the way you read the binding manifest.
 
 ### Settings — how the activity behaves
 

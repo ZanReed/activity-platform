@@ -212,26 +212,166 @@ export function splitDriftedUpdates(updates, { force = false } = {}) {
  * database full of hand-made activities.
  */
 export function planIdentity(files, existing) {
+    const byKey = new Map();
     const byPath = new Map();
     for (const row of existing) {
+        if (row.source_key) byKey.set(row.source_key, row);
         if (row.source_path) byPath.set(row.source_path, row);
     }
 
     const creates = [];
     const updates = [];
-    const seen = new Set();
+    const conflicts = [];
+    const consumed = new Set();
 
     for (const file of files) {
-        seen.add(file.sourcePath);
-        const row = byPath.get(file.sourcePath);
-        if (row) updates.push({ file, row });
-        else creates.push({ file });
+        // 1. THE KEY, if the file declares one and a row already holds it. The
+        //    file may have moved anywhere; that is the entire point.
+        if (file.key) {
+            const byKeyRow = byKey.get(file.key);
+            if (byKeyRow) {
+                consumed.add(byKeyRow.id);
+                updates.push({
+                    file,
+                    row: byKeyRow,
+                    matchedBy: 'key',
+                    moved: byKeyRow.source_path !== file.sourcePath,
+                });
+                continue;
+            }
+        }
+
+        // 2. THE PATH — and this arm is NOT just the keyless fallback. It is
+        //    also how a keyed file ADOPTS a row that predates keys, which is
+        //    the whole cutover: add `key:` with paths untouched, run once, and
+        //    every row records its key by being matched on the path it still
+        //    sits at. Getting this wrong (key-only matching) would have turned
+        //    the cutover into 150 creates and 150 orphans.
+        const byPathRow = byPath.get(file.sourcePath);
+        if (byPathRow) {
+            // The row at this path already answers to a DIFFERENT key: the key
+            // was edited in place. That is "retire and mint" (the builder's
+            // ruling), not a rename — and it cannot be done by import, because
+            // the old row still occupies this path and 0038's unique index
+            // would reject the new one with an opaque 23505. Say so here, where
+            // the fix is nameable, rather than at the write.
+            if (file.key && byPathRow.source_key && byPathRow.source_key !== file.key) {
+                conflicts.push({
+                    file,
+                    row: byPathRow,
+                    was: byPathRow.source_key,
+                    now: file.key,
+                });
+                continue;
+            }
+            consumed.add(byPathRow.id);
+            updates.push({
+                file,
+                row: byPathRow,
+                matchedBy: 'path',
+                // An adoption: the row learns its key on this run.
+                adoptsKey: Boolean(file.key) && !byPathRow.source_key,
+                moved: false,
+            });
+            continue;
+        }
+
+        creates.push({ file });
     }
 
-    // Orphans: imported rows whose file is gone. REPORTED ONLY (D2).
-    const orphans = [...byPath.values()].filter((r) => !seen.has(r.source_path));
+    // Orphans: imported rows no file claimed. Computed from what was CONSUMED
+    // rather than from paths on disk, because a keyed row can be matched by a
+    // file sitting somewhere else entirely — a path sweep would report every
+    // moved activity as an orphan and hide the real ones in the noise.
+    // REPORTED ONLY (D2).
+    const orphans = existing.filter(
+        (r) => (r.source_path || r.source_key) && !consumed.has(r.id),
+    );
 
-    return { creates, updates, orphans };
+    return { creates, updates, orphans, conflicts };
+}
+
+/**
+ * The `key:` a catalogue file declares, read WITHOUT running the full importer.
+ *
+ * WHY A SECOND READER OF THE SAME SYNTAX, in a repo that treats two parsers for
+ * one format as a defect: identity has to be known BEFORE conversion, because
+ * it decides which existing row a file is converted against (an update merges
+ * against the row's current meta; a create does not). Running the whole
+ * markdown pipeline twice per file to learn one string would be the alternative.
+ *
+ * It is kept honest rather than trusted: `convertOne` re-reads the key from the
+ * REAL parser and the caller compares the two, so a divergence between this
+ * scan and `parseMetaFence` surfaces as a named error on the run that causes it
+ * instead of as a mismatched row months later. That cross-check is the reason
+ * this is safe; do not delete it to save a comparison.
+ */
+export function scanSourceKey(markdown) {
+    // The first ```meta fence, matching the importer's own fence discipline:
+    // an opening line that is exactly the info string, and a closing ``` line.
+    const fence = /^```meta[ \t]*\r?\n([\s\S]*?)^```[ \t]*$/m.exec(markdown);
+    if (!fence) return null;
+    const line = /^[ \t]*key[ \t]*:[ \t]*(.+?)[ \t]*$/m.exec(fence[1] ?? '');
+    return line ? (line[1] ?? '').trim() || null : null;
+}
+
+/**
+ * `chain-registry.txt` — chain folder → the unit title the platform shows.
+ *
+ *     01-chain.rate.proportional = Rates and Proportional Relationships
+ *
+ * Split on the FIRST `=` only: a display title may contain anything, including
+ * the `:` that early drafts of this format put in front of it and the `=` that
+ * nobody has needed yet. `#` comments and blank lines ignored, exactly like the
+ * misconception and skill registries — three files, one grammar, because a
+ * registry whose format has to be remembered is a registry that gets edited
+ * wrongly.
+ *
+ * TEACHING ORDER IS NOT IN THIS FILE. It is the folder's ordinal prefix, which
+ * the activities list reads through `source_path`. A number inside the title
+ * would put curriculum bookkeeping on the student's worksheet, which is the one
+ * thing the whole path scheme exists to avoid.
+ */
+export function parseChainRegistry(text) {
+    const titles = new Map();
+    const duplicates = [];
+    for (const raw of text.split('\n')) {
+        const line = raw.replace(/#.*$/, '').trim();
+        if (line === '') continue;
+        const eq = line.indexOf('=');
+        if (eq === -1) continue;
+        const folder = line.slice(0, eq).trim();
+        const title = line.slice(eq + 1).trim();
+        if (folder === '' || title === '') continue;
+        if (titles.has(folder)) duplicates.push(folder);
+        titles.set(folder, title);
+    }
+    return { titles, duplicates };
+}
+
+/** The chain folder a catalogue file belongs to: its first path segment, or
+ *  null for a file sitting loose in the catalogue root. */
+export function chainFolderOf(sourcePath) {
+    const slash = sourcePath.indexOf('/');
+    return slash === -1 ? null : sourcePath.slice(0, slash);
+}
+
+/**
+ * Two chains resolving to the SAME display title.
+ *
+ * Worth its own check because the failure is invisible: the activities list
+ * groups by the unit STRING, so two chains sharing a title silently merge into
+ * one outline group — the teacher sees one unit containing two chains' worth of
+ * activities, in path order, with nothing to indicate the groups were ever
+ * distinct.
+ */
+export function duplicateChainTitles(titles) {
+    const byTitle = new Map();
+    for (const [folder, title] of titles) {
+        const key = title.trim().toLowerCase();
+        byTitle.set(key, [...(byTitle.get(key) ?? []), folder]);
+    }
+    return [...byTitle.values()].filter((folders) => folders.length > 1);
 }
 
 /**
@@ -294,7 +434,8 @@ export async function findMarkdownFiles(root) {
  * Throws on anything that would put a bad document in draft_content. The caller
  * turns that into a skip + a report (D3).
  */
-export function convertOne(pipeline, markdown, existingRow, sourcePath) {
+export function convertOne(pipeline, markdown, existingRow, sourcePath, options = {}) {
+    const { chainTitle = null } = options;
     const result = pipeline.importer(markdown);
 
     if (
@@ -321,10 +462,17 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath) {
         // the "Untitled activity" placeholder — see titleFromPath. The fence
         // still wins whenever it says anything, because the fallback is only
         // consulted for a key the fence does not carry.
-        const fenceWithTitle =
-            fence.title === undefined && sourcePath
-                ? { ...fence, title: titleFromPath(sourcePath) ?? undefined }
-                : fence;
+        const fenceWithTitle = {
+            ...fence,
+            ...(fence.title === undefined && sourcePath
+                ? { title: titleFromPath(sourcePath) ?? undefined }
+                : {}),
+            // The chain registry supplies `unit` for every file that does not
+            // state one, which is meant to be all of them: one line changes a
+            // chain's name instead of N files. A file's own `unit:` still wins
+            // (precedence 1) and is reported as an override where it DIVERGES.
+            ...(fence.unit === undefined && chainTitle ? { unit: chainTitle } : {}),
+        };
         const outcome = pipeline.applyImportedMeta(fenceWithTitle, blankTarget(pipeline));
         meta = outcome.meta;
         tags = outcome.tags;
@@ -350,7 +498,11 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath) {
             activityType: fence.activityType ?? prior.activityType ?? 'worksheet',
             answerFeedback: fence.answerFeedback ?? prior.answerFeedback ?? 'on_check',
         };
-        const unit = fence.unit ?? prior.unit;
+        // `chainTitle` sits BEFORE `prior.unit` deliberately: a chain rename in
+        // the registry has to propagate to activities that already carry the
+        // old title, and reading the prior value first would pin every existing
+        // activity to the name it was imported under.
+        const unit = fence.unit ?? chainTitle ?? prior.unit;
         if (unit !== undefined) computed.unit = unit;
 
         // Everything the document already carried that no fence key describes
@@ -427,6 +579,23 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath) {
         pedagogicalRole,
         changes,
         warnings,
+        // Catalogue-only, read by this script and stored in no document. The
+        // key rides out so main() can cross-check it against scanSourceKey's
+        // pre-pass; the skills feed the registry check and the coverage
+        // manifest; reservedKeys feeds the per-run receipt.
+        sourceKey: fence.sourceKey ?? null,
+        primarySkill: fence.primarySkill ?? null,
+        supportingSkills: fence.supportingSkills ?? [],
+        reservedKeys: fence.reservedKeys ?? [],
+        // A file that states a unit DIFFERENT from its chain's registry title.
+        // Presence alone is not an override — a file repeating its chain's
+        // title verbatim is saying the same thing the registry says, and
+        // reporting that would make the override report fire on every file the
+        // moment a drafting prompt started emitting `unit:`.
+        unitOverride:
+            fence.unit !== undefined && chainTitle !== null && fence.unit !== chainTitle
+                ? { stated: fence.unit, chain: chainTitle }
+                : null,
     };
 }
 
@@ -463,6 +632,25 @@ export function titleFromPath(sourcePath) {
     // shouting rather than being normalised into something the author did not
     // write.
     return base.replace(/(^|\s)(\S)/g, (_, sp, ch) => sp + ch.toUpperCase());
+}
+
+/**
+ * A `key:` to suggest for a file that has none — path-derived, so the fix in
+ * the warning is copy-paste rather than a naming decision at the moment the
+ * author least wants one.
+ *
+ *   '01-chain.rate.proportional/01-unit-rate.md'  →  'act.rate.unit-rate'
+ *
+ * Best-effort and deliberately dumb: the author's convention is theirs, and a
+ * suggestion that is wrong is still a template with the right SHAPE.
+ */
+export function suggestKeyFor(sourcePath) {
+    const parts = sourcePath.replace(/\.md$/i, '').split('/');
+    const base = (parts.pop() ?? '').replace(/^\d+[-_]/, '');
+    const folder = (parts.pop() ?? '').replace(/^\d+[-_]/, '').replace(/^chain\./, '');
+    const domain = folder.split('.')[0] ?? '';
+    const slug = base.replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+    return domain ? `act.${domain}.${slug}` : `act.${slug}`;
 }
 
 /**
@@ -930,6 +1118,201 @@ export function isBindingWarning(warning) {
  *  the file names itself in its header and the run prints it. */
 export const MANIFEST_PATH = 'docs/misconception-manifest.md';
 
+/** The skill-coverage artifacts. Two files, one dataset: the .md is read by
+ *  humans as a diff, the .json is read by the curriculum builder as input. */
+export const COVERAGE_MANIFEST_PATH = 'docs/skill-coverage-manifest.md';
+export const COVERAGE_JSON_PATH = 'docs/skill-coverage.json';
+
+/**
+ * Roll per-file skill declarations up into coverage.
+ *
+ * `perFile` is [{ sourcePath, primarySkill, supportingSkills, published }].
+ * `registryIds` is the author's full skill set — the whole point of the
+ * artifact, because coverage is not "which skills did we mention" but "which of
+ * the skills that EXIST are covered". Without the registry the uncovered list
+ * cannot be computed at all; with it, the answer to "47 skills, how many
+ * covered" stops being structurally unanswerable.
+ *
+ * DRAFTS COUNT SEPARATELY, never silently. The curriculum model excludes drafts
+ * from progress counts (a draft is generation, not curriculum), so a skill
+ * covered only by unpublished activities is reported in its own bucket rather
+ * than folded into either side.
+ */
+export function summarizeCoverage(perFile, registryIds) {
+    const skills = new Map();
+    const touch = (id, sourcePath, role, published) => {
+        if (!skills.has(id)) {
+            skills.set(id, {
+                id,
+                primary: [],
+                supporting: [],
+                published: false,
+                registered: registryIds ? registryIds.has(id) : true,
+            });
+        }
+        const entry = skills.get(id);
+        entry[role].push(sourcePath);
+        if (published) entry.published = true;
+    };
+
+    for (const file of perFile) {
+        if (file.primarySkill) {
+            touch(file.primarySkill, file.sourcePath, 'primary', file.published);
+        }
+        for (const id of file.supportingSkills ?? []) {
+            touch(id, file.sourcePath, 'supporting', file.published);
+        }
+    }
+
+    for (const entry of skills.values()) {
+        entry.primary.sort();
+        entry.supporting.sort();
+    }
+
+    const covered = [...skills.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
+    const uncovered = registryIds
+        ? [...registryIds].filter((id) => !skills.has(id)).sort()
+        : [];
+    const unregistered = covered.filter((e) => !e.registered).map((e) => e.id);
+
+    return {
+        covered,
+        uncovered,
+        unregistered,
+        registrySize: registryIds ? registryIds.size : null,
+        files: perFile.map((f) => f.sourcePath).sort(),
+        withoutPrimary: perFile
+            .filter((f) => !f.primarySkill)
+            .map((f) => f.sourcePath)
+            .sort(),
+    };
+}
+
+/**
+ * The committed coverage manifest, as text.
+ *
+ * DETERMINISTIC BY CONSTRUCTION, for the reason its sibling states: sorted
+ * throughout, and carrying no timestamp, no run mode and no database facts, so
+ * a `git diff` shows coverage changes and nothing else.
+ *
+ * ⚠ THE TIMESTAMP THE BUILDER ASKED FOR IS DELIBERATELY ABSENT, and the
+ * replacement is stricter rather than weaker. A timestamp compared against file
+ * mtimes is a PROXY for "is this coverage stale"; the `files` list below is the
+ * thing itself — an activity authored but never imported is absent from it, and
+ * absence is exact. What a timestamp would have caught and this does not: an
+ * existing file edited since the last run. That case can only change coverage by
+ * changing a `skill:` line, and changing a skill line changes this file.
+ */
+export function renderCoverageManifest(summary) {
+    const out = [];
+    out.push('# Skill coverage manifest');
+    out.push('');
+    out.push('<!--');
+    out.push('  GENERATED — do not hand-edit. Refreshed by `pnpm import:batch`');
+    out.push('  (a --dry-run is enough; it writes this file in both modes).');
+    out.push('');
+    out.push('  AUTHOR-REFRESHED, NEVER CI-GATED — same standing as the');
+    out.push('  misconception manifest beside it, and for the same reason: the');
+    out.push('  .md files it summarizes live OUTSIDE this repository, so CI');
+    out.push('  cannot regenerate it and no drift check against it could pass.');
+    out.push('');
+    out.push('  docs/skill-coverage.json carries the same data for machines.');
+    out.push('-->');
+    out.push('');
+
+    if (summary.registrySize === null) {
+        out.push(
+            'No skill registry was supplied, so coverage cannot be computed — only',
+        );
+        out.push('the skills the catalogue names are known, not the ones it misses.');
+        out.push('');
+    } else {
+        const coveredCount = summary.covered.filter((e) => e.registered).length;
+        const publishedCount = summary.covered.filter(
+            (e) => e.registered && e.published,
+        ).length;
+        out.push(
+            `**${coveredCount} of ${summary.registrySize} skills covered** ` +
+                `(${publishedCount} by published activities, ` +
+                `${coveredCount - publishedCount} in draft only) · ` +
+                `${summary.files.length} activities`,
+        );
+        out.push('');
+    }
+
+    if (summary.covered.length > 0) {
+        out.push('## Covered');
+        out.push('');
+        out.push('| skill | state | primary | supporting |');
+        out.push('| --- | --- | --- | --- |');
+        for (const e of summary.covered) {
+            const state = e.registered
+                ? e.published
+                    ? 'published'
+                    : 'draft only'
+                : '⚠ not in registry';
+            out.push(
+                `| \`${e.id}\` | ${state} | ${
+                    e.primary.map((f) => `\`${f}\``).join(', ') || '—'
+                } | ${e.supporting.map((f) => `\`${f}\``).join(', ') || '—'} |`,
+            );
+        }
+        out.push('');
+    }
+
+    if (summary.uncovered.length > 0) {
+        out.push('## Uncovered');
+        out.push('');
+        out.push(
+            'Registered skills no activity targets. This list is the artifact\'s',
+        );
+        out.push('reason for existing — a count alone cannot be acted on.');
+        out.push('');
+        for (const id of summary.uncovered) out.push(`- \`${id}\``);
+        out.push('');
+    }
+
+    if (summary.withoutPrimary.length > 0) {
+        out.push('## Activities with no primary skill');
+        out.push('');
+        for (const f of summary.withoutPrimary) out.push(`- \`${f}\``);
+        out.push('');
+    }
+
+    return out.join('\n');
+}
+
+/** The same data, for the curriculum builder to consume. Deterministic for the
+ *  reasons above; `schema` is versioned so a consumer can fail loudly rather
+ *  than mis-read a future shape. */
+export function coverageJson(summary) {
+    return {
+        schema: 'activity-platform/skill-coverage@1',
+        registrySize: summary.registrySize,
+        counts: {
+            activities: summary.files.length,
+            covered: summary.covered.filter((e) => e.registered).length,
+            coveredPublished: summary.covered.filter((e) => e.registered && e.published)
+                .length,
+            uncovered: summary.uncovered.length,
+        },
+        skills: summary.covered.map((e) => ({
+            id: e.id,
+            registered: e.registered,
+            published: e.published,
+            primary: e.primary,
+            supporting: e.supporting,
+        })),
+        uncovered: summary.uncovered,
+        unregistered: summary.unregistered,
+        activitiesWithoutPrimarySkill: summary.withoutPrimary,
+        // The staleness contract: every catalogue file this run saw. A file on
+        // disk and absent here has never been imported, so any coverage quoted
+        // from this artifact predates it.
+        files: summary.files,
+    };
+}
+
 /**
  * The committed manifest, as text.
  *
@@ -1123,6 +1506,26 @@ export class UnusableKeyError extends Error {}
  * authenticating anything here, just reading the author's own label back to
  * them) and say plainly which key they pasted.
  */
+/**
+ * The column PostgREST said was missing, or null.
+ *
+ * ⚠ WHY THIS IS NOT A SUBSTRING TEST, which is what it was for about an hour on
+ * 2026-08-26. The thrown error embeds the request PATH, and the path carries the
+ * whole `select=` list — so `/source_fingerprint/.test(message)` is TRUE even
+ * when the missing column is `source_key`, because the select names both. The
+ * run then told the author to apply a migration they had applied five days
+ * earlier, with total confidence, against a database that was fine.
+ *
+ * That is this repo's documented defect class wearing new clothes: a check that
+ * appears to test a fact but actually tests a string that happens to contain it.
+ * Route on what the database NAMED.
+ */
+export function missingColumnFrom(message) {
+    return (
+        /column\s+\S*?\.?(\w+)\s+does not exist/i.exec(message ?? '')?.[1] ?? null
+    );
+}
+
 export function rejectUnusableKey(key) {
     if (key.startsWith('sb_publishable_')) {
         throw new UnusableKeyError(
@@ -1198,7 +1601,26 @@ export function makeDb(url, key) {
         existingFor(ownerId) {
             return call(
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
-                    '&select=id,source_path,title,tags,pedagogical_role,draft_content,source_fingerprint',
+                    '&select=id,source_path,source_key,status,title,tags,' +
+                    'pedagogical_role,draft_content,source_fingerprint',
+            );
+        },
+
+        /**
+         * Soft-deleted rows that still hold a key.
+         *
+         * The builder's commitment is that a key is never reused after
+         * deletion, and the database cannot enforce it: 0041's unique index
+         * excludes tombstones ON PURPOSE, so deleting in the app and
+         * re-importing is the author's undo. The consequence is that a reused
+         * key does not collide — it silently mints a fresh-looking activity.
+         * This query is the only thing that can see that, so the warning it
+         * feeds is the commitment's only enforcement.
+         */
+        deletedKeysFor(ownerId) {
+            return call(
+                `/activities?owner_id=eq.${ownerId}&deleted_at=not.is.null` +
+                    '&source_key=not.is.null&select=id,source_key,title,deleted_at',
             );
         },
 
@@ -1230,6 +1652,7 @@ export function parseArgs(argv) {
     let force = false;
     let strict = false;
     let registry = null;
+    let skillsRegistry = null;
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -1248,11 +1671,22 @@ export function parseArgs(argv) {
         else if (arg.startsWith('--owner=')) owner = arg.slice('--owner='.length);
         else if (arg === '--registry') registry = argv[++i] ?? null;
         else if (arg.startsWith('--registry=')) registry = arg.slice('--registry='.length);
+        else if (arg === '--skills-registry') skillsRegistry = argv[++i] ?? null;
+        else if (arg.startsWith('--skills-registry='))
+            skillsRegistry = arg.slice('--skills-registry='.length);
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
         else positional.push(arg);
     }
 
-    return { folder: positional[0] ?? null, owner, dryRun, force, strict, registry };
+    return {
+        folder: positional[0] ?? null,
+        owner,
+        dryRun,
+        force,
+        strict,
+        registry,
+        skillsRegistry,
+    };
 }
 
 function usage(message) {
@@ -1270,6 +1704,11 @@ ${message}
   --force      overwrite even activities that were edited in the app since
                their last import. Without it those files are refused and named
                (their app-side edits would be destroyed -- the file wins)
+  --skills-registry
+               a file of valid skill ids, one per line (# comments, blank lines
+               ignored). Turns "which skills are covered" from unanswerable into
+               a generated manifest, because coverage needs the ids that EXIST,
+               not only the ones the catalogue happens to name
   --registry   a file of valid mis.* ids, one per line (# comments, blank lines
                ignored). Bindings outside it warn, by name. A folder that
                carries bindings and supplies no registry warns for that too
@@ -1346,6 +1785,35 @@ async function main() {
         }
     }
 
+    // The skill registry, read with the same up-front discipline as the
+    // misconception one: a typo'd path fails before a 150-file run, not after.
+    let skills = null;
+    if (args.skillsRegistry) {
+        const path = resolve(args.skillsRegistry);
+        const text = await readFile(path, 'utf8').catch(() => null);
+        if (text === null) usage(`--skills-registry ${path} could not be read.`);
+        skills = { path: args.skillsRegistry, ids: parseRegistry(text) };
+        if (skills.ids.size === 0) {
+            usage(
+                `--skills-registry ${path} lists no ids.\n\n` +
+                    '  An empty skill registry would report every skill in the catalogue as\n' +
+                    '  unregistered AND report zero skills uncovered — two opposite lies from\n' +
+                    '  one empty file.',
+            );
+        }
+    }
+
+    // The chain registry lives IN the catalogue beside the .md files it
+    // governs, not behind a flag: it is part of the folder's structure rather
+    // than a policy applied to it. Absent is legal — a catalogue that does not
+    // use chains states `unit:` per file, which is what the four pilot
+    // activities did before chains existed.
+    const chainRegistryPath = resolve(root, 'chain-registry.txt');
+    const chainText = await readFile(chainRegistryPath, 'utf8').catch(() => null);
+    const chains = chainText === null
+        ? { titles: new Map(), duplicates: [] }
+        : parseChainRegistry(chainText);
+
     try {
         rejectUnusableKey(key);
     } catch (err) {
@@ -1364,14 +1832,25 @@ async function main() {
             `${args.strict ? ' · --strict (binding warnings fail the run)' : ''}`,
     );
     console.log(
-        `registry  : ${registry ? `${registry.path} (${registry.ids.size} ids)` : 'none supplied'}\n`,
+        `registry  : ${registry ? `${registry.path} (${registry.ids.size} ids)` : 'none supplied'}`,
+    );
+    console.log(
+        `skills    : ${skills ? `${skills.path} (${skills.ids.size} ids)` : 'none supplied'}`,
+    );
+    console.log(
+        `chains    : ${
+            chainText === null
+                ? 'no chain-registry.txt in the catalogue root'
+                : `chain-registry.txt (${chains.titles.size} chains)`
+        }\n`,
     );
 
-    let files, existing, pipeline;
+    let files, existing, deletedRows, pipeline;
     try {
-        [files, existing, pipeline] = await Promise.all([
+        [files, existing, deletedRows, pipeline] = await Promise.all([
             findMarkdownFiles(root),
             db.existingFor(owner.id),
+            db.deletedKeysFor(owner.id),
             loadPipeline(),
         ]);
     } catch (err) {
@@ -1379,7 +1858,14 @@ async function main() {
         // rather than letting the run proceed with the guard silently absent —
         // a safeguard nobody can see is not a safeguard (policy P3), and this
         // one exists to stop the author's own work being overwritten.
-        if (/source_fingerprint/.test(err.message)) {
+        // ⚠ ROUTE ON THE COLUMN POSTGREST NAMED, NOT ON A SUBSTRING OF THE
+        // ERROR. The thrown message embeds the request PATH, and the path
+        // contains the whole select list — so a bare /source_fingerprint/ test
+        // matches even when the missing column is source_key, and the run
+        // confidently tells the author to apply a migration they applied days
+        // ago. Observed 2026-08-26, against a database that already had 0039.
+        const missingColumn = missingColumnFrom(err.message);
+        if (missingColumn === 'source_fingerprint') {
             usage(
                 'The database is missing `activities.source_fingerprint`, which this\n' +
                     '  importer needs to tell an app-side edit from an unchanged draft.\n\n' +
@@ -1388,8 +1874,73 @@ async function main() {
             );
             return;
         }
+        // Same refusal, same reason, one migration later: without source_key
+        // every keyed file would fall through to path matching, which is the
+        // behaviour this whole slice replaced. Failing loudly beats silently
+        // reverting to it.
+        if (missingColumn === 'source_key') {
+            usage(
+                'The database is missing `activities.source_key`, which this importer\n' +
+                    '  uses as the activity\'s identity — without it a moved or renamed file\n' +
+                    '  orphans its row instead of following it.\n\n' +
+                    '  Apply migration 0041 and re-run:\n' +
+                    '    supabase db push',
+            );
+            return;
+        }
         throw err;
     }
+
+    // ---- the identity pre-pass ----------------------------------------------
+    // Every file's text is read ONCE here and carried through the run: the key
+    // has to be known before planning (it decides which row a file converts
+    // against), and reading twice for 150 files is waste the run can see.
+    const catalogueWarnings = [];
+    const keyed = [];
+    for (const file of files) {
+        const markdown = await readFile(file.absolute, 'utf8').catch(() => null);
+        if (markdown === null) {
+            catalogueWarnings.push(`${file.sourcePath}: could not be read.`);
+            continue;
+        }
+        keyed.push({ ...file, markdown, key: scanSourceKey(markdown) });
+    }
+    files = keyed;
+
+    // Two files claiming one identity. Fatal BEFORE any write, because the
+    // alternative is one file's document landing in the other's row and the
+    // loser being reported as a create that then fails on the unique index —
+    // an outcome whose message names neither file.
+    const byKey = new Map();
+    const duplicateKeys = [];
+    for (const file of files) {
+        if (!file.key) continue;
+        const first = byKey.get(file.key);
+        if (first) duplicateKeys.push({ key: file.key, files: [first, file.sourcePath] });
+        else byKey.set(file.key, file.sourcePath);
+    }
+    if (duplicateKeys.length > 0) {
+        console.error('\nTWO FILES CLAIM THE SAME KEY — nothing was written.\n');
+        for (const { key, files: pair } of duplicateKeys) {
+            console.error(`  ${key}`);
+            for (const f of pair) console.error(`    ${f}`);
+        }
+        console.error(
+            '\n  A key is an activity\'s permanent identity. Copying a file to start a\n' +
+                '  new activity means minting a new key for the copy — the original\'s key\n' +
+                '  belongs to the original for good.\n',
+        );
+        process.exitCode = 1;
+        return;
+    }
+
+    // A key that belonged to a soft-deleted activity. Not refused — deleting in
+    // the app and re-importing IS the author's undo, and that path is load-
+    // bearing — but named, because the same shape is also the one mistake the
+    // no-reuse commitment forbids, and nothing else in the system can see it.
+    const tombstones = new Map(
+        (deletedRows ?? []).map((r) => [r.source_key, r]),
+    );
 
     // The row shape convertOne wants: draft meta lifted out of draft_content so
     // the never-clobber merge can see the course/settings an unpublished
@@ -1400,7 +1951,7 @@ async function main() {
         draftCalculator: row.draft_content?.calculator,
     }));
 
-    const { creates, updates, orphans } = planIdentity(files, enriched);
+    const { creates, updates, orphans, conflicts } = planIdentity(files, enriched);
 
     // D7.4 — an activity edited IN THE APP since its last import is refused,
     // because "the file wins" would silently destroy that editing. Rows with no
@@ -1426,24 +1977,57 @@ async function main() {
     // partial.
     const collected = new Map();
 
+    // Catalogue facts, gathered on the same pass as the bindings and keyed the
+    // same way. `published` comes from the ROW rather than the file, because
+    // "does this coverage count" is a question about what students can reach.
+    const catalogue = new Map();
+    const chainTitleFor = (file) => {
+        const folder = chainFolderOf(file.sourcePath);
+        return folder === null ? null : (chains.titles.get(folder) ?? null);
+    };
+    const record = (file, converted, row) => {
+        collected.set(file.sourcePath, collectBindings(converted.document));
+        catalogue.set(file.sourcePath, {
+            sourcePath: file.sourcePath,
+            primarySkill: converted.primarySkill,
+            supportingSkills: converted.supportingSkills,
+            reservedKeys: converted.reservedKeys,
+            unitOverride: converted.unitOverride,
+            published: row?.status === 'published',
+        });
+        // The pre-pass and the real parser must agree about identity. They read
+        // the same syntax by two routes (see scanSourceKey), and a divergence
+        // would mean this run planned against one key and wrote another.
+        if ((converted.sourceKey ?? null) !== (file.key ?? null)) {
+            catalogueWarnings.push(
+                `${file.sourcePath}: the key scanner read “${file.key ?? '(none)'}” but the ` +
+                    `importer read “${converted.sourceKey ?? '(none)'}”. This is a bug in the ` +
+                    'scanner, not in your file — please report it; nothing was planned from ' +
+                    'the second value.',
+            );
+        }
+    };
+
     for (const { file } of creates) {
         try {
-            const markdown = await readFile(file.absolute, 'utf8');
-            const converted = convertOne(pipeline, markdown, null, file.sourcePath);
+            const converted = convertOne(pipeline, file.markdown, null, file.sourcePath, {
+                chainTitle: chainTitleFor(file),
+            });
             plannedCreates.push({ file, converted });
-            collected.set(file.sourcePath, collectBindings(converted.document));
+            record(file, converted, null);
             if (converted.warnings.length) warned.push({ file, warnings: converted.warnings });
         } catch (err) {
             skipped.push({ file, error: err.message });
         }
     }
 
-    for (const { file, row } of updatable) {
+    for (const { file, row, adoptsKey, moved } of updatable) {
         try {
-            const markdown = await readFile(file.absolute, 'utf8');
-            const converted = convertOne(pipeline, markdown, row, file.sourcePath);
-            plannedUpdates.push({ file, row, converted });
-            collected.set(file.sourcePath, collectBindings(converted.document));
+            const converted = convertOne(pipeline, file.markdown, row, file.sourcePath, {
+                chainTitle: chainTitleFor(file),
+            });
+            plannedUpdates.push({ file, row, converted, adoptsKey, moved });
+            record(file, converted, row);
             if (converted.warnings.length) warned.push({ file, warnings: converted.warnings });
         } catch (err) {
             skipped.push({ file, error: err.message });
@@ -1456,9 +2040,10 @@ async function main() {
         // is already printed, and turning it into a skip would make the exit
         // code depend on a file this run was never going to write.
         try {
-            const markdown = await readFile(file.absolute, 'utf8');
-            const converted = convertOne(pipeline, markdown, row, file.sourcePath);
-            collected.set(file.sourcePath, collectBindings(converted.document));
+            const converted = convertOne(pipeline, file.markdown, row, file.sourcePath, {
+                chainTitle: chainTitleFor(file),
+            });
+            record(file, converted, row);
         } catch {
             /* refused already; nothing to add */
         }
@@ -1494,6 +2079,105 @@ async function main() {
                 'taxonomy. Pass --registry <file> to validate them.',
         );
     }
+    // ---- catalogue warnings -------------------------------------------------
+    // The curriculum contract's half of validation: identity, the one primary
+    // skill, and the chain registry. Kept separate from binding warnings
+    // because they answer a different question — a binding warning says the
+    // sensor data will be wrong, these say the catalogue's STRUCTURE will be.
+    const perFileCatalogue = files
+        .filter((f) => catalogue.has(f.sourcePath))
+        .map((f) => catalogue.get(f.sourcePath));
+
+    for (const entry of perFileCatalogue) {
+        const file = files.find((f) => f.sourcePath === entry.sourcePath);
+        if (!file?.key) {
+            catalogueWarnings.push(
+                `${entry.sourcePath}: no \`key:\` — this file's identity is its PATH, so ` +
+                    'moving or renaming it will orphan its activity and create a second one. ' +
+                    `Add \`key: ${suggestKeyFor(entry.sourcePath)}\` to its \`\`\`meta fence.`,
+            );
+        }
+        if (!entry.primarySkill) {
+            catalogueWarnings.push(
+                `${entry.sourcePath}: no \`skill:\` — an activity targets exactly one primary ` +
+                    'skill, and without it this activity can never be counted as covering ' +
+                    'anything.',
+            );
+        }
+        if (skills) {
+            for (const id of [
+                ...(entry.primarySkill ? [entry.primarySkill] : []),
+                ...entry.supportingSkills,
+            ]) {
+                if (!skills.ids.has(id)) {
+                    catalogueWarnings.push(
+                        `${entry.sourcePath}: skill “${id}” is not in ${skills.path}. An ` +
+                            'unregistered id fragments coverage the same way an unregistered ' +
+                            'misconception id fragments the sensor data.',
+                    );
+                }
+            }
+        }
+        if (entry.unitOverride) {
+            catalogueWarnings.push(
+                `${entry.sourcePath}: states \`unit: ${entry.unitOverride.stated}\` but its ` +
+                    `chain is registered as “${entry.unitOverride.chain}”. The file wins — ` +
+                    'this is legal, and reported so it is never accidental.',
+            );
+        }
+    }
+
+    // Chain folders with no registry entry, and two chains sharing a title.
+    if (chainText !== null) {
+        const foldersSeen = new Set(
+            files.map((f) => chainFolderOf(f.sourcePath)).filter((f) => f !== null),
+        );
+        for (const folder of [...foldersSeen].sort()) {
+            if (!chains.titles.has(folder)) {
+                catalogueWarnings.push(
+                    `chain folder “${folder}” has no entry in chain-registry.txt, so every ` +
+                        'activity in it will be filed under whatever unit each file states, ' +
+                        'or under none.',
+                );
+            }
+        }
+        for (const folders of duplicateChainTitles(chains.titles)) {
+            catalogueWarnings.push(
+                `chain-registry.txt gives the same title to ${folders.join(' and ')} — the ` +
+                    'activities list groups by the unit STRING, so those chains would merge ' +
+                    'into one outline group with nothing to show they were ever separate.',
+            );
+        }
+        for (const folder of chains.duplicates) {
+            catalogueWarnings.push(
+                `chain-registry.txt lists “${folder}” more than once; the last line won.`,
+            );
+        }
+    }
+
+    // A key that belonged to a deleted activity (see db.deletedKeysFor).
+    for (const { file } of plannedCreates) {
+        const tomb = file.key ? tombstones.get(file.key) : null;
+        if (tomb) {
+            catalogueWarnings.push(
+                `${file.sourcePath}: key “${file.key}” belonged to a DELETED activity ` +
+                    `(“${tomb.title}”). If this is that activity coming back, nothing is ` +
+                    'wrong. If it is a new activity that inherited a key by copy, mint it a ' +
+                    'new one — a reused key makes two different activities one lineage.',
+            );
+        }
+    }
+
+    // A key edited in place: the row at this path answers to another key.
+    for (const { file, row, was, now } of conflicts) {
+        catalogueWarnings.push(
+            `${file.sourcePath}: the activity at this path holds key “${was}” but the file ` +
+                `now declares “${now}”. A key is permanent — changing one is retiring an ` +
+                'activity and minting another. Either restore the old key, or soft-delete ' +
+                `“${row.title}” in the app first and re-run. Nothing was written for this file.`,
+        );
+    }
+
     const suspectCount = warned.reduce(
         (n, { warnings }) => n + warnings.filter(isBindingWarning).length,
         0,
@@ -1587,6 +2271,67 @@ async function main() {
     await writeFile(manifestPath, `${renderManifest(summary)}`, 'utf8');
     console.log(`\n  manifest written to ${MANIFEST_PATH}`);
 
+    // ---- skill coverage -----------------------------------------------------
+    const coverage = summarizeCoverage(perFileCatalogue, skills?.ids ?? null);
+    console.log('\nskill coverage:');
+    if (skills) {
+        const coveredCount = coverage.covered.filter((e) => e.registered).length;
+        console.log(
+            `  ${coveredCount}/${coverage.registrySize} skills covered · ` +
+                `${coverage.uncovered.length} uncovered · ` +
+                `${coverage.files.length} activities`,
+        );
+        if (coverage.uncovered.length) {
+            console.log('  uncovered:');
+            for (const id of coverage.uncovered) console.log(`    ${id}`);
+        }
+    } else {
+        console.log(
+            '  no --skills-registry supplied — the catalogue names ' +
+                `${coverage.covered.length} skill${coverage.covered.length === 1 ? '' : 's'}, ` +
+                'but which skills are MISSING cannot be known without the registry.',
+        );
+    }
+    await writeFile(
+        resolve(repo, COVERAGE_MANIFEST_PATH),
+        `${renderCoverageManifest(coverage)}`,
+        'utf8',
+    );
+    await writeFile(
+        resolve(repo, COVERAGE_JSON_PATH),
+        `${JSON.stringify(coverageJson(coverage), null, 2)}\n`,
+        'utf8',
+    );
+    console.log(
+        `  coverage written to ${COVERAGE_MANIFEST_PATH} and ${COVERAGE_JSON_PATH}`,
+    );
+
+    // ---- the x_ receipt -----------------------------------------------------
+    // The reserved namespace is unvalidated BY DESIGN — it carries the
+    // curriculum builder's own item-level data, which this platform stores
+    // nothing of. That makes this line the namespace's only sensor: a typo'd
+    // `x_reivew_skills` is skipped as silently as a correct one, and would
+    // otherwise disable the rules that read it with nothing to show for it.
+    const reservedCounts = new Map();
+    for (const entry of perFileCatalogue) {
+        for (const name of entry.reservedKeys ?? []) {
+            reservedCounts.set(name, (reservedCounts.get(name) ?? 0) + 1);
+        }
+    }
+    if (reservedCounts.size > 0) {
+        console.log('\nreserved x_ keys (ignored by this importer, by design):');
+        for (const [name, count] of [...reservedCounts].sort()) {
+            console.log(`  ${name} — ${count} file${count === 1 ? '' : 's'}`);
+        }
+    }
+
+    if (catalogueWarnings.length) {
+        console.log(
+            `\ncatalogue warnings${args.strict ? ' (--strict: these FAIL the run)' : ''}:`,
+        );
+        for (const w of catalogueWarnings) console.log(`  ${w}`);
+    }
+
     if (bindingWarnings.length) {
         console.log(
             `\nbinding warnings${args.strict ? ' (--strict: these FAIL the run)' : ''}:`,
@@ -1603,11 +2348,19 @@ async function main() {
 
     if (orphans.length) {
         // D2: reported, never acted on.
-        console.log('\norphans — in the database, no longer on disk:');
+        console.log('\norphans — in the database, claimed by no file:');
         for (const row of orphans) {
-            console.log(`  ${row.source_path}  →  ${row.id}  “${row.title}”`);
+            console.log(
+                `  ${row.source_path ?? '(no path)'}  →  ${row.id}  “${row.title}”` +
+                    (row.source_key ? `  [key ${row.source_key}]` : '  [no key]'),
+            );
         }
-        console.log('  Nothing was changed. Delete these in the app if they are really gone.');
+        console.log(
+            '  Nothing was changed. A KEYED row here means no file declares that key any\n' +
+                '  more — deleted, or its key was edited (which retires it). An UNKEYED row\n' +
+                '  here means its file moved: add its key and re-run BEFORE moving it, or\n' +
+                '  the move has already cost the row its history.',
+        );
     }
 
     // Skips are printed ONCE, at the end of the run — the write loop can add to
@@ -1634,7 +2387,8 @@ async function main() {
         process.exit(
             skipped.length > 0 ||
                 drifted.length > 0 ||
-                (args.strict && bindingProblems > 0)
+                conflicts.length > 0 ||
+                (args.strict && (bindingProblems > 0 || catalogueWarnings.length > 0))
                 ? 1
                 : 0,
         );
@@ -1645,7 +2399,9 @@ async function main() {
     // and doing them before any insert means a failed create never leaves the
     // existing corpus half-refreshed.
     let updated = 0;
-    for (const { file, row, converted } of plannedUpdates) {
+    let adopted = 0;
+    let moved = 0;
+    for (const { file, row, converted, adoptsKey, moved: didMove } of plannedUpdates) {
         try {
             // The payload MIRRORS the app's autosave (ActivityEditor.tsx:542).
             // course/unit are absent deliberately — publish-truth, one writer.
@@ -1657,9 +2413,22 @@ async function main() {
                 // D7.4: fingerprint what we WROTE, so the next run can tell an
                 // app-side edit from an untouched draft.
                 source_fingerprint: fingerprintDocument(converted.document),
+                // IDENTITY, written on every update for two different reasons.
+                // source_key: an adoption — the row learns the key it was
+                // matched by path under, which is what makes the NEXT move
+                // free. Writing it unconditionally is safe (it is the value we
+                // matched on) and means a row can never be left half-keyed.
+                ...(file.key ? { source_key: file.key } : {}),
+                // source_path: where the file sits NOW. This column stopped
+                // being identity at 0041 and became organization — and the
+                // activities list reads it as the teaching order, so a stale
+                // one would sort the outline by where files USED to be.
+                source_path: file.sourcePath,
                 updated_at: new Date().toISOString(),
             });
             updated++;
+            if (adoptsKey) adopted++;
+            if (didMove) moved++;
         } catch (err) {
             skipped.push({ file, error: `update failed: ${err.message}` });
         }
@@ -1680,6 +2449,7 @@ async function main() {
                         title: converted.title,
                         slug: pipeline.slugWithSuffix(base, attempt),
                         source_path: file.sourcePath,
+                        source_key: file.key ?? null,
                         draft_content: converted.document,
                         tags: converted.tags,
                         pedagogical_role: converted.pedagogicalRole,
@@ -1697,7 +2467,7 @@ async function main() {
                 // (it would mean the plan raced with another writer), and any
                 // other error is a real failure.
                 if (!/23505|duplicate key/i.test(err.message)) break;
-                if (/source_path/.test(err.message)) break;
+                if (/source_path|source_key/.test(err.message)) break;
             }
         }
         if (!done) {
@@ -1708,7 +2478,12 @@ async function main() {
     console.log(
         `\ncreated ${created} · updated ${updated} · ` +
             `refused ${drifted.length} · skipped ${skipped.length}` +
-            (bindingProblems > 0 ? ` · ${bindingProblems} binding warnings` : ''),
+            (adopted > 0 ? ` · ${adopted} adopted a key` : '') +
+            (moved > 0 ? ` · ${moved} followed a moved file` : '') +
+            (bindingProblems > 0 ? ` · ${bindingProblems} binding warnings` : '') +
+            (catalogueWarnings.length > 0
+                ? ` · ${catalogueWarnings.length} catalogue warnings`
+                : ''),
     );
     if (skipped.length) {
         console.log('\nskipped:');
@@ -1724,7 +2499,13 @@ async function main() {
     // D3: skipped files are surfaced AND make the run non-clean. --strict adds
     // the binding warnings to that set; without it the exit code is exactly
     // what it has always been.
-    process.exit(skipped.length > 0 || (args.strict && bindingProblems > 0) ? 1 : 0);
+    process.exit(
+        skipped.length > 0 ||
+            conflicts.length > 0 ||
+            (args.strict && (bindingProblems > 0 || catalogueWarnings.length > 0))
+            ? 1
+            : 0,
+    );
 }
 
 // Only run when invoked directly — the test imports the pure pieces above.
