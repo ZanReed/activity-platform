@@ -1678,3 +1678,47 @@ test('§K the manifest says WHY a leaned-on skill is uncovered', () => {
     );
     assert.match(text, /`rate\.y` — leaned on by `a\.md`, taught by nothing/);
 });
+
+test('§K parts authored/declared counts skills the corpus has not named yet', () => {
+    // The burndown number, and the reason it lives here rather than in the
+    // caller: the DENOMINATOR includes unauthored skills. An untouched 3-part
+    // skill owes 3 parts, and no consumer reading only the covered list can
+    // know that.
+    const summary = summarizeCoverage(
+        [{ sourcePath: 'p1.md', primarySkill: 'a.big', supportingSkills: [], published: true, chainRole: 'part' }],
+        reg(['a.big', 'b.untouched', 'c.plain'], { 'a.big': 2, 'b.untouched': 3 }),
+    );
+    // authored: 1 (a.big part 1). declared: 2 + 3 + 1 = 6.
+    assert.equal(summary.partsAuthored, 1);
+    assert.equal(summary.partsDeclared, 6);
+    assert.deepEqual(summary.multiPartSkills, { 'a.big': 2, 'b.untouched': 3 });
+    assert.match(renderCoverageManifest(summary), /\*\*1 of 6 parts authored\.\*\*/);
+});
+
+test('§K a CONSOLIDATION does not count as a part of a multi-part skill either', () => {
+    // The combination that becomes common once the 26 slack activities are
+    // allocated: a chain gets both an extra part AND a consolidation, and the
+    // consolidation names the same terminal skill. It must land in
+    // consolidations[], leaving the skill honestly partial.
+    const summary = summarizeCoverage(
+        [
+            { sourcePath: '01.md', primarySkill: 'x.term', supportingSkills: [], published: true, chainRole: 'part' },
+            { sourcePath: '02.md', primarySkill: 'x.term', supportingSkills: [], published: true, chainRole: 'consolidation' },
+        ],
+        reg(['x.term'], { 'x.term': 2 }),
+    );
+    const e = summary.covered[0];
+    assert.deepEqual(e.parts, ['01.md']);
+    assert.deepEqual(e.consolidations, ['02.md']);
+    assert.equal(e.complete, false, 'one of two parts taught');
+    assert.equal(summary.partsAuthored, 1, 'the consolidation is not a part');
+    assert.equal(summary.partsDeclared, 2);
+    assert.deepEqual(summary.exceeded, [], 'and it must not read as exceeding the count');
+});
+
+test('§K with no registry there is no burndown to report', () => {
+    const summary = summarizeCoverage(COVERAGE_FILES, null);
+    assert.equal(summary.partsAuthored, null);
+    assert.equal(summary.partsDeclared, null);
+    assert.deepEqual(summary.multiPartSkills, {});
+});

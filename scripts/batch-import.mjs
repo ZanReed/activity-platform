@@ -1254,9 +1254,33 @@ export function summarizeCoverage(perFile, registry) {
           ].sort()
         : [];
 
+    // ---- the burndown number -------------------------------------------------
+    // `covered` counts whole skills, so it stays FLAT while a multi-part skill is
+    // half-written — an author can spend a fortnight on part 2 of 3 and move
+    // nothing. Parts authored against parts declared is the number that moves,
+    // and it is only computable here because the DENOMINATOR includes skills the
+    // corpus does not name yet: an unauthored 3-part skill owes 3.
+    const declaredFor = (id) => partCounts.get(id) ?? 1;
+    const partsDeclared = ids
+        ? [...ids].reduce((n, id) => n + declaredFor(id), 0)
+        : null;
+    const partsAuthored = ids
+        ? [...ids].reduce((n, id) => n + (skills.get(id)?.parts.length ?? 0), 0)
+        : null;
+
     return {
         covered: taught,
         uncovered,
+        partsAuthored,
+        partsDeclared,
+        // Only the multi-part ones: a bare id is one part, so absence carries the
+        // same meaning here as it does in the registry it came from.
+        multiPartSkills: ids
+            ? Object.fromEntries(
+                  [...ids].filter((id) => declaredFor(id) > 1).sort()
+                      .map((id) => [id, declaredFor(id)]),
+              )
+            : {},
         // Named separately so the manifest can say WHY an uncovered skill is
         // already in the corpus — an id nothing teaches but something leans on
         // is a different kind of gap from one nobody has touched.
@@ -1321,6 +1345,13 @@ export function renderCoverageManifest(summary) {
                 `(${publishedCount} published, ${complete.length - publishedCount} ` +
                 `draft only) · ${summary.partial.length} partly covered · ` +
                 `${summary.files.length} activities`,
+        );
+        out.push('');
+        out.push(
+            `**${summary.partsAuthored} of ${summary.partsDeclared} parts authored.** ` +
+                'This is the number that moves while a multi-part skill is ' +
+                'half-written; the skill count above stays flat until its last part ' +
+                'lands.',
         );
         out.push('');
     }
@@ -1395,7 +1426,10 @@ export function coverageJson(summary) {
                 .length,
             partial: summary.partial.length,
             uncovered: summary.uncovered.length,
+            partsAuthored: summary.partsAuthored,
+            partsDeclared: summary.partsDeclared,
         },
+        multiPartSkills: summary.multiPartSkills,
         skills: summary.covered.map((e) => ({
             id: e.id,
             registered: e.registered,

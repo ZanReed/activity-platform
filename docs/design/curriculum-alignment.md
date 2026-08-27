@@ -302,6 +302,30 @@ the one report whose job is to say nothing teaches it.** Fixed: zero parts is
 uncovered, and the manifest says *why* (`leaned on by X, taught by nothing`),
 because an id something leans on is a different gap from one nobody has touched.
 
+## 5d. The burndown number: parts authored / parts declared (2026-08-26)
+
+`covered` counts whole SKILLS, so it stays flat while a multi-part skill is
+half-written — an author can spend a fortnight on part 2 of 3 and move nothing.
+The coverage artifacts therefore also report **parts authored / parts declared**.
+
+⚠ **The denominator is the reason this lives in the importer rather than in a
+consumer.** It counts every registered skill, including ones the corpus has never
+named: an unauthored 3-part skill owes 3 parts, and nothing reading only the
+covered list can know that. `skill-coverage.json` gains `counts.partsAuthored` /
+`counts.partsDeclared` and a `multiPartSkills` map (multi-part ids only — a bare
+id is one part, the same convention the registry itself uses).
+
+**Consolidations are excluded from the numerator**, for the same reason they are
+excluded from a skill's parts (R-consolidation, §5b): a consolidation names a
+skill without teaching it. A chain that gets both an extra part and a
+consolidation — which is the common shape once slack is allocated — leaves its
+terminal skill honestly partial.
+
+Built when the curriculum side's first two `= n` declarations existed
+(`linear.model.contextual = 3`, `function.repr.correspondence = 3`), not before:
+the offer was made a letter earlier and deliberately not built until the trigger
+fired.
+
 ## 6. NOT in scope
 
 - **A chains table, chain-id columns, hook storage.** Nothing here would read

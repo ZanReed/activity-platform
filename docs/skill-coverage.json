@@ -6,8 +6,11 @@
     "covered": 3,
     "coveredPublished": 3,
     "partial": 0,
-    "uncovered": 44
+    "uncovered": 44,
+    "partsAuthored": 3,
+    "partsDeclared": 47
   },
+  "multiPartSkills": {},
   "skills": [
     {
       "id": "rate.constant-of-proportionality",

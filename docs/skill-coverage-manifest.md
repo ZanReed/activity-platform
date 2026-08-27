@@ -14,6 +14,8 @@
 
 **3 of 47 skills covered** (3 published, 0 draft only) · 0 partly covered · 4 activities
 
+**3 of 47 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+
 ## Covered
 
 | skill | state | parts | consolidated in | supporting |
