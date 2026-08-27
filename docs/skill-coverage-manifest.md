@@ -18,9 +18,9 @@
 
 | skill | state | parts | consolidated in | supporting |
 | --- | --- | --- | --- | --- |
-| `rate.constant-of-proportionality` | published | `01-chain.rate.proportional/02-constant-of-proportionality.md` | — | `01-chain.rate.proportional/03-proportional-graph.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
+| `rate.constant-of-proportionality` | published | `01-chain.rate.proportional/02-constant-of-proportionality.md` | — | — |
 | `rate.proportional-graph` | published | `01-chain.rate.proportional/03-proportional-graph.md` | `01-chain.rate.proportional/04-proportional-consolidation.md` | — |
-| `rate.unit-rate` | published | `01-chain.rate.proportional/01-unit-rate.md` | — | `01-chain.rate.proportional/02-constant-of-proportionality.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
+| `rate.unit-rate` | published | `01-chain.rate.proportional/01-unit-rate.md` | — | — |
 
 ## Uncovered
 

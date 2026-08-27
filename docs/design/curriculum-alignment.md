@@ -278,6 +278,30 @@ it when something downstream declares it a prerequisite. That retro-fit is one
 edited line and a re-import now — **the first dividend of declared identity, and
 the reason a curriculum call no longer has to be right the first time.**
 
+## 5c. `supporting_skills:` names NON-ancestors only (curriculum ruling, 2026-08-26)
+
+An activity's `supporting_skills:` lists skills it leans on that are **not
+ancestors of its primary skill**. Ancestors are already stated by the graph's
+prereq edges; restating them per-activity is a hand-maintained duplicate of
+derivable state that drifts silently when an edge changes.
+
+Under the rule the field is **empty across the whole rate chain**, and the four
+files were stripped accordingly. Coverage is unchanged at 3/47 — the ancestors
+were already covered as the primary skills of their own activities.
+
+**The argument the ruling is stronger for:** under the old usage the field was
+mostly noise (restating edges); under the new rule **every value in it is
+information the graph cannot express**, which is what makes it worth storing at
+all. It is the same gap `planting_for` exists for on the review side.
+
+⚠ **The bug this exposed, and it was only reachable once the field meant
+non-ancestors.** A skill named ONLY as a supporting skill used to get a coverage
+entry with zero parts, so it read as `partial (0/1)` — landing in neither the
+covered count nor the uncovered list. **Mentioning a skill made it vanish from
+the one report whose job is to say nothing teaches it.** Fixed: zero parts is
+uncovered, and the manifest says *why* (`leaned on by X, taught by nothing`),
+because an id something leans on is a different gap from one nobody has touched.
+
 ## 6. NOT in scope
 
 - **A chains table, chain-id columns, hook storage.** Nothing here would read

@@ -19,10 +19,7 @@
         "01-chain.rate.proportional/02-constant-of-proportionality.md"
       ],
       "consolidations": [],
-      "supporting": [
-        "01-chain.rate.proportional/03-proportional-graph.md",
-        "01-chain.rate.proportional/04-proportional-consolidation.md"
-      ]
+      "supporting": []
     },
     {
       "id": "rate.proportional-graph",
@@ -48,10 +45,7 @@
         "01-chain.rate.proportional/01-unit-rate.md"
       ],
       "consolidations": [],
-      "supporting": [
-        "01-chain.rate.proportional/02-constant-of-proportionality.md",
-        "01-chain.rate.proportional/04-proportional-consolidation.md"
-      ]
+      "supporting": []
     }
   ],
   "partial": [],
@@ -101,6 +95,7 @@
     "transform.vertical.translate",
     "transform.write-from-graph"
   ],
+  "leanedOnOnly": [],
   "unregistered": [],
   "activitiesWithoutPrimarySkill": [],
   "files": [

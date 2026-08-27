@@ -1236,15 +1236,36 @@ export function summarizeCoverage(perFile, registry) {
         entry.exceedsDeclared = entry.parts.length > entry.declaredParts;
     }
 
-    const covered = [...skills.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
-    const uncovered = ids ? [...ids].filter((id) => !skills.has(id)).sort() : [];
+    const all = [...skills.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
+
+    // ⚠ ZERO PARTS IS UNCOVERED, NOT PARTIAL — and the distinction only became
+    // reachable when `supporting_skills:` was re-scoped to NON-ancestors
+    // (2026-08-26). A skill named only as a supporting skill used to land in
+    // `covered` with `partial (0/1)`, which put it in neither the covered count
+    // nor the uncovered list: mentioning a skill made it disappear from the one
+    // report that exists to say nothing teaches it. Coverage is about what
+    // TEACHES a skill; leaning on one is not teaching it.
+    const taught = all.filter((e) => e.parts.length > 0 || !e.registered);
+    const leanedOnOnly = all.filter((e) => e.registered && e.parts.length === 0);
+    const uncovered = ids
+        ? [
+              ...[...ids].filter((id) => !skills.has(id)),
+              ...leanedOnOnly.map((e) => e.id),
+          ].sort()
+        : [];
 
     return {
-        covered,
+        covered: taught,
         uncovered,
-        unregistered: covered.filter((e) => !e.registered).map((e) => e.id),
-        partial: covered.filter((e) => e.registered && !e.complete).map((e) => e.id),
-        exceeded: covered.filter((e) => e.exceedsDeclared).map((e) => e.id),
+        // Named separately so the manifest can say WHY an uncovered skill is
+        // already in the corpus — an id nothing teaches but something leans on
+        // is a different kind of gap from one nobody has touched.
+        leanedOnOnly: leanedOnOnly.map((e) => ({ id: e.id, supporting: e.supporting })),
+        unregistered: all.filter((e) => !e.registered).map((e) => e.id),
+        partial: taught
+            .filter((e) => e.registered && e.parts.length > 0 && !e.complete)
+            .map((e) => e.id),
+        exceeded: taught.filter((e) => e.exceedsDeclared).map((e) => e.id),
         registrySize: ids ? ids.size : null,
         files: perFile.map((f) => f.sourcePath).sort(),
         withoutPrimary: perFile
@@ -1334,7 +1355,19 @@ export function renderCoverageManifest(summary) {
         );
         out.push('reason for existing — a count alone cannot be acted on.');
         out.push('');
-        for (const id of summary.uncovered) out.push(`- \`${id}\``);
+        const leanedOn = new Map(
+            (summary.leanedOnOnly ?? []).map((e) => [e.id, e.supporting]),
+        );
+        for (const id of summary.uncovered) {
+            const where = leanedOn.get(id);
+            out.push(
+                where && where.length > 0
+                    ? `- \`${id}\` — leaned on by ${where
+                          .map((f) => `\`${f}\``)
+                          .join(', ')}, taught by nothing`
+                    : `- \`${id}\``,
+            );
+        }
         out.push('');
     }
 
@@ -1375,6 +1408,7 @@ export function coverageJson(summary) {
         })),
         partial: summary.partial,
         uncovered: summary.uncovered,
+        leanedOnOnly: summary.leanedOnOnly,
         unregistered: summary.unregistered,
         activitiesWithoutPrimarySkill: summary.withoutPrimary,
         // The staleness contract: every catalogue file this run saw. A file on

@@ -1648,3 +1648,33 @@ test('§K more teaching activities than declared parts is reported', () => {
     );
     assert.deepEqual(summary.exceeded, ['rate.x']);
 });
+
+test('§K a skill only LEANED ON is uncovered, not "partial (0/1)"', () => {
+    // Reachable only since `supporting_skills:` was re-scoped to non-ancestors
+    // (2026-08-26). Before the fix, naming a skill as supporting created a
+    // coverage entry with zero parts, which read as partial — so it fell out of
+    // the covered count AND out of the uncovered list. Mentioning a skill made
+    // it vanish from the one report whose job is to say nothing teaches it.
+    const summary = summarizeCoverage(
+        [
+            { sourcePath: 'a.md', primarySkill: 'rate.x', supportingSkills: ['rate.y'], published: true, chainRole: 'part' },
+        ],
+        reg(['rate.x', 'rate.y', 'rate.z']),
+    );
+    assert.deepEqual(summary.covered.map((e) => e.id), ['rate.x']);
+    assert.deepEqual(summary.uncovered, ['rate.y', 'rate.z']);
+    assert.deepEqual(summary.partial, []);
+    assert.deepEqual(summary.leanedOnOnly, [{ id: 'rate.y', supporting: ['a.md'] }]);
+});
+
+test('§K the manifest says WHY a leaned-on skill is uncovered', () => {
+    // An id nothing teaches but something leans on is a different gap from one
+    // nobody has touched, and the difference is actionable.
+    const text = renderCoverageManifest(
+        summarizeCoverage(
+            [{ sourcePath: 'a.md', primarySkill: 'rate.x', supportingSkills: ['rate.y'], published: true, chainRole: 'part' }],
+            reg(['rate.x', 'rate.y']),
+        ),
+    );
+    assert.match(text, /`rate\.y` — leaned on by `a\.md`, taught by nothing/);
+});
