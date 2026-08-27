@@ -8,9 +8,12 @@
     "partial": 0,
     "uncovered": 44,
     "partsAuthored": 3,
-    "partsDeclared": 47
+    "partsDeclared": 51
   },
-  "multiPartSkills": {},
+  "multiPartSkills": {
+    "function.repr.correspondence": 3,
+    "linear.model.contextual": 3
+  },
   "skills": [
     {
       "id": "rate.constant-of-proportionality",
