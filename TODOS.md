@@ -277,7 +277,28 @@ that is a datapoint for keeping it, not a decision.
 
 </details>
 
-## Coverage overclaims for a half-built multi-part skill (2026-08-26)
+## Coverage overclaims for a half-built multi-part skill — NARROWED (2026-08-26)
+
+⚠ **CORRECTION, same day: the first version of this entry conflated two
+different things and over-scoped itself.** Two activities can share a primary
+skill for two unrelated reasons, and only ONE of them can overclaim:
+
+- **Multi-part** — the skill is too big for one 20–25 minute activity, so it is
+  split. Part 1 alone leaves the skill half-taught, and coverage saying
+  "covered" IS an overclaim.
+- **Consolidation** — the chain's closing activity. It teaches no new skill; it
+  interleaves the chain's skills so the student has to decide *which* applies,
+  and it carries the chain's exit check. Its primary skill is the chain's
+  TERMINAL skill, which an earlier activity already taught in full. **Coverage
+  is correct here and always was** — the skill was covered before this activity
+  existed.
+
+So the defect is real but half the size, and the fix is unchanged: `parts:`
+declared on the FIRST part, defaulting to 1. That default makes consolidation a
+no-op automatically — nothing to declare, nothing to detect, no category field
+needed for coverage's sake.
+
+### The original entry
 
 **What:** `summarizeCoverage` counts a skill as covered when any activity names
 it as `skill:`. Skills deliberately span 2+ activities (the activity is the

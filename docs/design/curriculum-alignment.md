@@ -240,6 +240,31 @@ Three consequences for this repo:
   say "covered (1/2)". Do not infer it from the chain projection; that makes a
   per-skill fact depend on a per-chain estimate.
 
+**⚠ Two different reasons two activities share a primary skill**, distinguished
+2026-08-26 after the builder described what activity 04 is FOR. Conflating them
+makes a validator apply the wrong DoL rule to one of them:
+
+| | Multi-part | Consolidation |
+|---|---|---|
+| why | one skill exceeds 20–25 min | chain's closing activity; teaches no new skill |
+| position | adjacent parts | last in the chain |
+| review beat | retrieves the previous part | reaches further back |
+| DoL | assesses the same skill as part 1 | the final-position rule: terminal skill + an ancestor several edges back |
+| coverage | part 1 alone = half-taught | adds nothing; the skill was already covered |
+
+**The DoL is the discriminator.** Same DoL target as the earlier activity → a
+part. Final-position DoL → a consolidation. And a consolidation's primary skill
+is the chain's **terminal** skill, which is what makes that choice principled
+rather than a pick among the skills it welds.
+
+**Neither is a platform enum.** `pedagogical_role` (lesson/review/practice) and
+`activityType` (worksheet/exit_ticket/…) already collide on the word "review",
+and taxonomy R2 records that careful naming as "the whole collision fix". A
+third vocabulary containing *review*, *practice* and *consolidation* is that
+collision again, and nothing here would read it (P1). It belongs in the
+builder's reserved `x_` namespace. A consolidation is still `role: lesson` — its
+DoL travels inside it and it is day-of-teaching content.
+
 **The first worked instance — activity 04.** We argued for minting an
 integration skill ("the unit rate, k and the origin line's steepness are one
 number"). Withdrawn: activity 02 teaches in its own words that k is *"the unit
