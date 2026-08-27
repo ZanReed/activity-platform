@@ -277,6 +277,37 @@ that is a datapoint for keeping it, not a decision.
 
 </details>
 
+## Coverage overclaims for a half-built multi-part skill (2026-08-26)
+
+**What:** `summarizeCoverage` counts a skill as covered when any activity names
+it as `skill:`. Skills deliberately span 2+ activities (the activity is the
+20–25 minute scheduling unit; the skill is the curriculum unit), so a skill
+reads as **covered** the moment part 1 exists, while it is not yet taught.
+
+**Why it matters more than it looks:** the curriculum builder is deleting its
+own coverage count and consuming ours as the artifact of record. A count that
+overclaims is worse than two counts that disagree, because nothing is left to
+disagree with it.
+
+**Not yet a defect in the artifact** — the manifest lists every activity per
+skill, so a one-part skill is visibly one file. It is the headline count that
+overclaims.
+
+**Blocked on a builder ruling** (asked 2026-08-26): declare a part count in the
+meta fence (`parts: 2`), which is legal under their D3 — a part count is a fact
+about INTENT, the same exception that keeps per-chain projections declared, and
+it is not derivable because only the author knows whether part 2 is coming. If
+they take it, the manifest gains "covered (1/2)" and the JSON gains the pair.
+⚠ It cannot live in the `x_` namespace: we contractually do not read those.
+
+**Do NOT infer completeness from the chain's activity projection** — that makes
+a per-skill fact depend on a per-chain estimate.
+
+**Candidate check, deliberately unbuilt:** warn when two activities share a
+primary skill but are not adjacent in path order (a part 2 three activities from
+its part 1 is misfiled, or is not a part). Offered to the builder; not invented
+unilaterally for a shape they have only just described.
+
 ## Lane B — sort the activities list by catalogue path (2026-08-26)
 
 **What:** the activities list groups by unit and sorts WITHIN a group by edit

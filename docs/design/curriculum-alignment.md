@@ -214,6 +214,45 @@ drift-refused files, which keep the old unit until forced; the run names them.
 
 ---
 
+## 5b. Multi-part skills are the designed shape (author, 2026-08-26)
+
+Activities are capped at 20–25 minutes because the ACTIVITY is the unit of
+scheduling — a teacher slots one into the period they actually have. The SKILL
+is the unit of curriculum, and it may span two or more activities. So **a chain
+whose skill count is well below its activity count is expected**, not a smell,
+and "one skill carries two activities" is a designed property.
+
+Three consequences for this repo:
+
+- **Part order is already recorded.** Within a chain folder it is path order —
+  the filename ordinal, which the list surface now reads as teaching order (R7).
+  Two activities sharing a primary skill are parts 1 and 2 in the order their
+  files sort. No new field.
+- **The importer already supports it.** `skill:` takes one id, several files may
+  name the same id, and `summarizeCoverage` holds each skill's activities as an
+  array. Nothing in Lane A assumed one activity per skill.
+- **⚠ Coverage currently OVERCLAIMS for a half-built skill.** The manifest counts
+  a skill as covered when any activity names it as primary, so a skill reads as
+  covered the moment part 1 exists. The file list makes the partial state
+  visible, but the headline count does not. **Open with the builder:** declare a
+  part count (legal under their D3 — a part count is a fact about intent, the
+  same exception that keeps per-chain projections declared) so the manifest can
+  say "covered (1/2)". Do not infer it from the chain projection; that makes a
+  per-skill fact depend on a per-chain estimate.
+
+**The first worked instance — activity 04.** We argued for minting an
+integration skill ("the unit rate, k and the origin line's steepness are one
+number"). Withdrawn: activity 02 teaches in its own words that k is *"the unit
+rate from last lesson, renamed"*, so the three faces are two — a number and its
+graph — and that is the definition of `rate.proportional-graph`. Activity 04's
+review beat is a single retrieval item, which is §6's part-2 shape. It targets
+`rate.proportional-graph` as part 2.
+
+The integration node is deferred with a named trigger rather than refused: mint
+it when something downstream declares it a prerequisite. That retro-fit is one
+edited line and a re-import now — **the first dividend of declared identity, and
+the reason a curriculum call no longer has to be right the first time.**
+
 ## 6. NOT in scope
 
 - **A chains table, chain-id columns, hook storage.** Nothing here would read
