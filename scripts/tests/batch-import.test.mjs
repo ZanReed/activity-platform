@@ -62,6 +62,7 @@ import {
     parseArgs,
     parseChainRegistry,
     parseNumericValue,
+    parseSkillRegistry,
     parseRegistry,
     planIdentity,
     renderCoverageManifest,
@@ -1466,22 +1467,30 @@ test('§K a chain rename beats the value already on the row', () => {
 // ---- skill coverage ---------------------------------------------------------
 
 const COVERAGE_FILES = [
-    { sourcePath: 'a.md', primarySkill: 'rate.unit-rate', supportingSkills: [], published: true },
+    { sourcePath: 'a.md', primarySkill: 'rate.unit-rate', supportingSkills: [], published: true, chainRole: 'part' },
     {
         sourcePath: 'b.md',
         primarySkill: 'rate.constant',
         supportingSkills: ['rate.unit-rate'],
         published: false,
+        chainRole: 'part',
     },
-    { sourcePath: 'c.md', primarySkill: null, supportingSkills: [], published: false },
+    { sourcePath: 'c.md', primarySkill: null, supportingSkills: [], published: false, chainRole: 'part' },
 ];
+
+/** A registry in the shape parseSkillRegistry returns. */
+const reg = (idList, parts = {}) => ({
+    ids: new Set(idList),
+    parts: new Map(Object.entries(parts)),
+    malformed: [],
+});
 
 test('§K coverage answers "N of the registry covered", not "N mentioned"', () => {
     // The whole reason the registry is required: without it the uncovered list
     // — the only actionable half — cannot be computed at all.
     const summary = summarizeCoverage(
         COVERAGE_FILES,
-        new Set(['rate.unit-rate', 'rate.constant', 'rate.compare', 'proportional.graph']),
+        reg(['rate.unit-rate', 'rate.constant', 'rate.compare', 'proportional.graph']),
     );
     assert.equal(summary.covered.length, 2);
     assert.deepEqual(summary.uncovered, ['proportional.graph', 'rate.compare']);
@@ -1491,7 +1500,7 @@ test('§K coverage answers "N of the registry covered", not "N mentioned"', () =
 test('§K a skill covered only by a DRAFT is not counted as published', () => {
     // The curriculum model excludes drafts from progress counts; folding them
     // in would make the burndown measure generation rather than curriculum.
-    const summary = summarizeCoverage(COVERAGE_FILES, new Set(['rate.unit-rate', 'rate.constant']));
+    const summary = summarizeCoverage(COVERAGE_FILES, reg(['rate.unit-rate', 'rate.constant']));
     const unitRate = summary.covered.find((e) => e.id === 'rate.unit-rate');
     const constant = summary.covered.find((e) => e.id === 'rate.constant');
     assert.equal(unitRate.published, true);
@@ -1500,8 +1509,8 @@ test('§K a skill covered only by a DRAFT is not counted as published', () => {
 
 test('§K a skill outside the registry is reported, never silently counted', () => {
     const summary = summarizeCoverage(
-        [{ sourcePath: 'a.md', primarySkill: 'rate.typo', supportingSkills: [], published: true }],
-        new Set(['rate.unit-rate']),
+        [{ sourcePath: 'a.md', primarySkill: 'rate.typo', supportingSkills: [], published: true, chainRole: 'part' }],
+        reg(['rate.unit-rate']),
     );
     assert.deepEqual(summary.unregistered, ['rate.typo']);
     assert.deepEqual(summary.uncovered, ['rate.unit-rate']);
@@ -1511,7 +1520,7 @@ test('§K the coverage manifest NAMES the uncovered skills', () => {
     // A count cannot be acted on. This artifact exists so "0 covered" becomes a
     // work list rather than a number.
     const text = renderCoverageManifest(
-        summarizeCoverage(COVERAGE_FILES, new Set(['rate.unit-rate', 'rate.compare'])),
+        summarizeCoverage(COVERAGE_FILES, reg(['rate.unit-rate', 'rate.compare'])),
     );
     assert.match(text, /1 of 2 skills covered/);
     assert.match(text, /## Uncovered/);
@@ -1524,7 +1533,7 @@ test('§K both coverage artifacts are deterministic — no timestamp, no run fac
     // pure function of the folder, so a git diff shows coverage changes and
     // nothing else. The builder's staleness guard reads the `files` list
     // instead, which is exact where a timestamp is a proxy.
-    const summary = summarizeCoverage(COVERAGE_FILES, new Set(['rate.unit-rate']));
+    const summary = summarizeCoverage(COVERAGE_FILES, reg(['rate.unit-rate']));
     const once = renderCoverageManifest(summary);
     const twice = renderCoverageManifest(summary);
     assert.equal(once, twice);
@@ -1552,4 +1561,90 @@ test('§K the missing-column refusal routes on what the DATABASE named', () => {
 
     assert.equal(missingColumnFrom('GET /activities → 401: bad key'), null);
     assert.equal(missingColumnFrom(undefined), null);
+});
+
+// ---- part counts and the consolidation carve-out (2026-08-26) --------------
+
+test('§K parseSkillRegistry reads bare ids and `id = n` part counts', () => {
+    const { ids, parts, malformed } = parseSkillRegistry(
+        '# comment\n\nrate.unit-rate\nrate.proportional-graph = 2\nrate.bad = many\n',
+    );
+    assert.deepEqual([...ids].sort(), ['rate.bad', 'rate.proportional-graph', 'rate.unit-rate']);
+    assert.equal(parts.get('rate.proportional-graph'), 2);
+    assert.equal(parts.has('rate.unit-rate'), false, 'absence means one part');
+    assert.deepEqual(malformed, [{ id: 'rate.bad', count: 'many' }]);
+});
+
+test('§K a CONSOLIDATION does not count as a part of the skill it names', () => {
+    // THE LOAD-BEARING ROW for chain_role reaching this script at all. Activity
+    // 04 names the chain's terminal skill as primary but does not teach it —
+    // activity 03 did. Counting it as a part would report a fully-taught
+    // one-part skill as partial forever, and fire exceeds-declared-parts on
+    // every well-formed chain.
+    const summary = summarizeCoverage(
+        [
+            { sourcePath: '03-graph.md', primarySkill: 'rate.proportional-graph', supportingSkills: [], published: true, chainRole: 'part' },
+            { sourcePath: '04-consolidation.md', primarySkill: 'rate.proportional-graph', supportingSkills: [], published: true, chainRole: 'consolidation' },
+        ],
+        reg(['rate.proportional-graph']),
+    );
+    const e = summary.covered[0];
+    assert.deepEqual(e.parts, ['03-graph.md']);
+    assert.deepEqual(e.consolidations, ['04-consolidation.md']);
+    assert.equal(e.complete, true, 'one part declared, one part taught');
+    assert.equal(e.exceedsDeclared, false);
+    assert.deepEqual(summary.partial, []);
+    assert.deepEqual(summary.exceeded, []);
+});
+
+test('§K a 2-part skill with only part 1 authored reads PARTIAL, not covered', () => {
+    // The overclaim the part count exists to close: without it this skill reads
+    // as covered the moment part 1 lands, while it is not yet taught.
+    const summary = summarizeCoverage(
+        [{ sourcePath: 'p1.md', primarySkill: 'rate.big', supportingSkills: [], published: true, chainRole: 'part' }],
+        reg(['rate.big'], { 'rate.big': 2 }),
+    );
+    const e = summary.covered[0];
+    assert.equal(e.declaredParts, 2);
+    assert.equal(e.complete, false);
+    assert.equal(e.published, false, 'an incomplete skill is not published-covered');
+    assert.deepEqual(summary.partial, ['rate.big']);
+    assert.match(renderCoverageManifest(summary), /partial \(1\/2\)/);
+});
+
+test('§K both parts published makes it covered AND published', () => {
+    const summary = summarizeCoverage(
+        [
+            { sourcePath: 'p1.md', primarySkill: 'rate.big', supportingSkills: [], published: true, chainRole: 'part' },
+            { sourcePath: 'p2.md', primarySkill: 'rate.big', supportingSkills: [], published: true, chainRole: 'part' },
+        ],
+        reg(['rate.big'], { 'rate.big': 2 }),
+    );
+    assert.equal(summary.covered[0].complete, true);
+    assert.equal(summary.covered[0].published, true);
+});
+
+test('§K one part published and one in draft is covered but NOT published', () => {
+    // "Published" has to mean the whole skill is reachable by a student, or a
+    // half-published skill counts towards the number a teacher plans from.
+    const summary = summarizeCoverage(
+        [
+            { sourcePath: 'p1.md', primarySkill: 'rate.big', supportingSkills: [], published: true, chainRole: 'part' },
+            { sourcePath: 'p2.md', primarySkill: 'rate.big', supportingSkills: [], published: false, chainRole: 'part' },
+        ],
+        reg(['rate.big'], { 'rate.big': 2 }),
+    );
+    assert.equal(summary.covered[0].complete, true);
+    assert.equal(summary.covered[0].published, false);
+});
+
+test('§K more teaching activities than declared parts is reported', () => {
+    const summary = summarizeCoverage(
+        [
+            { sourcePath: 'a.md', primarySkill: 'rate.x', supportingSkills: [], published: true, chainRole: 'part' },
+            { sourcePath: 'b.md', primarySkill: 'rate.x', supportingSkills: [], published: true, chainRole: 'part' },
+        ],
+        reg(['rate.x']),
+    );
+    assert.deepEqual(summary.exceeded, ['rate.x']);
 });

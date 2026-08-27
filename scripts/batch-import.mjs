@@ -586,6 +586,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         sourceKey: fence.sourceKey ?? null,
         primarySkill: fence.primarySkill ?? null,
         supportingSkills: fence.supportingSkills ?? [],
+        chainRole: fence.chainRole ?? 'part',
         reservedKeys: fence.reservedKeys ?? [],
         // A file that states a unit DIFFERENT from its chain's registry title.
         // Presence alone is not an override — a file repeating its chain's
@@ -954,6 +955,52 @@ export function parseRegistry(text) {
 }
 
 /**
+ * The SKILL registry: one id per line, with an optional `= n` part count.
+ *
+ *     rate.unit-rate
+ *     rate.proportional-graph = 2
+ *
+ * WHY THE PART COUNT LIVES HERE and not on an activity, which is where the
+ * platform first proposed it: **a part count is a fact about the SKILL**, not
+ * about any one activity that teaches it. Putting it beside the id means one
+ * place to read it and no meta key at all; putting it on "the first part"
+ * needs a rule for which activity that is, and breaks when the parts are
+ * authored out of order. The curriculum side proposed this shape and it is
+ * better than ours.
+ *
+ * Absence means ONE part, which is the common case and makes a bare registry
+ * behave exactly as it did before part counts existed.
+ *
+ * Deliberately NOT `parseRegistry`: that one is the misconception registry's,
+ * where a line is an id and nothing else, and an `=` in it would be a typo
+ * rather than a declaration. Two registries, two grammars, two functions.
+ */
+export function parseSkillRegistry(text) {
+    const ids = new Set();
+    const parts = new Map();
+    const malformed = [];
+    for (const raw of text.split('\n')) {
+        const line = raw.replace(/#.*$/, '').trim();
+        if (line === '') continue;
+        const eq = line.indexOf('=');
+        if (eq === -1) {
+            ids.add(line);
+            continue;
+        }
+        const id = line.slice(0, eq).trim();
+        const count = line.slice(eq + 1).trim();
+        if (id === '') continue;
+        ids.add(id);
+        if (!/^[1-9]\d*$/.test(count)) {
+            malformed.push({ id, count });
+            continue;
+        }
+        parts.set(id, Number(count));
+    }
+    return { ids, parts, malformed };
+}
+
+/**
  * Levenshtein distance, abandoned as soon as it is certain to exceed `max`.
  *
  * THE NEAR-DUPLICATE HEURISTIC IS: full-id edit distance ≤ 2, over the distinct
@@ -1138,48 +1185,67 @@ export const COVERAGE_JSON_PATH = 'docs/skill-coverage.json';
  * covered only by unpublished activities is reported in its own bucket rather
  * than folded into either side.
  */
-export function summarizeCoverage(perFile, registryIds) {
+export function summarizeCoverage(perFile, registry) {
+    const ids = registry?.ids ?? null;
+    const partCounts = registry?.parts ?? new Map();
     const skills = new Map();
-    const touch = (id, sourcePath, role, published) => {
+    const touch = (id) => {
         if (!skills.has(id)) {
             skills.set(id, {
                 id,
-                primary: [],
+                parts: [],           // activities that TEACH it
+                consolidations: [],  // activities that revisit it without teaching it
                 supporting: [],
-                published: false,
-                registered: registryIds ? registryIds.has(id) : true,
+                publishedParts: 0,
+                registered: ids ? ids.has(id) : true,
+                declaredParts: partCounts.get(id) ?? 1,
             });
         }
-        const entry = skills.get(id);
-        entry[role].push(sourcePath);
-        if (published) entry.published = true;
+        return skills.get(id);
     };
 
     for (const file of perFile) {
         if (file.primarySkill) {
-            touch(file.primarySkill, file.sourcePath, 'primary', file.published);
+            const entry = touch(file.primarySkill);
+            // ⚠ THE CONSOLIDATION CARVE-OUT, and the whole reason chain_role
+            // reaches this script. A consolidation names its chain's TERMINAL
+            // skill as primary but does not teach it — an earlier activity did.
+            // Counting it as a part would report a fully-taught 1-part skill as
+            // "1 of 2" forever, and would fire the exceeds-declared-parts
+            // warning on every well-formed chain.
+            if (file.chainRole === 'consolidation') {
+                entry.consolidations.push(file.sourcePath);
+            } else {
+                entry.parts.push(file.sourcePath);
+                if (file.published) entry.publishedParts += 1;
+            }
         }
         for (const id of file.supportingSkills ?? []) {
-            touch(id, file.sourcePath, 'supporting', file.published);
+            touch(id).supporting.push(file.sourcePath);
         }
     }
 
     for (const entry of skills.values()) {
-        entry.primary.sort();
+        entry.parts.sort();
+        entry.consolidations.sort();
         entry.supporting.sort();
+        entry.complete = entry.parts.length >= entry.declaredParts;
+        // "Published" means the whole skill is reachable by a student, so every
+        // part has to be published — not just one of them.
+        entry.published = entry.complete && entry.publishedParts >= entry.declaredParts;
+        entry.exceedsDeclared = entry.parts.length > entry.declaredParts;
     }
 
     const covered = [...skills.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
-    const uncovered = registryIds
-        ? [...registryIds].filter((id) => !skills.has(id)).sort()
-        : [];
-    const unregistered = covered.filter((e) => !e.registered).map((e) => e.id);
+    const uncovered = ids ? [...ids].filter((id) => !skills.has(id)).sort() : [];
 
     return {
         covered,
         uncovered,
-        unregistered,
-        registrySize: registryIds ? registryIds.size : null,
+        unregistered: covered.filter((e) => !e.registered).map((e) => e.id),
+        partial: covered.filter((e) => e.registered && !e.complete).map((e) => e.id),
+        exceeded: covered.filter((e) => e.exceedsDeclared).map((e) => e.id),
+        registrySize: ids ? ids.size : null,
         files: perFile.map((f) => f.sourcePath).sort(),
         withoutPrimary: perFile
             .filter((f) => !f.primarySkill)
@@ -1227,14 +1293,12 @@ export function renderCoverageManifest(summary) {
         out.push('the skills the catalogue names are known, not the ones it misses.');
         out.push('');
     } else {
-        const coveredCount = summary.covered.filter((e) => e.registered).length;
-        const publishedCount = summary.covered.filter(
-            (e) => e.registered && e.published,
-        ).length;
+        const complete = summary.covered.filter((e) => e.registered && e.complete);
+        const publishedCount = complete.filter((e) => e.published).length;
         out.push(
-            `**${coveredCount} of ${summary.registrySize} skills covered** ` +
-                `(${publishedCount} by published activities, ` +
-                `${coveredCount - publishedCount} in draft only) · ` +
+            `**${complete.length} of ${summary.registrySize} skills covered** ` +
+                `(${publishedCount} published, ${complete.length - publishedCount} ` +
+                `draft only) · ${summary.partial.length} partly covered · ` +
                 `${summary.files.length} activities`,
         );
         out.push('');
@@ -1243,18 +1307,20 @@ export function renderCoverageManifest(summary) {
     if (summary.covered.length > 0) {
         out.push('## Covered');
         out.push('');
-        out.push('| skill | state | primary | supporting |');
-        out.push('| --- | --- | --- | --- |');
+        out.push('| skill | state | parts | consolidated in | supporting |');
+        out.push('| --- | --- | --- | --- | --- |');
         for (const e of summary.covered) {
-            const state = e.registered
-                ? e.published
+            const state = !e.registered
+                ? '⚠ not in registry'
+                : !e.complete
+                  ? `partial (${e.parts.length}/${e.declaredParts})`
+                  : e.published
                     ? 'published'
-                    : 'draft only'
-                : '⚠ not in registry';
+                    : 'draft only';
+            const cell = (a) => a.map((f) => `\`${f}\``).join(', ') || '—';
             out.push(
-                `| \`${e.id}\` | ${state} | ${
-                    e.primary.map((f) => `\`${f}\``).join(', ') || '—'
-                } | ${e.supporting.map((f) => `\`${f}\``).join(', ') || '—'} |`,
+                `| \`${e.id}\` | ${state} | ${cell(e.parts)} | ` +
+                    `${cell(e.consolidations)} | ${cell(e.supporting)} |`,
             );
         }
         out.push('');
@@ -1291,18 +1357,23 @@ export function coverageJson(summary) {
         registrySize: summary.registrySize,
         counts: {
             activities: summary.files.length,
-            covered: summary.covered.filter((e) => e.registered).length,
+            covered: summary.covered.filter((e) => e.registered && e.complete).length,
             coveredPublished: summary.covered.filter((e) => e.registered && e.published)
                 .length,
+            partial: summary.partial.length,
             uncovered: summary.uncovered.length,
         },
         skills: summary.covered.map((e) => ({
             id: e.id,
             registered: e.registered,
+            declaredParts: e.declaredParts,
+            complete: e.complete,
             published: e.published,
-            primary: e.primary,
+            parts: e.parts,
+            consolidations: e.consolidations,
             supporting: e.supporting,
         })),
+        partial: summary.partial,
         uncovered: summary.uncovered,
         unregistered: summary.unregistered,
         activitiesWithoutPrimarySkill: summary.withoutPrimary,
@@ -1792,7 +1863,7 @@ async function main() {
         const path = resolve(args.skillsRegistry);
         const text = await readFile(path, 'utf8').catch(() => null);
         if (text === null) usage(`--skills-registry ${path} could not be read.`);
-        skills = { path: args.skillsRegistry, ids: parseRegistry(text) };
+        skills = { path: args.skillsRegistry, ...parseSkillRegistry(text) };
         if (skills.ids.size === 0) {
             usage(
                 `--skills-registry ${path} lists no ids.\n\n` +
@@ -1835,7 +1906,12 @@ async function main() {
         `registry  : ${registry ? `${registry.path} (${registry.ids.size} ids)` : 'none supplied'}`,
     );
     console.log(
-        `skills    : ${skills ? `${skills.path} (${skills.ids.size} ids)` : 'none supplied'}`,
+        `skills    : ${
+            skills
+                ? `${skills.path} (${skills.ids.size} ids` +
+                  `${skills.parts.size > 0 ? `, ${skills.parts.size} multi-part` : ''})`
+                : 'none supplied'
+        }`,
     );
     console.log(
         `chains    : ${
@@ -1991,6 +2067,7 @@ async function main() {
             sourcePath: file.sourcePath,
             primarySkill: converted.primarySkill,
             supportingSkills: converted.supportingSkills,
+            chainRole: converted.chainRole,
             reservedKeys: converted.reservedKeys,
             unitOverride: converted.unitOverride,
             published: row?.status === 'published',
@@ -2123,6 +2200,15 @@ async function main() {
                 `${entry.sourcePath}: states \`unit: ${entry.unitOverride.stated}\` but its ` +
                     `chain is registered as “${entry.unitOverride.chain}”. The file wins — ` +
                     'this is legal, and reported so it is never accidental.',
+            );
+        }
+    }
+
+    if (skills) {
+        for (const { id, count } of skills.malformed) {
+            catalogueWarnings.push(
+                `${skills.path}: “${id} = ${count}” — a part count must be a whole number ` +
+                    'of parts (1 or more). Treated as one part.',
             );
         }
     }
@@ -2272,15 +2358,33 @@ async function main() {
     console.log(`\n  manifest written to ${MANIFEST_PATH}`);
 
     // ---- skill coverage -----------------------------------------------------
-    const coverage = summarizeCoverage(perFileCatalogue, skills?.ids ?? null);
+    const coverage = summarizeCoverage(perFileCatalogue, skills);
+    // Scoped to PARTS only (consolidations are excluded upstream), or it would
+    // fire on every well-formed chain that ends with one.
+    for (const id of coverage.exceeded) {
+        const e = coverage.covered.find((c) => c.id === id);
+        catalogueWarnings.push(
+            `skill “${id}” is declared as ${e.declaredParts} part` +
+                `${e.declaredParts === 1 ? '' : 's'} but ${e.parts.length} activities teach ` +
+                `it: ${e.parts.join(', ')}. Either the registry's count is stale, or one of ` +
+                'those activities is a consolidation and needs `chain_role: consolidation`.',
+        );
+    }
     console.log('\nskill coverage:');
     if (skills) {
-        const coveredCount = coverage.covered.filter((e) => e.registered).length;
+        const coveredCount = coverage.covered.filter(
+            (e) => e.registered && e.complete,
+        ).length;
         console.log(
             `  ${coveredCount}/${coverage.registrySize} skills covered · ` +
+                `${coverage.partial.length} partial · ` +
                 `${coverage.uncovered.length} uncovered · ` +
                 `${coverage.files.length} activities`,
         );
+        for (const id of coverage.partial) {
+            const e = coverage.covered.find((c) => c.id === id);
+            console.log(`  partial: ${id} — ${e.parts.length} of ${e.declaredParts} parts`);
+        }
         if (coverage.uncovered.length) {
             console.log('  uncovered:');
             for (const id of coverage.uncovered) console.log(`    ${id}`);

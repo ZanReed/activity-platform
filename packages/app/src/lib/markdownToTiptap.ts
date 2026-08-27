@@ -170,6 +170,26 @@ export interface ImportedMeta {
     /** Additional skills the activity touches (`supporting_skills:`). */
     supportingSkills?: string[];
     /**
+     * The activity's role WITHIN ITS CHAIN (`chain_role:`) — `part` (default)
+     * or `consolidation`.
+     *
+     * ⚠ THREE ROLE-ISH KEYS NOW EXIST AND THEY ARE THREE DIFFERENT AXES. The
+     * taxonomy ruling that separated the first two calls the naming "the whole
+     * collision fix", so state the third plainly rather than let a reader infer
+     * it:
+     *   role        lesson | review | practice        the Bank's trust label
+     *   type        worksheet | exit_ticket | …       presentation format
+     *   chain_role  part | consolidation              position in its chain
+     * A consolidation is still `role: lesson` — its DoL travels inside it and
+     * it is day-of-teaching content.
+     *
+     * Why the platform reads it at all, when the curriculum function is
+     * otherwise none of its business: coverage. A consolidation names its
+     * chain's TERMINAL skill as primary but does not teach it, so counting it
+     * as a part would report a fully-taught skill as "1 of 2".
+     */
+    chainRole?: 'part' | 'consolidation';
+    /**
      * Names of `x_*` keys seen and deliberately ignored. The importer prints
      * these as a per-run receipt: the namespace is unvalidated BY DESIGN (it
      * carries the curriculum builder's own item-level data, which this platform
@@ -2722,6 +2742,14 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                 meta.primarySkill = value;
                 break;
             }
+            case 'chain_role': {
+                const v = metaEnum(
+                    'chain role', value,
+                    ['part', 'consolidation'] as const, ctx,
+                );
+                if (v) meta.chainRole = v;
+                break;
+            }
             case 'supporting_skills': {
                 const ids = [...new Set(
                     value.split(',').map((s) => s.trim()).filter((s) => s !== ''),
@@ -2834,7 +2862,7 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             }
             default:
                 ctx.warnings.add(
-                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, feedback, calculator, work, and — for catalogue files — key, skill, supporting_skills) and was skipped.`,
+                    `Meta: “${key}” isn’t a recognized key (title, course, unit, tags, role, type, submission, feedback, calculator, work, and — for catalogue files — key, skill, supporting_skills, chain_role) and was skipped.`,
                 );
         }
     }

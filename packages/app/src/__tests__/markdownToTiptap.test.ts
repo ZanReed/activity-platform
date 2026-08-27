@@ -2905,6 +2905,24 @@ describe('```meta catalogue keys — key / skill / supporting_skills (2026-08-26
         ]);
     });
 
+    it('carries chain_role, defaulting to part when absent', () => {
+        // The third role-ish key, and the one the platform reads ONLY for
+        // coverage: a consolidation names its chain's terminal skill without
+        // teaching it, so counting it as a part would report a fully-taught
+        // skill as partial forever.
+        const { meta } = convert(
+            '```meta\nkey: act.a\nskill: rate.x\nchain_role: consolidation\n```',
+        );
+        expect(meta?.chainRole).toBe('consolidation');
+        expect(convert('```meta\nkey: act.a\n```').meta?.chainRole).toBeUndefined();
+    });
+
+    it('warns on an unknown chain_role rather than taking it', () => {
+        const { meta, warnings } = convert('```meta\nchain_role: finale\n```');
+        expect(meta?.chainRole).toBeUndefined();
+        expect(warnings.join(' ')).toMatch(/chain role/i);
+    });
+
     it('refuses more than one id on skill:, and says why', () => {
         // "Targets exactly one primary skill" is the curriculum model's rule and
         // the platform's half of the validator split. Taking the whole comma

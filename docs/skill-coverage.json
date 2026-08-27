@@ -1,0 +1,67 @@
+{
+  "schema": "activity-platform/skill-coverage@1",
+  "registrySize": null,
+  "counts": {
+    "activities": 4,
+    "covered": 3,
+    "coveredPublished": 3,
+    "partial": 0,
+    "uncovered": 0
+  },
+  "skills": [
+    {
+      "id": "rate.constant-of-proportionality",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": true,
+      "parts": [
+        "01-chain.rate.proportional/02-constant-of-proportionality.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "01-chain.rate.proportional/03-proportional-graph.md",
+        "01-chain.rate.proportional/04-proportional-consolidation.md"
+      ]
+    },
+    {
+      "id": "rate.proportional-graph",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": true,
+      "parts": [
+        "01-chain.rate.proportional/03-proportional-graph.md"
+      ],
+      "consolidations": [
+        "01-chain.rate.proportional/04-proportional-consolidation.md"
+      ],
+      "supporting": []
+    },
+    {
+      "id": "rate.unit-rate",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": true,
+      "parts": [
+        "01-chain.rate.proportional/01-unit-rate.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "01-chain.rate.proportional/02-constant-of-proportionality.md",
+        "01-chain.rate.proportional/04-proportional-consolidation.md"
+      ]
+    }
+  ],
+  "partial": [],
+  "uncovered": [],
+  "unregistered": [],
+  "activitiesWithoutPrimarySkill": [],
+  "files": [
+    "01-chain.rate.proportional/01-unit-rate.md",
+    "01-chain.rate.proportional/02-constant-of-proportionality.md",
+    "01-chain.rate.proportional/03-proportional-graph.md",
+    "01-chain.rate.proportional/04-proportional-consolidation.md"
+  ]
+}

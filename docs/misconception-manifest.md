@@ -19,22 +19,22 @@
 
 | id | uses | files |
 | --- | ---: | --- |
-| `mis.proportional.line-misses-origin` | 6 | `year-8/rates-and-proportional-relationships/activity-03-proportional-graph.md`, `year-8/rates-and-proportional-relationships/activity-04-proportional-consolidation.md` |
-| `mis.proportional.one-pair-assumed-constant` | 2 | `year-8/rates-and-proportional-relationships/activity-02-constant-of-proportionality.md`, `year-8/rates-and-proportional-relationships/activity-04-proportional-consolidation.md` |
-| `mis.rate.compares-totals` | 1 | `year-8/rates-and-proportional-relationships/activity-01-unit-rate.md` |
-| `mis.rate.ratio-inverted` | 4 | `year-8/rates-and-proportional-relationships/activity-01-unit-rate.md`, `year-8/rates-and-proportional-relationships/activity-02-constant-of-proportionality.md`, `year-8/rates-and-proportional-relationships/activity-04-proportional-consolidation.md` |
+| `mis.proportional.line-misses-origin` | 6 | `01-chain.rate.proportional/03-proportional-graph.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.proportional.one-pair-assumed-constant` | 2 | `01-chain.rate.proportional/02-constant-of-proportionality.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.rate.compares-totals` | 1 | `01-chain.rate.proportional/01-unit-rate.md` |
+| `mis.rate.ratio-inverted` | 4 | `01-chain.rate.proportional/01-unit-rate.md`, `01-chain.rate.proportional/02-constant-of-proportionality.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
 
 ## By file
 
-- `year-8/rates-and-proportional-relationships/activity-01-unit-rate.md` — 2 bindings
+- `01-chain.rate.proportional/01-unit-rate.md` — 2 bindings
     - `mis.rate.compares-totals` ×1
     - `mis.rate.ratio-inverted` ×1
-- `year-8/rates-and-proportional-relationships/activity-02-constant-of-proportionality.md` — 3 bindings
+- `01-chain.rate.proportional/02-constant-of-proportionality.md` — 3 bindings
     - `mis.proportional.one-pair-assumed-constant` ×1
     - `mis.rate.ratio-inverted` ×2
-- `year-8/rates-and-proportional-relationships/activity-03-proportional-graph.md` — 3 bindings
+- `01-chain.rate.proportional/03-proportional-graph.md` — 3 bindings
     - `mis.proportional.line-misses-origin` ×3
-- `year-8/rates-and-proportional-relationships/activity-04-proportional-consolidation.md` — 5 bindings
+- `01-chain.rate.proportional/04-proportional-consolidation.md` — 5 bindings
     - `mis.proportional.line-misses-origin` ×3
     - `mis.proportional.one-pair-assumed-constant` ×1
     - `mis.rate.ratio-inverted` ×1
