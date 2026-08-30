@@ -1,8 +1,10 @@
 # Curriculum alignment — declared identity, chains, and skill coverage
 
-**Status:** 🔨 **LANE A BUILT 2026-08-26** (migration 0041 prepared, not yet
-applied — see Pending author actions in STATE.md). Lane B (the activities-list
-sort) is designed here and **not built**.
+**Status:** ✅ **LANE A BUILT, APPLIED AND CUT OVER (2026-08-26).** Migration
+0041 is applied live; all four activities carry declared keys and have followed
+their files to the `01-chain.*` layout; the curriculum side's three registries
+are installed and `--strict` exits 0 at 3/47 skills · 3/51 parts. Lane B (the
+activities-list sort) is designed here and **not built**.
 
 Ruled through a full `/plan-eng-review` plus a written exchange with the
 curriculum builder — the project outside this repo that owns

@@ -41,17 +41,14 @@ with it. Marker greps agreed as a cross-check (`misconceptionIds` ×5,
 
 
 
-🔨 **APPLY MIGRATION 0041 — the curriculum-alignment slice's only author action.**
-`supabase db push`, then re-run `pnpm verify:auth --target live` (no
-`verify-0041.sql` exists — the proof is the importer's own refusal path, which
-names 0041 by number if the column is missing). It adds
-`activities.source_key` + a partial unique index and narrows `source_path`'s
-comment. **No Edge Function deploy, no bundle regeneration, no republish** —
-nothing in `packages/schema`, the viewer's sanitize/registry source, the viewer
-server or graph-kit's scorers was touched. ⚠ **Do NOT reorganize the catalogue
-folder before the cutover's first import run** — steps 1–3 in
-[curriculum-alignment.md](docs/design/curriculum-alignment.md) §5 are what make
-the reorganization free, and only in that order.
+✅ **0041 IS APPLIED AND VERIFIED LIVE (2026-08-26).** `schema_migrations` = 41,
+max `0041`; the column and its partial unique index both read back from
+`information_schema`. **No deploy, no bundle regeneration and no republish were
+owed and none happened** — nothing in `packages/schema`, the viewer's
+sanitize/registry source, the viewer server or graph-kit's scorers was touched.
+⚠ **The author applied it, not this session** — it was already on the remote
+before our dry run, which is the third time this repo has had to check who
+pushed.
 
 **⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
 
@@ -91,40 +88,36 @@ cheap to change, but the sentence that made them free has expired).
 - **⚠ Unexplained one-off:** `sanitize.test.ts` → "differs across students and across versions" failed once (2026-08-01) and did not reproduce in 13 runs. Recorded so a second sighting is treated as a pattern.
 - **Verification quirk:** the in-app Browser pane suppresses the position-measured hosts (command bar / quick-bar / drawer) under JS-driven selection — Playwright e2e (real chromium) is authoritative. `/playground` (unauthed) is the dev target; `/playground?empty=1` mounts a blank doc.
 
-## Current focus — CURRICULUM ALIGNMENT, Lane A built (2026-08-26)
+## Current focus — CURRICULUM ALIGNMENT: cut over, live, `--strict` green
 
 **The catalogue's organization now matches the curriculum model it is authored
-against** — [curriculum-alignment.md](docs/design/curriculum-alignment.md),
-R1–R18, ruled through an eng review plus a four-letter written exchange with the
-curriculum builder (twelve positions moved, four of them ours reversing).
+against, and the cutover ran** —
+[curriculum-alignment.md](docs/design/curriculum-alignment.md) (R1–R19 + §5b–§5d).
 
-**The defect it closes.** The file PATH was the activity's database identity, so
-every editorial act the model calls normal — split, rename, re-file a chain —
-orphaned the row and stranded its published history. Identity is now a declared
-`key:` in the file; the path became organization, and therefore the teaching
-order. ⚠ **The path fallback is not merely the keyless case** — it is how a
-keyed file ADOPTS a row that predates the column, which is the entire cutover.
+**What the platform gained.** Identity is a declared `key:` in the file (0041),
+so a move no longer orphans a row — proved by moving all four activities to a
+new folder AND new filenames and getting `0 create · 4 update · 0 orphans`.
+Skill ids, part counts (`id = n` in the skill registry), `chain_role:
+part|consolidation`, a chain registry mapping folder → unit title, the `x_`
+reserved namespace with its per-run receipt, and **a detector for the in-math
+answer leak** in the SHARED parser. Plus a generated catalogue-authoring prompt
+that retires the one hand-carried sync in the curriculum side's system.
 
-**Also in Lane A:** `skill:`/`supporting_skills:` + `--skills-registry` and a
-committed coverage manifest (`.md` for humans, `.json` for the builder), which
-turns "47 skills, 0 covered" from structurally unanswerable into a named work
-list; `chain-registry.txt` mapping chain folder → unit title; the `x_` reserved
-namespace plus the per-run receipt that is its only sensor; and **a detector for
-the in-math answer leak** — a `{{…}}` inside `$…$` renders the answer to the
-student, and it now warns from the SHARED parser, so the teacher paste path is
-covered too.
+**The live numbers are commands, not facts here:** `pnpm import:batch
+~/activity-catalogue-pilot --owner <email> --dry-run --strict --registry
+…/misconception-registry.txt --skills-registry …/skill-registry.txt`. It exits
+0. At the last run: 3/47 skills covered, 3/51 parts authored, 44 uncovered by
+name, 13 bindings across 4 ids.
 
-**Lane B is designed and NOT built:** sorting the activities list's unit groups
-by `source_path`, which is what keeps chain ordinals out of student-visible
-titles. TODOS carries it.
+⏭ **Lane B is designed and NOT built** — sorting the activities list's unit
+groups by `source_path`, which is what keeps chain ordinals out of
+student-visible titles. TODOS carries it with two verified traps.
 
-**Six guards, each mutation-tested the day it was written** — and one of them
-was VACUOUS on the first attempt and only mutation found it: a test that
-"nothing catalogue-only reaches the document" parsed the importer's own return
-value instead of the merge path, so it proved that zod strips unknown keys and
-nothing else. Leaking a skill id into `applyImportedMeta` left it green. That is
-the repo's most expensive defect class, caught this time in the same hour it was
-written rather than months later.
+**Nine guards shipped this arc, every one mutation-tested the day it was
+written** — and one was VACUOUS on the first attempt and only mutation found
+it: a test that "nothing catalogue-only reaches the document" parsed the
+importer's own return value instead of the merge path, so it proved zod strips
+unknown keys and nothing else.
 
 ## The flow modes — SHIPPED AND LIVE (2026-08-24); arc closed
 
@@ -240,25 +233,31 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-26 — **CURRICULUM ALIGNMENT, LANE A BUILT.** Declared
-identity (0041, prepared not applied), skill registry + coverage manifests, the
-chain registry, the `x_` namespace, the in-math answer-leak detector, and a
-generated catalogue-authoring prompt that retires the one hand-carried sync in
-the builder's system. `pnpm verify` 8/8.
+**Last updated:** 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER.**
+Declared identity (0041, applied), skill/chain/part registries, `chain_role`,
+the in-math answer-leak detector, a generated authoring prompt, and a
+parts-aware coverage burndown. `pnpm verify` 8/8; script guards 161/161.
 
-**The lesson, and it is generation FOUR of the one this repo keeps paying for.**
-Generations one to three: a declaration outlives its implementation; a guard
-outlives its own validity; the slice written to end that class commits it three
-times in its own new code. **Generation four: the guard written by the session
-that KNEW all three was vacuous anyway** — and vacuous in the documented way, by
-asserting over the wrong artifact one level from the thing it claimed to check.
-Mutation found it in minutes. The rule that keeps working is not "write good
-guards", it is **watch every new guard fail once, on the day you write it**.
+**The lesson this arc paid for, and it is not a repo lesson — it is a
+correspondence one.** Eleven letters were exchanged with the curriculum side. Of
+the mistakes caught, **the two most expensive were each caught by the OTHER
+side**: they found that our proposed misconception-label check caught neither
+bug it was designed for, and we found that their graph's `grading_model`
+correction had left thirteen copies of the same false claim in the capability
+registry. Neither side's own tests could have found the other's, because each
+defect lived in the half of the contract the other owns.
 
-**Also worth carrying:** the builder's reply corrected two of our rulings and
-caught an id we had INVENTED — `proportional.graph-through-origin` appeared in
-an example we wrote to demonstrate a file format, and had no source. It nearly
-got ratified into their registry as a second id for a skill that already had
-one. An example is a claim.
+**Three corollaries, all of them cheap and all of them earned:**
+- **An example is a claim.** Two ids we invented as format illustrations were
+  taken as real — one nearly got ratified into their registry, the other cost
+  two exchanges. Illustrative things now get marked illustrative.
+- **A metric computed over an authored corpus measures authoring order.** Their
+  misconception registry was "a picture of where the writing has been"; our
+  near-duplicate detector has never fired at 4, 22 or 35 ids, so the evidence we
+  gave them for D21 could not distinguish working from never-at-risk. Retracted.
+- **Every checker either side proposed computes a structural shadow of a
+  semantic property.** The shadow is derivable; the property is not. Three
+  independent arrivals at the same posture: a check can narrow the question a
+  human answers and can never answer it.
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._

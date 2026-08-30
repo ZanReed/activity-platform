@@ -329,6 +329,38 @@ primary skill but are not adjacent in path order (a part 2 three activities from
 its part 1 is misfiled, or is not a part). Offered to the builder; not invented
 unilaterally for a shape they have only just described.
 
+## The drift audit has no section for GENERATED AUTHOR-REFRESHED artifacts (2026-08-30)
+
+**Found by the audit auditing itself (§0).** Four committed artifacts are
+generated, author-refreshed, and deliberately never CI-gated:
+
+- `docs/misconception-manifest.md`
+- `docs/skill-coverage-manifest.md` · `docs/skill-coverage.json`
+- `docs/catalogue-authoring-prompt.md`
+
+**No checklist section covers any of them**, and §0's own lesson has a mirror
+worth writing down: a section whose target was deleted reports "clean" forever —
+and **an artifact with no section is never audited at all.**
+
+The exposure is real and structural, not hypothetical. The catalogue lives
+OUTSIDE this repo, so CI cannot regenerate these and no drift check against them
+could ever pass — that is ruled and correct. The consequence is that they can go
+stale against a catalogue that has moved, and nothing anywhere would say so.
+
+**Proposed §10, cheap:** for each generated artifact, confirm it was regenerated
+after the last catalogue change — compare the newest `.md` mtime in the
+catalogue folder against the artifact's, exactly the staleness guard the
+curriculum side built on their own side for the same reason.
+
+⚠ **`catalogue-authoring-prompt.md` is the exception and does NOT need it** — it
+is generated from code in THIS repo and is already guarded by
+`catalogueAuthoringPrompt.test.ts`, which fails the build on drift. Naming it
+here so a future session does not add a redundant check for it.
+
+**Structural, so it was not applied unilaterally.** It changes the audit
+checklist, and that file's own history says a checklist edited carelessly is
+worse than one left alone.
+
 ## Lane B — sort the activities list by catalogue path (2026-08-26)
 
 **What:** the activities list groups by unit and sorts WITHIN a group by edit

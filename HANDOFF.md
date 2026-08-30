@@ -1,4 +1,4 @@
-# Handoff — 2026-08-25 (evening)
+# Handoff — 2026-08-30
 
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
@@ -7,46 +7,30 @@ context for a human deciding whether the handoff is accurate.
 
 ## What happened in the session that wrote this
 
-**Authoring started, and the tooling met real content for the first time.** The
-catalogue went from 3 throwaway fixtures / 0 bindings to **4 real activities
-carrying 13 bindings** across all four ratified `mis.*` ids. The author imported
-and published them; the three old fixtures were then deleted from both sides.
-Verified live at every step, against the database rather than the script's own
-summary.
+**The catalogue's organization was aligned with the curriculum model, built, and
+cut over** — and most of the session was an eleven-letter correspondence with the
+curriculum side, not coding. Five commits, `a3d1b35`..`3eed4eb`.
 
-**The first real content immediately found a defect the whole test suite was
-blind to.** `{{…}}` inside `$…$` is absorbed whole into the LaTeX — no blank, no
-grading, no warning, and the ANSWER plus the binding id rendered to the student.
-It is an answer leak, it is universal across math contexts, and `--strict`
-cannot see it. Filed in TODOS with a proposed one-line importer warning.
+The platform half: declared identity (`key:` + migration 0041), skill ids and a
+skill registry, part counts, `chain_role`, a chain registry, the `x_` reserved
+namespace, a detector for a live answer leak, a generated authoring prompt, and a
+parts-aware coverage burndown. All of it verified against the real database
+rather than against the script's own summary.
 
-**A fourth instance of that defect predated the arc and reached PUBLISHED
-snapshots** — `unit-3/unit-rate.md`, since 2026-08-21. It proves the leak class
-reaches `activity_versions`, not just drafts. That instance is now moot (the
-activity was deleted), but the CLASS is untouched and unguarded.
+**The correspondence is the part worth reading.** Both sides corrected the other
+on things neither side's tests could have caught, because each defect lived in
+the half of the contract the other owns. That is written up in STATE's footer and
+it is the durable lesson.
 
-**The four new activities were published** (v1 each, verified clean), so the
-sensor is live on student-reachable content for the first time.
-
-**A second, smaller importer finding landed at the end:** every PUBLISHED
-activity now reports a phantom `course`/`unit` change on every dry-run, because
-publish clears the draft the change-preview reads. Cosmetic at 4 files, noise at
-150. Filed.
-
-**The verification method is the reusable part.** Bindings were proven by
-deriving one case per binding FROM the serialized documents and running each
-through the shipped `gradeSection` — then mutation-testing that harness so its
-green meant something. It found 12 of 13; the 13th was missing because of the
-swallow bug, which the manifest-vs-grep diff caught.
+**A drift audit closed the session: 4 findings, all self-created, all fixed.**
 
 ## What the next session should know before trusting anything here
 
-- **`HANDOFF.md` is REPLACED, not appended** — like STATE. A transient baton,
-  not a durable doc, and not in CLAUDE.md's doc map.
-- Everything is **pushed and CI-green at `129117c`**. Confirm with `gh run list`.
-- **No author actions are owed.** The one that was (a republish) was retired by
-  deleting the activity instead — see below.
-- The last commit here may be **unpushed**; the author pushes.
+- **`HANDOFF.md` is REPLACED, not appended** — a transient baton, not in
+  CLAUDE.md's doc map.
+- Everything is committed on `main` and **UNPUSHED**. The author pushes.
+- **Nothing is owed to the author.** 0041 is applied (they applied it), no deploy
+  is owed, no republish is owed.
 
 ---
 
@@ -55,248 +39,102 @@ swallow bug, which the manifest-vs-grep diff caught.
 I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
 then TODOS.md.
 
-## Where things stand (2026-08-25 evening, pushed, CI green at `129117c`)
+## Where things stand (2026-08-30, committed on `main`, unpushed)
 
-**Authoring is underway — the ruling from 2026-08-24 is being executed, not
-still pending.** The catalogue at `~/activity-catalogue-pilot/` now holds:
+**The curriculum-alignment arc is DONE and cut over.** Design + every ruling:
+`docs/design/curriculum-alignment.md`. Migration 0041 is applied live.
 
-```
-misconception-registry.txt                          ← the taxonomy, 4 ratified ids
-year-8/rates-and-proportional-relationships/
-  activity-0{1,2,3,4}-*.md                          ← the real content, 13 bindings
-```
+The four pilot activities now live at `01-chain.rate.proportional/0N-*.md`,
+each carrying a declared `key:`, and they followed their files there from
+`year-8/rates-and-proportional-relationships/` **without orphaning a row** —
+which is the whole point of the slice and was proved by doing it.
 
-The catalogue is now ONLY real content — the three Algebra I test fixtures were
-deleted 2026-08-25 (see below). A dry-run reports `0 orphans`, which is the
-proof both halves of that deletion happened.
-
-Run it with:
+Run the catalogue with:
 
 ```
 pnpm import:batch ~/activity-catalogue-pilot --owner <email> --dry-run --strict \
-  --registry ~/activity-catalogue-pilot/misconception-registry.txt
+  --registry ~/activity-catalogue-pilot/misconception-registry.txt \
+  --skills-registry ~/activity-catalogue-pilot/skill-registry.txt
 ```
 
-13 bindings · 4 distinct ids · `--strict` exit 0. `pnpm verify` 8/8.
+Exit 0. Last run: **3/47 skills covered · 3/51 parts authored · 44 uncovered by
+name · 13 bindings · zero warnings of either kind.**
 
-**All four Year 8 activities are PUBLISHED** (v1 each, 2026-08-25) — so the
-sensor is live on real student-reachable content for the first time. The
-bindings themselves never reach the student: `choices[].misconceptionId` and
-the whole `mistakeFeedback` array are on the sanitizer's strip lists, and that
-is bound to output by `tests/sanitize.test.ts` (`expect(wire).not.toContain`)
-plus `tests/check-leak.test.ts`, both in `pnpm verify`.
+## The five things most likely to be misunderstood
 
-## The legacy test fixtures are GONE — and that closed the owed republish
+1. **The path fallback is not merely the keyless case.** It is how a keyed file
+   ADOPTS a row that predates the column, which is the entire cutover. A
+   key-only matcher turns the first run into N creates and N orphans. Both arms
+   are pinned in `scripts/tests/batch-import.test.mjs` §K.
+2. **`role` / `type` / `chain_role` are three different axes** — Bank trust
+   label, presentation format, position in chain. A consolidation is still
+   `role: lesson`. CLAUDE.md carries the rule.
+3. **A consolidation names its chain's terminal skill without teaching it**, so
+   it is excluded from that skill's parts and from the burndown numerator.
+   Counting it would report a fully-taught skill as partial forever.
+4. **`covered` counts whole skills and stays FLAT while a multi-part skill is
+   half-written.** The number that moves is *parts authored / parts declared*,
+   and its denominator counts skills the corpus has never named.
+5. **Do not regenerate `misconception-registry.txt` from the graph without
+   merging first.** That ordering saved 13 live bindings once already; it is now
+   a standing step on the curriculum side.
 
-The three initial-test activities (`unit-3/unit-rate.md`,
-`unit-3/proportional-graphs.md`, `unit-4/rate-of-change.md`) were deleted
-2026-08-25: the author soft-deleted the rows in the app, and the `.md` files
-were removed from the catalogue. Both halves — a deleted file alone is only an
-orphan (D2), and a deleted row alone leaves the file re-creating it next run.
+## Open work, in the order it is worth doing
 
-**This retired the one owed author action.** `unit-3/unit-rate.md` carried the
-swallowed-blank answer leak in published snapshots v1–v3 and needed a republish
-to mint a clean v4. It never got one, and no longer needs one:
-`get_published_activity` filters `a.deleted_at is null` (verified against the
-live function definition), so the leaky version is no longer served. Blast
-radius was zero throughout — `section_checks` = 0, `submissions` = 0.
+**Lane B — sort the activities list by catalogue path.** Designed, not built,
+TODOS carries it with two verified traps (the query must keep its `updated_at`
+order because the recency strip slices that array; and it supersedes the
+list-surface D5 naming convention). It is what keeps chain ordinals out of
+student-visible titles, and `unit` is student-visible in BOTH surfaces —
+verified, `StudentViewer.tsx:556` and the print layer.
 
-⚠ **The leak CLASS is not closed** — only this instance is. The importer defect
-below is still live and still unguarded.
+**The drift audit has no section for generated author-refreshed artifacts.**
+Filed 2026-08-30, structural, deliberately not applied unilaterally.
 
-## The defect the corpus found — the highest-value small slice available
+**Everything else in TODOS is unchanged** and none of it blocks authoring.
 
-**`{{…}}` inside `$…$` is swallowed whole into the latex, silently.**
+## What is owed by whom
 
-```
-{"type":"mathInline","attrs":{"latex":"k = {{=8 | !0.125 :: … :: mis.rate.ratio-inverted}}"}}
-```
-
-Three failures at once: the **answer is shown to the student**, the item is
-**not gradeable**, and the **binding vanishes** (so the sensor reports "nobody
-made this mistake"). Measured as universal — inline, display, `worked`,
-`callout`, `faded`, table cells, mc choices. Only the `definitions` fence did
-not reproduce, and that is unexplained, not cleared.
-
-⚠ **Sanitize structurally cannot fix this, and that is the interesting part.**
-It strips `prompts[].answer` on `PROMPT_CARRIER_TYPES`. A swallowed blank
-produces **no `prompts` array at all** — the answer sits in `latex`, which is
-content, not a secret field. Every layer below the importer behaves correctly
-and the answer still lands on the page. The fix has to be at the importer.
-
-**Proposed (not built):** warn when a `mathInline`/`math_block` latex contains
-`{{`. One predicate over a node the importer already constructs; converts a
-silent answer-leak into a `--strict` failure. Guard it against RENDERED OUTPUT
-and mutation-test it by reverting the corpus fix. Full entry in TODOS.
-
-⚠ **Do not "fix" this by telling authors to use `\gap{}` and stopping there.**
-`\gap{}` is correct inside math AND puts the answer where the sanitizer can
-reach it — but **`\gap{}` cannot carry a misconception binding**, because
-`|`-alternates are not parsed inside math (format doc line 70). So a mistake
-sensor inside an equation has no spelling today. That is a real capability gap
-worth its own decision, not a syntax preference.
-
-## A phantom change you will see on the very first dry-run
-
-Every PUBLISHED activity reports `course "Algebra II" → "Year 8 Mathematics"`
-and `unit <unset> → …` on every run. **Nothing is stale.** `publish_activity`
-sets `draft_content = null`; the change preview reads `existingRow.draftMeta`
-(`scripts/batch-import.mjs:340`), finds nothing, and diffs the file against
-`DEFAULT_COURSE`. The `course` COLUMN is already correct — the importer never
-writes it (publish-truth, 0037 R1).
-
-Do not "fix" it by re-importing; the re-import writes the same document meta and
-the phantom returns on the next run. Full entry + proposed fix in TODOS. It
-matters because it inverts D5's promise: a preview that cries wolf on every row
-is a preview nobody reads the real `title` change out of.
-
-## The ordering — the author has named the next item
-
-**⚠ NEXT ITEM, AUTHOR-DIRECTED (2026-08-25): decide the catalogue PATH SCHEME.**
-TODOS → "CURRICULUM-ARCHITECTURE ALIGNMENT" §2 carries the full evidence. The
-short version: `source_path` IS identity, and the current path
-`year-8/rates-and-proportional-relationships/activity-01-unit-rate.md` encodes a
-band (dual and deliberately unsynced, D14), a "unit" (not one of the model's five
-entities), and an ordinal (activities are disposable and get split) — while the
-CHAIN, which is permanent and owns both ordering and the hook pool, appears
-nowhere. Proposed: `chain.<domain>.<name>/<stable-slug>.md`.
-
-**Do it now because the cost curve is brutal:** 4 renames today on activities
-with zero student data, versus the same operation at 150 files on rows carrying
-real attempt history. It is not free even today — a rename orphans the row
-(D1/D2), so the four activities need re-publishing after.
-
-**Read §1 before committing to a scheme.** If skill ids become first-class, the
-path matters less, because the chain relationship stops depending on the
-filesystem. Decide §1's DIRECTION first; do not let that defer the path past the
-point where it is cheap.
-
-RULED BY THE AUTHOR (still standing):
-
-1. **Writing activities comes before more code.** Still true, and now paying:
-   the first 4 real files found an answer leak that 130 script guards and a full
-   `pnpm verify` never saw.
-2. **Do NOT harden constraints out of STATE yet.** 🚨 **This has now run out of
-   room.** STATE sits at **exactly 4000 words against a 4000-word ceiling** —
-   the budget test passes with ZERO headroom, so the next session cannot add a
-   sentence without failing `pnpm test`. The deferral is over: the next session
-   touching STATE does the PROMOTION into CLAUDE.md/DECISIONS. Deleting to make
-   room is the one thing the rule forbids.
-
-HARD DEPENDENCIES (facts, not preferences):
-
-3. 🚫 **The check-prune CANNOT be armed until misconceptions roll up.** Ids live
-   on NON-latest attempts, exactly what `prune_section_checks` deletes.
-   `docs/design/check-retention-and-rollup.md` §II.6; blocking step on the
-   ARMING checklist in TODOS. Also still gated on counsel Q10.
-4. **The UNITS slice's syntax is UNPINNED** — three verified tokenizer
-   collisions, worst being `unit: km/h|kph` making the literal "kph" an accepted
-   answer. Read X2 in the design doc before designing; do not re-derive.
-5. **The graph nudge TEXT is a separate slice with its own UX pass.**
-
-MY READING (not ruled):
-
-6. **`skills` being an orphan (§1) is the deepest of the four gaps** — an entire
-   curriculum model is specified on a field that is authored by nothing and read
-   by nothing. It is also the one that makes coverage permanently report zero.
-7. **The importer's swallowed-blank warning is the best small code slice** —
-   proven by real content, no dependencies, closes an answer leak.
-
-## Authoring facts worth not re-deriving
-
-- **`source_path` is the activity's IDENTITY** (D1). Moving or renaming a `.md`
-  orphans its row and creates a new one. The `year-8/<unit>/` layout was chosen
-  this session and is cheap to change ONLY while the row is disposable.
-- **The registry is required in batch mode** once any file carries bindings.
-  Plain text, one id per line, `#` comments. Adding an id there IS the
-  ratification step.
-- **Pick numbers so the anticipated wrong answer is exact.** All four
-  `ratio-inverted` bindings invert to terminating values (3÷5, 3÷6, 4÷20, 3÷24).
-  A non-terminating inverse gives a PARTIALLY dead binding — fires for some
-  students, not others, so the count is biased while looking healthy.
-- **Publishing clears the draft** (`publish_activity` sets `draft_content =
-  null`), so a published activity with no draft is up to date, not stale.
-
-## Drift audit — run 2026-08-25, 2 confirmed findings (both fixed)
-
-Triggered by a deletion plus a session that changed reality and wrote about it.
-§0–§8 clean; the two findings were both §9, and both were **self-created hours
-earlier** — the pattern the skill's own trigger notes predict.
-
-- **STATE said "✅ THE ORPHAN CLASSES ARE ALL CLOSED".** Not true — three
-  *Minor, same class* items at the foot of TODOS → "S9 left FIVE MORE" have
-  never been closed by anything: `ShortAnswerBlock.placeholder` (Essay honours
-  its own, ShortAnswer does not), `RubricCriterion.description`,
-  `inlineBlankSecrets`, plus the `blank.hint` comment claim that is still
-  fiction. Fixed.
-- **TODOS' own header said "FOUR FIXED, ONE OPEN" when all five items were
-  ticked ✅.** Item 5 was fixed 2026-08-24 and the tally was not updated. Fixed.
-  Same lesson as STATE's "THREE ITEMS ARE OWED": **a tally maintained separately
-  from the items it counts will drift — the ticks are the truth.**
-
-⚠ **A finding this audit got WRONG, recorded because the method failed, not just
-the fact.** The first pass called `skills` "the ninth orphan instance" and wrote
-that into CLAUDE.md, STATE and TODOS. It is not: `flow-field-readers.test.mjs`
-already carries a reasoned ruling that `skills` is "legitimately
-editor-and-catalog-only". The audit swept the CODE and never read the TODOS
-entry that had already adjudicated the field — so it re-litigated a settled
-question and put the wrong answer in the two most-read documents. Retracted the
-same day. **Check whether a finding has already been ruled on before filing it.**
-
-Also corrected: STATE's hand-maintained "THREE ITEMS ARE OWED" tally, replaced
-by naming the items (a count in a section that gets replaced is a number with an
-expiry date).
-
-**A method fix worth keeping:** §9's sweep has a false-positive class it did not
-name. Answer-key fields (`correctPoints`, `models`, `mistakeFeedback`, …) have
-no viewer consumer BY DESIGN — sanitize strips them and the SERVER grader reads
-them. Checking `graph-kit/src` and `viewer/src/server/` cut 19 candidates to 1.
-That caveat is now in CLAUDE.md's close-out rule so the next sweep does not
-re-report nineteen phantoms.
-
-Clean sections, stated rather than skipped: version constants (§1 — every
-`SANITIZER_REV` literal is a HISTORY observation or sits beside its guard);
-budgets (§2 — 18/18 pass, tightest is `ledger: prosemirror` at 96% of cap,
-no movement baseline to compare against); design-doc statuses (§3 — only
-`ux-lens.md` lacks one, the documented false positive, correctly classified as a
-procedure doc); ROADMAP (§4); STATE links (§5 — all resolve); deploy state
-(§6 — `config.toml` lists exactly `get-activity` + `check-activity`, matching
-the functions dir); compliance (§7 — no migration touched personal data this
-session; `data-map-coverage` and `retention-windows` both green); guards (§8 —
-130 script tests pass).
+| | |
+|---|---|
+| **Author** | Nothing. Push when ready. |
+| **Platform** | Nothing open. |
+| **Curriculum side** | Ratify 13 proposed misconception ids (their count says 12 — it is 13, and the registry goes to 35 not 34); one carrier is unbuildable as written and needs a restructure, not a wish; the `transform.translate` activity; alignment fields as arrays. |
 
 ## Traps that cost this session real time
 
-- **A manifest count is a cross-check no test replaces.** The swallow bug was
-  invisible to the importer, to `--strict`, and to a harness that derives its
-  cases from the document — because a swallowed binding never reaches the
-  document. It was caught by diffing the manifest's per-id counts against a
-  grep of the source files. Do that diff whenever bindings change.
-- **Derive test cases from the artifact, then mutation-test the deriver.** The
-  first harness silently collapsed two distinct mc choices sharing one id into
-  one case (bad de-dup key) and reported 12/13 as if complete.
-- **`browse` handoff did not preserve the login session.** The daemon restarted
-  between `handoff` and `resume` and came back headless with empty
-  localStorage; `connect` gave a headed browser on a fresh profile, also
-  unauthenticated. Supabase keeps the session in localStorage, so
-  `cookie-import-browser` would not have helped either. **Publishing from the
-  app is an author action in practice** — plan around it rather than through it.
-- **Check who pushed.** Three commits reached origin without this session
-  running `git push` (the author pushed mid-session). `git ls-remote` and the
-  `origin/main` reflog settle it; the local ref alone can mislead.
+- **A guard can be vacuous in the documented way and still feel finished.** The
+  "nothing catalogue-only reaches the document" test parsed the importer's own
+  return value instead of the merge path, so it proved zod strips unknown keys
+  and nothing else. Mutation found it in minutes; review would not have.
+  **Watch every new guard fail once, on the day you write it.**
+- **An example is a claim.** Two skill/chain ids invented as format
+  illustrations were read as real by the other side; one nearly got ratified
+  into their registry. Mark illustrative things illustrative.
+- **Route errors on what the system NAMED, not on a substring.** The importer's
+  missing-column refusal matched a column name inside the request URL — which
+  carries the whole `select=` list — and confidently named a migration that had
+  been applied five days earlier.
+- **A metric computed over an authored corpus measures authoring order.** Our
+  near-duplicate detector has never fired at 4, 22 or 35 ids, so the evidence we
+  gave the curriculum side for their D21 could not distinguish "working" from
+  "never at risk". Retracted.
 
 ## House rules that bite hardest here
 
 - Never `git push` — the author pushes. Check `git branch --show-current` is
   `main` before committing.
-- `pnpm verify` is the definition of done for CI's check job.
-- A schema change means both bundles regenerate in the SAME commit, and a
-  redeploy is owed. **Nothing this session touched schema** — no redeploy owed.
-- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling, currently 3981).
-  Do not raise the ceiling to make a commit pass.
+- `pnpm verify` is the definition of done for CI's check job. It is 8/8 now.
+- A schema change means both bundles regenerate in the SAME commit and a
+  redeploy is owed. **Nothing this session touched schema** — the catalogue
+  fields live in the importer and the manifests, never in the document.
+- After changing `catalogueAuthoringPrompt.ts` or the meta fence it teaches, run
+  `pnpm prompt:catalogue` and commit the regenerated doc.
+- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling, currently 3,659).
 
 ## Start here
 
-Say which of 1–7 you're taking and why, before touching anything. Then run the
-dry-run above — the manifest is no longer empty, and its per-id counts are the
-first thing to reconcile against the files.
+Read `docs/design/curriculum-alignment.md` §5–§5d before touching
+`scripts/batch-import.mjs`. Then run the dry-run above — it should exit 0 and
+report 3/47 and 3/51. If it does not, something moved and that is the first
+thing to understand.
