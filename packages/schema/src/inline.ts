@@ -529,6 +529,16 @@ export const BlankToken = z.object({
   // For 'math': the absolute tolerance passed to the sampling comparison.
   // Absent = exact equality (numeric) / no extra slack (math).
   tolerance: z.number().min(0).optional(),
+  // Required unit for a 'numeric' blank ({{=1.5 unit: km/h}}): the student
+  // types value AND unit in the one input, the server splits and grades both
+  // (value within tolerance AND unit accepted — a missing unit is wrong,
+  // which is the whole diagnostic). `unit` is the canonical form the teacher
+  // answer key shows; `acceptableUnits` are normalized-equal alternates
+  // (km/h vs kph). Meaningful only when answerType is 'numeric'; both are
+  // answer-key material and ride BLANK_SECRET_FIELDS. Optional with no
+  // default so pre-existing documents re-serialize byte-identically.
+  unit: z.string().min(1).optional(),
+  acceptableUnits: z.array(z.string()).optional(),
   // Equivalence mode for 'math' blanks: 'value' (default, any expression that
   // evaluates equal) or 'exact-form' (normalized-string match — "write it in
   // this form"). Only meaningful when answerType is 'math'; absent = 'value'.

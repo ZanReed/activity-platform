@@ -1447,6 +1447,37 @@ describe('lists', () => {
             ]);
         });
 
+        it('round-trips a unit-bearing numeric blank (unit + acceptableUnits)', () => {
+            const blankAttrs = {
+                id: 'blank-u1',
+                answer: '1.5',
+                acceptableAnswers: [],
+                interchangeableWithPrevious: false,
+                answerType: 'numeric',
+                tolerance: 0.1,
+                unit: 'km/h',
+                acceptableUnits: ['kph'],
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib-u' },
+                        content: [
+                            { type: 'text', text: 'The speed is ' },
+                            { type: 'blank', attrs: blankAttrs },
+                        ],
+                    },
+                ],
+            };
+            const fib = roundTrip(doc).content?.[0] as JSONContent;
+            expect(fib.content).toEqual([
+                { type: 'text', text: 'The speed is ' },
+                { type: 'blank', attrs: blankAttrs },
+            ]);
+        });
+
         it('round-trips a fillInBlank with a blank that has no optional fields', () => {
             const blankAttrs = {
                 id: 'blank-2',

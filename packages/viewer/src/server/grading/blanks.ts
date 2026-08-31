@@ -33,6 +33,14 @@
 import { mathEquivalent } from '@activity/graph-kit/scorers';
 import { checkExpressionSafety } from './guards.js';
 import {
+  splitUnitEntry,
+  normalizeUnit,
+  unitAccepted,
+  isReservedUnitMatch,
+  UNIT_MISSING_MATCH,
+  UNIT_WRONG_MATCH,
+} from './units.js';
+import {
   prepareKeyValue,
   prepareStudentValue,
   trimValue,
@@ -53,6 +61,12 @@ export interface BlankKey {
   /** Absent ⇒ 'text'. A MathPrompt is always 'math'. */
   answerType: 'text' | 'numeric' | 'math';
   tolerance: number;
+  /** Required unit for a numeric blank ({{=1.5 unit: km/h}}). Absent ⇒ the
+   * blank grades on the value alone (every pre-existing numeric blank).
+   * When present the student's entry is split (units.ts) and BOTH halves must
+   * be right — a missing unit is wrong, which is the diagnostic. */
+  unit?: string;
+  acceptableUnits?: string[];
   /** Only consulted for answerType 'math'. Absent ⇒ 'value'. */
   equivalence: 'value' | 'exact-form';
   /** Per-wrong-answer feedback. MathPrompts never carry it. `misconceptionId`
@@ -81,6 +95,32 @@ function scoreText(student: string, key: BlankKey): boolean {
 }
 
 function scoreNumeric(student: string, key: BlankKey): boolean {
+  // Unit-bearing blank: split the entry and require BOTH halves. The split
+  // reuses parseNumericValue via its longest-leading-prefix (units.ts), so
+  // every accepted numeric form still works with a unit after it. An entry
+  // with no parseable leading number falls through to the string fallback
+  // below — "no solution" stays scoreable on a unit-bearing blank too.
+  if (key.unit !== undefined) {
+    const split = splitUnitEntry(student);
+    if (split !== null) {
+      if (
+        split.unit !== null &&
+        unitAccepted(split.unit, key.unit, key.acceptableUnits) &&
+        valueMatchesKey(split.value, key)
+      ) {
+        return true;
+      }
+      // A parsed-but-wrong quantity never string-matches a key entry;
+      // continuing to the generic loop below would let the bare value "1.5"
+      // string-equal a key entry "1.5" and bypass the unit requirement.
+      return false;
+    }
+    for (const entry of key.answers) {
+      if (prepareKeyValue(entry) === student) return true;
+    }
+    return false;
+  }
+
   const studentValue = parseNumericValue(student);
   const tolerance = coerceTolerance(key.tolerance);
   for (const entry of key.answers) {
@@ -91,6 +131,19 @@ function scoreNumeric(student: string, key: BlankKey): boolean {
     } else if (prepared === student) {
       // Either side isn't a number: fall back to exact string equality, which
       // is what lets a key entry like "no solution" score on a numeric blank.
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Is the value within tolerance of any numeric key answer? (The unit-bearing
+ * path's value half; non-numeric key entries are the string fallback's job.) */
+function valueMatchesKey(value: number, key: BlankKey): boolean {
+  const tolerance = coerceTolerance(key.tolerance);
+  for (const entry of key.answers) {
+    const entryValue = parseNumericValue(prepareKeyValue(entry));
+    if (entryValue !== null && numericallyClose(value, entryValue, tolerance)) {
       return true;
     }
   }
@@ -277,6 +330,60 @@ export function matchMistakeEntry(
   // feedback they earned. A non-numeric match string (e.g. "no solution")
   // falls through to the string comparison below, exactly as scoreNumeric
   // falls back for non-numeric key entries.
+  // Unit-bearing blank: the whole entry no longer parses as a number, so the
+  // plain numeric fast path below would go dark on exactly these blanks and
+  // the sensor would under-count (the failure the comment below warns about).
+  // Split first; reserved matches bind the two unit OUTCOMES (value right,
+  // unit missing / wrong — derived locally, no verdict threading); authored
+  // numeric matches compare on the VALUE PART, and a match string carrying its
+  // own unit requires the units to agree as well.
+  if (key.answerType === 'numeric' && key.unit !== undefined) {
+    const split = splitUnitEntry(prepared);
+    if (split !== null) {
+      const valueOk = valueMatchesKey(split.value, key);
+      for (const entry of key.mistakeFeedback) {
+        const m = entry.match.trim().toLowerCase();
+        if (m === UNIT_MISSING_MATCH && valueOk && split.unit === null) {
+          return entry;
+        }
+        if (
+          m === UNIT_WRONG_MATCH &&
+          valueOk &&
+          split.unit !== null &&
+          !unitAccepted(split.unit, key.unit, key.acceptableUnits)
+        ) {
+          return entry;
+        }
+      }
+      const tolerance = coerceTolerance(key.tolerance);
+      for (const entry of key.mistakeFeedback) {
+        if (isReservedUnitMatch(entry.match)) continue;
+        const matchSplit = splitUnitEntry(prepareKeyValue(entry.match));
+        if (matchSplit === null) continue;
+        if (!numericallyClose(split.value, matchSplit.value, tolerance)) {
+          continue;
+        }
+        if (
+          matchSplit.unit !== null &&
+          (split.unit === null ||
+            normalizeUnit(split.unit) !== normalizeUnit(matchSplit.unit))
+        ) {
+          continue;
+        }
+        return entry;
+      }
+    }
+    // String fallback, minus the reserved tokens — a student who literally
+    // types "unit-missing" must not summon the outcome-bound entry.
+    for (const entry of key.mistakeFeedback) {
+      if (isReservedUnitMatch(entry.match)) continue;
+      if (trimValue(prepareKeyValue(entry.match)).toLowerCase() === needle) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
   if (key.answerType === 'numeric') {
     const studentValue = parseNumericValue(prepared);
     if (studentValue !== null) {

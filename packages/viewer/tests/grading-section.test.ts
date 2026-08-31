@@ -1001,3 +1001,77 @@ describe('misconception ids reach the wire (the sensor guard)', () => {
     expect(result.items[plotId]?.misconceptionIds).toBeUndefined();
   });
 });
+
+describe('unit-bearing blanks grade end to end (the walk projects the unit)', () => {
+  // The unit lives on the BlankToken and must survive blankTokenToKey — the
+  // primitives suite builds BlankKeys by hand, so only a real document can
+  // prove the projection. Reverting the walk's unit fields turns exactly
+  // these cases red while every primitives case stays green.
+  const t = (text: string) => ({ type: 'text', text });
+  const unitBlankId = crypto.randomUUID();
+
+  const unitBlock = {
+    id: crypto.randomUUID(),
+    type: 'fill_in_blank',
+    content: [
+      t('the speed is '),
+      {
+        type: 'blank',
+        id: unitBlankId,
+        answer: '1.5',
+        acceptableAnswers: [],
+        answerType: 'numeric',
+        unit: 'km/h',
+        acceptableUnits: ['kph'],
+        mistakeFeedback: [
+          {
+            match: 'unit-missing',
+            feedback: [t('what are you measuring in?')],
+            misconceptionId: 'mis.units.dropped',
+          },
+        ],
+      },
+    ],
+  };
+
+  function docOf(block: Record<string, unknown>) {
+    return {
+      sections: [
+        { id: 'unit-section', rows: [{ columns: [{ blocks: [block] }] }] },
+      ],
+    };
+  }
+
+  function grade(entry: string) {
+    return gradeSection({
+      document: docOf(unitBlock) as never,
+      sectionId: 'unit-section',
+      responses: {
+        ...emptySectionResponses(),
+        blanks: { [unitBlankId]: entry },
+      },
+    });
+  }
+
+  it('value + unit is correct; alternates count', () => {
+    expect(grade('1.5 km/h').items[unitBlankId]?.verdict).toBe('correct');
+    expect(grade('3/2 kph').items[unitBlankId]?.verdict).toBe('correct');
+  });
+
+  it('a bare value is incorrect AND carries the bound misconception', () => {
+    const result = grade('1.5');
+    expect(result.items[unitBlankId]?.verdict).toBe('incorrect');
+    expect(result.items[unitBlankId]?.misconceptionIds).toEqual([
+      'mis.units.dropped',
+    ]);
+    expect(JSON.stringify(result.items[unitBlankId]?.feedback)).toContain(
+      'what are you measuring in?',
+    );
+  });
+
+  it('a wrong unit is incorrect without the missing-unit id', () => {
+    const result = grade('1.5 mph');
+    expect(result.items[unitBlankId]?.verdict).toBe('incorrect');
+    expect(result.items[unitBlankId]?.misconceptionIds).toBeUndefined();
+  });
+});

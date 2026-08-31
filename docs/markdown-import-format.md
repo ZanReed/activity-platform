@@ -60,6 +60,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - **A blank needs at least one character.** `{{}}` is treated as literal text, not a blank. Put a real answer in the braces.
 - **Order-independent blanks (`~`).** A leading tilde on a blank — `{{~3}}` — marks it interchangeable with the blank just before it in the same problem. For factoring, `(x + {{2}})(x + {{~3}})` accepts 2 and 3 in either order but rejects 2 and 2, because each correct answer can satisfy only one blank. The `~` belongs on the second (and later) blanks of a group; on a problem's first blank it has no effect.
 - **Numeric blanks (`=`).** A leading equals sign — `{{=12}}` — makes the blank numeric: the student's entry is parsed as a number and every equivalent form counts (`0.5`, `1/2`, `.50`, `1 1/2`, `1,234`, `$3.50`). An optional trailing `+- tol` (or `± tol`) accepts anything within that absolute tolerance: `{{=3.14 +- 0.01}}`. Combine with the tilde as `{{~=3}}` (tilde first). Prefer numeric blanks for any purely numeric answer — with a plain `{{0.5}}` a student typing `1/2` is marked wrong.
+- **Unit-bearing numeric blanks (`unit:`).** A trailing `unit:` clause on a NUMERIC blank — `{{=1.5 unit: km/h}}` — requires the student to type value AND unit in the one input; a bare `1.5` is wrong (forgetting the unit is the misconception the blank exists to catch, so nothing on screen prompts for it). Comma-separated alternates accept other spellings (`unit: km/h, kph`); matching normalizes case and spacing but never converts between units (`1500 m/h` is wrong for `1.5 km/h` — list it as an alternate only if you mean to accept it). Composes with tolerance (`{{=1.5 +- 0.1 unit: km/h}}`) and the tilde. Two RESERVED mistake matches fire on unit outcomes instead of typed text: `!unit-missing :: feedback` (value right, no unit typed) and `!unit-wrong :: feedback` (value right, unit not accepted) — each takes the optional trailing `:: mis.*` binding like any other mistake segment. On text and math blanks `unit:` stays literal text.
 - **Math blanks (`==`).** Two leading equals signs — `{{==2a}}` — grade the entry as a math *expression*: any input that is algebraically equivalent counts (`2a`, `a+a`, and `a*2` all match). Distinct from a numeric blank (which compares a single value); use `==` when several written forms should be accepted. Combine with the tilde as `{{~==2a}}`.
 - **Hints and per-answer feedback (`?` / `!`).** Inside the braces, after the answer, add extra `|`-separated segments: a segment starting `?` is a **hint** the student can open when stuck (one per blank — `{{Paris | ?It starts with P}}`); a segment written `!wrong :: message` attaches **feedback to a specific wrong answer** and is repeatable (`{{Paris | !Lyon :: that's the third-largest city}}`). The `::` delimiter matches the `mc`/`graph` fences, so a wrong answer may contain `=`. A `!` segment with no `::` is ignored with a warning (it never becomes an accepted answer). Hint and feedback text can't contain `|`, `{`, or `}` (`$math$` is fine). For an accepted answer that itself begins with `?` or `!`, double the mark: `{{a | ??x}}` accepts the literal `?x`.
 - **A list of problems flattens.** If each item of a numbered or bulleted list contains a blank, the list becomes one problem block per item (the editor re-numbers them). A list with no blanks stays an ordinary list.
@@ -74,7 +75,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. **Any answer inside a degraded construct is masked to `______`** — a `{{3}}` never survives as visible text, so a degraded block can be published without leaking its key.
+Fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. **A `{{…}}` blank inside a degraded construct is masked to `______`**, so a degraded paragraph can be published without leaking a blank's key. ⚠ The masking covers `{{…}}` specs ONLY — an unrecognized FENCE (e.g. a fence tag this app version doesn't know yet) degrades with its raw content verbatim, and for fences whose line layout IS the answer key (` ```match ` pairs, and any future fence with the same property) that means the key imports as visible text. Check the degrade notes in the dialog before publishing a paste that used a fence.
  (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
 
 ## Worked example
@@ -126,6 +127,16 @@ FILL-IN-THE-BLANK
   all count — so prefer them for any purely numeric answer. Add a tolerance
   with +- at the end:  pi is about {{=3.14 +- 0.01}}. Combine with the
   tilde as {{~=3}}.
+- To require a UNIT with the number, add a trailing unit: clause (numeric
+  blanks only):  the speed is {{=1.5 unit: km/h}}. The student must type
+  BOTH — a bare 1.5 is wrong, which is the point. Extra accepted spellings
+  are comma-separated ({{=1.5 unit: km/h, kph}}); matching ignores case and
+  spacing but never converts (1500 m/h is wrong for 1.5 km/h). Composes
+  with tolerance:  {{=1.5 +- 0.1 unit: km/h}}. Two reserved mistake
+  matches fire on unit OUTCOMES rather than typed text:  !unit-missing ::
+  fires when the value is right but no unit was typed, and !unit-wrong ::
+  when the value is right but the unit is not accepted — both take the
+  optional trailing :: mis.* binding like any other mistake segment.
 - For a MATH answer graded by expression equivalence (2a, a+a and a*2 all
   count as equal), use two equals signs:  simplify to {{==2a}}. Combine with
   the tilde as {{~==2a}}.

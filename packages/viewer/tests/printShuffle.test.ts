@@ -347,7 +347,13 @@ describe('the declaration is where it is for a reason', () => {
     // (the distractor→registry binding is server-side metadata; a pre-check
     // client could otherwise read which wrong answers were anticipated).
     // Declaration change, hash recomputed itself, same redeploy discipline.
-    expect(SANITIZER_REV).toBe('2-050ad6e2');
+    //
+    // MOVED 2026-09-01: '2-050ad6e2' → '2-ea886923'. Unit-bearing numeric
+    // blanks added `unit` + `acceptableUnits` to BLANK_SECRET_FIELDS (the
+    // required unit is half the answer; a served unit would prompt the very
+    // recall the blank tests). Declaration change, hash recomputed itself,
+    // get-activity redeploy queued as a pending author action.
+    expect(SANITIZER_REV).toBe('2-ea886923');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

@@ -18,10 +18,10 @@ data (D8/D10).
 alongside as a cheap win, then #5 → #3 → #6.** Each still gets its own design
 pass with numbered decisions before code.
 
-⚠ **STATUS 2026-08-31 (evening): #1 and #2 are SHIPPED; the ranked remainder
-is #4 → #3 → #5 → #6.** Re-verified against code the same day, not inferred:
-`nway_correspondence` appears nowhere in `packages/` (#4 open), and blank-level
-units do not exist in the format doc (#3 open).
+⚠ **STATUS 2026-09-01: #1, #2 and #3 are SHIPPED; the ranked remainder is
+#4 → #5 → #6.** #4 is greenlit with an outside-voice-amended design
+([nway-correspondence.md](docs/design/nway-correspondence.md) R1–R8) and is
+the next build.
 
 1. ✅ **Misconception ids on distractors, in the markdown — SHIPPED
    2026-08-25.** Ids ride import → schema → sanitize → the server grader
@@ -68,20 +68,17 @@ units do not exist in the format doc (#3 open).
    redeploys pending (STATE → Pending author actions). Unblocks the ~11
    derivative-chain activities.
 
-3. **Unit-bearing numeric blanks** — `{{=1.5 unit: km/h}}`. (Blocks ~10
-   contextual DoLs; the units-dropped misconception family runs the full
-   spine.) Today units live in prose, so every units-requiring item is
-   rubric-graded shortanswer and the misconception is only deferred data.
-   ⚠ Design constraint: **do not widen `BlankResponse.answer` to a union**
-   (standing rule) — keep the unit spec in the blank's attrs and grade it
-   server-side, either inside the numeric compare or as a parallel field.
-   Pairs naturally with #1 (same slice greenlit).
-   ⏸ **DESIGN PASS WRITTEN 2026-09-01, awaiting the author's yes/no per
-   decision:** [unit-bearing-blanks.md](docs/design/unit-bearing-blanks.md) —
-   D1–D10 (attrs-borne unit satisfying the standing rule with NO wire bump,
-   single-input diagnostic, normalized-string match with authored alternates,
-   stored outcome classes as the sensor, reserved `!unit-missing`/`!unit-wrong`
-   feedback matches riding #1's machinery). Code waits for the greenlight.
+3. ✅ **Unit-bearing numeric blanks — SHIPPED 2026-09-01** (greenlit →
+   outside-voice reviewed, 11 findings → amended → built same day).
+   `{{=1.5 unit: km/h, kph}}`: the unit lives in the blank's attrs (the
+   standing `BlankResponse.answer` rule satisfied with NO wire bump — the
+   typed "1.5 km/h" was already a string on the wire), single-input
+   diagnostic, normalized-string unit match with authored alternates, and
+   reserved `!unit-missing`/`!unit-wrong` outcome matches riding #1's
+   misconception machinery. Design + amendments + AS BUILT:
+   [unit-bearing-blanks.md](docs/design/unit-bearing-blanks.md). Eleven
+   mutations, every guard red once; `SANITIZER_REV` moved; both bundles
+   same-commit; redeploys pending (STATE). Unblocks the ~10 contextual DoLs.
 
 4. **`nway_correspondence` — 4-way match with per-edge partial credit.**
    (Blocks ~5: same-function-across-representations.) Verified: `match` is

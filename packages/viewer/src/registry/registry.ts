@@ -46,6 +46,10 @@ export const BLANK_SECRET_FIELDS = [
   'mistakeFeedback',
   'tolerance',
   'equivalence',
+  // The required unit and its alternates are answer-key material: a served
+  // unit would prompt the very recall the unit-bearing blank tests.
+  'unit',
+  'acceptableUnits',
 ] as const;
 
 /** MathPrompt fields stripped wherever a prompts array appears (math_block

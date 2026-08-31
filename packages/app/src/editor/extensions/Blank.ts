@@ -68,6 +68,8 @@ declare module '@tiptap/core' {
                     interchangeableWithPrevious: boolean;
                     answerType: 'text' | 'numeric' | 'math';
                     tolerance: number | undefined;
+                    unit: string | undefined;
+                    acceptableUnits: string[] | undefined;
                     equivalence: 'value' | 'exact-form' | undefined;
                     hint: unknown[] | undefined;
                     mistakeFeedback:
@@ -175,6 +177,37 @@ export const Blank = Node.create({
                     attributes.tolerance !== undefined
                         ? { 'data-tolerance': String(attributes.tolerance) }
                         : {},
+            },
+            // Unit-bearing numeric blank: the required unit + accepted
+            // alternates ({{=1.5 unit: km/h, kph}}). Numeric-only; serialize.ts
+            // drops them from non-numeric blanks.
+            unit: {
+                default: undefined as string | undefined,
+                parseHTML: (element) =>
+                    element.getAttribute('data-unit') || undefined,
+                renderHTML: (attributes) =>
+                    attributes.unit ? { 'data-unit': String(attributes.unit) } : {},
+            },
+            acceptableUnits: {
+                default: undefined as string[] | undefined,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-acceptable-units');
+                    if (!raw) return undefined;
+                    try {
+                        const parsed = JSON.parse(raw);
+                        return Array.isArray(parsed) ? parsed : undefined;
+                    } catch {
+                        return undefined;
+                    }
+                },
+                renderHTML: (attributes) => {
+                    const arr = attributes.acceptableUnits as
+                        | string[]
+                        | undefined;
+                    return arr && arr.length > 0
+                        ? { 'data-acceptable-units': JSON.stringify(arr) }
+                        : {};
+                },
             },
             hint: {
                 default: undefined as unknown[] | undefined,

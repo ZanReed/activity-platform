@@ -16,6 +16,8 @@ import {
     resolveAnswerBlur,
     resolveAcceptableCommit,
     resolveToleranceCommit,
+    resolveUnitCommit,
+    unitDraftFrom,
     filterFeedbackForCommit,
     stripList,
     type MistakeFeedbackPair,
@@ -77,6 +79,8 @@ interface BlankEditPopoverProps {
     initialInterchangeable: boolean;
     initialAnswerType: 'text' | 'numeric' | 'math';
     initialTolerance: number | undefined;
+    initialUnit: string | undefined;
+    initialAcceptableUnits: string[] | undefined;
     initialEquivalence: 'value' | 'exact-form' | undefined;
     // Whether a previous blank exists in this block; gates the grouping
     // checkbox (the first blank in a block has nothing to group with).
@@ -94,6 +98,8 @@ interface BlankEditPopoverProps {
             interchangeableWithPrevious: boolean;
             answerType: 'text' | 'numeric' | 'math';
             tolerance: number | undefined;
+            unit: string | undefined;
+            acceptableUnits: string[] | undefined;
             equivalence: 'value' | 'exact-form' | undefined;
             hint: InlineNodes | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
@@ -117,6 +123,8 @@ export default function BlankEditPopover({
     initialInterchangeable,
     initialAnswerType,
     initialTolerance,
+    initialUnit,
+    initialAcceptableUnits,
     initialEquivalence,
     canGroupWithPrevious,
     mathPromptMode = false,
@@ -150,6 +158,11 @@ export default function BlankEditPopover({
     const [toleranceDraft, setToleranceDraft] = useState(
         initialTolerance !== undefined ? String(initialTolerance) : '',
     );
+    // Unit (numeric only): one field holds "canonical, alternate, alternate".
+    // Draft-then-flush like tolerance.
+    const [unitDraft, setUnitDraft] = useState(
+        unitDraftFrom(initialUnit, initialAcceptableUnits),
+    );
 
     // Answer-matching controls (answer, numeric, acceptable answers, group
     // ordering) are ALL always visible — they're core answer config a teacher
@@ -166,10 +179,15 @@ export default function BlankEditPopover({
         initialTolerance !== undefined ? String(initialTolerance) : '',
     );
     const answerTypeRef = useRef<'text' | 'numeric' | 'math'>(initialAnswerType);
+    const unitRef = useRef(unitDraftFrom(initialUnit, initialAcceptableUnits));
 
     const initialAnswerRef = useRef(initialAnswer);
     const initialAcceptableRef = useRef<string[]>(initialAcceptableAnswers);
     const initialToleranceRef = useRef<number | undefined>(initialTolerance);
+    const initialUnitRef = useRef<string | undefined>(initialUnit);
+    const initialAcceptableUnitsRef = useRef<string[] | undefined>(
+        initialAcceptableUnits,
+    );
 
     const onChangeRef = useRef(onChange);
     useEffect(() => {
@@ -189,6 +207,9 @@ export default function BlankEditPopover({
         toleranceRef.current = toleranceDraft;
     }, [toleranceDraft]);
     useEffect(() => {
+        unitRef.current = unitDraft;
+    }, [unitDraft]);
+    useEffect(() => {
         answerTypeRef.current = answerType;
     }, [answerType]);
 
@@ -206,6 +227,7 @@ export default function BlankEditPopover({
             setToleranceDraft(
                 initialTolerance !== undefined ? String(initialTolerance) : '',
             );
+            setUnitDraft(unitDraftFrom(initialUnit, initialAcceptableUnits));
             setAdvancedExpanded(
                 Boolean(initialHint && initialHint.length > 0) ||
                     Boolean(
@@ -217,10 +239,13 @@ export default function BlankEditPopover({
             acceptableRef.current = initialAcceptableAnswers;
             toleranceRef.current =
                 initialTolerance !== undefined ? String(initialTolerance) : '';
+            unitRef.current = unitDraftFrom(initialUnit, initialAcceptableUnits);
             answerTypeRef.current = initialAnswerType;
             initialAnswerRef.current = initialAnswer;
             initialAcceptableRef.current = initialAcceptableAnswers;
             initialToleranceRef.current = initialTolerance;
+            initialUnitRef.current = initialUnit;
+            initialAcceptableUnitsRef.current = initialAcceptableUnits;
         }
         // Reset drafts only when the popover opens or retargets a different
         // blank — NOT on every initial* identity change. hint + mistake
@@ -282,11 +307,23 @@ export default function BlankEditPopover({
                       initialToleranceRef.current,
                   )
                 : { changed: false, value: undefined };
-        if (hasUpdates || tolerance.changed) {
+        // The unit field is numeric-only; switching away already cleared it.
+        const unit =
+            answerTypeRef.current === 'numeric'
+                ? resolveUnitCommit(
+                      unitRef.current,
+                      initialUnitRef.current,
+                      initialAcceptableUnitsRef.current,
+                  )
+                : { changed: false, unit: undefined, acceptableUnits: undefined };
+        if (hasUpdates || tolerance.changed || unit.changed) {
             onChangeRef.current(
                 {
                     ...updates,
                     ...(tolerance.changed ? { tolerance: tolerance.value } : {}),
+                    ...(unit.changed
+                        ? { unit: unit.unit, acceptableUnits: unit.acceptableUnits }
+                        : {}),
                 },
                 { preserveSelection: false },
             );
@@ -479,27 +516,40 @@ export default function BlankEditPopover({
         if (next === answerType) return;
         setAnswerType(next);
         if (next === 'text') {
-            // Text clears tolerance + equivalence — both meaningless on a text
-            // blank and would silently reappear if numeric/math came back.
+            // Text clears tolerance + equivalence + unit — all meaningless on a
+            // text blank and would silently reappear if numeric/math came back.
             setToleranceDraft('');
+            setUnitDraft('');
             setEquivalence('value');
             onChange({
                 answerType: 'text',
                 tolerance: undefined,
+                unit: undefined,
+                acceptableUnits: undefined,
                 equivalence: undefined,
             });
             initialToleranceRef.current = undefined;
+            initialUnitRef.current = undefined;
+            initialAcceptableUnitsRef.current = undefined;
         } else if (next === 'numeric') {
             // Numeric keeps tolerance; equivalence is math-only → cleared.
             setEquivalence('value');
             onChange({ answerType: 'numeric', equivalence: undefined });
         } else {
             // Math: default equivalence to 'value' (stored as absent). Tolerance
-            // carries over (it's valid for both numeric and math).
+            // carries over (it's valid for both numeric and math); the unit is
+            // numeric-only and clears.
+            setUnitDraft('');
             setEquivalence(
                 initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
             );
-            onChange({ answerType: 'math' });
+            onChange({
+                answerType: 'math',
+                unit: undefined,
+                acceptableUnits: undefined,
+            });
+            initialUnitRef.current = undefined;
+            initialAcceptableUnitsRef.current = undefined;
         }
     };
 
@@ -534,6 +584,38 @@ export default function BlankEditPopover({
         if (e.key === 'Enter') {
             e.preventDefault();
             commitTolerance();
+            flushAll();
+            onClose();
+        }
+    };
+
+    const commitUnit = () => {
+        const result = resolveUnitCommit(
+            unitDraft,
+            initialUnitRef.current,
+            initialAcceptableUnitsRef.current,
+        );
+        if (result.changed) {
+            onChange({
+                unit: result.unit,
+                acceptableUnits: result.acceptableUnits,
+            });
+            initialUnitRef.current = result.unit;
+            initialAcceptableUnitsRef.current = result.acceptableUnits;
+        }
+        // Normalize the draft to the committed form (trims stray commas).
+        setUnitDraft(
+            unitDraftFrom(
+                initialUnitRef.current,
+                initialAcceptableUnitsRef.current,
+            ),
+        );
+    };
+
+    const handleUnitKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitUnit();
             flushAll();
             onClose();
         }
@@ -700,6 +782,23 @@ export default function BlankEditPopover({
                                 onBlur={commitTolerance}
                                 onKeyDown={handleToleranceKeyDown}
                                 aria-label="Comparison tolerance"
+                            />
+                        </label>
+                    )}
+                    {answerType === 'numeric' && !mathPromptMode && (
+                        <label className="blank-edit-popover__field">
+                            <span className="blank-edit-popover__label">
+                                Unit
+                            </span>
+                            <input
+                                type="text"
+                                className="blank-edit-popover__input"
+                                value={unitDraft}
+                                placeholder="none — e.g. km/h, kph"
+                                onChange={(e) => setUnitDraft(e.target.value)}
+                                onBlur={commitUnit}
+                                onKeyDown={handleUnitKeyDown}
+                                aria-label="Required unit (comma-separated alternates)"
                             />
                         </label>
                     )}

@@ -48,6 +48,46 @@ describe('parseBlankSpec', () => {
         });
     });
 
+    it('a numeric unit: clause peels canonical unit + comma alternates', () => {
+        expect(parseBlankSpec('=1.5 unit: km/h', '')).toMatchObject({
+            canonical: '1.5',
+            answerType: 'numeric',
+            unit: 'km/h',
+        });
+        expect(parseBlankSpec('=1.5 unit: km/h, kph', '')).toMatchObject({
+            canonical: '1.5',
+            unit: 'km/h',
+            acceptableUnits: ['kph'],
+        });
+    });
+
+    it('the unit clause is peeled BEFORE the end-anchored tolerance', () => {
+        expect(parseBlankSpec('=1.5 +- 0.1 unit: km/h', '')).toMatchObject({
+            canonical: '1.5',
+            tolerance: 0.1,
+            unit: 'km/h',
+        });
+    });
+
+    it('unit: stays literal text on text and math blanks', () => {
+        expect(parseBlankSpec('per unit: cost', '')).toMatchObject({
+            canonical: 'per unit: cost',
+            answerType: 'text',
+        });
+        const math = parseBlankSpec('==2a unit: m', '');
+        expect(math).toMatchObject({ answerType: 'math' });
+        expect(math?.unit).toBeUndefined();
+    });
+
+    it('an empty unit clause warns and is dropped', () => {
+        const spec = parseBlankSpec('=1.5 unit:  ', '');
+        expect(spec).toMatchObject({ canonical: '1.5' });
+        expect(spec?.unit).toBeUndefined();
+        expect(
+            spec?.warnings.some((w) => w.includes('unit')),
+        ).toBe(true);
+    });
+
     it('== is math and is checked BEFORE = (not mis-read as numeric)', () => {
         expect(parseBlankSpec('==2a', '')).toMatchObject({
             canonical: '2a',
@@ -134,6 +174,21 @@ describe('blankAttrsFromSpec (editor node attrs, plain-text feedback)', () => {
         expect(
             blankAttrsFromSpec(parseBlankSpec('=3.14 +- 0.01', '')!),
         ).toMatchObject({ answer: '3.14', answerType: 'numeric', tolerance: 0.01 });
+    });
+
+    it('carries the unit + alternates', () => {
+        expect(
+            blankAttrsFromSpec(parseBlankSpec('=1.5 unit: km/h, kph', '')!),
+        ).toMatchObject({
+            answer: '1.5',
+            answerType: 'numeric',
+            unit: 'km/h',
+            acceptableUnits: ['kph'],
+        });
+        // Absent, never present-and-empty — round-trip parity for plain blanks.
+        const plain = blankAttrsFromSpec(parseBlankSpec('=12', '')!);
+        expect('unit' in plain).toBe(false);
+        expect('acceptableUnits' in plain).toBe(false);
     });
 });
 

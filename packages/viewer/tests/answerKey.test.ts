@@ -62,6 +62,30 @@ describe('in-band answers (blanks + math gaps)', () => {
     expect(answers).not.toContain('3.0');
   });
 
+  it('appends the unit to a unit-bearing blank — the unit is half the answer', () => {
+    const block = {
+      id: '00000000-0000-4000-8000-0000000000aa',
+      type: 'fill_in_blank',
+      content: [
+        { type: 'text', text: 'The speed is ', marks: [] },
+        {
+          type: 'blank',
+          id: '00000000-0000-4000-8000-0000000000ab',
+          answer: '1.5',
+          acceptableAnswers: [],
+          answerType: 'numeric',
+          unit: 'km/h',
+          acceptableUnits: ['kph'],
+        },
+      ],
+      skills: [],
+    };
+    const answers = Object.values(
+      extractBlockAnswerKey(block as never).blanks ?? {},
+    );
+    expect(answers).toEqual(['1.5 km/h']);
+  });
+
   it('extracts math-gap answers keyed by prompt id', () => {
     // NOTE: this is a deliberate VIEWER-ONLY improvement (recorded in
     // ANSWER_KEY_COVERAGE). The renderer never filled math gaps in its answer

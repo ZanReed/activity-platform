@@ -96,6 +96,8 @@ export default function MathPromptControls({
           initialInterchangeable={false}
           initialAnswerType="math"
           initialTolerance={prompt.tolerance}
+          initialUnit={undefined}
+          initialAcceptableUnits={undefined}
           initialEquivalence={prompt.equivalence}
           canGroupWithPrevious={false}
           onChange={(attrs) => {

@@ -60,6 +60,29 @@ as the record.
   to non-group blanks — the group matcher has no per-slot feedback concept to
   hang them on.
 
+## AS BUILT (2026-09-01, same day)
+
+Shipped as amended. Three deltas worth recording:
+
+- **A8's enumeration missed ONE site and the test caught it live**: the
+  markdown importer's `makeBlank` builds blank attrs itself (it does not use
+  `blankAttrsFromSpec` — its own header says so), and the first importer test
+  went red on the missing unit. The site list in A8 now has a sixth member.
+- **A vacuity A8 predicted was closed with a REAL-EDITOR guard**: the pure
+  serialize round-trip cannot see Tiptap dropping an undeclared attr, so
+  `blankUnitAttrs.test.ts` mounts a real headless editor — mutation-verified:
+  undeclaring `unit` in Blank.ts reds ONLY that test while all 160 serializer
+  tests stay green.
+- **The grading corpus was deliberately NOT extended.** The corpus pins
+  runtime↔server parity for the four ported families; units never existed in
+  the runtime, so there is no parity to pin — the primitives suite and the
+  walk-level `grading-section` cases are the semantic home (all
+  mutation-tested: eleven mutations, every one red).
+
+`SANITIZER_REV` moved `2-050ad6e2` → `2-ea886923` (BLANK_SECRET_FIELDS grew),
+recorded in the printShuffle pin's log. Both bundles regenerated same-commit;
+both redeploys pending author actions.
+
 **What the builder asked for**: ~10 contextual DoL activities where the answer
 is a quantity, not a number — and the *units-dropped misconception family runs
 the full spine*. Today units live in prose, so every units-requiring item is

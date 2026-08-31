@@ -102,6 +102,13 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 typeof node.attrs.tolerance === 'number'
                     ? (node.attrs.tolerance as number)
                     : undefined;
+            const unit =
+                typeof node.attrs.unit === 'string' && node.attrs.unit.length > 0
+                    ? (node.attrs.unit as string)
+                    : undefined;
+            const acceptableUnits = Array.isArray(node.attrs.acceptableUnits)
+                ? (node.attrs.acceptableUnits as string[])
+                : undefined;
             const equivalence =
                 node.attrs.equivalence === 'exact-form'
                     ? 'exact-form'
@@ -132,6 +139,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     interchangeableWithPrevious,
                     answerType,
                     tolerance,
+                    unit,
+                    acceptableUnits,
                     equivalence,
                     canGroupWithPrevious,
                 };
@@ -171,6 +180,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 interchangeableWithPrevious: boolean;
                 answerType: 'text' | 'numeric' | 'math';
                 tolerance: number | undefined;
+                unit: string | undefined;
+                acceptableUnits: string[] | undefined;
                 equivalence: 'value' | 'exact-form' | undefined;
                 hint: InlineNodes | undefined;
                 mistakeFeedback:
@@ -206,6 +217,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             initialInterchangeable={selectedBlank.interchangeableWithPrevious}
             initialAnswerType={selectedBlank.answerType}
             initialTolerance={selectedBlank.tolerance}
+            initialUnit={selectedBlank.unit}
+            initialAcceptableUnits={selectedBlank.acceptableUnits}
             initialEquivalence={selectedBlank.equivalence}
             canGroupWithPrevious={selectedBlank.canGroupWithPrevious}
             onChange={handleChange}

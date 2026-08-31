@@ -1295,6 +1295,19 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
         ) {
             result.tolerance = rawTolerance;
         }
+        // Unit-bearing blank: numeric-only, carried only when set (like
+        // tolerance) so pre-existing blanks serialize without phantom keys.
+        const rawUnit = node.attrs?.unit;
+        if (typeof rawUnit === 'string' && rawUnit.length > 0) {
+            result.unit = rawUnit;
+            const rawAlts = node.attrs?.acceptableUnits;
+            if (Array.isArray(rawAlts)) {
+                const alts = rawAlts.filter(
+                    (u): u is string => typeof u === 'string' && u.length > 0,
+                );
+                if (alts.length > 0) result.acceptableUnits = alts;
+            }
+        }
     } else if (node.attrs?.answerType === 'math') {
         // Math answer mode (Model B): expression-equivalence grading. Tolerance
         // and equivalence ride only when set — value-mode is the default and
@@ -2011,6 +2024,10 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
         answerType: node.answerType ?? 'text',
     };
     if (node.tolerance !== undefined) attrs.tolerance = node.tolerance;
+    if (node.unit !== undefined) attrs.unit = node.unit;
+    if (node.acceptableUnits !== undefined) {
+        attrs.acceptableUnits = node.acceptableUnits;
+    }
     // Math equivalence: only 'exact-form' is stored (value is the default and
     // maps to an absent attr, keeping round-trip equality for value-mode blanks).
     if (node.equivalence === 'exact-form') attrs.equivalence = 'exact-form';

@@ -22,17 +22,15 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, the `display_name` one-row fix, and the two function redeploys for the polynomial families.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**⏳ `get-activity` + `check-activity` redeploys — OWED (2026-08-31, wishlist #2).**
-The cubic/quartic graded families changed schema, the sanitizer's family
-whitelist, and the grading engine; both bundles are regenerated and committed.
-Deploy `pnpm deploy:get-activity` and `pnpm deploy:check` (never
-`--no-verify-jwt` on check) **BEFORE pushing this commit to `main`** — a push
-is a Pages deploy (OV-7), and an author publishing a cubic/quartic activity
-against the OLD `get-activity` would serve it with the family stripped by the
-whitelist (widget falls back to a 2-handle linear layout; no leak, but a broken
-question). Verify by bundle sha256 (the CLAUDE.md download-and-hash method) —
-`SANITIZER_REV` did NOT move (declarations unchanged; no cached row can carry
-the new families, so no orphaning is needed).
+**⏳ `get-activity` + `check-activity` redeploys — OWED (covers the
+cubic/quartic AND unit-blanks slices; bundles committed for both).** Deploy
+`pnpm deploy:get-activity` + `pnpm deploy:check` (never `--no-verify-jwt`)
+**BEFORE pushing to `main`** — a push is a Pages deploy (OV-7), and the OLD
+functions would serve cubic/quartic family-stripped (broken 2-handle layout)
+and a unit-bearing blank WITH ITS UNIT VISIBLE (`unit` joined
+BLANK_SECRET_FIELDS). Verify by bundle sha256 (the CLAUDE.md method).
+`SANITIZER_REV` moved with the unit slice (`2-050ad6e2` → `2-ea886923`), which
+orphans stale read-cache rows on its own.
 
 ✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
 misconception strip is live, so **activities carrying bindings are safe to
@@ -252,12 +250,14 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-31 (evening) — **WISHLIST #2 SHIPPED: cubic + quartic
-graded families** (design record in graded-function-families.md §top; both
-server bundles regenerated same-commit; two redeploys pending — see Pending).
-Six new guards mutation-tested same-day; the detection cascade's
-interpolation-shadow bug (a quartic stealing every logarithm) is fixed with a
-midpoint verification grid. Earlier today:
+**Last updated:** 2026-09-01 — **WISHLIST #3 SHIPPED: unit-bearing numeric
+blanks** (greenlit → outside-voice review, 11 verified findings → amended →
+built; eleven mutations all red once; the review also amended #4's design —
+nway-correspondence.md R1–R8 — the next build). Before it, 2026-08-31 —
+**WISHLIST #2 SHIPPED: cubic + quartic graded families**
+(graded-function-families.md §top; both redeploys pending — see Pending; the
+detection cascade's interpolation-shadow bug is fixed with a midpoint
+verification grid). Earlier that day:
 **LANE B BUILT + HOUSEKEEPING; the
 curriculum-alignment arc is COMPLETE and the next lever is authoring.** The
 activities list orders by catalogue path; the importer's phantom

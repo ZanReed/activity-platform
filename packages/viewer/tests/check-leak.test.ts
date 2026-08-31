@@ -312,6 +312,8 @@ describe('the in-band deep walk covers the check channel too', () => {
         answer: 'POISONED_ANSWER_VALUE',
         acceptableAnswers: ['POISONED_ALTERNATE_VALUE'],
         tolerance: 987654.321,
+        unit: 'POISONED_UNIT_VALUE',
+        acceptableUnits: ['POISONED_UNIT_ALTERNATE'],
       },
     ];
 
@@ -326,6 +328,8 @@ describe('the in-band deep walk covers the check channel too', () => {
     expect(wire).not.toContain('POISONED_ANSWER_VALUE');
     expect(wire).not.toContain('POISONED_ALTERNATE_VALUE');
     expect(wire).not.toContain('987654.321');
+    expect(wire).not.toContain('POISONED_UNIT_VALUE');
+    expect(wire).not.toContain('POISONED_UNIT_ALTERNATE');
     // The readable part still reaches the student — stripping must not gut it.
     expect(wire).toContain('first isolate the variable');
   });

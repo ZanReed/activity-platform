@@ -21,6 +21,11 @@ import {
 // when followed by a bare number at the end.
 export const TOLERANCE_RE = /^(.*?)\s*(?:±|\+-)\s*(\d*\.?\d+)$/;
 
+// `=1.5 +- 0.1 unit: km/h, kph` — the trailing unit clause of a NUMERIC blank.
+// Lazy prefix so the FIRST " unit:" splits; the clause runs to the segment end
+// (commas separate alternates; `|` cannot appear inside a segment).
+export const UNIT_CLAUSE_RE = /^(.*?)\s+unit:\s*(.*)$/i;
+
 // The parsed shape of a blank's brace contents, BEFORE any Tiptap/inline
 // construction. Pure string work so it unit-tests without a ctx or the editor
 // schema. Each consumer turns it into a node its own way (the importer resolves
@@ -31,6 +36,11 @@ export interface BlankSpec {
     canonical: string;
     answerType: 'text' | 'numeric' | 'math';
     tolerance?: number;
+    // Unit-bearing numeric blank ({{=1.5 unit: km/h, kph}}): the canonical
+    // unit + normalized-equal alternates. Numeric only; on text/math blanks
+    // "unit:" stays literal text.
+    unit?: string;
+    acceptableUnits?: string[];
     interchangeableWithPrevious: boolean;
     acceptableAnswers: string[];
     // Raw hint text (each consumer builds the InlineNode[] its own way).
@@ -82,12 +92,34 @@ export function parseBlankSpec(
     // ({{~=3}}, {{~==2a}}).
     let answerType: 'text' | 'numeric' | 'math' = 'text';
     let tolerance: number | undefined;
+    let unit: string | undefined;
+    let acceptableUnits: string[] | undefined;
     if (canonical.startsWith('==')) {
         answerType = 'math';
         canonical = canonical.slice(2).trim();
     } else if (canonical.startsWith('=')) {
         answerType = 'numeric';
         canonical = canonical.slice(1).trim();
+        // The unit clause is peeled BEFORE the tolerance: TOLERANCE_RE is
+        // end-anchored, so in `=1.5 +- 0.1 unit: km/h` the clause would
+        // otherwise be swallowed into the answer. Numeric blanks only — on
+        // text and math blanks "unit:" stays literal text.
+        const unitMatch = UNIT_CLAUSE_RE.exec(canonical);
+        if (unitMatch && unitMatch[1] !== undefined) {
+            const parts = (unitMatch[2] ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+            canonical = unitMatch[1].trim();
+            if (parts.length > 0) {
+                unit = parts[0];
+                if (parts.length > 1) acceptableUnits = parts.slice(1);
+            } else {
+                warnings.push(
+                    'Fill-in-the-blank: a "unit:" clause with no unit after it — ignored.',
+                );
+            }
+        }
         const tolMatch = TOLERANCE_RE.exec(canonical);
         if (tolMatch && tolMatch[1] && tolMatch[1].trim().length > 0) {
             canonical = tolMatch[1].trim();
@@ -171,6 +203,8 @@ export function parseBlankSpec(
         canonical,
         answerType,
         ...(tolerance !== undefined ? { tolerance } : {}),
+        ...(unit !== undefined ? { unit } : {}),
+        ...(acceptableUnits !== undefined ? { acceptableUnits } : {}),
         interchangeableWithPrevious,
         acceptableAnswers,
         hint,
@@ -199,6 +233,8 @@ export interface BlankNodeAttrs {
     interchangeableWithPrevious: boolean;
     answerType: 'text' | 'numeric' | 'math';
     tolerance?: number;
+    unit?: string;
+    acceptableUnits?: string[];
     hint?: InlineTextNode[];
     mistakeFeedback?: {
         match: string;
@@ -214,6 +250,10 @@ export function blankAttrsFromSpec(spec: BlankSpec): BlankNodeAttrs {
         interchangeableWithPrevious: spec.interchangeableWithPrevious,
         answerType: spec.answerType,
         ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
+        ...(spec.unit !== undefined ? { unit: spec.unit } : {}),
+        ...(spec.acceptableUnits !== undefined
+            ? { acceptableUnits: spec.acceptableUnits }
+            : {}),
     };
     if (spec.hint) attrs.hint = plainInline(spec.hint);
     if (spec.mistakes.length > 0) {

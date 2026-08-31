@@ -163,6 +163,43 @@ export function resolveToleranceCommit(
   return { changed: n !== initialTolerance, value: n };
 }
 
+// ---- unit commit (numeric blanks) -------------------------------------------
+// One text field holds the canonical unit plus comma-separated alternates
+// ("km/h, kph"). Empty clears both attrs. Pure so the split/rejoin rules are
+// unit-testable without the popover.
+
+export interface UnitCommit {
+  changed: boolean;
+  unit: string | undefined;
+  acceptableUnits: string[] | undefined;
+}
+
+export function unitDraftFrom(
+  unit: string | undefined,
+  acceptableUnits: string[] | undefined,
+): string {
+  if (!unit) return '';
+  return [unit, ...(acceptableUnits ?? [])].join(', ');
+}
+
+export function resolveUnitCommit(
+  draft: string,
+  initialUnit: string | undefined,
+  initialAcceptableUnits: string[] | undefined,
+): UnitCommit {
+  const parts = draft
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const unit = parts[0];
+  const acceptableUnits = parts.length > 1 ? parts.slice(1) : undefined;
+  const changed =
+    unit !== initialUnit ||
+    JSON.stringify(acceptableUnits ?? []) !==
+      JSON.stringify(initialAcceptableUnits ?? []);
+  return { changed, unit, acceptableUnits };
+}
+
 export interface SelectedBlankState {
   pos: number;
   blankId: string;
@@ -177,6 +214,9 @@ export interface SelectedBlankState {
   answerType: 'text' | 'numeric' | 'math';
   /** Numeric/math comparison tolerance (a node attr; undefined = exact). */
   tolerance: number | undefined;
+  /** Unit-bearing numeric blank: required unit + alternates (node attrs). */
+  unit: string | undefined;
+  acceptableUnits: string[] | undefined;
   /** Math equivalence mode (a node attr; only for 'math', undefined = 'value'). */
   equivalence: 'value' | 'exact-form' | undefined;
   /**
@@ -209,6 +249,8 @@ export function isSameBlankSelection(
     prev.interchangeableWithPrevious === next.interchangeableWithPrevious &&
     prev.answerType === next.answerType &&
     prev.tolerance === next.tolerance &&
+    prev.unit === next.unit &&
+    listsEqual(prev.acceptableUnits ?? [], next.acceptableUnits ?? []) &&
     prev.equivalence === next.equivalence &&
     prev.canGroupWithPrevious === next.canGroupWithPrevious
   );

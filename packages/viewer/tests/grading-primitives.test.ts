@@ -25,12 +25,18 @@ import {
 } from '../src/server/grading/numeric.js';
 import {
   groupBlanks,
+  matchMistakeEntry,
   matchMistakeFeedback,
   scoreBlank,
   scoreBlankGroup,
   selectBlankFeedback,
   type BlankKey,
 } from '../src/server/grading/blanks.js';
+import {
+  splitUnitEntry,
+  normalizeUnit,
+  unitAccepted,
+} from '../src/server/grading/units.js';
 import {
   scoreMatching,
   scoreMultipleChoice,
@@ -212,6 +218,136 @@ describe('numeric blanks', () => {
   it('compares within tolerance plus the epsilon', () => {
     expect(numericallyClose(1, 1.5, 0.5)).toBe(true);
     expect(numericallyClose(1, 1.6, 0.5)).toBe(false);
+  });
+});
+
+describe('unit-bearing numeric blanks', () => {
+  const unitBlank = (over: Partial<BlankKey> = {}) =>
+    blank(['1.5'], { answerType: 'numeric', unit: 'km/h', ...over });
+
+  describe('splitUnitEntry (longest leading numeric prefix)', () => {
+    it.each([
+      ['1.5 km/h', 1.5, 'km/h'],
+      ['1.5km/h', 1.5, 'km/h'],
+      ['1 1/2 km/h', 1.5, 'km/h'],
+      ['$3.50 per lb', 3.5, 'per lb'],
+      ['1,234 km', 1234, 'km'],
+      ['1.5e3 m', 1500, 'm'],
+      ['-2.5 °C', -2.5, '°C'],
+    ])('splits %s into %d + %s', (raw, value, unit) => {
+      expect(splitUnitEntry(raw)).toEqual({ value, unit });
+    });
+
+    it('a bare number splits with a null unit', () => {
+      expect(splitUnitEntry('1.5')).toEqual({ value: 1.5, unit: null });
+    });
+
+    it('no leading number means no split (the "no solution" path)', () => {
+      expect(splitUnitEntry('no solution')).toBeNull();
+      expect(splitUnitEntry('km/h 1.5')).toBeNull();
+      expect(splitUnitEntry('')).toBeNull();
+    });
+  });
+
+  describe('normalizeUnit + unitAccepted', () => {
+    it('is case- and spacing-insensitive, with · unified to *', () => {
+      expect(normalizeUnit('KM / h')).toBe(normalizeUnit('km/h'));
+      expect(normalizeUnit('N·m')).toBe(normalizeUnit('n * m'));
+      expect(normalizeUnit('fluid  ounces')).toBe('fluid ounces');
+    });
+
+    it('never converts between units', () => {
+      expect(unitAccepted('m/h', 'km/h', undefined)).toBe(false);
+    });
+
+    it('accepts authored alternates', () => {
+      expect(unitAccepted('kph', 'km/h', ['kph'])).toBe(true);
+      expect(unitAccepted('mph', 'km/h', ['kph'])).toBe(false);
+    });
+  });
+
+  describe('scoring: value AND unit', () => {
+    it('right value + right unit is correct, in any accepted numeric form', () => {
+      expect(scoreBlank('1.5 km/h', unitBlank())).toBe(true);
+      expect(scoreBlank('3/2 km/h', unitBlank())).toBe(true);
+      expect(scoreBlank('1 1/2km/h', unitBlank())).toBe(true);
+    });
+
+    it('a bare value is WRONG — forgetting the unit is the diagnostic', () => {
+      expect(scoreBlank('1.5', unitBlank())).toBe(false);
+    });
+
+    it('right value + wrong unit is wrong; alternates and tolerance apply', () => {
+      expect(scoreBlank('1.5 m/h', unitBlank())).toBe(false);
+      expect(scoreBlank('1.5 kph', unitBlank({ acceptableUnits: ['kph'] }))).toBe(
+        true,
+      );
+      expect(scoreBlank('1.45 km/h', unitBlank({ tolerance: 0.1 }))).toBe(true);
+      expect(scoreBlank('1.2 km/h', unitBlank({ tolerance: 0.1 }))).toBe(false);
+    });
+
+    it('unit comparison ignores case and spacing', () => {
+      expect(scoreBlank('1.5 KM / h', unitBlank())).toBe(true);
+    });
+
+    it('a non-numeric key entry still scores by exact text ("no solution")', () => {
+      const k = unitBlank({ answers: ['1.5', 'no solution'] });
+      expect(scoreBlank('no solution', k)).toBe(true);
+    });
+
+    it('a plain numeric blank (no unit) is untouched by all of this', () => {
+      const plain = blank(['1.5'], { answerType: 'numeric' });
+      expect(scoreBlank('1.5', plain)).toBe(true);
+      expect(scoreBlank('1.5 km/h', plain)).toBe(false);
+    });
+  });
+
+  describe('reserved mistake matches (unit outcomes)', () => {
+    const withOutcomes = unitBlank({
+      mistakeFeedback: [
+        {
+          match: 'unit-missing',
+          feedback: ['what are you measuring in?'],
+          misconceptionId: 'mis.units.dropped',
+        },
+        { match: 'unit-wrong', feedback: ['check the unit'] },
+        { match: '1500', feedback: ['did you convert?'] },
+      ],
+    });
+
+    it('unit-missing fires on a right value with no unit', () => {
+      const entry = matchMistakeEntry('1.5', withOutcomes);
+      expect(entry?.match).toBe('unit-missing');
+      expect(entry?.misconceptionId).toBe('mis.units.dropped');
+    });
+
+    it('unit-wrong fires on a right value with an unaccepted unit', () => {
+      expect(matchMistakeEntry('1.5 mph', withOutcomes)?.match).toBe(
+        'unit-wrong',
+      );
+    });
+
+    it('neither fires when the VALUE is wrong — the unit is not the diagnosis', () => {
+      expect(matchMistakeEntry('7 km/h', withOutcomes)).toBeNull();
+      expect(matchMistakeEntry('7', withOutcomes)).toBeNull();
+    });
+
+    it('authored numeric matches compare on the value part', () => {
+      expect(matchMistakeEntry('1500 m/h', withOutcomes)?.match).toBe('1500');
+      expect(matchMistakeEntry('1500', withOutcomes)?.match).toBe('1500');
+    });
+
+    it('a match string with its own unit requires the units to agree', () => {
+      const k = unitBlank({
+        mistakeFeedback: [{ match: '1500 m/h', feedback: ['converted?'] }],
+      });
+      expect(matchMistakeEntry('1500 m/h', k)?.match).toBe('1500 m/h');
+      expect(matchMistakeEntry('1500 mph', k)).toBeNull();
+    });
+
+    it('a student literally typing the reserved token cannot summon it', () => {
+      expect(matchMistakeEntry('unit-missing', withOutcomes)).toBeNull();
+    });
   });
 });
 

@@ -1243,6 +1243,10 @@ function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | n
         interchangeableWithPrevious: spec.interchangeableWithPrevious,
         answerType: spec.answerType,
         ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
+        ...(spec.unit !== undefined ? { unit: spec.unit } : {}),
+        ...(spec.acceptableUnits !== undefined
+            ? { acceptableUnits: spec.acceptableUnits }
+            : {}),
     };
     if (spec.hint) attrs.hint = inlineSchemaContent(spec.hint, ctx);
     if (spec.mistakes.length > 0) {

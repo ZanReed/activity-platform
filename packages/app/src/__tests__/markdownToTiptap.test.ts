@@ -1069,6 +1069,24 @@ describe('numeric blanks ({{=…}})', () => {
         });
     });
 
+    it('a trailing unit: clause carries the unit + comma alternates', () => {
+        const out = convert(
+            'the speed is {{=1.5 unit: km/h, kph}} and pi is {{=3.14 +- 0.01 unit: rad}}',
+        ).blocks;
+        const blanks = out[0]!.content!.filter((n) => n.type === 'blank');
+        expect(blanks[0]!.attrs).toMatchObject({
+            answer: '1.5',
+            answerType: 'numeric',
+            unit: 'km/h',
+            acceptableUnits: ['kph'],
+        });
+        expect(blanks[1]!.attrs).toMatchObject({
+            answer: '3.14',
+            tolerance: 0.01,
+            unit: 'rad',
+        });
+    });
+
     it('combines with ~ (tilde first: {{~=3}})', () => {
         const out = convert('roots: {{=2}} and {{~=3}}').blocks;
         const blanks = out[0]!.content!.filter((n) => n.type === 'blank');

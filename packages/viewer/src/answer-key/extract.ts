@@ -63,7 +63,14 @@ function collectInBand(value: unknown, out: InBandAnswers): void {
   if (node.type === 'blank' && typeof node.id === 'string') {
     // Canonical answer only — never the acceptableAnswers alternates. A key
     // wants one definitive value on the line (the renderer's same call).
-    if (typeof node.answer === 'string') out.blanks[node.id] = node.answer;
+    // A unit-bearing blank's unit is half the answer, so the key line carries
+    // it ("1.5 km/h", never a bare "1.5").
+    if (typeof node.answer === 'string') {
+      out.blanks[node.id] =
+        typeof node.unit === 'string' && node.unit.length > 0
+          ? `${node.answer} ${node.unit}`
+          : node.answer;
+    }
     return;
   }
 

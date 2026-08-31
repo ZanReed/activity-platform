@@ -151,6 +151,19 @@ function blankTokenToKey(node: Record<string, unknown>): BlankKey {
       : [],
     hint: Array.isArray(node.hint) ? (node.hint as unknown[]) : undefined,
     interchangeableWithPrevious: node.interchangeableWithPrevious === true,
+    // Unit-bearing numeric blanks: the required unit + accepted alternates.
+    ...(typeof node.unit === 'string' && node.unit.length > 0
+      ? {
+          unit: node.unit,
+          ...(Array.isArray(node.acceptableUnits)
+            ? {
+                acceptableUnits: (node.acceptableUnits as unknown[]).filter(
+                  (u): u is string => typeof u === 'string',
+                ),
+              }
+            : {}),
+        }
+      : {}),
   };
 }
 

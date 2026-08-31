@@ -14,6 +14,8 @@ import {
   resolveAnswerBlur,
   resolveAcceptableCommit,
   resolveToleranceCommit,
+  resolveUnitCommit,
+  unitDraftFrom,
   filterFeedbackForCommit,
   isSameBlankSelection,
   stripList,
@@ -188,6 +190,8 @@ describe('isSameBlankSelection', () => {
     interchangeableWithPrevious: false,
     answerType: 'text',
     tolerance: undefined,
+    unit: undefined,
+    acceptableUnits: undefined,
     equivalence: undefined,
     canGroupWithPrevious: false,
     ...over,
@@ -245,6 +249,36 @@ describe('isSameBlankSelection', () => {
         make({ answerType: 'math', equivalence: 'exact-form' }),
       ),
     ).toBe(false);
+  });
+});
+
+describe('resolveUnitCommit + unitDraftFrom', () => {
+  it('round-trips a canonical unit with alternates through the draft form', () => {
+    expect(unitDraftFrom('km/h', ['kph'])).toBe('km/h, kph');
+    expect(unitDraftFrom(undefined, undefined)).toBe('');
+    expect(
+      resolveUnitCommit('km/h, kph', undefined, undefined),
+    ).toEqual({ changed: true, unit: 'km/h', acceptableUnits: ['kph'] });
+  });
+
+  it('an unchanged draft does not commit', () => {
+    expect(resolveUnitCommit('km/h, kph', 'km/h', ['kph']).changed).toBe(false);
+    expect(resolveUnitCommit(' km/h ,  kph ', 'km/h', ['kph']).changed).toBe(
+      false,
+    );
+  });
+
+  it('an empty draft clears both attrs (only if a unit was set)', () => {
+    expect(resolveUnitCommit('', 'km/h', ['kph'])).toEqual({
+      changed: true,
+      unit: undefined,
+      acceptableUnits: undefined,
+    });
+    expect(resolveUnitCommit('  ', undefined, undefined).changed).toBe(false);
+  });
+
+  it('dropping the alternates alone is a change', () => {
+    expect(resolveUnitCommit('km/h', 'km/h', ['kph']).changed).toBe(true);
   });
 });
 
