@@ -330,8 +330,11 @@ fired.
 
 ## 5e. The correspondence, and what the platform retracted (2026-08-26 → 31)
 
-This slice was settled across **eight numbered letters** with the curriculum
-side. The durable record of the exchange is **their `boundary-page.md`** — open
+This slice was settled across **roughly seventeen letters each way over six
+days** — the last eight numbered, after a lost letter forced the correspondence
+index into existence. That count is recorded rather than rounded down because it
+is the honest cost of writing a contract between two systems, and the argument
+for the boundary page is that the next one should not need it. The durable record of the exchange is **their `boundary-page.md`** — open
 items with owners and landing artifacts, a numbered correspondence index, and a
 retractions table for both sides. The letters themselves were transient; the
 rulings are in this document and in TODOS.

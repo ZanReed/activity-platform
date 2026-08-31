@@ -83,6 +83,23 @@ byte-identical manifest — that no-diff is the check, not the exit code.
    merging first.** That ordering saved 13 live bindings once already; it is now
    a standing step on the curriculum side.
 
+## The original ask, and the one piece of it still open
+
+The session began with: *organize the activity organization system so it aligns
+with what the activity builder expects — an eng review and dev review expected at
+a minimum.*
+
+**Both reviews ran.** The report is the terminal section of the plan file, and it
+records the eng scope gate, all four eng sections, and two DX sections as
+complete, with R1–R19 as the rulings. ⚠ **The outside voice did NOT run** — codex
+is not installed on this machine and the subagent fallback was barred by a
+session rule. That is the one process gap and it is recorded as such rather than
+quietly skipped.
+
+**What remains of the original ask is Lane B**, which is the only part of the
+design that was never built. If the outside voice is wanted, Lane B is the
+natural target: it is still a plan, so a plan review still applies to it.
+
 ## Open work, in the order it is worth doing
 
 **Lane B — sort the activities list by catalogue path.** Designed, not built,
