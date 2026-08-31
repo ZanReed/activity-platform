@@ -318,6 +318,16 @@ describe('request validation', () => {
     ['blanks', { responses: { blanks: { a: 5 } } }, 'bad_blanks'],
     ['choices', { responses: { choices: { a: 'not-an-array' } } }, 'bad_choices'],
     ['matches', { responses: { matches: { a: { b: 7 } } } }, 'bad_matches'],
+    [
+      'correspondences (non-string leaf)',
+      { responses: { correspondences: { a: { b: { c: 7 } } } } },
+      'bad_correspondences',
+    ],
+    [
+      'correspondences (flat map)',
+      { responses: { correspondences: { a: { b: 'target' } } } },
+      'bad_correspondences',
+    ],
     ['orderings', { responses: { orderings: { a: [1, 2] } } }, 'bad_orderings'],
     ['freeText', { responses: { freeText: { a: [] } } }, 'bad_free_text'],
   ])('rejects a malformed %s', (_label, over, code) => {
@@ -347,6 +357,20 @@ describe('request validation', () => {
     if (!result.ok) return;
     expect(result.request.responses.choices).toEqual({});
     expect(result.request.responses.graphs).toEqual({});
+    expect(result.request.responses.correspondences).toEqual({});
+  });
+
+  it('accepts a well-formed correspondences map (item → column → target)', () => {
+    const result = validateCheckRequest(
+      validBody({
+        responses: { correspondences: { block: { item: { col: 'target' } } } },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.responses.correspondences).toEqual({
+      block: { item: { col: 'target' } },
+    });
   });
 
   it('never grades or records a rejected request', async () => {

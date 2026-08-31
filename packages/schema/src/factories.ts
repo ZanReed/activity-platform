@@ -34,6 +34,8 @@ import type {
   MatchingBlock,
   MatchingItem,
   MatchingTarget,
+  CorrespondenceBlock,
+  TargetColumn,
   OrderingBlock,
   OrderingItem,
   NumberLineBlock,
@@ -217,6 +219,35 @@ export function createMatchingBlock(): MatchingBlock {
     prompt: [],
     items,
     targets,
+    key,
+    skills: [],
+  };
+}
+
+// Two anchor items × two target columns of two cards each, identity key —
+// the smallest valid correspondence, edited in place (matching's precedent).
+export function createCorrespondenceBlock(): CorrespondenceBlock {
+  const items = [createMatchingItem(), createMatchingItem()];
+  const targetColumns: TargetColumn[] = [0, 1].map(() => ({
+    id: uuid(),
+    header: [],
+    targets: [createMatchingTarget(), createMatchingTarget()],
+  }));
+  const key: Record<string, Record<string, string>> = {};
+  items.forEach((item, i) => {
+    const row: Record<string, string> = {};
+    for (const column of targetColumns) {
+      const target = column.targets[i];
+      if (target) row[column.id] = target.id;
+    }
+    key[item.id] = row;
+  });
+  return {
+    id: uuid(),
+    type: 'correspondence',
+    prompt: [],
+    items,
+    targetColumns,
     key,
     skills: [],
   };

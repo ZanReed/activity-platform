@@ -35,6 +35,7 @@ import {
     createFillInBlankBlock,
     createMultipleChoiceBlock,
     createMatchingBlock,
+    createCorrespondenceBlock,
     createOrderingBlock,
     createBulletListBlock,
     createOrderedListBlock,
@@ -93,6 +94,8 @@ function representativeBlock(type: string): Block {
             return createMultipleChoiceBlock();
         case 'matching':
             return createMatchingBlock();
+        case 'correspondence':
+            return createCorrespondenceBlock();
         case 'ordering':
             return createOrderingBlock();
         case 'interactive_graph':

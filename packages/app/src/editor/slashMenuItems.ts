@@ -415,6 +415,17 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Correspondence',
+        description: 'A 3- or 4-way match: each item pairs with one card from every column.',
+        keywords: ['correspondence', 'nway', 'n-way', 'match', 'representations', 'columns'],
+        group: 'Questions',
+        subgroup: 'Choice & drag',
+        icon: Waypoints,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertCorrespondence().run();
+        },
+    },
+    {
         title: 'Ordering',
         description: 'Students drag a shuffled list into the correct sequence.',
         keywords: ['ordering', 'order', 'sequence', 'sequencing', 'sort', 'steps', 'arrange'],

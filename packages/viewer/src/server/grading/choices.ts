@@ -131,6 +131,40 @@ export function scoreMatching(
   return { verdict, earned, total };
 }
 
+// ---- correspondence ---------------------------------------------------------
+
+/**
+ * Per-CELL scoring with an all-or-nothing block verdict — matching's rule,
+ * one axis deeper. A cell is one (item, column) pairing; earned = correctly
+ * docked cells; total = items × columns (the denominator never shrinks
+ * because cells were left empty or the key row is partial — an unkeyed cell
+ * can never be correct, which is a content problem to surface, not a free
+ * point). Iterates the AUTHORED item and column lists so a malformed payload
+ * cannot inflate `total`. The omission gate is matching's: null only when
+ * the student docked NO cell at all.
+ */
+export function scoreCorrespondence(
+  cells: Record<string, Record<string, string>>,
+  key: Record<string, Record<string, string>>,
+  itemIds: string[],
+  columnIds: string[],
+): MatchScore {
+  let earned = 0;
+  let placedCount = 0;
+  for (const itemId of itemIds) {
+    const placedRow = cells[itemId];
+    const keyRow = key[itemId];
+    for (const columnId of columnIds) {
+      const placed = placedRow?.[columnId];
+      if (placed !== undefined) placedCount += 1;
+      if (placed !== undefined && placed === keyRow?.[columnId]) earned += 1;
+    }
+  }
+  const total = itemIds.length * columnIds.length;
+  const verdict: ItemVerdict = placedCount === 0 ? null : earned === total;
+  return { verdict, earned, total };
+}
+
 // ---- ordering ---------------------------------------------------------------
 
 /**

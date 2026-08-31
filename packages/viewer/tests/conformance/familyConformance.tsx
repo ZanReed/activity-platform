@@ -98,6 +98,16 @@ function answerEverything(store: ViewerStore, block: SanitizedBlock) {
     const targets = raw.targets as Array<{ id: string }> | undefined;
     if (items?.[0] && targets?.[0]) store.setMatch(id, items[0].id, targets[0].id);
   }
+  for (const id of section.items.correspondences ?? []) {
+    const items = raw.items as Array<{ id: string }> | undefined;
+    const columns = raw.targetColumns as
+      | Array<{ id: string; targets: Array<{ id: string }> }>
+      | undefined;
+    const column = columns?.[0];
+    if (items?.[0] && column?.targets[0]) {
+      store.setCorrespondence(id, items[0].id, column.id, column.targets[0].id);
+    }
+  }
   return section;
 }
 
@@ -313,6 +323,7 @@ export function registerFamilyConformance(type: BlockType): void {
           Object.keys(responses.blanks).length +
           Object.keys(responses.choices).length +
           Object.keys(responses.matches).length +
+          Object.keys(responses.correspondences ?? {}).length +
           Object.keys(responses.orderings).length +
           Object.keys(responses.freeText).length +
           Object.keys(responses.graphs).length;

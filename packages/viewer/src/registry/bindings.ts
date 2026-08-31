@@ -37,6 +37,7 @@ import Essay from '../blocks/Essay.js';
 import FillInBlank from '../blocks/FillInBlank.js';
 import Ordering from '../blocks/Ordering.js';
 import Matching from '../blocks/Matching.js';
+import Correspondence from '../blocks/Correspondence.js';
 import WorkedExample from '../blocks/WorkedExample.js';
 import Table from '../blocks/Table.js';
 import FadedWorkedExample from '../blocks/FadedWorkedExample.js';
@@ -64,6 +65,7 @@ export const blockBindings: Partial<
   multiple_choice: { loading: 'eager', component: MultipleChoice as never },
   fill_in_blank: { loading: 'eager', component: FillInBlank as never },
   matching: { loading: 'eager', component: Matching as never },
+  correspondence: { loading: 'eager', component: Correspondence as never },
   ordering: { loading: 'eager', component: Ordering as never },
   short_answer: { loading: 'eager', component: ShortAnswer as never },
   self_explanation: { loading: 'eager', component: SelfExplanation as never },

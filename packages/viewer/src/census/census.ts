@@ -165,6 +165,7 @@ export function censusOfDocument(doc: ActivityDocument): VersionCensus {
     }
     for (const mc of inv.multipleChoice) push(mc.blockId, mc.blockId);
     for (const m of inv.matching) push(m.blockId, m.blockId);
+    for (const c of inv.correspondence) push(c.blockId, c.blockId);
     for (const o of inv.ordering) push(o.blockId, o.blockId);
     for (const g of inv.graphs) push(g.blockId, g.blockId);
     for (const id of inv.freeText) push(id, id);

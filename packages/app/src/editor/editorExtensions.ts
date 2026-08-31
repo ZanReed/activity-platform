@@ -38,6 +38,7 @@ import { NumberLine } from './extensions/NumberLine';
 import { DataPlot } from './extensions/DataPlot';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
+import { Correspondence } from './extensions/Correspondence';
 import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
@@ -151,6 +152,7 @@ export function buildEditorExtensions({
         // Matching + ordering question blocks (2026-07-10): editable prompt +
         // structured item/target lists, authored in-place like MC.
         Matching,
+        Correspondence,
         Ordering,
         // Pedagogical content blocks (Phase 2): a titled objectives list and a
         // boxed worked example whose body holds nested content blocks. Pure

@@ -147,6 +147,7 @@ describe('a11y stories (ruling 6.1A)', () => {
     );
     expect(interactive.sort()).toEqual(
       [
+        'correspondence',
         'data_plot',
         'essay',
         'fill_in_blank',
@@ -222,6 +223,7 @@ describe('sanitize declarations (ruling TV4-A)', () => {
       'fill_in_blank',
       'multiple_choice',
       'matching',
+      'correspondence',
       'ordering',
       'interactive_graph',
       'number_line',
@@ -297,6 +299,7 @@ describe('print declarations (faithful to the baseline print layer)', () => {
     // off this list: no prompt is ever separated from the space to answer it.
     expect(avoid.sort()).toEqual(
       [
+        'correspondence',
         'data_plot',
         'essay',
         'faded_worked_example',

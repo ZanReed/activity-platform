@@ -166,6 +166,12 @@ function visit(block: SanitizedBlock, index: SectionIndex): void {
       case 'matching':
         index.items.matches = [...(index.items.matches ?? []), id];
         break;
+      case 'correspondence':
+        index.items.correspondences = [
+          ...(index.items.correspondences ?? []),
+          id,
+        ];
+        break;
       case 'ordering':
         index.items.orderings = [...(index.items.orderings ?? []), id];
         break;

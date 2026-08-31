@@ -43,6 +43,7 @@ const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
   'fill_in_blank',
   'multiple_choice',
   'matching',
+  'correspondence',
   'ordering',
   'number_line',
   // The manually-graded free-response pair (ruling E7). They are questions a
@@ -143,6 +144,7 @@ export function isGradeable(block: Block): boolean {
     case 'fill_in_blank':
     case 'multiple_choice':
     case 'matching':
+    case 'correspondence':
     case 'ordering':
     case 'number_line':
     case 'self_explanation':

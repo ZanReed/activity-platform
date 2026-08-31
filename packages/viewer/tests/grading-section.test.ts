@@ -585,7 +585,7 @@ describe('wire shape', () => {
   it('stamps the wire version and echoes the section id', () => {
     const result = grade({});
     expect(result.sectionId).toBe(sectionId);
-    expect(result.wireVersion).toBe(2);
+    expect(result.wireVersion).toBe(3);
   });
 
   it('keys items by the SAME ids the request used', () => {
@@ -1073,5 +1073,89 @@ describe('unit-bearing blanks grade end to end (the walk projects the unit)', ()
     const result = grade('1.5 mph');
     expect(result.items[unitBlankId]?.verdict).toBe('incorrect');
     expect(result.items[unitBlankId]?.misconceptionIds).toBeUndefined();
+  });
+});
+
+describe('correspondence grades end to end (the walk projects the nested key)', () => {
+  const t = (text: string) => ({ type: 'text', text });
+  const corrId = crypto.randomUUID();
+  const itemA = crypto.randomUUID();
+  const itemB = crypto.randomUUID();
+  const colGraph = crypto.randomUUID();
+  const colDesc = crypto.randomUUID();
+  const gA = crypto.randomUUID();
+  const gB = crypto.randomUUID();
+  const dA = crypto.randomUUID();
+  const dB = crypto.randomUUID();
+
+  const corrBlock = {
+    id: corrId,
+    type: 'correspondence',
+    prompt: [t('match the representations')],
+    items: [
+      { id: itemA, content: [t('y = 2x')] },
+      { id: itemB, content: [t('y = -x')] },
+    ],
+    targetColumns: [
+      {
+        id: colGraph,
+        header: [t('Graph')],
+        targets: [
+          { id: gA, content: [t('rises')] },
+          { id: gB, content: [t('falls')] },
+        ],
+      },
+      {
+        id: colDesc,
+        header: [t('Description')],
+        targets: [
+          { id: dA, content: [t('doubles')] },
+          { id: dB, content: [t('drops')] },
+        ],
+      },
+    ],
+    key: {
+      [itemA]: { [colGraph]: gA, [colDesc]: dA },
+      [itemB]: { [colGraph]: gB, [colDesc]: dB },
+    },
+  };
+
+  function grade(cells: Record<string, Record<string, string>> | undefined) {
+    return gradeSection({
+      document: {
+        sections: [
+          {
+            id: 'corr-section',
+            rows: [{ columns: [{ blocks: [corrBlock] }] }],
+          },
+        ],
+      } as never,
+      sectionId: 'corr-section',
+      responses: {
+        ...emptySectionResponses(),
+        ...(cells ? { correspondences: { [corrId]: cells } } : {}),
+      },
+    });
+  }
+
+  it('every cell right is correct', () => {
+    const result = grade({
+      [itemA]: { [colGraph]: gA, [colDesc]: dA },
+      [itemB]: { [colGraph]: gB, [colDesc]: dB },
+    });
+    expect(result.items[corrId]?.verdict).toBe('correct');
+  });
+
+  it('one wrong cell is incorrect', () => {
+    const result = grade({
+      [itemA]: { [colGraph]: gA, [colDesc]: dB },
+      [itemB]: { [colGraph]: gB, [colDesc]: dB },
+    });
+    expect(result.items[corrId]?.verdict).toBe('incorrect');
+  });
+
+  it('nothing docked produces NO entry — unanswered, never wrong', () => {
+    expect(grade(undefined).items[corrId]).toBeUndefined();
+    expect(grade({}).items[corrId]).toBeUndefined();
   });
 });

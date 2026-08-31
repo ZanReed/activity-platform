@@ -18,10 +18,9 @@ data (D8/D10).
 alongside as a cheap win, then #5 → #3 → #6.** Each still gets its own design
 pass with numbered decisions before code.
 
-⚠ **STATUS 2026-09-01: #1, #2 and #3 are SHIPPED; the ranked remainder is
-#4 → #5 → #6.** #4 is greenlit with an outside-voice-amended design
-([nway-correspondence.md](docs/design/nway-correspondence.md) R1–R8) and is
-the next build.
+⚠ **STATUS 2026-09-01 (later): #1–#4 are ALL SHIPPED; the ranked remainder is
+#5 → #6.** Both #5 and #6 still need their own design pass (and #5's mistake
+signal rides #1's shipped machinery, so its main dependency is met).
 
 1. ✅ **Misconception ids on distractors, in the markdown — SHIPPED
    2026-08-25.** Ids ride import → schema → sanitize → the server grader
@@ -80,17 +79,17 @@ the next build.
    mutations, every guard red once; `SANITIZER_REV` moved; both bundles
    same-commit; redeploys pending (STATE). Unblocks the ~10 contextual DoLs.
 
-4. **`nway_correspondence` — 4-way match with per-edge partial credit.**
-   (Blocks ~5: same-function-across-representations.) Verified: `match` is
-   strictly two-column pairs. A new block type — full add-a-block-type
-   checklist (schema, editor, viewer, print CSS, scorer, both bundles).
-   Fallback: chained two-column matches, lossy, no per-edge signal.
-   ⏸ **DESIGN PASS WRITTEN 2026-09-01, awaiting the author's yes/no per
-   decision:** [nway-correspondence.md](docs/design/nway-correspondence.md) —
-   D1–D10 (anchor-rows interaction, per-cell edge scoring, `correspondence`
-   naming, the ```correspond fence, wire bump, deferred misconception ids),
-   each with a recommendation. Code waits for the greenlight (working-style
-   gate for new block types).
+4. ✅ **`nway_correspondence` — SHIPPED 2026-09-01** as the `correspondence`
+   block (greenlit → outside-voice reviewed, 8 findings → amended R1–R8 →
+   built). Anchor items + 2–3 shuffled card columns, one native select per
+   (item, column) cell, per-cell scoring (earned/total stored via the raw
+   cells map; verdict boolean like matching), the ```correspond fence with
+   math-safe `|` splitting, per-column marker sequences (A/i/α), and
+   `CHECK_WIRE_VERSION` 2→3. Design + amendments + AS BUILT:
+   [nway-correspondence.md](docs/design/nway-correspondence.md). Nine
+   mutations all red once; both bundles same-commit; redeploys pending
+   (STATE — the wire bump makes deploy-before-push BINDING). Unblocks the ~5
+   same-function-across-representations activities.
 
 5. **`draggable_curve` — drag-then-type disagreement diagnostic.** (Blocks
    ~11: the transformation band.) The most expensive item: a new graph-kit

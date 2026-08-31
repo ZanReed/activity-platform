@@ -299,6 +299,28 @@ export const blockRegistry: BlockRegistry = {
     },
   },
 
+  correspondence: {
+    type: 'correspondence',
+    family: 'auto_gradable',
+    interactivity: 'interactive',
+    category: 'question',
+    numbered: 'always',
+    analyticsKey: 'correspondence',
+    sanitize: { strip: ['key', 'solution'] },
+    // Same conditional as matching, for the same reason: the banks drop
+    // unbreakability once they hold figures.
+    print: { breakInside: 'avoid-unless-figures', treatment: 'letter-bank' },
+    a11y: {
+      story:
+        'One native <select> per (item, column) cell — operable by keyboard, ' +
+        'screen reader, and touch with no custom grammar (the shipped ' +
+        'matching affordance, generalized). Each select is labeled with its ' +
+        'item and column ("Graph for item 2"); options carry the column\'s ' +
+        'derived letters. Verdicts announce via the shared state-pill ' +
+        'aria-live region.',
+    },
+  },
+
   ordering: {
     type: 'ordering',
     family: 'auto_gradable',

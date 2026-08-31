@@ -821,6 +821,16 @@ export const CORPUS_COVERAGE: Record<
   },
   multiple_choice: { how: 'cases', why: 'CHOICE_CASES — single and multi select.' },
   matching: { how: 'cases', why: 'MATCHING_CASES — partial credit and omission.' },
+  correspondence: {
+    how: 'shared-scorer',
+    why:
+      'scoreCorrespondence is matching\'s per-pair rule one axis deeper (a ' +
+      'cell is one (item, column) pairing; same omission gate), born server-' +
+      'side in 2026 — there is no runtime twin to pin parity against, which ' +
+      'is what a corpus column would restate. Its semantics are pinned ' +
+      'directly (mutation-tested) in grading-primitives and the walk-level ' +
+      'grading-section cases.',
+  },
   ordering: { how: 'cases', why: 'ORDERING_CASES — including the untouched-list rule.' },
   math_block: {
     how: 'shared-scorer',

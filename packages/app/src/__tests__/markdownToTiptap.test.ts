@@ -1462,6 +1462,101 @@ describe('misconception bindings on mc and graph fences', () => {
     });
 });
 
+describe('```correspond fence (wishlist #4)', () => {
+    const FENCE = [
+        '```correspond',
+        'prompt: Match each function to its graph and description.',
+        'columns: Graph | Description',
+        'y = 2x | rises through the origin | doubles each step',
+        'y = -x + 4 | falls, crossing y at 4 | drops by 1 each step',
+        '| steeper than both | |',
+        'solution: Read the slope.',
+        '```',
+    ].join('\n');
+
+    it('imports items, columns, per-cell key, and the distractor', () => {
+        const { blocks, warnings } = convert(FENCE);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'correspondence')!;
+        const attrs = g.attrs!;
+        const items = attrs.items as Array<{ id: string }>;
+        const columns = attrs.targetColumns as Array<{
+            id: string;
+            targets: Array<{ id: string }>;
+        }>;
+        expect(items).toHaveLength(2);
+        expect(columns).toHaveLength(2);
+        // Column 1 got the distractor; column 2's empty distractor cell added
+        // nothing.
+        expect(columns[0]!.targets).toHaveLength(3);
+        expect(columns[1]!.targets).toHaveLength(2);
+        const key = attrs.key as Record<string, Record<string, string>>;
+        expect(Object.keys(key)).toHaveLength(2);
+        for (const item of items) {
+            expect(Object.keys(key[item.id]!)).toEqual(
+                columns.map((c) => c.id),
+            );
+        }
+        expect(g.content).toEqual([
+            {
+                type: 'text',
+                text: 'Match each function to its graph and description.',
+            },
+        ]);
+    });
+
+    it('a | inside $math$ does not split a cell', () => {
+        const md = [
+            '```correspond',
+            'columns: Value | Description',
+            '$|x - 3|$ | 3 | distance from three',
+            '$|x + 1|$ | 1 | distance from minus one',
+            '```',
+        ].join('\n');
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'correspondence')!;
+        const items = g.attrs!.items as Array<{
+            content: Array<{ type: string; latex?: string }>;
+        }>;
+        expect(items[0]!.content.some((n) => n.latex === '|x - 3|')).toBe(true);
+    });
+
+    it('degrades with a warning when the columns line is missing', () => {
+        const md = '```correspond\na | b | c\nd | e | f\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'correspondence')).toBe(false);
+        expect(warnings.some((w) => w.includes('columns:'))).toBe(true);
+    });
+
+    it('degrades when a row has the wrong number of cards', () => {
+        const md = [
+            '```correspond',
+            'columns: Graph | Description',
+            'y = 2x | rises',
+            'y = -x | falls | drops',
+            '```',
+        ].join('\n');
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'correspondence')).toBe(false);
+        expect(warnings.some((w) => w.includes('2 columns'))).toBe(true);
+    });
+
+    it('supports three columns (the 4-way match)', () => {
+        const md = [
+            '```correspond',
+            'columns: Graph | Table | Description',
+            'y = 2x | rises | doubles | proportional',
+            'y = -x | falls | negates | inverse-ish',
+            '```',
+        ].join('\n');
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'correspondence')!;
+        expect(g.attrs!.targetColumns as unknown[]).toHaveLength(3);
+    });
+});
+
 describe('```graph fence (Drop 7)', () => {
     it('imports a graded line with axes + prompt + options', () => {
         const md = '```graph\naxes: -5..5, -5..5\nprompt: Graph the line.\nanswer: 2x + 3y = 6\noptions: allow-no-solution\n```';

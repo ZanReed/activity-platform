@@ -1672,6 +1672,117 @@ describe('lists', () => {
             ]);
         });
 
+        it('round-trips a correspondence block (items, columns, nested key)', () => {
+            const i1 = '550e8400-e29b-41d4-a716-446655440301';
+            const i2 = '550e8400-e29b-41d4-a716-446655440302';
+            const cA = '550e8400-e29b-41d4-a716-446655440311';
+            const cB = '550e8400-e29b-41d4-a716-446655440312';
+            const a1 = '550e8400-e29b-41d4-a716-446655440321';
+            const a2 = '550e8400-e29b-41d4-a716-446655440322';
+            const b1 = '550e8400-e29b-41d4-a716-446655440331';
+            const b2 = '550e8400-e29b-41d4-a716-446655440332';
+            const attrs = {
+                id: 'corr-1',
+                items: [
+                    { id: i1, content: [{ type: 'text', text: 'y = 2x', marks: [] }] },
+                    { id: i2, content: [{ type: 'math_inline', latex: 'y = -x' }] },
+                ],
+                targetColumns: [
+                    {
+                        id: cA,
+                        header: [{ type: 'text', text: 'Graph', marks: [] }],
+                        targets: [
+                            { id: a1, content: [{ type: 'text', text: 'rises', marks: [] }] },
+                            { id: a2, content: [{ type: 'text', text: 'falls', marks: [] }] },
+                        ],
+                    },
+                    {
+                        id: cB,
+                        header: [{ type: 'text', text: 'Description', marks: [] }],
+                        targets: [
+                            { id: b1, content: [{ type: 'text', text: 'doubles', marks: [] }] },
+                            { id: b2, content: [{ type: 'text', text: 'drops', marks: [] }] },
+                        ],
+                    },
+                ],
+                key: { [i1]: { [cA]: a1, [cB]: b1 }, [i2]: { [cA]: a2, [cB]: b2 } },
+                solution: [{ type: 'text', text: 'Read the slope.', marks: [] }],
+                skills: [],
+                workSpace: null,
+            };
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'correspondence',
+                        attrs,
+                        content: [{ type: 'text', text: 'Match the representations.' }],
+                    },
+                ],
+            };
+            const result = roundTrip(doc);
+            const corr = result.content?.[0] as JSONContent;
+            expect(corr.type).toBe('correspondence');
+            expect(corr.attrs).toMatchObject({
+                items: attrs.items,
+                targetColumns: attrs.targetColumns,
+                key: attrs.key,
+                solution: attrs.solution,
+            });
+            expect(corr.content).toEqual([
+                { type: 'text', text: 'Match the representations.' },
+            ]);
+        });
+
+        it('sanitizes a correspondence key: cells naming dead cards or columns drop', () => {
+            const i1 = '550e8400-e29b-41d4-a716-446655440341';
+            const i2 = '550e8400-e29b-41d4-a716-446655440342';
+            const cA = '550e8400-e29b-41d4-a716-446655440351';
+            const a1 = '550e8400-e29b-41d4-a716-446655440361';
+            const a2 = '550e8400-e29b-41d4-a716-446655440362';
+            const doc: JSONContent = {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'correspondence',
+                        attrs: {
+                            id: 'corr-2',
+                            items: [
+                                { id: i1, content: [] },
+                                { id: i2, content: [] },
+                            ],
+                            targetColumns: [
+                                {
+                                    id: cA,
+                                    header: [],
+                                    targets: [
+                                        { id: a1, content: [] },
+                                        { id: a2, content: [] },
+                                    ],
+                                },
+                                // Damaged: not enough columns — the save
+                                // boundary pads a second one.
+                            ],
+                            key: {
+                                [i1]: { [cA]: a1, 'ghost-col': a2 },
+                                [i2]: { [cA]: 'ghost-card' },
+                            },
+                            solution: null,
+                            skills: [],
+                            workSpace: null,
+                        },
+                        content: [],
+                    },
+                ],
+            };
+            const corr = roundTrip(doc).content?.[0] as JSONContent;
+            const columns = corr.attrs!.targetColumns as unknown[];
+            expect(columns).toHaveLength(2);
+            const key = corr.attrs!.key as Record<string, Record<string, string>>;
+            expect(key[i1]).toEqual({ [cA]: a1 });
+            expect(key[i2]).toBeUndefined();
+        });
+
         it('sanitizes a matching key: dangling refs dropped; shared targets kept', () => {
             const i1 = '550e8400-e29b-41d4-a716-446655440221';
             const i2 = '550e8400-e29b-41d4-a716-446655440222';

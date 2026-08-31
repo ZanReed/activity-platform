@@ -353,7 +353,12 @@ describe('the declaration is where it is for a reason', () => {
     // required unit is half the answer; a served unit would prompt the very
     // recall the blank tests). Declaration change, hash recomputed itself,
     // get-activity redeploy queued as a pending author action.
-    expect(SANITIZER_REV).toBe('2-ea886923');
+    //
+    // AND AGAIN same day: '2-ea886923' → '2-3d4db5c5'. The correspondence
+    // block registered (wishlist #4) with its own sanitize spec (strip key +
+    // solution) — a new registry entry is a declaration change by definition.
+    // Same redeploy discipline; the redeploys were already queued.
+    expect(SANITIZER_REV).toBe('2-3d4db5c5');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

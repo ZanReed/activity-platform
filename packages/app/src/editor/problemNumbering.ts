@@ -39,6 +39,7 @@ export const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     fillInBlank: 'fill_in_blank',
     multipleChoice: 'multiple_choice',
     matching: 'matching',
+    correspondence: 'correspondence',
     ordering: 'ordering',
     numberLine: 'number_line',
     fadedWorkedExample: 'faded_worked_example',

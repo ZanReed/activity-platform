@@ -48,6 +48,10 @@ export interface BlockAnswerKey {
   readonly correctChoiceIds?: readonly string[];
   /** Matching item id → the target id it pairs with (NOT the printed letter). */
   readonly targetIdByItemId?: Readonly<Record<string, string>>;
+  /** Correspondence item id → { column id → target id } (per-cell key). */
+  readonly targetIdByItemAndColumn?: Readonly<
+    Record<string, Readonly<Record<string, string>>>
+  >;
   /** Ordering item id → its 1-based position in the AUTHORED (correct) order. */
   readonly positionByItemId?: Readonly<Record<string, number>>;
   /**
@@ -168,6 +172,7 @@ export const ANSWER_KEY_COVERAGE: Readonly<
   table: { via: 'in-band' },
   multiple_choice: { via: 'extractor' },
   matching: { via: 'extractor' },
+  correspondence: { via: 'extractor' },
   ordering: { via: 'extractor' },
   interactive_graph: { via: 'extractor' },
   number_line: { via: 'extractor' },

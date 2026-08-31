@@ -22,15 +22,17 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, the `display_name` one-row fix, and the two function redeploys for the polynomial families.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**⏳ `get-activity` + `check-activity` redeploys — OWED (covers the
-cubic/quartic AND unit-blanks slices; bundles committed for both).** Deploy
-`pnpm deploy:get-activity` + `pnpm deploy:check` (never `--no-verify-jwt`)
-**BEFORE pushing to `main`** — a push is a Pages deploy (OV-7), and the OLD
-functions would serve cubic/quartic family-stripped (broken 2-handle layout)
-and a unit-bearing blank WITH ITS UNIT VISIBLE (`unit` joined
-BLANK_SECRET_FIELDS). Verify by bundle sha256 (the CLAUDE.md method).
-`SANITIZER_REV` moved with the unit slice (`2-050ad6e2` → `2-ea886923`), which
-orphans stale read-cache rows on its own.
+**⏳ `get-activity` + `check-activity` redeploys — OWED, and the ORDER is now
+BINDING (covers three slices: cubic/quartic, unit blanks, correspondence;
+bundles committed for each).** Deploy `pnpm deploy:get-activity` +
+`pnpm deploy:check` (never `--no-verify-jwt`) **BEFORE pushing to `main`** —
+a push is a Pages deploy (OV-7), and `CHECK_WIRE_VERSION` moved 2→3: a
+pushed app against the OLD `check-activity` leaves EVERY student's checks
+refusing with a version mismatch until the deploy lands. The old functions
+would also serve cubic/quartic family-stripped and a unit-bearing blank WITH
+ITS UNIT VISIBLE. Verify by bundle sha256 (the CLAUDE.md method).
+`SANITIZER_REV` moved twice (now `2-3d4db5c5`); stale cache rows orphan on
+their own.
 
 ✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
 misconception strip is live, so **activities carrying bindings are safe to
@@ -120,11 +122,9 @@ that retires the one hand-carried sync in the curriculum side's system.
 name, 13 bindings across 4 ids.
 
 ✅ **Lane B is BUILT (2026-08-31)** — the activities list orders by catalogue
-path, which is what keeps chain ordinals out of student-visible titles.
-App-only: no migration (0038 already had the column), no bundle, no deploy.
-An outside-voice review found five defects in the plan first; two changed what
-got built, and the D6 fork it surfaced was ruled by the author (D6 KEPT, via an
-explicit unfiltered order source). TODOS carries the process record.
+path, keeping chain ordinals out of student-visible titles. App-only. The
+outside-voice review found five plan defects first; two changed the build
+(D6 KEPT via an explicit unfiltered order source). TODOS has the record.
 
 **Every guard this arc shipped was mutation-tested the day it was written, and
 TWO were VACUOUS on the first attempt — both found only by mutation, neither
@@ -250,10 +250,12 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-09-01 — **WISHLIST #3 SHIPPED: unit-bearing numeric
-blanks** (greenlit → outside-voice review, 11 verified findings → amended →
-built; eleven mutations all red once; the review also amended #4's design —
-nway-correspondence.md R1–R8 — the next build). Before it, 2026-08-31 —
+**Last updated:** 2026-09-01 — **WISHLISTS #3 AND #4 SHIPPED** (each greenlit
+→ outside-voice reviewed → amended → built the same day; twenty mutations
+between them, every guard red once). #3: unit-bearing blanks
+(unit-bearing-blanks.md A1–A9 + AS BUILT). #4: the `correspondence` block
+(nway-correspondence.md R1–R8 + AS BUILT; `CHECK_WIRE_VERSION` 2→3 makes the
+redeploy order BINDING — see Pending). Before them, 2026-08-31 —
 **WISHLIST #2 SHIPPED: cubic + quartic graded families**
 (graded-function-families.md §top; both redeploys pending — see Pending; the
 detection cascade's interpolation-shadow bug is fixed with a midpoint

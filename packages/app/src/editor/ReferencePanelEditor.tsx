@@ -21,6 +21,7 @@ import { NumberLine } from './extensions/NumberLine';
 import { DataPlot } from './extensions/DataPlot';
 import { MultipleChoice } from './extensions/MultipleChoice';
 import { Matching } from './extensions/Matching';
+import { Correspondence } from './extensions/Correspondence';
 import { Ordering } from './extensions/Ordering';
 import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
@@ -102,6 +103,7 @@ export default function ReferencePanelEditor({
             // Matching + Ordering: same story (the column content expression
             // names both as of the 2026-07-10 matching/ordering drop).
             Matching,
+            Correspondence,
             Ordering,
             // NumberLine: same registered-only-for-the-schema story (the column
             // content expression names it as of the number_line editor drop).

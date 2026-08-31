@@ -114,6 +114,15 @@ function extractByType(block: Block): BlockAnswerKey {
         : {};
     }
 
+    case 'correspondence': {
+      // The authored pairing per cell, item id → { column id → target id }.
+      // Letters are derived at render per column (matching's rule).
+      const targetIdByItemAndColumn = { ...block.key };
+      return Object.keys(targetIdByItemAndColumn).length > 0
+        ? { targetIdByItemAndColumn }
+        : {};
+    }
+
     case 'ordering': {
       // The AUTHORED item order is the answer key (there is no separate key
       // field), so position n is simply the item's index in it.

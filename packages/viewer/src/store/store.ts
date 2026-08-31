@@ -54,6 +54,7 @@ export interface SectionItemIds {
   blanks?: string[];
   choices?: string[];
   matches?: string[];
+  correspondences?: string[];
   orderings?: string[];
   freeText?: string[];
   graphs?: string[];
@@ -120,6 +121,12 @@ export interface ViewerStore {
   setBlank(id: string, value: string): void;
   setChoices(blockId: string, choiceIds: string[]): void;
   setMatch(blockId: string, itemId: string, targetId: string | null): void;
+  setCorrespondence(
+    blockId: string,
+    itemId: string,
+    columnId: string,
+    targetId: string | null,
+  ): void;
   setOrdering(blockId: string, itemIds: string[]): void;
   setFreeText(blockId: string, text: string): void;
   /** Replace a graph-family block's work (wire v2). The component owns the
@@ -283,6 +290,19 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         r.matches[blockId] = placed;
       });
     },
+    setCorrespondence(blockId, itemId, columnId, targetId) {
+      setResponse((r) => {
+        // `?? {}` at every level: a state hydrated from a pre-v3 blob has no
+        // `correspondences` map at all (R7 — tolerate-absent, no schema bump).
+        const block = { ...((r.correspondences ?? {})[blockId] ?? {}) };
+        const row = { ...(block[itemId] ?? {}) };
+        if (targetId === null) delete row[columnId];
+        else row[columnId] = targetId;
+        if (Object.keys(row).length === 0) delete block[itemId];
+        else block[itemId] = row;
+        r.correspondences = { ...(r.correspondences ?? {}), [blockId]: block };
+      });
+    },
     setOrdering(blockId, itemIds) {
       setResponse((r) => {
         r.orderings[blockId] = [...itemIds];
@@ -317,6 +337,10 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         blanks: pick(state.responses.blanks, items.blanks),
         choices: pick(state.responses.choices, items.choices),
         matches: pick(state.responses.matches, items.matches),
+        correspondences: pick(
+          state.responses.correspondences ?? {},
+          items.correspondences,
+        ),
         orderings: pick(state.responses.orderings, items.orderings),
         freeText: pick(state.responses.freeText, items.freeText),
         graphs: pick(state.responses.graphs, items.graphs),

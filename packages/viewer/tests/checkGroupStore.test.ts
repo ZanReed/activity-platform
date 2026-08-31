@@ -243,7 +243,7 @@ describe('groupStatus — the derivation, in isolation', () => {
   const checked = (): SectionStatus => ({
     phase: 'checked',
     result: {
-      wireVersion: 2,
+      wireVersion: 3,
       sectionId: 'x',
       items: {},
       solutions: {},
@@ -320,7 +320,7 @@ describe('isSectionFrozen — the freeze derivation (locked mode gates the calle
       isSectionFrozen({
         phase: 'checked',
         result: {
-          wireVersion: 2,
+          wireVersion: 3,
           sectionId: 'x',
           items: {},
           solutions: {},

@@ -38,6 +38,7 @@ import {
   unitAccepted,
 } from '../src/server/grading/units.js';
 import {
+  scoreCorrespondence,
   scoreMatching,
   scoreMultipleChoice,
   scoreOrdering,
@@ -574,6 +575,82 @@ describe('matching', () => {
   it('never awards a point for an item the author left out of the key', () => {
     const partialKey = { i1: 't1' };
     const score = scoreMatching({ i1: 't1', i2: 't2' }, partialKey, items);
+    expect(score.earned).toBe(1);
+    expect(score.verdict).toBe(false);
+  });
+});
+
+describe('correspondence (per-cell, matching one axis deeper)', () => {
+  const key = {
+    i1: { cA: 'a1', cB: 'b1' },
+    i2: { cA: 'a2', cB: 'b2' },
+  };
+  const items = ['i1', 'i2'];
+  const columns = ['cA', 'cB'];
+
+  it('a fully docked, fully right grid is correct (total = items × columns)', () => {
+    expect(scoreCorrespondence(key, key, items, columns)).toEqual({
+      verdict: true,
+      earned: 4,
+      total: 4,
+    });
+  });
+
+  it('one wrong CELL fails the block but keeps its per-edge credit', () => {
+    const cells = { i1: { cA: 'a1', cB: 'b2' }, i2: { cA: 'a2', cB: 'b2' } };
+    expect(scoreCorrespondence(cells, key, items, columns)).toEqual({
+      verdict: false,
+      earned: 3,
+      total: 4,
+    });
+  });
+
+  it('the denominator never shrinks for empty cells or missing rows', () => {
+    const cells = { i1: { cA: 'a1' } };
+    expect(scoreCorrespondence(cells, key, items, columns)).toEqual({
+      verdict: false,
+      earned: 1,
+      total: 4,
+    });
+  });
+
+  it('no cell docked at all is unanswered (null), never wrong', () => {
+    expect(scoreCorrespondence({}, key, items, columns).verdict).toBeNull();
+    expect(
+      scoreCorrespondence({ ghost: {} }, key, items, columns).verdict,
+    ).toBeNull();
+  });
+
+  it('everything docked but everything wrong is ANSWERED and incorrect', () => {
+    // The omission gate is "docked no cell", never "earned zero" — matching's
+    // rule, and the mutation that swaps them is exactly what this pins.
+    const allWrong = {
+      i1: { cA: 'a2', cB: 'b2' },
+      i2: { cA: 'a1', cB: 'b1' },
+    };
+    expect(scoreCorrespondence(allWrong, key, items, columns)).toEqual({
+      verdict: false,
+      earned: 0,
+      total: 4,
+    });
+  });
+
+  it('a malformed payload cannot inflate earned or total', () => {
+    const cells = {
+      i1: { cA: 'a1', cB: 'b1', ghostCol: 'x' },
+      ghostItem: { cA: 'a1' },
+    };
+    expect(scoreCorrespondence(cells, key, items, columns)).toEqual({
+      verdict: false,
+      earned: 2,
+      total: 4,
+    });
+  });
+
+  it('an unkeyed cell can never be correct (mid-edit partial key)', () => {
+    const partialKey = { i1: { cA: 'a1' } };
+    const cells = { i1: { cA: 'a1', cB: 'b1' }, i2: { cA: 'a2', cB: 'b2' } };
+    const score = scoreCorrespondence(cells, partialKey, items, columns);
     expect(score.earned).toBe(1);
     expect(score.verdict).toBe(false);
   });

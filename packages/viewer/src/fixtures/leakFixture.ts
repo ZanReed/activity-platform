@@ -261,6 +261,47 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     solution: sentinelInline(),
   });
 
+  const corrItemA = uuid();
+  const corrItemB = uuid();
+  const corrColA = uuid();
+  const corrColB = uuid();
+  const corrTargetA1 = uuid();
+  const corrTargetA2 = uuid();
+  const corrTargetB1 = uuid();
+  const corrTargetB2 = uuid();
+  put('correspondence', {
+    id: uuid(),
+    type: 'correspondence',
+    prompt: [text('correspond')],
+    items: [
+      { id: corrItemA, content: [text('1')] },
+      { id: corrItemB, content: [text('2')] },
+    ],
+    targetColumns: [
+      {
+        id: corrColA,
+        header: [text('graphs')],
+        targets: [
+          { id: corrTargetA1, content: [text('a')] },
+          { id: corrTargetA2, content: [text('b')] },
+        ],
+      },
+      {
+        id: corrColB,
+        header: [text('tables')],
+        targets: [
+          { id: corrTargetB1, content: [text('c')] },
+          { id: corrTargetB2, content: [text('d')] },
+        ],
+      },
+    ],
+    key: {
+      [corrItemA]: { [corrColA]: corrTargetA1, [corrColB]: corrTargetB1 },
+      [corrItemB]: { [corrColA]: corrTargetA2, [corrColB]: corrTargetB2 },
+    },
+    solution: sentinelInline(),
+  });
+
   put('ordering', {
     id: uuid(),
     type: 'ordering',

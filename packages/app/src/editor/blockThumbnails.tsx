@@ -265,6 +265,19 @@ const multipleChoice = thumb(
     </>
 );
 
+const correspondence = thumb(
+    <>
+        <rect x={8} y={10} width={18} height={10} rx={2} fill="none" stroke={LINE} />
+        <rect x={8} y={36} width={18} height={10} rx={2} fill="none" stroke={LINE} />
+        <rect x={40} y={10} width={16} height={10} rx={2} fill="none" stroke={LINE} />
+        <rect x={40} y={36} width={16} height={10} rx={2} fill="none" stroke={LINE} />
+        <rect x={72} y={10} width={16} height={10} rx={2} fill="none" stroke={LINE} />
+        <rect x={72} y={36} width={16} height={10} rx={2} fill="none" stroke={LINE} />
+        <line x1={26} y1={15} x2={40} y2={41} stroke={ACCENT} strokeWidth={1.75} />
+        <line x1={56} y1={41} x2={72} y2={15} stroke={ACCENT} strokeWidth={1.75} />
+    </>
+);
+
 const matching = thumb(
     <>
         <rect x={10} y={10} width={20} height={10} rx={2} fill="none" stroke={LINE} />
@@ -413,6 +426,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     'Answer blank': answerBlank,
     'Multiple choice': multipleChoice,
     Matching: matching,
+    Correspondence: correspondence,
     Ordering: ordering,
     'Interactive graph': interactiveGraph,
     'Number line': numberLine,

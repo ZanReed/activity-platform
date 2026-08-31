@@ -154,6 +154,38 @@ is one of the four ported families, NOT graph-style parity-by-construction —
 the corpus is the pin). Unanswered = no cell docked at all, mirroring
 matching's "no pairs placed" rule.
 
+## AS BUILT (2026-09-01, same day as the amendments)
+
+Shipped as amended (R1–R8). Deltas and confirmations worth recording:
+
+- **The registry guard suite drove the build**, as designed: adding the schema
+  member made the viewer registry fail to COMPILE, and each test run then
+  enumerated the next missing surface (fixtures, census, corpus coverage,
+  conformance, print-CSS parity, the importer's documentation guard — which
+  refused the fence until the prompt AND the doc taught it). Nothing on R8's
+  cost list was discovered late; two things it missed were found by guards:
+  the REFERENCE-PANEL editor's own extension list (its Column node shares the
+  content expression that now names `correspondence`) and the
+  `blockTypeGuards` representative-block map.
+- **The per-column shuffle seeds by `blockId:columnId`** — same-seed columns
+  would stay aligned with the authored order and leak every row (the authored
+  n-th cards are each other's answers). Pinned by a deterministic 6-card
+  component test; mutation to a shared seed reds exactly that case.
+- **The conformance suite auto-covered the family contract** the moment the
+  component was bound (the D4 mechanism working as designed).
+- **Corpus coverage is declared `shared-scorer`**: scoreCorrespondence is
+  matching's rule one axis deeper, born server-side — there is no runtime
+  twin to pin parity against; semantics are pinned (mutation-tested) in
+  grading-primitives + grading-section instead.
+- **Nine mutations, every one red once**: omission gate, walk key projection,
+  handler validator depth, shuffle seed, marker sequences, store's nested
+  write, serializer, math-pipe splitting, blockIndex category.
+- `SANITIZER_REV` moved again (`2-ea886923` → `2-3d4db5c5`, the new registry
+  entry); `CHECK_WIRE_VERSION` 2 → 3. Both bundles regenerated same-commit;
+  both redeploys pending — and the wire bump makes the ORDER binding: a push
+  before `check-activity` deploys leaves every student's checks refusing with
+  a version mismatch until the deploy lands.
+
 ## Cost (so the greenlight is informed)
 
 Schema + registry + sanitize entry (computed `SANITIZER_REV` moves) + wire

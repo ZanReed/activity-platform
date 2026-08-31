@@ -665,6 +665,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (match) return [match];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'correspond') {
+                const correspond = parseCorrespondFence(node.token.content, ctx);
+                if (correspond) return [correspond];
+                return [rawTextParagraph(node.token.content)];
+            }
             if ((node.token.info ?? '').trim() === 'order') {
                 const order = parseOrderFence(node.token.content, ctx);
                 if (order) return [order];
@@ -1770,6 +1775,194 @@ function extractSideImage(body: string): {
 // a literal equals. A markdown image ![alt](url) on either side becomes that
 // side's figure. Students see the options shuffled with letters assigned by
 // the platform — letters are never authored.
+// Split one ```correspond line on `|` OUTSIDE `$…$` spans (R6), so a cell can
+// hold `$|x - 3|$`. Cells come back trimmed; a leading empty cell marks a
+// distractor row (the line began with `|`).
+function splitPipeCells(line: string): string[] {
+    const cells: string[] = [];
+    let current = '';
+    let inMath = false;
+    for (const ch of line) {
+        if (ch === '$') inMath = !inMath;
+        if (ch === '|' && !inMath) {
+            cells.push(current.trim());
+            current = '';
+        } else {
+            current += ch;
+        }
+    }
+    cells.push(current.trim());
+    return cells;
+}
+
+function parseCorrespondFence(src: string, ctx: Ctx): JSONContent | null {
+    const fail = (msg: string): null => {
+        ctx.warnings.add(
+            'Correspondence block: ' + msg + ' — imported as plain text.',
+        );
+        return null;
+    };
+
+    let prompt = '';
+    let solution: InlineNode[] | null = null;
+    type Side = {
+        id: string;
+        content: InlineNode[];
+        image?: { src: string; alt: string };
+        graph?: {
+            axis: typeof DEFAULT_CHOICE_AXIS;
+            drawables: Record<string, unknown>[];
+        };
+    };
+    type Column = { id: string; header: InlineNode[]; targets: Side[] };
+
+    const buildSide = (raw: string): Side | null => {
+        // `graph: <show-spec>` cards work exactly as in ```match.
+        const graphMatch = /^\s*graph:\s*(.+)$/i.exec(raw);
+        if (graphMatch) {
+            const graph = parseChoiceGraph(
+                graphMatch[1]!.trim(),
+                ctx,
+                'Correspondence block',
+            );
+            if (graph) return { id: crypto.randomUUID(), content: [], graph };
+        }
+        const { text, image } = extractSideImage(raw);
+        if (!text && !image) return null;
+        return {
+            id: crypto.randomUUID(),
+            content: schemaInlineContent(text, ctx),
+            ...(image ? { image } : {}),
+        };
+    };
+
+    let columns: Column[] | null = null;
+    const items: Side[] = [];
+    const key: Record<string, Record<string, string>> = {};
+
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const directive = /^(prompt|solution|columns|options):\s*(.*)$/i.exec(
+            line,
+        );
+        if (directive && !line.startsWith('|')) {
+            const value = (directive[2] ?? '').trim();
+            switch ((directive[1] ?? '').toLowerCase()) {
+                case 'prompt':
+                    prompt = value;
+                    break;
+                case 'solution':
+                    if (value) solution = schemaInlineContent(value, ctx);
+                    break;
+                case 'columns': {
+                    const headers = splitPipeCells(value).filter(
+                        (h) => h.length > 0,
+                    );
+                    if (headers.length < 2 || headers.length > 3) {
+                        return fail(
+                            'columns: needs two or three |-separated headers ' +
+                                '(a 2-column match is a ```match fence)',
+                        );
+                    }
+                    columns = headers.map((header) => ({
+                        id: crypto.randomUUID(),
+                        header: schemaInlineContent(header, ctx),
+                        targets: [],
+                    }));
+                    break;
+                }
+                case 'options':
+                    for (const opt of value
+                        .split(',')
+                        .map((o) => o.trim().toLowerCase())) {
+                        if (opt) return fail(`unknown option "${opt}"`);
+                    }
+                    break;
+            }
+            continue;
+        }
+
+        if (!columns) {
+            return fail(
+                'the columns: line must come before the rows ' +
+                    '(columns: Graph | Table | Description)',
+            );
+        }
+
+        const cells = splitPipeCells(line);
+        if (cells.length === 1) {
+            return fail(
+                `unrecognized line "${line}" (rows are |-separated: ` +
+                    'item | card | card…; a distractor row starts with |)',
+            );
+        }
+
+        if (cells[0] === '') {
+            // Distractor row: extra cards per column, no key. Empty cell = no
+            // card for that column.
+            const extras = cells.slice(1);
+            for (let ci = 0; ci < columns.length; ci++) {
+                const cell = extras[ci];
+                if (cell === undefined || cell === '') continue;
+                const card = buildSide(cell);
+                if (!card) return fail(`a distractor card is empty ("${line}")`);
+                columns[ci]!.targets.push(card);
+            }
+            continue;
+        }
+
+        // Item row: anchor + one keyed card per column.
+        if (cells.length !== columns.length + 1) {
+            return fail(
+                `row "${line}" has ${cells.length - 1} cards but there are ` +
+                    `${columns.length} columns`,
+            );
+        }
+        const item = buildSide(cells[0]!);
+        if (!item) return fail(`a row needs item text ("${line}")`);
+        const row: Record<string, string> = {};
+        for (let ci = 0; ci < columns.length; ci++) {
+            const cell = cells[ci + 1]!;
+            if (cell === '') {
+                return fail(
+                    `row "${line}" leaves a card cell empty — every item ` +
+                        'needs one card per column',
+                );
+            }
+            const card = buildSide(cell);
+            if (!card) return fail(`a card cell is empty ("${line}")`);
+            columns[ci]!.targets.push(card);
+            row[columns[ci]!.id] = card.id;
+        }
+        items.push(item);
+        key[item.id] = row;
+    }
+
+    if (!columns) return fail('needs a columns: line');
+    if (items.length < 2) return fail('needs at least two item rows');
+    for (let ci = 0; ci < columns.length; ci++) {
+        if (columns[ci]!.targets.length < 2) {
+            return fail(`column ${ci + 1} needs at least two cards`);
+        }
+    }
+
+    return {
+        type: 'correspondence',
+        attrs: {
+            id: '',
+            items,
+            targetColumns: columns,
+            key,
+            solution,
+            skills: [],
+            workSpace: null,
+        },
+        content: graphPromptContent(prompt, ctx),
+    };
+}
+
 function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
     const fail = (msg: string): null => {
         ctx.warnings.add('Matching block: ' + msg + ' — imported as plain text.');

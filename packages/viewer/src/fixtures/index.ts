@@ -454,6 +454,47 @@ function authoredRawByType(
     solution: [text('Read the coefficient of x in each equation.')],
   });
 
+  const corrItemA = fid();
+  const corrItemB = fid();
+  const corrColGraph = fid();
+  const corrColDesc = fid();
+  const corrGraphA = fid();
+  const corrGraphB = fid();
+  const corrDescA = fid();
+  const corrDescB = fid();
+  put('correspondence', {
+    id: fid(),
+    type: 'correspondence',
+    prompt: [text('Match each equation to its graph and its description.')],
+    items: [
+      { id: corrItemA, content: [text('y = 2x')] },
+      { id: corrItemB, content: [text('y = −x + 4')] },
+    ],
+    targetColumns: [
+      {
+        id: corrColGraph,
+        header: [text('Graph')],
+        targets: [
+          { id: corrGraphA, content: [text('rises through the origin')] },
+          { id: corrGraphB, content: [text('falls, crossing y at 4')] },
+        ],
+      },
+      {
+        id: corrColDesc,
+        header: [text('Description')],
+        targets: [
+          { id: corrDescA, content: [text('doubles every step')] },
+          { id: corrDescB, content: [text('decreases by 1 each step')] },
+        ],
+      },
+    ],
+    key: {
+      [corrItemA]: { [corrColGraph]: corrGraphA, [corrColDesc]: corrDescA },
+      [corrItemB]: { [corrColGraph]: corrGraphB, [corrColDesc]: corrDescB },
+    },
+    solution: [text('Read the slope: positive rises, negative falls.')],
+  });
+
   put('ordering', {
     id: fid(),
     type: 'ordering',

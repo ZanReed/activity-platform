@@ -101,6 +101,8 @@ import {
     createMultipleChoiceOption,
     createMatchingItem,
     createMatchingTarget,
+    type CorrespondenceBlock,
+    type TargetColumn,
     createOrderingItem,
     ChoiceImage,
     ChoiceGraph,
@@ -449,6 +451,8 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
             return tiptapMultipleChoiceToActivity(node);
         case 'matching':
             return tiptapMatchingToActivity(node);
+        case 'correspondence':
+            return tiptapCorrespondenceToActivity(node);
         case 'ordering':
             return tiptapOrderingToActivity(node);
         case 'fillInBlank':
@@ -976,6 +980,94 @@ function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
         prompt: tiptapInlineToActivity(node.content ?? []),
         items,
         targets,
+        key,
+        skills: Array.isArray(attrs.skills)
+            ? (attrs.skills as unknown[]).filter(
+                  (s): s is string => typeof s === 'string',
+              )
+            : [],
+    };
+
+    const solution = sanitizeInlineNodes(attrs.solution);
+    if (solution.length > 0) {
+        block.solution = solution;
+    }
+    const rawWorkSpace = attrs.workSpace;
+    if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
+        block.workSpace = rawWorkSpace;
+    }
+
+    return block;
+}
+
+function tiptapCorrespondenceToActivity(node: JSONContent): CorrespondenceBlock {
+    const attrs = node.attrs ?? {};
+
+    const items = sanitizeMatchSides(attrs.items);
+    while (items.length < 2) items.push(createMatchingItem());
+
+    // Target columns: sanitize each column's shell + its cards; pad to the
+    // schema minimums (2 columns of 2 cards) so a damaged payload still saves.
+    const rawColumns = Array.isArray(attrs.targetColumns)
+        ? (attrs.targetColumns as unknown[])
+        : [];
+    const targetColumns: TargetColumn[] = [];
+    for (const raw of rawColumns) {
+        if (!raw || typeof raw !== 'object') continue;
+        if (targetColumns.length >= 3) break; // schema max
+        const c = raw as { id?: unknown; header?: unknown; targets?: unknown };
+        const targets = sanitizeMatchSides(c.targets);
+        while (targets.length < 2) targets.push(createMatchingTarget());
+        targetColumns.push({
+            id:
+                typeof c.id === 'string' && c.id.length > 0
+                    ? c.id
+                    : crypto.randomUUID(),
+            header: sanitizeInlineNodes(c.header),
+            targets,
+        });
+    }
+    while (targetColumns.length < 2) {
+        targetColumns.push({
+            id: crypto.randomUUID(),
+            header: [],
+            targets: [createMatchingTarget(), createMatchingTarget()],
+        });
+    }
+
+    // Key: keep only cells whose item, column AND target all exist (the
+    // save-boundary backstop, matching's pattern per axis).
+    const itemIds = new Set(items.map((i) => i.id));
+    const key: Record<string, Record<string, string>> = {};
+    const rawKey =
+        attrs.key && typeof attrs.key === 'object' && !Array.isArray(attrs.key)
+            ? (attrs.key as Record<string, unknown>)
+            : {};
+    for (const item of items) {
+        const rawRow = rawKey[item.id];
+        if (!rawRow || typeof rawRow !== 'object' || Array.isArray(rawRow)) {
+            continue;
+        }
+        const row: Record<string, string> = {};
+        for (const column of targetColumns) {
+            const t = (rawRow as Record<string, unknown>)[column.id];
+            if (
+                typeof t === 'string' &&
+                column.targets.some((target: { id: string }) => target.id === t) &&
+                itemIds.has(item.id)
+            ) {
+                row[column.id] = t;
+            }
+        }
+        if (Object.keys(row).length > 0) key[item.id] = row;
+    }
+
+    const block: CorrespondenceBlock = {
+        id: crypto.randomUUID(),
+        type: 'correspondence',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        items,
+        targetColumns,
         key,
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter(
@@ -1563,6 +1655,9 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
         case 'matching':
             return activityMatchingToTiptap(block);
 
+        case 'correspondence':
+            return activityCorrespondenceToTiptap(block);
+
         case 'ordering':
             return activityOrderingToTiptap(block);
 
@@ -1762,6 +1857,24 @@ function activityMatchingToTiptap(block: MatchingBlock): JSONContent {
             // edits them in place).
             items: block.items,
             targets: block.targets,
+            key: block.key,
+            solution: block.solution ?? null,
+            skills: block.skills,
+            workSpace: block.workSpace ?? null,
+        },
+        content: activityInlineToTiptap(block.prompt),
+    };
+}
+
+function activityCorrespondenceToTiptap(
+    block: CorrespondenceBlock,
+): JSONContent {
+    return {
+        type: 'correspondence',
+        attrs: {
+            id: block.id,
+            items: block.items,
+            targetColumns: block.targetColumns,
             key: block.key,
             solution: block.solution ?? null,
             skills: block.skills,

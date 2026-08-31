@@ -65,14 +65,17 @@ in CI on push, as usual.
 
 ## The ranked remainder, if you are here to do work rather than author
 
-1. **#3 is SHIPPED (2026-09-01)** — greenlit, outside-voice reviewed (11
-   findings, all folded in as A1–A9), built, eleven mutations all red once.
-   `docs/design/unit-bearing-blanks.md` has the amendments + AS BUILT.
-2. **#4 is GREENLIT with an outside-voice-AMENDED design** (R1–R8 in
-   `docs/design/nway-correspondence.md`) — selects-per-cell (not drag),
-   client-side seeded shuffle, `SectionResponses` + wire 2→3, per-edge
-   diagnostic via query-time join. The next build.
-3. **#5 (`draggable_curve`) → #6 (`seeded_data`)** — unchanged, in order.
+1. **#3 AND #4 are BOTH SHIPPED (2026-09-01)** — each greenlit →
+   outside-voice reviewed → amended → built same-day, twenty mutations
+   between them, every guard red once. Design + amendments + AS BUILT:
+   `docs/design/unit-bearing-blanks.md` (A1–A9) and
+   `docs/design/nway-correspondence.md` (R1–R8). ⚠ #4 bumped
+   `CHECK_WIRE_VERSION` 2→3, which makes the redeploy-before-push order
+   BINDING: a push first breaks every student's checks until
+   `check-activity` deploys.
+2. **#5 (`draggable_curve`) → #6 (`seeded_data`)** — the remainder, in
+   order; each needs its own design pass (run the outside voice on it —
+   the pattern has now paid three times).
 4. The contention-red entry in TODOS is now REPRODUCTION-ANNOTATED: it stayed
    green under 16 burners + a concurrent full suite, so the trigger is
    swap-level thrash. Candidates are named in the entry; do not ship a
@@ -104,7 +107,7 @@ prints today.
 
 | | |
 |---|---|
-| **Author** | The two redeploys (BEFORE pushing), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. Plus: the two design-pass rulings (`nway-correspondence.md`, `unit-bearing-blanks.md`) when ready. |
+| **Author** | The two redeploys (STRICTLY before pushing — the wire bump makes this binding), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. |
 | **Platform** | Nothing open besides the gated #4 build. |
 | **Curriculum side** | Unchanged from the previous handoff (their restructure, `transform.translate`, alignment arrays, chain 2). |
 

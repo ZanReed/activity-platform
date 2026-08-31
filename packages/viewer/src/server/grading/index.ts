@@ -40,6 +40,7 @@ import {
 } from './blanks.js';
 import {
   scoreMatching,
+  scoreCorrespondence,
   scoreMultipleChoice,
   scoreOrdering,
   selectChoiceFeedback,
@@ -146,6 +147,15 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     const score = scoreMatching(pairs, m.key, m.itemIds);
     if (score.verdict === null) continue;
     items[m.blockId] = { verdict: score.verdict ? 'correct' : 'incorrect' };
+  }
+
+  // ---- correspondence -------------------------------------------------------
+  for (const c of inv.correspondence) {
+    const cells = input.responses.correspondences?.[c.blockId];
+    if (cells === undefined) continue;
+    const score = scoreCorrespondence(cells, c.key, c.itemIds, c.columnIds);
+    if (score.verdict === null) continue;
+    items[c.blockId] = { verdict: score.verdict ? 'correct' : 'incorrect' };
   }
 
   // ---- ordering -------------------------------------------------------------

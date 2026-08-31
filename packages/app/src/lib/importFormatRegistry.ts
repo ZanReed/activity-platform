@@ -107,6 +107,16 @@ export const FENCES: FenceSpec[] = [
         options: [],
     },
     {
+        tag: 'correspond',
+        blockType: 'correspondence',
+        summary: 'an N-way match (each item pairs with one card per column)',
+        example:
+            'columns: Graph | Description\n' +
+            'y = 2x | rises through the origin | doubles each step\n' +
+            'y = -x + 4 | falls, crossing y at 4 | drops by 1 each step',
+        options: [],
+    },
+    {
         tag: 'order',
         blockType: 'ordering',
         summary: 'a put-in-order question (listed order is the answer)',

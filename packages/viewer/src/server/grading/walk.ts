@@ -97,6 +97,13 @@ export interface GradableInventory {
     key: Record<string, string>;
     itemIds: string[];
   }>;
+  correspondence: Array<{
+    blockId: string;
+    /** item id → { column id → target id }. May be partial (mid-edit draft). */
+    key: Record<string, Record<string, string>>;
+    itemIds: string[];
+    columnIds: string[];
+  }>;
   ordering: Array<{ blockId: string; authoredOrder: string[] }>;
   graphs: Array<{ blockId: string; block: RawGraphBlock }>;
   /** Every free-text block in the section — recorded, never judged. */
@@ -454,6 +461,45 @@ function visit(
       });
       break;
     }
+    case 'correspondence': {
+      if (bad(block.items, isArrayV)) {
+        problems.push(`block ${id}: items is not an array`);
+      }
+      if (bad(block.targetColumns, isArrayV)) {
+        problems.push(`block ${id}: targetColumns is not an array`);
+      }
+      if (bad(block.key, isPlainObject)) {
+        problems.push(`block ${id}: key is not an object`);
+      } else if (isPlainObject(block.key)) {
+        // Each key row must itself be an object of string targets — the
+        // matching rule, one level deeper.
+        for (const row of Object.values(block.key as object)) {
+          if (!isPlainObject(row)) {
+            problems.push(`block ${id}: key has a non-object row`);
+            break;
+          }
+          if (!Object.values(row as object).every(isString)) {
+            problems.push(`block ${id}: key has a non-string target`);
+            break;
+          }
+        }
+      }
+      const items = Array.isArray(block.items)
+        ? (block.items as Array<Record<string, unknown>>)
+        : [];
+      checkItemIds(items, id, problems);
+      const rawColumns = Array.isArray(block.targetColumns)
+        ? (block.targetColumns as Array<Record<string, unknown>>)
+        : [];
+      inv.correspondence.push({
+        blockId: id,
+        key:
+          (block.key as Record<string, Record<string, string>>) ?? {},
+        itemIds: items.map((i) => String(i.id)),
+        columnIds: rawColumns.map((c) => String(c.id)),
+      });
+      break;
+    }
     case 'ordering': {
       if (bad(block.items, isArrayV)) {
         // authoredOrder coerced to [] before: a deliberate arrangement graded
@@ -561,6 +607,7 @@ export function inventorySection(
     blankGroupsByBlock: [],
     multipleChoice: [],
     matching: [],
+    correspondence: [],
     ordering: [],
     graphs: [],
     freeText: [],

@@ -786,6 +786,8 @@
 .viewer-mc__choices,
 .viewer-matching__items,
 .viewer-matching__bank,
+.viewer-correspondence__items,
+.viewer-correspondence__bank-list,
 .viewer-ordering__list {
   list-style: none;
   margin: 0;
@@ -820,12 +822,14 @@
  * beside it, in the same place in both arrangements — on paper the letter IS
  * the answer, so it must not move. */
 .viewer-mc__label:has(.viewer-choice-figure),
-.viewer-matching__item-label:has(.viewer-choice-figure) {
+.viewer-matching__item-label:has(.viewer-choice-figure),
+.viewer-correspondence__item-label:has(.viewer-choice-figure) {
   align-items: flex-start;
 }
 
 .viewer-mc__choice-content,
-.viewer-matching__target-content {
+.viewer-matching__target-content,
+.viewer-correspondence__target-content {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -903,17 +907,40 @@
 
 /* Matching: a lettered bank above, one select per item. */
 .viewer-matching__target,
-.viewer-matching__item {
+.viewer-matching__item,
+.viewer-correspondence__item {
   align-items: center;
   display: flex;
   gap: var(--space-3);
   padding: var(--space-1) 0;
 }
 
-.viewer-matching__item {
+.viewer-matching__item,
+.viewer-correspondence__item {
   border-top: 1px solid var(--vw-color-line-faint);
   justify-content: space-between;
   min-height: var(--touch-target);
+}
+
+/* ---- Correspondence (the N-way match) ------------------------------------ *
+ * Matching's chrome, per column: every rule above that names a matching class
+ * also names its correspondence twin; only the multi-column cell row is new. */
+.viewer-correspondence__cells {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.viewer-correspondence__cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.viewer-correspondence__bank-header {
+  font-weight: 600;
+  margin: var(--space-2) 0 var(--space-1);
 }
 
 .viewer-matching__letter {
@@ -930,6 +957,7 @@
 }
 
 .viewer-matching__select,
+.viewer-correspondence__select,
 .viewer-mc__label input,
 .viewer-ordering__controls button {
   font: inherit;
@@ -1272,7 +1300,8 @@
     gap: var(--space-2);
   }
 
-  .viewer-matching__select {
+  .viewer-matching__select,
+  .viewer-correspondence__select {
     width: 100%;
   }
 }
@@ -1359,6 +1388,7 @@
 
 .viewer-mc__letter,
 .viewer-matching__letter-line,
+.viewer-correspondence__letter-line,
 .viewer-ordering__number-box,
 .viewer-print-header,
 .viewer-print-heading,
@@ -1378,6 +1408,7 @@
    None of this can reach a student: the marks exist only where the answer-key
    context supplied a value, and the student route never mounts that provider. */
 .viewer-matching__letter-line[data-answer-key],
+.viewer-correspondence__letter-line[data-answer-key],
 .viewer-ordering__number-box[data-answer-key],
 .viewer-mc__choice[data-answer-key] .viewer-mc__letter {
   display: inline-block;
@@ -1386,7 +1417,8 @@
 
 /* Grayscale-safe by construction: weight and a rule/box carry the mark, never
    colour alone. A photocopied answer key is still an answer key. */
-.viewer-matching__letter-line[data-answer-key] {
+.viewer-matching__letter-line[data-answer-key],
+.viewer-correspondence__letter-line[data-answer-key] {
   min-width: 2.5rem;
   border-bottom: 1px solid var(--vw-color-ink);
   text-align: center;
@@ -1515,6 +1547,7 @@
 /* The inline affordances sit in running text, so they take inline-block. */
 :where([data-viewer-mode='print']) .viewer-mc__letter,
 :where([data-viewer-mode='print']) .viewer-matching__letter-line,
+:where([data-viewer-mode='print']) .viewer-correspondence__letter-line,
 :where([data-viewer-mode='print']) .viewer-ordering__number-box {
   display: inline-block;
 }
@@ -1526,6 +1559,7 @@
    comment, not by that guard.) */
 :where([data-viewer-mode='print']) .viewer-mc__label,
 :where([data-viewer-mode='print']) .viewer-matching__item,
+:where([data-viewer-mode='print']) .viewer-correspondence__item,
 :where([data-viewer-mode='print']) .viewer-ordering__item {
   min-height: 0;
 }
@@ -1543,6 +1577,7 @@
 :where([data-viewer-mode='print']) .viewer-ordering__controls,
 :where([data-viewer-mode='print']) .viewer-blank__feedback,
 :where([data-viewer-mode='print']) .viewer-matching__select,
+:where([data-viewer-mode='print']) .viewer-correspondence__select,
 :where([data-viewer-mode='print']) .viewer-graph__unavailable,
 :where([data-viewer-mode='print']) .viewer-essay__count,
 :where([data-viewer-mode='print']) .viewer-solution,
@@ -1831,6 +1866,7 @@
   .viewer-ordering__controls,
   .viewer-blank__feedback,
   .viewer-matching__select,
+  .viewer-correspondence__select,
   .viewer-graph__unavailable,
   [data-feedback='server'],
   .viewer-solution,
@@ -1857,6 +1893,7 @@
   [data-block-type='fill_in_blank'],
   [data-block-type='interactive_graph'],
   [data-block-type='learning_objectives'],
+  [data-block-type='correspondence'],
   [data-block-type='matching'],
   [data-block-type='math_block'],
   [data-block-type='multiple_choice'],
@@ -1975,7 +2012,8 @@
      Matching on paper is the century-old convention: a lettered bank, and a
      write-the-letter line on each item. */
 
-  .viewer-matching__letter-line {
+  .viewer-matching__letter-line,
+  .viewer-correspondence__letter-line {
     display: inline-block;
     min-width: 2.5rem;
     border-bottom: 1px solid var(--vw-color-ink);
@@ -1991,7 +2029,8 @@
     margin-bottom: 0.15em;
   }
 
-  .viewer-matching__bank {
+  .viewer-matching__bank,
+  .viewer-correspondence__bank {
     break-inside: avoid;
   }
 
@@ -2002,7 +2041,8 @@
    * page and strands the items that reference it on a different sheet. The
    * registry declares this conditionality rather than letting the stylesheet
    * quietly contradict it (eng review E3). */
-  .viewer-matching__bank[data-figure-layout='grid'] {
+  .viewer-matching__bank[data-figure-layout='grid'],
+  .viewer-correspondence__bank[data-figure-layout='grid'] {
     break-inside: auto;
   }
 
@@ -2011,7 +2051,8 @@
    * is the conditional half of `breakInside: 'avoid-unless-figures'`. Without
    * it the bank could break internally while the block around it still could
    * not, which fixes nothing. */
-  [data-block-type='matching'][data-has-figures] {
+  [data-block-type='matching'][data-has-figures],
+  [data-block-type='correspondence'][data-has-figures] {
     break-inside: auto;
   }
 

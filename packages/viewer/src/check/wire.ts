@@ -42,7 +42,10 @@ import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
 /** Bump on any incompatible change to the request/result shapes. S4's RPC
  * must accept the version it was built against — the mock and the store stamp
  * it into every request. */
-export const CHECK_WIRE_VERSION = 2;
+// v2 → v3 (correspondence, wishlist #4): adds the `correspondences` response
+// map. Exact-match versioning (no tolerance window): a v2 client against a v3
+// server gets the version-mismatch refusal and its "refresh to continue" copy.
+export const CHECK_WIRE_VERSION = 3;
 
 // ---- Responses (student → server) ------------------------------------------
 
@@ -57,6 +60,13 @@ export interface SectionResponses {
   choices: Record<string, string[]>;
   /** matching block id → { item id → target id } for placed pairs. */
   matches: Record<string, Record<string, string>>;
+  /** correspondence block id → { item id → { column id → target id } } for
+   * docked cells (wire v3). WORK ONLY, like every map here — earned/total
+   * never travel client → server. */
+  correspondences: Record<
+    string,
+    Record<string, Record<string, string>>
+  >;
   /** ordering block id → item ids in the student's arrangement. NEVER
    * positions: the served order differs per student. */
   orderings: Record<string, string[]>;
@@ -123,6 +133,7 @@ export function emptySectionResponses(): SectionResponses {
     blanks: {},
     choices: {},
     matches: {},
+    correspondences: {},
     orderings: {},
     freeText: {},
     graphs: {},

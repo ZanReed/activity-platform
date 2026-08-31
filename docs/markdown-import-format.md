@@ -33,6 +33,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```dataplot ` fenced block | a **statistics-chart question** — dot plot, histogram, box plot (see below) |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
 | a ` ```match ` fenced block | a **matching question** (see below) |
+| a ` ```correspond ` fenced block | an **N-way match** — each item pairs with one card per column (see below) |
 | a ` ```order ` fenced block | an **ordering question** (see below) |
 | a ` ```objectives ` fenced block | a **learning-objectives list** (see below) |
 | a ` ```worked ` fenced block | a **worked example** to study (see below) |
@@ -285,6 +286,24 @@ MATCHING (a fenced block with the `match` tag becomes a matching question)
 - A side can be a static graph — "match the graph to its equation". Use -> as
   the separator (the graph formula contains =):  graph: line y = 2x -> slope 2
 
+- ```correspond … ``` is the N-WAY match — each item pairs with one card
+  from EVERY column ("the same function as equation, graph, and
+  description"). A columns: line names two or three card columns, then one
+  row per item, cells |-separated: first the item, then its correct card
+  for each column in order:
+    prompt: Match each function to its graph and its description.
+    columns: Graph | Description
+    y = 2x | rises through the origin | doubles each step
+    y = -x + 4 | falls, crossing y at 4 | drops by 1 each step
+- A row STARTING with | adds distractor cards (extra wrong cards, no item):
+  leave a cell empty to skip that column ( | | steeper than both ).
+- A | inside $math$ is safe ($|x - 3|$ does not split a cell); a cell may
+  also be an image or graph: card, exactly as in ```match.
+- Each column is shuffled and marked independently (A/B/C, i/ii/iii, α/β/γ)
+  — never write the markers yourself. Optional solution: line as always.
+- Use ```correspond only for three or more sides — a two-column match is a
+  ```match fence.
+
 ORDERING (a fenced block with the `order` tag becomes a put-in-order question)
 - ```order … ``` with one item per line, LISTED IN THE CORRECT ORDER
   (students see them shuffled and drag them back into sequence):
@@ -519,7 +538,8 @@ OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
 - Don't use tables, blockquotes, links, or any code block inside the activity
-  other than ```graph, ```numberline, ```dataplot, ```mc, ```match, ```order,
+  other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
+  ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
   ```columns, ```callout, ```definitions, ```meta, ```table, and ```reference — only the
   single
@@ -637,6 +657,29 @@ solution: Read the slope off the x coefficient.
 - Several items may share one option (categorization-style) — always allowed; each option card copies on dock when reused.
 - `solution:` is the optional worked explanation.
 - At least two pair lines are required. Scoring is **per pair** (each item is one point).
+
+## Correspondence blocks (```correspond fence)
+
+A fenced code block with the `correspond` language tag becomes an **N-way match**: anchor items on the left, two or three card columns beside them, and the student picks one card from every column for every item — "the same function as equation, graph, and description" is the marquee use.
+
+```
+```correspond
+prompt: Match each function to its graph and its description.
+columns: Graph | Description
+y = 2x | rises through the origin | doubles each step
+y = -x + 4 | falls, crossing y at 4 | drops by 1 each step
+| steeper than both | |
+solution: Read the slope: positive rises, negative falls.
+```⠀
+```
+
+- **`columns:` first** — two or three `|`-separated column headers. (A two-column match — one item, one card — is a ` ```match ` fence, not this.)
+- **Item rows** — `item | card | card…`, one cell per column after the item. Every cell must be filled; the row's cards are that item's correct answers.
+- **Distractor rows** — a row **starting** with `|` adds extra wrong cards; leave a cell empty to skip that column.
+- **A `|` inside `$math$` is safe** — `$|x - 3|$` does not split a cell. There is no escape for a literal `|` outside math; rephrase the cell.
+- **Markers are never authored.** Each column shuffles independently and marks its cards in its own sequence (A/B/C, i/ii/iii, α/β/γ) so a written answer line reads unambiguously.
+- Cards and items take `$inline$` math, images, and `graph:` figures exactly as in ` ```match `.
+- Scoring is **per cell** — each (item, column) pairing is one point; the block is correct when every cell is right. `solution:` is the optional worked explanation.
 
 ## Ordering blocks (```order fence)
 

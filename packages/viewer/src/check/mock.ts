@@ -66,6 +66,7 @@ export function createMockCheckService(
     ...Object.keys(request.responses.blanks),
     ...Object.keys(request.responses.choices),
     ...Object.keys(request.responses.matches),
+    ...Object.keys(request.responses.correspondences),
     ...Object.keys(request.responses.orderings),
     ...Object.keys(request.responses.graphs),
   ];

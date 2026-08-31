@@ -169,10 +169,21 @@ function countItems(responses: SectionResponses): number {
     Object.keys(responses.blanks).length +
     Object.keys(responses.choices).length +
     Object.keys(responses.matches).length +
+    Object.keys(responses.correspondences).length +
     Object.keys(responses.orderings).length +
     Object.keys(responses.freeText).length +
     Object.keys(responses.graphs).length
   );
+}
+
+/** Three levels of string record: id → { id → { id → string } }. */
+function isDoublyNestedStringRecord(
+  value: unknown,
+): value is Record<string, Record<string, Record<string, string>>> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every(isNestedStringRecord);
 }
 
 /** Validate a parsed body into a CheckRequest, or explain why not. */
@@ -218,6 +229,7 @@ export function validateCheckRequest(
     blanks: {},
     choices: {},
     matches: {},
+    correspondences: {},
     orderings: {},
     freeText: {},
     graphs: {},
@@ -240,6 +252,15 @@ export function validateCheckRequest(
       return fail('responses.matches must map id → {item → target}', 'bad_matches');
     }
     responses.matches = raw.matches;
+  }
+  if (raw.correspondences !== undefined) {
+    if (!isDoublyNestedStringRecord(raw.correspondences)) {
+      return fail(
+        'responses.correspondences must map id → {item → {column → target}}',
+        'bad_correspondences',
+      );
+    }
+    responses.correspondences = raw.correspondences;
   }
   if (raw.orderings !== undefined) {
     if (!isStringArrayRecord(raw.orderings)) {

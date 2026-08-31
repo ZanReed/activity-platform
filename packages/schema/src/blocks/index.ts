@@ -20,6 +20,7 @@ import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
 import { InteractiveGraphBlock } from './interactive-graph.js';
 import { MultipleChoiceBlock } from './multiple-choice.js';
 import { MatchingBlock } from './matching.js';
+import { CorrespondenceBlock } from './correspondence.js';
 import { OrderingBlock } from './ordering.js';
 import { NumberLineBlock } from './number-line.js';
 import { DataPlotBlock } from './data-plot.js';
@@ -44,6 +45,7 @@ export const Block = z.discriminatedUnion('type', [
   InteractiveGraphBlock,
   MultipleChoiceBlock,
   MatchingBlock,
+  CorrespondenceBlock,
   OrderingBlock,
   NumberLineBlock,
   DataPlotBlock,
@@ -84,6 +86,7 @@ export {
   ChoiceGraph,
 } from './multiple-choice.js';
 export { MatchingBlock, MatchingItem, MatchingTarget } from './matching.js';
+export { CorrespondenceBlock, TargetColumn } from './correspondence.js';
 export { OrderingBlock, OrderingItem } from './ordering.js';
 export {
   NumberLineBlock,
