@@ -1,4 +1,4 @@
-# Handoff — 2026-08-30
+# Handoff — 2026-08-31
 
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
@@ -57,8 +57,10 @@ pnpm import:batch ~/activity-catalogue-pilot --owner <email> --dry-run --strict 
   --skills-registry ~/activity-catalogue-pilot/skill-registry.txt
 ```
 
-Exit 0. Last run: **3/47 skills covered · 3/51 parts authored · 44 uncovered by
-name · 13 bindings · zero warnings of either kind.**
+Exit 0. Last run (registries at graph v0.12.5): **3/47 skills covered · 3 of 51
+parts authored · 44 uncovered by name · 13 bindings across 4 ids · zero warnings
+of either kind.** Four registry installs across the week each produced a
+byte-identical manifest — that no-diff is the check, not the exit code.
 
 ## The five things most likely to be misunderstood
 
@@ -99,7 +101,33 @@ Filed 2026-08-30, structural, deliberately not applied unilaterally.
 |---|---|
 | **Author** | Nothing. Push when ready. |
 | **Platform** | Nothing open. |
-| **Curriculum side** | ✅ the 13 ids are ratified, merged and the registry is installed at 35 (2026-08-31; the manifests did not move, which is the proof it was a superset). Still theirs: one carrier needs a restructure rather than a wish; the `transform.translate` activity; alignment fields as arrays; and the shared **boundary page** they now maintain — read its closing rule before touching either side's docs. |
+| **Curriculum side** | Nothing owed to us. All four registries are installed and generated through their notation gate (graph v0.12.5). Still theirs: one misconception carrier needs a restructure rather than a wish; the `transform.translate` activity (plan 73→74); alignment fields as arrays; two hooks for `chain.rate.proportional`; then chain 2. |
+
+## The curriculum side, and where the shared record lives
+
+The catalogue is authored by a **separate curriculum-side agent** with its own
+repo, decision log and skill graph. This repo never reads that graph — it
+consumes only the registries generated from it, and that boundary was defended
+hard enough in correspondence that it is worth keeping.
+
+**Their `boundary-page.md` is the shared surface**: open items with an owner and
+a landing artifact, a numbered correspondence index, and a retractions table for
+both sides. Three rules on it that were paid for —
+
+- **An item is not closed until the artifact contains the change; close it by
+  quoting the artifact, not describing it.** (Our own version of this is *a guard
+  must bind to output, not a declaration* — same rule, reached independently.)
+- Each side edits only rows it owns; a claim about the other side's system is a
+  question, not an entry.
+- If a file you do not own looks wrong, **file it — do not fix it.**
+
+⚠ **Letters can go missing silently.** One platform letter never arrived and its
+questions were asked again two exchanges later, with neither side aware. That is
+what the numbered index is for.
+
+**Four claims this side made and retracted are in
+`docs/design/curriculum-alignment.md` §5e** — recorded there because they
+otherwise live only in the other side's file.
 
 ## Traps that cost this session real time
 

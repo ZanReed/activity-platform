@@ -328,6 +328,35 @@ Built when the curriculum side's first two `= n` declarations existed
 the offer was made a letter earlier and deliberately not built until the trigger
 fired.
 
+## 5e. The correspondence, and what the platform retracted (2026-08-26 → 31)
+
+This slice was settled across **eight numbered letters** with the curriculum
+side. The durable record of the exchange is **their `boundary-page.md`** — open
+items with owners and landing artifacts, a numbered correspondence index, and a
+retractions table for both sides. The letters themselves were transient; the
+rulings are in this document and in TODOS.
+
+⚠ **Four claims the PLATFORM made and later retracted.** They are recorded here
+because otherwise they live only in the other side's file, and a future session
+reading only this repo would not know:
+
+| we claimed | corrected to |
+|---|---|
+| Auto-scores are client-computed | **Server**-computed. The advisory-vs-authoritative split survives; only *where it computes* was wrong. |
+| "A tool branches on `capabilities[].grading.authoritative`" | Nothing here reads that file at all. A remark about the field's *shape* was read as a claim about a reader, and the other side held off a deletion because of it. |
+| The two-prefix misconception scheme measurably helps our near-duplicate detector | The detector has never fired — at 4, 22 or 35 ids — and flattening the prefixes does not make it fire. The evidence could not distinguish *working* from *never at risk*. |
+| A keyword scan finds pair-confusions attached to one side | Zero true positives on the two cases that motivated it. Replaced by a structural check (partial attachment in a 2-skill chain) that catches both, handed over as a script because it reads the graph and we do not. |
+
+**And two ids we invented as format examples were read as real** —
+`proportional.graph-through-origin` (no source; cost two exchanges) and
+`chain.linear.slope` (which turned out to exist). Anything illustrative in an
+outbound document is now marked illustrative.
+
+**Nothing on the boundary page is owed by the platform.** B10 was delivered as a
+script; B7 (`curriculum-architecture.md`) was declined and retired to a pointer
+page rather than refreshed, because it is derived from a graph this repo does not
+read and it is where a rule was asserted that had never been written.
+
 ## 6. NOT in scope
 
 - **A chains table, chain-id columns, hook storage.** Nothing here would read

@@ -361,6 +361,37 @@ here so a future session does not add a redundant check for it.
 checklist, and that file's own history says a checklist edited carelessly is
 worse than one left alone.
 
+## `pnpm verify` goes RED under machine contention — three timing-sensitive files (2026-08-31)
+
+**Do not chase these as real failures.** Running vitest concurrently with
+`pnpm verify` (or two verifies at once) makes three files fail nondeterministically:
+
+```
+src/__tests__/supabaseStorageKey.test.ts     (fails at file level, not a case)
+src/__tests__/ActivityPrint.test.tsx         "writes ONLY meta.print…" (D20A)
+src/__tests__/StudentViewer.test.tsx         "a normal load shows no banner at all"
+```
+
+**The evidence it is contention, not a defect:**
+- all three pass in isolation, exit 0;
+- the whole suite passes on a quiet machine — 366 · 407 · 1419 · 1419, exit 0;
+- **the failing run's `build` gate took 1461s against a normal ~18s**, which is
+  the tell — the machine was saturated, not the code broken;
+- the same two files did this earlier the same day, also with a background
+  vitest running, and also passed in isolation.
+
+**The trap is that they look like real regressions and are timing-shaped**, so a
+session that "fixes" one will be fixing nothing and may weaken a real assertion.
+Check the load and the build-gate duration before believing a red here.
+
+**Worth a real fix eventually** — these three are the only files that behave this
+way, so something in them is wall-clock dependent rather than fake-timer driven.
+Finding and pinning that is a small slice; guessing at it under load is not.
+
+⚠ And the operational half: **do not background a vitest run and then start
+`pnpm verify`.** That is what produced both reds, and it is easy to do when
+chasing a failure.
+
 ## Lane B — sort the activities list by catalogue path (2026-08-26)
 
 **What:** the activities list groups by unit and sorts WITHIN a group by edit
