@@ -71,6 +71,10 @@ function modelPredict(model: FunctionModelAttr): ((x: number) => number) | null 
             return (x) => model.slope * x + model.intercept;
         case 'quadratic':
             return (x) => model.a * x * x + model.b * x + model.c;
+        case 'cubic':
+            return (x) => ((model.a * x + model.b) * x + model.c) * x + model.d;
+        case 'quartic':
+            return (x) => (((model.a * x + model.b) * x + model.c) * x + model.d) * x + model.e;
         case 'exponential':
             return (x) => model.a * Math.pow(model.b, x);
         case 'logarithmic':
@@ -97,7 +101,10 @@ function functionStartPoints(
     }
     const predict = modelPredict(model)!;
     const count = handlesForFamily(model.family);
-    const fractions = count === 3 ? [0.25, 0.5, 0.75] : [0.3, 0.7];
+    const fractions =
+        count === 2
+            ? [0.3, 0.7]
+            : Array.from({ length: count }, (_, i) => (i + 1) / (count + 1));
     // The x-range to spread handles across. ln needs x > 0.
     let lo = model.family === 'logarithmic' ? Math.max(axis.xMin, 0.25) : axis.xMin;
     let hi = axis.xMax;
@@ -392,6 +399,14 @@ function fittedToModel(
         case 'quadratic':
             return model.family === 'quadratic'
                 ? { ...model, a: round2(fit.a), b: round2(fit.b), c: round2(fit.c) }
+                : null;
+        case 'cubic':
+            return model.family === 'cubic'
+                ? { ...model, a: round2(fit.a), b: round2(fit.b), c: round2(fit.c), d: round2(fit.d) }
+                : null;
+        case 'quartic':
+            return model.family === 'quartic'
+                ? { ...model, a: round2(fit.a), b: round2(fit.b), c: round2(fit.c), d: round2(fit.d), e: round2(fit.e) }
                 : null;
         case 'exponential':
             return model.family === 'exponential'

@@ -69,6 +69,8 @@ export type CurveDomain = z.infer<typeof CurveDomain>;
 // against the key with no translation. Forms:
 //   linear       y = slope·x + intercept
 //   quadratic    y = a·x² + b·x + c
+//   cubic        y = a·x³ + b·x² + c·x + d
+//   quartic      y = a·x⁴ + b·x³ + c·x² + d·x + e
 //   exponential  y = a·bˣ            (b > 0)
 //   logarithmic  y = a + b·ln(x)     (x > 0)
 //   vertical     x = k               (NOT a y = f(x) curve — scored on x)
@@ -91,6 +93,34 @@ export const QuadraticModel = z.object({
   cTolerance: z.number().nonnegative().default(0.1),
 });
 export type QuadraticModel = z.infer<typeof QuadraticModel>;
+
+export const CubicModel = z.object({
+  family: z.literal('cubic'),
+  a: z.number(),
+  b: z.number(),
+  c: z.number(),
+  d: z.number(),
+  aTolerance: z.number().nonnegative().default(0.1),
+  bTolerance: z.number().nonnegative().default(0.1),
+  cTolerance: z.number().nonnegative().default(0.1),
+  dTolerance: z.number().nonnegative().default(0.1),
+});
+export type CubicModel = z.infer<typeof CubicModel>;
+
+export const QuarticModel = z.object({
+  family: z.literal('quartic'),
+  a: z.number(),
+  b: z.number(),
+  c: z.number(),
+  d: z.number(),
+  e: z.number(),
+  aTolerance: z.number().nonnegative().default(0.1),
+  bTolerance: z.number().nonnegative().default(0.1),
+  cTolerance: z.number().nonnegative().default(0.1),
+  dTolerance: z.number().nonnegative().default(0.1),
+  eTolerance: z.number().nonnegative().default(0.1),
+});
+export type QuarticModel = z.infer<typeof QuarticModel>;
 
 export const ExponentialModel = z.object({
   family: z.literal('exponential'),
@@ -126,6 +156,8 @@ export type VerticalModel = z.infer<typeof VerticalModel>;
 export const FunctionModel = z.discriminatedUnion('family', [
   LinearModel,
   QuadraticModel,
+  CubicModel,
+  QuarticModel,
   ExponentialModel,
   LogarithmicModel,
   VerticalModel,

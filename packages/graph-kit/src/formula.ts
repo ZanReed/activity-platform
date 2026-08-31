@@ -22,6 +22,8 @@ import { compileFunction } from './evaluate.js';
 import {
   fitLinear,
   fitQuadratic,
+  fitCubic,
+  fitQuartic,
   fitExponential,
   fitLogarithmic,
   type DataPoint,
@@ -70,6 +72,7 @@ function preprocess(raw: string): string {
     .replace(/≤/g, '<=')
     .replace(/²/g, '^2')
     .replace(/³/g, '^3')
+    .replace(/⁴/g, '^4')
     .trim();
 }
 
@@ -107,8 +110,9 @@ function compileSides(lhs: string, rhs: string): G | null {
 
 // ---- f(x) → family + parameters -----------------------------------------------------
 // Sample f, then try each family's regression fit simplest-first; the first fit
-// that reproduces f (max residual under a relative epsilon, checked at every
-// finite sample) wins, and its coefficients are the model parameters.
+// that reproduces f (max residual under a relative epsilon, checked on the
+// sample grid PLUS its midpoints — see withMidpoints) wins, and its
+// coefficients are the model parameters.
 
 function sample(fn: (x: number) => number, xs: number[]): DataPoint[] {
   const pts: DataPoint[] = [];
@@ -129,14 +133,30 @@ function residualOk(fn: (x: number) => number, out: FitOutcome, pts: DataPoint[]
   return true;
 }
 
+// The fit points PLUS the midpoints between them. Fits are computed from the
+// sample grid but VERIFIED on this denser one: a fit with as many parameters
+// as there are finite samples interpolates them all EXACTLY — ln(x) survives
+// at exactly 5 of the default SAMPLE_XS, which a 5-parameter quartic would
+// otherwise reproduce and steal. The midpoints are where an interpolant and
+// the true function separate; a genuine family match is exact everywhere and
+// passes unchanged.
+function withMidpoints(fn: (x: number) => number, pts: DataPoint[]): DataPoint[] {
+  const mids: number[] = [];
+  for (let i = 1; i < pts.length; i++) {
+    mids.push(((pts[i - 1]?.x ?? 0) + (pts[i]?.x ?? 0)) / 2);
+  }
+  return [...pts, ...sample(fn, mids)];
+}
+
 function detectFamily(fn: (x: number) => number): FunctionModel | null {
   let pts = sample(fn, SAMPLE_XS);
   // Functions defined only for x > 0 (logarithms, roots) sample there instead.
   if (pts.length < 4) pts = sample(fn, POSITIVE_XS);
   if (pts.length < 4) return null;
+  const vpts = withMidpoints(fn, pts);
 
   const linear = fitLinear(pts);
-  if (residualOk(fn, linear, pts) && linear.ok && linear.fit.model === 'linear') {
+  if (residualOk(fn, linear, vpts) && linear.ok && linear.fit.model === 'linear') {
     return {
       family: 'linear',
       slope: round6(linear.fit.a),
@@ -146,7 +166,7 @@ function detectFamily(fn: (x: number) => number): FunctionModel | null {
     };
   }
   const quad = fitQuadratic(pts);
-  if (residualOk(fn, quad, pts) && quad.ok && quad.fit.model === 'quadratic') {
+  if (residualOk(fn, quad, vpts) && quad.ok && quad.fit.model === 'quadratic') {
     return {
       family: 'quadratic',
       a: round6(quad.fit.a),
@@ -157,8 +177,38 @@ function detectFamily(fn: (x: number) => number): FunctionModel | null {
       cTolerance: DEFAULT_TOL,
     };
   }
+  const cubic = fitCubic(pts);
+  if (residualOk(fn, cubic, vpts) && cubic.ok && cubic.fit.model === 'cubic') {
+    return {
+      family: 'cubic',
+      a: round6(cubic.fit.a),
+      b: round6(cubic.fit.b),
+      c: round6(cubic.fit.c),
+      d: round6(cubic.fit.d),
+      aTolerance: DEFAULT_TOL,
+      bTolerance: DEFAULT_TOL,
+      cTolerance: DEFAULT_TOL,
+      dTolerance: DEFAULT_TOL,
+    };
+  }
+  const quartic = fitQuartic(pts);
+  if (residualOk(fn, quartic, vpts) && quartic.ok && quartic.fit.model === 'quartic') {
+    return {
+      family: 'quartic',
+      a: round6(quartic.fit.a),
+      b: round6(quartic.fit.b),
+      c: round6(quartic.fit.c),
+      d: round6(quartic.fit.d),
+      e: round6(quartic.fit.e),
+      aTolerance: DEFAULT_TOL,
+      bTolerance: DEFAULT_TOL,
+      cTolerance: DEFAULT_TOL,
+      dTolerance: DEFAULT_TOL,
+      eTolerance: DEFAULT_TOL,
+    };
+  }
   const exp = fitExponential(pts);
-  if (residualOk(fn, exp, pts) && exp.ok && exp.fit.model === 'exponential') {
+  if (residualOk(fn, exp, vpts) && exp.ok && exp.fit.model === 'exponential') {
     return {
       family: 'exponential',
       a: round6(exp.fit.a),
@@ -170,7 +220,11 @@ function detectFamily(fn: (x: number) => number): FunctionModel | null {
   const logPts = sample(fn, POSITIVE_XS);
   if (logPts.length >= 4) {
     const log = fitLogarithmic(logPts);
-    if (residualOk(fn, log, logPts) && log.ok && log.fit.model === 'logarithmic') {
+    if (
+      residualOk(fn, log, withMidpoints(fn, logPts)) &&
+      log.ok &&
+      log.fit.model === 'logarithmic'
+    ) {
       return {
         family: 'logarithmic',
         a: round6(log.fit.a),
@@ -184,7 +238,7 @@ function detectFamily(fn: (x: number) => number): FunctionModel | null {
 }
 
 const UNSUPPORTED_MSG =
-  'Supported answer curves: linear, quadratic, exponential, logarithmic, and vertical lines. ' +
+  'Supported answer curves: linear, quadratic, cubic, quartic, exponential, logarithmic, and vertical lines. ' +
   'For anything else, use a Display graph — it can plot any formula.';
 
 // ---- The entry point -----------------------------------------------------------------
@@ -289,6 +343,15 @@ function coeff(n: number, suffix: string): string {
   return `${fmt(n)}${suffix}`;
 }
 
+// A signed middle term with an x-power suffix, eliding a magnitude of 1
+// (` + x^2`, ` - 3x`); empty when the coefficient is 0.
+function midTerm(n: number, suffix: string): string {
+  if (n === 0) return '';
+  const sign = n < 0 ? ' - ' : ' + ';
+  const mag = Math.abs(n);
+  return `${sign}${mag === 1 ? suffix : `${fmt(mag)}${suffix}`}`;
+}
+
 export function formatModel(model: FunctionModel): string {
   switch (model.family) {
     case 'linear':
@@ -304,6 +367,10 @@ export function formatModel(model: FunctionModel): string {
       if (model.c !== 0) s += term(model.c);
       return s;
     }
+    case 'cubic':
+      return `y = ${coeff(model.a, 'x^3')}${midTerm(model.b, 'x^2')}${midTerm(model.c, 'x')}${term(model.d)}`;
+    case 'quartic':
+      return `y = ${coeff(model.a, 'x^4')}${midTerm(model.b, 'x^3')}${midTerm(model.c, 'x^2')}${midTerm(model.d, 'x')}${term(model.e)}`;
     case 'exponential':
       return `y = ${fmt(model.a)}*${fmt(model.b)}^x`;
     case 'logarithmic':

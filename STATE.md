@@ -20,7 +20,19 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
+**OWED: the D24 counsel read, Gate 4, the `display_name` one-row fix, and the two function redeploys for the polynomial families.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
+
+**⏳ `get-activity` + `check-activity` redeploys — OWED (2026-08-31, wishlist #2).**
+The cubic/quartic graded families changed schema, the sanitizer's family
+whitelist, and the grading engine; both bundles are regenerated and committed.
+Deploy `pnpm deploy:get-activity` and `pnpm deploy:check` (never
+`--no-verify-jwt` on check) **BEFORE pushing this commit to `main`** — a push
+is a Pages deploy (OV-7), and an author publishing a cubic/quartic activity
+against the OLD `get-activity` would serve it with the family stripped by the
+whitelist (widget falls back to a 2-handle linear layout; no leak, but a broken
+question). Verify by bundle sha256 (the CLAUDE.md download-and-hash method) —
+`SANITIZER_REV` did NOT move (declarations unchanged; no cached row can carry
+the new families, so no orphaning is needed).
 
 ✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
 misconception strip is live, so **activities carrying bindings are safe to
@@ -240,7 +252,13 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-31 — **LANE B BUILT + HOUSEKEEPING; the
+**Last updated:** 2026-08-31 (evening) — **WISHLIST #2 SHIPPED: cubic + quartic
+graded families** (design record in graded-function-families.md §top; both
+server bundles regenerated same-commit; two redeploys pending — see Pending).
+Six new guards mutation-tested same-day; the detection cascade's
+interpolation-shadow bug (a quartic stealing every logarithm) is fixed with a
+midpoint verification grid. Earlier today:
+**LANE B BUILT + HOUSEKEEPING; the
 curriculum-alignment arc is COMPLETE and the next lever is authoring.** The
 activities list orders by catalogue path; the importer's phantom
 `course`/`unit` change is fixed (it was hiding a data bug, not just noise); two

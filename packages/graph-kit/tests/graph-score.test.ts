@@ -102,6 +102,10 @@ describe('handlesForFamily', () => {
     expect(handlesForFamily('logarithmic')).toBe(2);
     expect(handlesForFamily('vertical')).toBe(2);
   });
+  it('cubic needs four, quartic needs five (wishlist #2)', () => {
+    expect(handlesForFamily('cubic')).toBe(4);
+    expect(handlesForFamily('quartic')).toBe(5);
+  });
 });
 
 describe('startsForFamily (family-aware student seeds)', () => {
@@ -160,6 +164,47 @@ describe('fitFunction + scoreFunction — new families (Drop 2)', () => {
     };
     expect(scoreFunction(m, [[0, 1], [1, 0], [3, 4]])).toBe(true);
     expect(scoreFunction(m, [[0, 2], [1, 1], [3, 5]])).toBe(false); // shifted up 1
+  });
+
+  it('cubic: recovers a, b, c, d and scores (y = x³ − 3x)', () => {
+    const pts: [number, number][] = [[-1, 2], [0, 0], [1, -2], [2, 2]];
+    const f = fitFunction('cubic', pts);
+    expect(f && f.family === 'cubic').toBe(true);
+    if (f && f.family === 'cubic') {
+      expect(f.a).toBeCloseTo(1, 4);
+      expect(f.b).toBeCloseTo(0, 4);
+      expect(f.c).toBeCloseTo(-3, 4);
+      expect(f.d).toBeCloseTo(0, 4);
+    }
+    const m: FunctionModel = {
+      family: 'cubic', a: 1, b: 0, c: -3, d: 0,
+      aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1,
+    };
+    expect(scoreFunction(m, pts)).toBe(true);
+    expect(scoreFunction(m, [[-1, 3], [0, 1], [1, -1], [2, 3]])).toBe(false); // shifted up 1
+    expect(scoreFunction(m, [[0, 0], [1, 1], [2, 8], [-1, -1]])).toBe(false); // y = x³
+  });
+
+  it('quartic: recovers a…e and scores (y = x⁴ − 5x² + 4)', () => {
+    const pts: [number, number][] = [[-2, 0], [-1, 0], [0, 4], [1, 0], [2, 0]];
+    const f = fitFunction('quartic', pts);
+    expect(f && f.family === 'quartic').toBe(true);
+    if (f && f.family === 'quartic') {
+      expect(f.a).toBeCloseTo(1, 4);
+      expect(f.c).toBeCloseTo(-5, 4);
+      expect(f.e).toBeCloseTo(4, 4);
+    }
+    const m: FunctionModel = {
+      family: 'quartic', a: 1, b: 0, c: -5, d: 0, e: 4,
+      aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1, eTolerance: 0.1,
+    };
+    expect(scoreFunction(m, pts)).toBe(true);
+    expect(scoreFunction(m, [[-2, 1], [-1, 1], [0, 5], [1, 1], [2, 1]])).toBe(false); // shifted up 1
+  });
+
+  it('cubic fit needs four distinct x; quartic five (else no curve)', () => {
+    expect(fitFunction('cubic', [[0, 0], [1, 1], [2, 8]])).toBeNull();
+    expect(fitFunction('quartic', [[0, 0], [1, 1], [2, 16], [3, 81]])).toBeNull();
   });
 
   it('exponential: recovers a, b and scores (y = 2·3ˣ)', () => {

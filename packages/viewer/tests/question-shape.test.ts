@@ -53,6 +53,19 @@ describe('what it derives (question shape the student already sees)', () => {
     ).toEqual({ family: 'quadratic' });
   });
 
+  it('the polynomial families pass the whitelist (cubic, quartic)', () => {
+    for (const family of ['cubic', 'quartic']) {
+      expect(
+        deriveQuestionShape(
+          graphBlock({
+            type: 'plot_function',
+            models: [{ family, a: COORD, b: COORD, c: COORD, d: COORD, e: COORD }],
+          }),
+        ),
+      ).toEqual({ family });
+    }
+  });
+
   it('family from an inequality’s boundary', () => {
     expect(
       deriveQuestionShape(

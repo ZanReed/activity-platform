@@ -11,6 +11,8 @@
 // doc's "feel at home" requirement):
 //   linear       y = ax + b          r² = 1 − SSres/SStot on the data
 //   quadratic    y = ax² + bx + c    R² = 1 − SSres/SStot on the data
+//   cubic        y = ax³ + … + d     R², same convention (TI-84 CubicReg)
+//   quartic      y = ax⁴ + … + e     R², same convention (TI-84 QuartReg)
 //   exponential  y = a·bˣ            fitted log-linearly (ln y = ln a + x·ln b);
 //                                    r² reported on the LOG-TRANSFORMED fit —
 //                                    what TI-84 ExpReg and Desmos both report. A
@@ -36,6 +38,8 @@ export interface DataPoint {
 export type Fit =
   | { model: 'linear'; a: number; b: number; r2: number }
   | { model: 'quadratic'; a: number; b: number; c: number; r2: number }
+  | { model: 'cubic'; a: number; b: number; c: number; d: number; r2: number }
+  | { model: 'quartic'; a: number; b: number; c: number; d: number; e: number; r2: number }
   | { model: 'exponential'; a: number; b: number; r2: number }
   | { model: 'logarithmic'; a: number; b: number; r2: number };
 
@@ -121,6 +125,102 @@ function solve3x3(m: number[][], rhs: number[]): number[] | null {
   return out;
 }
 
+// Solve an n×n system by Gaussian elimination with partial pivoting — the same
+// algorithm as solve3x3, sized for the polynomial normal equations (solve3x3
+// stays as-is: fitQuadratic is long-settled code and keeps its own path).
+// Returns null when the system is singular.
+function solveN(m: number[][], rhs: number[]): number[] | null {
+  const n = rhs.length;
+  const a = m.map((row, i) => [...row, rhs[i] ?? 0]);
+  for (let col = 0; col < n; col++) {
+    let pivot = col;
+    for (let r = col + 1; r < n; r++) {
+      if (Math.abs(a[r]?.[col] ?? 0) > Math.abs(a[pivot]?.[col] ?? 0)) pivot = r;
+    }
+    const pivotRow = a[pivot];
+    const colRow = a[col];
+    if (!pivotRow || !colRow) return null;
+    if (Math.abs(pivotRow[col] ?? 0) < 1e-12) return null;
+    if (pivot !== col) {
+      a[pivot] = colRow;
+      a[col] = pivotRow;
+    }
+    const base = a[col];
+    if (!base) return null;
+    for (let r = col + 1; r < n; r++) {
+      const row = a[r];
+      if (!row) return null;
+      const factor = (row[col] ?? 0) / (base[col] ?? 1);
+      for (let c = col; c <= n; c++) row[c] = (row[c] ?? 0) - factor * (base[c] ?? 0);
+    }
+  }
+  const out = new Array<number>(n).fill(0);
+  for (let r = n - 1; r >= 0; r--) {
+    const row = a[r];
+    if (!row) return null;
+    let sum = row[n] ?? 0;
+    for (let c = r + 1; c < n; c++) sum -= (row[c] ?? 0) * (out[c] ?? 0);
+    out[r] = sum / (row[r] ?? 1);
+  }
+  return out;
+}
+
+// Degree-general polynomial least squares (normal equations over power sums).
+// Coefficients HIGHEST power first: p(x) = c[0]·x^degree + … + c[degree].
+// Needs degree+1 distinct x-values; null when the system is singular. The
+// graded families expose cubic and quartic; the engine is general so a future
+// family is one wrapper, not new math.
+function polynomialLeastSquares(
+  points: DataPoint[],
+  degree: number,
+): number[] | null {
+  const n = degree + 1;
+  // Power sums S_k = Σ xᵏ (k = 0 … 2·degree) and moments T_r = Σ xʳ·y.
+  const S = new Array<number>(2 * degree + 1).fill(0);
+  const T = new Array<number>(n).fill(0);
+  for (const p of points) {
+    let xp = 1;
+    for (let k = 0; k <= 2 * degree; k++) {
+      S[k] = (S[k] ?? 0) + xp;
+      if (k <= degree) T[k] = (T[k] ?? 0) + xp * p.y;
+      xp *= p.x;
+    }
+  }
+  // Row r (for the coefficient of x^(degree−r)): Σ_j c_j·S[2·degree−r−j] = T[degree−r].
+  const m: number[][] = [];
+  const rhs: number[] = [];
+  for (let r = 0; r < n; r++) {
+    const row: number[] = [];
+    for (let j = 0; j < n; j++) row.push(S[2 * degree - r - j] ?? 0);
+    m.push(row);
+    rhs.push(T[degree - r] ?? 0);
+  }
+  return solveN(m, rhs);
+}
+
+function fitPolynomial(
+  points: DataPoint[],
+  degree: number,
+): { coeffs: number[]; r2: number; predict: (x: number) => number } | null {
+  const coeffs = polynomialLeastSquares(points, degree);
+  if (!coeffs) return null;
+  const predict = (x: number): number => {
+    let y = 0;
+    for (const c of coeffs) y = y * x + c;
+    return y;
+  };
+  let sy = 0;
+  for (const p of points) sy += p.y;
+  const meanY = sy / points.length;
+  let ssRes = 0,
+    ssTot = 0;
+  for (const p of points) {
+    ssRes += (p.y - predict(p.x)) ** 2;
+    ssTot += (p.y - meanY) ** 2;
+  }
+  return { coeffs, r2: rSquared(ssRes, ssTot), predict };
+}
+
 export function fitLinear(points: DataPoint[]): FitOutcome {
   if (points.length < 2) return fail('Add at least 2 points');
   if (distinctXCount(points) < 2)
@@ -172,6 +272,34 @@ export function fitQuadratic(points: DataPoint[]): FitOutcome {
     ok: true,
     fit: { model: 'quadratic', a, b, c, r2: rSquared(ssRes, ssTot) },
     predict: (x) => a * x * x + b * x + c,
+  };
+}
+
+export function fitCubic(points: DataPoint[]): FitOutcome {
+  if (points.length < 4) return fail('Add at least 4 points');
+  if (distinctXCount(points) < 4)
+    return fail('Points need at least 4 different x-values');
+  const out = fitPolynomial(points, 3);
+  if (!out) return fail('Points need at least 4 different x-values');
+  const [a = 0, b = 0, c = 0, d = 0] = out.coeffs;
+  return {
+    ok: true,
+    fit: { model: 'cubic', a, b, c, d, r2: out.r2 },
+    predict: out.predict,
+  };
+}
+
+export function fitQuartic(points: DataPoint[]): FitOutcome {
+  if (points.length < 5) return fail('Add at least 5 points');
+  if (distinctXCount(points) < 5)
+    return fail('Points need at least 5 different x-values');
+  const out = fitPolynomial(points, 4);
+  if (!out) return fail('Points need at least 5 different x-values');
+  const [a = 0, b = 0, c = 0, d = 0, e = 0] = out.coeffs;
+  return {
+    ok: true,
+    fit: { model: 'quartic', a, b, c, d, e, r2: out.r2 },
+    predict: out.predict,
   };
 }
 

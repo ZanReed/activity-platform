@@ -193,6 +193,7 @@ const KNOWN_FAMILIES: ReadonlySet<string> = new Set([
   'absolute',
   'sqrt',
   'cubic',
+  'quartic',
 ]);
 
 export interface QuestionShape {

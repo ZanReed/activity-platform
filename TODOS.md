@@ -18,9 +18,8 @@ data (D8/D10).
 alongside as a cheap win, then #5 → #3 → #6.** Each still gets its own design
 pass with numbered decisions before code.
 
-⚠ **STATUS 2026-08-31: #1 is SHIPPED; the ranked remainder is #2 → #4 → #3 →
-#5 → #6.** Re-verified against code the same day, not inferred: `regression.ts`
-still grades exactly `linear | quadratic | exponential | logarithmic` (#2 open),
+⚠ **STATUS 2026-08-31 (evening): #1 and #2 are SHIPPED; the ranked remainder
+is #4 → #3 → #5 → #6.** Re-verified against code the same day, not inferred:
 `nway_correspondence` appears nowhere in `packages/` (#4 open), and blank-level
 units do not exist in the format doc (#3 open).
 
@@ -58,14 +57,16 @@ units do not exist in the format doc (#3 open).
    graph `mistake:` is one of the binding sites, so rule them together.
    Fallback until shipped: feedback text only; the sensor data does not exist.
 
-2. **`graded_polynomial` — cubic-and-up curve grading.** (Blocks ~11: the
-   derivative chains.) Verified: `regression.ts:25` grades exactly
-   `linear | quadratic | exponential | logarithmic`. Cheapest of the graph
-   items — extends an existing well-tested enum through `regression.ts` →
-   `fit-format.ts` → `graph-score.ts`. Design question: degree-3 or degree-n.
-   Grading-engine change → `pnpm bundle:grading-server` same commit +
-   `check-activity` redeploy owed. Fallback: fill-blank/mc, activities capped
-   at draft.
+2. ✅ **`graded_polynomial` — SHIPPED 2026-08-31** as two named families,
+   `cubic` + `quartic` (degree-3-or-degree-n was ruled degree-NAMED on the
+   family-string plumbing; degree 5+ deliberately out — decisions and the
+   interpolation-shadow bug are recorded in
+   [graded-function-families.md](docs/design/graded-function-families.md) §top).
+   Rides the shared parser, so the editor answer field AND the markdown
+   importer both accept `y = x^3 - 3x` with no per-surface work. Both server
+   bundles regenerated in the same commit; `get-activity` + `check-activity`
+   redeploys pending (STATE → Pending author actions). Unblocks the ~11
+   derivative-chain activities.
 
 3. **Unit-bearing numeric blanks** — `{{=1.5 unit: km/h}}`. (Blocks ~10
    contextual DoLs; the units-dropped misconception family runs the full

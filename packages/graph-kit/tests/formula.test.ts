@@ -46,6 +46,46 @@ describe('parseGraphFormula — other families', () => {
     }
   });
 
+  it('cubic (bare, ^ and ³ forms)', () => {
+    for (const input of ['x^3 - 3x', 'y = x³ - 3x']) {
+      const r = parseGraphFormula(input);
+      expect(r.kind).toBe('function');
+      if (r.kind === 'function' && r.model.family === 'cubic') {
+        expect(r.model.a).toBeCloseTo(1, 4);
+        expect(r.model.b).toBeCloseTo(0, 4);
+        expect(r.model.c).toBeCloseTo(-3, 4);
+        expect(r.model.d).toBeCloseTo(0, 4);
+      } else {
+        throw new Error(`not cubic: ${JSON.stringify(r)}`);
+      }
+    }
+  });
+
+  it('quartic (bare, ^ and ⁴ forms)', () => {
+    for (const input of ['x^4 - 5x^2 + 4', 'y = x⁴ - 5x² + 4']) {
+      const r = parseGraphFormula(input);
+      expect(r.kind).toBe('function');
+      if (r.kind === 'function' && r.model.family === 'quartic') {
+        expect(r.model.a).toBeCloseTo(1, 4);
+        expect(r.model.b).toBeCloseTo(0, 4);
+        expect(r.model.c).toBeCloseTo(-5, 4);
+        expect(r.model.d).toBeCloseTo(0, 4);
+        expect(r.model.e).toBeCloseTo(4, 4);
+      } else {
+        throw new Error(`not quartic: ${JSON.stringify(r)}`);
+      }
+    }
+  });
+
+  it('lower degrees still win over the polynomial fits (simplest-first order)', () => {
+    // A quadratic must classify as quadratic, never as a degenerate cubic or
+    // quartic — the detection cascade tries simplest first.
+    const r = parseGraphFormula('y = x^2 - 4');
+    expect(r.kind === 'function' && r.model.family).toBe('quadratic');
+    const line = parseGraphFormula('y = 2x + 1');
+    expect(line.kind === 'function' && line.model.family).toBe('linear');
+  });
+
   it('exponential y = 2*3^x', () => {
     const r = parseGraphFormula('y = 2*3^x');
     expect(r.kind).toBe('function');
@@ -168,6 +208,10 @@ describe('formatModel round-trips through parseGraphFormula', () => {
     { family: 'linear', slope: -1, intercept: 0, slopeTolerance: 0.1, interceptTolerance: 0.1 },
     { family: 'linear', slope: 0, intercept: 4, slopeTolerance: 0.1, interceptTolerance: 0.1 },
     { family: 'quadratic', a: 1, b: -2, c: 1, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1 },
+    { family: 'cubic', a: 1, b: 0, c: -3, d: 0, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1 },
+    { family: 'cubic', a: -2, b: 1, c: 0.5, d: -4, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1 },
+    { family: 'quartic', a: 1, b: 0, c: -5, d: 0, e: 4, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1, eTolerance: 0.1 },
+    { family: 'quartic', a: 0.25, b: -1, c: 2, d: 1, e: -3, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1, eTolerance: 0.1 },
     { family: 'exponential', a: 2, b: 3, aTolerance: 0.1, bTolerance: 0.1 },
     { family: 'logarithmic', a: 1, b: 2, aTolerance: 0.1, bTolerance: 0.1 },
     { family: 'vertical', x: 4, xTolerance: 0.1 },

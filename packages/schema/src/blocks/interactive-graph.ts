@@ -27,6 +27,8 @@ export {
   CurveDomain,
   LinearModel,
   QuadraticModel,
+  CubicModel,
+  QuarticModel,
   ExponentialModel,
   LogarithmicModel,
   VerticalModel,

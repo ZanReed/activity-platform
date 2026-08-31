@@ -213,8 +213,9 @@ export function classifyPointMistake(
 }
 
 /** plot_function: linear slope/intercept mix-ups + quadratic shape nudges.
- * Exponential/logarithmic classifiers wait on observed student data (author
- * call 2026-07-10) — authored mistakeFeedback covers those families today. */
+ * Exponential/logarithmic (author call 2026-07-10) and cubic/quartic (same
+ * ruling, 2026-08-31) classifiers wait on observed student data — authored
+ * mistakeFeedback covers those families today. */
 export function classifyFunctionMistake(
   model: FunctionModel,
   studentPoints: [number, number][],

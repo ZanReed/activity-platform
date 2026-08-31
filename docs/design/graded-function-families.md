@@ -1,4 +1,45 @@
-# Graded function families: quadratic / exponential / logarithmic
+# Graded function families: quadratic / exponential / logarithmic — and cubic / quartic (2026-08-31)
+
+> **EXTENSION SHIPPED 2026-08-31 (wishlist #2 — `graded_polynomial`).** Two new
+> graded families, `cubic` and `quartic`, ride the same architecture this doc
+> describes. The decisions, each made against the plumbing as shipped:
+>
+> 1. **Degree-NAMED families (`cubic`, `quartic`), not a degree-n `polynomial`
+>    family.** The kit's plumbing is family-STRING-keyed end to end
+>    (`handlesForFamily(family)`, `fitFunction(family, pts)`, the sanitizer's
+>    `QuestionShape.family` whitelist) — a parameterized family would thread the
+>    whole model through every call site. Named families also match the TI-84 a
+>    student holds (CubicReg / QuartReg; both report R²). Degree 5+ is
+>    deliberately OUT: no blocked activity needs it, six-plus handles is bad
+>    UX, and the normal equations' conditioning degrades.
+> 2. **The engine is degree-general internally** (`fitPolynomial(points, degree)`
+>    over an n×n Gaussian elimination in `regression.ts`); `fitCubic` /
+>    `fitQuartic` are named wrappers. A future degree-5 family is one wrapper +
+>    one union member, not new math. `solve3x3`/`fitQuadratic` stay on their own
+>    settled path, untouched.
+> 3. **The calculator UI is untouched.** `RegressionModel` (the calculator's
+>    dispatch enum) did not grow; the `Fit` union did (so `equationText`/`r2Text`
+>    can render the new fits). Surfacing CubicReg/QuartReg in the calculator is
+>    a separate UX decision, not taken here.
+> 4. **No built-in mistake classifiers for cubic/quartic** — the same ruling as
+>    exp/log (Decision 3 below, 2026-07-10): wait for observed student data;
+>    authored `mistakeFeedback` is family-generic and already covers them.
+> 5. **Student handle seeds use the generic y = 0 spread** (valid fit territory
+>    for any polynomial); `startsForFamily` untouched.
+>
+> **The one real bug the extension surfaced:** `detectFamily` samples the typed
+> function and residual-checks each candidate fit — AT THE FIT'S OWN SAMPLE
+> POINTS. A 5-parameter quartic INTERPOLATES any 5 finite samples exactly, and
+> `ln(x)` survives at exactly 5 of the default grid — so the quartic branch
+> stole every logarithm (caught by the existing log tests the moment the branch
+> landed). Fits are now verified on the sample grid PLUS its midpoints
+> (`withMidpoints`), where an interpolant and the true function separate.
+>
+> Deploy footprint: schema + sanitize whitelist ⇒ viewer-server bundle +
+> `get-activity` redeploy; scorers ⇒ grading-server bundle + `check-activity`
+> redeploy. No `SANITIZER_ALGO_REV` bump: the transform's output changes only
+> for blocks carrying the new families, which cannot predate this change in any
+> cached row.
 
 > ⚠ **INFRASTRUCTURE ANNOTATION (2026-08-22 drift audit).** This document references `RUNTIME.md` and/or the published-page runtime as live. Both died with `packages/renderer` at **S9 Drop 4 (2026-08-14)** — there are no published HTML pages, and the viewer at `/a/:id` is the only student surface. The reasoning below is kept intact as the record of how this shipped; read every runtime reference as historical.
 

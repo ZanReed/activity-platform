@@ -1651,9 +1651,8 @@ export interface DisplayController {
   destroy(): void;
 }
 
-// A FunctionModel → f(x). Only 'linear' today; quadratic/exp/log slot in beside
-// it (matching graph-score's fitFunction), so a curve drawable grows with the
-// graded families for free.
+// A FunctionModel → f(x), one case per y-of-x family (matching graph-score's
+// fitFunction), so a curve drawable grows with the graded families for free.
 function modelToFn(
   model: Record<string, unknown> | undefined,
 ): ((x: number) => number) | null {
@@ -1668,6 +1667,19 @@ function modelToFn(
     case 'quadratic': {
       const a = n(model.a); const b = n(model.b); const c = n(model.c);
       return [a, b, c].every(Number.isFinite) ? (x) => a * x * x + b * x + c : null;
+    }
+    case 'cubic': {
+      const a = n(model.a); const b = n(model.b); const c = n(model.c); const d = n(model.d);
+      return [a, b, c, d].every(Number.isFinite)
+        ? (x) => ((a * x + b) * x + c) * x + d
+        : null;
+    }
+    case 'quartic': {
+      const a = n(model.a); const b = n(model.b); const c = n(model.c);
+      const d = n(model.d); const e = n(model.e);
+      return [a, b, c, d, e].every(Number.isFinite)
+        ? (x) => (((a * x + b) * x + c) * x + d) * x + e
+        : null;
     }
     case 'exponential': {
       const a = n(model.a); const b = n(model.b);

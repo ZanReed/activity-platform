@@ -31,6 +31,10 @@ export function equationText(fit: Fit): string {
       return `y = ${formatCoefficient(fit.a)}x${signed(fit.b)}`;
     case 'quadratic':
       return `y = ${formatCoefficient(fit.a)}x²${signed(fit.b, 'x')}${signed(fit.c)}`;
+    case 'cubic':
+      return `y = ${formatCoefficient(fit.a)}x³${signed(fit.b, 'x²')}${signed(fit.c, 'x')}${signed(fit.d)}`;
+    case 'quartic':
+      return `y = ${formatCoefficient(fit.a)}x⁴${signed(fit.b, 'x³')}${signed(fit.c, 'x²')}${signed(fit.d, 'x')}${signed(fit.e)}`;
     case 'exponential':
       return `y = ${formatCoefficient(fit.a)} · ${formatCoefficient(fit.b)}ˣ`;
     case 'logarithmic':
@@ -38,9 +42,13 @@ export function equationText(fit: Fit): string {
   }
 }
 
-// TI labels the quadratic goodness-of-fit R² and the linear/exponential ones
-// r² — students check the panel against that readout, so mirror it.
+// TI labels the polynomial goodness-of-fit R² (QuadReg/CubicReg/QuartReg) and
+// the linear/exponential ones r² — students check the panel against that
+// readout, so mirror it.
 export function r2Text(fit: Fit): string {
-  const label = fit.model === 'quadratic' ? 'R²' : 'r²';
+  const label =
+    fit.model === 'quadratic' || fit.model === 'cubic' || fit.model === 'quartic'
+      ? 'R²'
+      : 'r²';
   return `${label} = ${String(Number.parseFloat(fit.r2.toPrecision(4)))}`;
 }

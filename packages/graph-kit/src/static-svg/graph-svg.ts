@@ -178,6 +178,10 @@ function evalModel(model: FunctionModel, x: number): number | null {
       return model.slope * x + model.intercept;
     case 'quadratic':
       return model.a * x * x + model.b * x + model.c;
+    case 'cubic':
+      return ((model.a * x + model.b) * x + model.c) * x + model.d;
+    case 'quartic':
+      return (((model.a * x + model.b) * x + model.c) * x + model.d) * x + model.e;
     case 'exponential':
       return model.a * Math.pow(model.b, x);
     case 'logarithmic':

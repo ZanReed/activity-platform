@@ -10,6 +10,8 @@
 import {
   fitLinear,
   fitQuadratic,
+  fitCubic,
+  fitQuartic,
   fitExponential,
   fitLogarithmic,
   type DataPoint,
@@ -124,6 +126,30 @@ export interface QuadraticModel {
   bTolerance: number;
   cTolerance: number;
 }
+export interface CubicModel {
+  family: 'cubic';
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  aTolerance: number;
+  bTolerance: number;
+  cTolerance: number;
+  dTolerance: number;
+}
+export interface QuarticModel {
+  family: 'quartic';
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  aTolerance: number;
+  bTolerance: number;
+  cTolerance: number;
+  dTolerance: number;
+  eTolerance: number;
+}
 export interface ExponentialModel {
   family: 'exponential';
   a: number;
@@ -146,6 +172,8 @@ export interface VerticalModel {
 export type FunctionModel =
   | LinearModel
   | QuadraticModel
+  | CubicModel
+  | QuarticModel
   | ExponentialModel
   | LogarithmicModel
   | VerticalModel;
@@ -156,6 +184,10 @@ export function handlesForFamily(family: string): number {
   switch (family) {
     case 'quadratic':
       return 3;
+    case 'cubic':
+      return 4;
+    case 'quartic':
+      return 5;
     case 'linear':
     case 'exponential':
     case 'logarithmic':
@@ -223,6 +255,8 @@ export function startsForFamily(
 export type Fitted =
   | { family: 'linear'; slope: number; intercept: number; predict: (x: number) => number }
   | { family: 'quadratic'; a: number; b: number; c: number; predict: (x: number) => number }
+  | { family: 'cubic'; a: number; b: number; c: number; d: number; predict: (x: number) => number }
+  | { family: 'quartic'; a: number; b: number; c: number; d: number; e: number; predict: (x: number) => number }
   | { family: 'exponential'; a: number; b: number; predict: (x: number) => number }
   | { family: 'logarithmic'; a: number; b: number; predict: (x: number) => number }
   // vertical has no y = f(x); it carries the fitted x-value instead of predict.
@@ -260,6 +294,16 @@ export function fitFunction(
       const out = fitQuadratic(data);
       if (!out.ok || out.fit.model !== 'quadratic') return null;
       return { family: 'quadratic', a: out.fit.a, b: out.fit.b, c: out.fit.c, predict: out.predict };
+    }
+    case 'cubic': {
+      const out = fitCubic(data);
+      if (!out.ok || out.fit.model !== 'cubic') return null;
+      return { family: 'cubic', a: out.fit.a, b: out.fit.b, c: out.fit.c, d: out.fit.d, predict: out.predict };
+    }
+    case 'quartic': {
+      const out = fitQuartic(data);
+      if (!out.ok || out.fit.model !== 'quartic') return null;
+      return { family: 'quartic', a: out.fit.a, b: out.fit.b, c: out.fit.c, d: out.fit.d, e: out.fit.e, predict: out.predict };
     }
     case 'exponential': {
       const out = fitExponential(data);
@@ -306,6 +350,23 @@ export function scoreFunction(
         Math.abs(fitted.a - model.a) <= model.aTolerance &&
         Math.abs(fitted.b - model.b) <= model.bTolerance &&
         Math.abs(fitted.c - model.c) <= model.cTolerance
+      );
+    case 'cubic':
+      return (
+        fitted.family === 'cubic' &&
+        Math.abs(fitted.a - model.a) <= model.aTolerance &&
+        Math.abs(fitted.b - model.b) <= model.bTolerance &&
+        Math.abs(fitted.c - model.c) <= model.cTolerance &&
+        Math.abs(fitted.d - model.d) <= model.dTolerance
+      );
+    case 'quartic':
+      return (
+        fitted.family === 'quartic' &&
+        Math.abs(fitted.a - model.a) <= model.aTolerance &&
+        Math.abs(fitted.b - model.b) <= model.bTolerance &&
+        Math.abs(fitted.c - model.c) <= model.cTolerance &&
+        Math.abs(fitted.d - model.d) <= model.dTolerance &&
+        Math.abs(fitted.e - model.e) <= model.eTolerance
       );
     case 'exponential':
       return (

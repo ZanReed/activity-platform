@@ -110,7 +110,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   segment (1, 2) to (3, 4) (open/closed set each endpoint style, default
   closed), a region like region (0,0), (4,0), (2,4), or the word none for
   a "cannot be graphed" trick question. Supported answer curves: linear,
-  quadratic, exponential, logarithmic, and vertical lines.
+  quadratic, cubic, quartic, exponential, logarithmic, and vertical lines.
 - The prompt line may include inline math: prompt: Graph $y = 2x + 3$.
 - Optional targeted feedback for an anticipated wrong answer (repeatable):
     mistake: y = x + 2 :: Remember - the number multiplying x is the slope.

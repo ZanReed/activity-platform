@@ -49,6 +49,16 @@ export interface QuadraticFunctionModel {
     a: number; b: number; c: number;
     aTolerance: number; bTolerance: number; cTolerance: number;
 }
+export interface CubicFunctionModel {
+    family: 'cubic';
+    a: number; b: number; c: number; d: number;
+    aTolerance: number; bTolerance: number; cTolerance: number; dTolerance: number;
+}
+export interface QuarticFunctionModel {
+    family: 'quartic';
+    a: number; b: number; c: number; d: number; e: number;
+    aTolerance: number; bTolerance: number; cTolerance: number; dTolerance: number; eTolerance: number;
+}
 export interface ExponentialFunctionModel {
     family: 'exponential';
     a: number; b: number;
@@ -68,6 +78,8 @@ export interface VerticalFunctionModel {
 export type FunctionModelAttr =
     | LinearFunctionModel
     | QuadraticFunctionModel
+    | CubicFunctionModel
+    | QuarticFunctionModel
     | ExponentialFunctionModel
     | LogarithmicFunctionModel
     | VerticalFunctionModel;

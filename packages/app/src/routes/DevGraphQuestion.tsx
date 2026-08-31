@@ -63,6 +63,24 @@ const SCENARIOS: Record<string, Scenario> = {
     restorePoints: [[0, -4], [1, -3], [-2, 0]],
     hint: 'THREE handles; the fitted parabola follows them.',
   },
+  cubic: {
+    label: 'Plot a function — cubic y = x³ − 3x',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [{ family: 'cubic', a: 1, b: 0, c: -3, d: 0, aTolerance: 0.2, bTolerance: 0.2, cTolerance: 0.2, dTolerance: 0.2 }],
+    },
+    restorePoints: [[-1, 2], [0, 0], [1, -2], [2, 2]],
+    hint: 'FOUR handles; the fitted cubic follows them.',
+  },
+  quartic: {
+    label: 'Plot a function — quartic y = x⁴ − 5x² + 4',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [{ family: 'quartic', a: 1, b: 0, c: -5, d: 0, e: 4, aTolerance: 0.2, bTolerance: 0.2, cTolerance: 0.2, dTolerance: 0.2, eTolerance: 0.2 }],
+    },
+    restorePoints: [[-2, 0], [-1, 0], [0, 4], [1, 0], [2, 0]],
+    hint: 'FIVE handles; the fitted quartic follows them.',
+  },
   exponential: {
     label: 'Plot a function — exponential y = 2ˣ',
     interactionType: 'plot_function',

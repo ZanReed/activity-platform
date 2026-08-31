@@ -1458,6 +1458,29 @@ describe('```graph fence (Drop 7)', () => {
         expect(g.content).toEqual([{ type: 'text', text: 'Graph the line.' }]);
     });
 
+    it('imports a cubic answer through the shared parser (wishlist #2)', () => {
+        const md = '```graph\nprompt: Graph it.\nanswer: y = x^3 - 3x\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'interactiveGraph')!;
+        const models = g.attrs!.interaction.models;
+        expect(models[0].family).toBe('cubic');
+        expect(models[0].a).toBeCloseTo(1, 4);
+        expect(models[0].c).toBeCloseTo(-3, 4);
+    });
+
+    it('imports a quartic answer through the shared parser (wishlist #2)', () => {
+        const md = '```graph\nanswer: y = x^4 - 5x^2 + 4\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'interactiveGraph')!;
+        const models = g.attrs!.interaction.models;
+        expect(models[0].family).toBe('quartic');
+        expect(models[0].a).toBeCloseTo(1, 4);
+        expect(models[0].c).toBeCloseTo(-5, 4);
+        expect(models[0].e).toBeCloseTo(4, 4);
+    });
+
     it('the retired options: partial-credit degrades with an unknown-option warning', () => {
         const md = '```graph\nanswer: y = 2x + 1\noptions: partial-credit\n```';
         const { blocks, warnings } = convert(md);

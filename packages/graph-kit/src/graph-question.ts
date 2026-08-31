@@ -93,6 +93,25 @@ function parseModel(raw: unknown): FunctionModel {
         bTolerance: numOr(o.bTolerance, 0.1),
         cTolerance: numOr(o.cTolerance, 0.1),
       };
+    case 'cubic':
+      return {
+        family: 'cubic',
+        a: numOr(o.a, 1), b: numOr(o.b, 0), c: numOr(o.c, 0), d: numOr(o.d, 0),
+        aTolerance: numOr(o.aTolerance, 0.1),
+        bTolerance: numOr(o.bTolerance, 0.1),
+        cTolerance: numOr(o.cTolerance, 0.1),
+        dTolerance: numOr(o.dTolerance, 0.1),
+      };
+    case 'quartic':
+      return {
+        family: 'quartic',
+        a: numOr(o.a, 1), b: numOr(o.b, 0), c: numOr(o.c, 0), d: numOr(o.d, 0), e: numOr(o.e, 0),
+        aTolerance: numOr(o.aTolerance, 0.1),
+        bTolerance: numOr(o.bTolerance, 0.1),
+        cTolerance: numOr(o.cTolerance, 0.1),
+        dTolerance: numOr(o.dTolerance, 0.1),
+        eTolerance: numOr(o.eTolerance, 0.1),
+      };
     case 'exponential':
       return {
         family: 'exponential',
