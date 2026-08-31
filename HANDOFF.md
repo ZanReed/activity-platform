@@ -99,7 +99,7 @@ Filed 2026-08-30, structural, deliberately not applied unilaterally.
 |---|---|
 | **Author** | Nothing. Push when ready. |
 | **Platform** | Nothing open. |
-| **Curriculum side** | Ratify 13 proposed misconception ids (their count says 12 — it is 13, and the registry goes to 35 not 34); one carrier is unbuildable as written and needs a restructure, not a wish; the `transform.translate` activity; alignment fields as arrays. |
+| **Curriculum side** | ✅ the 13 ids are ratified, merged and the registry is installed at 35 (2026-08-31; the manifests did not move, which is the proof it was a superset). Still theirs: one carrier needs a restructure rather than a wish; the `transform.translate` activity; alignment fields as arrays; and the shared **boundary page** they now maintain — read its closing rule before touching either side's docs. |
 
 ## Traps that cost this session real time
 
