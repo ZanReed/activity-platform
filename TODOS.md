@@ -413,6 +413,23 @@ Check the load and the build-gate duration before believing a red here.
 way, so something in them is wall-clock dependent rather than fake-timer driven.
 Finding and pinning that is a small slice; guessing at it under load is not.
 
+**Reproduction attempted 2026-09-01, and the threshold is HIGHER than assumed:**
+all three files stayed green under 16 CPU burners PLUS a concurrent full app
+vitest run (StudentViewer 3× slower at 16.3s, still passing). The original red's
+build gate ran ~80× slow (1461s vs 18s) — swap-level thrash, not mere CPU
+contention, and not something worth inflicting on a work machine to reproduce.
+Candidate wall-clock surfaces identified for whoever catches it live:
+(1) both component files ride testing-library's 1s default async window
+(`findAllByRole`/`waitFor` real-timer polls — StudentViewer's full-fixture
+render is the suite's slowest, first to cross any threshold);
+(2) `supabaseStorageKey`'s FILE-level failure shape fits an unhandled rejection
+from supabase-js post-test async (GoTrue background work resolving after jsdom
+teardown under extreme delay) — the two in-file assertions have no timing in
+them at all. **Neither was confirmed** — if one of these reds is ever caught
+live, read the actual error text before touching either file; a mitigation
+shipped without that (e.g. raising `asyncUtilTimeout`) would be a guard nobody
+watched fail.
+
 ⚠ And the operational half: **do not background a vitest run and then start
 `pnpm verify`.** That is what produced both reds, and it is easy to do when
 chasing a failure.
