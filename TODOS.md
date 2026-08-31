@@ -82,6 +82,12 @@ units do not exist in the format doc (#3 open).
    strictly two-column pairs. A new block type — full add-a-block-type
    checklist (schema, editor, viewer, print CSS, scorer, both bundles).
    Fallback: chained two-column matches, lossy, no per-edge signal.
+   ⏸ **DESIGN PASS WRITTEN 2026-09-01, awaiting the author's yes/no per
+   decision:** [nway-correspondence.md](docs/design/nway-correspondence.md) —
+   D1–D10 (anchor-rows interaction, per-cell edge scoring, `correspondence`
+   naming, the ```correspond fence, wire bump, deferred misconception ids),
+   each with a recommendation. Code waits for the greenlight (working-style
+   gate for new block types).
 
 5. **`draggable_curve` — drag-then-type disagreement diagnostic.** (Blocks
    ~11: the transformation band.) The most expensive item: a new graph-kit
