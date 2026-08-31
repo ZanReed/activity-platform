@@ -1,4 +1,4 @@
-# Handoff — 2026-08-31
+# Handoff — 2026-08-31 (second of the day)
 
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
@@ -7,32 +7,46 @@ context for a human deciding whether the handoff is accurate.
 
 ## What happened in the session that wrote this
 
-**The catalogue's organization was aligned with the curriculum model, built, and
-cut over** — and most of the session was an eleven-letter correspondence with the
-curriculum side, not coding. Five commits, `a3d1b35`..`3eed4eb`.
+Two commits, `0d2c811` and `3a49ea9`. **Lane B — the last unbuilt piece of the
+curriculum-alignment arc — was built, and then a short housekeeping pass closed
+two stale TODOS entries and fixed the importer's phantom-change noise.**
 
-The platform half: declared identity (`key:` + migration 0041), skill ids and a
-skill registry, part counts, `chain_role`, a chain registry, the `x_` reserved
-namespace, a detector for a live answer leak, a generated authoring prompt, and a
-parts-aware coverage burndown. All of it verified against the real database
-rather than against the script's own summary.
+The session opened by ruling a design fork the previous session's outside-voice
+review had surfaced: Lane B's group ordering derives from row data, and the
+grouper is called with the FILTERED array, so D6 ("group order stays stable
+among survivors") was in play as well as D5. **D6 was kept**, via an explicit
+unfiltered order source.
 
-**The correspondence is the part worth reading.** Both sides corrected the other
-on things neither side's tests could have caught, because each defect lived in
-the half of the contract the other owns. That is written up in STATE's footer and
-it is the durable lesson.
+**Two things worth knowing about how it went.** First, two of the outside-voice
+review's own claims did not survive checking — its D7 coupling and its
+attribution of the comparator fix — which is the symmetric half of the lesson
+that produced the review in the first place. Second, **one of the seven new
+guards was VACUOUS on the first attempt** and only mutation found it: a
+case-distinctness assertion stayed green when the comparator's sensitivity was
+reverted, because a different half of the fix already carried that property.
+That is the second vacuous guard in two weeks, and both had the same shape —
+*the assertion was true for a reason other than the one it was written for.*
 
-**A drift audit closed the session: 4 findings, all self-created, all fixed.**
+**The housekeeping found more than expected.** The phantom `course`/`unit`
+change was filed as cosmetic; fixing it revealed a data bug underneath (a
+published activity re-imported from a file with no `course:` line came back as
+"Algebra II"). And two TODOS entries described shipped work as open — one of
+them the file's highest-ranked blocker. **Both were found by answering "what is
+left on TODOS", not by the drift audit that ran the day before.**
 
 ## What the next session should know before trusting anything here
 
 - **`HANDOFF.md` is REPLACED, not appended** — a transient baton, not in
   CLAUDE.md's doc map.
-- **The author pushed mid-session, up to `c826431`.** Only the final close-out
-  commit is unpushed. Verified with `git ls-remote`, not the local ref — the
-  local `origin/main` can lag, and this repo has been misled by it before.
-- **Nothing is owed to the author.** 0041 is applied (they applied it), no deploy
-  is owed, no republish is owed.
+- **The author pushed mid-session again, and `origin/main` == local HEAD at
+  `3a49ea9`.** Verified with `git ls-remote`, not the local ref. This is now
+  the third session in a row where the push state was not what the previous
+  handoff predicted — check it, do not inherit it.
+- **Nothing is owed to the author.** No migration, no bundle, no deploy, no
+  republish. Both commits are app/script-side only.
+- **CI:** Lane B's run (`33400316329`) is green on all four jobs. The importer
+  run (`33401019070`) was still in flight when this was written — **open it,
+  do not assume.** A claim with a run id attached is still a claim.
 
 ---
 
@@ -41,17 +55,17 @@ it is the durable lesson.
 I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
 then TODOS.md.
 
-## Where things stand (2026-08-31, `main`, one commit unpushed)
+## Where things stand (2026-08-31, `main`, pushed to `3a49ea9`)
 
-**The curriculum-alignment arc is DONE and cut over.** Design + every ruling:
-`docs/design/curriculum-alignment.md`. Migration 0041 is applied live.
+**The curriculum-alignment arc is COMPLETE.** Lane B — the activities list
+sorting by catalogue path — was its last unbuilt piece and shipped today.
+Design record: `docs/design/curriculum-alignment.md` (R1–R19, R7's AS BUILT
+note) and `docs/design/activities-list-surface.md` (D5 superseded, D6
+reaffirmed with its mechanism made explicit).
 
-The four pilot activities now live at `01-chain.rate.proportional/0N-*.md`,
-each carrying a declared `key:`, and they followed their files there from
-`year-8/rates-and-proportional-relationships/` **without orphaning a row** —
-which is the whole point of the slice and was proved by doing it.
-
-Run the catalogue with:
+**There is no code slice queued.** The next lever is authoring, and STATE has
+said so for a week: ~150 markdown files planned in `~/activity-catalogue-pilot/`,
+4 written. Verify the catalogue still runs before anything else:
 
 ```
 pnpm import:batch ~/activity-catalogue-pilot --owner <email> --dry-run --strict \
@@ -59,129 +73,125 @@ pnpm import:batch ~/activity-catalogue-pilot --owner <email> --dry-run --strict 
   --skills-registry ~/activity-catalogue-pilot/skill-registry.txt
 ```
 
-Exit 0. Last run (registries at graph v0.12.5): **3/47 skills covered · 3 of 51
-parts authored · 44 uncovered by name · 13 bindings across 4 ids · zero warnings
-of either kind.** Four registry installs across the week each produced a
-byte-identical manifest — that no-diff is the check, not the exit code.
+Exit 0, and at the last run 3/47 skills · 3/51 parts · 13 bindings across 4 ids.
+⚠ **The change preview should now be EMPTY for the published activities.** It
+used to report a `course`/`unit` change on all four, every run; that was fixed
+today. If changes reappear on rows nobody edited, that fix regressed — start
+there.
+
+## The ranked list, if you are here to do work rather than author
+
+Nothing below blocks authoring. The wishlist's own rule: an item there caps
+SPECIFIC activities at draft (the builder's D6), it does not cap the corpus.
+
+1. **Wishlist #2 — `graded_polynomial`, cubic-and-up curve grading.** Blocks
+   ~11 derivative-chain activities. The cheapest of the graph items: extends a
+   well-tested enum through `regression.ts` → `fit-format.ts` → `graph-score.ts`.
+   Re-verified open 2026-08-31 — `regression.ts` still grades exactly
+   `linear | quadratic | exponential | logarithmic`. Design question to settle
+   first: degree-3 or degree-n. ⚠ Grading-engine change ⇒
+   `pnpm bundle:grading-server` in the SAME commit + a `check-activity`
+   redeploy owed (`pnpm deploy:check`, never `--no-verify-jwt`).
+2. **Wishlist #4 — `nway_correspondence`, 4-way match with per-edge partial
+   credit.** Blocks ~5. A new block type, so the full add-a-block-type
+   checklist in README. Re-verified open: the identifier appears nowhere in
+   `packages/`.
+3. **Wishlist #3 — unit-bearing numeric blanks** (`{{=1.5 unit: km/h}}`).
+   Blocks ~10 contextual DoLs. ⚠ Standing rule: do NOT widen
+   `BlankResponse.answer` to a union — keep the unit in the blank's attrs and
+   grade it server-side.
+4. **Then #5 (`draggable_curve`) → #6 (`seeded_data`).** #6 is its own arc.
+5. **`pnpm verify` goes red under machine contention** — three timing-sensitive
+   files, operational, will keep costing sessions until someone pins the
+   wall-clock dependency. TODOS has the reproduction.
+
+Everything else in TODOS is real but not load-bearing: the graph-kit legacy
+runtime deletion, three minor orphan fields, the print tier, the check-rollup
+ARMING arc (gated on counsel Q10, which is the author's, and it is the only
+thing in this repo that deletes student work — read its checklist, never a
+summary).
 
 ## The five things most likely to be misunderstood
 
-1. **The path fallback is not merely the keyless case.** It is how a keyed file
-   ADOPTS a row that predates the column, which is the entire cutover. A
-   key-only matcher turns the first run into N creates and N orphans. Both arms
-   are pinned in `scripts/tests/batch-import.test.mjs` §K.
-2. **`role` / `type` / `chain_role` are three different axes** — Bank trust
+1. **`unit` is student-visible in BOTH student surfaces** (`StudentViewer`'s
+   `course · unit · type` line and the print layer). That is why chain ordinals
+   live in the FOLDER NAME and the list reads order from `source_path`. Putting
+   a number in a unit title is now actively wrong, not merely redundant.
+2. **The path fallback in the importer is not merely the keyless case.** It is
+   how a keyed file ADOPTS a row that predates the column. A key-only matcher
+   turns the first run into N creates and N orphans. Both arms are pinned in
+   `batch-import.test.mjs` §K.
+3. **`role` / `type` / `chain_role` are three different axes** — Bank trust
    label, presentation format, position in chain. A consolidation is still
-   `role: lesson`. CLAUDE.md carries the rule.
-3. **A consolidation names its chain's terminal skill without teaching it**, so
-   it is excluded from that skill's parts and from the burndown numerator.
-   Counting it would report a fully-taught skill as partial forever.
+   `role: lesson`, and it is excluded from its terminal skill's parts.
 4. **`covered` counts whole skills and stays FLAT while a multi-part skill is
-   half-written.** The number that moves is *parts authored / parts declared*,
-   and its denominator counts skills the corpus has never named.
-5. **Do not regenerate `misconception-registry.txt` from the graph without
-   merging first.** That ordering saved 13 live bindings once already; it is now
-   a standing step on the curriculum side.
+   half-written.** The number that moves is *parts authored / parts declared*.
+5. **The importer never WRITES `course`/`unit`** — they are publish-truth
+   (0037 R1), stamped only by `publish_activity`. As of today it READS them as
+   a fallback when the draft is null, which is not the same thing, and three
+   §B tests pin the difference (including the mirror case: an unpublished row
+   still reads its draft).
 
-## The original ask, and the one piece of it still open
+## Traps that cost real time recently
 
-The session began with: *organize the activity organization system so it aligns
-with what the activity builder expects — an eng review and dev review expected at
-a minimum.*
-
-**Both reviews ran.** The report is the terminal section of the plan file, and it
-records the eng scope gate, all four eng sections, and two DX sections as
-complete, with R1–R19 as the rulings. ⚠ **The outside voice did NOT run** — codex
-is not installed on this machine and the subagent fallback was barred by a
-session rule. That is the one process gap and it is recorded as such rather than
-quietly skipped.
-
-**What remains of the original ask is Lane B**, which is the only part of the
-design that was never built. If the outside voice is wanted, Lane B is the
-natural target: it is still a plan, so a plan review still applies to it.
-
-## Open work, in the order it is worth doing
-
-**Lane B — sort the activities list by catalogue path.** Designed, not built,
-TODOS carries it with two verified traps (the query must keep its `updated_at`
-order because the recency strip slices that array; and it supersedes the
-list-surface D5 naming convention). It is what keeps chain ordinals out of
-student-visible titles, and `unit` is student-visible in BOTH surfaces —
-verified, `StudentViewer.tsx:556` and the print layer.
-
-**The drift audit has no section for generated author-refreshed artifacts.**
-Filed 2026-08-30, structural, deliberately not applied unilaterally.
-
-**Everything else in TODOS is unchanged** and none of it blocks authoring.
+- **A guard can be vacuous in the documented way and still feel finished.** Two
+  instances in two weeks, both caught only by mutation, both the same shape:
+  *the assertion was true for a reason other than the one it was written for.*
+  **Watch every new guard fail once, on the day you write it** — reverting the
+  wiring and seeing red is a two-minute step and it has now paid twice.
+- **A cosmetic report can be the visible edge of a data bug.** The phantom
+  `course`/`unit` change was filed as noise for six days; the same line was
+  writing a default course into published activities whose fence omitted one.
+  It was invisible only because all four pilot files carry an explicit
+  `course:`.
+- **Stale TODOS entries are found by USING the file, not by auditing it.** Two
+  turned up the day after a drift audit ran clean — one of them the
+  highest-ranked blocker in the file, describing shipped work as absent. If an
+  entry's premise is checkable in thirty seconds, check it before believing it.
+- **Verify the push state with `git ls-remote`.** Three sessions running, the
+  author pushed mid-session and the previous handoff's claim was stale.
+- **Do not background a vitest run and then start `pnpm verify`** — it produces
+  false reds in three timing-sensitive files.
 
 ## What is owed by whom
 
 | | |
 |---|---|
-| **Author** | Nothing. Push when ready. |
+| **Author** | Nothing new. The standing three are unchanged: the D24 counsel read, Gate 4, and the `display_name` one-row fix — all in STATE → Pending. |
 | **Platform** | Nothing open. |
-| **Curriculum side** | Nothing owed to us. All four registries are installed and generated through their notation gate (graph v0.12.5). Still theirs: one misconception carrier needs a restructure rather than a wish; the `transform.translate` activity (plan 73→74); alignment fields as arrays; two hooks for `chain.rate.proportional`; then chain 2. |
+| **Curriculum side** | Nothing owed to us. Still theirs: one misconception carrier needs a restructure, the `transform.translate` activity, alignment fields as arrays, two hooks for `chain.rate.proportional`, then chain 2. |
 
 ## The curriculum side, and where the shared record lives
 
 The catalogue is authored by a **separate curriculum-side agent** with its own
 repo, decision log and skill graph. This repo never reads that graph — it
-consumes only the registries generated from it, and that boundary was defended
-hard enough in correspondence that it is worth keeping.
-
-**Their `boundary-page.md` is the shared surface**: open items with an owner and
-a landing artifact, a numbered correspondence index, and a retractions table for
-both sides. Three rules on it that were paid for —
-
-- **An item is not closed until the artifact contains the change; close it by
-  quoting the artifact, not describing it.** (Our own version of this is *a guard
-  must bind to output, not a declaration* — same rule, reached independently.)
-- Each side edits only rows it owns; a claim about the other side's system is a
-  question, not an entry.
-- If a file you do not own looks wrong, **file it — do not fix it.**
-
-⚠ **Letters can go missing silently.** One platform letter never arrived and its
-questions were asked again two exchanges later, with neither side aware. That is
-what the numbered index is for.
-
-**Four claims this side made and retracted are in
-`docs/design/curriculum-alignment.md` §5e** — recorded there because they
-otherwise live only in the other side's file.
-
-## Traps that cost this session real time
-
-- **A guard can be vacuous in the documented way and still feel finished.** The
-  "nothing catalogue-only reaches the document" test parsed the importer's own
-  return value instead of the merge path, so it proved zod strips unknown keys
-  and nothing else. Mutation found it in minutes; review would not have.
-  **Watch every new guard fail once, on the day you write it.**
-- **An example is a claim.** Two skill/chain ids invented as format
-  illustrations were read as real by the other side; one nearly got ratified
-  into their registry. Mark illustrative things illustrative.
-- **Route errors on what the system NAMED, not on a substring.** The importer's
-  missing-column refusal matched a column name inside the request URL — which
-  carries the whole `select=` list — and confidently named a migration that had
-  been applied five days earlier.
-- **A metric computed over an authored corpus measures authoring order.** Our
-  near-duplicate detector has never fired at 4, 22 or 35 ids, so the evidence we
-  gave the curriculum side for their D21 could not distinguish "working" from
-  "never at risk". Retracted.
+consumes only the registries generated from it. **Their `boundary-page.md` is
+the shared surface.** Three rules on it that were paid for: an item is not
+closed until the artifact contains the change (close it by QUOTING the artifact,
+not describing it); each side edits only rows it owns; and **if a file you do
+not own looks wrong, file it — do not fix it.** ⚠ Letters can go missing
+silently, which is what the numbered index is for.
 
 ## House rules that bite hardest here
 
 - Never `git push` — the author pushes. Check `git branch --show-current` is
   `main` before committing.
-- `pnpm verify` is the definition of done for CI's check job. It is 8/8 now.
+- `pnpm verify` is the definition of done for CI's check job. It is 8/8 now;
+  script guards are 164/164.
 - A schema change means both bundles regenerate in the SAME commit and a
-  redeploy is owed. **Nothing this session touched schema** — the catalogue
-  fields live in the importer and the manifests, never in the document.
+  redeploy is owed. **Nothing today touched schema.**
+- A push to `main` IS a deploy (Cloudflare Pages auto-deploys), so UI calling a
+  new table or RPC ships only after its migration is live.
 - After changing `catalogueAuthoringPrompt.ts` or the meta fence it teaches, run
   `pnpm prompt:catalogue` and commit the regenerated doc.
-- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling, currently 3,659).
+- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling), and it is over
+  target ON PURPOSE — resolved by promoting settled constraints, not deleting.
 
 ## Start here
 
-Read `docs/design/curriculum-alignment.md` §5–§5d before touching
-`scripts/batch-import.mjs`. Then run the dry-run above — it should exit 0 and
-report 3/47 and 3/51. If it does not, something moved and that is the first
-thing to understand.
+Run the dry-run above. If it exits 0 at 3/47 · 3/51 with an empty change list,
+nothing moved — go write activities. **The corpus finds what the fixtures
+cannot**, and it has already proved that twice: a `graph_figure` test file
+surfaced a four-month-old content-loss bug, and the first real consolidation
+activity surfaced the in-math answer leak. Two capabilities no real activity
+exercises yet: **a blank inside a table cell**, and **`graph_figure`**.

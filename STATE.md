@@ -240,10 +240,13 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-31 — **LANE B BUILT; CURRICULUM ALIGNMENT NOW
-COMPLETE.** The activities list orders by catalogue path (app-only; nothing
-owed to the author). Before it: 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED
-AND CUT OVER.**
+**Last updated:** 2026-08-31 — **LANE B BUILT + HOUSEKEEPING; the
+curriculum-alignment arc is COMPLETE and the next lever is authoring.** The
+activities list orders by catalogue path; the importer's phantom
+`course`/`unit` change is fixed (it was hiding a data bug, not just noise); two
+TODOS entries that read as live were closed. All app/script-side — no
+migration, no bundle, no deploy, nothing owed to the author. Before it:
+2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER.**
 Declared identity (0041, applied), skill/chain/part registries, `chain_role`,
 the in-math answer-leak detector, a generated authoring prompt, and a
 parts-aware coverage burndown. `pnpm verify` 8/8; script guards 161/161.
