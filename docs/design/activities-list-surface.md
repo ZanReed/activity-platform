@@ -52,10 +52,37 @@ rather than answering where to put them.
   {numeric: true})` so "Unit 2" < "Unit 10"; number-prefixed names give strict
   curriculum order (documented, and cheap to adopt via the ```meta fence);
   "No unit" is always last. No unit entity, no drag-reorder — YAGNI upheld.
+  ⚠ **SUPERSEDED for file-backed activities by Lane B (2026-08-31).** The
+  naming convention existed only because there was no order to read; the
+  catalogue path now IS that order. D5's natural sort survives as the fallback
+  for units no file-backed activity has ever named — which is still every unit
+  in the live database today — and `compareUnits` is unchanged, including its
+  deliberate `sensitivity: 'base'`. Paths get their own comparator
+  (`comparePaths`), because path case IS meaningful and unit-name case is not.
+  **Adopting the D5 convention on a file-backed unit is now actively wrong:**
+  `unit` is student-visible in BOTH student surfaces (`StudentViewer`'s
+  `course · unit · type` line and the print layer), so a "1: " prefix puts
+  curriculum bookkeeping on every worksheet a student sees.
 - **D6 — filters hide empty groups.** A filtered view (search/tags/drafts)
   shows only groups with matches; group order stays stable among survivors;
   the count line carries orientation; clearing restores the full map. The
   UNFILTERED outline is the stable spatial map.
+  ⚠ **REAFFIRMED, with its mechanism now load-bearing (2026-08-31).** Lane B
+  made group order derive from ROW DATA (a unit's lowest catalogue path), and
+  the grouper is called with the FILTERED array — so "stable among survivors"
+  stopped being free the moment paths became the order. An outside-voice
+  review found this before a line was written, and it was ruled a design fork:
+  either group order is computed from the unfiltered set, or D6 is retired.
+  **D6 was kept.** `groupByUnit` takes an explicit `orderFrom` — the unfiltered
+  set — so a filter can only ever REMOVE a group, never move one. Retiring D6
+  would have been self-defeating: Lane B exists to make this screen a spatial
+  map of chain teaching order, and a map that reorders while you type is not
+  one. Guarded by a filtered-view assertion in `Activities.test.tsx` that goes
+  red when `orderFrom` is dropped (mutation-verified).
+  *(The same review tied this to D7's scroll restoration; that half does not
+  hold — `search`/`activeTags`/`draftsOnly` are plain component state with no
+  URL param or storage, so a return from the editor always renders the
+  unfiltered outline and D7 never sees a filtered order. D6 stands on its own.)*
 - **D7 — scroll restoration is specified.** Editor→list back-navigation
   restores outline scroll (ScrollRestoration or equivalent), including after
   an autosave re-rendered rows. Kills the top-of-page dump on every round trip

@@ -511,3 +511,139 @@ describe('Activities curriculum outline', () => {
         expect(screen.queryByText('Unclassified')).toBeNull();
     });
 });
+
+// =============================================================================
+// LANE B — the outline orders by catalogue path
+// -----------------------------------------------------------------------------
+// The comparator's own properties are pinned in activityGrouping.test.ts. These
+// three are the ones that must bind to RENDERED OUTPUT, because each of them
+// fails through a wiring mistake the library cannot see: the grouper being
+// handed the filtered array as its order source, the sort reaching the group
+// header, and the row order reaching the DOM.
+//
+// ⚠ These fixtures carry density the live database does not have — 4
+// file-backed rows out of 51 planned parts, so a multi-chain unit and a mixed
+// path/no-path group exist here and nowhere else yet.
+// =============================================================================
+
+const row = (o: Record<string, unknown>) => ({
+    status: 'draft',
+    tags: [],
+    pedagogical_role: null,
+    course: 'Year 8 Mathematics',
+    unit: null,
+    draft_course: null,
+    draft_unit: null,
+    source_path: null,
+    ...o,
+});
+
+// Unit "Rates" is a MIXED group: one file-backed row (which carries the unit's
+// only catalogue path) and one hand-made row. "Graphs" is file-backed. A
+// search for "review" keeps the hand-made Rates row and the Graphs row, and
+// drops the row that gives Rates its order key.
+const PATH_ROWS = [
+    row({
+        id: 'p1', title: 'Proportional Intro', updated_at: '2026-08-01T00:00:00Z',
+        draft_unit: 'Rates', source_path: '01-chain.rate.proportional/01-a.md',
+    }),
+    row({
+        id: 'p2', title: 'Rates Review Sheet', updated_at: '2026-08-28T00:00:00Z',
+        draft_unit: 'Rates',
+    }),
+    row({
+        id: 'p3', title: 'Graph Review Sheet', updated_at: '2026-08-02T00:00:00Z',
+        draft_unit: 'Graphs', source_path: '02-chain.graph.linear/01-a.md',
+    }),
+];
+
+describe('Activities outline — catalogue-path order (Lane B)', () => {
+    const headings = () =>
+        screen.getAllByRole('heading', { level: 2 }).map((h2) => h2.textContent);
+
+    beforeEach(() => {
+        h.listResult.current = { data: PATH_ROWS, error: null };
+    });
+
+    // Within a group, catalogue path beats recency. p2 is three weeks newer
+    // than p1 and still sorts second, because it has no place in the chain.
+    it('orders rows by catalogue path, path-less rows last', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Proportional Intro' });
+        const rates = screen.getByRole('region', { name: /Rates/ });
+        const titles = within(rates)
+            .getAllByRole('listitem')
+            .map((li) => li.querySelector('a')?.textContent);
+        expect(titles).toEqual(['Proportional Intro', 'Rates Review Sheet']);
+    });
+
+    // ── D6, bound to rendered output ────────────────────────────────────────
+    // THE guard for the fork ruled on this slice. Group order is derived from
+    // row data, and the grouper is called with the FILTERED array — so if its
+    // order source is ever the filtered set, a search that removes the Rates
+    // group's only path-bearing row relocates that group under the teacher's
+    // fingers, mid-keystroke. D6 rules that group order stays stable among
+    // survivors; the unfiltered outline is the stable spatial map.
+    it('keeps group order stable when a filter removes a group\'s min-path row', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Proportional Intro' });
+        expect(headings()).toEqual(['Rates', 'Graphs']);
+
+        fireEvent.change(screen.getByLabelText('Search activities'), {
+            target: { value: 'review' },
+        });
+
+        // "Proportional Intro" is gone — Rates now shows only its path-less
+        // row — and the group has NOT moved.
+        expect(screen.queryByRole('link', { name: 'Proportional Intro' })).toBeNull();
+        expect(headings()).toEqual(['Rates', 'Graphs']);
+    });
+
+    // The recency strip must survive the outline's reordering: it reads the
+    // full set and sorts for itself rather than inheriting the query's order.
+    it('still shows the newest activity first in the recency strip', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Proportional Intro' });
+        const strip = screen.getByRole('navigation', { name: 'Recently edited' });
+        const first = within(strip).getAllByRole('link')[0];
+        expect(first?.textContent).toBe('Rates Review Sheet');
+    });
+});
+
+// A group whose rows carry more than one course has no single course to name.
+// Before Lane B the header read courseOf(group.rows[0]) — whichever course the
+// sort happened to put first — so changing the sort silently relabelled it.
+const MIXED_COURSE_ROWS = [
+    row({
+        id: 'm1', title: 'Rates A', updated_at: '2026-08-01T00:00:00Z',
+        draft_unit: 'Rates', course: 'Year 8 Mathematics',
+        source_path: '01-chain.rate.proportional/01-a.md',
+    }),
+    row({
+        id: 'm2', title: 'Rates B', updated_at: '2026-08-02T00:00:00Z',
+        draft_unit: 'Rates', course: 'Year 9 Mathematics',
+        source_path: '01-chain.rate.proportional/02-b.md',
+    }),
+    row({
+        id: 'm3', title: 'Graphs A', updated_at: '2026-08-03T00:00:00Z',
+        draft_unit: 'Graphs', course: 'Year 9 Mathematics',
+        source_path: '02-chain.graph.linear/01-a.md',
+    }),
+];
+
+describe('Activities outline — the group header names a course only when there is one', () => {
+    beforeEach(() => {
+        h.listResult.current = { data: MIXED_COURSE_ROWS, error: null };
+    });
+
+    it('omits the course on a mixed-course group and names it on a single-course one', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Rates A' });
+        const headings = screen
+            .getAllByRole('heading', { level: 2 })
+            .map((h2) => h2.textContent);
+        // Two courses in the library, so headers name the course where they
+        // can. "Rates" holds both, so it names neither.
+        expect(headings).toEqual(['Rates', 'Year 9 Mathematics — Graphs']);
+    });
+});

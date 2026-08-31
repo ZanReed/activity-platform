@@ -392,91 +392,53 @@ Finding and pinning that is a small slice; guessing at it under load is not.
 `pnpm verify`.** That is what produced both reds, and it is easy to do when
 chasing a failure.
 
-## Lane B — sort the activities list by catalogue path (2026-08-26)
+## ✅ Lane B — activities list sorts by catalogue path — SHIPPED 2026-08-31
 
-**What:** the activities list groups by unit and sorts WITHIN a group by edit
-recency. Chain order is therefore invisible on the one screen a teacher teaches
-from. Lane B adds `source_path` to the list query and sorts each unit group by
-it — natural/numeric-aware, rows without a path last, then recency — and orders
-the GROUPS by each group's lowest `source_path`.
+**Built app-only**: no migration (0038 already carried `source_path`), no
+bundle, no deploy. `comparePaths` + `sortForOutline` + `groupByUnit`'s
+`orderFrom` in `packages/app/src/lib/activityGrouping.ts`; four wiring changes
+in `routes/Activities.tsx`. The design record is
+[activities-list-surface.md](docs/design/activities-list-surface.md) D5 (now
+superseded for file-backed units) and D6 (reaffirmed, mechanism made explicit),
+plus [curriculum-alignment.md](docs/design/curriculum-alignment.md) R7's AS
+BUILT note.
 
-**Why it is not just cosmetic:** it is what keeps the chain ordinal out of the
-unit title. `unit` is student-visible in BOTH surfaces (`StudentViewer.tsx:556`
-renders `course · unit · type`; `PrintDocumentLayer` prints the same line), so
-numbering the unit string puts curriculum bookkeeping in front of students on
-every worksheet. Ordering by path is the alternative, and it makes one mechanism
-(the path) the source of all ordering.
+**What this entry is kept for — the process fact, which is the durable half.**
+The plan sat here for five days having PASSED an eng review. An outside voice
+then found **five defects in it, every one verified against running code**, and
+**two changed what got built**: group order derived from row data supersedes D6
+as well as D5 (ruled a fork; D6 kept, via `orderFrom`), and the plan's
+comparator was neither a total order nor a path sort. A third defect — the
+group header reading `rows[0]` — meant the sort could silently relabel a
+mixed-course group.
 
-⚠ **Two traps, both verified:**
-1. The query MUST keep `.order('updated_at', desc)` — `Activities.tsx:343`
-   slices `recent` off that array for the recency strip. Sort inside the
-   grouper, not the query.
-2. This supersedes the list-surface **D5** naming convention ("1: Quadratics"),
-   which existed only because there was no order to read. Say so in that design
-   doc when this lands.
+**Two of the review's own claims did not survive checking**, which is the
+symmetric half of the same lesson:
+- Its D7 coupling was overstated. `search`/`activeTags`/`draftsOnly` are plain
+  component state with no URL param or storage, so a return from the editor
+  always renders the UNFILTERED outline and D7's scroll restoration never sees
+  a filtered group order. D6 stands on its own.
+- Its prescribed fix for the equal-compare pairs ("default sensitivity plus a
+  raw-string tie-break") credited the wrong half. Default sensitivity does not
+  separate `01-x.md` from `1-x.md` — numeric collation reads both segments as
+  the number 1. The tie-break is load-bearing; sensitivity buys consistent case
+  ordering, which is a different property and needed its own test.
 
-**Why it is safe to change a ruled sort:** D4's recently-edited strip already
-serves resume-work at page level, so within-unit recency was redundant with a
-feature that had already shipped.
+**Seven guards, all mutation-tested the day they were written — and one was
+VACUOUS on the first attempt.** The case-distinctness assertion stayed green
+when sensitivity was reverted to `'base'`, because the raw-string tie-break
+already separated `A.md` from `a.md`. Replaced with `comparePaths('a/B.md',
+'A/b.md')`, which is where sensitivity is actually observable. **That is the
+second guard in two weeks to be vacuous in the documented way and only mutation
+caught it.**
 
-**Depends on:** nothing. Lane A does not block it and it does not block Lane A.
-
-### ⚠ OUTSIDE-VOICE REVIEW, 2026-08-31 — five defects, every one verified against code
-
-The eng review passed this plan. An independent review then found five real
-problems in it, all confirmed here by running the code rather than reading it.
-**Do not start building until these are answered.**
-
-**1. It breaks D6, which the plan does not name.** `groupByUnit(visibleActivities)`
-(`Activities.tsx:364`) runs on the **filtered** array, so any group-order key
-derived from row data is recomputed per keystroke. D6
-(`activities-list-surface.md:55-58`) rules *"group order stays stable among
-survivors"*, and D7's scroll restoration assumes a stable spatial map. A search
-matching only the app-authored rows in a mixed unit removes that group's
-min-path and relocates the group mid-typing. The plan names D5 as the ruling it
-supersedes; it also supersedes D6, and that is a **design fork, not a bug** —
-either group order is computed from the UNFILTERED set, or D6 is consciously
-retired.
-
-**2. The comparator is not a total order.** With `compareUnits`'s own options
-(`{numeric:true, sensitivity:'base'}`), measured:
-`'01-a/01-x.md'` vs `'01-a/1-x.md'` → **0**; `'A.md'` vs `'a.md'` → **0**. Both
-pairs are distinct rows 0038's partial unique index permits. Distinct paths
-comparing equal fall silently through to recency. Needs default sensitivity plus
-a raw-string tie-break.
-
-**3. Whole-string `localeCompare` does not sort paths.** Measured:
-`'01-chain.a-review/01-z.md'` sorts BEFORE `'01-chain.a/01-a.md'` because `-`
-precedes `/`. A folder whose name prefixes a sibling's interleaves its children
-across the boundary. Compare segment-by-segment on `/`.
-
-**4. Reordering rows silently relabels the group header.** `Activities.tsx:541`
-derives the header's course from `group.rows[0]` — the first row *after* the
-sort. Changing the sort changes which course a mixed group advertises.
-
-**5. Path-less group ordering is unspecified, and that is today's 100% case.**
-Every group without a file-backed row has no min-path. `compareUnits` has to
-remain the fallback or `Activities.test.tsx:353` is asserting an order the code
-no longer defines.
-
-**A cheaper fix for the recency trap than the plan's.** The plan says "sort
-inside the grouper, not the query", which preserves the implicit contract that
-`activities` arrives `updated_at`-ordered (asserted only in a comment at
-`Activities.tsx:342`, re-established by hand in `handleUndo`). Instead:
-`const recent = [...activities].sort(byUpdatedAtDesc).slice(0, RECENT_LIMIT)`.
-Then the query may order by anything and `groupByUnit`'s "input order preserved"
-contract stays untouched — it has exactly one caller.
-
-**And the strategic note, which is the one to weigh first.** This is being built
-against 4 file-backed rows out of 51 planned parts. Every failure above is
-invisible at n=4 and obvious at n=51. **If it ships now the tests must carry the
-density the database does not** — multi-chain units, mixed path/no-path groups,
-a filtered-view group-order assertion, and the two equal-compare pairs from (2).
-
-*Clean on review: the query/RLS/PostgREST path (0032's grants are table-level,
-the select is plain concatenation, and supabase-js inference is already
-`as unknown as` for this query), and the sequencing (needs 0038 only — no
-migration, no bundle, no deploy).*
+⚠ **The tests carry density the database does not.** This was built against 4
+file-backed rows out of 51 planned parts: multi-chain units, mixed
+path/no-path groups, the filtered-view group-order assertion and both
+equal-compare pairs exist in fixtures and nowhere else yet. **When the corpus
+reaches full size, the thing to check is whether those fixtures described it** —
+the repo's standing expectation is that the corpus finds what the fixtures
+cannot.
 
 ## graph-kit's legacy runtime should be deleted WHOLE, not gutted (2026-08-25)
 

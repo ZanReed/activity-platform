@@ -109,15 +109,22 @@ that retires the one hand-carried sync in the curriculum side's system.
 0. At the last run: 3/47 skills covered, 3/51 parts authored, 44 uncovered by
 name, 13 bindings across 4 ids.
 
-⏭ **Lane B is designed and NOT built** — sorting the activities list's unit
-groups by `source_path`, which is what keeps chain ordinals out of
-student-visible titles. TODOS carries it with two verified traps.
+✅ **Lane B is BUILT (2026-08-31)** — the activities list orders by catalogue
+path, which is what keeps chain ordinals out of student-visible titles.
+App-only: no migration (0038 already had the column), no bundle, no deploy.
+An outside-voice review found five defects in the plan first; two changed what
+got built, and the D6 fork it surfaced was ruled by the author (D6 KEPT, via an
+explicit unfiltered order source). TODOS carries the process record.
 
-**Nine guards shipped this arc, every one mutation-tested the day it was
-written** — and one was VACUOUS on the first attempt and only mutation found
-it: a test that "nothing catalogue-only reaches the document" parsed the
-importer's own return value instead of the merge path, so it proved zod strips
-unknown keys and nothing else.
+**Every guard this arc shipped was mutation-tested the day it was written, and
+TWO were VACUOUS on the first attempt — both found only by mutation, neither
+findable by review.** (1) A test that "nothing catalogue-only reaches the
+document" parsed the importer's own return value instead of the merge path, so
+it proved zod strips unknown keys and nothing else. (2) Lane B's
+case-distinctness assertion stayed green when the comparator's sensitivity was
+reverted, because a different half of the fix already carried that property.
+**The pattern in both: the assertion was true for a reason other than the one
+it was written for.** That is what mutation finds and reading does not.
 
 ## The flow modes — SHIPPED AND LIVE (2026-08-24); arc closed
 
@@ -233,7 +240,10 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER.**
+**Last updated:** 2026-08-31 — **LANE B BUILT; CURRICULUM ALIGNMENT NOW
+COMPLETE.** The activities list orders by catalogue path (app-only; nothing
+owed to the author). Before it: 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED
+AND CUT OVER.**
 Declared identity (0041, applied), skill/chain/part registries, `chain_role`,
 the in-math answer-leak detector, a generated authoring prompt, and a
 parts-aware coverage burndown. `pnpm verify` 8/8; script guards 161/161.

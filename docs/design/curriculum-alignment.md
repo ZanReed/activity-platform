@@ -3,8 +3,10 @@
 **Status:** ✅ **LANE A BUILT, APPLIED AND CUT OVER (2026-08-26).** Migration
 0041 is applied live; all four activities carry declared keys and have followed
 their files to the `01-chain.*` layout; the curriculum side's three registries
-are installed and `--strict` exits 0 at 3/47 skills · 3/51 parts. Lane B (the
-activities-list sort) is designed here and **not built**.
+are installed and `--strict` exits 0 at 3/47 skills · 3/51 parts.
+**✅ LANE B (the activities-list sort) BUILT 2026-08-31** — see R7; it went in
+after an outside-voice review found five defects in the plan, two of which
+changed what got built.
 
 Ruled through a full `/plan-eng-review` plus a written exchange with the
 curriculum builder — the project outside this repo that owns
@@ -103,6 +105,22 @@ the activities list derives group order from each group's lowest `source_path` �
 the same mechanism as within-group order. **This supersedes the list-surface
 D5 naming convention** ("1: Quadratics"), which existed only because there was
 no order to read.
+
+⚠ **AS BUILT (2026-08-31) — three things the design did not say.** An
+outside-voice review of the plan found five defects, all confirmed by running
+the code rather than reading it, and two of them changed what shipped.
+(a) **Group order derives from row data, so it also supersedes D6** — a filter
+runs on the array the grouper is handed, so a search that removes a unit's
+lowest-path row would relocate that group mid-keystroke. Ruled a fork; **D6 was
+kept**, via an explicit `orderFrom` carrying the unfiltered set. (b) **The
+comparator is not `compareUnits`.** Whole-string `localeCompare` does not sort
+paths — `-` precedes `/`, so a folder whose name prefixes a sibling's
+interleaves its children — and two distinct paths (`01-x.md`/`1-x.md`,
+`A.md`/`a.md`) collate equal and fall silently through to recency. `comparePaths`
+compares segment-wise on `/` with a raw-string tie-break. (c) **The header's
+course is no longer `rows[0]`**, which made the sort able to relabel a
+mixed-course group. Full account: the Lane B entry's review subsection, and
+`activities-list-surface.md` D5/D6.
 
 **R8 — `chain-registry.txt` in the catalogue root** maps chain folder → unit
 title. The original objection (a chain descriptor could import as a
@@ -372,4 +390,5 @@ read and it is where a rule was asserted that had never been written.
 - **Following a renamed file by guessing.** A key change reports as a conflict;
   content-hash matching is a guess, and a guess in a report is still a guess.
 - **Rule 9's reference-panel check.** Builder-owned as of R14.
-- **Lane B** — the list sort. Designed in R7, not built.
+- ~~**Lane B** — the list sort.~~ **BUILT 2026-08-31.** App-only: no
+  migration (0038 already had the column), no bundle, no deploy.

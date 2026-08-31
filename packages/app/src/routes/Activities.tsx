@@ -6,9 +6,9 @@ import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
 import { collectTagVocabulary } from '../lib/normalizeTags';
 import {
-    courseOf,
     distinctCourses,
     groupByUnit,
+    sortForOutline,
 } from '../lib/activityGrouping';
 import {
     PEDAGOGICAL_ROLE_LABELS,
@@ -34,6 +34,10 @@ interface ActivityRow {
     unit: string | null;
     draft_course: string | null;
     draft_unit: string | null;
+    // The catalogue file this row was imported from (0038), or null for a
+    // hand-made activity. This is the outline's ORDERING key — see
+    // lib/activityGrouping.ts. It is never rendered.
+    source_path: string | null;
 }
 
 // How many activities the "Recently edited" strip carries (D4). Five keeps it
@@ -167,6 +171,7 @@ export default function Activities() {
             .from('activities')
             .select(
                 'id, title, status, updated_at, tags, pedagogical_role, course, unit,' +
+                'source_path,' +
                 'draft_course:draft_content->meta->>course,' +
                 'draft_unit:draft_content->meta->>unit',
             )
@@ -339,8 +344,16 @@ export default function Activities() {
 
     // The recent strip (D4): most-recently-edited first, ALWAYS from the full
     // set — it is a shortcut back into work, so a filter must not empty it.
-    // `activities` already arrives ordered by updated_at desc.
-    const recent = activities.slice(0, RECENT_LIMIT);
+    //
+    // ⚠ SORTED HERE, not inherited from the query. This used to read
+    // `activities.slice(0, RECENT_LIMIT)`, which depended on the list arriving
+    // updated_at-ordered — a contract asserted only in a comment and
+    // re-established by hand in handleUndo. Lane B reorders rows for the
+    // outline, so the strip now sorts for the property it actually needs and
+    // the query is free to order by anything.
+    const recent = [...activities]
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, RECENT_LIMIT);
 
     // Every filter ANDs. Search is a case-insensitive substring over the title,
     // which is what "I know its name" retrieval actually needs.
@@ -358,10 +371,20 @@ export default function Activities() {
         return activeTags.every((t) => (a.tags ?? []).includes(t));
     });
 
-    // The outline itself (D3): units natural-sorted, "No unit" last, row order
-    // (recency) preserved inside each group. Groups with no surviving rows
-    // simply do not appear — D6: a filtered view shows hits, not absences.
-    const groups = groupByUnit(visibleActivities);
+    // The outline itself (D3): rows in catalogue-path order within each group,
+    // groups ordered by their lowest catalogue path, "No unit" last. Groups
+    // with no surviving rows simply do not appear — D6: a filtered view shows
+    // hits, not absences.
+    //
+    // ⚠ `orderFrom` is the whole of D6 in one argument. Group order is derived
+    // from row data, and this call passes the FILTERED array, so without it a
+    // search that removes a group's lowest-path row would relocate that group
+    // mid-keystroke. Ordering from the unfiltered set means a filter can only
+    // remove groups, never move them — which is D6's own rationale, that the
+    // unfiltered outline is the stable spatial map.
+    const groups = groupByUnit(sortForOutline(visibleActivities), {
+        orderFrom: activities,
+    });
 
     // Name the course in group headers only when there is more than one to
     // distinguish. Repeating "Algebra II" above every unit is a constant, and
@@ -538,9 +561,14 @@ export default function Activities() {
                 const drafts = group.rows.filter(
                     (r) => r.status === 'draft',
                 ).length;
-                const course = group.rows[0]
-                    ? courseOf(group.rows[0])
-                    : null;
+                // Sort-INDEPENDENT. This used to read courseOf(group.rows[0]),
+                // which named whichever course the sort happened to put first
+                // — so changing the sort silently relabelled a mixed group. A
+                // group whose rows carry several courses has no one course to
+                // advertise, and saying nothing is the honest answer.
+                const groupCourses = distinctCourses(group.rows);
+                const course =
+                    groupCourses.length === 1 ? groupCourses[0] : null;
                 return (
                     <section key={group.key} aria-labelledby={headingId}>
                     <div className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-line bg-surface pb-1.5 pt-2">
