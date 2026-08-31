@@ -1,10 +1,64 @@
 # Unit-bearing numeric blanks — `{{=1.5 unit: km/h}}` (wishlist #3)
 
-**Status: DESIGN PASS, awaiting the author's yes/no per decision** (drafted
-2026-09-01). Verified against the shipped blank architecture
-(`BlankToken` in `schema/src/inline.ts`, the server's `grading/blanks.ts` +
-`grading/numeric.ts`, the `{{…}}` segment grammar in
-`docs/markdown-import-format.md`).
+**Status: GREENLIT (author, 2026-09-01) → OUTSIDE-VOICE REVIEWED → AMENDED →
+BUILDING.** The review found eleven defects, verified against code; the
+load-bearing ones were re-verified independently before ruling. Amendments
+below override the matching decisions; the original text is kept under them
+as the record.
+
+## Amendments after the outside-voice review (2026-09-01)
+
+- **A1 (overrides D2's mechanism).** `parseNumericValue` cannot split — all
+  three of its forms are full-string anchored, and the file is parity-frozen
+  by its own header. The splitter is a NEW module,
+  `server/grading/units.ts`: peel the LONGEST LEADING match of the three
+  numeric forms (mixed number first — its interior space would otherwise be
+  eaten by a token split — then fraction, then decimal with optional `$`,
+  commas, e-notation), remainder = the unit candidate. Pinned by tests for
+  `1 1/2 km/h`, `1.5km/h`, `$3.50`, `1,234 km`, `1.5e3 m`.
+- **A2 (deletes D7's width claim).** The editor's Blank extension declares no
+  `width` attr at all — an authored width would not survive an editor round
+  trip. v1 changes nothing about blank sizing; the limitation is accepted.
+- **A3 (revises D5's mechanism).** `matchMistakeEntry` matches the student's
+  raw text and knows nothing about outcomes; verdicts are boolean end to end.
+  Reserved matches are implemented INSIDE the matcher by LOCAL recomputation:
+  for a unit-bearing key it splits the entry itself, `unit-missing` /
+  `unit-wrong` compare against that locally derived outcome, and — the
+  review's fourth finding — the numeric fast path uses the VALUE PART (an
+  authored `!1500` still fires on "1500 m/h"; a match string carrying its own
+  unit is split too). `BlankVerdict` stays boolean; nothing threads.
+- **A4 (drops D4's stored outcome class).** The class was redundant with the
+  platform's whole misconception design: the sensor datum rides the matched
+  reserved entry's `mis.*` binding through `misconceptionIds` on
+  `CheckItemResult` — additive-optional, stored verbatim with the verdicts
+  row, exactly like every other misconception in the system. No new stored
+  field, no per-blank outcome map, no corpus-shape question. (An UNauthored
+  unit-miss is not sensed — consistent with wishlist #1, where unauthored
+  mistakes are not sensed either.)
+- **A5 (new, from the review).** The teacher answer key showed half the
+  answer: `answer-key/extract.ts` stores `node.answer` only. It now appends
+  the unit (`"1.5 km/h"`).
+- **A6 (sharpens D6).** Parse ORDER, not just surface order: the `unit:`
+  clause is peeled from the first segment's tail BEFORE `TOLERANCE_RE` runs
+  (that regex is end-anchored and would otherwise swallow the clause into the
+  answer). The clause is recognized ONLY on `=` (numeric) blanks — on text
+  and math blanks `unit:` stays literal text, which dissolves the escape
+  question.
+- **A7 (corrects D3's aside).** graph-kit imports `mathjs/number`, which
+  EXCLUDES the unit subsystem — the dimensional-conversion door means pulling
+  more of mathjs into a size-capped bundle. Not cheap; still out of v1.
+- **A8 (completes the cost list).** A new blank attr must be enumerated in:
+  `Blank.ts` `addAttributes` (+`data-unit` parse/render) and the
+  `updateBlankAttrs` type, `blankSyntax.ts` (`BlankNodeAttrs`,
+  `blankAttrsFromSpec`, `parseBlankSpec`), `serialize.ts` in BOTH directions,
+  `walk.ts` `blankTokenToKey`, and `BLANK_SECRET_FIELDS` in the viewer
+  registry (the strip mechanism and the automatic `SANITIZER_REV` move were
+  positively verified). Tiptap silently drops undeclared attrs — miss one and
+  the unit vanishes on the first editor save, the repo's orphan class.
+- **A9 (scopes D10 down).** Interchangeable groups GRADE with units (each
+  slot's compare includes its unit), but reserved unit matches are v1-scoped
+  to non-group blanks — the group matcher has no per-slot feedback concept to
+  hang them on.
 
 **What the builder asked for**: ~10 contextual DoL activities where the answer
 is a quantity, not a number — and the *units-dropped misconception family runs

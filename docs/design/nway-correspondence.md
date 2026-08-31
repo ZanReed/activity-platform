@@ -1,8 +1,63 @@
 # nway_correspondence — the 4-way match (wishlist #4)
 
-**Status: DESIGN PASS, awaiting the author's yes/no per decision** (the
-working-style gate for a new block type; drafted 2026-09-01). Verified against
-the shipped matching architecture, not the design docs alone.
+**Status: GREENLIT (author, 2026-09-01) → OUTSIDE-VOICE REVIEWED → AMENDED.
+Build order: after wishlist #3.** The review found eight defects with
+file:line evidence; four change the design. Amendments override the matching
+decisions below; the original text is kept as the record.
+
+## Amendments after the outside-voice review (2026-09-01)
+
+- **R1 (overrides D1's premise).** The shipped matching interaction is NOT
+  drag-to-dock — `Matching.tsx` renders one native `<select>` per item (the
+  drag language lives only in a schema comment and the registry's a11y note,
+  neither of which the viewer ever shipped). The honest generalization is
+  **one native select per (item, column) cell** — cheaper than a 3-pool
+  docking surface, and the a11y story is the select's own. The anchor-rows
+  shape of D1 stands; the affordance changes.
+- **R2 (corrects D2/D7's mechanism).** Matching targets are shuffled
+  CLIENT-SIDE at render, seeded by block id — same for every student; there
+  is no publish- or serve-time shuffle (`serveShuffled` belongs to ordering
+  alone, and `check/wire.ts`'s "served permuted" comment is stale — filed
+  with this doc). Correspondence columns shuffle the same way, seeded
+  `blockId + columnId`. Letters are DERIVED at render from shuffle order and
+  exposed via `data-letter`/`data-target-id` (the shared `choiceLetter`
+  discipline; roman/greek are new sibling helpers). Print inherits matching's
+  status quo (no `print.shuffled`; print order = screen order).
+- **R3 (replaces D4 — it designed against a dead wire).** The v6 `matches`
+  bump lives on the pre-S9 ingest wire that nothing writes any more. The live
+  wire is `SectionResponses` + `CHECK_WIRE_VERSION` (exact-match, no
+  version tolerance), and the client sends WORK ONLY — never earned/total.
+  So: `correspondences: Record<blockId, Record<itemId, Record<columnId,
+  targetId>>>` on `SectionResponses`, `CHECK_WIRE_VERSION` 2→3, with the
+  full bump fan-out (handler validator + `countItems`, `emptySectionResponses`,
+  walk inventory, grading dispatch, `check/mock.ts`, corpus coverage row,
+  e2e helpers).
+- **R4 (settles D3's surfacing, which the doc left implicit).** Per-edge
+  earned/total does NOT flow to the student or the verdicts row in v1 — the
+  block verdict is boolean, like matching (whose own scorer's earned/total is
+  already discarded by `gradeSection`). The per-edge DIAGNOSTIC is served by
+  the stored raw `correspondences` cells in the responses jsonb, joined
+  against the document key at query time. If that join proves painful, a
+  per-cell verdict map is additive on `CheckItemResult` later.
+- **R5 (accepted risk + doc fix).** An unrecognized fence degrades to RAW
+  TEXT — only `{{…}}` specs are masked — so a ```correspond paste into an
+  older app version imports with the key visible. Already true of ```match
+  pair lines; the format doc's blanket "any answer is masked" sentence is
+  over-broad TODAY and must be corrected when this fence lands.
+- **R6 (grammar rule for the fence).** Cells split on ` | ` only OUTSIDE
+  `$…$` spans, so `$|x - 3|$` survives in a cell.
+- **R7 (persistence).** The viewer store's persisted shape gains the map
+  tolerate-absent (`?? {}` guards on hydration), NO
+  `VIEWER_STORE_SCHEMA_VERSION` bump — a bump discards buffered student work.
+- **R8 (cost tail, from the review's enumeration).** Beyond the original cost
+  line: Block union + `block-predicates.ts` (`ALWAYS_NUMBERED_TYPES`,
+  `isGradeable`) + the editor's `problemNumbering.ts` mirror;
+  `editorExtensions`/`slashMenuItems`/`blockThumbnails`/`editor.css`;
+  `serialize.ts` both directions; viewer `blockIndex` category, store item
+  ids + fired-responses pick, answer-key `extract.ts` +
+  `ANSWER_KEY_COVERAGE`, per-type authored fixture, the sanitize leak
+  fixture; `importFormatRegistry` registration. (The popover sentence in D9
+  is deleted — matching's NodeView uses no popover.)
 
 **What the builder asked for** (2026-08-24, relayed): a 4-way match with
 per-edge partial credit, for the ~5 *same-function-across-representations*
