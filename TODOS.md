@@ -18,9 +18,27 @@ data (D8/D10).
 alongside as a cheap win, then #5 → #3 → #6.** Each still gets its own design
 pass with numbered decisions before code.
 
-1. **Misconception ids on distractors, in the markdown.** (Blocks all 73 — or
-   rather, blocks the DATA LAYER on all of them.) **Verified truly absent, not
-   editor-only** (2026-08-24): "misconception" appears nowhere in the format
+⚠ **STATUS 2026-08-31: #1 is SHIPPED; the ranked remainder is #2 → #4 → #3 →
+#5 → #6.** Re-verified against code the same day, not inferred: `regression.ts`
+still grades exactly `linear | quadratic | exponential | logarithmic` (#2 open),
+`nway_correspondence` appears nowhere in `packages/` (#4 open), and blank-level
+units do not exist in the format doc (#3 open).
+
+1. ✅ **Misconception ids on distractors, in the markdown — SHIPPED
+   2026-08-25.** Ids ride import → schema → sanitize → the server grader
+   (`packages/viewer/src/server/grading/{blanks,choices,graphs,walk}.ts`) →
+   the stored graded-response rows; the format doc teaches the third `::`
+   segment at §"Misconception bindings"; `get-activity` + `check-activity` are
+   deployed and code-verified, so the sensor is live end to end. The catalogue
+   carries 13 bindings across 4 ids. **The minimum-honest-wiring bar below was
+   MET, including the mutation-tested server-side check** — the entry is kept
+   for its reasoning, not as open work. ⚠ *Stale until 2026-08-31: this still
+   read "blocks all 73 / verified truly absent / the sensor data does not
+   exist" six days after it shipped, which is the highest-ranked item in the
+   file describing itself as blocking.* The original text follows.
+
+   ~~(Blocks all 73 — or rather, blocks the DATA LAYER on all of them.)~~
+   **Verified truly absent, not editor-only** (2026-08-24): "misconception" appears nowhere in the format
    doc, the importer, the schema, or any package — the feedback TEXT channels
    exist (`!wrong :: message`, mc `:: feedback`, graph `mistake:`) but no id
    field exists at any layer, and the `mis.*` registry lives only in the
@@ -479,46 +497,34 @@ badges in the blank popover, `MultipleChoiceView`, and `GraphSettings` mistake
 rows, before any colleague authors over an imported activity blind.
 **Depends on:** the co-ownership arc.
 
-## Every PUBLISHED activity reports a phantom `course`/`unit` change, forever (2026-08-25)
+## ✅ The phantom `course`/`unit` change on every published activity — FIXED 2026-08-31
 
-**Surfaced by the first publish of file-backed content.** After the four Year 8
-activities were published, `pnpm import:batch --dry-run` reported all four as
-needing `course "Algebra II" → "Year 8 Mathematics"` and `unit <unset> → …`.
-**Nothing is actually stale** — the `course` column already held the right value.
+**Mechanism, verified live at the time and unchanged:** `publish_activity` sets
+`draft_content = null`, the change preview computed `priorCourse` from
+`existingRow.draftMeta`, and with the draft cleared it fell through to
+`pipeline.DEFAULT_COURSE` and diffed the file against a default. So every
+published activity reported a `course`/`unit` change on every run, forever.
 
-**The mechanism, verified live, not inferred:**
+**The fix:** the publish-truth COLUMNS are the second source —
+`prior.course ?? existingRow.course ?? DEFAULT_COURSE` — with `course,unit`
+added to the importer's select. The columns are still never WRITTEN by this
+script (0037 R1); they are read only as the fallback for a draft that
+publishing legitimately emptied. `DEFAULT_COURSE` survives for a genuinely new
+row, the only case with neither source.
 
-1. `publish_activity` sets `draft_content = null` (confirmed: all four rows show
-   `draft_content is null` and a correctly stamped `course`).
-2. The change preview computes `priorCourse` from `existingRow.draftMeta`
-   (`scripts/batch-import.mjs:340`) — the DRAFT DOCUMENT's meta, not the row's
-   column.
-3. With the draft cleared, `prior.course` is undefined, so it falls back to
-   `pipeline.DEFAULT_COURSE` ("Algebra II") and diffs the file against a default.
+⚠ **It was NOT only cosmetic, and that only became clear while fixing it.** For
+a file whose fence omits `course:`, the merge wrote `DEFAULT_COURSE`
+("Algebra II") into the rebuilt draft, and the next publish would stamp that
+into the column — a published Year 8 activity re-imported without a course line
+came back as Algebra II. It stayed invisible because all four pilot files carry
+an explicit `course:`. **The cosmetic report was the visible edge of a data
+bug**, which is the argument for chasing preview noise rather than tolerating it.
 
-The importer deliberately never writes the `course`/`unit` COLUMNS — they are
-publish-truth (0037 R1), stamped only by `publish_activity` from the snapshot.
-So the preview is comparing the file against the wrong source on exactly the
-rows where the right source has been emptied by design.
-
-**Why it is worth fixing rather than tolerating.** It is cosmetic at 4 files and
-noise at 150 — but it inverts D5's headline promise. D5 says "on a re-import the
-file wins, and every field it changes is printed"; a reader who trusts the
-printout now sees changes that are not changes, on every published activity,
-every run. The failure mode is habituation: once the preview cries wolf on every
-row, the one real `title` change in the batch stops being read.
-
-**Not the same shape as an unpublished row.** `unit-3/proportional-graphs.md`
-(never published, draft intact) correctly reported NO change while its `course`
-column disagreed with its file — the mirror image. Both behaviours follow from
-the same line.
-
-**Proposed:** compute `priorCourse`/`priorUnit` from the row's columns when
-`draftMeta` is absent, falling back to `DEFAULT_COURSE` only for a genuinely new
-row. Guard it with a case that publishes, re-runs the preview, and asserts an
-EMPTY change list — the assertion that would have caught this.
-
-**Depends on:** nothing.
+**Guarded by three tests in `batch-import.test.mjs` §B**, all mutation-tested:
+a published row whose file matches reports an EMPTY change list (the assertion
+that would have caught it), a published row whose fence omits `course:` keeps
+the column, and — the mirror image, pinned so the fix cannot be "simplified"
+into always preferring the column — an UNPUBLISHED row still reads its draft.
 
 ## `{{…}}` inside `$…$` — ✅ DETECTOR SHIPPED 2026-08-26; the REPAIR is still open
 
@@ -2181,17 +2187,25 @@ function's history, `scripts/verify-*` for every row that asserts the table exis
 
 **Context:** teacher-grading eng review 2026-08-15 (G1 scoping + TODO ruling); 0029's D-6 note.
 
-## Activities list surface — search/sort/grouping (the taxonomy slice's sibling)
+## ✅ Activities list surface — search/sort/grouping — SHIPPED (closed 2026-08-31)
 
-**What:** The real list navigation for `/activities`: search-by-title, sort control, grouping/faceting on course/unit/`pedagogical_role`, pagination or virtualization if needed. The taxonomy slice ships only minimal tag-filter chips (eng review 2026-08-18, R6/D8 — the P1 caller, deliberately small).
+**All of D3–D11 is built**, verified against
+[Activities.tsx](packages/app/src/routes/Activities.tsx) on 2026-08-31:
+grouped-by-unit outline (D3), recent strip (D4), unit order (D5 — now
+superseded by catalogue path for file-backed units, Lane B), filters hide empty
+groups (D6), scroll restoration (D7, `useScrollMemory`), flat separated rows
+(D8), `/`-search (D9), the a11y spec (D10), the drafts chip (D11). Design
+record: [activities-list-surface.md](docs/design/activities-list-surface.md).
 
-**Why:** [Activities.tsx](packages/app/src/routes/Activities.tsx) is a flat unsorted `<ul>` — fine at 8 activities, unusable at the ~150 the catalogue push will create. Every authoring hour flows through this surface.
+⚠ *This entry read "`Activities.tsx` is a flat unsorted `<ul>`" until
+2026-08-31, long after the outline shipped.* It is the second stale entry found
+in the same pass as wishlist #1 — both were found by ANSWERING "what is left",
+not by an audit, which is worth noting given the audit ran the day before.
 
-**Context:** ✅ **DESIGN RULED 2026-08-18** — full /plan-design-review (7 passes, wireframes, D3–D11): grouped-by-unit outline, recent strip, flat separated rows, drafts chip, `/`-search, scroll restoration, a11y spec. **[activities-list-surface.md](docs/design/activities-list-surface.md) is the build input — inherit, don't re-derive**; its §7 tasks T1–T6 are the slice. All facet inputs already live (taxonomy arc).
-
-**Effort:** M (design settled — build only)
-**Priority:** P2
-**Depends on:** the taxonomy slice (Drop 1) landing.
+**What actually survives, and it is the untested part:** pagination or
+virtualization. The outline has never rendered more than a few dozen rows; the
+~150 the catalogue push will create is still a claim. **Depends on:** the
+corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 ## Refresh capability-inventory.md against the post-registry importer (ride Drop 2)
 

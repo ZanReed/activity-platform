@@ -485,7 +485,28 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         const priorTitle = existingRow.title ?? pipeline.DEFAULT_TITLE;
         const priorTags = existingRow.tags ?? [];
         const priorRole = existingRow.pedagogical_role ?? null;
-        const priorCourse = prior.course ?? pipeline.DEFAULT_COURSE;
+        // ⚠ THE COLUMN IS THE SECOND SOURCE, AND PUBLISHING IS WHY.
+        // `publish_activity` sets draft_content = null, so a PUBLISHED
+        // activity has no draftMeta at all — and reading only `prior` then
+        // fell straight through to DEFAULT_COURSE and diffed the file against
+        // a default. Two consequences, and the second is the serious one:
+        //   (a) cosmetic — every published activity reported a course/unit
+        //       change forever, on every run, inverting D5's promise that
+        //       every printed change is a real one. The failure mode is
+        //       habituation: once the preview cries wolf on all 150 rows, the
+        //       one real title change stops being read.
+        //   (b) DATA — for a file whose fence omits `course:`, `computed`
+        //       would then WRITE "Algebra II" into the rebuilt draft, and the
+        //       next publish would stamp that into the column. A published
+        //       Year 8 activity re-imported without a course line would come
+        //       back as Algebra II.
+        // The columns are publish-truth (0037 R1) and this script still never
+        // WRITES them — it only reads them as the fallback for a draft that
+        // publishing has legitimately emptied. DEFAULT_COURSE survives for a
+        // genuinely new row, which is the only case that has neither source.
+        const priorCourse =
+            prior.course ?? existingRow.course ?? pipeline.DEFAULT_COURSE;
+        const priorUnit = prior.unit ?? existingRow.unit ?? undefined;
 
         // `??` throughout: absent means "leave it alone", never "reset it".
         // ⚠ UNTYPED MERGE — `pnpm typecheck` covers none of this file, so a
@@ -502,7 +523,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         // the registry has to propagate to activities that already carry the
         // old title, and reading the prior value first would pin every existing
         // activity to the name it was imported under.
-        const unit = fence.unit ?? chainTitle ?? prior.unit;
+        const unit = fence.unit ?? chainTitle ?? priorUnit;
         if (unit !== undefined) computed.unit = unit;
 
         // Everything the document already carried that no fence key describes
@@ -531,8 +552,8 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         if (meta.course !== priorCourse) {
             changes.push({ field: 'course', from: priorCourse, to: meta.course });
         }
-        if (meta.unit !== prior.unit) {
-            changes.push({ field: 'unit', from: prior.unit, to: meta.unit });
+        if (meta.unit !== priorUnit) {
+            changes.push({ field: 'unit', from: priorUnit, to: meta.unit });
         }
         if (pedagogicalRole !== priorRole) {
             changes.push({ field: 'role', from: priorRole, to: pedagogicalRole });
@@ -1741,7 +1762,8 @@ export function makeDb(url, key) {
             return call(
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
                     '&select=id,source_path,source_key,status,title,tags,' +
-                    'pedagogical_role,draft_content,source_fingerprint',
+                    'pedagogical_role,course,unit,draft_content,' +
+                    'source_fingerprint',
             );
         },
 

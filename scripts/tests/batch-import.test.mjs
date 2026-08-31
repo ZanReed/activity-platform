@@ -224,6 +224,101 @@ test('§B a fence key that is ABSENT leaves its field alone', () => {
     );
 });
 
+test('§B a PUBLISHED row reports NO change when the file already matches', () => {
+    // THE ASSERTION THAT WOULD HAVE CAUGHT IT. `publish_activity` sets
+    // draft_content = null, so a published activity has NO draftMeta — and the
+    // preview used to fall through to DEFAULT_COURSE and diff the file against
+    // a default, reporting a course/unit change on every published row on
+    // every run, forever. The columns are the second source.
+    const existing = {
+        id: 'row-published',
+        source_path: 'unit-3/factoring.md',
+        title: 'Factoring Quadratics',
+        tags: ['factoring', 'quadratics'],
+        pedagogical_role: 'practice',
+        // Publish-truth columns, stamped by publish_activity from the snapshot.
+        course: 'Algebra I',
+        unit: 'Unit 3',
+        // The draft is GONE — that is what publishing does, and it is the
+        // whole mechanism behind the phantom change.
+        draftMeta: undefined,
+        draftCalculator: undefined,
+    };
+
+    const out = convertOne(pipeline, SAMPLE, existing, 'unit-3/factoring.md');
+
+    assert.deepEqual(
+        out.changes,
+        [],
+        'a published row whose file matches must report NO changes',
+    );
+    // And the merge used the columns rather than the default, which is the
+    // half that was a DATA bug rather than a cosmetic one.
+    assert.equal(out.document.meta.course, 'Algebra I');
+    assert.equal(out.document.meta.unit, 'Unit 3');
+});
+
+test('§B a published row whose fence omits course keeps the COLUMN, not the default', () => {
+    // The serious half. Before the column fallback, a published Year 8
+    // activity re-imported from a file with no `course:` line had
+    // DEFAULT_COURSE ("Algebra II") written into its rebuilt draft — and the
+    // next publish would stamp that into the column.
+    const md = [
+        '```meta',
+        'title: Rates',
+        '```',
+        '',
+        '# Rates',
+        '',
+        'Some prose.',
+    ].join('\n');
+    const existing = {
+        id: 'row-y8',
+        source_path: 'unit-3/rates.md',
+        title: 'Rates',
+        tags: [],
+        pedagogical_role: null,
+        course: 'Year 8 Mathematics',
+        unit: 'Rates and Proportional Relationships',
+        draftMeta: undefined,
+        draftCalculator: undefined,
+    };
+
+    const out = convertOne(pipeline, md, existing, 'unit-3/rates.md');
+
+    assert.equal(out.document.meta.course, 'Year 8 Mathematics');
+    assert.equal(out.document.meta.unit, 'Rates and Proportional Relationships');
+    assert.deepEqual(out.changes, []);
+});
+
+// The mirror image, and it is NOT the same bug: an UNPUBLISHED row keeps its
+// draft, so the draft is still the right source and the column may legitimately
+// disagree with it. Pinned so the fix above cannot be "simplified" into always
+// preferring the column.
+test('§B an UNPUBLISHED row still reads its DRAFT, not the column', () => {
+    const existing = {
+        id: 'row-draft',
+        source_path: 'unit-3/factoring.md',
+        title: 'Factoring Quadratics',
+        tags: ['factoring', 'quadratics'],
+        pedagogical_role: 'practice',
+        // A stale column from an older publish...
+        course: 'Geometry',
+        unit: 'Unit 9',
+        // ...and a live draft, which is what the editor would open.
+        draftMeta: { course: 'Algebra I', unit: 'Unit 3' },
+        draftCalculator: undefined,
+    };
+
+    const out = convertOne(pipeline, SAMPLE, existing, 'unit-3/factoring.md');
+
+    assert.deepEqual(
+        out.changes,
+        [],
+        'the draft matches the file, so nothing changed',
+    );
+});
+
 test('§B an UPDATE preserves document settings no fence key describes', () => {
     // The "save path is where fields die silently" trap, aimed at this script:
     // a re-run must not delete print/typography settings the author configured
