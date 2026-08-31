@@ -28,7 +28,9 @@ it is the durable lesson.
 
 - **`HANDOFF.md` is REPLACED, not appended** — a transient baton, not in
   CLAUDE.md's doc map.
-- Everything is committed on `main` and **UNPUSHED**. The author pushes.
+- **The author pushed mid-session, up to `c826431`.** Only the final close-out
+  commit is unpushed. Verified with `git ls-remote`, not the local ref — the
+  local `origin/main` can lag, and this repo has been misled by it before.
 - **Nothing is owed to the author.** 0041 is applied (they applied it), no deploy
   is owed, no republish is owed.
 
@@ -39,7 +41,7 @@ it is the durable lesson.
 I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
 then TODOS.md.
 
-## Where things stand (2026-08-30, committed on `main`, unpushed)
+## Where things stand (2026-08-31, `main`, one commit unpushed)
 
 **The curriculum-alignment arc is DONE and cut over.** Design + every ruling:
 `docs/design/curriculum-alignment.md`. Migration 0041 is applied live.
