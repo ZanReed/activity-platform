@@ -65,11 +65,13 @@ in CI on push, as usual.
 
 ## The ranked remainder, if you are here to do work rather than author
 
-1. **#4 build — BLOCKED on the author's D1–D10 ruling**
-   (`docs/design/nway-correspondence.md`).
-2. **#3 build — ALSO design-passed and BLOCKED on its own D1–D10 ruling**
-   (`docs/design/unit-bearing-blanks.md`). Notably cheaper than #4: no wire
-   bump — the typed "1.5 km/h" already rides the blanks map as a string.
+1. **#3 is SHIPPED (2026-09-01)** — greenlit, outside-voice reviewed (11
+   findings, all folded in as A1–A9), built, eleven mutations all red once.
+   `docs/design/unit-bearing-blanks.md` has the amendments + AS BUILT.
+2. **#4 is GREENLIT with an outside-voice-AMENDED design** (R1–R8 in
+   `docs/design/nway-correspondence.md`) — selects-per-cell (not drag),
+   client-side seeded shuffle, `SectionResponses` + wire 2→3, per-edge
+   diagnostic via query-time join. The next build.
 3. **#5 (`draggable_curve`) → #6 (`seeded_data`)** — unchanged, in order.
 4. The contention-red entry in TODOS is now REPRODUCTION-ANNOTATED: it stayed
    green under 16 burners + a concurrent full suite, so the trigger is
