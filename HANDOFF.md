@@ -65,11 +65,11 @@ in CI on push, as usual.
 
 ## The ranked remainder, if you are here to do work rather than author
 
-1. **#4 build — BLOCKED on the author's D1–D10 ruling.** Everything is staged
-   for it; the cost section of the design doc is the honest estimate.
-2. **#3 — unit-bearing numeric blanks** (`{{=1.5 unit: km/h}}`, blocks ~10).
-   Open, unstarted. The standing constraint: keep the unit in the blank's
-   attrs, never widen `BlankResponse.answer`.
+1. **#4 build — BLOCKED on the author's D1–D10 ruling**
+   (`docs/design/nway-correspondence.md`).
+2. **#3 build — ALSO design-passed and BLOCKED on its own D1–D10 ruling**
+   (`docs/design/unit-bearing-blanks.md`). Notably cheaper than #4: no wire
+   bump — the typed "1.5 km/h" already rides the blanks map as a string.
 3. **#5 (`draggable_curve`) → #6 (`seeded_data`)** — unchanged, in order.
 4. The contention-red entry in TODOS is now REPRODUCTION-ANNOTATED: it stayed
    green under 16 burners + a concurrent full suite, so the trigger is
@@ -102,7 +102,7 @@ prints today.
 
 | | |
 |---|---|
-| **Author** | The two redeploys (BEFORE pushing), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. Plus: the D1–D10 ruling on `nway-correspondence.md` when ready. |
+| **Author** | The two redeploys (BEFORE pushing), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. Plus: the two design-pass rulings (`nway-correspondence.md`, `unit-bearing-blanks.md`) when ready. |
 | **Platform** | Nothing open besides the gated #4 build. |
 | **Curriculum side** | Unchanged from the previous handoff (their restructure, `transform.translate`, alignment arrays, chain 2). |
 

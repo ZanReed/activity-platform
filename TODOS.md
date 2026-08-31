@@ -76,6 +76,12 @@ units do not exist in the format doc (#3 open).
    (standing rule) — keep the unit spec in the blank's attrs and grade it
    server-side, either inside the numeric compare or as a parallel field.
    Pairs naturally with #1 (same slice greenlit).
+   ⏸ **DESIGN PASS WRITTEN 2026-09-01, awaiting the author's yes/no per
+   decision:** [unit-bearing-blanks.md](docs/design/unit-bearing-blanks.md) —
+   D1–D10 (attrs-borne unit satisfying the standing rule with NO wire bump,
+   single-input diagnostic, normalized-string match with authored alternates,
+   stored outcome classes as the sensor, reserved `!unit-missing`/`!unit-wrong`
+   feedback matches riding #1's machinery). Code waits for the greenlight.
 
 4. **`nway_correspondence` — 4-way match with per-edge partial credit.**
    (Blocks ~5: same-function-across-representations.) Verified: `match` is
