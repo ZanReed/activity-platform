@@ -421,6 +421,63 @@ feature that had already shipped.
 
 **Depends on:** nothing. Lane A does not block it and it does not block Lane A.
 
+### ⚠ OUTSIDE-VOICE REVIEW, 2026-08-31 — five defects, every one verified against code
+
+The eng review passed this plan. An independent review then found five real
+problems in it, all confirmed here by running the code rather than reading it.
+**Do not start building until these are answered.**
+
+**1. It breaks D6, which the plan does not name.** `groupByUnit(visibleActivities)`
+(`Activities.tsx:364`) runs on the **filtered** array, so any group-order key
+derived from row data is recomputed per keystroke. D6
+(`activities-list-surface.md:55-58`) rules *"group order stays stable among
+survivors"*, and D7's scroll restoration assumes a stable spatial map. A search
+matching only the app-authored rows in a mixed unit removes that group's
+min-path and relocates the group mid-typing. The plan names D5 as the ruling it
+supersedes; it also supersedes D6, and that is a **design fork, not a bug** —
+either group order is computed from the UNFILTERED set, or D6 is consciously
+retired.
+
+**2. The comparator is not a total order.** With `compareUnits`'s own options
+(`{numeric:true, sensitivity:'base'}`), measured:
+`'01-a/01-x.md'` vs `'01-a/1-x.md'` → **0**; `'A.md'` vs `'a.md'` → **0**. Both
+pairs are distinct rows 0038's partial unique index permits. Distinct paths
+comparing equal fall silently through to recency. Needs default sensitivity plus
+a raw-string tie-break.
+
+**3. Whole-string `localeCompare` does not sort paths.** Measured:
+`'01-chain.a-review/01-z.md'` sorts BEFORE `'01-chain.a/01-a.md'` because `-`
+precedes `/`. A folder whose name prefixes a sibling's interleaves its children
+across the boundary. Compare segment-by-segment on `/`.
+
+**4. Reordering rows silently relabels the group header.** `Activities.tsx:541`
+derives the header's course from `group.rows[0]` — the first row *after* the
+sort. Changing the sort changes which course a mixed group advertises.
+
+**5. Path-less group ordering is unspecified, and that is today's 100% case.**
+Every group without a file-backed row has no min-path. `compareUnits` has to
+remain the fallback or `Activities.test.tsx:353` is asserting an order the code
+no longer defines.
+
+**A cheaper fix for the recency trap than the plan's.** The plan says "sort
+inside the grouper, not the query", which preserves the implicit contract that
+`activities` arrives `updated_at`-ordered (asserted only in a comment at
+`Activities.tsx:342`, re-established by hand in `handleUndo`). Instead:
+`const recent = [...activities].sort(byUpdatedAtDesc).slice(0, RECENT_LIMIT)`.
+Then the query may order by anything and `groupByUnit`'s "input order preserved"
+contract stays untouched — it has exactly one caller.
+
+**And the strategic note, which is the one to weigh first.** This is being built
+against 4 file-backed rows out of 51 planned parts. Every failure above is
+invisible at n=4 and obvious at n=51. **If it ships now the tests must carry the
+density the database does not** — multi-chain units, mixed path/no-path groups,
+a filtered-view group-order assertion, and the two equal-compare pairs from (2).
+
+*Clean on review: the query/RLS/PostgREST path (0032's grants are table-level,
+the select is plain concatenation, and supabase-js inference is already
+`as unknown as` for this query), and the sequencing (needs 0038 only — no
+migration, no bundle, no deploy).*
+
 ## graph-kit's legacy runtime should be deleted WHOLE, not gutted (2026-08-25)
 
 `packages/graph-kit/src/runtime.ts` is the published-page data-attribute
