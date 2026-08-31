@@ -1,4 +1,4 @@
-# Handoff — 2026-09-01
+# Handoff — 2026-09-01 (second of the day)
 
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
@@ -7,32 +7,28 @@ context for a human deciding whether the handoff is accurate.
 
 ## What happened in the session that wrote this
 
-Three commits: `4f4cb3e` (wishlist #2 — cubic + quartic graded families, the
-full slice), `a3910ec` (wishlist #4's design pass, D1–D10, parked at the
-greenlight gate), `8ea4e8d` (the contention-red reproduction findings).
-
-The #2 slice ran design → build → mutation-test → bundles → browser verify in
-one pass. The one real bug it surfaced is worth remembering: the family
-detector residual-checked each candidate fit AT THE FIT'S OWN SAMPLE POINTS,
-and a 5-parameter quartic interpolates any 5 finite samples exactly — `ln(x)`
-survives at exactly 5 of the default grid, so the quartic branch stole every
-logarithm. The EXISTING log tests caught it the moment the branch landed
-(fits now verify on the grid plus its midpoints). All six new guards were
-mutation-tested the day they were written; every one went red.
+The author greenlit both design passes with one instruction: build #3 first,
+outside voice first as a safety check. Both wishlist slices then ran the full
+cycle — outside-voice review (11 findings on #3, 8 on #4, every load-bearing
+one re-verified against code before ruling) → design amendments committed →
+build → mutation pass → bundles → verify. Twenty mutations between the two
+slices; every new guard went red exactly once. Two review findings changed
+real architecture: #3's stored outcome class was DROPPED (redundant with the
+misconceptionIds channel), and #4's wire plan had targeted the DEAD pre-S9
+ingest wire — rebuilt against `SectionResponses` + `CHECK_WIRE_VERSION` 2→3.
 
 ## What the next session should know before trusting anything here
 
 - **`HANDOFF.md` is REPLACED, not appended** — a transient baton, not in
   CLAUDE.md's doc map.
-- **`origin/main` was at `b1092b8` when this was written; three local commits
-  are UNPUSHED.** Verify with `git ls-remote` — the push state has now been
-  wrong for four sessions running when inherited.
-- **TWO FUNCTION REDEPLOYS ARE OWED, ORDERED BEFORE THE PUSH** (STATE →
-  Pending): `pnpm deploy:get-activity` + `pnpm deploy:check`, then push. A
-  push deploys the app (Pages), and an app that can author quartics against
-  the old `get-activity` serves them family-stripped (broken layout, no leak).
+- **`origin/main` was at `b1092b8` when this was written; everything after it
+  is UNPUSHED.** Verify with `git ls-remote` — the push state has been wrong
+  four sessions running when inherited.
+- **THE REDEPLOY ORDER IS BINDING NOW** (STATE → Pending): the wire bump
+  means a push BEFORE `pnpm deploy:check` breaks every student's checks with
+  a version mismatch until the deploy lands. Deploy both functions, then push.
 - **CI:** run `33401398052` (the last pushed commit) completed green on all
-  four jobs — tool-read, not inherited.
+  four jobs — tool-read, not inherited. Nothing after it has run in CI.
 
 ---
 
@@ -41,84 +37,76 @@ mutation-tested the day they were written; every one went red.
 I'm picking up the activity-platform repo cold. Read CLAUDE.md, then STATE.md,
 then TODOS.md.
 
-## Where things stand (2026-09-01, `main` at `8ea4e8d`, UNPUSHED past `b1092b8`)
+## Where things stand (2026-09-01, `main`, UNPUSHED past `b1092b8`)
 
-**Wishlist #2 is SHIPPED**: `cubic` and `quartic` graded function families,
-end to end — schema, shared parser, kit scorers, board + print SVG, sanitizer
-whitelist, editor, dev harness, import prompt (+regenerated catalogue prompt).
-Both server bundles are committed in the same commit. Design record:
-`docs/design/graded-function-families.md` (§top, the 2026-08-31 extension —
-five numbered decisions and the interpolation-shadow bug).
+**The author's capability wishlist is FOUR-FOR-FOUR SHIPPED.** #1
+(misconception ids, 2026-08-25), #2 (cubic/quartic graded families,
+2026-08-31), and today #3 (unit-bearing numeric blanks) and #4 (the
+`correspondence` block, N-way match). Each of #2–#4 has its design doc with
+outside-voice amendments and an AS BUILT section:
+`docs/design/graded-function-families.md`, `unit-bearing-blanks.md` (A1–A9),
+`nway-correspondence.md` (R1–R8).
 
-**Wishlist #4 (`nway_correspondence`) has a WRITTEN DESIGN PASS awaiting the
-author's yes/no per decision**: `docs/design/nway-correspondence.md`, D1–D10
-with recommendations. Do NOT start its code before the greenlight — the
-working-style gate for new block types is explicit.
+**`pnpm verify` is 8/8 green** at the head commit. The browser lanes run in
+CI on push, as usual — nothing unpushed has met CI yet.
 
-**Two redeploys are owed BEFORE the author pushes** (STATE → Pending author
-actions has the full ordering rationale): `pnpm deploy:get-activity` and
-`pnpm deploy:check` (never `--no-verify-jwt` on check). Verify by bundle
-sha256, not version numbers. `SANITIZER_REV` deliberately did not move.
-
-**`pnpm verify` is 8/8 green** at `8ea4e8d`. The perf/print browser lanes run
-in CI on push, as usual.
+**Owed to the author, ORDER BINDING** (full rationale in STATE → Pending):
+`pnpm deploy:get-activity` + `pnpm deploy:check` (never `--no-verify-jwt`),
+**then** push. `CHECK_WIRE_VERSION` moved 2→3, so a push first refuses every
+student check until `check-activity` deploys; the old sanitizer would also
+serve a unit-bearing blank with its unit visible. Verify deploys by bundle
+sha256. `SANITIZER_REV` is now `2-3d4db5c5`.
 
 ## The ranked remainder, if you are here to do work rather than author
 
-1. **#3 AND #4 are BOTH SHIPPED (2026-09-01)** — each greenlit →
-   outside-voice reviewed → amended → built same-day, twenty mutations
-   between them, every guard red once. Design + amendments + AS BUILT:
-   `docs/design/unit-bearing-blanks.md` (A1–A9) and
-   `docs/design/nway-correspondence.md` (R1–R8). ⚠ #4 bumped
-   `CHECK_WIRE_VERSION` 2→3, which makes the redeploy-before-push order
-   BINDING: a push first breaks every student's checks until
-   `check-activity` deploys.
-2. **#5 (`draggable_curve`) → #6 (`seeded_data`)** — the remainder, in
-   order; each needs its own design pass (run the outside voice on it —
-   the pattern has now paid three times).
-4. The contention-red entry in TODOS is now REPRODUCTION-ANNOTATED: it stayed
-   green under 16 burners + a concurrent full suite, so the trigger is
-   swap-level thrash. Candidates are named in the entry; do not ship a
-   mitigation without catching a live red first.
+1. **#5 (`draggable_curve`)** — the drag-then-type disagreement diagnostic,
+   ~11 transformation-band activities. Its mistake-signal dependency (#1's
+   machinery) is met. Needs its own design pass first; run the outside voice
+   on it — the pattern has paid three builds running.
+2. **#6 (`seeded_data`)** — its own arc, ranked last deliberately.
+3. The contention-red TODOS entry is reproduction-annotated (trigger is
+   swap-level thrash; candidates named). Do not ship a mitigation without
+   catching a live red.
 
-## The authoring lever is unchanged
+## The authoring lever is now fully unblocked
 
-~150 markdown files planned in `~/activity-catalogue-pilot/`, 4 written. The
-baseline dry-run (command in STATE → Current focus) exited 0 this session with
-an EMPTY change preview on all four published activities — that is the healthy
-state. **The ~11 derivative-chain activities are now UNBLOCKED by #2**: a
-`graph` fence with `answer: y = x^3 - 3x` (or `x^4 …`) imports, grades, and
-prints today.
+~150 markdown files planned in `~/activity-catalogue-pilot/`, 4 written — and
+no wishlist item caps anything any more. New since yesterday, all in
+`docs/markdown-import-format.md`: `y = x^3 - 3x` graph answers,
+`{{=1.5 unit: km/h, kph}}` blanks with reserved `!unit-missing` /
+`!unit-wrong` mistake bindings, and the ` ```correspond ` fence (columns
+line + `|`-separated rows; `$|x-3|$` is safe in a cell).
 
-## Traps that cost real time recently (inherited + new)
+## Traps that cost real time recently
 
 - **A guard can be true for a reason other than the one it was written for.**
-  Three instances in two weeks now. Watch every new guard fail once, the day
-  you write it.
-- **A fit can be validated only against the points it was fitted from** — the
-  #2 slice's variant of the same disease. If you add a detection/classification
-  branch, check it against inputs the fit never saw.
+  Watch every new guard fail once, the day you write it — the mutation passes
+  in these two slices caught nothing BECAUSE everything was mutation-tested;
+  the discipline is the point.
+- **A design can cite dead machinery as its precedent** — #4's wire plan
+  targeted the pre-S9 ingest wire that nothing writes. Re-derive against
+  shipped reality (P10); the outside voice caught it before a line was built.
+- **The doc-embeds-the-prompt chain**: touching `markdownImportPrompt.ts`
+  means mirroring `docs/markdown-import-format.md`'s fenced copy byte-for-byte
+  AND `pnpm prompt:catalogue` (its test fails on drift). Hit twice today.
 - **Verify the push state with `git ls-remote`** — four sessions running.
-- **Do not background a vitest run and then start `pnpm verify`** — three
-  timing-sensitive files go red under saturation (TODOS has the full entry,
-  now with reproduction findings).
+- **Do not background a vitest run and then start `pnpm verify`.**
 
 ## What is owed by whom
 
 | | |
 |---|---|
-| **Author** | The two redeploys (STRICTLY before pushing — the wire bump makes this binding), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. |
-| **Platform** | Nothing open besides the gated #4 build. |
-| **Curriculum side** | Unchanged from the previous handoff (their restructure, `transform.translate`, alignment arrays, chain 2). |
+| **Author** | The two redeploys (STRICTLY before pushing — binding), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. |
+| **Platform** | Nothing open. #5/#6 await their design passes. |
+| **Curriculum side** | Unchanged: their restructure, `transform.translate`, alignment arrays, chain 2. |
 
 ## House rules that bite hardest here
 
 - Never `git push` — the author pushes. Check `git branch --show-current` is
   `main` before committing.
-- `pnpm verify` is the definition of done for CI's check job — 8/8 now.
-- A schema/sanitize/grading change means the bundle(s) regenerate in the SAME
-  commit and redeploys are owed. This session's example is the model.
-- After changing `markdownImportPrompt.ts`, `pnpm prompt:catalogue` — the
-  generated doc embeds it and its test fails on drift (hit this session).
-- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling) — it sits 3
-  words under the ceiling right now; anything added must displace something.
+- `pnpm verify` is the definition of done for CI's check job.
+- A schema/sanitize/grading change regenerates the bundle(s) in the SAME
+  commit and owes redeploys. A registry entry or secret-field change moves
+  `SANITIZER_REV` on its own; the printShuffle pin records each move.
+- STATE.md is measured in WORDS (~1,500 target, 4,000 ceiling) — it is close
+  to the ceiling; anything added must displace something.
