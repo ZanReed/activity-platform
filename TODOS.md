@@ -98,25 +98,29 @@ signal rides #1's shipped machinery, so its main dependency is met).
    ruling for where its mistake signal lands. Fallback: "which graph shows…"
    mc with choice-graphs (possible since 2026-08-22), which cannot separate
    the two signals.
-   ⏸ **DESIGN PASS WRITTEN 2026-09-01** —
-   [draggable-curve.md](docs/design/draggable-curve.md) D1–D10: a
-   `transform_curve` interaction VARIANT (not a new block), additive
-   `GraphWork.equation` (no wire bump), two reserved disagreement matches
-   riding #1's machinery, ```graph fence grows `start:` +
-   `options: type-equation`. Outside-voice review next, then the greenlight.
+   ⏸ **DESIGN PASS REVIEWED + AMENDED 2026-09-01, awaiting greenlight** —
+   [draggable-curve.md](docs/design/draggable-curve.md) D1–D10 + A1–A7. The
+   review's sharpest find (A1): the seeded handles would have poisoned the
+   diagnostic — the equation input forces an emit that ships seed positions
+   as drawn work; fixed with an additive `GraphWork.dragged` flag. ⚠ Open
+   question Q2 for the AUTHOR before build: do the ~11 activities transform
+   |x| or √x parents? Those families have no schema member or fitter — a
+   hidden prerequisite slice if yes.
 
 6. **`seeded_data` — parameterised datasets.** (Blocks fewest here but is the
    print-integrity/A-B-versions/statistics-sampling lever.) The deepest cut:
    breaks the every-dataset-is-a-literal assumption across import, publish
    snapshotting, and grading — the server must grade against THIS student's
    seed. Own arc, ranked last deliberately.
-   ⏸ **DESIGN PASS WRITTEN 2026-09-01** —
-   [seeded-data.md](docs/design/seeded-data.md) D1–D10: the crux is answered
-   by `serveSeed`'s shipped seam (template cached, values derived
-   per-request, grader re-derives — the ordering pattern verbatim); v1 =
-   named numeric variables in meta, server-side substitution, expression
-   keys evaluated at grade time, print seed override for A/B. Outside-voice
-   review next, then the greenlight.
+   ⏸ **DESIGN PASS REVIEWED + AMENDED 2026-09-01, awaiting greenlight** —
+   [seeded-data.md](docs/design/seeded-data.md) D1–D10 + R1–R12. The seam
+   holds (template cached, values per-request, grader re-derives), and the
+   review found the real costs at the edges: the shared-browser cache
+   residual becomes MIS-GRADING (seeded activities serve no-store), `{a}`
+   collides with latex braces (latex out of v1, warned at import), the check
+   response is a second template channel (hints/solutions substitute too),
+   data_plot needs `dataVar` + a grading-side splice, and print is a third
+   CLIENT-side substitution surface with its own seed.
 
 **Print tier (wanted, does not block authoring):** page-break/keep-together
 control (mostly print CSS + a small format knob — cheap); a problem-group

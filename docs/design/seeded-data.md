@@ -1,7 +1,100 @@
 # seeded_data — parameterised values, per student (wishlist #6)
 
-**Status: DESIGN PASS, awaiting outside-voice review, then the author's yes/no
-per decision** (drafted 2026-09-01). The deepest cut on the wishlist —
+**Status: OUTSIDE-VOICE REVIEWED → AMENDED, awaiting the author's yes/no per
+decision** (drafted and reviewed 2026-09-01; 12 findings — the review
+CONFIRMED the central serveSeed seam works exactly as designed, and found the
+real costs in the edges the seam doesn't cover).
+
+## Amendments after the outside-voice review (2026-09-01)
+
+- **R1 (changes the design — the sharpest find).** The shared-browser HTTP
+  cache residual STOPS being cosmetic: the content response is
+  `private, immutable` on a user-independent URL, and the accepted residual
+  ("student B may see A's cached response — worst case a cosmetic permutation
+  swap") becomes SYSTEMATIC MIS-GRADING once numbers differ per student — B
+  answers A's numbers, the server grades B's. RULING: a seeded activity's
+  content response is served `Cache-Control: no-store` (conditional on
+  `seedVars` being non-empty); unseeded activities keep the year-long
+  immutable header. Targeted, and it leaves the documented residual argument
+  true for everything it was written about.
+- **R2 (changes the design — the delimiter).** `{a}` inside `math_inline`
+  LATEX is a structural LaTeX literal (`x^{a}`, `\frac{a}{b}`) — substituting
+  there corrupts authored math, and skipping silently renders the letter.
+  RULING: latex is OUT of v1's substitution surfaces, enforced loudly — the
+  importer WARNS (strict fails) when a declared variable's `{name}` appears
+  inside any latex, so the author who tries finds out at import, not from a
+  silent letter. The later math channel is a latex-side MARKER command (the
+  MathPrompt `\placeholder[id]{}` discipline is the precedent), not brace
+  overloading. Prose-side `{a}` stands (verified: the importer leaves almost
+  nothing brace-shaped in text runs; blanks tokenize at import).
+- **R3 (changes the design — the second template channel).** The CHECK
+  response carries authored hints, mistake feedback, and SOLUTIONS from the
+  raw document — "remember the price was {p}" would reach students as
+  template text. RULING: the same substitution walk runs server-side on the
+  check response's outbound content (one shared `substitute()` applied beside
+  `sanitizeOut`). And numeric `mistake:` MATCHERS on seeded blanks become
+  seed-dependent noise as literals — RULING: matcher strings on seeded
+  blanks evaluate as expressions with the same bindings (`!a+p ::` fires for
+  every student's own add-instead-of-multiply), and the importer warns on a
+  literal numeric matcher attached to a seeded blank.
+- **R4 (schema + grading for data_plot).** `data: number[]` (min 1) cannot
+  hold a reference. RULING: additive-optional `dataVar?: string` beside it;
+  when set, `data` holds a representative literal (editor preview + degraded
+  paths render something honest) and BOTH serve and grade splice the drawn
+  list over it — the grader computes its key from the SUBSTITUTED dataset
+  (the review confirmed the key is computed, never authored, so the splice
+  must reach `scoreDotplot`/`scoreHistogram`/`scoreBoxplot`).
+- **R5 (reserved names).** Bare-name key expressions run through mathjs,
+  whose namespace already owns `e`, `pi`, `x`, `mean`, `min`, … RULING: a
+  reserved-name list exported from the evaluator module (single source),
+  enforced by schema refine AND the importer. D2's "collisions with nothing"
+  is retracted.
+- **R6 (math-blank keys).** `mathEquivalent` samples every free symbol — a
+  seeded `a` in a math key would be sampled, not bound. RULING: seeded
+  values BIND before equivalence runs (`compileFunction`'s `vars` scope
+  exists; it needs exporting through the scorers subpath), and evaluation
+  slots into `blankTokenToKey`, which means seed context threads through
+  `inventorySection` — now costed.
+- **R7 (authoring shape).** The meta fence is strictly flat `key: value`;
+  D2's indented block cannot parse there. RULING: a ```seed fence of flat
+  `name: spec` lines, registered in `importFormatRegistry` with the full
+  documentation guard chain (the correspondence slice is the fresh model).
+- **R8 (serving the specs).** Meta passes through sanitize untouched, so
+  `seedVars` — including a `list` variable's candidate answers — would ship
+  to students. RULING: `seedVars` strips from served meta; that is a
+  transform change outside the declarations, so THIS is where the hand
+  `SANITIZER_ALGO_REV` bump lands.
+- **R9 (print is a third, CLIENT-side surface).** The print route runs in
+  the teacher's browser on the RAW document with an ACTIVITY-keyed seed
+  (`print:{activityId}:v{n}`), draft-first — versionId may not exist.
+  RULING: print substitution runs client-side from the same leaf derivation
+  module, seeded `print:{activityId}:v{n}` (composing with the existing
+  printShuffle discipline, which deliberately does not reuse the serve
+  seam); the answer-key twin gains client-side derivation + evaluation so
+  expression keys print as numbers, not as `a*p` — this pulls the evaluator
+  into the app's print route (teacher-side, not the student shell; perf
+  budget checked at build).
+- **R10 (corrects the doc's own REV reasoning).** The substitution WALK runs
+  per-request after cache retrieval — like the serve shuffle, deliberately
+  outside `SANITIZER_REV`; cached template rows stay byte-compatible and no
+  orphaning is needed for the walk. The bump is owed only by R8's meta
+  strip. (The old-function failure modes stand as written.)
+- **R11 (schema discipline).** `seedVars` is optional with NO default — a
+  `.default([])` would materialize on every parse→save and trip the batch
+  importer's hand-edit fingerprint on every file.
+- **R12 (deleted).** The "anonymous seeds as 'anonymous'" sentence described
+  a branch that never serves a document body (the anonymous branch is the
+  meta endpoint; content 401s) — deleted rather than defended.
+
+**Carried from the review's open questions:** prose interpolation of a
+`sample` variable renders the comma-separated list (`{data}` → "55, 61, …" —
+the statistics case needs it; in scope); e2e route mocks derive seeded
+fixtures from the real derivation module, never retyped (P2, on the guard
+list with D8); teacher surfaces reviewing a `locked` check derive with the
+ROW's version_id, never the current one (a doc-note for the analytics
+surface, no mechanism change); an unresolvable reference at serve time stays
+LITERAL and logs — the read path fails safe, the importer's strict gate is
+the real fence. The deepest cut on the wishlist —
 TODOS ranked it last deliberately because it breaks the
 every-value-is-a-literal assumption across import, serve, and grading. This
 pass exists to show the break is SMALLER than it looks, because the

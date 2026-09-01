@@ -1,8 +1,79 @@
 # draggable_curve — the drag-then-type disagreement diagnostic (wishlist #5)
 
-**Status: DESIGN PASS, awaiting outside-voice review, then the author's yes/no
-per decision** (drafted 2026-09-01). Verified against the shipped graph
-architecture, not the design docs alone.
+**Status: OUTSIDE-VOICE REVIEWED → AMENDED, awaiting the author's yes/no per
+decision** (drafted and reviewed 2026-09-01; 7 findings, the load-bearing
+three re-verified against code before ruling). One finding changed the
+design, one retracted a "free" aside, and one surfaced a possible
+PREREQUISITE the author must rule on (open question Q2 below).
+
+## Amendments after the outside-voice review (2026-09-01)
+
+- **A1 (changes D5 — the review's sharpest find).** The seeded handles POISON
+  the diagnostic as designed: the kit reports current handle positions on
+  every onChange, the equation input would force an emit, and the wire's
+  unanswered proxy is points-length-only — so a student who ONLY typed would
+  ship the seed positions (sitting exactly on the parent curve) as drawn
+  work, and `written-not-drawn` would fire against work they never did.
+  transform_curve is the first variant where a non-drag input forces an emit.
+  RULING: the kit's existing `answered` bit ("true once a handle moved")
+  finally reaches the wire as additive-optional `GraphWork.dragged?: boolean`
+  (the `shape` precedent); the drag channel is UNANSWERED unless `dragged`,
+  regardless of points; the item is answered iff `dragged` OR a non-empty
+  `equation`; `isUntouched` learns both fields.
+- **A2 (cost — the wiring is four seams, not one field).** `equation` (and
+  `dragged`) must be threaded through the kit's `toSurfaceResponse`
+  WHITELIST, `GraphSurfaceResponse`, the viewer's field-by-field onChange
+  rebuild, AND a new restore channel (today's restore is points-only — the
+  typed text would vanish on reload). Inbound, the mount config
+  (`GraphSurfaceConfig`) must carry the start curve — which settles Q4: the
+  widget's start authority is the SERVED `interaction.start`, threaded
+  through the config, one source for board, print, and editor preview.
+- **A3 (revises D9 and retracts a D2 aside).** "A QUESTION prints empty axes"
+  is a deliberately pinned invariant (comment + type-level proof + a named
+  test suite). transform_curve is the first question variant carrying
+  display material, so the trio is revised CONSCIOUSLY: the print twin gains
+  a variant-scoped start-curve channel (the key still never prints on the
+  student sheet), the pinned suite grows the case, and the importer's
+  deferred "show lines alongside an answer" note is partially discharged —
+  `start:` only, not general graded stimuli. The D2 aside that drag-only
+  (`requireEquation: false`) is "free to allow" is RETRACTED — it needs this
+  same display-on-graded machinery; it is cheap-after-this-slice, not free.
+- **A4 (costs D6's mechanism honestly).** Three uncosted sites: the kit's
+  matcher COMPILER has no default branch (an unknown interaction type
+  compiles every matcher to never-match), so transform_curve needs its own
+  branch; "checked against BOTH channels" needs a model-vs-model comparison
+  (the typed channel yields a model, not points — sample-and-rescore, small
+  but new); and the editor's per-entry matcher validator would reject the
+  reserved tokens as parse errors, so they need an editor carve-out. One
+  worry the blanks precedent raised does NOT transfer: graph matchers are
+  authored predicates over work, never compared against student text, so a
+  student typing the literal token cannot summon the entry.
+- **A5 (cost).** The per-variant fan-out is triple-guarded and bigger than
+  the cost line said: registry variants roster, leak-fixture variant,
+  authored+sanitized fixtures 1:1, the dispatch test's correct-work builder,
+  the answer-key overlay case (a TS-exhaustive switch — it stops compiling),
+  and the census walk. Ground truth: plot_ray touches 23 files across all
+  four packages. Two mitigations verified: serialize passes the whole
+  interaction attr through (free), and no e2e lane enumerates variants.
+- **A6 (hardening).** The typed equation is the first STUDENT free text to
+  enter mathjs compilation server-side. It gets a length cap (the handler
+  has none for graphs work) and hostile-input tests under the S4-B3
+  never-throw posture.
+- **A7 (corrects D7's degrade claim).** The fence's line grammar is a CLOSED
+  keyword regex and an unrecognized line fails the WHOLE block to plain
+  text — so an old importer meeting `start:` degrades the whole fence (key
+  masked? NO — a graph fence's answer line is inside the fence; the R5
+  degrade-visibility note from the correspondence review applies here too
+  and the format doc's warning already covers it). `start:` joins the
+  keyword set; there is no "degrade to drag-only" path.
+
+**Open question for the author (Q2, from the review): does the
+transformation band need `absolute` and `sqrt` PARENT families?** The schema
+grades linear/quadratic/cubic/quartic/exp/log/vertical; |x| and √x — the two
+classic transformation parents — have no schema member or fitter, yet the
+sanitizer's family whitelist already anticipates both. If the ~11 activities
+transform |x| or √x, that is a hidden prerequisite slice (two new families
+through the #2 pipeline) and should be ruled BEFORE this build starts.
 
 **What the builder asked for**: ~11 transformation-band activities where the
 student TRANSFORMS a shown parent curve by dragging AND types the resulting
