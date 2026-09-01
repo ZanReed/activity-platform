@@ -242,6 +242,14 @@ export const CHUNK_LEDGER = [
         marker: /MathfieldElement/,
         maxGzKiB: 290,
         why: 'The math INPUT field. Reaches published pages only inside the lazily-summoned graph kit (never the base runtime), and the grading server must never see it at all.',
+        // ⚠ HEADROOM RULED, not overlooked (author, 2026-09-02): the wishlist
+        // arc moved this row 231.4 → 282.1 gz (the transform_curve equation
+        // field pulled a second MathLive entry path into the kit chunks) and
+        // the 2026-09-02 drift audit flagged the ~3% headroom. The author's
+        // call: HOLD the cap at 290 — the raise-vs-slim decision is made by
+        // the first feature that would actually cross it, with this comment as
+        // the tripwire's context. An audit re-reading ~97% here is reading a
+        // recorded decision, not discovering a new risk.
     },
     {
         name: 'jsxgraph',
