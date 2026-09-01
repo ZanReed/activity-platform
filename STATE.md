@@ -20,38 +20,18 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**OWED: the D24 counsel read, Gate 4, the `display_name` one-row fix, and the two function redeploys for the polynomial families.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
+**OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**⏳ `get-activity` + `check-activity` redeploys — OWED; deploy BOTH TOGETHER,
-then push (covers six slices through seeded_data; bundles committed for
-each). Seeded_data's D10 makes the pairing binding: an old get-activity
-serves literal `{a}` templates, an old check-activity grades every seeded
-answer wrong.** Deploy `pnpm deploy:get-activity` +
-`pnpm deploy:check` (never `--no-verify-jwt`) **BEFORE pushing to `main`** —
-a push is a Pages deploy (OV-7), and `CHECK_WIRE_VERSION` moved 2→3: a
-pushed app against the OLD `check-activity` leaves EVERY student's checks
-refusing with a version mismatch until the deploy lands. The old functions
-would also serve cubic/quartic family-stripped and a unit-bearing blank WITH
-ITS UNIT VISIBLE. Verify by bundle sha256 (the CLAUDE.md method).
-`SANITIZER_REV` moved twice (now `2-3d4db5c5`); stale cache rows orphan on
-their own.
-
-✅ **`get-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** The
-misconception strip is live, so **activities carrying bindings are safe to
-publish**. Verified by grepping the deployed source in BOTH directions (the new
-strip declaration present, the three deleted knobs absent) — never the version
-field. `SANITIZER_REV` moved, which orphans stale read-cache rows on its own.
-
-✅ **`check-activity` IS DEPLOYED AND CODE-VERIFIED (2026-08-25).** Flag is
-correctly `verify_jwt: true`. **The sensor is now live end to end** — an
-authored binding records a misconception id on a real student's check.
-
-Proven by **byte-identical sha256** between the deployed bundle and the
-committed one, not by marker-grepping — `get_edge_function` cannot read this
-function at all. **That technique is now a standing rule in CLAUDE.md** (deploy
-verification), because this section gets replaced and the method should not go
-with it. Marker greps agreed as a cross-check (`misconceptionIds` ×5,
-`answerType === "numeric"` ×2; the three deleted knobs all 0).
+✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
+wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
+false`) and `check-activity` v23 (`verify_jwt: true`), deployed TOGETHER per
+seeded_data's D10, before the push. Proven by **byte-identical sha256**
+between each deployed `_shared` bundle and the committed one (downloaded from
+a temp dir per the CLAUDE.md method); flags read via `list_edge_functions`.
+The wire bump (`CHECK_WIRE_VERSION` 2→3) and the seeded serve/grade pairing
+are live. Post-push CI run 33520006285 is fully green — the pushed run's two
+reds (missing correspondence print baseline; a MathLive keyboard-sink a11y
+name on the transform equation field) were fixed and verified same-day.
 
 
 
@@ -252,16 +232,21 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-09-01 (later session) — **WISHLISTS #5 AND #6 BOTH
-SHIPPED, closing the wishlist.** Each carries a full Build record in its
-design doc (draggable-curve.md / seeded-data.md): rulings honored, as-built
-corrections (sharpest: #6 moved R8's meta strip to SERVE time after
-re-deriving the cache-hit flow, cancelling the predicted ALGO_REV bump),
-twenty mutations between them — one caught its own test's vacuous assertion.
-⚠ After
-the author's next push, re-dispatch print-baselines and commit fresh PNGs for
-BOTH correspondence (downloaded one is stale — pre-CSS-fix) and
-interactive_graph (its fixture page gained the transform variant).
+**Last updated:** 2026-09-01, session CLOSED with everything landed and
+verified live. **WISHLISTS #5 AND #6 SHIPPED — the wishlist arc is COMPLETE**
+(full Build records in draggable-curve.md / seeded-data.md: rulings honored,
+as-built corrections — sharpest: #6 moved R8's meta strip to SERVE time after
+re-deriving the cache-hit flow, cancelling the predicted ALGO_REV bump —
+twenty mutations, one of which caught its own test's vacuous assertion).
+**Both function deploys verified byte-identical; the push landed; CI run
+33520006285 is green on every job** after two same-day fixes: the fresh
+correspondence + interactive_graph print baselines (generated post-push via
+the manual workflow, inspected, committed) and an a11y fix naming the
+transform equation field's MathLive keyboard sink AFTER append (the connect
+re-render wipes a pre-append name — verified live both ways).
+**The next lever is AUTHORING**: every capability the catalogue builder's
+wishlist blocked on now exists; remaining author items are D24, Gate 4, and
+the `display_name` one-row fix (Pending, unchanged).
 Earlier the same day — **WISHLISTS #3 AND #4 SHIPPED**: #3 unit-bearing
 blanks (unit-bearing-blanks.md), #4 `correspondence` (nway-correspondence.md;
 `CHECK_WIRE_VERSION` 2→3 makes the redeploy order BINDING — see Pending).

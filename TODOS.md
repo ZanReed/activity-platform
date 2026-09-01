@@ -66,9 +66,8 @@ calculator normalizer.
    [graded-function-families.md](docs/design/graded-function-families.md) §top).
    Rides the shared parser, so the editor answer field AND the markdown
    importer both accept `y = x^3 - 3x` with no per-surface work. Both server
-   bundles regenerated in the same commit; `get-activity` + `check-activity`
-   redeploys pending (STATE → Pending author actions). Unblocks the ~11
-   derivative-chain activities.
+   bundles regenerated in the same commit; deployed + code-verified
+   2026-09-01. Unblocks the ~11 derivative-chain activities.
 
 3. ✅ **Unit-bearing numeric blanks — SHIPPED 2026-09-01** (greenlit →
    outside-voice reviewed, 11 findings → amended → built same day).
@@ -80,7 +79,8 @@ calculator normalizer.
    misconception machinery. Design + amendments + AS BUILT:
    [unit-bearing-blanks.md](docs/design/unit-bearing-blanks.md). Eleven
    mutations, every guard red once; `SANITIZER_REV` moved; both bundles
-   same-commit; redeploys pending (STATE). Unblocks the ~10 contextual DoLs.
+   same-commit; deployed + code-verified 2026-09-01. Unblocks the ~10
+   contextual DoLs.
 
 4. ✅ **`nway_correspondence` — SHIPPED 2026-09-01** as the `correspondence`
    block (greenlit → outside-voice reviewed, 8 findings → amended R1–R8 →
@@ -90,40 +90,34 @@ calculator normalizer.
    math-safe `|` splitting, per-column marker sequences (A/i/α), and
    `CHECK_WIRE_VERSION` 2→3. Design + amendments + AS BUILT:
    [nway-correspondence.md](docs/design/nway-correspondence.md). Nine
-   mutations all red once; both bundles same-commit; redeploys pending
-   (STATE — the wire bump makes deploy-before-push BINDING). Unblocks the ~5
-   same-function-across-representations activities.
+   mutations all red once; both bundles same-commit; deployed +
+   code-verified 2026-09-01 (the wire bump made deploy-before-push binding,
+   and the order held). Unblocks the ~5 same-function-across-representations
+   activities.
 
-5. **`draggable_curve` — drag-then-type disagreement diagnostic.** (Blocks
-   ~11: the transformation band.) The most expensive item: a new graph-kit
-   interaction mode plus capturing WHERE the student drags independent of what
-   they type — that separation is the diagnostic. Depends on the #1/graph-knobs
-   ruling for where its mistake signal lands. Fallback: "which graph shows…"
-   mc with choice-graphs (possible since 2026-08-22), which cannot separate
-   the two signals.
-   ⏸ **DESIGN PASS REVIEWED + AMENDED 2026-09-01, awaiting greenlight** —
-   [draggable-curve.md](docs/design/draggable-curve.md) D1–D10 + A1–A7. The
-   review's sharpest find (A1): the seeded handles would have poisoned the
-   diagnostic — the equation input forces an emit that ships seed positions
-   as drawn work; fixed with an additive `GraphWork.dragged` flag. ⚠ Open
-   question Q2 for the AUTHOR before build: do the ~11 activities transform
-   |x| or √x parents? Those families have no schema member or fitter — a
-   hidden prerequisite slice if yes.
+5. ✅ **`draggable_curve` — SHIPPED 2026-09-01** as the `transform_curve`
+   variant (greenlit → built, all rulings honored — Q2 ruled YES, so the
+   absolute/sqrt parent-families slice landed first as the prerequisite; A2
+   overruled D3 into a real MathLive typed channel with a live dotted-green
+   curve preview). Two-channel grading with the `dragged` flag (A1) and the
+   reserved drawn-not-written / written-not-drawn matches; `start:` +
+   `options: type-equation` importer lines; variant-scoped print invariant.
+   Design + Build record: [draggable-curve.md](docs/design/draggable-curve.md).
+   Deployed + code-verified 2026-09-01. Unblocks the ~11 transformation-band
+   activities.
 
-6. **`seeded_data` — parameterised datasets.** (Blocks fewest here but is the
-   print-integrity/A-B-versions/statistics-sampling lever.) The deepest cut:
-   breaks the every-dataset-is-a-literal assumption across import, publish
-   snapshotting, and grading — the server must grade against THIS student's
-   seed. Own arc, ranked last deliberately.
-   ⏸ **DESIGN PASS REVIEWED + AMENDED 2026-09-01, awaiting greenlight** —
-   [seeded-data.md](docs/design/seeded-data.md) D1–D10 + R1–R12. The seam
-   holds (template cached, values per-request, grader re-derives), and the
-   review found the real costs at the edges: the shared-browser cache
-   residual becomes MIS-GRADING (seeded activities serve no-store), `{a}`
-   collides with latex braces (latex out of v1, warned at import), the check
-   response is a second template channel (hints/solutions substitute too),
-   data_plot needs `dataVar` + a grading-side splice, and print is a third
-   CLIENT-side substitution surface with its own seed.
+6. ✅ **`seeded_data` — SHIPPED 2026-09-01** (greenlit as amended R1–R12 →
+   built; three as-built corrections in the Build record, sharpest: R8's meta
+   strip moved to SERVE time once the cache-hit flow was re-derived, so no
+   ALGO_REV bump was owed). ```seed fence (int/list/sample), `{name}` prose
+   references, expression answer keys graded per student (math keys bind
+   before equivalence), `data: {name}` datasets, no-store on seeded serves
+   (R1), print rides the Version A–D selector with an evaluated answer key.
+   The D8 two-students determinism guard pins the serve↔grade seam. Design +
+   Build record: [seeded-data.md](docs/design/seeded-data.md). Deployed +
+   code-verified 2026-09-01 (both functions together, per its D10).
+   ⚠ R2's REVIEW TRIGGER stands: the first activity needing a seeded value
+   inside rendered math reopens the latex marker-command channel.
 
 **Print tier (wanted, does not block authoring):** page-break/keep-together
 control (mostly print CSS + a small format knob — cheap); a problem-group
