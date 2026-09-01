@@ -464,6 +464,35 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
 // -----------------------------------------------------------------------------
 
 const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
+  correspondence: [
+    // The letter-bank contract, under this block's own class names (its
+    // matching/* treatment rows are suppressed with pointers here). One row
+    // per property, selectors owned by Correspondence.tsx.
+    {
+      id: 'correspondence/interactive-hidden',
+      rule: 'The per-cell selects never print.',
+      target: '.viewer-correspondence__select',
+      expect: { kind: 'hidden' },
+    },
+    {
+      id: 'correspondence/letter-line',
+      rule: 'Each cell prints a write-the-marker line — the letter-bank paper convention, once per column.',
+      target: '.viewer-correspondence__letter-line',
+      expect: { kind: 'bare-underline' },
+    },
+    {
+      id: 'correspondence/no-tap-floor',
+      rule: 'Item rows shed the 44px tap floor on paper — the floor is finger ergonomics, not layout (B5).',
+      target: '.viewer-correspondence__item',
+      expect: { kind: 'computed', property: 'min-height', oneOf: ['0px', 'auto'] },
+    },
+    {
+      id: 'correspondence/bank-visible',
+      rule: 'Every marked card bank prints so the student can read the options.',
+      target: '.viewer-correspondence__bank',
+      expect: { kind: 'visible' },
+    },
+  ],
   image: [
     {
       id: 'image/capped',
@@ -587,6 +616,22 @@ const DISPLAY_INTERACTIONS: readonly string[] = ['display'];
  * rather than a quietly weakened rule.
  */
 const SUPPRESSED: Partial<Record<BlockType, Readonly<Record<string, string>>>> = {
+  correspondence: {
+    // Correspondence realises the letter-bank treatment under its OWN class
+    // names (.viewer-correspondence__*), per column. The treatment table's
+    // matching/* selectors can never match it; the equivalent contract is
+    // asserted by the correspondence/* rows in TYPE_CHECKS — same four
+    // properties, right selectors. (CI caught exactly this on the block's
+    // first pushed run, 33453648230: three "[absent] matching/*" rows.)
+    'matching/interactive-hidden':
+      'Asserted as correspondence/interactive-hidden on .viewer-correspondence__select.',
+    'matching/letter-line':
+      'Asserted as correspondence/letter-line on .viewer-correspondence__letter-line.',
+    'matching/no-tap-floor':
+      'Asserted as correspondence/no-tap-floor on .viewer-correspondence__item.',
+    'matching/bank-visible':
+      'Asserted as correspondence/bank-visible on .viewer-correspondence__bank.',
+  },
   math_block: {
     'blanks/bare-underline':
       'A math gap is rendered MATH, not an input: in print it is a KaTeX \\square inside the equation, which is the writing affordance. There is no input element to neutralise.',

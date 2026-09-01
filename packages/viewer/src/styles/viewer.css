@@ -1852,6 +1852,7 @@
      stays honest; the gate's no-tap-floor checks hold this side. */
   .viewer-mc__label,
   .viewer-matching__item,
+  .viewer-correspondence__item,
   .viewer-ordering__item {
     min-height: 0;
   }
