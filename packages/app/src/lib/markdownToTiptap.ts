@@ -60,6 +60,8 @@ import {
     parseRaySegment,
 } from '@activity/graph-kit/formula';
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
+import { freeVariables } from '@activity/graph-kit/scorers';
+import { RESERVED_SEED_NAMES, type SeedVar as SeedVarType } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 import type {
     ActivityMeta,
@@ -164,6 +166,9 @@ export interface ImportedMeta {
      * the importer ahead of the file path. Minted once, never reused.
      */
     sourceKey?: string;
+    /** Seeded per-student variables (wishlist #6), authored via a ```seed
+     *  fence. Document meta — they land on ActivityMeta.seedVars. */
+    seedVars?: SeedVarType[];
     /** The one primary skill this activity targets (`skill:`). Validated
      *  against the author's registry by the batch importer, never here. */
     primarySkill?: string;
@@ -611,8 +616,13 @@ function tokensToBlocks(
         if (token.type !== 'fence') continue;
         if (info === 'definitions') parseDefinitionsFence(token.content, ctx);
         else if (info === 'meta') parseMetaFence(token.content, ctx);
+        // ```seed rides the same pre-pass as ```meta and for the same reason —
+        // and for one more: the dataplot fence resolves `data: {name}` against
+        // the declarations, so they must exist before any body block maps.
+        else if (info === 'seed') parseSeedFence(token.content, ctx);
     }
     const blocks = mapBlocks(nest(tokens), ctx);
+    validateSeedReferences(blocks, ctx);
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
     if (ctx.refPanelBlocks.length > 0) {
         result.referencePanel = ctx.refPanelTitle
@@ -757,6 +767,14 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 // at all, so a malformed fence stays visible to the teacher
                 // instead of vanishing (the ```definitions precedent).
                 return ctx.meta ? [] : [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'seed') {
+                // Already consumed by the pre-pass (a ```meta-class side
+                // channel — it declares variables, contributes no blocks).
+                // Degrade to plain text only when nothing parsed at all.
+                return ctx.meta?.seedVars && ctx.meta.seedVars.length > 0
+                    ? []
+                    : [rawTextParagraph(node.token.content)];
             }
             if ((node.token.info ?? '').trim() === 'reference') {
                 // Side channel: the fence's blocks land in ctx.refPanelBlocks
@@ -2879,6 +2897,175 @@ function metaEnum<T extends string>(
     return undefined;
 }
 
+// ```seed — seeded per-student variables (wishlist #6, R7): strictly flat
+// `name: spec` lines, one variable each. Specs (D2):
+//   a: int 2..9
+//   p: list 1.50, 1.75, 2.25, 2.50
+//   data: sample 8 of 55..99
+// Bad lines warn and are skipped (the meta-fence posture) — the D7 cross-
+// checks below catch a declaration that ends up missing.
+function parseSeedFence(src: string, ctx: Ctx): void {
+    const meta: ImportedMeta = ctx.meta ?? {};
+    const vars: SeedVarType[] = [...(meta.seedVars ?? [])];
+    const warn = (msg: string): void => { ctx.warnings.add('Seed: ' + msg); };
+    for (const rawLine of src.split('\n')) {
+        const line = rawLine.trim();
+        if (line === '') continue;
+        const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/.exec(line);
+        if (!m) { warn(`\u201c${line}\u201d isn\u2019t a \`name: spec\` line and was skipped.`); continue; }
+        const name = m[1] ?? '';
+        const spec = (m[2] ?? '').trim();
+        if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+            warn(`\u201c${name}\u201d \u2014 variable names are lowercase letters/digits/underscores, starting with a letter. Skipped.`);
+            continue;
+        }
+        if (RESERVED_SEED_NAMES.includes(name)) {
+            warn(`\u201c${name}\u201d is a reserved name (math constant/function, or x/y). Pick another. Skipped.`);
+            continue;
+        }
+        if (vars.some((v) => v.name === name)) {
+            warn(`\u201c${name}\u201d is declared twice \u2014 kept the first declaration.`);
+            continue;
+        }
+        const intM = /^int\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
+        const listM = /^list\s+(.+)$/.exec(spec);
+        const sampleM = /^sample\s+(\d+)\s+of\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
+        if (intM) {
+            const min = Number(intM[1]);
+            const max = Number(intM[2]);
+            if (min > max) { warn(`\u201c${name}\u201d \u2014 int min must be \u2264 max. Skipped.`); continue; }
+            vars.push({ name, spec: { kind: 'int', min, max } });
+        } else if (sampleM) {
+            const n = Number(sampleM[1]);
+            const min = Number(sampleM[2]);
+            const max = Number(sampleM[3]);
+            if (min > max) { warn(`\u201c${name}\u201d \u2014 sample min must be \u2264 max. Skipped.`); continue; }
+            if (n < 1 || n > max - min + 1) {
+                warn(`\u201c${name}\u201d \u2014 sample asks for ${n} distinct values from a range of ${max - min + 1}. Skipped.`);
+                continue;
+            }
+            vars.push({ name, spec: { kind: 'sample', n, min, max } });
+        } else if (listM) {
+            const values = (listM[1] ?? '').split(',').map((v) => Number(v.trim()));
+            if (values.length === 0 || values.some((v) => !Number.isFinite(v))) {
+                warn(`\u201c${name}\u201d \u2014 list values must all be numbers. Skipped.`);
+                continue;
+            }
+            vars.push({ name, spec: { kind: 'list', values } });
+        } else {
+            warn(`\u201c${name}: ${spec}\u201d \u2014 specs are \u201cint MIN..MAX\u201d, \u201clist v1, v2, \u2026\u201d, or \u201csample N of MIN..MAX\u201d. Skipped.`);
+            continue;
+        }
+    }
+    if (vars.length > 0) {
+        meta.seedVars = vars;
+        ctx.meta = meta;
+    }
+}
+
+// The D7/R2/R3 cross-checks: every reference resolves, every declaration is
+// used, no reference hides inside latex, and seeded blanks don't carry
+// literal numeric mistake matchers (seed-dependent noise). Warnings only —
+// the batch importer's --strict turns them into failures, which is the fence.
+function validateSeedReferences(blocks: JSONContent[], ctx: Ctx): void {
+    const declared = new Set((ctx.meta?.seedVars ?? []).map((v) => v.name));
+    const braceRefs = new Set<string>();
+    const latexRefs = new Set<string>();
+    const exprRefs = new Set<string>();
+    const dataVarRefs = new Set<string>();
+    const seededLiteralMatchers: string[] = [];
+    const BRACE = /\{([a-z][a-z0-9_]*)\}/g;
+
+    const visit = (node: unknown): void => {
+        if (Array.isArray(node)) { node.forEach(visit); return; }
+        if (node === null || typeof node !== 'object') return;
+        const obj = node as Record<string, unknown>;
+        if (obj.type === 'text' && typeof obj.text === 'string') {
+            for (const m of obj.text.matchAll(BRACE)) braceRefs.add(m[1]!);
+        }
+        if (typeof obj.latex === 'string') {
+            for (const m of obj.latex.matchAll(BRACE)) {
+                if (declared.has(m[1]!)) latexRefs.add(m[1]!);
+            }
+        }
+        if (typeof obj.dataVar === 'string') dataVarRefs.add(obj.dataVar);
+        // A blank's fields ride under `attrs` in Tiptap JSON (and flat in the
+        // schema shape) — read whichever is present.
+        const blank =
+            obj.type === 'blank'
+                ? ((obj.attrs as Record<string, unknown> | undefined) ?? obj)
+                : null;
+        if (blank && typeof blank.answer === 'string' && declared.size > 0) {
+            const entries = [
+                blank.answer,
+                ...(Array.isArray(blank.acceptableAnswers)
+                    ? (blank.acceptableAnswers as unknown[]).filter((a): a is string => typeof a === 'string')
+                    : []),
+            ];
+            const used = new Set<string>();
+            for (const entry of entries) {
+                for (const v of freeVariables(entry)) {
+                    if (declared.has(v)) { used.add(v); exprRefs.add(v); }
+                }
+            }
+            if (used.size > 0 && Array.isArray(blank.mistakeFeedback)) {
+                for (const mf of blank.mistakeFeedback as Array<{ match?: unknown }>) {
+                    const match = typeof mf.match === 'string' ? mf.match.trim() : '';
+                    if (match !== '' && Number.isFinite(Number(match))) {
+                        seededLiteralMatchers.push(match);
+                    }
+                }
+            }
+        }
+        for (const v of Object.values(obj)) visit(v);
+    };
+    visit(blocks as unknown);
+
+    if (declared.size === 0) {
+        // No fence: a brace-shaped reference is probably a forgotten ```seed.
+        if (braceRefs.size > 0) {
+            ctx.warnings.add(
+                `Seed: found {${[...braceRefs].join('}, {')}} in the text but no \`\`\`seed fence \u2014 students would see the braces literally.`,
+            );
+        }
+        return;
+    }
+    for (const name of braceRefs) {
+        if (!declared.has(name)) {
+            ctx.warnings.add(`Seed: {${name}} isn\u2019t declared in the \`\`\`seed fence \u2014 it will render literally.`);
+        }
+    }
+    for (const name of dataVarRefs) {
+        if (!declared.has(name)) {
+            ctx.warnings.add(`Seed: data variable \u201c${name}\u201d isn\u2019t declared in the \`\`\`seed fence.`);
+        }
+    }
+    for (const name of latexRefs) {
+        // R2: latex is OUT of v1's substitution surfaces \u2014 {a} inside math
+        // is a brace group, so the letter would render, not the value.
+        ctx.warnings.add(
+            `Seed: {${name}} appears inside math ($\u2026$) \u2014 seeded values don\u2019t substitute into math yet, so students would see the letter. Move it into plain text.`,
+        );
+    }
+    const referenced = new Set([...braceRefs, ...exprRefs, ...dataVarRefs]);
+    // A paste with no body at all (a bare fence) has nothing to reference
+    // FROM, so the unreferenced check would only punish fence-first authoring.
+    if (blocks.length > 0) {
+        for (const name of declared) {
+            if (!referenced.has(name)) {
+                ctx.warnings.add(`Seed: \u201c${name}\u201d is declared but nothing references it.`);
+            }
+        }
+    }
+    for (const match of seededLiteralMatchers) {
+        // R3: a literal numeric matcher on a seeded blank fires for one seed
+        // and is noise for every other student.
+        ctx.warnings.add(
+            `Seed: mistake matcher \u201c${match}\u201d is a literal number on a seeded blank \u2014 write it as an expression over the variables so it matches every student\u2019s own values.`,
+        );
+    }
+}
+
 function parseMetaFence(src: string, ctx: Ctx): void {
     const meta: ImportedMeta = ctx.meta ?? {};
     for (const rawLine of src.split('\n')) {
@@ -3377,6 +3564,7 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
     let axis: { min: number; max: number } | null = null;
     let step = 1;
     let interaction: Record<string, unknown> | null = null;
+    let dataVar: string | null = null;
 
     const chartWord = (raw: string): 'dotplot' | 'histogram' | 'boxplot' | null => {
         const w = raw.toLowerCase().replace(/[\s-]+/g, '');
@@ -3402,6 +3590,30 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
                 }
                 break;
             case 'data': {
+                // Seeded dataset (R4): `data: {scores}` draws each student's
+                // list from a declared `sample` variable; the stored literal
+                // is a REPRESENTATIVE draw (fixed seed) so previews and
+                // degraded paths render something honest.
+                const seededRef = /^\{([a-z][a-z0-9_]*)\}$/.exec(value);
+                if (seededRef) {
+                    const name = seededRef[1]!;
+                    const declaredVar = (ctx.meta?.seedVars ?? []).find((v) => v.name === name);
+                    if (!declaredVar) {
+                        return fail(`data: {${name}} \u2014 no \`\`\`seed fence declares \u201c${name}\u201d (declare it first; fence order doesn\u2019t matter)`);
+                    }
+                    if (declaredVar.spec.kind !== 'sample') {
+                        return fail(`data: {${name}} must be a \u201csample\u201d variable (a dataset needs several values)`);
+                    }
+                    dataVar = name;
+                    const spec = declaredVar.spec;
+                    for (let i = 0; i < spec.n; i++) {
+                        // Evenly spread representative values, not a PRNG draw:
+                        // deterministic, dependency-free, and honest about
+                        // being a stand-in.
+                        data.push(spec.min + Math.round((i * (spec.max - spec.min)) / Math.max(1, spec.n - 1)));
+                    }
+                    break;
+                }
                 const parts = value.split(/[,\s]+/).filter((p) => p.length > 0);
                 if (parts.length === 0) return fail('the data line needs at least one number');
                 for (const p of parts) {
@@ -3486,6 +3698,7 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
         attrs: {
             id: '',
             data,
+            ...(dataVar ? { dataVar } : {}),
             config: { min, max, tickStep: step, minorTicksPerStep: 0, snapToTick: true },
             interaction,
             solution,

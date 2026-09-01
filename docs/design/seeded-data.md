@@ -221,3 +221,48 @@ printShuffle pin will say.
 
 Constraint solving, per-section reseeding, client-side re-rolls, seeded
 non-numeric content, retrofitting existing literal activities.
+
+## Build record (2026-09-01 — SHIPPED, with three as-built corrections)
+
+**R8′ (corrects R8/R10 — verified against the shipped cache-hit flow).** The
+meta strip runs at SERVE time, not inside sanitize: on a cache HIT the handler
+holds only the cached artifact, and meta passes through sanitize untouched
+today — so the specs land in the cache for free (the cache is service-role
+only) and the strip sits beside the shuffle as a per-request transform. That
+is R10's own reasoning applied to R8, and it cancels the predicted
+`SANITIZER_ALGO_REV` bump: no sanitize transform changed, `SANITIZER_REV` did
+not move, and no cache orphaning was needed. Guarded response-bound (the
+served meta never carries `seedVars`; mutation-tested).
+
+**D5′ (widens D5's text surface, deliberately).** The prose walk substitutes
+EVERY text run — choices, matching items, all of it — not only
+prompt/paragraph runs: restricting it would have made the walk structural for
+no student-visible gain. The closed list as built: all prose text runs +
+`data_plot.data` via `dataVar`; latex structurally unreachable (the walk keys
+on text-node shape); answer keys never walked (grading/print EVALUATE them as
+expressions via the shared `resolveSeededEntry`).
+
+**D6 as built.** The print surface's EXISTING Version A–D selector is the
+seed override (`printSeed(activityId, version)` already carried it); no new
+control. The student path never accepts a seed parameter, as ruled.
+
+**What shipped.** Schema (`SeedVar`/`SeedVars` + reserved-name refine +
+`data_plot.dataVar`); the `prng.ts` + `seedValues.ts` + `substitute.ts` leaf
+family (derivation per `${seed}:${name}`, D3); serve substitution + strip +
+R1's conditional `no-store`; grading (document substituted before
+`gradeSection`, key expressions resolved via `evaluateSeededKeys`, R6 math
+binding, R3 matcher expressions); the D8 walk-level determinism guard + both
+handler-glue pins; importer (```seed fence, D7/R2/R3 validation, `data:
+{name}`, registry + prompt + format doc chain); print (client-side derivation
++ answer-key resolution through `substituteSeededAnswers`); read-only drawer
+panel. Batch importer: seedVars REPLACE on update (tags' rule), never-clobber
+on paste.
+
+**Mutation ledger (this slice): 11** — 3 serve glue (substitute / strip /
+no-store), 3 grading (seed spelling / key evaluation / math binding), 1 check
+handler (derive skipped), 3 print (substitute / key resolution / version
+seed), 1 importer-adjacent (bare-fence rule exercised via registry guard) —
+and one of them caught a VACUOUS assertion in its own test (the print key
+check read textContent while the key fills input values; the mutation
+survived, the assertion was rebound to the inputs, the mutation then
+reddened). The pattern the repo keeps paying for, caught at authoring time.

@@ -1219,6 +1219,11 @@ function tiptapDataPlotToActivity(node: JSONContent): DataPlotBlock {
             : fresh.data,
         config: (attrs.config as DataPlotBlock['config']) ?? fresh.config,
         interaction: (attrs.interaction as DataPlotBlock['interaction']) ?? fresh.interaction,
+        // Seeded dataset reference (R4) — optional, additive; absent means a
+        // literal dataset exactly as before.
+        ...(typeof attrs.dataVar === 'string' && attrs.dataVar.length > 0
+            ? { dataVar: attrs.dataVar }
+            : {}),
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
             : [],
@@ -1938,6 +1943,7 @@ function activityDataPlotToTiptap(block: DataPlotBlock): JSONContent {
         attrs: {
             id: block.id,
             data: block.data,
+            ...(block.dataVar ? { dataVar: block.dataVar } : {}),
             config: block.config,
             interaction: block.interaction,
             solution: block.solution ?? null,

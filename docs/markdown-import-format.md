@@ -46,6 +46,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
 | a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission mode, feedback, calculator — not a body block (see below) |
+| a ` ```seed ` fenced block | **seeded per-student variables** — each student is served (and graded on) their own numbers; reference as `{name}` in prose, expressions in blank answers — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
@@ -491,6 +492,26 @@ REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Use at most one reference fence per activity; a second one adds onto the
   same sheet.
 
+SEEDED VARIABLES (optional — numbers that differ per student)
+- A ```seed fence declares named variables; each student is served their own
+  values, and grading uses that student’s values. Flat `name: spec` lines:
+    ```seed
+    a: int 2..9                (one whole number, 2–9 inclusive)
+    p: list 1.50, 1.75, 2.25   (one value drawn from the list)
+    scores: sample 8 of 55..99 (8 DIFFERENT whole numbers — a dataset)
+    ```
+- Reference a value in prose as {a}: "You buy {a} pens at ${p}." A sample
+  variable renders as a comma-separated list: "Your scores: {scores}."
+- A blank’s answer may be an EXPRESSION over the variables: {{=a*p}} or
+  {{=mean(scores)}} — graded against each student’s own values. Mistake
+  matchers should be expressions too ({{=a*p|!a+p :: Multiply, don’t add.}}).
+- A ```dataplot fence can draw its dataset from a sample variable:
+  data: {scores}
+- Do NOT put {a} inside math dollars — $x^{a}$ is a LaTeX brace group, not a
+  reference; keep references in plain text.
+- Names are lowercase (letters/digits/underscores); short math words like pi,
+  e, x, y, mean, min are reserved.
+
 ACTIVITY METADATA (optional, once, anywhere in the reply)
 - A ```meta fence names and files the activity. Plain `key: value` lines:
     ```meta
@@ -550,7 +571,7 @@ OTHER
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, ```table, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, and ```reference — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
@@ -1011,6 +1032,46 @@ Find the **[[Slope]]** of the line, then check its [[intercept]].
 - **One entry per term** — a duplicate `term:` warns and keeps the first.
 - **Not here** — columns and callouts are not valid definition content, and a definition can never contain another definition or a question (`{{…}}` stays literal). Blocks outside the allowed set are dropped with a warning.
 - **Printing** — definition pop-ups don't exist on paper. Turn on **⚙ → Print → "Include a glossary of defined words when printing"** to add every defined term as a glossary at the end of the worksheet.
+
+## Seeded variables (```seed fence)
+
+A fenced code block with the `seed` language tag declares **per-student seeded
+variables** (wishlist #6). Like ```meta it is a side channel — it contributes no
+body blocks; the declarations land on the activity's meta (`seedVars`). Each
+student is SERVED their own values (derived deterministically from the
+published version + the student, so a reload never re-rolls) and GRADED against
+those same values. The specs, one flat `name: spec` line per variable:
+
+```
+```seed
+a: int 2..9                (one whole number, 2–9 inclusive)
+p: list 1.50, 1.75, 2.25   (one value drawn from the authored list)
+scores: sample 8 of 55..99 (8 DISTINCT whole numbers — a dataset)
+```⠀
+```
+
+- **Prose references**: `{a}` anywhere in plain text renders the student's
+  value ("You buy {a} pens at ${p}."). A `sample` variable renders as a
+  comma-separated list.
+- **Blank answers as expressions**: `{{=a*p}}`, `{{=mean(scores)}}` — evaluated
+  per student at grade time. Math blanks bind too: `{{==a*x + p}}`.
+- **Mistake matchers as expressions**: `{{=a*p|!a+p :: Multiply, don't add.}}`
+  fires on each student's own add-instead-of-multiply value. A literal numeric
+  matcher on a seeded blank warns — it would fire for one seed only.
+- **Datasets**: a ```dataplot fence may write `data: {scores}` to draw each
+  student's dataset from a declared `sample` variable (the stored literal is a
+  representative stand-in for previews).
+- **Not in math**: `{a}` inside `$…$` is a LaTeX brace group, not a reference —
+  the importer warns. Keep references in plain text.
+- **Names**: lowercase `[a-z][a-z0-9_]*`; reserved words (math constants and
+  functions — `pi`, `e`, `mean`, `min`, … — plus `x`/`y`) are refused.
+- **Validation**: an undeclared `{name}`, a declaration nothing references, a
+  brace reference with no fence at all, and the latex/matcher cases above all
+  warn (`--strict` fails).
+
+Teachers should know: **print uses its own seed per version** (Version A/B
+papers), and the editor shows the declared variables read-only — the `.md`
+file is the authoring surface.
 
 ## Activity metadata (```meta fence)
 

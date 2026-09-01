@@ -569,6 +569,82 @@ describe('recording', () => {
   });
 });
 
+describe('seeded grading glue (wishlist #6)', () => {
+  // The walk-level D8 guard lives in seeded-grading.test.ts; THIS pins the
+  // handler half: seedVars on the stored meta actually reach the derivation
+  // (seeded by versionId + the JWT sub), and the graded document is the
+  // SUBSTITUTED one. A handler that forgot to derive would grade the typed
+  // value against the literal template string and mark every student wrong.
+  const seededDoc = {
+    schemaVersion: 2,
+    meta: {
+      title: 'T',
+      seedVars: [{ name: 'a', spec: { kind: 'int', min: 2, max: 9 } }],
+    },
+    sections: [
+      {
+        id: sectionId,
+        title: 'S',
+        rows: [
+          {
+            id: '99999999-9999-4999-8999-999999999999',
+            columns: [
+              {
+                id: '88888888-8888-4888-8888-888888888888',
+                blocks: [
+                  {
+                    id: '77777777-7777-4777-8777-777777777777',
+                    type: 'fill_in_blank',
+                    content: [
+                      { type: 'text', text: 'Twice {a}: ' },
+                      {
+                        type: 'blank',
+                        id: '66666666-6666-4666-8666-666666666666',
+                        answer: '2*a',
+                        answerType: 'numeric',
+                        width: 6,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  async function checkWith(answer: string): Promise<Record<string, unknown>> {
+    const h = harness({
+      readVersion: async () => ({ data: { content: seededDoc }, error: null }),
+    });
+    const res = await h.handler(
+      post(validBody({ responses: { blanks: { '66666666-6666-4666-8666-666666666666': answer } } })),
+    );
+    expect(res.status).toBe(200);
+    return (await res.json()) as Record<string, unknown>;
+  }
+
+  it("grades against the STUDENT's derived value, not the template or another seed", async () => {
+    const { deriveSeedValues } = await import('../src/sanitize/seedValues.js');
+    const { serveSeed } = await import('../src/sanitize/serveSeed.js');
+    const own = deriveSeedValues(
+      [{ name: 'a', spec: { kind: 'int', min: 2, max: 9 } }],
+      serveSeed(VERSION, STUDENT),
+    );
+    const right = await checkWith(String(2 * (own.a as number)));
+    expect(
+      (right.items as Record<string, { verdict: string }>)['66666666-6666-4666-8666-666666666666']?.verdict,
+    ).toBe('correct');
+    // The literal template expression must NOT be the accepted answer.
+    const literal = await checkWith('2*a');
+    expect(
+      (literal.items as Record<string, { verdict: string }>)['66666666-6666-4666-8666-666666666666']?.verdict,
+    ).toBe('incorrect');
+  });
+});
+
 describe('the stale-version advisory (ruling S4-T5)', () => {
   it('omits currentVersionId while the served version is current', async () => {
     const h = harness({}, { isCurrent: true });

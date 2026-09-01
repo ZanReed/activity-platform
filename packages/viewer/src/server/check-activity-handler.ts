@@ -41,6 +41,10 @@ import {
 } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
 import { jwtSub } from './jwt.js';
+import { serveSeed } from '../sanitize/serveSeed.js';
+import { deriveSeedValues, type SeedValues } from '../sanitize/seedValues.js';
+import { substituteSeedValues } from '../sanitize/substitute.js';
+import type { SeedVar } from '@activity/schema';
 import { UUID_RE } from './uuid.js';
 
 // UUID_RE is imported (server/uuid.ts, G2): this file's strict shape is now
@@ -410,15 +414,35 @@ export function createCheckActivityHandler(
       throw err;
     }
 
+    // ---- Seeded values (wishlist #6) ---------------------------------------
+    // Re-derive from the SAME serveSeed symbol the read path substituted with
+    // (the two-spellings rule), then grade the SUBSTITUTED document: the
+    // data_plot grader computes its key from the student's own dataset (R4),
+    // and outbound feedback/hints/solutions carry values, not templates (R3).
+    // Answer-key expressions resolve inside gradeSection via seedValues.
+    const seedVars =
+      ((upgraded.doc as { meta?: { seedVars?: SeedVar[] } }).meta?.seedVars) ??
+      [];
+    let gradedDoc = upgraded.doc;
+    let seedValues: SeedValues = {};
+    if (seedVars.length > 0) {
+      seedValues = deriveSeedValues(
+        seedVars,
+        serveSeed(request.versionId, studentId),
+      );
+      gradedDoc = substituteSeedValues(gradedDoc, seedValues);
+    }
+
     // ---- Grade -------------------------------------------------------------
     let result: SectionCheckResult;
     try {
       result = gradeSection({
-        document: upgraded.doc as never,
+        document: gradedDoc as never,
         sectionId: request.sectionId,
         responses: request.responses,
+        seedValues,
         servedOrderings: deps.servedOrderings?.({
-          document: upgraded.doc,
+          document: gradedDoc,
           versionId: request.versionId,
           studentId,
           sectionId: request.sectionId,

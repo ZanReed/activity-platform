@@ -409,6 +409,26 @@ REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Use at most one reference fence per activity; a second one adds onto the
   same sheet.
 
+SEEDED VARIABLES (optional — numbers that differ per student)
+- A ```seed fence declares named variables; each student is served their own
+  values, and grading uses that student’s values. Flat `name: spec` lines:
+    ```seed
+    a: int 2..9                (one whole number, 2–9 inclusive)
+    p: list 1.50, 1.75, 2.25   (one value drawn from the list)
+    scores: sample 8 of 55..99 (8 DIFFERENT whole numbers — a dataset)
+    ```
+- Reference a value in prose as {a}: "You buy {a} pens at ${p}." A sample
+  variable renders as a comma-separated list: "Your scores: {scores}."
+- A blank’s answer may be an EXPRESSION over the variables: {{=a*p}} or
+  {{=mean(scores)}} — graded against each student’s own values. Mistake
+  matchers should be expressions too ({{=a*p|!a+p :: Multiply, don’t add.}}).
+- A ```dataplot fence can draw its dataset from a sample variable:
+  data: {scores}
+- Do NOT put {a} inside math dollars — $x^{a}$ is a LaTeX brace group, not a
+  reference; keep references in plain text.
+- Names are lowercase (letters/digits/underscores); short math words like pi,
+  e, x, y, mean, min are reserved.
+
 ACTIVITY METADATA (optional, once, anywhere in the reply)
 - A ```meta fence names and files the activity. Plain `key: value` lines:
     ```meta
@@ -468,7 +488,7 @@ OTHER
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, ```table, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, and ```reference — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.

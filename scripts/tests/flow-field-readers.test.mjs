@@ -161,6 +161,10 @@ test('the flow-field roster still covers every flow field ActivityMeta declares'
     skills: 'editor + catalog only, deliberately (OV#17 names this one)',
     print: 'the print layer, guarded by the print e2e lane',
     typography: 'appearance, guarded by the typography component tests',
+    seedVars:
+      'content variation, not flow — the serve/grade/print surfaces read it ' +
+      '(guarded by the D8 determinism suite + both handler pins), but nothing ' +
+      'about how the student MOVES through the activity changes with the seed',
   };
   const classified = new Set([
     ...MUST_BE_READ,

@@ -442,6 +442,37 @@ function ActivitySettingsBody({
                 the catalog when you publish.
             </p>
 
+            {/* Seeded variables (wishlist #6) — READ-ONLY by design: the .md
+                file's ```seed fence is the authoring surface, and an editor
+                control would make the importer's hand-edit fingerprint fire on
+                every file. This panel exists so a teacher opening a seeded
+                activity can SEE that it varies per student. */}
+            {meta.seedVars && meta.seedVars.length > 0 ? (
+                <div data-seed-vars="true">
+                    <span className={SETTINGS_LABEL_CLASS}>
+                        Seeded variables (per-student numbers)
+                    </span>
+                    <ul className="mt-1 grid gap-0.5 text-xs text-secondary">
+                        {meta.seedVars.map((v) => (
+                            <li key={v.name}>
+                                <code>{'{' + v.name + '}'}</code>
+                                {' — '}
+                                {v.spec.kind === 'int'
+                                    ? `a whole number ${v.spec.min}–${v.spec.max}`
+                                    : v.spec.kind === 'list'
+                                      ? `one of ${v.spec.values.join(', ')}`
+                                      : `${v.spec.n} different numbers from ${v.spec.min}–${v.spec.max}`}
+                            </li>
+                        ))}
+                    </ul>
+                    <p className={SETTINGS_HELP_CLASS}>
+                        Each student is served (and graded on) their own values.
+                        Edit the activity&rsquo;s .md file to change these —
+                        they can&rsquo;t be edited here.
+                    </p>
+                </div>
+            ) : null}
+
             <div>
                 <label className={SETTINGS_LABEL_CLASS} htmlFor="pedagogical-role">
                     Bank role

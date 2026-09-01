@@ -215,6 +215,18 @@ export const FENCES: FenceSpec[] = [
         probeTerm: 'Slope',
     },
     {
+        tag: 'seed',
+        // No block type (the ```meta pattern): the fence declares per-student
+        // seeded variables on ImportResult.meta.seedVars and contributes no
+        // blocks. The guard probes the meta object.
+        blockType: 'seed',
+        summary:
+            'per-student seeded variables — flat `name: spec` lines (int MIN..MAX · list v1, v2, … · sample N of MIN..MAX); prose references them as {name}, blank answers as expressions over them, a dataplot as data: {name}',
+        example: 'a: int 2..9\np: list 1.50, 1.75, 2.25\nscores: sample 8 of 55..99',
+        options: [],
+        meta: true,
+    },
+    {
         tag: 'meta',
         // No block type: the fence contributes nothing to the document. The
         // field is required by FenceSpec, so it names the ImportResult key the

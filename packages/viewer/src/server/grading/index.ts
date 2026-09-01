@@ -49,6 +49,8 @@ import {
 } from './choices.js';
 import { scoreGraphBlock, selectGraphMistake } from './graphs.js';
 import { findSection, inventorySection, type RawSection } from './walk.js';
+import { evaluateSeededKeys } from './seededKeys.js';
+import type { SeedValues } from '../../sanitize/seedValues.js';
 
 export { MalformedDocumentError } from './walk.js';
 
@@ -68,6 +70,14 @@ export interface GradeSectionInput {
    * answer, which is the pre-existing behavior, not a crash.
    */
   servedOrderings?: Record<string, string[]>;
+  /**
+   * This student's derived seed values (wishlist #6). The caller substitutes
+   * the DOCUMENT before grading (prose, data_plot datasets); this map is for
+   * the one surface the walk never touches — answer-key EXPRESSIONS, which
+   * evaluateSeededKeys resolves per blank. Absent/empty ⇒ byte-identical
+   * grading for every unseeded activity.
+   */
+  seedValues?: SeedValues;
 }
 
 export class SectionNotFoundError extends Error {
@@ -93,7 +103,10 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
   // Grouped per owning block so an interchangeable run resolves against its own
   // block's blanks and nothing else.
   for (const { keys } of inv.blankGroupsByBlock) {
-    for (const group of groupBlanks(keys)) {
+    // Seeded keys resolve BEFORE grouping so interchangeable runs compare the
+    // student's own values, not template expressions.
+    const resolved = evaluateSeededKeys(keys, input.seedValues ?? {});
+    for (const group of groupBlanks(resolved)) {
       const raws = group.map((key) => input.responses.blanks[key.id] ?? '');
       const verdicts =
         group.length === 1

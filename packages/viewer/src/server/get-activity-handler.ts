@@ -89,6 +89,9 @@ import { serveSeed } from '../sanitize/serveSeed.js';
 import { jwtSub } from './jwt.js';
 import { UUID_RE } from './uuid.js';
 import { applyServeShuffles } from '../sanitize/shuffle.js';
+import { deriveSeedValues } from '../sanitize/seedValues.js';
+import { substituteSeedValues } from '../sanitize/substitute.js';
+import type { SeedVar } from '@activity/schema';
 import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
 
 /** Bump when the response envelope changes shape (the doc INSIDE it is
@@ -496,7 +499,27 @@ export function createGetActivityHandler(
     // serveSeed, imported (G1): the grading side recomputes this student's
     // arrangement from the SAME symbol — two spellings agreeing by luck was
     // the s2 retro's sharpest seam finding.
-    const served = applyServeShuffles(sanitized, serveSeed(versionId, userId));
+    let served = applyServeShuffles(sanitized, serveSeed(versionId, userId));
+
+    // Seeded values (wishlist #6, D4): the cached artifact is the TEMPLATE
+    // (meta passes through sanitize untouched, so its seedVars survive the
+    // cache); this walk is what makes it a student's document, and it runs
+    // beside the shuffle — per-request, outside SANITIZER_REV (R10). The
+    // grader re-derives from the SAME serveSeed symbol.
+    const seedVars =
+      (served.meta as { seedVars?: SeedVar[] } | undefined)?.seedVars ?? [];
+    const isSeeded = seedVars.length > 0;
+    if (isSeeded) {
+      const values = deriveSeedValues(seedVars, serveSeed(versionId, userId));
+      served = substituteSeedValues(served, values);
+      // R8 as built: the SPECS never reach a client — a list variable's
+      // values enumerate candidate answers. Stripped here at serve time (the
+      // cache needs them; the student does not), guarded by a response-bound
+      // test rather than by this comment.
+      const restMeta = { ...(served.meta as Record<string, unknown>) };
+      delete restMeta.seedVars;
+      served = { ...served, meta: restMeta } as typeof served;
+    }
 
     return new Response(
       JSON.stringify({
@@ -518,7 +541,14 @@ export function createGetActivityHandler(
           // Version-keyed URL → immutable. private: student content never lands
           // in shared caches. A republish changes the URL via resolve, so this
           // never needs to expire.
-          'Cache-Control': 'private, max-age=31536000, immutable',
+          //
+          // EXCEPT seeded activities (R1): the URL is user-independent, so on
+          // a SHARED browser profile an immutable cached response would hand
+          // student B student A's numbers — and the server would grade B
+          // against B's. no-store, unconditionally, for exactly those.
+          'Cache-Control': isSeeded
+            ? 'no-store'
+            : 'private, max-age=31536000, immutable',
         },
       },
     );

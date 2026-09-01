@@ -204,6 +204,74 @@ function cachedOrderingDoc(): SanitizedActivityDocument {
   } as unknown as SanitizedActivityDocument;
 }
 
+/** A cached SANITIZED doc that IS a seeded template: meta carries seedVars
+ * (they survive sanitize — meta passes through untouched), one prose run
+ * references {a}, and a data_plot draws from a sample variable. */
+function cachedSeededDoc(): SanitizedActivityDocument {
+  return {
+    schemaVersion: 2,
+    meta: {
+      title: 'T',
+      seedVars: [
+        { name: 'a', spec: { kind: 'int', min: 2, max: 9 } },
+        { name: 'data', spec: { kind: 'sample', n: 4, min: 10, max: 99 } },
+      ],
+    },
+    sections: [
+      {
+        id: 's1',
+        rows: [
+          {
+            id: 'r1',
+            columns: [
+              {
+                id: 'c1',
+                blocks: [
+                  {
+                    id: 'p-1',
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'You bought {a} pens.' }],
+                  },
+                  {
+                    id: 'dp-1',
+                    type: 'data_plot',
+                    data: [1, 2, 3],
+                    dataVar: 'data',
+                    prompt: [{ type: 'text', text: 'Plot {data}.' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as SanitizedActivityDocument;
+}
+
+function seededBlocks(b: Record<string, unknown>): {
+  text: string;
+  data: number[];
+  meta: Record<string, unknown>;
+} {
+  const doc = b.activity as {
+    meta: Record<string, unknown>;
+    sections: Array<{
+      rows: Array<{
+        columns: Array<{
+          blocks: Array<{ content?: Array<{ text: string }>; data?: number[] }>;
+        }>;
+      }>;
+    }>;
+  };
+  const blocks = doc.sections[0]!.rows[0]!.columns[0]!.blocks;
+  return {
+    text: blocks[0]!.content![0]!.text,
+    data: blocks[1]!.data!,
+    meta: doc.meta,
+  };
+}
+
 function orderingItemIds(b: Record<string, unknown>): string[] {
   const doc = b.activity as {
     sections: Array<{
@@ -613,6 +681,40 @@ describe('CONTENT branch', () => {
     expect(b1).not.toEqual(a1); // per-student seed reaches the shuffle
     expect(a1).not.toEqual(authored); // the authored order (the key) is never served
     expect([...a1].sort()).toEqual(authored); // permutation, not mutation
+  });
+
+  it('seeded serve glue: values substitute, differ per student, reload stable; specs stripped; no-store', async () => {
+    const db = contentDb({
+      readCache: vi.fn(async () => ({
+        data: { content: cachedSeededDoc() },
+        error: null,
+      })),
+    });
+    const handler = createGetActivityHandler({ db, cors });
+    const a1 = seededBlocks(await body(await handler(authedRequest(contentQuery, 'student-a'))));
+    const a2 = seededBlocks(await body(await handler(authedRequest(contentQuery, 'student-a'))));
+    const b1 = seededBlocks(await body(await handler(authedRequest(contentQuery, 'student-b'))));
+
+    // The template's reference is GONE and a real value is in its place.
+    expect(a1.text).not.toContain('{a}');
+    expect(a1.text).toMatch(/^You bought [2-9] pens\.$/);
+    // Reload identical, other student different (the D8 property, serve half).
+    expect(a1.text).toBe(a2.text);
+    expect(a1.data).toEqual(a2.data);
+    expect([a1.text, JSON.stringify(a1.data)]).not.toEqual([
+      b1.text,
+      JSON.stringify(b1.data),
+    ]);
+    // The data_plot serves the DRAWN sample, not the representative literal.
+    expect(a1.data).toHaveLength(4);
+    expect(a1.data).not.toEqual([1, 2, 3]);
+    // R8 as built: the specs never reach a client — a list variable's values
+    // enumerate candidate answers.
+    expect(a1.meta.seedVars).toBeUndefined();
+    // R1: a seeded response on a user-independent URL must never be cached by
+    // a shared browser profile.
+    const res = await handler(authedRequest(contentQuery, 'student-a'));
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 
   it('cache read failure is non-fatal: logs and falls through to the source of truth', async () => {

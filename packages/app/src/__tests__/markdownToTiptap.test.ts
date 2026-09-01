@@ -1557,6 +1557,77 @@ describe('```correspond fence (wishlist #4)', () => {
     });
 });
 
+describe('```seed fence (wishlist #6)', () => {
+    it('parses the three spec kinds into meta.seedVars', () => {
+        const md = '```seed\na: int 2..9\np: list 1.50, 1.75, 2.25\ndata: sample 8 of 55..99\n```\n\nYou bought {a} pens at {p} — scores {data}.';
+        const { meta, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        expect(meta?.seedVars).toEqual([
+            { name: 'a', spec: { kind: 'int', min: 2, max: 9 } },
+            { name: 'p', spec: { kind: 'list', values: [1.5, 1.75, 2.25] } },
+            { name: 'data', spec: { kind: 'sample', n: 8, min: 55, max: 99 } },
+        ]);
+    });
+
+    it('refuses reserved names, duplicates, and malformed specs — loudly, line by line', () => {
+        const md = '```seed\npi: int 1..5\na: int 9..2\nb: int 1..5\nb: int 2..6\nc: banana 4\n```\n\nUse {b}.';
+        const { meta, warnings } = convert(md);
+        expect(meta?.seedVars).toEqual([{ name: 'b', spec: { kind: 'int', min: 1, max: 5 } }]);
+        expect(warnings.some((w) => w.includes('reserved name'))).toBe(true);
+        expect(warnings.some((w) => w.includes('min must be ≤ max'))).toBe(true);
+        expect(warnings.some((w) => w.includes('declared twice'))).toBe(true);
+        expect(warnings.some((w) => w.includes('specs are'))).toBe(true);
+    });
+
+    it('D7: undeclared references and unreferenced declarations both warn', () => {
+        const md = '```seed\na: int 1..5\nunused: int 1..5\n```\n\nYou have {a} and {ghost}.';
+        const { warnings } = convert(md);
+        expect(warnings.some((w) => w.includes('{ghost}'))).toBe(true);
+        expect(warnings.some((w) => w.includes('“unused” is declared but nothing references'))).toBe(true);
+    });
+
+    it('R2: a declared reference inside math warns (latex is out of v1)', () => {
+        const md = '```seed\na: int 1..5\n```\n\nSolve $x^{a} = {a}$ for {a}.';
+        const { warnings } = convert(md);
+        expect(warnings.some((w) => w.includes('inside math'))).toBe(true);
+    });
+
+    it('braces with NO seed fence get one forgot-the-fence warning', () => {
+        const { warnings } = convert('You have {a} apples.');
+        expect(warnings.some((w) => w.includes('no ```seed fence'))).toBe(true);
+    });
+
+    it('an expression answer over a declared name counts as a reference', () => {
+        const md = '```seed\na: int 2..9\n```\n\nTotal: {{=2*a}} and the story uses {a}.';
+        const { warnings } = convert(md);
+        expect(warnings).toEqual([]);
+    });
+
+    it('R3: a literal numeric mistake matcher on a seeded blank warns', () => {
+        const md = '```seed\na: int 2..9\n```\n\nUses {a}. Total: {{=2*a|!12 :: Try doubling.}}';
+        const { warnings } = convert(md);
+        expect(warnings.some((w) => w.includes('literal number on a seeded blank'))).toBe(true);
+    });
+
+    it('R4: data: {name} splices a declared sample into a dataplot fence', () => {
+        const md = '```seed\nscores: sample 5 of 10..30\n```\n\nPlot {scores}.\n\n```dataplot\nprompt: Make a dot plot.\ndata: {scores}\nanswer: dotplot\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const dp = blocks.find((b) => b.type === 'dataPlot')!;
+        expect(dp.attrs!.dataVar).toBe('scores');
+        const data = dp.attrs!.data as number[];
+        expect(data).toHaveLength(5);
+        expect(new Set(data).size).toBe(5);
+    });
+
+    it('data: {name} without a sample declaration degrades loudly', () => {
+        const md = '```seed\na: int 1..5\n```\n\nUses {a}.\n\n```dataplot\ndata: {a}\nanswer: dotplot\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'dataPlot')).toBe(false);
+        expect(warnings.some((w) => w.includes('must be a “sample” variable'))).toBe(true);
+    });
+});
+
 describe('```graph fence (Drop 7)', () => {
     it('imports a graded line with axes + prompt + options', () => {
         const md = '```graph\naxes: -5..5, -5..5\nprompt: Graph the line.\nanswer: 2x + 3y = 6\noptions: allow-no-solution\n```';

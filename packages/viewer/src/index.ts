@@ -81,6 +81,15 @@ export type {
 // imports FROM the registry and is deliberately absent from server/index.ts:
 // the get-activity bundle must never carry answer-reading code (V9 lesson).
 export { extractAnswerKey, extractBlockAnswerKey } from './answer-key/extract.js';
+// Seeded values on the print surface (wishlist #6, R9/D6). The LEAVES export
+// here; substituteSeededAnswers deliberately does NOT — it reaches the mathjs
+// evaluator, and evaluate.ts's top-level math.import() is side-effectful, so a
+// barrel re-export defeats tree-shaking and puts ~35 KiB gz of mathjs into
+// the student shell entry (the perf gate caught exactly this, twice now).
+// The print route imports it from the '@activity/viewer/seeded-print' subpath
+// instead, which lands it in that route's own chunk.
+export { deriveSeedValues, type SeedValues } from './sanitize/seedValues.js';
+export { substituteSeedValues } from './sanitize/substitute.js';
 export { AnswerKeyProvider, useBlockAnswerKey } from './answer-key/context.js';
 // S5.5 D15A — print-side shuffles, declared on the PrintSpec and applied here.
 // Separate from the serve shuffle on purpose: this moves no wire and no

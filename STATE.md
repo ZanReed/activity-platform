@@ -22,10 +22,11 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, the `display_name` one-row fix, and the two function redeploys for the polynomial families.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**⏳ `get-activity` + `check-activity` redeploys — OWED, and the ORDER is now
-BINDING (covers five slices: cubic/quartic, unit blanks, correspondence,
-absolute/sqrt parent families, and transform_curve; bundles committed for
-each).** Deploy `pnpm deploy:get-activity` +
+**⏳ `get-activity` + `check-activity` redeploys — OWED; deploy BOTH TOGETHER,
+then push (covers six slices through seeded_data; bundles committed for
+each). Seeded_data's D10 makes the pairing binding: an old get-activity
+serves literal `{a}` templates, an old check-activity grades every seeded
+answer wrong.** Deploy `pnpm deploy:get-activity` +
 `pnpm deploy:check` (never `--no-verify-jwt`) **BEFORE pushing to `main`** —
 a push is a Pages deploy (OV-7), and `CHECK_WIRE_VERSION` moved 2→3: a
 pushed app against the OLD `check-activity` leaves EVERY student's checks
@@ -251,14 +252,13 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-09-01 (later session) — **WISHLIST #5 SHIPPED:
-`transform_curve`** — full record in draggable-curve.md → Build record (all
-author rulings honored, incl. A2's MathLive typed channel + live curve
-preview; two live `pointsOnModel` seed bugs found in the browser pass and
-pinned; `formatModel` split to a leaf `model-format` subpath after the perf
-gate caught mathjs entering the student shell; nine mutations, every guard
-red once; `pnpm verify` green). **Next: wishlist #6 `seeded_data`**
-(seeded-data.md R1–R12, greenlit). ⚠ After
+**Last updated:** 2026-09-01 (later session) — **WISHLISTS #5 AND #6 BOTH
+SHIPPED, closing the wishlist.** Each carries a full Build record in its
+design doc (draggable-curve.md / seeded-data.md): rulings honored, as-built
+corrections (sharpest: #6 moved R8's meta strip to SERVE time after
+re-deriving the cache-hit flow, cancelling the predicted ALGO_REV bump),
+twenty mutations between them — one caught its own test's vacuous assertion.
+⚠ After
 the author's next push, re-dispatch print-baselines and commit fresh PNGs for
 BOTH correspondence (downloaded one is stale — pre-CSS-fix) and
 interactive_graph (its fixture page gained the transform variant).

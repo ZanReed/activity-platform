@@ -51,10 +51,13 @@ import {
   ViewerContainer,
   applyPrintShuffles,
   createViewerStore,
+  deriveSeedValues,
   extractAnswerKey,
   printSeed,
   sanitizeActivityDocument,
+  substituteSeedValues,
 } from '@activity/viewer';
+import { substituteSeededAnswers } from '@activity/viewer/seeded-print';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { supabase } from '../lib/supabase';
@@ -215,23 +218,49 @@ export default function ActivityPrint() {
         return { ...doc, meta: { ...doc.meta, print } };
     }, [doc, print]);
 
+    // Seeded values (wishlist #6, R9): print is the third — and only
+    // CLIENT-side — substitution surface, seeded with printSeed so the
+    // existing "Version 2, 3, …" selector doubles as the A/B mechanism (D6):
+    // each version prints ITS OWN numbers and the matching key.
+    const printValues = useMemo(() => {
+        const vars = authoredDoc?.meta.seedVars ?? [];
+        if (vars.length === 0 || !id) return {};
+        return deriveSeedValues(vars, printSeed(id, version));
+    }, [authoredDoc, id, version]);
+
     // What the components actually render: the REAL sanitizer, then the print
-    // shuffle. The sanitizer is what lets every component keep its
-    // SanitizedActivityDocument typing here; the shuffle is D15A — an ordering
-    // question printed in authored order is a printed answer key.
+    // shuffle, then the seeded-value walk (values are per-printing, exactly
+    // like the shuffle arrangement). The sanitizer is what lets every
+    // component keep its SanitizedActivityDocument typing here; the shuffle is
+    // D15A — an ordering question printed in authored order is a printed
+    // answer key.
     const servedDoc = useMemo(() => {
         if (!authoredDoc || !id) return null;
-        return applyPrintShuffles(
-            sanitizeActivityDocument(authoredDoc),
-            printSeed(id, version),
+        return substituteSeedValues(
+            applyPrintShuffles(
+                sanitizeActivityDocument(authoredDoc),
+                printSeed(id, version),
+            ),
+            printValues,
         );
-    }, [authoredDoc, id, version]);
+    }, [authoredDoc, id, version, printValues]);
 
     // The teacher's answers, extracted from the AUTHORED document and carried
     // beside the served one. Only mounted while Show answers is on.
+    // Seeded activities substitute BOTH walks first: prose/data (so a data
+    // plot's key is computed from this printing's dataset) and the answer-key
+    // strings (so the key sheet reads "10.5", never "a*p").
     const answerKey = useMemo(
-        () => (authoredDoc ? extractAnswerKey(authoredDoc) : null),
-        [authoredDoc],
+        () =>
+            authoredDoc
+                ? extractAnswerKey(
+                      substituteSeededAnswers(
+                          substituteSeedValues(authoredDoc, printValues),
+                          printValues,
+                      ),
+                  )
+                : null,
+        [authoredDoc, printValues],
     );
 
     // An INERT store (finding F3). ViewerContainer needs one, but nothing on

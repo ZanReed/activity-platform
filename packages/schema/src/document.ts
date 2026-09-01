@@ -19,6 +19,7 @@
 // =============================================================================
 
 import { z } from 'zod';
+import { SeedVars } from './seed-vars.js';
 import { Block } from './blocks/index.js';
 import { Row } from './layout.js';
 
@@ -260,6 +261,12 @@ export const ActivityMeta = z.object({
                                      skills: z.array(z.string()).default([]),
                                      print: PrintConfig.default({}),
                                      typography: Typography.optional(),
+                                     // Seeded per-student variables (wishlist
+                                     // #6). Optional with NO default (R11): a
+                                     // .default([]) would materialize on every
+                                     // parse→save and trip the batch importer's
+                                     // hand-edit fingerprint on every file.
+                                     seedVars: SeedVars.optional(),
 });
 export type ActivityMeta = z.infer<typeof ActivityMeta>;
 

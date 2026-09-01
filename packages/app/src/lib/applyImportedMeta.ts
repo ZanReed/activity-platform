@@ -143,6 +143,23 @@ export function applyImportedMeta(
         }
     }
 
+    // Seeded variables (wishlist #6). Never-clobber like every other key: an
+    // activity that already declares seedVars keeps them (edit the ```seed
+    // fence and re-import via the batch importer to update — the file path
+    // REPLACES, because there the file is the source of truth).
+    if (imported.seedVars !== undefined && imported.seedVars.length > 0) {
+        if (!meta.seedVars || meta.seedVars.length === 0) {
+            meta = { ...meta, seedVars: imported.seedVars };
+            changed = true;
+        } else if (
+            JSON.stringify(meta.seedVars) !== JSON.stringify(imported.seedVars)
+        ) {
+            warnings.push(
+                'Meta: kept the seed variables this activity already declares — the paste declared a different set.',
+            );
+        }
+    }
+
     if (imported.pedagogicalRole !== undefined) {
         if (target.pedagogicalRole === null) {
             pedagogicalRole = imported.pedagogicalRole;

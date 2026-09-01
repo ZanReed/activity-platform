@@ -533,6 +533,16 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         // every re-run — the "save path is where fields die silently" trap.
         meta = { ...prior, ...computed };
 
+        // Seed variables REPLACE on an update (tags' rule, same reason): the
+        // file is the source of truth, so editing — or deleting — the ```seed
+        // fence must reach the row. Absent fence + absent prior stays absent.
+        const priorSeedVars = prior.seedVars;
+        if (fence.seedVars && fence.seedVars.length > 0) {
+            meta.seedVars = fence.seedVars;
+        } else {
+            delete meta.seedVars;
+        }
+
         // Tags REPLACE rather than union on an update: the file is the source
         // of truth, so removing a tag from the fence has to remove it from the
         // row. (applyImportedMeta unions, which is right for a paste into an
@@ -557,6 +567,13 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         }
         if (pedagogicalRole !== priorRole) {
             changes.push({ field: 'role', from: priorRole, to: pedagogicalRole });
+        }
+        if (JSON.stringify(meta.seedVars ?? null) !== JSON.stringify(priorSeedVars ?? null)) {
+            changes.push({
+                field: 'seedVars',
+                from: priorSeedVars ? `${priorSeedVars.length} var(s)` : undefined,
+                to: meta.seedVars ? `${meta.seedVars.length} var(s)` : undefined,
+            });
         }
         const added = tags.filter((t) => !priorTags.includes(t));
         const removed = priorTags.filter((t) => !tags.includes(t));

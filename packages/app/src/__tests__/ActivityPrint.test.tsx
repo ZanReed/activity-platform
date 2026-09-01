@@ -332,6 +332,86 @@ describe('the answer key, both directions', () => {
     });
 });
 
+describe('seeded values on the print surface (wishlist #6, R9/D6)', () => {
+    function seededDoc() {
+        const doc = authored();
+        (doc.meta as Record<string, unknown>).seedVars = [
+            { name: 'a', spec: { kind: 'int', min: 2, max: 9 } },
+        ];
+        doc.sections[0]!.rows.unshift({
+            id: '99999999-9999-4999-8999-999999999998',
+            columns: [
+                {
+                    id: '88888888-8888-4888-8888-888888888887',
+                    blocks: [
+                        {
+                            id: '77777777-7777-4777-8777-777777777776',
+                            type: 'fill_in_blank',
+                            content: [
+                                { type: 'text', text: 'SEEDMARK You have {a} pens. Twice: ' },
+                                {
+                                    type: 'blank',
+                                    id: '66666666-6666-4666-8666-666666666665',
+                                    answer: '2*a',
+                                    answerType: 'numeric',
+                                    width: 6,
+                                },
+                            ],
+                        } as never,
+                    ],
+                },
+            ],
+        } as never);
+        return doc;
+    }
+
+    it('prints VALUES (not templates), reseeds per version, and evaluates the key', async () => {
+        h.row.current = { id: ACTIVITY_ID, title: 'T', draft_content: seededDoc(), current_version_id: null };
+        renderRoute();
+        await waitFor(() => expect(document.querySelector('.viewer')).not.toBeNull());
+
+        const marked = () =>
+            Array.from(document.querySelectorAll('p, span, div')).find((el) =>
+                (el.textContent ?? '').includes('SEEDMARK'),
+            )?.textContent ?? '';
+        // Substituted, and inside the declared range.
+        const v1Text = marked();
+        expect(v1Text).not.toContain('{a}');
+        const v1 = Number(/You have (\d) pens/.exec(v1Text)?.[1]);
+        expect(v1).toBeGreaterThanOrEqual(2);
+        expect(v1).toBeLessThanOrEqual(9);
+
+        // The answer key resolves the EXPRESSION to this printing's literal.
+        screen.getByLabelText(/show answers/i).click();
+        await waitFor(() =>
+            expect(document.querySelectorAll('[data-answer-key]').length).toBeGreaterThan(0),
+        );
+        // The key fills the blank's INPUT value (not textContent) — read the
+        // inputs, or this assertion is vacuous (mutation-caught: dropping the
+        // key resolution left both textContent checks green).
+        const keyed = Array.from(
+            document.querySelectorAll<HTMLInputElement>('input[data-answer-key="filled"]'),
+        ).map((el) => el.value);
+        expect(keyed).toContain(String(2 * v1));
+        expect(keyed).not.toContain('2*a');
+
+        // A different print VERSION is a different paper: reseeded values.
+        // (Versions B–D: at least one differs from A — three independent
+        // draws of an 8-wide range all landing on A's value is ~0.2%, and the
+        // draw is DETERMINISTIC, so this can never flake: it either always
+        // passes or the seeding broke.)
+        const versionInput = screen.getByLabelText(/version/i);
+        let differed = false;
+        for (let v = 2; v <= 4 && !differed; v++) {
+            fireEvent.change(versionInput, { target: { value: String(v) } });
+            await waitFor(() => expect(marked()).not.toContain('{a}'));
+            const vn = Number(/You have (\d) pens/.exec(marked())?.[1]);
+            if (vn !== v1) differed = true;
+        }
+        expect(differed).toBe(true);
+    });
+});
+
 describe('saving a print setting (ruling D20A)', () => {
     it('writes ONLY meta.print, so a concurrent editor edit survives', async () => {
         renderRoute();

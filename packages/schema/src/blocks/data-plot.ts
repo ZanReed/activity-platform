@@ -144,6 +144,11 @@ export const DataPlotBlock = z.object({
   // The dataset. Single source of truth: the chart is drawn from it and, in
   // build mode, the correct answer is derived from it. Non-empty.
   data: z.array(z.number()).min(1),
+  // Seeded dataset (R4): when set, `data` holds a representative literal
+  // (editor preview and degraded paths render something honest) and serve +
+  // grade splice the named `sample` variable's drawn list over it — the key
+  // is computed from the SUBSTITUTED dataset, never from the literal.
+  dataVar: z.string().optional(),
   config: DataPlotConfig,
   interaction: DataPlotInteraction,
   solution: z.array(InlineNode).optional(),

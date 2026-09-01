@@ -101,6 +101,12 @@ export type { FiveNumberSummary } from './data-plot-score.js';
 // use (no second grammar). Already in the grading bundle via mistakes.ts.
 export { parseGraphFormula } from './formula.js';
 
+// Seeded answer keys (wishlist #6, R6): the grading side evaluates a bound
+// key expression ("(6)*(1.75)") to the literal the numeric compare expects.
+// compileFunction is already pure mathjs/number — no size change to the
+// grading bundle, which carried it transitively via formula.
+export { compileFunction, freeVariables } from './evaluate.js';
+
 export {
   compileMistakeMatchers,
   matchAuthoredMistake,
