@@ -43,7 +43,7 @@ export interface MathPromptMountOptions {
  *  the mounted worksheet and goes red the moment the sink stops being found.
  *  The guard lives in CI rather than in a runtime throw, because failing a
  *  student's page over a missing aria-label would be the worse trade. */
-function nameKeyboardSink(field: HTMLElement, label: string): void {
+export function nameKeyboardSink(field: HTMLElement, label: string): void {
   // The sink is built during the custom element's upgrade, which has not
   // necessarily happened by the time we return from insertBefore — so retry
   // across a few frames before giving up to CI.

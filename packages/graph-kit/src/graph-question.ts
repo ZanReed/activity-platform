@@ -1100,6 +1100,7 @@ export async function mountGraphQuestion(
           import('mathlive'),
           import('./mathlive-setup.js'),
         ]);
+        const { nameKeyboardSink } = await import('./math-prompt-mount.js');
         configureMathLive();
         const field = new MathfieldElement();
         field.mathVirtualKeyboardPolicy = 'manual';
@@ -1135,6 +1136,15 @@ export async function mountGraphQuestion(
         // exactly like the moment the student left.
         syncPreview();
         holder.append(field);
+        // MathLive's internal keyboard sink is a role=textbox with NO name,
+        // and the host's aria-label does not reach it — the shipped math-
+        // prompt helper names the shadow node directly (its header records
+        // why, and why the a11y lane is the guard; caught live on run
+        // 33516696349: aria-input-field-name, serious, on every
+        // transform_curve worksheet). AFTER append on purpose — the element's
+        // connect re-renders its shadow DOM, so a name applied pre-append is
+        // wiped with the node it sat on (verified in /dev/graph-question).
+        nameKeyboardSink(field, 'Type the equation (right-hand side)');
       })();
     }
     mount.appendChild(bar);
