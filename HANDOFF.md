@@ -59,11 +59,14 @@ sha256. `SANITIZER_REV` is now `2-3d4db5c5`.
 
 ## The ranked remainder, if you are here to do work rather than author
 
-1. **#5 (`draggable_curve`)** — the drag-then-type disagreement diagnostic,
-   ~11 transformation-band activities. Its mistake-signal dependency (#1's
-   machinery) is met. Needs its own design pass first; run the outside voice
-   on it — the pattern has paid three builds running.
-2. **#6 (`seeded_data`)** — its own arc, ranked last deliberately.
+1. **#5 and #6 both have REVIEWED-AND-AMENDED design passes awaiting the
+   author's greenlight** (`docs/design/draggable-curve.md` D1–D10 + A1–A7;
+   `docs/design/seeded-data.md` D1–D10 + R1–R12 — the amendment sections
+   carry the review findings and rulings). ⚠ #5 carries an open question
+   ONLY the author can rule: do the transformation-band activities need
+   |x| / √x parent families? Neither has a schema member or fitter — a
+   prerequisite slice if yes. Do not start either build before the
+   per-decision yes/no.
 3. The contention-red TODOS entry is reproduction-annotated (trigger is
    swap-level thrash; candidates named). Do not ship a mitigation without
    catching a live red.
@@ -97,7 +100,7 @@ line + `|`-separated rows; `$|x-3|$` is safe in a cell).
 | | |
 |---|---|
 | **Author** | The two redeploys (STRICTLY before pushing — binding), then the push. Standing three unchanged: D24 counsel read, Gate 4, `display_name` one-row fix. |
-| **Platform** | Nothing open. #5/#6 await their design passes. |
+| **Platform** | Nothing open. #5/#6 designs are reviewed+amended, gated on the greenlight (and #5's parent-family question). |
 | **Curriculum side** | Unchanged: their restructure, `transform.translate`, alignment arrays, chain 2. |
 
 ## House rules that bite hardest here
