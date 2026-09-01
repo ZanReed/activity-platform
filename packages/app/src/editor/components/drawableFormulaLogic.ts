@@ -140,7 +140,7 @@ export function drawablesFromFreeform(
                 return {
                     kind: 'error',
                     message:
-                        'This figure only draws known families (linear, quadratic, cubic, quartic, exponential, logarithmic) — freeform formulas aren\'t available here.',
+                        'This figure only draws known families (linear, quadratic, cubic, quartic, absolute value, square root, exponential, logarithmic) — freeform formulas aren\'t available here.',
                 };
             }
             return { kind: 'ok', drawables: [{ kind: 'expression', expression }] };

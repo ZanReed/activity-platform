@@ -81,6 +81,24 @@ const SCENARIOS: Record<string, Scenario> = {
     restorePoints: [[-2, 0], [-1, 0], [0, 4], [1, 0], [2, 0]],
     hint: 'FIVE handles; the fitted quartic follows them.',
   },
+  absolute: {
+    label: 'Plot a function — absolute y = |x − 2| + 1',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [{ family: 'absolute', a: 1, h: 2, k: 1, aTolerance: 0.2, hTolerance: 0.2, kTolerance: 0.2 }],
+    },
+    restorePoints: [[0, 3], [2, 1], [4, 3]],
+    hint: 'THREE handles; seeds form a V (collinear points fit no |x|).',
+  },
+  sqrt: {
+    label: 'Plot a function — square root y = 2√(x − 1)',
+    interactionType: 'plot_function',
+    answerKey: {
+      models: [{ family: 'sqrt', a: 2, h: 1, k: 0, aTolerance: 0.2, hTolerance: 0.2, kTolerance: 0.2 }],
+    },
+    restorePoints: [[1, 0], [2, 2], [5, 4]],
+    hint: 'THREE handles; the curve exists only for x ≥ h.',
+  },
   exponential: {
     label: 'Plot a function — exponential y = 2ˣ',
     interactionType: 'plot_function',

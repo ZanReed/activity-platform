@@ -137,6 +137,8 @@ export {
   PointInteraction,
   FunctionInteraction,
   FunctionModel,
+  AbsoluteModel,
+  SqrtModel,
   RegionInteraction,
   RayInteraction,
   RayAnswer,

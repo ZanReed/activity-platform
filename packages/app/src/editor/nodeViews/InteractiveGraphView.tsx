@@ -75,6 +75,10 @@ function modelPredict(model: FunctionModelAttr): ((x: number) => number) | null 
             return (x) => ((model.a * x + model.b) * x + model.c) * x + model.d;
         case 'quartic':
             return (x) => (((model.a * x + model.b) * x + model.c) * x + model.d) * x + model.e;
+        case 'absolute':
+            return (x) => model.a * Math.abs(x - model.h) + model.k;
+        case 'sqrt':
+            return (x) => model.a * Math.sqrt(x - model.h) + model.k;
         case 'exponential':
             return (x) => model.a * Math.pow(model.b, x);
         case 'logarithmic':
@@ -407,6 +411,14 @@ function fittedToModel(
         case 'quartic':
             return model.family === 'quartic'
                 ? { ...model, a: round2(fit.a), b: round2(fit.b), c: round2(fit.c), d: round2(fit.d), e: round2(fit.e) }
+                : null;
+        case 'absolute':
+            return model.family === 'absolute'
+                ? { ...model, a: round2(fit.a), h: round2(fit.h), k: round2(fit.k) }
+                : null;
+        case 'sqrt':
+            return model.family === 'sqrt'
+                ? { ...model, a: round2(fit.a), h: round2(fit.h), k: round2(fit.k) }
                 : null;
         case 'exponential':
             return model.family === 'exponential'

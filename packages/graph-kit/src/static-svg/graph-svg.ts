@@ -186,6 +186,10 @@ function evalModel(model: FunctionModel, x: number): number | null {
       return model.a * Math.pow(model.b, x);
     case 'logarithmic':
       return x > 0 ? model.a + model.b * Math.log(x) : null;
+    case 'absolute':
+      return model.a * Math.abs(x - model.h) + model.k;
+    case 'sqrt':
+      return x >= model.h ? model.a * Math.sqrt(x - model.h) + model.k : null;
     case 'vertical':
       return null;
   }

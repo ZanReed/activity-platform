@@ -29,7 +29,7 @@ import {
   type DataPoint,
   type FitOutcome,
 } from './regression.js';
-import type { FunctionModel } from './graph-score.js';
+import { fitFunction, type FunctionModel } from './graph-score.js';
 import {
   extractDomain,
   solveForY,
@@ -65,15 +65,21 @@ const DEFAULT_TOL = 0.1;
 // ---- Input normalization ------------------------------------------------------
 // Teachers paste from anywhere: word processors smuggle unicode operators in.
 function preprocess(raw: string): string {
-  return raw
-    .replace(/[·×]/g, '*')
-    .replace(/−/g, '-')
-    .replace(/≥/g, '>=')
-    .replace(/≤/g, '<=')
-    .replace(/²/g, '^2')
-    .replace(/³/g, '^3')
-    .replace(/⁴/g, '^4')
-    .trim();
+  return (
+    raw
+      .replace(/[·×]/g, '*')
+      .replace(/−/g, '-')
+      .replace(/≥/g, '>=')
+      .replace(/≤/g, '<=')
+      .replace(/²/g, '^2')
+      .replace(/³/g, '^3')
+      .replace(/⁴/g, '^4')
+      // √ has no evaluate.ts rewrite; pipes DO (its normalizer already turns
+      // |x| into abs(x) — mutation-discovered 2026-09-01, so no pipe rule
+      // here: a duplicate would be a guard nobody could watch fail).
+      .replace(/√/g, 'sqrt')
+      .trim()
+  );
 }
 
 const round6 = (n: number): number => Math.round(n * 1e6) / 1e6;
@@ -207,6 +213,55 @@ function detectFamily(fn: (x: number) => number): FunctionModel | null {
       eTolerance: DEFAULT_TOL,
     };
   }
+  // The transformation parents fit GEOMETRICALLY (graph-score's fitters take
+  // exactly three points), so detection hands them three spread samples and
+  // verifies the returned curve on the dense grid like every other family.
+  const spreadThree = (list: DataPoint[]): [number, number][] => {
+    const mid = list[Math.floor(list.length / 2)]!;
+    return [
+      [list[0]!.x, list[0]!.y],
+      [mid.x, mid.y],
+      [list[list.length - 1]!.x, list[list.length - 1]!.y],
+    ];
+  };
+  const geometricOk = (
+    fitted: { predict: (x: number) => number } | null,
+  ): boolean => {
+    if (!fitted) return false;
+    let scale = 1;
+    for (const p of vpts) scale = Math.max(scale, Math.abs(p.y));
+    for (const p of vpts) {
+      const v = fitted.predict(p.x);
+      if (!Number.isFinite(v) || Math.abs(v - fn(p.x)) > 1e-6 * scale) {
+        return false;
+      }
+    }
+    return true;
+  };
+  const absFit = fitFunction('absolute', spreadThree(pts));
+  if (absFit && absFit.family === 'absolute' && geometricOk(absFit)) {
+    return {
+      family: 'absolute',
+      a: round6(absFit.a),
+      h: round6(absFit.h),
+      k: round6(absFit.k),
+      aTolerance: DEFAULT_TOL,
+      hTolerance: DEFAULT_TOL,
+      kTolerance: DEFAULT_TOL,
+    };
+  }
+  const sqrtFit = fitFunction('sqrt', spreadThree(pts));
+  if (sqrtFit && sqrtFit.family === 'sqrt' && geometricOk(sqrtFit)) {
+    return {
+      family: 'sqrt',
+      a: round6(sqrtFit.a),
+      h: round6(sqrtFit.h),
+      k: round6(sqrtFit.k),
+      aTolerance: DEFAULT_TOL,
+      hTolerance: DEFAULT_TOL,
+      kTolerance: DEFAULT_TOL,
+    };
+  }
   const exp = fitExponential(pts);
   if (residualOk(fn, exp, vpts) && exp.ok && exp.fit.model === 'exponential') {
     return {
@@ -238,7 +293,8 @@ function detectFamily(fn: (x: number) => number): FunctionModel | null {
 }
 
 const UNSUPPORTED_MSG =
-  'Supported answer curves: linear, quadratic, cubic, quartic, exponential, logarithmic, and vertical lines. ' +
+  'Supported answer curves: linear, quadratic, cubic, quartic, absolute value, square root, ' +
+  'exponential, logarithmic, and vertical lines. ' +
   'For anything else, use a Display graph — it can plot any formula.';
 
 // ---- The entry point -----------------------------------------------------------------
@@ -371,6 +427,30 @@ export function formatModel(model: FunctionModel): string {
       return `y = ${coeff(model.a, 'x^3')}${midTerm(model.b, 'x^2')}${midTerm(model.c, 'x')}${term(model.d)}`;
     case 'quartic':
       return `y = ${coeff(model.a, 'x^4')}${midTerm(model.b, 'x^3')}${midTerm(model.c, 'x^2')}${midTerm(model.d, 'x')}${term(model.e)}`;
+    case 'absolute': {
+      const inner =
+        model.h === 0
+          ? 'x'
+          : model.h > 0
+            ? `x - ${fmt(model.h)}`
+            : `x + ${fmt(-model.h)}`;
+      return `y = ${coeff(model.a, `|${inner}|`)}${term(model.k)}`;
+    }
+    case 'sqrt': {
+      const inner =
+        model.h === 0
+          ? 'x'
+          : model.h > 0
+            ? `x - ${fmt(model.h)}`
+            : `x + ${fmt(-model.h)}`;
+      const lead =
+        model.a === 1
+          ? `sqrt(${inner})`
+          : model.a === -1
+            ? `-sqrt(${inner})`
+            : `${fmt(model.a)}*sqrt(${inner})`;
+      return `y = ${lead}${term(model.k)}`;
+    }
     case 'exponential':
       return `y = ${fmt(model.a)}*${fmt(model.b)}^x`;
     case 'logarithmic':

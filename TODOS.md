@@ -18,9 +18,12 @@ data (D8/D10).
 alongside as a cheap win, then #5 → #3 → #6.** Each still gets its own design
 pass with numbered decisions before code.
 
-⚠ **STATUS 2026-09-01 (later): #1–#4 are ALL SHIPPED; the ranked remainder is
-#5 → #6.** Both #5 and #6 still need their own design pass (and #5's mistake
-signal rides #1's shipped machinery, so its main dependency is met).
+⚠ **STATUS 2026-09-01 (latest): #1–#4 SHIPPED; #5 and #6 GREENLIT as
+amended, build order parent-families → #5 → #6.** The parent-families
+prerequisite (`absolute` + `sqrt`, the author's Q2 ruling) is SHIPPED —
+graded-function-families.md carries the second-extension record, including
+the mutation pass's find that the pipe→abs conversion already shipped in the
+calculator normalizer.
 
 1. ✅ **Misconception ids on distractors, in the markdown — SHIPPED
    2026-08-25.** Ids ride import → schema → sanitize → the server grader

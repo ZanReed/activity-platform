@@ -1,4 +1,40 @@
-# Graded function families: quadratic / exponential / logarithmic — and cubic / quartic (2026-08-31)
+# Graded function families: quadratic / exponential / logarithmic — cubic / quartic (2026-08-31) — absolute / sqrt (2026-09-01)
+
+> **SECOND EXTENSION (2026-09-01): `absolute` + `sqrt`, the transformation
+> parents** — the prerequisite the author ruled for wishlist #5 (the band
+> transforms both). Decisions, against the shipped plumbing:
+>
+> 1. **Vertex/start-point forms** — `absolute`: y = a·|x − h| + k;
+>    `sqrt`: y = a·√(x − h) + k. Three parameters each (a, h, k + tolerances)
+>    — the transformation band's native vocabulary (shift h,k; stretch and
+>    reflect a). Three handles each.
+> 2. **The fitters live in graph-score.ts, NOT regression.ts** — vertical's
+>    precedent, sharpened: these are geometric QUESTION fitters, not
+>    calculator regressions (no TI AbsReg/SqrtReg to mirror), so
+>    `RegressionModel`, `Fit`, fit-format and the calculator stay untouched
+>    entirely this time.
+> 3. **absolute fits CLOSED-FORM**: sort the three handles by x, try both
+>    branch splits (2+1 / 1+2), the two-point branch fixes ∓a, mirror through
+>    the third point, intersect for (h, k), validate every point by residual.
+>    Three collinear handles are no V — the fit is null and the curve simply
+>    doesn't draw (the shipped failed-fit behavior).
+> 4. **sqrt fits by BOUNDED BISECTION on h** (the one non-closed-form fitter:
+>    h sits under the radical and cannot linearize) — dependency-free,
+>    deterministic, ≤ ~80 iterations, residual-validated, null on failure.
+>    The file's closed-form-only philosophy bends rather than breaks: still
+>    no matrix library, still no dependency.
+> 5. **Teachers type pipes — and the mutation pass found the conversion
+>    ALREADY SHIPS**: evaluate.ts's calculator normalizer turns `|x|` into
+>    `abs(x)`, so the parser needed only a `√` → `sqrt` rule (the drafted
+>    pipe rule was removed as a duplicate a mutation could never redden).
+>    `formatModel` emits the pipe form back; the round trip holds.
+> 6. **The sanitizer's whitelist needed NOTHING** — `absolute` and `sqrt`
+>    were pre-anticipated in KNOWN_FAMILIES (noted as unbacked at the #5
+>    review; now backed).
+> 7. Same classifier ruling (none — authored mistakeFeedback), same
+>    family-aware student seeds discipline as exp/log (sqrt seeds on a valid
+>    rising curve; absolute seeds a V), same deploy footprint (both bundles,
+>    both redeploys).
 
 > **EXTENSION SHIPPED 2026-08-31 (wishlist #2 — `graded_polynomial`).** Two new
 > graded families, `cubic` and `quartic`, ride the same architecture this doc

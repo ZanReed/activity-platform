@@ -1,9 +1,13 @@
 # seeded_data — parameterised values, per student (wishlist #6)
 
-**Status: OUTSIDE-VOICE REVIEWED → AMENDED, awaiting the author's yes/no per
-decision** (drafted and reviewed 2026-09-01; 12 findings — the review
-CONFIRMED the central serveSeed seam works exactly as designed, and found the
-real costs in the edges the seam doesn't cover).
+**Status: GREENLIT (author, 2026-09-01), as amended R1–R12. Build order:
+after the #5 chain (parent families → transform_curve).** One ruling carries
+a REVIEW TRIGGER rather than a settled yes: the latex exclusion (R2) is
+accepted "until it causes issues" — the first authored activity that needs a
+seeded value inside rendered math reopens R2 and the marker-command channel,
+rather than working around it. The table-cell question (carried open item)
+was folded into the same posture: the closed surface list stands until an
+activity needs more.
 
 ## Amendments after the outside-voice review (2026-09-01)
 

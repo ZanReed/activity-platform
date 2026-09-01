@@ -129,6 +129,8 @@ describe('plot_function interaction (models array)', () => {
       { family: 'quadratic' as const, a: 1, b: -2, c: 1 },
       { family: 'cubic' as const, a: 1, b: 0, c: -3, d: 0 },
       { family: 'quartic' as const, a: 1, b: 0, c: -5, d: 0, e: 4 },
+      { family: 'absolute' as const, a: 1, h: 2, k: 1 },
+      { family: 'sqrt' as const, a: 2, h: 1, k: 0 },
       { family: 'exponential' as const, a: 2, b: 3 },
       { family: 'logarithmic' as const, a: 0, b: 1 },
       { family: 'vertical' as const, x: 4 },

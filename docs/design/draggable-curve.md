@@ -1,10 +1,28 @@
 # draggable_curve — the drag-then-type disagreement diagnostic (wishlist #5)
 
-**Status: OUTSIDE-VOICE REVIEWED → AMENDED, awaiting the author's yes/no per
-decision** (drafted and reviewed 2026-09-01; 7 findings, the load-bearing
-three re-verified against code before ruling). One finding changed the
-design, one retracted a "free" aside, and one surfaced a possible
-PREREQUISITE the author must rule on (open question Q2 below).
+**Status: GREENLIT (author, 2026-09-01) — with TWO author rulings that
+change the plan below.** The review had found 7 defects (amendments A1–A7);
+the author then ruled:
+
+- **Q2 RULED: the transformation band DOES transform |x| and √x — the
+  parent-families slice is a PREREQUISITE and builds first.** `absolute`
+  (y = a·|x − h| + k) and `sqrt` (y = a·√(x − h) + k) join the graded
+  families through the #2 pipeline before this slice starts.
+- **D3 OVERRULED: the typed channel gets a REAL math input, not a plain
+  ASCII field.** The student types in a lazy-mounted MathLive field (the
+  shipped math-prompt mount machinery — `mountMathPrompts` already lazy-loads
+  MathLive in the student viewer, and its fonts self-host). The wire carries
+  the ascii-math mirror form (the MA-D3 precedent, so the server's
+  `parseGraphFormula` channel is unchanged). A live preview of the typed
+  curve draws on the board — the parse runs INSIDE the kit's lazy chunk,
+  which the graph surface has already loaded by the time the input exists;
+  the chunk budgets are re-measured at build and this is the slice's main
+  new cost.
+
+Everything else stands as amended: both channels must be right (D5/A1 with
+the `dragged` flag), the reserved disagreement matches (D6/A4), `start:` +
+`options: type-equation` authoring (D7/A7), the conscious print-invariant
+revision (D9/A3), and boolean verdicts (D10).
 
 ## Amendments after the outside-voice review (2026-09-01)
 

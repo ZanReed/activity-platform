@@ -164,6 +164,26 @@ export interface LogarithmicModel {
   aTolerance: number;
   bTolerance: number;
 }
+export interface AbsoluteModel {
+  family: 'absolute';
+  /** y = a·|x − h| + k — vertex form, the transformation band's vocabulary. */
+  a: number;
+  h: number;
+  k: number;
+  aTolerance: number;
+  hTolerance: number;
+  kTolerance: number;
+}
+export interface SqrtModel {
+  family: 'sqrt';
+  /** y = a·√(x − h) + k — start-point form; defined for x ≥ h. */
+  a: number;
+  h: number;
+  k: number;
+  aTolerance: number;
+  hTolerance: number;
+  kTolerance: number;
+}
 export interface VerticalModel {
   family: 'vertical';
   x: number;
@@ -174,6 +194,8 @@ export type FunctionModel =
   | QuadraticModel
   | CubicModel
   | QuarticModel
+  | AbsoluteModel
+  | SqrtModel
   | ExponentialModel
   | LogarithmicModel
   | VerticalModel;
@@ -183,6 +205,8 @@ export type FunctionModel =
 export function handlesForFamily(family: string): number {
   switch (family) {
     case 'quadratic':
+    case 'absolute':
+    case 'sqrt':
       return 3;
     case 'cubic':
       return 4;
@@ -249,6 +273,28 @@ export function startsForFamily(
     }
     return out;
   }
+  if (family === 'absolute') {
+    // The generic y = 0 spread is COLLINEAR — three points on a line are no V
+    // and the curve would never draw. Seed a V around the window's centre.
+    const cx = (win.xMin + win.xMax) / 2;
+    const g = win.xGridStep;
+    return [
+      [clampX(cx - 2 * g), clampY(2 * win.yGridStep)],
+      [clampX(cx), clampY(0)],
+      [clampX(cx + 2 * g), clampY(2 * win.yGridStep)],
+    ];
+  }
+  if (family === 'sqrt') {
+    // Collinear seeds fit no √ either; seed ON a real rising √ curve
+    // (u = 0, 1, 2 from the window's left edge — y = g·√(x − x₀)).
+    const x0 = win.xMin;
+    const g = win.yGridStep;
+    return [
+      [clampX(x0), clampY(0)],
+      [clampX(x0 + win.xGridStep), clampY(g)],
+      [clampX(x0 + 4 * win.xGridStep), clampY(2 * g)],
+    ];
+  }
   return undefined;
 }
 
@@ -257,6 +303,8 @@ export type Fitted =
   | { family: 'quadratic'; a: number; b: number; c: number; predict: (x: number) => number }
   | { family: 'cubic'; a: number; b: number; c: number; d: number; predict: (x: number) => number }
   | { family: 'quartic'; a: number; b: number; c: number; d: number; e: number; predict: (x: number) => number }
+  | { family: 'absolute'; a: number; h: number; k: number; predict: (x: number) => number }
+  | { family: 'sqrt'; a: number; h: number; k: number; predict: (x: number) => number }
   | { family: 'exponential'; a: number; b: number; predict: (x: number) => number }
   | { family: 'logarithmic'; a: number; b: number; predict: (x: number) => number }
   // vertical has no y = f(x); it carries the fitted x-value instead of predict.
@@ -273,6 +321,155 @@ function xSpread(points: [number, number][]): number {
     if (x > max) max = x;
   }
   return max - min;
+}
+
+// ---- absolute + sqrt: geometric fitters (the transformation parents) --------
+// These live HERE rather than in regression.ts (vertical's precedent,
+// sharpened): they are question fitters with no calculator regression to
+// mirror — no TI AbsReg/SqrtReg exists — so RegressionModel, Fit, and the
+// calculator's readout stay untouched.
+
+const FIT_EPSILON = 1e-6;
+
+/** Residual check for a candidate fit against ALL points. Relative epsilon,
+ * scaled like formula.ts's residualOk. */
+function pointsFit(
+  points: [number, number][],
+  predict: (x: number) => number,
+): boolean {
+  let scale = 1;
+  for (const [, y] of points) scale = Math.max(scale, Math.abs(y));
+  for (const [x, y] of points) {
+    const p = predict(x);
+    if (!Number.isFinite(p) || Math.abs(p - y) > FIT_EPSILON * scale) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Fit y = a·|x − h| + k exactly through 3 points — CLOSED FORM. Sort by x and
+ * try both branch splits (2+1 and 1+2): the two-point branch fixes the slope
+ * ∓a, the mirror line runs through the remaining point with slope ±a, and the
+ * lines intersect at the vertex (h, k). Three collinear points are no V (the
+ * split degenerates to a = 0) and fit null — the curve simply doesn't draw,
+ * the shipped failed-fit behavior.
+ */
+function fitAbsolutePoints(
+  points: [number, number][],
+): { a: number; h: number; k: number } | null {
+  if (points.length < 3) return null;
+  const pts = [...points].sort((p, q) => p[0] - q[0]);
+  const [p0, p1, p2] = [pts[0]!, pts[1]!, pts[2]!];
+  if (p0[0] === p1[0] || p1[0] === p2[0]) return null; // duplicate x
+  // Split A: {p0, p1} left (slope −a), {p2} right (+a).
+  // Split B: {p0} left (−a), {p1, p2} right (+a).
+  const candidates: Array<{ a: number; h: number; k: number }> = [];
+  {
+    const slopeL = (p1[1] - p0[1]) / (p1[0] - p0[0]);
+    const a = -slopeL;
+    if (a !== 0) {
+      // Left line: y = slopeL·x + cL; right line through p2 with slope a.
+      const cL = p0[1] - slopeL * p0[0];
+      const cR = p2[1] - a * p2[0];
+      const h = (cR - cL) / (slopeL - a);
+      candidates.push({ a, h, k: slopeL * h + cL });
+    }
+  }
+  {
+    const slopeR = (p2[1] - p1[1]) / (p2[0] - p1[0]);
+    const a = slopeR;
+    if (a !== 0) {
+      const cR = p1[1] - slopeR * p1[0];
+      const cL = p0[1] - -a * p0[0];
+      const h = (cR - cL) / (-a - slopeR);
+      candidates.push({ a, h, k: slopeR * h + cR });
+    }
+  }
+  for (const c of candidates) {
+    if (!Number.isFinite(c.a) || !Number.isFinite(c.h) || !Number.isFinite(c.k)) {
+      continue;
+    }
+    // The vertex must sit STRICTLY inside the handle span. Without this,
+    // three collinear points fit an inverted V whose vertex lands on an end
+    // handle — exactly (and so does every V further out: the solution is
+    // under-determined). Requiring both branches to be witnessed makes the
+    // fit unique and keeps a straight line from ever reading as a V.
+    if (c.h <= p0[0] + FIT_EPSILON || c.h >= p2[0] - FIT_EPSILON) continue;
+    const predict = (x: number): number => c.a * Math.abs(x - c.h) + c.k;
+    if (pointsFit(pts, predict)) return c;
+  }
+  return null;
+}
+
+/**
+ * Fit y = a·√(x − h) + k exactly through 3 points — BOUNDED BISECTION on h,
+ * the one non-closed-form fitter in the kit (h sits under the radical and
+ * cannot be linearized away). With u_i = √(x_i − h) the three points give
+ *   g(h) = (u0 − u1)(y0 − y2) − (u0 − u2)(y0 − y1) = 0,  h ≤ x_min.
+ * Bracket a sign change by scanning down from x_min, bisect (≤ 80 rounds,
+ * deterministic, dependency-free), then a and k drop out linearly. Residual-
+ * validated; null when no solution exists (the points aren't on any √ curve).
+ */
+function fitSqrtPoints(
+  points: [number, number][],
+): { a: number; h: number; k: number } | null {
+  if (points.length < 3) return null;
+  const pts = [...points].sort((p, q) => p[0] - q[0]);
+  const [p0, p1, p2] = [pts[0]!, pts[1]!, pts[2]!];
+  if (p0[0] === p1[0] || p1[0] === p2[0]) return null;
+  // y must be strictly monotone along x — every √ curve is.
+  const rising = p0[1] < p1[1] && p1[1] < p2[1];
+  const falling = p0[1] > p1[1] && p1[1] > p2[1];
+  if (!rising && !falling) return null;
+
+  const g = (h: number): number => {
+    const u0 = Math.sqrt(p0[0] - h);
+    const u1 = Math.sqrt(p1[0] - h);
+    const u2 = Math.sqrt(p2[0] - h);
+    return (u0 - u1) * (p0[1] - p2[1]) - (u0 - u2) * (p0[1] - p1[1]);
+  };
+  const solve = (h: number): { a: number; h: number; k: number } | null => {
+    const u0 = Math.sqrt(p0[0] - h);
+    const u1 = Math.sqrt(p1[0] - h);
+    if (u0 === u1) return null;
+    const a = (p0[1] - p1[1]) / (u0 - u1);
+    return { a, h, k: p0[1] - a * u0 };
+  };
+
+  // Scan for a bracket from just-under x_min outward (the span doubles), then
+  // bisect. h = x_min itself (vertex ON the first point) is a legal solution.
+  const span = Math.max(1, p2[0] - p0[0]);
+  let hi = p0[0]; // g(x_min) is well-defined: u0 = 0
+  let lo = p0[0] - span;
+  let gHi = g(hi);
+  let bracket: [number, number] | null = null;
+  if (Math.abs(gHi) < 1e-12) bracket = [hi, hi];
+  for (let i = 0; i < 40 && !bracket; i++) {
+    const gLo = g(lo);
+    if (gHi === 0 || gLo === 0 || gHi * gLo < 0) {
+      bracket = [lo, hi];
+      break;
+    }
+    hi = lo;
+    gHi = gLo;
+    lo = p0[0] - span * 2 ** (i + 1);
+  }
+  if (!bracket) return null;
+  let [bLo, bHi] = bracket;
+  for (let i = 0; i < 80 && bHi - bLo > 1e-12; i++) {
+    const mid = (bLo + bHi) / 2;
+    if (g(bLo) * g(mid) <= 0) bHi = mid;
+    else bLo = mid;
+  }
+  const c = solve((bLo + bHi) / 2);
+  if (!c || !Number.isFinite(c.a) || !Number.isFinite(c.k) || c.a === 0) {
+    return null;
+  }
+  const predict = (x: number): number =>
+    x >= c.h ? c.a * Math.sqrt(x - c.h) + c.k : NaN;
+  return pointsFit(pts, predict) ? c : null;
 }
 
 // Fit the family's curve to the points, returning its parameters + a predict()
@@ -304,6 +501,24 @@ export function fitFunction(
       const out = fitQuartic(data);
       if (!out.ok || out.fit.model !== 'quartic') return null;
       return { family: 'quartic', a: out.fit.a, b: out.fit.b, c: out.fit.c, d: out.fit.d, e: out.fit.e, predict: out.predict };
+    }
+    case 'absolute': {
+      const c = fitAbsolutePoints(points);
+      if (!c) return null;
+      return {
+        family: 'absolute',
+        ...c,
+        predict: (x) => c.a * Math.abs(x - c.h) + c.k,
+      };
+    }
+    case 'sqrt': {
+      const c = fitSqrtPoints(points);
+      if (!c) return null;
+      return {
+        family: 'sqrt',
+        ...c,
+        predict: (x) => (x >= c.h ? c.a * Math.sqrt(x - c.h) + c.k : NaN),
+      };
     }
     case 'exponential': {
       const out = fitExponential(data);
@@ -367,6 +582,15 @@ export function scoreFunction(
         Math.abs(fitted.c - model.c) <= model.cTolerance &&
         Math.abs(fitted.d - model.d) <= model.dTolerance &&
         Math.abs(fitted.e - model.e) <= model.eTolerance
+      );
+    case 'absolute':
+    case 'sqrt':
+      return (
+        (fitted.family === 'absolute' || fitted.family === 'sqrt') &&
+        fitted.family === model.family &&
+        Math.abs(fitted.a - model.a) <= model.aTolerance &&
+        Math.abs(fitted.h - model.h) <= model.hTolerance &&
+        Math.abs(fitted.k - model.k) <= model.kTolerance
       );
     case 'exponential':
       return (

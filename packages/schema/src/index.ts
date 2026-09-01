@@ -59,6 +59,8 @@ export {
   ChoiceImage,
   ChoiceGraph,
   MatchingBlock,
+  AbsoluteModel,
+  SqrtModel,
   CorrespondenceBlock,
   TargetColumn,
   MatchingItem,

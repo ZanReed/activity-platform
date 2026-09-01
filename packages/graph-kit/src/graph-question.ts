@@ -126,6 +126,22 @@ function parseModel(raw: unknown): FunctionModel {
         aTolerance: numOr(o.aTolerance, 0.1),
         bTolerance: numOr(o.bTolerance, 0.1),
       };
+    case 'absolute':
+      return {
+        family: 'absolute',
+        a: numOr(o.a, 1), h: numOr(o.h, 0), k: numOr(o.k, 0),
+        aTolerance: numOr(o.aTolerance, 0.1),
+        hTolerance: numOr(o.hTolerance, 0.1),
+        kTolerance: numOr(o.kTolerance, 0.1),
+      };
+    case 'sqrt':
+      return {
+        family: 'sqrt',
+        a: numOr(o.a, 1), h: numOr(o.h, 0), k: numOr(o.k, 0),
+        aTolerance: numOr(o.aTolerance, 0.1),
+        hTolerance: numOr(o.hTolerance, 0.1),
+        kTolerance: numOr(o.kTolerance, 0.1),
+      };
     case 'vertical':
       return { family: 'vertical', x: numOr(o.x, 0), xTolerance: numOr(o.xTolerance, 0.1) };
     default:

@@ -29,6 +29,8 @@ export {
   QuadraticModel,
   CubicModel,
   QuarticModel,
+  AbsoluteModel,
+  SqrtModel,
   ExponentialModel,
   LogarithmicModel,
   VerticalModel,

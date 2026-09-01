@@ -71,6 +71,8 @@ export type CurveDomain = z.infer<typeof CurveDomain>;
 //   quadratic    y = a·x² + b·x + c
 //   cubic        y = a·x³ + b·x² + c·x + d
 //   quartic      y = a·x⁴ + b·x³ + c·x² + d·x + e
+//   absolute     y = a·|x − h| + k       (vertex form)
+//   sqrt         y = a·√(x − h) + k      (x ≥ h; start-point form)
 //   exponential  y = a·bˣ            (b > 0)
 //   logarithmic  y = a + b·ln(x)     (x > 0)
 //   vertical     x = k               (NOT a y = f(x) curve — scored on x)
@@ -122,6 +124,28 @@ export const QuarticModel = z.object({
 });
 export type QuarticModel = z.infer<typeof QuarticModel>;
 
+export const AbsoluteModel = z.object({
+  family: z.literal('absolute'),
+  a: z.number(),
+  h: z.number(),
+  k: z.number(),
+  aTolerance: z.number().nonnegative().default(0.1),
+  hTolerance: z.number().nonnegative().default(0.1),
+  kTolerance: z.number().nonnegative().default(0.1),
+});
+export type AbsoluteModel = z.infer<typeof AbsoluteModel>;
+
+export const SqrtModel = z.object({
+  family: z.literal('sqrt'),
+  a: z.number(),
+  h: z.number(),
+  k: z.number(),
+  aTolerance: z.number().nonnegative().default(0.1),
+  hTolerance: z.number().nonnegative().default(0.1),
+  kTolerance: z.number().nonnegative().default(0.1),
+});
+export type SqrtModel = z.infer<typeof SqrtModel>;
+
 export const ExponentialModel = z.object({
   family: z.literal('exponential'),
   a: z.number(),
@@ -158,6 +182,8 @@ export const FunctionModel = z.discriminatedUnion('family', [
   QuadraticModel,
   CubicModel,
   QuarticModel,
+  AbsoluteModel,
+  SqrtModel,
   ExponentialModel,
   LogarithmicModel,
   VerticalModel,

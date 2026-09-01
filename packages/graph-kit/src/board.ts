@@ -1689,6 +1689,18 @@ function modelToFn(
       const a = n(model.a); const b = n(model.b);
       return [a, b].every(Number.isFinite) ? (x) => a + b * Math.log(x) : null;
     }
+    case 'absolute': {
+      const a = n(model.a); const h = n(model.h); const k = n(model.k);
+      return [a, h, k].every(Number.isFinite)
+        ? (x) => a * Math.abs(x - h) + k
+        : null;
+    }
+    case 'sqrt': {
+      const a = n(model.a); const h = n(model.h); const k = n(model.k);
+      return [a, h, k].every(Number.isFinite)
+        ? (x) => a * Math.sqrt(x - h) + k
+        : null;
+    }
     default:
       return null; // vertical + unknown: drawn by the caller, not as y = f(x)
   }

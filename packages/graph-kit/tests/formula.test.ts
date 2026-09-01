@@ -77,6 +77,39 @@ describe('parseGraphFormula — other families', () => {
     }
   });
 
+  it('absolute value, in pipe and abs() forms', () => {
+    for (const input of ['y = 2|x - 3| + 1', 'y = 2*abs(x - 3) + 1']) {
+      const r = parseGraphFormula(input);
+      expect(r.kind).toBe('function');
+      if (r.kind === 'function' && r.model.family === 'absolute') {
+        expect(r.model.a).toBeCloseTo(2, 4);
+        expect(r.model.h).toBeCloseTo(3, 4);
+        expect(r.model.k).toBeCloseTo(1, 4);
+      } else {
+        throw new Error(`not absolute: ${JSON.stringify(r)}`);
+      }
+    }
+  });
+
+  it('square root, in sqrt() and √ forms', () => {
+    for (const input of ['y = 2*sqrt(x - 1)', 'y = 2√(x - 1)']) {
+      const r = parseGraphFormula(input);
+      expect(r.kind).toBe('function');
+      if (r.kind === 'function' && r.model.family === 'sqrt') {
+        expect(r.model.a).toBeCloseTo(2, 4);
+        expect(r.model.h).toBeCloseTo(1, 4);
+        expect(r.model.k).toBeCloseTo(0, 4);
+      } else {
+        throw new Error(`not sqrt: ${JSON.stringify(r)}`);
+      }
+    }
+  });
+
+  it('a plain line never classifies as a degenerate V (order guard)', () => {
+    const r = parseGraphFormula('y = 2x + 3');
+    expect(r.kind === 'function' && r.model.family).toBe('linear');
+  });
+
   it('lower degrees still win over the polynomial fits (simplest-first order)', () => {
     // A quadratic must classify as quadratic, never as a degenerate cubic or
     // quartic — the detection cascade tries simplest first.
@@ -212,6 +245,10 @@ describe('formatModel round-trips through parseGraphFormula', () => {
     { family: 'cubic', a: -2, b: 1, c: 0.5, d: -4, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1 },
     { family: 'quartic', a: 1, b: 0, c: -5, d: 0, e: 4, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1, eTolerance: 0.1 },
     { family: 'quartic', a: 0.25, b: -1, c: 2, d: 1, e: -3, aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1, dTolerance: 0.1, eTolerance: 0.1 },
+    { family: 'absolute', a: 2, h: 3, k: 1, aTolerance: 0.1, hTolerance: 0.1, kTolerance: 0.1 },
+    { family: 'absolute', a: -1, h: -2, k: 0, aTolerance: 0.1, hTolerance: 0.1, kTolerance: 0.1 },
+    { family: 'sqrt', a: 2, h: 1, k: 0, aTolerance: 0.1, hTolerance: 0.1, kTolerance: 0.1 },
+    { family: 'sqrt', a: -1, h: -3, k: 2, aTolerance: 0.1, hTolerance: 0.1, kTolerance: 0.1 },
     { family: 'exponential', a: 2, b: 3, aTolerance: 0.1, bTolerance: 0.1 },
     { family: 'logarithmic', a: 1, b: 2, aTolerance: 0.1, bTolerance: 0.1 },
     { family: 'vertical', x: 4, xTolerance: 0.1 },

@@ -106,6 +106,10 @@ describe('handlesForFamily', () => {
     expect(handlesForFamily('cubic')).toBe(4);
     expect(handlesForFamily('quartic')).toBe(5);
   });
+  it('absolute and sqrt need three (the transformation parents)', () => {
+    expect(handlesForFamily('absolute')).toBe(3);
+    expect(handlesForFamily('sqrt')).toBe(3);
+  });
 });
 
 describe('startsForFamily (family-aware student seeds)', () => {
@@ -205,6 +209,96 @@ describe('fitFunction + scoreFunction — new families (Drop 2)', () => {
   it('cubic fit needs four distinct x; quartic five (else no curve)', () => {
     expect(fitFunction('cubic', [[0, 0], [1, 1], [2, 8]])).toBeNull();
     expect(fitFunction('quartic', [[0, 0], [1, 1], [2, 16], [3, 81]])).toBeNull();
+  });
+
+  it('absolute: recovers a, h, k and scores (y = |x − 2| + 1)', () => {
+    const pts: [number, number][] = [[0, 3], [2, 1], [4, 3]];
+    const f = fitFunction('absolute', pts);
+    expect(f && f.family === 'absolute').toBe(true);
+    if (f && f.family === 'absolute') {
+      expect(f.a).toBeCloseTo(1, 6);
+      expect(f.h).toBeCloseTo(2, 6);
+      expect(f.k).toBeCloseTo(1, 6);
+    }
+    const m: FunctionModel = {
+      family: 'absolute', a: 1, h: 2, k: 1,
+      aTolerance: 0.1, hTolerance: 0.1, kTolerance: 0.1,
+    };
+    expect(scoreFunction(m, pts)).toBe(true);
+    expect(scoreFunction(m, [[0, 4], [2, 2], [4, 4]])).toBe(false); // shifted up 1
+    // Same shape, wrong VERTEX x — only h differs, so this pins the h check.
+    expect(scoreFunction(m, [[1, 3], [3, 1], [5, 3]])).toBe(false);
+  });
+
+  it('absolute: fits with the vertex OFF the middle handle (2+1 and 1+2 splits)', () => {
+    // y = 2|x − 3|: handles on one branch + one across.
+    const left2 = fitFunction('absolute', [[0, 6], [1, 4], [5, 4]]);
+    expect(left2 && left2.family === 'absolute').toBe(true);
+    if (left2 && left2.family === 'absolute') {
+      expect(left2.a).toBeCloseTo(2, 6);
+      expect(left2.h).toBeCloseTo(3, 6);
+      expect(left2.k).toBeCloseTo(0, 6);
+    }
+    const right2 = fitFunction('absolute', [[1, 4], [4, 2], [5, 4]]);
+    expect(right2 && right2.family === 'absolute').toBe(true);
+    if (right2 && right2.family === 'absolute') {
+      expect(right2.h).toBeCloseTo(3, 6);
+    }
+    // An opens-down V (a < 0) fits too.
+    const down = fitFunction('absolute', [[-1, -2], [1, 0], [3, -2]]);
+    expect(down && down.family === 'absolute' && down.a).toBeCloseTo(-1, 6);
+  });
+
+  it('absolute: three collinear points are no V — the curve never draws', () => {
+    expect(fitFunction('absolute', [[0, 0], [1, 1], [2, 2]])).toBeNull();
+  });
+
+  it('sqrt: recovers a, h, k and scores (y = 2√(x − 1))', () => {
+    const pts: [number, number][] = [[1, 0], [2, 2], [5, 4]];
+    const f = fitFunction('sqrt', pts);
+    expect(f && f.family === 'sqrt').toBe(true);
+    if (f && f.family === 'sqrt') {
+      expect(f.a).toBeCloseTo(2, 6);
+      expect(f.h).toBeCloseTo(1, 6);
+      expect(f.k).toBeCloseTo(0, 6);
+    }
+    const m: FunctionModel = {
+      family: 'sqrt', a: 2, h: 1, k: 0,
+      aTolerance: 0.1, hTolerance: 0.1, kTolerance: 0.1,
+    };
+    expect(scoreFunction(m, pts)).toBe(true);
+    expect(scoreFunction(m, [[1, 1], [2, 3], [5, 5]])).toBe(false); // shifted up 1
+  });
+
+  it('sqrt: fits when no handle sits on the start point (bisection finds h)', () => {
+    // y = √(x + 2) + 1 sampled away from the vertex: (2, 3), (7, 4), (14, 5).
+    const f = fitFunction('sqrt', [[2, 3], [7, 4], [14, 5]]);
+    expect(f && f.family === 'sqrt').toBe(true);
+    if (f && f.family === 'sqrt') {
+      expect(f.a).toBeCloseTo(1, 5);
+      expect(f.h).toBeCloseTo(-2, 5);
+      expect(f.k).toBeCloseTo(1, 5);
+    }
+    // A falling root (a < 0) fits too.
+    const down = fitFunction('sqrt', [[0, 0], [1, -2], [4, -4]]);
+    expect(down && down.family === 'sqrt' && down.a).toBeCloseTo(-2, 5);
+  });
+
+  it('sqrt: non-monotone points fit no root curve', () => {
+    expect(fitFunction('sqrt', [[0, 0], [1, 2], [4, 1]])).toBeNull();
+  });
+
+  it('absolute/sqrt seeds are valid fit territory (never collinear)', () => {
+    const win = {
+      xMin: -10, xMax: 10, yMin: -10, yMax: 10,
+      xGridStep: 1, yGridStep: 1,
+    };
+    const vSeeds = startsForFamily('absolute', win, 3)!;
+    expect(vSeeds).toHaveLength(3);
+    expect(fitFunction('absolute', vSeeds)).not.toBeNull();
+    const rootSeeds = startsForFamily('sqrt', win, 3)!;
+    expect(rootSeeds).toHaveLength(3);
+    expect(fitFunction('sqrt', rootSeeds)).not.toBeNull();
   });
 
   it('exponential: recovers a, b and scores (y = 2·3ˣ)', () => {
