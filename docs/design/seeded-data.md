@@ -1,7 +1,9 @@
 # seeded_data — parameterised values, per student (wishlist #6)
 
-**Status: GREENLIT (author, 2026-09-01), as amended R1–R12. Build order:
-after the #5 chain (parent families → transform_curve).** One ruling carries
+**Status:** ✅ **SHIPPED 2026-09-01 — see the Build record at the bottom
+(three as-built corrections, incl. R8's strip moving to serve time) before
+the decisions above it.** *(Was: GREENLIT 2026-09-01 as amended R1–R12,
+build order after the #5 chain.)* One ruling carries
 a REVIEW TRIGGER rather than a settled yes: the latex exclusion (R2) is
 accepted "until it causes issues" — the first authored activity that needs a
 seeded value inside rendered math reopens R2 and the marker-command channel,

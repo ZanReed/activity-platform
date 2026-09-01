@@ -1,7 +1,7 @@
 # Unit-bearing numeric blanks — `{{=1.5 unit: km/h}}` (wishlist #3)
 
-**Status: GREENLIT (author, 2026-09-01) → OUTSIDE-VOICE REVIEWED → AMENDED →
-BUILDING.** The review found eleven defects, verified against code; the
+**Status:** ✅ **SHIPPED 2026-09-01 — see AS BUILT at the bottom.** *(Was:
+GREENLIT → OUTSIDE-VOICE REVIEWED → AMENDED → BUILDING.)* The review found eleven defects, verified against code; the
 load-bearing ones were re-verified independently before ruling. Amendments
 below override the matching decisions; the original text is kept under them
 as the record.

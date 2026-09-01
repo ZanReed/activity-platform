@@ -1,7 +1,8 @@
 # draggable_curve — the drag-then-type disagreement diagnostic (wishlist #5)
 
-**Status: GREENLIT (author, 2026-09-01) — with TWO author rulings that
-change the plan below.** The review had found 7 defects (amendments A1–A7);
+**Status:** ✅ **SHIPPED 2026-09-01 — see the Build record at the bottom
+(as-built corrections included) before the plan above it.** *(Was: GREENLIT
+2026-09-01, with TWO author rulings that change the plan below.)* The review had found 7 defects (amendments A1–A7);
 the author then ruled:
 
 - **Q2 RULED: the transformation band DOES transform |x| and √x — the

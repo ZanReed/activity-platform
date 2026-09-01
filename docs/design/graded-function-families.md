@@ -1,8 +1,9 @@
 # Graded function families: quadratic / exponential / logarithmic — cubic / quartic (2026-08-31) — absolute / sqrt (2026-09-01)
 
-> **SECOND EXTENSION (2026-09-01): `absolute` + `sqrt`, the transformation
-> parents** — the prerequisite the author ruled for wishlist #5 (the band
-> transforms both). Decisions, against the shipped plumbing:
+> **SECOND EXTENSION — ✅ SHIPPED 2026-09-01: `absolute` + `sqrt`, the
+> transformation parents** — the prerequisite the author ruled for wishlist
+> #5 (the band transforms both); deployed + code-verified with that slice.
+> Decisions, against the shipped plumbing:
 >
 > 1. **Vertex/start-point forms** — `absolute`: y = a·|x − h| + k;
 >    `sqrt`: y = a·√(x − h) + k. Three parameters each (a, h, k + tolerances)

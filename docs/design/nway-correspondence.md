@@ -1,7 +1,8 @@
 # nway_correspondence — the 4-way match (wishlist #4)
 
-**Status: GREENLIT (author, 2026-09-01) → OUTSIDE-VOICE REVIEWED → AMENDED.
-Build order: after wishlist #3.** The review found eight defects with
+**Status:** ✅ **SHIPPED 2026-09-01 as the `correspondence` block — see AS
+BUILT at the bottom (`CHECK_WIRE_VERSION` 2→3 rode this slice).** *(Was:
+GREENLIT → OUTSIDE-VOICE REVIEWED → AMENDED, build order after wishlist #3.)* The review found eight defects with
 file:line evidence; four change the design. Amendments override the matching
 decisions below; the original text is kept as the record.
 

@@ -116,6 +116,21 @@ For MC / matching / ordering: each gets its own optional parallel map on `Submis
 
 ## Phase 2.5 — Parameterized problems
 
+> ⚠ **CORRECTION (drift audit 2026-09-02): 2.5b SHIPPED early as
+> `seeded_data` (2026-09-01) with a DIFFERENT architecture than sketched
+> below** — see [seeded-data.md](docs/design/seeded-data.md) (+ its Build
+> record). As built: variables are declared on `meta.seedVars` (no
+> `parameterized_problem` block type, no `@activity/templates` package),
+> substitution runs SERVER-side at serve time on the cached template (no
+> client parsing), grading re-derives the same values from
+> `serveSeed(versionId, studentId)` (no wire `variant` field — which variant
+> a student saw is derivable, not stored), and the answer key is an
+> expression evaluated per student (no renderer strategy dispatch — the
+> renderer runtime died at S9). **2.5a (editor-side "generate N static
+> variants") remains future work** and should be designed against the
+> shipped `seedVars` machinery, not this sketch. The text below is the
+> original 2026-06 plan, kept as the record.
+
 A teacher can write one template and have it become many problems. Two sub-features that share most of their machinery and ship in order.
 
 **User-visible (2.5a — authoring-time variants)**: Teacher writes a template like `"simplify {rand(2,9)}x² − {rand(1,15)}"` and clicks "generate 12 variants" in the editor. The editor expands the template into 12 normal problem blocks with specific values, and saves them as static content. The student sees a fixed worksheet; the randomization happened in the teacher's editor. Closes the gap that previously required external tools (or AI assistance from a chat) to produce variant practice sets.

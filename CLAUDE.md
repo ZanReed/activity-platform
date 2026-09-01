@@ -78,9 +78,11 @@ Answer each out loud in the final message, including "n/a":
    docs, comments, scripts, skills. A deletion leaves its declarations behind,
    and a doc naming a dead mechanism reads as live forever (S9 left five docs
    citing `RUNTIME.md`, two with broken links, for eight days).
-4. **STATE still honest?** Links resolve, under ~150 lines, no fact stated twice
-   with two different numbers, and no standing rule parked in a section that
-   gets replaced next session — those belong HERE, in CLAUDE.md.
+4. **STATE still honest?** Links resolve, within the word budget
+   (`scripts/tests/state-budget.test.mjs` — the ~150-line rule is dead; see
+   the Doc map entry above), no fact stated twice with two different numbers,
+   and no standing rule parked in a section that gets replaced next session —
+   those belong HERE, in CLAUDE.md.
 
 **Run the FULL `/drift-audit` on a trigger, not a schedule** — its own trigger
 list is in the skill. Running it every session is the wrong lever: a check that
