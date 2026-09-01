@@ -180,6 +180,15 @@ export interface DisplayInteractionAttr {
     type: 'display';
     drawables: DrawableAttr[];
 }
+// transform_curve (design #5): the SHOWN parent (`start`, question material)
+// plus the target the student drags it onto (`models`, array-of-one like
+// plot_function). `requireEquation` gates the typed second channel.
+export interface TransformCurveInteractionAttr {
+    type: 'transform_curve';
+    start: FunctionModelAttr;
+    models: FunctionModelAttr[];
+    requireEquation: boolean;
+}
 export type GraphInteraction =
     | PointInteractionAttr
     | FunctionInteractionAttr
@@ -187,6 +196,7 @@ export type GraphInteraction =
     | InequalityInteractionAttr
     | RayInteractionAttr
     | SegmentInteractionAttr
+    | TransformCurveInteractionAttr
     | DisplayInteractionAttr;
 
 // One authored anticipated mistake: a freeform wrong answer (same syntax as the
@@ -256,6 +266,28 @@ export function defaultFunctionInteraction(): FunctionInteractionAttr {
                 interceptTolerance: 0.1,
             },
         ],
+    };
+}
+
+// A fresh transform_curve interaction: start at the quadratic parent y = x²,
+// target y = (x − 2)² + 1 — a shift the author immediately reads as "transform
+// THIS into THAT" and then edits both halves of.
+export function defaultTransformCurveInteraction(): TransformCurveInteractionAttr {
+    return {
+        type: 'transform_curve',
+        start: {
+            family: 'quadratic',
+            a: 1, b: 0, c: 0,
+            aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1,
+        },
+        models: [
+            {
+                family: 'quadratic',
+                a: 1, b: -4, c: 5,
+                aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1,
+            },
+        ],
+        requireEquation: true,
     };
 }
 

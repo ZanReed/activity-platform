@@ -317,6 +317,19 @@ function authoredRawByType(
     {
       ...graphBase(),
       id: fid(),
+      prompt: [
+        text('Shift the parabola 2 right and 1 up, then type its equation.'),
+      ],
+      interaction: {
+        type: 'transform_curve',
+        start: { family: 'quadratic', a: 1, b: 0, c: 0 },
+        models: [{ family: 'quadratic', a: 1, b: -4, c: 5 }],
+        requireEquation: true,
+      },
+    },
+    {
+      ...graphBase(),
+      id: fid(),
       prompt: [text('The graph shows y = 2x − 1.')],
       interaction: {
         type: 'display',

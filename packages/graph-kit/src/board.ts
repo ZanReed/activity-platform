@@ -618,6 +618,12 @@ export interface PointAnswerConfig {
    */
   polygon?: boolean;
   /**
+   * transform_curve: a FIXED background curve (the parent the student
+   * transforms) — muted and dashed so the student's own fitted curve reads as
+   * the answer. Never interactive; drawn once.
+   */
+  fixedCurve?: (x: number) => number;
+  /**
    * AUTHOR boards for plot_ray / plot_segment: draw a fixed ray (from handle 0
    * through handle 1, arrowhead on the open end) or segment. The handles ARE
    * the endpoints; setEndpointStyles renders each hollow (open) / filled
@@ -673,6 +679,12 @@ export interface PointAnswerController {
   setEndpointStyles?(styles: ('open' | 'closed' | null)[]): void;
   /** linearShape boards: apply the student's shape choice (null = neutral). */
   setShape?(shape: 'ray_positive' | 'ray_negative' | 'segment' | null): void;
+  /** transform_curve boards: draw (or clear, with null) a dotted preview of
+   *  the student's TYPED equation — a third look, distinct from the muted
+   *  start curve and the solid dragged answer, so "where your equation lands"
+   *  is visible while typing (D3 as overruled: the parse runs in the kit's
+   *  lazy chunk, which is already loaded by the time the field exists). */
+  setPreviewCurve(fn: ((x: number) => number) | null): void;
   destroy(): void;
 }
 
@@ -806,6 +818,26 @@ export function createPointAnswerBoard(
   // (which handles are the ends + their open/closed style) is being answered.
   const bounded = !!config.domainEndpoints;
   let boundedDeriveFn: ((x: number) => number) | null = null;
+
+  // The typed-equation preview (transform_curve): created lazily on the first
+  // setPreviewCurve, then updated by swapping the closure's target — JSXGraph
+  // re-samples the bound function on board.update(), so no re-create per edit.
+  let previewFn: ((x: number) => number) | null = null;
+  let previewObj: { setAttribute(attrs: Record<string, unknown>): void } | null =
+    null;
+
+  // The fixed parent curve (transform_curve): drawn FIRST so the student's
+  // own curve paints over it; muted + dashed so it reads as given material.
+  if (config.fixedCurve) {
+    board.create('functiongraph', [config.fixedCurve], {
+      strokeColor: ANSWER_COLOR,
+      strokeWidth: 1.5,
+      strokeOpacity: 0.35,
+      dash: 2,
+      highlight: false,
+      fixed: true,
+    });
+  }
 
   if (config.deriveCurve) {
     const derive = config.deriveCurve;
@@ -1134,6 +1166,27 @@ export function createPointAnswerBoard(
       });
       board.update();
       notify(false);
+    },
+    setPreviewCurve(fn: ((x: number) => number) | null): void {
+      previewFn = fn;
+      if (fn && !previewObj) {
+        previewObj = board.create(
+          'functiongraph',
+          [(x: number) => (previewFn ? previewFn(x) : NaN)],
+          // FIT green, dotted: reads as "computed from what you typed", the
+          // same voice the regression fit uses — never the answer purple.
+          {
+            strokeColor: FIT_COLOR,
+            strokeWidth: 1.5,
+            strokeOpacity: 0.65,
+            dash: 1,
+            highlight: false,
+            fixed: true,
+          },
+        ) as unknown as { setAttribute(attrs: Record<string, unknown>): void };
+      }
+      previewObj?.setAttribute({ visible: fn !== null });
+      board.update();
     },
     setInteractive(on: boolean): void {
       interactive = on;

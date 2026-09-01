@@ -16,6 +16,8 @@ import {
   scoreInequalitySystem,
   scoreDomain,
   scoreDomainParts,
+  pointsOnModel,
+  modelToPredict,
   polygonOverlap,
   type PointAnswerKey,
   type FunctionModel,
@@ -665,5 +667,38 @@ describe('domain endpoints scorer (Drop 6 follow-up)', () => {
   });
   it('no authored domain → vacuously correct', () => {
     expect(scoreDomain({}, {})).toBe(true);
+  });
+});
+
+describe('pointsOnModel seeds stay inside the y-window (transform seed fix)', () => {
+  const win = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1 };
+  it('a steep quadratic seeds ON the curve, inside the window', () => {
+    // The bug this pins: x² seeded at x = ±5 (y = 25), the board clamped the
+    // handles to (±5, 10), and the mounted curve fit 0.4x² — visibly NOT the
+    // dashed parent it was supposed to start on (/dev/graph-question, live).
+    const model: FunctionModel = {
+      family: 'quadratic', a: 1, b: 0, c: 0,
+      aTolerance: 0.1, bTolerance: 0.1, cTolerance: 0.1,
+    };
+    const seeds = pointsOnModel(model, win, 3);
+    const predict = modelToPredict(model)!;
+    expect(seeds).toHaveLength(3);
+    for (const [x, y] of seeds) {
+      expect(y).toBeGreaterThanOrEqual(win.yMin);
+      expect(y).toBeLessThanOrEqual(win.yMax);
+      expect(y).toBeCloseTo(predict(x), 6);
+      // Grid-aligned x: a snapToGrid board snaps seeds at creation, and an
+      // off-grid seed would land off the curve (the bug's second half).
+      expect(x / win.xGridStep).toBeCloseTo(Math.round(x / win.xGridStep), 6);
+    }
+  });
+  it('a shallow curve keeps its full-window spread', () => {
+    const model: FunctionModel = {
+      family: 'linear', slope: 0.5, intercept: 0,
+      slopeTolerance: 0.1, interceptTolerance: 0.1,
+    };
+    const seeds = pointsOnModel(model, win, 2);
+    const xs = seeds.map(([x]) => x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(5);
   });
 });

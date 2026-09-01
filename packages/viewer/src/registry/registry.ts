@@ -208,6 +208,7 @@ export const blockRegistry: BlockRegistry = {
       'graph_inequality',
       'plot_ray',
       'plot_segment',
+      'transform_curve',
       'display',
     ],
     sanitize: {

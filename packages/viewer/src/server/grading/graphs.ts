@@ -26,6 +26,9 @@
 import {
   compileMistakeMatchers,
   matchAuthoredMistake,
+  parseGraphFormula,
+  pointsOnModel,
+  handlesForFamily,
   scoreBoxplot,
   scoreDotplot,
   scoreFunction,
@@ -75,6 +78,12 @@ const heights = (work: GraphWork): number[] =>
 /** Did the student do anything at all on this canvas? */
 function isUntouched(work: GraphWork): boolean {
   if (work.noSolution === true) return false; // an explicit claim IS an answer
+  // transform_curve: a typed equation or a real drag answers regardless of
+  // points (and its seed points must NOT count — the dispatch case owns that).
+  if (typeof work.equation === 'string' && work.equation.trim() !== '') {
+    return false;
+  }
+  if (work.dragged === true) return false;
   if (work.points.length > 0) return false;
   if (work.parts?.some((p) => (p.points?.length ?? 0) > 0)) return false;
   // An interval answer can be a single dragged bound with no "points".
@@ -186,11 +195,28 @@ export function selectGraphMistake(
   const strict = part?.strict === true;
 
   const ans: StudentGraphAnswer = {
-    points: type === 'plot_function' ? curveOf(work) : work.points,
+    points:
+      type === 'plot_function' || type === 'transform_curve'
+        ? curveOf(work)
+        : work.points,
     strict,
     side,
     shape: work.shape ?? null,
     endpointStyles: work.endpointStyles,
+    // transform_curve channels: parse the typed equation ONCE (capped; an
+    // unparseable entry is simply "typed no function") and carry the drag bit.
+    ...(type === 'transform_curve'
+      ? {
+          dragged: work.dragged === true,
+          typedModel: (() => {
+            const typed =
+              typeof work.equation === 'string' ? work.equation.trim() : '';
+            if (typed === '' || typed.length > MAX_EQUATION_LENGTH) return null;
+            const parsed = parseGraphFormula(typed);
+            return parsed.kind === 'function' ? parsed.model : null;
+          })(),
+        }
+      : {}),
   };
 
   const entries = block.mistakeFeedback ?? [];
@@ -199,7 +225,10 @@ export function selectGraphMistake(
     if (type === 'plot_point') {
       ctx.pointTolerance = num(interaction.tolerance, 0.1);
     }
-    if (type === 'plot_function' && models?.length) {
+    if (
+      (type === 'plot_function' || type === 'transform_curve') &&
+      models?.length
+    ) {
       ctx.keyModel = models[0] as never;
     }
     if (type === 'graph_inequality' && keys?.length) {
@@ -220,6 +249,45 @@ export function selectGraphMistake(
   }
 
   return null;
+}
+
+// ---- transform_curve: the typed channel -------------------------------------
+
+/** The window typed models sample into. Any fixed sane window works — the
+ * sampled points land ON the parsed model's own curve, and the family scorer
+ * fits them right back; the window only has to give the family's domain room
+ * (sqrt/log clamp inside pointsOnModel). */
+const TYPED_SAMPLE_WINDOW = {
+  xMin: -10,
+  xMax: 10,
+  yMin: -10,
+  yMax: 10,
+  xGridStep: 1,
+  yGridStep: 1,
+};
+
+/** Hard cap on a typed equation before it reaches mathjs compilation — the
+ * first STUDENT free text on this path (authored matcher strings were the
+ * only prior input). The S4-B3 posture: an over-long or unparseable entry
+ * scores the channel wrong, never throws. */
+const MAX_EQUATION_LENGTH = 256;
+
+/** Does the student's typed equation state the key model? Parse with the
+ * SHARED parser, sample the parsed model into points on its own curve, and
+ * hand them to the ordinary fit-and-compare scorer — one comparison engine,
+ * no second tolerance semantics. */
+function typedEquationMatches(key: GraphModel, typed: string): boolean {
+  if (typed.length === 0 || typed.length > MAX_EQUATION_LENGTH) return false;
+  const parsed = parseGraphFormula(typed);
+  if (parsed.kind !== 'function') return false;
+  const sampled = pointsOnModel(
+    parsed.model,
+    TYPED_SAMPLE_WINDOW,
+    handlesForFamily(parsed.model.family),
+  );
+  const keyFamily = (key as { family?: string }).family ?? 'linear';
+  if (sampled.length < handlesForFamily(keyFamily)) return false;
+  return scoreFunction(key as never, sampled);
 }
 
 // ---- interactive_graph ------------------------------------------------------
@@ -254,6 +322,23 @@ function scoreInteractiveGraph(
         models as never[],
         curves.length ? curves : [work.points],
       ).correct;
+    }
+
+    case 'transform_curve': {
+      const models = interaction.models as GraphModel[] | undefined;
+      if (!models?.length) return false;
+      const requireEquation = interaction.requireEquation !== false;
+      const dragged = work.dragged === true;
+      const typed =
+        typeof work.equation === 'string' ? work.equation.trim() : '';
+      // Neither channel touched is UNANSWERED — the widget always emits its
+      // seed points (they sit on the parent curve), so points alone can never
+      // count as drawing (design A1: the `dragged` flag is the drag channel's
+      // answered bit).
+      if (!dragged && typed === '') return null;
+      const dragOk = dragged && scoreFunction(models[0] as never, curveOf(work));
+      if (!requireEquation) return dragOk;
+      return dragOk && typedEquationMatches(models[0]!, typed);
     }
 
     case 'graph_inequality': {

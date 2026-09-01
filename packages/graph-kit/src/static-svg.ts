@@ -22,7 +22,11 @@
 // is the proof of that.
 // =============================================================================
 
-export { renderGraphSvg, answerKeyDrawables } from './static-svg/graph-svg.js';
+export {
+  renderGraphSvg,
+  answerKeyDrawables,
+  questionDrawables,
+} from './static-svg/graph-svg.js';
 export {
   renderNumberLineSvg,
   answerKeyMarks,

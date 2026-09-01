@@ -37,7 +37,7 @@ import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
-import { renderGraphSvg } from '@activity/graph-kit/static-svg';
+import { renderGraphSvg, questionDrawables } from '@activity/graph-kit/static-svg';
 import { PrintTwin } from './printTwin.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
 import { ANSWER_KEY_INK } from '../answer-key/types.js';
@@ -97,6 +97,26 @@ export default function InteractiveGraph({
         ...(block.allowNoSolution !== undefined
           ? { allowNoSolution: block.allowNoSolution }
           : {}),
+        // transform_curve: the SHOWN parent + the reload channels. `start`
+        // survives sanitize by design — it is the question. The buffered
+        // equation/drag bit ride the config because the restore handle is
+        // points-only (design A2).
+        ...(interactionType === 'transform_curve'
+          ? {
+              startModel: (
+                block.interaction as { start?: unknown } | undefined
+              )?.start,
+              requireEquation:
+                (block.interaction as { requireEquation?: boolean } | undefined)
+                  ?.requireEquation !== false,
+              ...(initialRef.current?.equation !== undefined
+                ? { initialEquation: initialRef.current.equation }
+                : {}),
+              ...(initialRef.current?.dragged === true
+                ? { initialDragged: true }
+                : {}),
+            }
+          : {}),
       },
       {
         onChange: (response) => {
@@ -115,6 +135,14 @@ export default function InteractiveGraph({
             ...(response.shape !== undefined ? { shape: response.shape } : {}),
             ...(response.endpointStyles !== undefined
               ? { endpointStyles: response.endpointStyles }
+              : {}),
+            // transform_curve: the typed channel + the drag bit (A1 — without
+            // `dragged` the seed positions would read as drawn work).
+            ...(response.equation !== undefined
+              ? { equation: response.equation }
+              : {}),
+            ...(response.dragged !== undefined
+              ? { dragged: response.dragged }
               : {}),
             ...(response.strict !== undefined || response.side !== undefined
               ? {
@@ -144,7 +172,14 @@ export default function InteractiveGraph({
         handleRef.current = handle;
         // Restore prior work (reload / re-open).
         const prior = initialRef.current;
-        if (prior?.points?.length) handle.restore(prior.points);
+        // transform_curve: restore points only for genuinely DRAGGED work —
+        // restoring buffered seed positions would pin the handles there and
+        // the equation/drag channels already rode the mount config.
+        if (prior?.points?.length) {
+          if (interactionType !== 'transform_curve' || prior.dragged === true) {
+            handle.restore(prior.points);
+          }
+        }
       })
       .catch((err: unknown) => {
         // A board that fails to mount must SAY so. Without this the promise
@@ -209,10 +244,19 @@ export default function InteractiveGraph({
           // are already exactly what the renderer wants and only the type has
           // widened. Confined to this one argument.
           answerOverlay
-            ? [...answerOverlay]
+            ? // A key still shows the QUESTION under the answer: for
+              // transform_curve that is the dashed start curve (empty for
+              // every other variant), so a teacher reads "from here, to here".
+              [...questionDrawables(block), ...answerOverlay]
             : block.interaction?.type === 'display'
               ? (block.interaction.drawables as Parameters<typeof renderGraphSvg>[1])
-              : [],
+              : // The empty-axes invariant's new spelling: questionDrawables
+                // returns [] for every variant EXCEPT transform_curve, whose
+                // start curve is the question itself (a student cannot
+                // transform a parent they cannot see). Centralized in
+                // graph-kit so the print twin and any future static surface
+                // agree on what a question shows.
+                questionDrawables(block),
           block.id,
           // A distinct neutral ink, so a teacher reads the overlay as "added
           // for the key" rather than as authored content.
@@ -223,6 +267,29 @@ export default function InteractiveGraph({
       {/* "No solution" is an answer, and an empty grid cannot say it. Without
           this a teacher cannot tell a no-solution key from a question whose key
           failed to render. */}
+      {/* transform_curve's typed channel on paper: a write line for the
+          student, the target equation on a teacher key. Same eager-DOM idiom
+          as the matching letter line — hidden on screen, revealed by @media
+          print (a key's filled line also shows in the teacher preview). */}
+      {block.interaction?.type === 'transform_curve' &&
+      block.interaction.requireEquation !== false ? (
+        <p
+          className="viewer-graph__equation-line"
+          {...(answerKey?.graphEquation ? { 'data-answer-key': 'equation' } : {})}
+        >
+          {answerKey?.graphEquation ? (
+            <span className="viewer-graph__equation-key">
+              {answerKey.graphEquation}
+            </span>
+          ) : (
+            <>
+              {'y = '}
+              <span className="viewer-graph__equation-blank" aria-hidden="true" />
+            </>
+          )}
+        </p>
+      ) : null}
+
       {answerKey?.graphNoSolution ? (
         <p className="viewer-graph__answer-note" data-answer-key="no-solution">
           Answer: no solution

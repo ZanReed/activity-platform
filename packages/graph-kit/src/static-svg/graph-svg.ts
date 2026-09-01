@@ -513,9 +513,37 @@ export function answerKeyDrawables(block: InteractiveGraphBlock): Drawable[] {
         to: s.to,
         endpoints: s.endpoints,
       }));
+    case 'transform_curve':
+      // The KEY overlay is the target curve. (The parent curve is question
+      // material and prints on the STUDENT sheet via questionDrawables — it
+      // must never wait for the answer-key variant.)
+      return interaction.models.map((model) => ({ kind: 'curve', model }));
     case 'display':
       return interaction.drawables;
   }
+}
+
+/**
+ * Question-side drawables for a GRADED interaction — display material the
+ * STUDENT sheet must show because it IS the question. transform_curve's shown
+ * parent is the first (and so far only) case: every other question variant
+ * deliberately prints empty axes (the pinned print-twins invariant, revised
+ * variant-scoped by design A3), and this function returning [] for them is
+ * that invariant's new spelling.
+ */
+// The parameter is STRUCTURAL on purpose: the viewer calls this with the
+// sanitized projection, whose transform_curve interaction has had `models`
+// stripped (the answer) but keeps `start` (the question) — so the full
+// InteractiveGraphBlock type would reject exactly the caller this function
+// exists for.
+export function questionDrawables(block: {
+  interaction?: { type: string; start?: FunctionModel };
+}): Drawable[] {
+  const interaction = block.interaction;
+  if (interaction?.type === 'transform_curve' && interaction.start) {
+    return [{ kind: 'curve', model: interaction.start, style: 'dashed' }];
+  }
+  return [];
 }
 
 // ---- entry --------------------------------------------------------------------
@@ -555,7 +583,12 @@ export function renderGraphSvg(
       const color = d.color ? resolveDrawableColor(d.color) : defaultColor;
       const markerId = markerIdFor(color);
       usedMarkers.set(markerId, color);
-      return renderDrawable(p, d, markerId, color);
+      // Each drawable is wrapped in a marked <g> so a DOM query can count what
+      // was actually DRAWN, not what was asked for. The viewer's leak suite
+      // selects [data-drawable]; before this wrapper existed that selector
+      // matched nothing anywhere, so its zero-leak assertion was vacuously
+      // green (the P11 class — mutation-tested the day this line landed).
+      return `<g data-drawable="${attr(d.kind)}">${renderDrawable(p, d, markerId, color)}</g>`;
     })
     .join('');
 

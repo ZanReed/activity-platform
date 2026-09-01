@@ -219,4 +219,33 @@ biggest piece.
 ## Non-goals
 
 Trig/exotic families (the family set is #2's), free-drag-anywhere curve
-sculpting, storing drag traces, client-side equation preview.
+sculpting, storing drag traces. (Client-side equation preview MOVED from this
+list into scope by the D3 overrule — it shipped with the MathLive field.)
+
+## Build record (2026-09-01 — SHIPPED)
+
+Everything above as ruled: schema variant, kit recipe (MathLive equation
+field + dotted-green typed-curve preview via `setPreviewCurve`), two-channel
+grader with reserved matches, viewer wiring (equation/dragged forwarded;
+restore gated on `dragged` so buffered seeds never pin), print (start curve
+via `questionDrawables` + equation write line; answer key overlays the target
+and fills the line via the new `graphEquation` channel), editor variant
+(picker, Start field, requireEquation toggle, reserved mistake tokens),
+importer (`start:` + `options: type-equation`, loud degradation on both
+misuses) + format doc + prompt regen. Browser-verified end-to-end in
+/dev/graph-question: both channels correct → `correct: true`; drag-only
+variant renders no field.
+
+Two live bugs found and pinned during the browser pass, both in
+`pointsOnModel`'s generic branch: (1) seeds spread across the x-window left
+the y-window and the board CLAMPED them off-model (x² mounted as 0.4x²);
+(2) after the in-window shrink, off-grid seed xs were snapped off-model by
+snapToGrid. Fix: shrink to the in-window x-range (the editor seeder's rule),
+then grid-align the xs. Mutation ledger for the slice's new guards: 9 this
+session (3 print, 2 importer, 3 viewer wiring, 1 seed fix), each watched red
+once.
+
+One perf correction: `formatModel` moved to a LEAF `model-format.ts`
+subpath — the answer-key extract's import of `formula.ts` had pulled
+evaluate/mathjs into the student shell entry (+35 KiB gz, perf gate red).
+formula.ts re-exports it; no call site changed behavior.

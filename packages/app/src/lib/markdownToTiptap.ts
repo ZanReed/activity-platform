@@ -3446,7 +3446,7 @@ function parseDataPlotFence(src: string, ctx: Ctx): JSONContent | null {
                           : { type: 'build_boxplot', tolerance: tolerance ?? 0.5 };
                 break;
             }
-            case 'show': {
+                        case 'show': {
                 if (interaction) return fail('only one answer: or show: line per block');
                 const chart = chartWord(value);
                 if (!chart) return fail(`show must name dotplot, histogram, or boxplot (got "${value}")`);
@@ -3774,6 +3774,10 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     let allowNoSolution = false;
     let noSolutionCorrect = false;
     let builtinFeedback = true;
+    // transform_curve (design #5 D7): a start: line makes the fence a
+    // transform question; options: type-equation adds the typed channel.
+    let startModel: Record<string, unknown> | null = null;
+    let typeEquation = false;
     const mistakes: { match: string; feedback: { type: 'text'; text: string; marks: [] }[] }[] = [];
     const fail = (msg: string): null => {
         ctx.warnings.add('Graph block: ' + msg + ' — imported as plain text.');
@@ -3784,7 +3788,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
         if (!line) continue;
-        const m = /^(axes|prompt|answer|show|options|mistake):\s*(.*)$/i.exec(line);
+        const m = /^(axes|prompt|answer|show|options|mistake|start):\s*(.*)$/i.exec(line);
         if (!m) return fail(`unrecognized line "${line}"`);
         const value = (m[2] ?? '').trim();
         switch ((m[1] ?? '').toLowerCase()) {
@@ -3832,6 +3836,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                     if (opt === 'allow-no-solution') allowNoSolution = true;
                     else if (opt === 'no-solution-correct') { allowNoSolution = true; noSolutionCorrect = true; }
                     else if (opt === 'no-builtin-feedback') builtinFeedback = false;
+                    else if (opt === 'type-equation') typeEquation = true;
                     else if (opt) return fail(`unknown option "${opt}"`);
                 }
                 break;
@@ -3885,6 +3890,21 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                 }
                 break;
             }
+            case 'start': {
+                // The SHOWN parent curve (question material, stays through
+                // sanitize). Same freeform grammar as answer:, minus verticals
+                // (nothing to transform along y) and domain clauses.
+                if (startModel) return fail('only one start: line per block');
+                const parsed = parseGraphFormula(value);
+                if (parsed.kind === 'error') return fail(parsed.message);
+                if (parsed.kind !== 'function') return fail('start: must be an equation, like "start: y = x^2"');
+                if (parsed.domain) return fail('start: can\u2019t have a range \u2014 remove the "for \u2026" clause');
+                if ((parsed.model as { family?: string }).family === 'vertical') {
+                    return fail('start: can\u2019t be a vertical line');
+                }
+                startModel = parsed.model as unknown as Record<string, unknown>;
+                break;
+            }
             case 'show': {
                 // 'dotted' is an accepted synonym for 'dashed'; style/endpoint/
                 // label parsing lives in the shared parseShowDrawable (also used
@@ -3899,6 +3919,24 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     }
 
     if (!interaction && drawables.length === 0) return fail('empty graph block');
+    // start: turns an equation answer into transform_curve (D7): the parent is
+    // shown, the answer becomes the drag target, type-equation adds the typed
+    // channel. Both misuses fail loudly \u2014 a silently dropped start: would
+    // import a transform question as an ordinary plot_function.
+    if (typeEquation && !startModel) {
+        return fail('options: type-equation needs a start: line (the shown parent curve)');
+    }
+    if (startModel) {
+        if (!interaction || interaction.type !== 'plot_function') {
+            return fail('start: needs an equation answer (the target curve), like "answer: y = (x-2)^2 + 3"');
+        }
+        interaction = {
+            type: 'transform_curve',
+            start: startModel,
+            models: interaction.models as unknown[],
+            requireEquation: typeEquation,
+        };
+    }
     const finalInteraction = interaction ?? { type: 'display', drawables };
     if (interaction && drawables.length > 0) {
         // A graded answer + show lines: the shows aren't renderable inside a

@@ -117,6 +117,17 @@ export interface GraphWork {
    * than defaulting — "the student didn't pick a direction" and "the student
    * picked the wrong direction" are different marks. */
   shape?: 'ray_positive' | 'ray_negative' | 'segment';
+  /** transform_curve: the typed equation, as the math field's ascii-math
+   * mirror (the MA-D3 precedent — the server parses it with the shared
+   * formula parser). ADDITIVE (the `shape` rule): absent means the typed
+   * channel is unanswered, never a default. */
+  equation?: string;
+  /** transform_curve: true once the student has actually MOVED a handle.
+   * ADDITIVE, and load-bearing (design A1): the equation field forces the
+   * widget to emit, and the emit carries the seed positions — which sit on
+   * the parent curve. Without this flag a type-only student would be scored
+   * as having DRAWN the parent. Absent = not dragged. */
+  dragged?: boolean;
   /** plot_ray / plot_segment: open/closed choices for the endpoints the chosen
    * shape actually shows — `[endpointStyle]` for a ray, `[lesserStyle,
    * greaterStyle]` for a segment, absent/empty when no shape is chosen.

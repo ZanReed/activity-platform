@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import {
+    isReservedTransformMatch,
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
@@ -148,7 +149,9 @@ function GraphSettingsPanel({
             { match: '', feedback: [] },
         ]);
     const mistakeMatchPlaceholder =
-        interaction.type === 'plot_point'
+        interaction.type === 'transform_curve'
+            ? 'y = (x + 2)^2 - 1   ·   drawn-not-written   ·   written-not-drawn'
+            : interaction.type === 'plot_point'
             ? '(4, 3)'
             : interaction.type === 'graph_inequality'
               ? 'y < 2x + 1  (or a boundary like y = 2x + 1)'
@@ -164,9 +167,18 @@ function GraphSettingsPanel({
             const parsed = parseRaySegment(raw);
             return parsed.kind === 'error' ? parsed.message : null;
         }
+        // transform_curve accepts the two RESERVED channel-mismatch tokens
+        // (drawn-not-written / written-not-drawn) alongside ordinary equations.
+        if (interaction.type === 'transform_curve' && isReservedTransformMatch(raw)) {
+            return null;
+        }
         const parsed = parseGraphFormula(raw);
         if (parsed.kind === 'error') return parsed.message;
-        if (interaction.type === 'plot_function' && parsed.kind !== 'function') {
+        if (
+            (interaction.type === 'plot_function' ||
+                interaction.type === 'transform_curve') &&
+            parsed.kind !== 'function'
+        ) {
             return 'Type an equation, like y = x + 2';
         }
         if (
@@ -243,7 +255,8 @@ function GraphSettingsPanel({
                             onChange={(v) => setInteraction({ ...interaction, tolerance: v })}
                         />
                     )}
-                    {interaction.type === 'plot_function' &&
+                    {(interaction.type === 'plot_function' ||
+                        interaction.type === 'transform_curve') &&
                         Object.entries(firstModel(interaction.models))
                             .filter(([k, v]) => k.endsWith('Tolerance') && typeof v === 'number')
                             .map(([k, v]) => (
@@ -257,13 +270,26 @@ function GraphSettingsPanel({
                                     value={v as number}
                                     disabled={!isEditable}
                                     onChange={(val) =>
+                                        // INV1: spread the current type-narrowed shape —
+                                        // transform_curve keeps its start + requireEquation.
                                         setInteraction({
-                                            type: 'plot_function',
+                                            ...interaction,
                                             models: [{ ...firstModel(interaction.models), [k]: val } as FunctionModelAttr],
                                         })
                                     }
                                 />
                             ))}
+                    {interaction.type === 'transform_curve' && (
+                        <ToggleRow
+                            checked={interaction.requireEquation !== false}
+                            disabled={!isEditable}
+                            onChange={(v) =>
+                                setInteraction({ ...interaction, requireEquation: v })
+                            }
+                            label="Require typed equation"
+                            help="Students must also type the target's equation — both the drag and the equation must be correct."
+                        />
+                    )}
                     {(interaction.type === 'plot_ray' || interaction.type === 'plot_segment') && (
                         <ToleranceRow
                             label="Endpoint tolerance"

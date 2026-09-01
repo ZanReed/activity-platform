@@ -42,6 +42,8 @@ export {
   fitFunction,
   handlesForFamily,
   startsForFamily,
+  modelToPredict,
+  pointsOnModel,
   scoreRegion,
   scoreRegionsPartial,
   polygonOverlap,
@@ -94,6 +96,11 @@ export type { FiveNumberSummary } from './data-plot-score.js';
 // Mistake classification — authored matchers + built-in classifiers. Pure
 // (formula parser + scorers only); the server's check path uses these to
 // annotate a wrong graph answer with feedback and a misconception id.
+// The shared formula parser — the transform_curve typed channel parses the
+// student's equation server-side with the SAME parser the editor and importer
+// use (no second grammar). Already in the grading bundle via mistakes.ts.
+export { parseGraphFormula } from './formula.js';
+
 export {
   compileMistakeMatchers,
   matchAuthoredMistake,

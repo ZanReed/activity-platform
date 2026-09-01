@@ -76,6 +76,9 @@ export const FENCES: FenceSpec[] = [
             'allow-no-solution',
             'no-solution-correct',
             'no-builtin-feedback',
+            // transform_curve (design #5): with a start: line, adds the typed
+            // equation channel to the drag answer.
+            'type-equation',
         ],
     },
     {

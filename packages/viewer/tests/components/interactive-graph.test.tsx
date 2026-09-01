@@ -33,6 +33,9 @@ const plotPoint = variants.find(
 const displayGraph = variants.find(
   (b) => (b as unknown as { interaction: { type: string } }).interaction.type === 'display',
 )! as unknown as { id: string };
+const transformCurve = variants.find(
+  (b) => (b as unknown as { interaction: { type: string } }).interaction.type === 'transform_curve',
+)! as unknown as { id: string; interaction: { start: unknown } };
 
 /** A surface that records what it was asked to mount and lets a test emit
  * student moves. */
@@ -174,6 +177,76 @@ describe('response wiring (the store is the source of truth)', () => {
       interaction: 'plot_point',
       points: [[2, -1]],
     });
+  });
+
+  it('transform_curve: mounts with the start curve + requireEquation, never the target', async () => {
+    const fake = fakeSurface();
+    setGraphSurface(fake.surface);
+    mount(transformCurve);
+    await waitFor(() => expect(fake.calls).toHaveLength(1));
+    const cfg = fake.calls[0] as Record<string, unknown>;
+    expect(cfg.startModel).toEqual(transformCurve.interaction.start);
+    expect(cfg.requireEquation).toBe(true);
+    // The target model is the ANSWER; the sanitized block doesn't carry it and
+    // the config must not grow a channel that could.
+    expect(JSON.stringify(cfg)).not.toContain('models');
+  });
+
+  it('transform_curve: forwards the typed equation and the drag bit as work', async () => {
+    const fake = fakeSurface();
+    setGraphSurface(fake.surface);
+    const { store } = mount(transformCurve);
+    await waitFor(() => expect(fake.calls).toHaveLength(1));
+
+    await fake.move({
+      points: [[0, 5], [2, 1], [4, 5]],
+      answered: true,
+      equation: 'y = (x - 2)^2 + 1',
+      dragged: true,
+    });
+
+    const work = store.getState().responses.graphs[transformCurve.id]!;
+    expect(work.equation).toBe('y = (x - 2)^2 + 1');
+    expect(work.dragged).toBe(true);
+  });
+
+  it('transform_curve: buffered seed positions are NOT restored, dragged work is', async () => {
+    // dragged:false points are the SEEDS (A1) — restoring them would pin the
+    // handles at buffer positions and make the reload look like drawn work.
+    const service = createMockCheckService({});
+    for (const dragged of [false, true]) {
+      const fake = fakeSurface();
+      setGraphSurface(fake.surface);
+      const store = createViewerStore({
+        userId: TEST_USER_ID,
+        activityId: ACTIVITY,
+        versionId: VERSION,
+        checkService: service,
+      });
+      store.setGraphWork(transformCurve.id, {
+        interaction: 'transform_curve',
+        points: [[1, 1]],
+        equation: 'y = x^2',
+        dragged,
+      });
+      const utils = render(
+        <ViewerProvider store={store} defaultSectionId={SECTION}>
+          <InteractiveGraph block={transformCurve as never} mode="screen" />
+        </ViewerProvider>,
+      );
+      await waitFor(() => expect(fake.calls).toHaveLength(1));
+      const cfg = fake.calls[0] as Record<string, unknown>;
+      expect(cfg.initialEquation, `dragged=${dragged}`).toBe('y = x^2');
+      if (dragged) {
+        await waitFor(() => expect(fake.restored).toEqual([[[1, 1]]]));
+        expect(cfg.initialDragged).toBe(true);
+      } else {
+        expect(fake.restored).toEqual([]);
+        expect(cfg.initialDragged).toBeUndefined();
+      }
+      utils.unmount();
+      setGraphSurface(null);
+    }
   });
 
   it('carries no-solution and inequality choices through as work', async () => {

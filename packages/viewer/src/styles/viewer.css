@@ -1390,6 +1390,7 @@
 .viewer-matching__letter-line,
 .viewer-correspondence__letter-line,
 .viewer-ordering__number-box,
+.viewer-graph__equation-line,
 .viewer-print-header,
 .viewer-print-heading,
 [data-print-svg] {
@@ -1412,6 +1413,15 @@
 .viewer-ordering__number-box[data-answer-key],
 .viewer-mc__choice[data-answer-key] .viewer-mc__letter {
   display: inline-block;
+  font-weight: 700;
+}
+
+/* transform_curve's printed equation line: same marked-affordance rule — the
+   student's write line exists only on paper, but a key's FILLED line shows in
+   the teacher preview (a toggle whose effect only appears in the print dialog
+   reads as a toggle that does nothing). */
+.viewer-graph__equation-line[data-answer-key] {
+  display: block;
   font-weight: 700;
 }
 
@@ -1537,6 +1547,11 @@
    block's own `gap` lives inside @media print and therefore does not reach the
    on-screen preview, where a teacher would otherwise see "Name:____Date:____"
    run together. */
+/* transform_curve's equation write line is block-level, under the axes. */
+:where([data-viewer-mode='print']) .viewer-graph__equation-line {
+  display: block;
+}
+
 :where([data-viewer-mode='print']) .viewer-print-header {
   display: flex;
   flex-wrap: wrap;
@@ -2028,6 +2043,22 @@
        and correct for an element whose whole job is to be a writing line. */
     align-self: flex-end;
     margin-bottom: 0.15em;
+  }
+
+  /* ---- Treatment: static-svg + equation line (transform_curve) -----------
+     The typed half of the answer becomes a write line under the axes: the
+     student drags on screen AND types the equation, so paper needs somewhere
+     for the equation to be written. The blank is an empty inline span carrying
+     only a rule — same construction as the letter line. */
+  .viewer-graph__equation-line {
+    display: block;
+    margin: 0.4rem 0 0;
+  }
+
+  .viewer-graph__equation-blank {
+    display: inline-block;
+    min-width: 9rem;
+    border-bottom: 1px solid var(--vw-color-ink);
   }
 
   .viewer-matching__bank,

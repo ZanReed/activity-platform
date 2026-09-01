@@ -29,6 +29,8 @@ import {
   scorePoints,
   scoreFunction,
   fitFunction,
+  handlesForFamily,
+  pointsOnModel,
   scoreRay,
   scoreRayParts,
   scoreSegment,
@@ -44,6 +46,19 @@ import {
 } from './graph-score.js';
 import { parseGraphFormula, parsePointList, parseRaySegment } from './formula.js';
 
+/** Reserved transform_curve match tokens — they fire on locally derived
+ * CHANNEL OUTCOMES (drag right / type right) rather than on typed text.
+ * Authored matchers are predicates over work, never compared against student
+ * text, so — unlike the unit-blank twins — a student typing the literal token
+ * as their equation cannot summon these (it parses as no function). */
+export const DRAWN_NOT_WRITTEN_MATCH = 'drawn-not-written';
+export const WRITTEN_NOT_DRAWN_MATCH = 'written-not-drawn';
+
+export function isReservedTransformMatch(match: string): boolean {
+  const m = match.trim().toLowerCase();
+  return m === DRAWN_NOT_WRITTEN_MATCH || m === WRITTEN_NOT_DRAWN_MATCH;
+}
+
 // The student's current answer, as the widget knows it. One shape for every
 // interaction type — irrelevant fields are simply absent.
 export interface StudentGraphAnswer {
@@ -55,6 +70,11 @@ export interface StudentGraphAnswer {
   /** plot_ray / plot_segment: visible endpoint style choices (see
    *  LinearPieceStudentAnswer.endpointStyles). */
   endpointStyles?: ('open' | 'closed')[];
+  /** transform_curve: the typed equation, parsed ONCE by the caller (null =
+   *  typed nothing or typed no function). */
+  typedModel?: FunctionModel | null;
+  /** transform_curve: the drag channel's answered bit (see GraphWork.dragged). */
+  dragged?: boolean;
 }
 
 // Coerce a StudentGraphAnswer into the linear-piece scorer's shape.
@@ -67,6 +87,33 @@ function toLinearAnswer(ans: StudentGraphAnswer): LinearPieceStudentAnswer {
     shape: ans.shape ?? null,
     endpointStyles: ans.endpointStyles ?? [],
   };
+}
+
+// A parsed model restated as points on its own curve, so model-vs-model
+// comparison rides the ordinary fit-and-compare scorer (one engine, one
+// tolerance semantics). Window matches the server's typed-channel sampler.
+const MODEL_SAMPLE_WINDOW = {
+  xMin: -10,
+  xMax: 10,
+  yMin: -10,
+  yMax: 10,
+  xGridStep: 1,
+  yGridStep: 1,
+};
+
+function modelStatesModel(
+  expected: FunctionModel,
+  actual: FunctionModel,
+): boolean {
+  const sampled = pointsOnModel(
+    actual,
+    MODEL_SAMPLE_WINDOW,
+    handlesForFamily(actual.family),
+  );
+  return (
+    sampled.length >= handlesForFamily(expected.family) &&
+    scoreFunction(expected, sampled)
+  );
 }
 
 // ---- 1. Authored anticipated mistakes ---------------------------------------
@@ -82,8 +129,9 @@ export interface MistakeCompileContext {
   /** plot_point: the answer key's tolerance, reused for match comparison.
    *  plot_ray / plot_segment reuse it as the endpoint tolerance. */
   pointTolerance?: number;
-  /** plot_function / graph_inequality: the key's model — same-family matches
-   *  inherit its tuned tolerances so "match" and "score" agree on closeness. */
+  /** plot_function / graph_inequality / transform_curve: the key's model —
+   *  same-family matches inherit its tuned tolerances so "match" and "score"
+   *  agree on closeness. */
   keyModel?: FunctionModel;
 }
 
@@ -152,6 +200,47 @@ export function compileMistakeMatchers(
         return { index, test: (ans) => scoreSegment(key, toLinearAnswer(ans)) };
       }
       return never;
+    }
+    if (ctx.interactionType === 'transform_curve') {
+      const key = ctx.keyModel;
+      // Reserved outcome tokens: fire on the CHANNEL DISAGREEMENT, locally
+      // derived (the unit-blank pattern — no verdict threading).
+      const reserved = raw.trim().toLowerCase();
+      if (reserved === DRAWN_NOT_WRITTEN_MATCH) {
+        return {
+          index,
+          test: (ans) => {
+            if (!key) return false;
+            const dragOk = ans.dragged === true && scoreFunction(key, ans.points);
+            const typeOk =
+              ans.typedModel != null && modelStatesModel(key, ans.typedModel);
+            return dragOk && !typeOk;
+          },
+        };
+      }
+      if (reserved === WRITTEN_NOT_DRAWN_MATCH) {
+        return {
+          index,
+          test: (ans) => {
+            if (!key) return false;
+            const dragOk = ans.dragged === true && scoreFunction(key, ans.points);
+            const typeOk =
+              ans.typedModel != null && modelStatesModel(key, ans.typedModel);
+            return typeOk && !dragOk;
+          },
+        };
+      }
+      // An ordinary authored wrong answer matches whichever CHANNEL
+      // demonstrates it — the student who dragged the +2 shift and the student
+      // who typed it made the same mistake.
+      if (parsed.kind !== 'function') return never;
+      const model = withKeyTolerances(parsed.model, ctx.keyModel);
+      return {
+        index,
+        test: (ans) =>
+          (ans.dragged === true && scoreFunction(model, ans.points)) ||
+          (ans.typedModel != null && modelStatesModel(model, ans.typedModel)),
+      };
     }
     if (ctx.interactionType === 'graph_inequality') {
       if (parsed.kind === 'inequality') {

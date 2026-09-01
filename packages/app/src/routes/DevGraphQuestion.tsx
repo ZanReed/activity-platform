@@ -28,6 +28,8 @@ interface Scenario {
   hint: string;
   /** Static display figure: mounts mountGraphDisplay with these instead. */
   displayDrawables?: unknown[];
+  /** Extra mount-config fields (transform_curve: startModel/requireEquation). */
+  extraConfig?: Record<string, unknown>;
 }
 
 const SCENARIOS: Record<string, Scenario> = {
@@ -98,6 +100,32 @@ const SCENARIOS: Record<string, Scenario> = {
     },
     restorePoints: [[1, 0], [2, 2], [5, 4]],
     hint: 'THREE handles; the curve exists only for x ≥ h.',
+  },
+  transform: {
+    label: 'Transform a curve — x² → (x − 2)² + 1, typed equation required',
+    interactionType: 'transform_curve',
+    answerKey: {
+      models: [{ family: 'quadratic', a: 1, b: -4, c: 5, aTolerance: 0.2, bTolerance: 0.4, cTolerance: 0.4 }],
+    },
+    extraConfig: {
+      startModel: { family: 'quadratic', a: 1, b: 0, c: 0, aTolerance: 0.2, bTolerance: 0.4, cTolerance: 0.4 },
+      requireEquation: true,
+    },
+    restorePoints: [[0, 5], [2, 1], [4, 5]],
+    hint: 'Dashed parent shows; drag the handles onto (x−2)²+1 AND type the equation (y = (x-2)^2+1). The dotted green curve previews what you typed. Correct needs BOTH.',
+  },
+  transformDrag: {
+    label: 'Transform a curve — |x| → |x + 3| − 2, drag only',
+    interactionType: 'transform_curve',
+    answerKey: {
+      models: [{ family: 'absolute', a: 1, h: -3, k: -2, aTolerance: 0.2, hTolerance: 0.2, kTolerance: 0.2 }],
+    },
+    extraConfig: {
+      startModel: { family: 'absolute', a: 1, h: 0, k: 0, aTolerance: 0.2, hTolerance: 0.2, kTolerance: 0.2 },
+      requireEquation: false,
+    },
+    restorePoints: [[-5, 0], [-3, -2], [-1, 0]],
+    hint: 'requireEquation:false — no equation field; the drag alone decides.',
   },
   exponential: {
     label: 'Plot a function — exponential y = 2ˣ',
@@ -283,6 +311,7 @@ export default function DevGraphQuestion() {
           xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,
         },
         answerKey: scenario.answerKey,
+        ...scenario.extraConfig,
       },
       {
         onChange: (r) => {

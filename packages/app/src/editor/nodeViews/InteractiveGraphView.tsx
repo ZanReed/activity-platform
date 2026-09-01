@@ -44,6 +44,7 @@ import {
     defaultRayInteraction,
     defaultRegionInteraction,
     defaultSegmentInteraction,
+    defaultTransformCurveInteraction,
     type DrawableAttr,
     type FunctionModelAttr,
     type GraphAxisConfig,
@@ -600,9 +601,11 @@ export default function InteractiveGraphView({
                     ? defaultRayInteraction()
                     : type === 'plot_segment'
                       ? defaultSegmentInteraction()
-                      : type === 'display'
-                        ? defaultDisplayInteraction()
-                        : defaultPointInteraction();
+                      : type === 'transform_curve'
+                        ? defaultTransformCurveInteraction()
+                        : type === 'display'
+                          ? defaultDisplayInteraction()
+                          : defaultPointInteraction();
         updateAttributes({ interaction: next });
     };
 
@@ -776,7 +779,9 @@ export default function InteractiveGraphView({
                     ? formatRay(firstRay(interaction.rays))
                     : interaction.type === 'plot_segment'
                       ? formatSegment(firstSegment(interaction.segments))
-                      : '';
+                      : interaction.type === 'transform_curve'
+                        ? formatModel(firstModel(interaction.models))
+                        : '';
 
     // A system (graph_inequality with N > 1 inequalities) previews as N shaded
     // half-planes on a static display board — the overlap darkens into the
@@ -793,6 +798,17 @@ export default function InteractiveGraphView({
                   shade: ineq.shadeSide,
                   color: SYSTEM_PREVIEW_COLORS[i % SYSTEM_PREVIEW_COLORS.length],
               }))
+            : [];
+    // transform_curve authors by TYPING both halves; the board is a static
+    // preview — start dashed in a neutral ink, target solid — exactly the
+    // figure a student starts from plus where it must land.
+    const isTransform = interaction.type === 'transform_curve';
+    const transformPreviewDrawables: DrawableAttr[] =
+        interaction.type === 'transform_curve'
+            ? [
+                  { kind: 'curve' as const, model: interaction.start, style: 'dashed' as const, color: 'slate' as const },
+                  { kind: 'curve' as const, model: firstModel(interaction.models) },
+              ]
             : [];
     // A functions-system (plot_function with N > 1 models) previews as N plain
     // curves (no shade) — the Phase 2 sibling of the inequality system preview.
@@ -813,6 +829,25 @@ export default function InteractiveGraphView({
         const err = applyFormulaInner(raw);
         if (err === null) setFormulaEpoch((e) => e + 1);
         return err;
+    };
+
+    // transform_curve's SECOND field: the start curve the student is shown.
+    // Question material, not an answer \u2014 but it authors with the same typed
+    // grammar, minus verticals (nothing to transform along y).
+    const applyStartFormula = (raw: string): string | null => {
+        if (interaction.type !== 'transform_curve') return 'Not a transform question';
+        const parsed = parseGraphFormula(raw);
+        if (parsed.kind === 'error') return parsed.message;
+        if (parsed.kind !== 'function') return 'Type an equation, like y = x^2';
+        if (parsed.domain) return 'The start curve can\u2019t have a range \u2014 remove the "for \u2026" clause';
+        if ((parsed.model as FunctionModelAttr).family === 'vertical') {
+            return 'A vertical line can\u2019t be the start curve';
+        }
+        updateAttributes({
+            interaction: { ...interaction, start: parsed.model as FunctionModelAttr },
+        });
+        setFormulaEpoch((e) => e + 1);
+        return null;
     };
 
     const applyFormulaInner = (raw: string): string | null => {
@@ -903,6 +938,19 @@ export default function InteractiveGraphView({
             const route = routeCurveFormula(raw);
             if (!route.ok) return route.message;
             updateAttributes({ interaction: route.interaction });
+            return null;
+        }
+        if (interaction.type === 'transform_curve') {
+            const parsed = parseGraphFormula(raw);
+            if (parsed.kind === 'error') return parsed.message;
+            if (parsed.kind !== 'function') return 'Type an equation, like y = (x - 2)^2 + 1';
+            if (parsed.domain) return 'A transform target can\u2019t have a range \u2014 remove the "for \u2026" clause';
+            if ((parsed.model as FunctionModelAttr).family === 'vertical') {
+                return 'A vertical line can\u2019t be a transform target';
+            }
+            updateAttributes({
+                interaction: { ...interaction, models: [parsed.model as FunctionModelAttr] },
+            });
             return null;
         }
         if (interaction.type === 'plot_function') {
@@ -1022,6 +1070,7 @@ export default function InteractiveGraphView({
                             >
                                 <option value="plot_point">Plot a point</option>
                                 <option value="plot_function">Plot a function</option>
+                                <option value="transform_curve">Transform a curve</option>
                                 <option value="graph_inequality">Graph an inequality</option>
                                 <option value="plot_ray">Draw a ray or segment</option>
                                 <option value="shade_region">Shade a region</option>
@@ -1065,14 +1114,21 @@ export default function InteractiveGraphView({
                                 on paper or a Chromebook. Two columns (or full width) reads better.
                             </p>
                         )}
-                        {isSystem || isFunctionSystem ? (
+                        {isSystem || isFunctionSystem || isTransform ? (
                             // A system authors via the typed rows below; the board is
                             // a static preview of the N objects (the single-object
                             // interactive author board can't hold N). Inequalities
                             // shade half-planes; functions draw N plain curves.
+                            // transform_curve previews start (dashed) + target.
                             <DisplayPreviewBoard
                                 axisConfig={axisConfig}
-                                drawables={isSystem ? systemPreviewDrawables : functionPreviewDrawables}
+                                drawables={
+                                    isSystem
+                                        ? systemPreviewDrawables
+                                        : isTransform
+                                          ? transformPreviewDrawables
+                                          : functionPreviewDrawables
+                                }
                                 sizing={sizing}
                             />
                         ) : (
@@ -1208,15 +1264,29 @@ export default function InteractiveGraphView({
                                     ? 'Type the inequality below — the sign sets dotted/solid and the shaded side. Drag the handles to move the boundary. '
                                     : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                       ? 'Drag the two handles, then use the buttons on the graph to choose ray or segment and open/closed endpoints — exactly what students will do. Or type it below. '
-                                      : 'Drag the handles — or type the equation below in any format. Add a range (e.g. "for -2 <= x <= 3") to bound the curve; a straight line with a range becomes a ray or segment. '}
+                                      : interaction.type === 'transform_curve'
+                                        ? 'Students drag the dashed start curve onto the target — and type its equation. Type both curves below; the preview shows start (dashed) and target. '
+                                        : 'Drag the handles — or type the equation below in any format. Add a range (e.g. "for -2 <= x <= 3") to bound the curve; a straight line with a range becomes a ray or segment. '}
                         </p>
+                        {interaction.type === 'transform_curve' && (
+                            <FormulaField
+                                key="start:transform_curve"
+                                label="Start (shown):"
+                                value={formatModel(interaction.start)}
+                                disabled={!isEditable}
+                                placeholder="y = x^2   ·   y = |x|   ·   y = sqrt(x)"
+                                onApply={applyStartFormula}
+                                modeKey="start:transform_curve"
+                                defaultMode="math"
+                            />
+                        )}
                         <FormulaField
                             // Remount on question-type switch so the input mode
                             // re-derives from the new type's preference group
                             // (state would otherwise carry math-mode onto a
                             // ray/segment answer, or vice versa).
                             key={`answer:${interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}`}
-                            label="Answer:"
+                            label={interaction.type === 'transform_curve' ? 'Target (answer):' : 'Answer:'}
                             value={answerText}
                             disabled={!isEditable}
                             placeholder={
@@ -1228,7 +1298,9 @@ export default function InteractiveGraphView({
                                         ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
                                         : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                           ? 'ray (1, 2) through (3, 4) open   ·   segment (1, 2) to (3, 4)'
-                                          : 'y = 2x + 3   ·   x^2 - 4   ·   y = x^2 - 4 for -2 <= x <= 3   ·   x = 4'
+                                          : interaction.type === 'transform_curve'
+                                            ? 'y = (x - 2)^2 + 1   ·   y = -|x + 3|   ·   y = sqrt(x - 1) + 2'
+                                            : 'y = 2x + 3   ·   x^2 - 4   ·   y = x^2 - 4 for -2 <= x <= 3   ·   x = 4'
                             }
                             onApply={applyFormula}
                             // Math mode (LaTeX-rendered input) is the default for

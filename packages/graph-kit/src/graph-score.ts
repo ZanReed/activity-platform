@@ -323,6 +323,118 @@ function xSpread(points: [number, number][]): number {
   return max - min;
 }
 
+// ---- model evaluation (shared by widgets, matchers, and the type channel) ---
+
+/** y = f(x) for any y-of-x family; null for vertical (no y = f(x) exists). */
+export function modelToPredict(
+  model: FunctionModel,
+): ((x: number) => number) | null {
+  switch (model.family) {
+    case 'linear':
+      return (x) => model.slope * x + model.intercept;
+    case 'quadratic':
+      return (x) => model.a * x * x + model.b * x + model.c;
+    case 'cubic':
+      return (x) => ((model.a * x + model.b) * x + model.c) * x + model.d;
+    case 'quartic':
+      return (x) =>
+        (((model.a * x + model.b) * x + model.c) * x + model.d) * x + model.e;
+    case 'absolute':
+      return (x) => model.a * Math.abs(x - model.h) + model.k;
+    case 'sqrt':
+      return (x) => (x >= model.h ? model.a * Math.sqrt(x - model.h) + model.k : NaN);
+    case 'exponential':
+      return (x) => model.a * Math.pow(model.b, x);
+    case 'logarithmic':
+      return (x) => (x > 0 ? model.a + model.b * Math.log(x) : NaN);
+    case 'vertical':
+      return null;
+  }
+}
+
+/**
+ * N finite points ON the model's own curve, spread across the window with the
+ * family's domain respected (sqrt starts at h, log at x > 0). The transform
+ * widget seeds its handles with these (the student drags the PARENT curve),
+ * and the grader's typed-channel comparison samples a parsed model into
+ * points the ordinary fit-and-compare scorer can consume. Vertical yields the
+ * two-point vertical pair.
+ */
+export function pointsOnModel(
+  model: FunctionModel,
+  win: SeedWindow,
+  count: number,
+): [number, number][] {
+  if (model.family === 'vertical') {
+    const span = win.yMax - win.yMin || 1;
+    return [
+      [model.x, win.yMin + span * 0.3],
+      [model.x, win.yMin + span * 0.7],
+    ];
+  }
+  const predict = modelToPredict(model)!;
+  let lo = win.xMin;
+  const hi = win.xMax;
+  if (model.family === 'sqrt') lo = Math.max(lo, model.h);
+  if (model.family === 'logarithmic') lo = Math.max(lo, win.xGridStep / 4);
+  const clampX = (x: number): number => Math.min(Math.max(x, lo), hi);
+  // The kinked/rooted families pick xs around their own feature point, so the
+  // three seeds always witness the shape (three same-branch points on a V are
+  // collinear and the fitter rightly refuses them).
+  let xs: number[];
+  if (model.family === 'absolute') {
+    const g = win.xGridStep * 2;
+    xs = [clampX(model.h - g), clampX(model.h), clampX(model.h + g)];
+  } else if (model.family === 'sqrt') {
+    const g = win.xGridStep;
+    xs = [clampX(model.h), clampX(model.h + g), clampX(model.h + 4 * g)];
+  } else {
+    // Spread seeds only where the curve stays IN the y-window: the board
+    // clamps every handle to the window, and a clamped seed is no longer on
+    // the model — three clamped seeds fit a FLATTER curve, so the mounted
+    // solid curve disagrees with the dashed parent it claims to sit on
+    // (found live in /dev/graph-question: x² seeded (±5, 25) clamped to
+    // (±5, 10) and mounted as 0.4x²). Same shrink rule as the editor's
+    // functionStartPoints; only tighten when a meaningful in-window span
+    // remains, else keep the full range.
+    const STEPS = 200;
+    let firstIn = Infinity;
+    let lastIn = -Infinity;
+    for (let i = 0; i <= STEPS; i++) {
+      const x = lo + ((hi - lo) * i) / STEPS;
+      const y = predict(x);
+      if (Number.isFinite(y) && y >= win.yMin && y <= win.yMax) {
+        firstIn = Math.min(firstIn, x);
+        lastIn = Math.max(lastIn, x);
+      }
+    }
+    const tighten = firstIn < lastIn && lastIn - firstIn >= (hi - lo) * 0.1;
+    const sLo = tighten ? firstIn : lo;
+    const sHi = tighten ? lastIn : hi;
+    // GRID-ALIGNED xs, not an even spread: snapToGrid boards snap the seed
+    // handles at creation, so an off-grid seed lands off the curve anyway
+    // (x = −1.58 on x² snapped to (−2, 2), and the fit disagreed with the
+    // parent again — the second half of the same live bug). On a grid x an
+    // integer-coefficient parent gives a grid (or near-grid) y, so the snap
+    // is a no-op where it matters. Collisions nudge one step apart.
+    const step = win.xGridStep || 1;
+    xs = [];
+    for (let i = 0; i < count; i++) {
+      const raw = sLo + ((sHi - sLo) * (i + 1)) / (count + 1);
+      let x = Math.round(raw / step) * step;
+      const prev = xs[xs.length - 1];
+      if (prev !== undefined && x <= prev) x = prev + step;
+      xs.push(Math.min(Math.max(x, sLo), sHi));
+    }
+  }
+  const out: [number, number][] = [];
+  for (const x of xs) {
+    const y = predict(x);
+    if (Number.isFinite(y)) out.push([x, y]);
+  }
+  return out;
+}
+
 // ---- absolute + sqrt: geometric fitters (the transformation parents) --------
 // These live HERE rather than in regression.ts (vertical's precedent,
 // sharpened): they are question fitters with no calculator regression to

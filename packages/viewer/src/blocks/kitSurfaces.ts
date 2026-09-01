@@ -46,6 +46,11 @@ export interface GraphSurfaceResponse {
    * a shape is what the student drew, not whether it was right. */
   shape?: 'ray_positive' | 'ray_negative' | 'segment';
   endpointStyles?: Array<'open' | 'closed'>;
+  /** transform_curve: the typed equation (ascii-math) + the drag channel's
+   * answered bit. Work-only still holds — a typed equation is what the
+   * student wrote, not whether it was right (the server parses and judges). */
+  equation?: string;
+  dragged?: boolean;
 }
 
 export interface GraphSurfaceConfig {
@@ -57,6 +62,15 @@ export interface GraphSurfaceConfig {
     vertexCount?: number;
   };
   allowNoSolution?: boolean;
+  /** transform_curve: the SHOWN parent curve (served interaction material —
+   * the sanitizer deliberately leaves `interaction.start`; it is the
+   * question). Raw model object, passed to the kit verbatim. */
+  startModel?: unknown;
+  requireEquation?: boolean;
+  /** transform_curve reload: the buffered work's typed equation + drag bit,
+   * so a restored board keeps both channels answered. */
+  initialEquation?: string;
+  initialDragged?: boolean;
 }
 
 export interface GraphSurfaceHandle {
@@ -97,6 +111,10 @@ const kitSurface: GraphSurface = async (mount, config, hooks) => {
       // No answerKey — ungraded input mode. The server grades.
       questionShape: config.questionShape,
       allowNoSolution: config.allowNoSolution,
+      startModel: config.startModel,
+      requireEquation: config.requireEquation,
+      initialEquation: config.initialEquation,
+      initialDragged: config.initialDragged,
     },
     {
       onChange: (resp) => hooks.onChange?.(toSurfaceResponse(resp)),
@@ -123,6 +141,8 @@ function toSurfaceResponse(resp: {
   shape?: 'ray_positive' | 'ray_negative' | 'segment';
   fromStyle?: 'open' | 'closed';
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
+  equation?: string;
+  dragged?: boolean;
 }): GraphSurfaceResponse {
   // The kit reports a ray's single endpoint style as `fromStyle` and a
   // segment's pair as `endpoints`; the wire carries one ordered array for
@@ -138,6 +158,8 @@ function toSurfaceResponse(resp: {
     ...(resp.domain !== undefined ? { domain: resp.domain } : {}),
     ...(resp.shape !== undefined ? { shape: resp.shape } : {}),
     ...(endpointStyles !== undefined ? { endpointStyles } : {}),
+    ...(resp.equation !== undefined ? { equation: resp.equation } : {}),
+    ...(resp.dragged !== undefined ? { dragged: resp.dragged } : {}),
   };
 }
 

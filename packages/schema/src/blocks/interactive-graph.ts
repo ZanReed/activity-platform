@@ -206,6 +206,29 @@ export const SegmentInteraction = z.object({
 });
 export type SegmentInteraction = z.infer<typeof SegmentInteraction>;
 
+// ---- transform_curve: drag-then-type (wishlist #5) ---------------------------
+// A SHOWN parent curve (`start` — display material, deliberately NOT stripped:
+// it is the question), which the student transforms by dragging plot_function-
+// style handles AND states by typing the equation in a math field. The two
+// channels are scored independently server-side and BOTH must be right; their
+// disagreement is the diagnostic (the reserved mistake matches
+// `drawn-not-written` / `written-not-drawn` bind it to mis.* ids). Design:
+// docs/design/draggable-curve.md (D1–D10 as amended A1–A7 + author rulings).
+export const TransformCurveInteraction = z.object({
+  type: z.literal('transform_curve'),
+  // The parent curve the student sees and transforms. Vertical is not a
+  // y = f(x) parent; the schema still admits it (FunctionModel is one union),
+  // and the editor steers away from it.
+  start: FunctionModel,
+  // The target — one model (the array shape matches plot_function so shared
+  // machinery reads both; systems of transforms are not a v1 feature).
+  models: z.array(FunctionModel).min(1).max(1),
+  // false = drag-only (a plot_function with a shown start curve). Default true:
+  // the typed channel is the point of the variant.
+  requireEquation: z.boolean().default(true),
+});
+export type TransformCurveInteraction = z.infer<typeof TransformCurveInteraction>;
+
 // The interaction union. plot_point + plot_function + shade_region are graded;
 // display is the ungraded static graph. More are future members. Kept
 // discriminated on `type` so the wire format always carries it and consumers
@@ -217,6 +240,7 @@ export const GraphInteraction = z.discriminatedUnion('type', [
   InequalityInteraction,
   RayInteraction,
   SegmentInteraction,
+  TransformCurveInteraction,
   DisplayInteraction,
 ]);
 export type GraphInteraction = z.infer<typeof GraphInteraction>;

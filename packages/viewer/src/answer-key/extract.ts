@@ -36,6 +36,7 @@
 // =============================================================================
 
 import { answerKeyDrawables, answerKeyMarks } from '@activity/graph-kit/static-svg';
+import { formatModel } from '@activity/graph-kit/model-format';
 import type { ActivityDocument, Block } from '@activity/schema';
 import { childBlocksOf, looksLikeBlockArray } from '../container/blockIndex.js';
 import { familyOf } from '../registry/registry.js';
@@ -135,12 +136,21 @@ function extractByType(block: Block): BlockAnswerKey {
 
     case 'interactive_graph': {
       const graphOverlay = answerKeyDrawables(block);
+      // transform_curve grades TWO channels (drag + typed equation, design
+      // A2/A3), so the key must show both: the overlay draws the target curve
+      // and this string fills the printed equation line.
+      const target =
+        block.interaction?.type === 'transform_curve' &&
+        block.interaction.requireEquation !== false
+          ? block.interaction.models[0]
+          : undefined;
+      const equationKey = target ? { graphEquation: formatModel(target) } : {};
       // noSolutionCorrect draws NOTHING on purpose (the stored key is a decoy).
       // Flagged so the key can say "no solution" instead of printing a blank
       // grid a teacher cannot distinguish from a missing answer.
       return block.noSolutionCorrect
-        ? { graphOverlay, graphNoSolution: true }
-        : { graphOverlay };
+        ? { graphOverlay, graphNoSolution: true, ...equationKey }
+        : { graphOverlay, ...equationKey };
     }
 
     case 'number_line':

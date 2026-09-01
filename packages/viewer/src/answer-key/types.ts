@@ -69,6 +69,12 @@ export interface BlockAnswerKey {
    * grid cannot tell which they are looking at.
    */
   readonly graphNoSolution?: true;
+  /**
+   * transform_curve only: the target equation, formatted for the printed key's
+   * equation line. The typed channel's half of the two-channel answer — the
+   * drawn half rides `graphOverlay`.
+   */
+  readonly graphEquation?: string;
   /** Marks the number-line twin overlays (points, or an interval/ray). */
   readonly numberLineMarks?: readonly NumberLineMark[];
   /**

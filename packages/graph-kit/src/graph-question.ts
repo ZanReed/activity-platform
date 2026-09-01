@@ -31,6 +31,8 @@ import {
   fitFunction,
   handlesForFamily,
   startsForFamily,
+  modelToPredict,
+  pointsOnModel,
   type SeedWindow,
   type PointAnswerKey,
   type FunctionModel,
@@ -53,6 +55,7 @@ import {
   detectBoardTheme,
   type ChromeColors,
 } from './graph-colors.js';
+import { parseGraphFormula } from './formula.js';
 
 const isPointPair = (p: unknown): p is [number, number] =>
   Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number';
@@ -458,6 +461,20 @@ export interface GraphQuestionConfig {
   allowNoSolution?: boolean;
   /** Trick question: no-solution IS the correct answer (Drop 4). */
   noSolutionCorrect?: boolean;
+  /**
+   * transform_curve: the SHOWN parent curve (raw FunctionModel object). NOT
+   * answer material — it is the question — so the served interaction carries
+   * it and the viewer passes it through here. Handles seed ON this curve and
+   * it draws muted+dashed under the student's own.
+   */
+  startModel?: unknown;
+  /** transform_curve: false = drag-only (no equation field). Default true. */
+  requireEquation?: boolean;
+  /** transform_curve reload: the previously typed equation (ascii-math). */
+  initialEquation?: string;
+  /** transform_curve reload: the restored work HAD been dragged, so the drag
+   *  channel stays answered even though this board hasn't moved yet. */
+  initialDragged?: boolean;
 }
 
 // What the widget reports on every change and at gather time. `answered` lets
@@ -489,6 +506,14 @@ export interface GraphResponseData {
   /** plot_ray / plot_segment: the student's chosen shape (ray direction or
    *  segment). Absent while unchosen — an unanswered part. */
   shape?: LinearShape;
+  /** transform_curve: the typed equation (ascii-math mirror). Absent while
+   *  untyped — the typed channel is then unanswered. */
+  equation?: string;
+  /** transform_curve: true once a handle actually MOVED (or the restored work
+   *  had moved). Load-bearing: the equation field forces emits that carry the
+   *  seed positions, which sit ON the parent curve — without this flag a
+   *  type-only student would read as having drawn the parent (design A1). */
+  dragged?: boolean;
   /** plot_ray: the drawn endpoint's open/closed choice. */
   fromStyle?: 'open' | 'closed';
   /** plot_segment: per-endpoint open/closed, canonical order (lesser first). */
@@ -700,6 +725,7 @@ export async function mountGraphQuestion(
   const isInequality = interactionType === 'graph_inequality';
   const isRay = interactionType === 'plot_ray';
   const isSegment = interactionType === 'plot_segment';
+  const isTransform = interactionType === 'transform_curve';
   // Ungraded input mode: no key, so nothing here scores or classifies. See
   // GraphQuestionConfig.answerKey.
   const ungraded = cfg.answerKey === undefined || cfg.answerKey === null;
@@ -710,6 +736,15 @@ export async function mountGraphQuestion(
     interactionType === 'plot_function' && !ungraded
       ? readDomainKey(cfg.answerKey)
       : null;
+  // transform_curve: the parent curve comes from the CONFIG (the served
+  // interaction carries it — it is the question, not the key); the target
+  // model comes from the key when one exists (published/editor/dev-harness
+  // mounts). Handles seed ON the parent, and the fit family is the parent's —
+  // a transformed |x| is still an |x|.
+  const startModel = isTransform && cfg.startModel ? parseModel(cfg.startModel) : null;
+  const transformKey =
+    isTransform && !ungraded ? readModel(cfg.answerKey) : null;
+  const requireEquation = isTransform && cfg.requireEquation !== false;
   const recipe: Recipe = isInequality
     ? // Boundary rides the plot_function machinery for its family.
       ungraded
@@ -719,7 +754,25 @@ export async function mountGraphQuestion(
       ? // Two endpoint handles; scoring is parts-based in build() (styles ride
         // alongside points), so the recipe scorer is a stub.
         { count: 2, scorer: () => false }
-      : questionRecipe(interactionType, cfg.answerKey, axis, cfg.questionShape);
+      : isTransform
+        ? (() => {
+            const family = (startModel ?? transformKey)?.family ?? 'linear';
+            const count = handlesForFamily(family);
+            return {
+              count,
+              starts: startModel
+                ? pointsOnModel(startModel, axis, count)
+                : startsForFamily(family, axis, count),
+              scorer: (pts) =>
+                transformKey !== null && scoreFunction(transformKey, pts),
+              deriveCurve: (pts) => {
+                const f = fitFunction(family, pts);
+                return f && 'predict' in f ? f.predict : null;
+              },
+              lineThroughHandles: family === 'vertical',
+            } satisfies Recipe;
+          })()
+        : questionRecipe(interactionType, cfg.answerKey, axis, cfg.questionShape);
 
   // The renderer seeds a static no-JS placeholder inside the canvas; clear it
   // before JSXGraph mounts so the two don't overlap.
@@ -734,6 +787,11 @@ export async function mountGraphQuestion(
   const { createPointAnswerBoard } = await import('./board.js');
 
   let answered = false;
+  // transform_curve: the typed equation (ascii-math mirror) and whether the
+  // drag channel has genuinely been answered. `dragged` starts from the
+  // restored work's flag — a reloaded board hasn't moved, but the student had.
+  let equation = isTransform ? (cfg.initialEquation ?? '') : '';
+  const restoredDragged = isTransform && cfg.initialDragged === true;
   // graph_inequality student choices. strict defaults to false (solid) — a
   // visible default the student must actively flip for a strict inequality.
   let strict = false;
@@ -811,6 +869,36 @@ export async function mountGraphQuestion(
       resp.correct = parts.boundary && sideOk && parts.style;
       return resp;
     }
+    if (isTransform) {
+      const dragged = restoredDragged || board.hasMoved();
+      if (dragged) resp.dragged = true;
+      const typed = equation.trim();
+      if (typed !== '') resp.equation = typed;
+      resp.answered = dragged || typed !== '';
+      // Local verdict only for keyed mounts (dev harness / editor preview);
+      // the viewer mounts ungraded and the server is the authority.
+      const dragOk = dragged && recipe.scorer(pts);
+      if (!requireEquation) {
+        resp.correct = dragOk;
+        return resp;
+      }
+      let typeOk = false;
+      if (typed !== '' && transformKey) {
+        const parsedTyped = parseGraphFormula(typed);
+        if (parsedTyped.kind === 'function') {
+          const sampled = pointsOnModel(
+            parsedTyped.model,
+            axis,
+            handlesForFamily(parsedTyped.model.family),
+          );
+          typeOk =
+            sampled.length >= handlesForFamily(transformKey.family) &&
+            scoreFunction(transformKey, sampled);
+        }
+      }
+      resp.correct = dragOk && typeOk;
+      return resp;
+    }
     resp.correct = recipe.scorer(pts);
     if (domainKey) {
       const xs = board.getDomainXs?.() ?? {};
@@ -859,6 +947,12 @@ export async function mountGraphQuestion(
         : undefined,
       shadeBoundary: isInequality,
       polygon: recipe.polygon,
+      ...(isTransform && startModel
+        ? (() => {
+            const fn = modelToPredict(startModel);
+            return fn ? { fixedCurve: fn } : {};
+          })()
+        : {}),
     },
     { onMove: handleMove, onSideClick: pickSide },
   );
@@ -909,7 +1003,14 @@ export async function mountGraphQuestion(
   let minStyleBtn: HTMLButtonElement | null = null;
   let maxStyleBtn: HTMLButtonElement | null = null;
 
-  if (isInequality || cfg.allowNoSolution || domainKey || isRay || isSegment) {
+  if (
+    isInequality ||
+    cfg.allowNoSolution ||
+    domainKey ||
+    isRay ||
+    isSegment ||
+    requireEquation
+  ) {
     const bar = document.createElement('div');
     bar.style.cssText =
       'position:absolute;left:0;right:0;bottom:0;display:flex;gap:0.35rem;' +
@@ -979,6 +1080,62 @@ export async function mountGraphQuestion(
         hooks.onChange?.(build());
       });
       bar.append(noSolBtn);
+    }
+    if (requireEquation) {
+      // The typed channel: a real math field (author ruling — not a plain
+      // ASCII input), mounted lazily like the board so MathLive stays out of
+      // the graph chunk until a transform question actually renders. The
+      // stored/reported form is the ascii-math mirror (MA-D3), which the
+      // server's shared parser reads.
+      const holder = document.createElement('div');
+      holder.style.cssText =
+        'display:flex;align-items:center;gap:0.35rem;flex:1;min-width:12rem;';
+      const label = document.createElement('span');
+      label.textContent = 'y =';
+      label.style.cssText = `color:${chrome.pillText};font:600 0.85rem system-ui;`;
+      holder.append(label);
+      bar.append(holder);
+      void (async () => {
+        const [{ MathfieldElement }, { configureMathLive }] = await Promise.all([
+          import('mathlive'),
+          import('./mathlive-setup.js'),
+        ]);
+        configureMathLive();
+        const field = new MathfieldElement();
+        field.mathVirtualKeyboardPolicy = 'manual';
+        field.style.cssText =
+          'flex:1;min-width:10rem;font-size:1rem;border-radius:6px;';
+        field.setAttribute('aria-label', 'Type the equation (right-hand side)');
+        if (equation) {
+          const { asciiToLatex } = await import('./math-prompt-convert.js');
+          field.value = asciiToLatex(equation.replace(/^y\s*=\s*/i, ''));
+        }
+        // The live preview of the typed curve (D3 as overruled): parse the
+        // ascii mirror with the same shared parser the server grades with and
+        // draw a dotted "where your equation lands" curve. A non-function (or
+        // unparsable, or vertical) entry clears it rather than guessing.
+        const syncPreview = (): void => {
+          if (equation === '') {
+            board.setPreviewCurve(null);
+            return;
+          }
+          const parsed = parseGraphFormula(equation);
+          board.setPreviewCurve(
+            parsed.kind === 'function' ? modelToPredict(parsed.model) : null,
+          );
+        };
+        field.addEventListener('input', async () => {
+          const { latexToAscii } = await import('./math-prompt-convert.js');
+          const ascii = latexToAscii(field.getValue('latex')).trim();
+          equation = ascii === '' ? '' : `y = ${ascii}`;
+          syncPreview();
+          hooks.onChange?.(build());
+        });
+        // A restored equation previews immediately — the reload should look
+        // exactly like the moment the student left.
+        syncPreview();
+        holder.append(field);
+      })();
     }
     mount.appendChild(bar);
     syncBar();

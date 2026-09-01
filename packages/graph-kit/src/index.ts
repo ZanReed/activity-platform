@@ -228,6 +228,9 @@ export {
   classifyPointMistake,
   classifyFunctionMistake,
   classifyInequalityMistake,
+  DRAWN_NOT_WRITTEN_MATCH,
+  WRITTEN_NOT_DRAWN_MATCH,
+  isReservedTransformMatch,
 } from './mistakes.js';
 
 // The freeform teacher command line (Drop 3): parse ANY equation/inequality/

@@ -13,7 +13,8 @@
     "./formula": "./src/formula.ts",
     "./math-prompt-convert": "./src/math-prompt-convert.ts",
     "./scorers": "./src/scorers.ts",
-    "./static-svg": "./src/static-svg.ts"
+    "./static-svg": "./src/static-svg.ts",
+    "./model-format": "./src/model-format.ts"
   },
   "scripts": {
     "test": "vitest run",

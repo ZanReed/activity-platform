@@ -23,8 +23,9 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 **OWED: the D24 counsel read, Gate 4, the `display_name` one-row fix, and the two function redeploys for the polynomial families.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 **⏳ `get-activity` + `check-activity` redeploys — OWED, and the ORDER is now
-BINDING (covers three slices: cubic/quartic, unit blanks, correspondence;
-bundles committed for each).** Deploy `pnpm deploy:get-activity` +
+BINDING (covers five slices: cubic/quartic, unit blanks, correspondence,
+absolute/sqrt parent families, and transform_curve; bundles committed for
+each).** Deploy `pnpm deploy:get-activity` +
 `pnpm deploy:check` (never `--no-verify-jwt`) **BEFORE pushing to `main`** —
 a push is a Pages deploy (OV-7), and `CHECK_WIRE_VERSION` moved 2→3: a
 pushed app against the OLD `check-activity` leaves EVERY student's checks
@@ -250,26 +251,26 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-09-01 — **WISHLISTS #3 AND #4 SHIPPED** (each greenlit
-→ outside-voice reviewed → amended → built the same day; twenty mutations
-between them, every guard red once). #3: unit-bearing blanks
-(unit-bearing-blanks.md A1–A9 + AS BUILT). #4: the `correspondence` block
-(nway-correspondence.md R1–R8 + AS BUILT; `CHECK_WIRE_VERSION` 2→3 makes the
-redeploy order BINDING — see Pending). Before them, 2026-08-31 —
-**WISHLIST #2 SHIPPED: cubic + quartic graded families**
-(graded-function-families.md §top; both redeploys pending — see Pending; the
-detection cascade's interpolation-shadow bug is fixed with a midpoint
-verification grid). Earlier that day:
-**LANE B BUILT + HOUSEKEEPING; the
-curriculum-alignment arc is COMPLETE and the next lever is authoring.** The
-activities list orders by catalogue path; the importer's phantom
-`course`/`unit` change is fixed (it was hiding a data bug, not just noise); two
-TODOS entries that read as live were closed. All app/script-side — no
-migration, no bundle, no deploy, nothing owed to the author. Before it:
-2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER.**
-Declared identity (0041, applied), skill/chain/part registries, `chain_role`,
-the in-math answer-leak detector, a generated authoring prompt, and a
-parts-aware coverage burndown. `pnpm verify` 8/8; script guards 161/161.
+**Last updated:** 2026-09-01 (later session) — **WISHLIST #5 SHIPPED:
+`transform_curve`** — full record in draggable-curve.md → Build record (all
+author rulings honored, incl. A2's MathLive typed channel + live curve
+preview; two live `pointsOnModel` seed bugs found in the browser pass and
+pinned; `formatModel` split to a leaf `model-format` subpath after the perf
+gate caught mathjs entering the student shell; nine mutations, every guard
+red once; `pnpm verify` green). **Next: wishlist #6 `seeded_data`**
+(seeded-data.md R1–R12, greenlit). ⚠ After
+the author's next push, re-dispatch print-baselines and commit fresh PNGs for
+BOTH correspondence (downloaded one is stale — pre-CSS-fix) and
+interactive_graph (its fixture page gained the transform variant).
+Earlier the same day — **WISHLISTS #3 AND #4 SHIPPED**: #3 unit-bearing
+blanks (unit-bearing-blanks.md), #4 `correspondence` (nway-correspondence.md;
+`CHECK_WIRE_VERSION` 2→3 makes the redeploy order BINDING — see Pending).
+2026-08-31 — **WISHLIST #2 SHIPPED: cubic + quartic families**
+(graded-function-families.md; redeploys pending) and **LANE B BUILT — the
+curriculum-alignment arc is COMPLETE** (list orders by catalogue path; the
+importer's phantom `course`/`unit` change fixed). 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER**
+(declared identity 0041, skill/chain/part registries, `chain_role`, the
+in-math answer-leak detector, the generated authoring prompt).
 
 **The lesson this arc paid for, and it is not a repo lesson — it is a
 correspondence one.** Eleven letters were exchanged with the curriculum side. Of

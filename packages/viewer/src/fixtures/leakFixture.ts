@@ -214,6 +214,19 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     {
       ...graphBase(),
       interaction: {
+        // The START model deliberately carries plain values, not NUM
+        // sentinels: it is question material and SURVIVES sanitize by design
+        // (the student must see the parent curve). The target model is the
+        // key and must strip.
+        type: 'transform_curve',
+        start: { family: 'quadratic', a: 1, b: 0, c: 0 },
+        models: [{ family: 'quadratic', a: NUM, b: NUM, c: NUM }],
+        requireEquation: true,
+      },
+    },
+    {
+      ...graphBase(),
+      interaction: {
         type: 'display',
         drawables: [{ kind: 'point', at: [1, 2] }],
       },

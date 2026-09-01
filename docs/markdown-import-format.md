@@ -210,10 +210,17 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     mistake: y = x + 2 :: Remember - the number multiplying x is the slope.
     mistake: (4, 3) :: Coordinates are (x, y) - x comes first.
     mistake: segment (1, 2) to (3, 4) :: Think about whether the graph should stop or keep going.
+- A TRANSFORM question shows a start curve the student drags onto a target:
+    start: y = x^2                (the shown parent curve; needs an equation answer:)
+    answer: y = (x - 2)^2 + 1     (the target the student must reach)
+    options: type-equation        (also require typing the target equation)
+  Without type-equation the student only drags. The two mistake: tokens
+  drawn-not-written and written-not-drawn match when only one channel is right.
 - options: (comma-separated) turn on grading behaviours:
     allow-no-solution     give the student a "no solution" choice
     no-solution-correct   make "no solution" THE correct answer and any drawn answer a decoy (a trick question)
     no-builtin-feedback   turn OFF the automatic mistake hints (swapped coordinates, swapped slope/intercept, …), which are on by default
+    type-equation         with start:, also require the typed target equation
 - For an ungraded figure, use show: lines instead of an answer:
     show: point (2, 3) closed "A"
     show: line y = x dashed      (dotted works too)
@@ -571,9 +578,11 @@ options: allow-no-solution
 - `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`; on a ray/segment question either figure matches (the classic ray mistake is its segment version).
 - `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
 - `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
-- `options:` `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (turn off the automatic swapped-coordinate / swapped-slope mistake hints, which are on by default).
+- `start:` a shown parent curve, making the block a TRANSFORM question (design #5): the student drags the dashed start curve onto the target given by `answer:` (which must then be an equation — not points, not a ray, not `none`). No verticals and no domain clauses on `start:`.
+- `options:` `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (turn off the automatic swapped-coordinate / swapped-slope mistake hints, which are on by default), `type-equation` (with `start:`, the student must ALSO type the target's equation — both channels must be correct).
+- On a transform question, `mistake:` also accepts two reserved tokens — `drawn-not-written` (the drag is right but the typed equation isn't) and `written-not-drawn` (the reverse) — alongside ordinary wrong-equation matches, which match against EITHER channel.
 
-A malformed graph block imports as plain text with a warning, never silently guessing.
+A malformed graph block imports as plain text with a warning, never silently guessing — including `type-equation` without `start:`, and `start:` with a non-equation answer.
 
 ## Number-line blocks (```numberline fence)
 

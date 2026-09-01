@@ -1601,6 +1601,55 @@ describe('```graph fence (Drop 7)', () => {
         expect(warnings.some((w) => w.includes('unknown option "partial-credit"'))).toBe(true);
     });
 
+    it('imports a transform_curve question from start: + type-equation (design #5)', () => {
+        const md = '```graph\nprompt: Shift it 2 right and 1 up, then write the equation.\nstart: y = x^2\nanswer: y = (x - 2)^2 + 1\noptions: type-equation\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const g = blocks.find((b) => b.type === 'interactiveGraph')!;
+        const q = g.attrs!.interaction;
+        expect(q.type).toBe('transform_curve');
+        expect(q.requireEquation).toBe(true);
+        expect(q.start.family).toBe('quadratic');
+        expect(q.start.b).toBeCloseTo(0, 4);
+        expect(q.models[0].family).toBe('quadratic');
+        expect(q.models[0].b).toBeCloseTo(-4, 4);
+        expect(q.models[0].c).toBeCloseTo(5, 4);
+        // Through the schema and back: tiptapToActivity zod-parses the block,
+        // so this is the proof the importer's shape IS the schema's shape
+        // (tolerance fields included) — the seam a fence test alone can't see.
+        const rt = roundTrip(md).find((b) => b.type === 'interactiveGraph')!;
+        expect(rt.attrs!.interaction.type).toBe('transform_curve');
+        expect(rt.attrs!.interaction.requireEquation).toBe(true);
+        expect(rt.attrs!.interaction.start.family).toBe('quadratic');
+    });
+
+    it('start: without type-equation is the drag-only transform (requireEquation false)', () => {
+        const md = '```graph\nstart: y = |x|\nanswer: y = |x - 3| + 2\n```';
+        const { blocks, warnings } = convert(md);
+        expect(warnings).toEqual([]);
+        const q = blocks.find((b) => b.type === 'interactiveGraph')!.attrs!.interaction;
+        expect(q.type).toBe('transform_curve');
+        expect(q.requireEquation).toBe(false);
+        expect(q.start.family).toBe('absolute');
+        expect(q.models[0].family).toBe('absolute');
+        expect(q.models[0].h).toBeCloseTo(3, 4);
+        expect(q.models[0].k).toBeCloseTo(2, 4);
+    });
+
+    it('type-equation without start: degrades loudly, not as a plot_function', () => {
+        const md = '```graph\nanswer: y = (x - 2)^2 + 1\noptions: type-equation\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => w.includes('type-equation needs a start: line'))).toBe(true);
+    });
+
+    it('start: with a non-equation answer degrades loudly', () => {
+        const md = '```graph\nstart: y = x^2\nanswer: (2, 3)\n```';
+        const { blocks, warnings } = convert(md);
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => w.includes('start: needs an equation answer'))).toBe(true);
+    });
+
     it('imports an inequality answer', () => {
         const md = '```graph\nanswer: y > 2x + 1\n```';
         const g = convert(md).blocks.find((b) => b.type === 'interactiveGraph')!;

@@ -6,7 +6,11 @@
 // existence and, more importantly, its CONTENT rule (S5-1 as amended by OV4):
 //
 //   question variant → EMPTY axes, because the student's plotted work is an
-//                      answer and a printed worksheet is the blank version
+//                      answer and a printed worksheet is the blank version.
+//                      REVISED VARIANT-SCOPED (design A3): transform_curve's
+//                      start curve IS the question — a student cannot
+//                      transform a parent they cannot see — so that one
+//                      variant prints exactly the start curve and nothing else
 //   display variant  → the AUTHORED drawables, because that is the content the
 //                      block exists to show; empty axes there would silently
 //                      delete what is being taught
@@ -129,6 +133,43 @@ describe('a QUESTION prints empty axes', () => {
     }
   });
 
+  it('prints ONLY the start curve for a transform_curve question', () => {
+    // The variant-scoped revision of this suite's invariant (design A3): the
+    // start curve is question material, the target model is the answer. One
+    // drawable — the sanitized fixture has no models left to draw, so a count
+    // above 1 here means the sanitizer regressed, and 0 means the student got
+    // a blank sheet for a "transform THIS" task.
+    const { container } = harness(
+      <InteractiveGraph
+        block={variant('interactive_graph', 'transform_curve') as never}
+        mode="screen"
+      />,
+    );
+    expect(twinOf(container)?.querySelector('svg')?.getAttribute('data-drawables')).toBe(
+      '1',
+    );
+  });
+
+  it('prints an equation write line for transform_curve, and only there', () => {
+    // The typed half of the two-channel answer (design A2) needs somewhere to
+    // be written on paper. Other variants must NOT grow the line: it would
+    // read as "write an equation" on questions that never ask for one.
+    const transform = harness(
+      <InteractiveGraph
+        block={variant('interactive_graph', 'transform_curve') as never}
+        mode="screen"
+      />,
+    );
+    expect(
+      transform.container.querySelector('.viewer-graph__equation-line'),
+    ).not.toBeNull();
+
+    const point = harness(
+      <InteractiveGraph block={variant('interactive_graph', 'plot_point') as never} mode="screen" />,
+    );
+    expect(point.container.querySelector('.viewer-graph__equation-line')).toBeNull();
+  });
+
   it('prints an EMPTY frame for a build-the-chart question', () => {
     // The data is served (the student needs it to plot), but plotting it is
     // the task — printing the finished chart would print the answer.
@@ -182,5 +223,25 @@ describe('the twin leaks nothing', () => {
     expect(svg).not.toContain('tolerance');
     // A path element would mean SOMETHING was plotted beyond the grid/axes.
     expect(twinOf(container)?.querySelectorAll('[data-drawable]')).toHaveLength(0);
+  });
+
+  it('contains no target model for a transform_curve question', () => {
+    // The one variant whose twin draws SOMETHING, so the zero-drawable form of
+    // the rule above cannot cover it: assert instead that what was drawn is
+    // exactly one curve and nothing model-shaped beyond it survived.
+    const { container } = harness(
+      <InteractiveGraph
+        block={variant('interactive_graph', 'transform_curve') as never}
+        mode="screen"
+      />,
+    );
+    const twin = twinOf(container);
+    expect(twin?.innerHTML ?? '').not.toContain('models');
+    expect(twin?.querySelectorAll('[data-drawable]')).toHaveLength(1);
+    // The write line is BLANK on a student sheet — no answer-key context here,
+    // so a formatted target equation in it would be a leak.
+    expect(
+      container.querySelector('.viewer-graph__equation-line')?.textContent?.trim(),
+    ).toBe('y =');
   });
 });

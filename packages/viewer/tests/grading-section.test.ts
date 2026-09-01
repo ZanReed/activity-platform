@@ -194,6 +194,23 @@ describe('the graph family dispatches to the kit for every variant', () => {
             ],
           };
         }
+        case 'transform_curve': {
+          // Both channels right: three handles ON the target parabola, the
+          // typed equation stating it, and the dragged flag (seed positions
+          // never count as drawing — design A1).
+          const m = (i.models as Array<Record<string, number>>)[0]!;
+          const y = (x: number) =>
+            (m.a ?? 0) * x * x + (m.b ?? 0) * x + (m.c ?? 0);
+          return {
+            points: [
+              [0, y(0)],
+              [2, y(2)],
+              [4, y(4)],
+            ],
+            dragged: true,
+            equation: `y = ${m.a}*x^2 + ${m.b}*x + ${m.c}`,
+          };
+        }
         case 'shade_region':
           return {
             points: (i.regions as Array<Record<string, unknown>>)[0]!
