@@ -325,6 +325,8 @@ The endgame. Teachers publish high-quality activities for sale. Other teachers (
 - How aggregation stats work cross-organization without leaking student data. The `activity_aggregate_stats` view we sketched is the shape, but NOT the cross-org mechanism: migration 0009 set it to `security_invoker`, so it now respects the querying user's RLS and only returns an owner's own activities. The cross-teacher case (a marketplace author seeing aggregates over buyers' assignments) needs a dedicated `SECURITY DEFINER` **function** with an explicit authorization check — as 0003's comment and DECISIONS.md → "Supabase security/performance housekeeping (0009)" both record. Don't reach for the view here; it's deliberately owner-scoped now.
 - Quality control: editorial review, community flagging, both, neither?
 
+**Cross-repo obligation at phase start (not a decision — a signal owed)**: the curriculum side's **D32 hold expires when Phase 5 publishes** — the calculus re-band (thirteen `limit.*`/`deriv.*` skills) was held 2026-09-05 with exactly this trigger. Post a row on the platform-owned Notion boundary page naming D32; the re-decision itself is curriculum-side. Artifact: `decision-log-additions.md` in ZanReed/curriculum, entry "D32 (held 2026-09-05)". The boundary page carries the matching standing tickler.
+
 **Done when**: A teacher who has never met another marketplace user can search, find, purchase, assign, and use an activity — and an author who's never met that buyer is paid for the use, with the platform never seeing student data flow between them.
 
 ---
