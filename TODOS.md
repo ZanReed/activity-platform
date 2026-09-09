@@ -2304,3 +2304,13 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 **Context:** The fields ride Tiptap attrs (the rubric pattern); T2 of the review's task list adds the attrs + read-only display. **Trigger to build:** editor-native authoring of free-response answers becomes a real path.
 
 **Effort:** M · **Priority:** P3 · **Depends on:** answer-key slice T2 (attrs + serialize round-trip).
+
+## Rebuild generate-capabilities.mjs against the current schema (B14)
+
+**What:** The capability-registry generator (lives in the `curriculum/` workspace, not this repo) is two schema generations stale and FROZEN behind a schema gate (exit 3 on any graph ≥ v0.11.2, added 2026-09-09 at the curriculum side's request). Rebuild it so its derived-field output matches the post-D27 shape: no `grading.authoritative` per entry, and a fence join covering `correspond`/`table`/`seed`/`meta` (and whatever the registry holds by then).
+
+**Why:** §9 of the authoring principles bounds what can be authored by this registry; a stale regeneration would reassert `client-advisory` — false about this platform — in the machine-readable region D25 made authoritative. Platform-owned under the regeneration rule (it derives from THIS repo's schema + importFormatRegistry).
+
+**Context:** Boundary item B14 on the Curriculum → Platform Notion page (their freeze + verification-gap write-up); the curriculum repo's README records the exclusion. Once rebuilt, it JOINS github.com/ZanReed/curriculum under CI — the curriculum side has already agreed. Remove the B14 gate only as part of this rebuild.
+
+**Effort:** M · **Priority:** P3 · **Depends on:** nothing; trigger is the next platform change that alters capability-relevant schema, or chain-2 authoring needing a current registry.
