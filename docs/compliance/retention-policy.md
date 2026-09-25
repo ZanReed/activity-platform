@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-18-draft-7`. Windows below are the author-ruled S1 defaults
+> Version `2026-09-25-draft-8`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
@@ -28,6 +28,13 @@
 > **The rule this adopts, because the same mistake has now been made twice in
 > opposite directions:** draft-5 asserted a production fact that a scheduled job was
 > about to falsify; draft-6 asserted one that a scheduled job had not yet made true.
+>
+> `draft-8` (2026-09-25) adds the AI grading drafts row (migration 0042,
+> `check_grade_suggestions`): machine-drafted feedback about student work,
+> retained on exactly the checks' own windows via FK CASCADE — no new window,
+> no purge-function change, the mechanism asserted by `verify-0042.sql` §F.
+> Processing posture (on-device pilot; hosted path unreachable until this
+> pack extends) is recorded in [data-map.md](data-map.md) draft-9.
 > **This pack states mechanisms and schedules. It asserts that something HAPPENED
 > only after someone has observed it happening** — and names how to check, so a
 > reader never has to take the claim on trust.
@@ -70,6 +77,7 @@
 | Account explicitly deleted (admin action or an on-request deletion) | **30 days** | `users.deleted_at` is set | same purge path; this is the only thing that sets that column |
 | `ip_hash` + `user_agent` on submissions | **CLOSED — the data no longer exists** | — | the anonymous wire and its data were deleted whole at the S9 cutover (migration 0029, 2026-08-14): every `submissions` row was wiped (17 rows, all the author's test artifacts — 6 carried an `ip_hash`), the ingest path was dropped, and nothing can write new rows. No scrub job is needed for a field with zero rows and no writer |
 | **De-identified daily aggregates** (`check_rollup_daily`, `check_item_rollup_daily` — per-day counts of checks, verdicts, and distinct students per question) | **the life of the activity** — they OUTLIVE the individual checks they summarize | first written the night after a student checks | `purge_soft_deleted` removes them via CASCADE when the activity is purged (30 days after the teacher soft-deletes it). ⚠ **Two properties counsel should read together, and they are the subject of question Q10:** these tables hold **no student identifiers** — no id, name, or email, only counts, asserted against `information_schema` by `scripts/verify-0036.sql` §B so the property cannot erode silently. But a count is not always anonymous: **a row reading `students = 1` describes one identifiable student's day**, and it is **not recomputed or removed when that student's account is purged** (a distinct-student count cannot be decremented without storing the identifiers these tables deliberately refuse to hold). Access is teacher-scoped to their own activity via `can_read_activity`, so the aggregate exposes nothing the teacher cannot already see live |
+| **AI grading drafts** (`check_grade_suggestions` — machine-drafted scores, feedback and misconception observations about a student's response, incl. an md5 of the response text; migration 0042) | **exactly the windows of the check they draft against** — 400 days via the account path, 30 days via activity deletion, whichever fires first | same clocks as `section_checks` above | FK `ON DELETE CASCADE` from `section_checks` (asserted by `verify-0042.sql` §F): both purge paths delete checks, and the drafts fall with them — `purge_soft_deleted` was not edited and never learns the table exists (the 0034 `check_grades` pattern). Drafts are never student-visible; a draft a teacher confirms becomes a `check_grades` row and is then governed by THAT row's line above |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |

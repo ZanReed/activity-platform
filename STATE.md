@@ -22,6 +22,18 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
+**NEW — AI-grading drop live steps (2026-09-26), in order:**
+1. **Apply migration 0042** (`supabase db push`). No Edge Function redeploys,
+   no bundle regens — the slice never touches viewer server/schema/grading
+   engine.
+2. **`node scripts/verify-runner.mjs --target live --only verify-0042`** —
+   28 rows, green locally; the EH-2 ownership guard was mutation-tested red.
+3. **Re-run `pnpm import:batch`** — it now mirrors registry ids into
+   `misconception_registry`; until then the submit RPC refuses
+   misconception-carrying suggestions.
+4. Pilot start: provider flip + seed + worker steps are in
+   `packages/grading-worker/README.md` (TTHW <15 min).
+
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
 false`) and `check-activity` v23 (`verify_jwt: true`), deployed TOGETHER per

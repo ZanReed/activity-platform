@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-08-26-draft-8`. Mirrors migrations 0001–**0041**, verified
+> Version `2026-09-25-draft-9`. Mirrors migrations 0001–**0042**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,36 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-9` (2026-09-25) — 0042 ADDS personal data, and a processing
+> posture worth stating precisely.** The AI-grading-assist slice
+> (docs/design/ai-grading-assist.md, D1–D14 + review rulings) adds
+> `check_grade_suggestions`: machine-drafted rubric scores, feedback text and
+> misconception observations ABOUT a student's response, plus an `md5` of the
+> response text itself (`source_text_hash`) — student-derived rows, mapped
+> below. **Processing is ON-DEVICE for the pilot (D10):** the drafts are
+> produced by a local model on the author's own machine, pulled through an
+> authenticated, owner-gated RPC — no third-party processor exists in this
+> slice, so the pilot's footprint is a data-map row, not a vendor agreement.
+> The `platform_api` provider value (a hosted third-party processor) is
+> **structurally unreachable** — per-teacher `grading_settings.provider`
+> defaults `off`, no UI can set `platform_api`, and the design names this
+> document's extension (plus hosted-model validation) as BLOCKING
+> prerequisites for that flip. One ruling is pre-made for that day, recorded
+> now (EH-14): under `platform_api` the claim EXCLUDES non-roster students'
+> checks — link-share discovery puts strangers' work in a teacher's queue,
+> and the teacher's opt-in cannot carry consent for them; anchor exemplars
+> (other students' responses embedded in a grading prompt) are likewise named
+> in-scope. Suggestions are DOUBLE-GATED away from students: a separate
+> zero-policy table AND the release gate on `check_grades` — a student can
+> never see a draft. Also added, holding NO personal data:
+> `misconception_registry` (generated public documentation),
+> `grading_platform_budget` and `grading_model_prices` (platform config), and
+> three `audit_log` labels (`suggestion.claim/submit/reject` — actor +
+> activity references, already governed by the audit_log row).
+> `retention-policy.md` MOVES with this draft (draft-8): the new table rides
+> the `section_checks` CASCADE, stated there explicitly. The range moves to
+> 0042 on that basis.
 >
 > **`draft-8` (2026-08-26) — 0041 adds NO personal data.** The
 > curriculum-alignment slice adds one column, `activities.source_key`: the
@@ -144,6 +174,10 @@
 | `check_grades.general_feedback` / `criteria` (0034) | **teacher's written feedback and per-criterion scores about a student's work** | student (about), teacher (author) | teacher, via `upsert_check_grade` | manual grading of free-text answers | **CASCADES from `section_checks`** — deleting the check deletes its grades, so the windows in the row above govern with no separate step |
 | `check_grades.graded_by` (0034) | teacher identity of the grader | teacher | RPC | attribution, audit | **SET NULL on teacher purge** (0024's pattern) — the student keeps their feedback, attributed to "a former teacher" |
 | `check_grades.released_at` (0034) | whether/when feedback was shown to the student | student (about) | `release_check_grades` | the most FERPA-significant event in grading; audited as `grade.release` | with the row |
+| `check_grade_suggestions.criteria` / `general_feedback_draft` / `misconception_notes` (0042) | **machine-drafted scores, feedback and misconception observations about a student's work** — a DRAFT, never a grade: it reaches a student only if a teacher replays it through `upsert_check_grade`, where it becomes a `check_grades` row governed above | student (about) | local model on the teacher's own device (pilot, D10 on-device posture), written via `submit_grade_suggestion` under the activity owner's session | pre-fills the teacher's grading queue for confirm/edit/reject; edit-rate telemetry per model/prompt rev | **CASCADES from `section_checks`** (asserted by `verify-0042.sql` §F) — the check's windows govern, no separate step, purge function untouched |
+| `check_grade_suggestions.source_text_hash` (0042) | md5 of the student's response text at claim time | student (derived) | claim RPC | supersession keying — a draft on unchanged text is re-keyed, not re-inferred | with the row |
+| `check_grade_suggestions.model_id` / `prompt_rev` / `schema_rev` / `tokens_in` / `tokens_out` / `machine_confidence` / `billable` (0042) | machine telemetry on the drafting run, **not personal per se** — listed because the rows they stamp are about a student | — | claim/submit RPCs | quality auditing per revision; spend metering for the (unreachable) hosted path | with the row |
+| `grading_settings.teacher_id` + `provider` / `quota_microdollars` (0042) | teacher identity on AI-grading config — provider choice is a compliance-significant setting (it decides where student work is processed) | teacher | author-run SQL for the pilot (no client write path; zero policies) | the D11 provider seam + D13 budget quota | account lifetime (CASCADE from `users`) |
 | `check_rollup_daily.*` / `check_item_rollup_daily.*` (0036) | per-day counts of checks, verdicts and **distinct students** per question — **no student identifier by construction** (absence asserted against `information_schema` by `verify-0036.sql` §B) | — | nightly `run_analytics_maintenance` from `section_checks` | durable teacher analytics that survive the pruning of superseded attempts | ⚠ **the life of the ACTIVITY — these OUTLIVE the individual checks they summarize, and are NOT recomputed when a student is purged.** A row reading `students = 1` describes one identifiable student's day. Full statement + the reasoning in [retention-policy.md](retention-policy.md); this is **counsel question Q10** |
 | `allowlist.email` | teacher email | teacher | author-entered | invite gate | until removed |
 | `student_domain.domain` | district domain (not personal per se) | — | author-entered | student admission gate | until removed |

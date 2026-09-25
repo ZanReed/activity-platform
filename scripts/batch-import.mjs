@@ -1816,6 +1816,25 @@ export function makeDb(url, key) {
                 body: JSON.stringify(patch),
             });
         },
+
+        /**
+         * Mirror the misconception registry's ids into the platform table
+         * (0042 EH-7): the submit RPC validates `mis.*` observations against
+         * it, so the mirror is what makes "rejected at the door" real.
+         *
+         * ignore-duplicates ON PURPOSE: today's registry format carries only
+         * ids, and a re-run must not null out the skill/description columns
+         * once the richer format (the boundary-page ask) starts filling
+         * them. Ids are never deleted here either — the curriculum side's
+         * own rule is that a registry id, once minted, is permanent.
+         */
+        syncMisconceptionRegistry(ids) {
+            return call('/misconception_registry?on_conflict=id', {
+                method: 'POST',
+                headers: { Prefer: 'resolution=ignore-duplicates' },
+                body: JSON.stringify([...ids].map((id) => ({ id }))),
+            });
+        },
     };
 }
 
@@ -2606,6 +2625,29 @@ async function main() {
     }
 
     // ---- write --------------------------------------------------------------
+    // Registry mirror first (0042 EH-7): the ids the run just validated
+    // bindings against are upserted into misconception_registry, so the
+    // grading-assist submit RPC validates against the same id set this
+    // importer does. FAIL-SOFT on a missing table — a live database that
+    // predates migration 0042 must not kill a 150-file import over its
+    // side artifact — but loudly, because a stale mirror silently rejects
+    // every suggestion carrying a newer id.
+    if (registry) {
+        try {
+            await db.syncMisconceptionRegistry(registry.ids);
+            console.log(
+                `registry  : ${registry.ids.size} misconception ids mirrored to misconception_registry`,
+            );
+        } catch (err) {
+            console.warn(
+                `⚠ misconception_registry mirror FAILED (${err.message}).\n` +
+                    '  If the table does not exist, migration 0042 has not been applied to\n' +
+                    '  this database yet; the grading-assist submit RPC will refuse ids the\n' +
+                    '  mirror does not hold. The import itself continues.',
+            );
+        }
+    }
+
     // Updates first: they are the re-run case, they cannot collide on a slug,
     // and doing them before any insert means a failed create never leaves the
     // existing corpus half-refreshed.

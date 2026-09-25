@@ -93,3 +93,9 @@ coverage/
 # commit. Regenerate the real ones with the manual `update_print_baselines`
 # workflow — see docs/design/viewer-numbering.md V7.
 packages/app/e2e/**/*-darwin.png
+
+# ---- Grading worker local artifacts ----------------------------------------
+# W-4's raw-output captures (model output only, but local-only by design) and
+# any other worker-local state. The token file lives under ~/.config, never
+# in the repo.
+packages/grading-worker/var/

@@ -1,0 +1,32 @@
+{
+  "name": "@activity/grading-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "worker:login": "node src/cli/login.ts",
+    "worker:check": "node src/cli/check.ts",
+    "worker:run": "node src/cli/run.ts",
+    "study:run": "node src/cli/studyRun.ts",
+    "study:report": "node src/cli/sqlReport.ts study",
+    "telemetry:edit-rates": "node src/cli/sqlReport.ts edit-rates",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.105.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "~5.7.2",
+    "vitest": "^1.6.1"
+  }
+}
