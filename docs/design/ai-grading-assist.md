@@ -143,6 +143,17 @@ flagged "needs full manual attention" and is NOT pre-filled** (D6) — an
 abstaining model is more useful than a guessing one, and a silent bad
 pre-fill is the automation-bias failure mode.
 
+**Volume note (2026-09-25, curriculum D35 + their B16):** the curriculum side
+re-shaped Y8–10 DoLs to default AUTO-scored (error-analysis items), reserving
+rubric justification for chain finals/consolidations and Y11–13 — the three
+chain-1 DoL rubrics are already gone (their B16, closed). Near-term rubric
+volume for the pilot is therefore concentrated in consolidation DoLs (e.g.
+activity 04) and short-answer/essay blocks; the D7 ground-truth study should
+plan its N against that pool, not against every DoL. No design change — the
+suggestion pipeline is per-block and indifferent to volume — but the pilot's
+biggest long-run payoff shifts even more toward Y11–13, where rubric-heavy
+DoLs remain the default.
+
 ## 5. Pilot gate: prove it before trusting it (D7, P3-flavored)
 
 1. **Exercise the shipped grading surface first** — it has zero live grades.
