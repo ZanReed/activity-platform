@@ -125,6 +125,14 @@ select 'validator_not_client_callable',
        not has_function_privilege('authenticated', 'validate_check_grade_criteria(uuid,uuid,jsonb)', 'execute')
        and not has_function_privilege('anon', 'validate_check_grade_criteria(uuid,uuid,jsonb)', 'execute'),
        'EH-6: an internal seam, not a client surface';
+select 'quota_helper_not_client_callable',
+       not has_function_privilege('authenticated', 'grading_quota_state(uuid,bigint)', 'execute')
+       and not has_function_privilege('anon', 'grading_quota_state(uuid,bigint)', 'execute'),
+       '§G2 takes an arbitrary teacher id — a client grant would be a cross-teacher spend oracle';
+select 'status_read_reachable',
+       not has_function_privilege('anon', 'get_grading_assist_status()', 'execute')
+       and has_function_privilege('authenticated', 'get_grading_assist_status()', 'execute'),
+       'DR-6/DR-9: the header reads its own state, signed-in only';
 select 'claim_never_cites_read_helper',
        (select strpos(prosrc, 'can_read_activity') = 0
           from pg_proc where proname = 'claim_grade_suggestions'),
@@ -764,6 +772,12 @@ begin
   if v_res->>'status' <> 'quota_paused' or v_res->>'resumes_at' is null then
     raise exception 'FAIL EH-8/D13: live spend did not pause the claim (status=%)', v_res->>'status';
   end if;
+  -- DR-9's header must mirror the GATE, from the same §G2 computation.
+  v_res := get_grading_assist_status();
+  if not (v_res->>'quota_paused')::boolean or v_res->>'resumes_at' is null
+     or v_res->>'provider' <> 'platform_api' or v_res->>'last_draft_at' is null then
+    raise exception 'FAIL DR-9: status read disagrees with the gate (%)', v_res;
+  end if;
 
   -- ---- (3) local_worker BYPASSES the quota (provider scoping, §7a) -------
   update grading_settings set provider = 'local_worker' where teacher_id = v_teacher;
@@ -783,6 +797,12 @@ begin
   -- the local re-claim, or the quota aggregate forgets money already spent.
   if not (select billable from check_grade_suggestions where id = v_sug) then
     raise exception 'FAIL D13: a local re-claim erased recorded hosted spend';
+  end if;
+  -- ... and the status read un-pauses with the provider (quota is
+  -- platform_api-scoped on the header exactly as at the gate).
+  v_res := get_grading_assist_status();
+  if (v_res->>'quota_paused')::boolean or v_res->>'provider' <> 'local_worker' then
+    raise exception 'FAIL DR-9: local_worker status must not read paused (%)', v_res;
   end if;
 
   -- ---- (4) the GLOBAL cap trips independently of the teacher quota -------
@@ -821,7 +841,15 @@ begin
       v_res->>'status';
   end if;
 
-  raise exception 'EXPECTED ROLLBACK >>> E-quota-and-identity: 7/7';
+  -- ---- (8) DR-6: provider off (or no row) reads as a plain 'off' status --
+  perform set_config('request.jwt.claims', json_build_object('sub', v_teacher)::text, true);
+  update grading_settings set provider = 'off' where teacher_id = v_teacher;
+  v_res := get_grading_assist_status();
+  if v_res->>'provider' <> 'off' then
+    raise exception 'FAIL DR-6: off must read as provider off (%)', v_res;
+  end if;
+
+  raise exception 'EXPECTED ROLLBACK >>> E-quota-and-identity: 8/8';
 end
 $vfy$;
 

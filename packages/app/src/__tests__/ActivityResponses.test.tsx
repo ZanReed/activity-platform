@@ -27,6 +27,9 @@ const h = vi.hoisted(() => ({
   queue: vi.fn(),
   save: vi.fn(),
   release: vi.fn(),
+  suggestions: vi.fn(),
+  assistStatus: vi.fn(),
+  rubrics: vi.fn(),
 }));
 
 vi.mock('../lib/grading', async (importOriginal) => ({
@@ -34,6 +37,17 @@ vi.mock('../lib/grading', async (importOriginal) => ({
   fetchGradingQueue: h.queue,
   saveCheckGrade: h.save,
   releaseGrades: h.release,
+}));
+
+// The assist layer (0042) is mocked to its quiet defaults here — these rows
+// pin the 0034 surface's rulings, and a plain manual queue must render
+// exactly as it did before drafts existed. The assist rulings have their own
+// file (ActivityResponsesAssist.test.tsx).
+vi.mock('../lib/gradingAssist', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/gradingAssist')>()),
+  fetchSuggestions: h.suggestions,
+  fetchAssistStatus: h.assistStatus,
+  fetchVersionRubrics: h.rubrics,
 }));
 
 import ActivityResponses from '../routes/ActivityResponses';
@@ -88,6 +102,11 @@ function setup(rows: GradingQueueRow[]) {
 beforeEach(() => {
   h.save.mockResolvedValue(undefined);
   h.release.mockResolvedValue(1);
+  // Assist quiet defaults: no drafts, provider off, no rubric specs — the
+  // 0034 surface exactly as shipped.
+  h.suggestions.mockResolvedValue([]);
+  h.assistStatus.mockResolvedValue({ provider: 'off' });
+  h.rubrics.mockResolvedValue(new Map());
 });
 
 afterEach(() => {
@@ -95,6 +114,9 @@ afterEach(() => {
   h.queue.mockReset();
   h.save.mockReset();
   h.release.mockReset();
+  h.suggestions.mockReset();
+  h.assistStatus.mockReset();
+  h.rubrics.mockReset();
 });
 
 describe('the queue', () => {

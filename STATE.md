@@ -23,9 +23,10 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 **NEW — AI-grading drop live steps (2026-09-26), in order:**
-1. **Apply migration 0042** (`supabase db push`). No Edge Function redeploys,
-   no bundle regens — the slice never touches viewer server/schema/grading
-   engine.
+1. **Apply migration 0042** (`supabase db push`) **BEFORE `git push`** —
+   OV-7: the queue pre-fill UI calls the new RPCs and a push is a deploy.
+   (The UI degrades gracefully, but the rule is the rule.) No Edge Function
+   redeploys, no bundle regens.
 2. **`node scripts/verify-runner.mjs --target live --only verify-0042`** —
    28 rows, green locally; the EH-2 ownership guard was mutation-tested red.
 3. **Re-run `pnpm import:batch`** — it now mirrors registry ids into

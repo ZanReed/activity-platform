@@ -12,10 +12,12 @@
 --   §E  check_grade_suggestions — the table, deny-by-default          (D2)
 --   §F  validate_check_grade_criteria — ONE validator, shared         (EH-6)
 --   §G  upsert_check_grade v2 — same signature, now calls §F
+--   §G2 grading_quota_state — the ONE quota computation, shared       (EH-8)
 --   §H  claim_grade_suggestions — the worker pull                     (W-2, EH-1..4,8,12,14)
 --   §I  submit_grade_suggestion — the worker write                    (W-2, EH-6,11)
 --   §J  confirm / reject — the teacher resolution, ONE transaction    (EH-5, DR-2/3/8)
 --   §K  list_grade_suggestions — the queue's sibling read             (DR-6/10, EH-13)
+--   §K2 get_grading_assist_status — the queue header's honesty read   (DR-6/9)
 --   §L  grants (0009's standing rule)
 --
 -- ⚠ AUTH PREDICATE (EH-1, citing 0034 §C): every worker-facing RPC here gates
@@ -459,6 +461,67 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- G2. grading_quota_state — the ONE quota computation (EH-8, shared)
+-- -----------------------------------------------------------------------------
+-- Extracted for the same reason §F exists (EH-6's lesson, applied before the
+-- drift instead of after): the claim gate (§H) and the teacher's status read
+-- (§K2, DR-9's header honesty) must answer "is this teacher paused?" from
+-- the SAME live aggregate, or the header lies about the gate.
+--
+-- Returns {paused, resumes_at, misconfigured}. `misconfigured` = the price
+-- table is empty: §H raises on it (a platform_api claim with no prices is a
+-- setup error, not a quota state); §K2 reports it. Not client-callable (§L).
+create or replace function grading_quota_state(p_teacher uuid, p_quota_microdollars bigint)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_teacher_spend  bigint;
+  v_platform_spend bigint;
+  v_cap            bigint;
+begin
+  if not exists (select 1 from grading_model_prices) then
+    return jsonb_build_object('paused', true, 'misconfigured', true);
+  end if;
+
+  -- Missing price rows count at the MAX configured price (conservative).
+  with priced as (
+    select s.tokens_in, s.tokens_out,
+           coalesce(p.input_microdollars_per_mtok,
+                    (select max(input_microdollars_per_mtok)  from grading_model_prices)) as pin,
+           coalesce(p.output_microdollars_per_mtok,
+                    (select max(output_microdollars_per_mtok) from grading_model_prices)) as pout,
+           a.owner_id
+    from check_grade_suggestions s
+    join section_checks sc on sc.id = s.check_id
+    join activities a on a.id = sc.activity_id
+    left join grading_model_prices p on p.model_id = s.model_id
+    where s.billable
+      and s.created_at >= date_trunc('month', now())
+  )
+  select coalesce(sum((coalesce(tokens_in, 0)::bigint * pin)
+                    + (coalesce(tokens_out, 0)::bigint * pout))
+           filter (where owner_id = p_teacher), 0) / 1000000,
+         coalesce(sum((coalesce(tokens_in, 0)::bigint * pin)
+                    + (coalesce(tokens_out, 0)::bigint * pout)), 0) / 1000000
+    into v_teacher_spend, v_platform_spend
+    from priced;
+
+  v_cap := coalesce((select monthly_cap_microdollars from grading_platform_budget), 0);
+
+  if v_teacher_spend >= p_quota_microdollars or v_platform_spend >= v_cap then
+    return jsonb_build_object(
+      'paused', true, 'misconfigured', false,
+      'resumes_at', date_trunc('month', now()) + interval '1 month');
+  end if;
+  return jsonb_build_object('paused', false, 'misconfigured', false);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- H. claim_grade_suggestions — the worker pull (W-2; EH-1/2/3/4/8/12/14)
 -- -----------------------------------------------------------------------------
 -- Returns a TYPED result, never a bare array for a gated refusal (W-2 — also
@@ -506,10 +569,8 @@ declare
   v_settings  grading_settings%rowtype;
   v_limit     int := least(greatest(coalesce(p_limit, 4), 1), 20);
   v_lease     interval := make_interval(mins => least(greatest(coalesce(p_lease_minutes, 15), 1), 60));
-  v_billable      boolean;
-  v_platform_spend bigint;
-  v_cap           bigint;
-  v_teacher_spend bigint;
+  v_billable  boolean;
+  v_quota     jsonb;
   v_dropped   int := 0;
   v_items     jsonb;
   v_count     int;
@@ -540,45 +601,20 @@ begin
   -- Read fresh at claim time — a nightly-lagged gate leaves up to ~24h of
   -- unmetered spend, the runaway it exists to stop. Claim is an async worker
   -- path, not a hot path, so the house counter rule is intact. The 0036-
-  -- pattern rollup remains the REPORTING surface, never enforcement.
+  -- pattern rollup remains the REPORTING surface, never enforcement. The
+  -- computation itself lives in §G2, shared with the status read (§K2).
   if v_billable then
-    if not exists (select 1 from grading_model_prices) then
+    v_quota := grading_quota_state(v_teacher, v_settings.quota_microdollars);
+    if (v_quota->>'misconfigured')::boolean then
       raise log 'claim refused (no_model_prices) teacher=%', v_teacher;
       raise exception 'platform_api claims need grading_model_prices configured';
     end if;
-
-    -- Missing price rows count at the MAX configured price (conservative).
-    with priced as (
-      select s.tokens_in, s.tokens_out,
-             coalesce(p.input_microdollars_per_mtok,
-                      (select max(input_microdollars_per_mtok)  from grading_model_prices)) as pin,
-             coalesce(p.output_microdollars_per_mtok,
-                      (select max(output_microdollars_per_mtok) from grading_model_prices)) as pout,
-             a.owner_id
-      from check_grade_suggestions s
-      join section_checks sc on sc.id = s.check_id
-      join activities a on a.id = sc.activity_id
-      left join grading_model_prices p on p.model_id = s.model_id
-      where s.billable
-        and s.created_at >= date_trunc('month', now())
-    )
-    select coalesce(sum((coalesce(tokens_in, 0)::bigint * pin)
-                      + (coalesce(tokens_out, 0)::bigint * pout))
-             filter (where owner_id = v_teacher), 0) / 1000000,
-           coalesce(sum((coalesce(tokens_in, 0)::bigint * pin)
-                      + (coalesce(tokens_out, 0)::bigint * pout)), 0) / 1000000
-      into v_teacher_spend, v_platform_spend
-      from priced;
-
-    v_cap := coalesce((select monthly_cap_microdollars from grading_platform_budget), 0);
-
-    if v_teacher_spend >= v_settings.quota_microdollars or v_platform_spend >= v_cap then
-      raise log 'claim gated (quota_paused) teacher=% teacher_spend=% quota=% platform_spend=% cap=%',
-        v_teacher, v_teacher_spend, v_settings.quota_microdollars, v_platform_spend, v_cap;
+    if (v_quota->>'paused')::boolean then
+      raise log 'claim gated (quota_paused) teacher=%', v_teacher;
       return jsonb_build_object(
         'status',     'quota_paused',
         'items',      '[]'::jsonb,
-        'resumes_at', date_trunc('month', now()) + interval '1 month');
+        'resumes_at', v_quota->'resumes_at');
     end if;
   end if;
 
@@ -1334,6 +1370,58 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- K2. get_grading_assist_status — the queue header's honesty read (DR-6/DR-9)
+-- -----------------------------------------------------------------------------
+-- The teacher's own assist state, nothing else's: provider (the heartbeat
+-- line renders only when ≠ off), last_draft_at (the "last AI draft: <t> ago"
+-- heartbeat — production rows only), and the quota state (DR-9: "AI drafting
+-- paused — monthly limit reached; resumes <date>" must mirror the GATE, so
+-- it reads §G2, never a cached copy). grading_settings has zero policies —
+-- this DEFINER read is the one client window into it, scoped to auth.uid().
+create or replace function get_grading_assist_status()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_settings grading_settings%rowtype;
+  v_last     timestamptz;
+  v_quota    jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in first';
+  end if;
+
+  select * into v_settings from grading_settings where teacher_id = auth.uid();
+  if v_settings.teacher_id is null or v_settings.provider = 'off' then
+    return jsonb_build_object('provider', 'off');
+  end if;
+
+  select max(s.submitted_at) into v_last
+  from check_grade_suggestions s
+  join section_checks sc on sc.id = s.check_id
+  join activities a on a.id = sc.activity_id
+  where a.owner_id = auth.uid()
+    and s.source = 'production';
+
+  if v_settings.provider = 'platform_api' then
+    v_quota := grading_quota_state(auth.uid(), v_settings.quota_microdollars);
+  else
+    v_quota := jsonb_build_object('paused', false, 'misconfigured', false);
+  end if;
+
+  return jsonb_build_object(
+    'provider',      v_settings.provider,
+    'last_draft_at', v_last,
+    'quota_paused',  (v_quota->>'paused')::boolean,
+    'misconfigured', (v_quota->>'misconfigured')::boolean,
+    'resumes_at',    v_quota->'resumes_at');
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- L. Grants — 0009's standing rule
 -- -----------------------------------------------------------------------------
 -- Every new function gets its explicit stanza. The worker RPCs and teacher
@@ -1357,6 +1445,14 @@ grant  execute on function reject_grade_suggestion(uuid, timestamptz, text) to a
 
 revoke execute on function list_grade_suggestions(uuid) from public, anon;
 grant  execute on function list_grade_suggestions(uuid) to authenticated, service_role;
+
+-- The shared quota computation is internal (§G2): it takes an arbitrary
+-- teacher id, so a client grant would be a cross-teacher spend oracle.
+revoke execute on function grading_quota_state(uuid, bigint) from public, anon, authenticated;
+grant  execute on function grading_quota_state(uuid, bigint) to service_role;
+
+revoke execute on function get_grading_assist_status() from public, anon;
+grant  execute on function get_grading_assist_status() to authenticated, service_role;
 
 -- upsert_check_grade keeps its 0034 §I stanza (same signature; grants
 -- survive CREATE OR REPLACE). Restated defensively anyway — a replay after a
