@@ -2314,3 +2314,43 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 **Context:** Boundary item B14 on the Curriculum → Platform Notion page (their freeze + verification-gap write-up); the curriculum repo's README records the exclusion. Once rebuilt, it JOINS github.com/ZanReed/curriculum under CI — the curriculum side has already agreed. Remove the B14 gate only as part of this rebuild.
 
 **Effort:** M · **Priority:** P3 · **Depends on:** nothing; trigger is the next platform change that alters capability-relevant schema, or chain-2 authoring needing a current registry.
+
+## AI grading: suggestion-quality panel in ActivityAnalytics (E3, deferred from the ai-grading-assist review)
+
+**What:** Surface per-rev suggestion quality (confirmed-unchanged / edited / rejected rates, abstain rate, misconception precision once measured) as a panel in the existing ActivityAnalytics route.
+
+**Why:** The capture columns ship with the pilot migration; the surface is deferred until real edit-rate data exists to design against.
+
+**Context:** docs/design/ai-grading-assist.md §5.3 + Review record E3 disposition. Same route family and data source as the S7 analytics surface.
+
+**Effort:** M (human) / S (CC) · **Priority:** P3 · **Depends on:** pilot producing ≥1 rev of real telemetry.
+
+## AI grading: standing blind-sample audit on batch-confirm (E5; mechanism found by voice review)
+
+**What:** A sampled fraction of queue rows occasionally presents WITHOUT the pre-fill; the teacher's blind grade is compared against the suppressed suggestion — a continuous mini-agreement-study guarding edit-rate telemetry against automation bias.
+
+**Why:** Post-batch-confirm, confirmed-unchanged conflates "model right" with "rubber-stamped"; this is the audit that keeps the standing quality signal honest. Voice review found it rides the existing `study`-flag machinery (S effort, no new surface).
+
+**Context:** docs/design/ai-grading-assist.md Review record, taste item T1 — ACCEPTED at the final gate (author, 2026-09-25); this entry is the implementation pointer.
+
+**Effort:** S / S · **Priority:** P2 · **Depends on:** batch-confirm UX shipping (itself gated on D7 numbers + external-teacher reaction).
+
+## AI at authoring time + feedback-only drafting (opportunities surfaced by the ai-grading-assist review)
+
+**What:** Two zero-student-data AI features, separate from grading assist: (a) authoring-time AI drafting rubrics, level descriptors, anchor exemplars, and `answer:`/`solution:` keys; (b) AI drafting only `general_feedback` prose against a teacher-entered score.
+
+**Why:** Both attack marking/authoring pain with no compliance footprint and no worker infrastructure; (a) directly raises the key quality the grading assist depends on. Recorded as complementary opportunities, not replacements — the review kept grading assist as the ratified direction.
+
+**Context:** docs/design/ai-grading-assist.md Review record (outside voice F6, absorbed).
+
+**Effort:** each S–M / S · **Priority:** P3 · **Depends on:** nothing; candidates for a light slice whenever grading-assist learnings suggest which pays first.
+
+## AI grading: two decisions parked at the D11 promotion (eng review, 2026-09-25)
+
+**What:** (a) Claim-enumeration scaling — the pending-work query is a latest-check × jsonb walk across all a teacher's activities per worker poll; pilot-fine, but the platform-side worker makes it standing DB load. Decide bounded claim scope (`section_checks.created_at` watermark) vs a 0036-pattern materialized pending signal. (b) Service worker host — a pull loop cannot live in an Edge Function; name where the platform-side worker runs.
+
+**Why:** Both are promotion-time decisions deliberately NOT taken in the pilot drop (§3b EH-9/EH-16 of the design doc). Parked here so they are decisions, not 2am discoveries; the RPC identity seam (`p_teacher_id` for service_role) already lands in the pilot migration so neither forces a refactor.
+
+**Context:** docs/design/ai-grading-assist.md §3b EH-9, EH-16; §7a.
+
+**Effort:** decisions M / S · **Priority:** P3 · **Depends on:** first named external teacher / `platform_api` arc opening.
