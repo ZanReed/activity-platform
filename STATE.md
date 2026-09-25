@@ -22,16 +22,16 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**NEW — AI-grading drop live steps (2026-09-26), in order:**
-1. **Apply migration 0042** (`supabase db push`) **BEFORE `git push`** —
-   OV-7: the queue pre-fill UI calls the new RPCs and a push is a deploy.
-   (The UI degrades gracefully, but the rule is the rule.) No Edge Function
-   redeploys, no bundle regens.
-2. **`node scripts/verify-runner.mjs --target live --only verify-0042`** —
-   28 rows, green locally; the EH-2 ownership guard was mutation-tested red.
+**AI-grading drop live steps — 1+2 DONE (2026-09-26):** 0042 applied +
+pushed in the right order (OV-7); **live verify-0042 ran green, 30/30**
+(read live: migrations at 42/0042). ⚠ `.env.supabase`'s DSN was rewritten
+to the pooler form (`postgres.<ref>@aws-1-us-east-2.pooler...`) — the
+stored direct `db.<ref>` host is IPv6-only and stopped resolving here.
+Still owed:
 3. **Re-run `pnpm import:batch`** — it now mirrors registry ids into
-   `misconception_registry`; until then the submit RPC refuses
-   misconception-carrying suggestions.
+   `misconception_registry` (live count today: 0; until seeded the submit
+   RPC refuses misconception-carrying suggestions). This is also B16's
+   re-import of the three re-shaped chain-1 files — one run covers both.
 4. Pilot start: provider flip + seed + worker steps are in
    `packages/grading-worker/README.md` (TTHW <15 min).
 
