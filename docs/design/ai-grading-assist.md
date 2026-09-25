@@ -146,6 +146,60 @@ the same aggregates the auto-scored bindings feed — the sensor network starts
 working under a justification locale. This is worth more than the time
 saved.
 
+## 7a. The service path (added 2026-09-25, author direction): sell it later, seam now
+
+Long-term intent: AI grading becomes a sign-up feature for other teachers,
+with the PLATFORM calling a hosted API (Claude) on their behalf, under a
+usage gate so subscribers cannot overspend the author's budget.
+
+**Architecture: two execution paths, one contract.** Everything downstream
+of inference is shared — the suggestion table, validation RPCs, confirm
+flow, release gating, telemetry. Only "who runs inference where" differs:
+
+| | Pilot (author) | Service (subscribers) |
+|---|---|---|
+| Inference | local worker, author's GPUs | platform-side worker → Claude API |
+| Trigger | pull loop on author's machine | queued server-side (async, never the check hot path) |
+| Cost | electricity | metered per suggestion, gated |
+| Compliance | on-device processing | third-party processor — BLOCKING prerequisite, see below |
+
+A per-teacher `grading_provider` config (`off | local_worker | platform_api`,
+default **off**) is the seam. The pilot ships only `local_worker` wired, but
+the field, the shared RPCs, and the metering columns land in the same
+migration so the service path is additive, not a refactor.
+
+**Metering (house-rule-compliant).** Every suggestion row records
+`tokens_in, tokens_out, model_id, est_cost_cents`. Usage AGGREGATION follows
+the standing rule — *no real-time counters on any hot path*: a scheduled
+rollup (the 0036 pattern) or materialized view produces per-teacher
+period-to-date spend. Grading is an async queue, so the budget check reads
+that aggregate at CLAIM time — cheap, off the student path, and a few
+suggestions of overshoot at the boundary is an accepted, bounded error
+(quota is budget protection, not billing arithmetic).
+
+**The gate.** Two ceilings, both enforced at claim: per-teacher period quota
+(tier field on the teacher profile; a plain int for now) and a GLOBAL
+platform cap (the author's actual monthly budget — the backstop that holds
+even if per-teacher math is wrong). Exhausted quota degrades gracefully by
+construction: suggestions simply stop generating and the manual grading
+queue is untouched — AI grading is advisory, so "gate closed" costs nothing
+but convenience. The gate is a dormant safeguard and gets a forced-fire
+liveness proof at production values before any subscriber exists (P3).
+
+**What is deliberately NOT built now** (standing rules): Stripe,
+subscriptions, entitlement purchase — billing rides Phase 4+ and maps tiers
+onto the quota field then. The quota/gate is budget protection for the
+author, not a billing system. AI grading is a new capability, never a
+paywall on an existing Phase 1 feature.
+
+**Compliance becomes a named prerequisite, not a deferral.** The moment ANY
+non-author teacher can flip to `platform_api`, student work flows to a
+third-party processor: data-map + retention-policy rows, disclosure at
+opt-in, and the API data-retention posture are BLOCKING for that flip —
+enforced by keeping `platform_api` unreachable in the UI until the
+compliance pack carries the rows (the docs are counsel-read; the gate on the
+feature is what makes the prose rule real).
+
 ## 7. Explicitly out of scope for the pilot
 
 Student-facing instant AI feedback (the photo-grading doc's same deferral —
@@ -185,5 +239,22 @@ input (own design doc); any third-party API call (D10 gates the swap).
   teacher confirm/edit and is always teacher-attributed (ratifies the
   existing render rule for this new source).
 - **D10 — Compliance posture:** pilot recorded in the data-map as on-device
-  processing (no third-party processor); the Claude-API swap is a separate
-  future ruling with its own data-map/retention update.
+  processing (no third-party processor). The service path's third-party
+  processing is a NAMED BLOCKING prerequisite (§7a), not a deferral:
+  `platform_api` stays unreachable until the compliance pack carries it.
+- **D11 — Dual-path seam now:** per-teacher `grading_provider`
+  (`off | local_worker | platform_api`, default off) plus the shared
+  RPCs/metering columns land in the pilot migration; only `local_worker` is
+  wired. The service path becomes additive, never a refactor.
+- **D12 — Metering:** per-suggestion `tokens_in/out, model_id,
+  est_cost_cents`; per-teacher spend aggregated by scheduled rollup /
+  materialized view (0036 pattern) — never a real-time counter, per the
+  standing rule.
+- **D13 — The gate:** per-teacher period quota + a GLOBAL platform budget
+  cap, both checked at claim time against the aggregate; exhaustion degrades
+  to no-suggestions with manual grading untouched; forced-fire liveness
+  proof at production values before any subscriber exists (P3).
+- **D14 — Monetization deferral:** quota/gate now as budget protection;
+  Stripe/subscriptions/tier-purchase ride Phase 4+ per the standing rule,
+  mapping onto the quota field then. AI grading is per-teacher opt-in,
+  default off, and is never a paywall on an existing feature.
