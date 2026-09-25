@@ -1,7 +1,8 @@
 # AI grading assist — model-drafted rubric grades, teacher-confirmed
 
-**Status:** PROPOSED (design pass 2026-09-25) — decisions D1–D10 below await the
-author's per-item ruling. No code, no migration until then.
+**Status:** ✅ RATIFIED — all of D1–D14, author, 2026-09-25. Build order:
+migration (suggestions table + provider/metering fields) → RPCs → local
+worker → queue pre-fill UI → D7 agreement study.
 
 **Pilot constraint (author, 2026-09-25):** first implementation runs against a
 LOCAL model on the author's machine (2× RTX 3090 — 24 GB VRAM each, 48 GB
@@ -82,6 +83,22 @@ constrained comparison task; 30B-class with schema-constrained decoding is a
 credible floor. Exact model chosen at kickoff against then-current local
 options (the photo-grading doc's "decide at kickoff" pattern) via the
 agreement study (D7), not by reputation.
+
+**24 GB single-card note (author question, 2026-09-25): viable.** A
+27–32B-class model at Q4 fits one 3090, and the workload is friendly to it:
+prompts are 1–3K tokens (block + response + rubric), so KV-cache pressure —
+the usual single-card pain — barely applies, and grading is async batch
+work where 10–20 tok/s is fine. The task-side reason it works: the
+`answer:`/`solution:` authoring rule makes marking a COMPARISON, not a
+derivation — the model checks student work against a worked key rather than
+doing the math cold, which is exactly where small models fail. The two
+capabilities most at risk at this scale are partial-credit judgment and
+misconception identification (D5); the D6 abstain contract converts model
+weakness into reduced coverage rather than bad pre-fills, D5 can demote to
+fast-follow without touching anything else, and D7's agreement study is the
+measurement that decides — not this paragraph. Escalation path if the
+numbers disappoint, in order: bigger quant/model on 48 GB, then the
+platform_api path (same interface by construction).
 
 ## 3. The suggestion store (D2)
 
