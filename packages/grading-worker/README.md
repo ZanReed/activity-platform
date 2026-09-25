@@ -31,6 +31,12 @@ must pass the preflight before you trust it.
 
 ## 2. Sign in (once)
 
+**One-time prerequisite:** add `http://localhost:54329/callback` to the
+Supabase **Redirect URLs** allowlist (Dashboard → Authentication → URL
+Configuration). Without it, GoTrue ignores the CLI's redirect and bounces
+you to the Site URL — the browser looks signed in, the terminal hears
+nothing (it now times out after 3 minutes naming this fix).
+
 ```bash
 pnpm worker:login
 ```

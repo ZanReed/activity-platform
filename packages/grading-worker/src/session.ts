@@ -67,23 +67,60 @@ export async function login(config: WorkerConfig): Promise<string> {
 
   console.log('\nOpen this URL in your browser and sign in as the TEACHER account:\n');
   console.log(`  ${data.url}\n`);
-  console.log(`Waiting for the callback on ${redirectTo} …`);
+  console.log(
+    `Waiting for the callback on ${redirectTo} …\n` +
+      `(one-time prerequisite: ${redirectTo} must be on the Supabase\n` +
+      ` Redirect URLs allowlist — Dashboard → Authentication → URL Configuration.\n` +
+      ` Without it, Google succeeds but you land on the SITE URL and this\n` +
+      ` terminal never hears back.)`,
+  );
 
+  // W-1: never a silent idle loop. The unlisted-redirect failure mode is a
+  // browser that LOOKS signed in while this process hears nothing — so the
+  // wait carries a deadline with the exact fix (learned live, 2026-09-26).
   const code = await new Promise<string>((resolvePromise, rejectPromise) => {
+    const timeout = setTimeout(() => {
+      server.close();
+      rejectPromise(
+        new Error(
+          'no callback after 3 minutes. If the browser sign-in SUCCEEDED but ' +
+            'landed you on the app instead of a "return to the terminal" page, ' +
+            `the redirect URL is not allowlisted: add ${redirectTo} under ` +
+            'Supabase Dashboard → Authentication → URL Configuration → ' +
+            'Redirect URLs, then re-run worker:login.',
+        ),
+      );
+    }, 180_000);
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', redirectTo);
-      const c = url.searchParams.get('code');
-      if (url.pathname !== '/callback' || !c) {
+      if (url.pathname !== '/callback') {
         res.writeHead(404).end();
+        return;
+      }
+      // GoTrue reports refusals as redirect params — surface them instead of
+      // treating an errored callback as no callback.
+      const authError = url.searchParams.get('error_description') ?? url.searchParams.get('error');
+      const c = url.searchParams.get('code');
+      if (!c) {
+        res
+          .writeHead(400, { 'Content-Type': 'text/plain' })
+          .end(`Sign-in failed: ${authError ?? 'no code in the callback'}`);
+        clearTimeout(timeout);
+        server.close();
+        rejectPromise(new Error(`callback carried no code${authError ? `: ${authError}` : ''}`));
         return;
       }
       res
         .writeHead(200, { 'Content-Type': 'text/plain' })
         .end('Signed in — you can close this tab and return to the terminal.');
+      clearTimeout(timeout);
       server.close();
       resolvePromise(c);
     });
-    server.on('error', rejectPromise);
+    server.on('error', (err) => {
+      clearTimeout(timeout);
+      rejectPromise(err);
+    });
     server.listen(CALLBACK_PORT);
   });
 
