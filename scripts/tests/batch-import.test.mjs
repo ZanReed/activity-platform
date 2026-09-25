@@ -64,6 +64,7 @@ import {
     parseNumericValue,
     parseSkillRegistry,
     parseRegistry,
+    parseRegistryDescriptions,
     planIdentity,
     renderCoverageManifest,
     scanSourceKey,
@@ -1137,6 +1138,27 @@ test('§I a registry file is ids only — comments and blank lines are not ids',
         ['# the taxonomy', '', 'mis.roc.uses-endpoint-value', '  ', 'mis.a.b # trailing'].join('\n'),
     );
     assert.deepEqual([...ids].sort(), ['mis.a.b', 'mis.roc.uses-endpoint-value']);
+});
+
+test("§I inline comments read as DESCRIPTIONS; whole-line comments and bare ids don't", () => {
+    // The generated registry writes `id   # what the misconception is`
+    // (2026-09-26); the mirror carries that text into the grading prompt.
+    const descriptions = parseRegistryDescriptions(
+        [
+            '# the taxonomy',
+            'mis.roc.uses-endpoint-value',
+            'mis.a.b   # Reports f(b) instead of the change in f',
+            'mis.c.d # ',
+        ].join('\n'),
+    );
+    assert.deepEqual(
+        [...descriptions.entries()],
+        [['mis.a.b', 'Reports f(b) instead of the change in f']],
+    );
+    // The id authority is parseRegistry — the description parser can only
+    // ever describe ids the id parser also sees.
+    const ids = parseRegistry('mis.a.b   # Reports f(b) instead of the change in f');
+    assert.ok(ids.has('mis.a.b'));
 });
 
 test('§I an id outside the registry warns, naming the file and the id', () => {

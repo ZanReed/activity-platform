@@ -993,6 +993,28 @@ export function parseRegistry(text) {
 }
 
 /**
+ * The registry's inline comments, read as DESCRIPTIONS (2026-09-26): the
+ * generated registry now writes `id   # what the misconception is`, and the
+ * grading-assist prompt wants that text (0042 EH-7's "richer entries" half —
+ * discovered already shipped as comments rather than a format change). A
+ * whole-line comment (`# heading`) has no id and is skipped, exactly as
+ * parseRegistry skips it; an id-bearing line with no comment maps to nothing.
+ * parseRegistry stays the id authority — this reads the same lines and can
+ * never disagree with it about WHICH ids exist.
+ */
+export function parseRegistryDescriptions(text) {
+    const descriptions = new Map();
+    for (const raw of text.split('\n')) {
+        const hash = raw.indexOf('#');
+        if (hash === -1) continue;
+        const id = raw.slice(0, hash).trim();
+        const description = raw.slice(hash + 1).trim();
+        if (id !== '' && description !== '') descriptions.set(id, description);
+    }
+    return descriptions;
+}
+
+/**
  * The SKILL registry: one id per line, with an optional `= n` part count.
  *
  *     rate.unit-rate
@@ -1818,21 +1840,36 @@ export function makeDb(url, key) {
         },
 
         /**
-         * Mirror the misconception registry's ids into the platform table
-         * (0042 EH-7): the submit RPC validates `mis.*` observations against
-         * it, so the mirror is what makes "rejected at the door" real.
+         * Mirror the misconception registry into the platform table (0042
+         * EH-7): the submit RPC validates `mis.*` observations against it,
+         * so the mirror is what makes "rejected at the door" real — and the
+         * grading prompt reads `description` for its misconception entries,
+         * so mirroring the file's inline comments is what gives the model
+         * descriptor text instead of bare ids.
          *
-         * ignore-duplicates ON PURPOSE: today's registry format carries only
-         * ids, and a re-run must not null out the skill/description columns
-         * once the richer format (the boundary-page ask) starts filling
-         * them. Ids are never deleted here either — the curriculum side's
-         * own rule is that a registry id, once minted, is permanent.
+         * merge-duplicates: the FILE is canonical (generated in the
+         * curriculum repo, never hand-edited, CI-pinned), so a re-run
+         * mirrors its descriptions verbatim — including a null where the
+         * file carries none. The `skill` column is deliberately NOT sent
+         * (untouched by the merge): skill attachment is still the open
+         * boundary-page ask. Ids are never deleted here — the curriculum
+         * side's own rule is that a registry id, once minted, is permanent.
          */
-        syncMisconceptionRegistry(ids) {
+        syncMisconceptionRegistry(ids, descriptions = new Map()) {
+            // return=representation is LOAD-BEARING, not verbosity: a bare
+            // upsert answers 201 with an EMPTY body, and call() JSON-parses
+            // every non-204 response — the first live run of this mirror
+            // died exactly there (2026-09-26), and the run-level fail-soft
+            // demoted the crash to a warning nobody read. The echo also
+            // lets the caller print a real count instead of an assumption.
             return call('/misconception_registry?on_conflict=id', {
                 method: 'POST',
-                headers: { Prefer: 'resolution=ignore-duplicates' },
-                body: JSON.stringify([...ids].map((id) => ({ id }))),
+                headers: {
+                    Prefer: 'resolution=merge-duplicates,return=representation',
+                },
+                body: JSON.stringify(
+                    [...ids].map((id) => ({ id, description: descriptions.get(id) ?? null })),
+                ),
             });
         },
     };
@@ -1972,7 +2009,11 @@ async function main() {
         const path = resolve(args.registry);
         const text = await readFile(path, 'utf8').catch(() => null);
         if (text === null) usage(`--registry ${path} could not be read.`);
-        registry = { path: args.registry, ids: parseRegistry(text) };
+        registry = {
+            path: args.registry,
+            ids: parseRegistry(text),
+            descriptions: parseRegistryDescriptions(text),
+        };
         if (registry.ids.size === 0) {
             usage(
                 `--registry ${path} lists no ids.\n\n` +
@@ -2634,9 +2675,15 @@ async function main() {
     // every suggestion carrying a newer id.
     if (registry) {
         try {
-            await db.syncMisconceptionRegistry(registry.ids);
+            const mirrored = await db.syncMisconceptionRegistry(
+                registry.ids,
+                registry.descriptions,
+            );
+            // The count comes from the server's ECHO, never from the input —
+            // the first live run "mirrored" 36 ids into a crash, and only an
+            // asserted-from-response number can't tell that story wrong.
             console.log(
-                `registry  : ${registry.ids.size} misconception ids mirrored to misconception_registry`,
+                `registry  : ${Array.isArray(mirrored) ? mirrored.length : 0} misconception ids mirrored (${registry.descriptions.size} with descriptions)`,
             );
         } catch (err) {
             console.warn(
