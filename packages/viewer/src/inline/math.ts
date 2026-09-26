@@ -55,7 +55,16 @@ function escapeHtml(value: string): string {
  * P1A chunk boundary. */
 export async function loadMathRenderer(): Promise<MathRenderer> {
   if (engine) return engine;
-  loading ??= import('katex').then((mod) => {
+  // The stylesheet rides the same lazy boundary as the engine. Without it
+  // KaTeX's .katex-mathml copy is not hidden and its .katex-html copy is
+  // unstyled, so a browser with native MathML (Firefox, Chrome 109+) draws
+  // a real fraction followed by the loose digits "15⁄6 6 15". The editor
+  // imports this CSS in its own NodeViews; the student surface never loads
+  // the editor, so it must import it here.
+  loading ??= Promise.all([
+    import('katex'),
+    import('katex/dist/katex.min.css'),
+  ]).then(([mod]) => {
     const katex = (mod as { default?: unknown }).default ?? mod;
     const renderer: MathRenderer = (latex, displayMode) => {
       try {
