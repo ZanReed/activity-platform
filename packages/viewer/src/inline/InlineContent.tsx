@@ -28,9 +28,18 @@
 //     its state; the definition body renders inline when open.
 // =============================================================================
 
-import { useEffect, useId, useState } from 'react';
+import { Suspense, lazy, useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { loadMathRenderer, residentMathRenderer } from './math.js';
+
+// Rich definitions (paragraphs, display math, lists, figures) render through
+// the paper glossary's block renderer. Lazy, because it pulls GraphFigure and
+// only a student who OPENS a rich definition needs it.
+const DefinitionBlocks = lazy(() =>
+  import('../print/DefinitionGlossary.js').then((m) => ({
+    default: m.DefinitionBlocks,
+  })),
+);
 
 /** Fixed nesting order, outermost first — see decision 1. */
 const MARK_ORDER = [
@@ -154,10 +163,15 @@ function DefinitionTerm({
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
-  // A simple definition carries `definition` text; a rich one carries blocks
-  // (V5 renders the text form; rich definition blocks land with their own
-  // component pass, and the term still discloses).
+  // A simple definition carries `definition` text; a rich one carries
+  // `content` blocks. Every catalogue import is rich (the definitions fence
+  // admits math and formatting), so the rich path is the common one — it
+  // showed the bare word "Definition" until 2026-09-26.
   const simple = typeof mark.definition === 'string' ? mark.definition : null;
+  const rich =
+    simple === null && Array.isArray(mark.content) && mark.content.length > 0
+      ? (mark.content as never[])
+      : null;
 
   return (
     <span className="viewer-definition">
@@ -172,7 +186,14 @@ function DefinitionTerm({
       </button>
       {open ? (
         <span className="viewer-definition__body" id={panelId} role="note">
-          {simple ?? 'Definition'}
+          {simple ??
+            (rich ? (
+              <Suspense fallback={children}>
+                <DefinitionBlocks blocks={rich} />
+              </Suspense>
+            ) : (
+              'Definition'
+            ))}
         </span>
       ) : null}
     </span>

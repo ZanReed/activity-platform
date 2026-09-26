@@ -1077,6 +1077,29 @@
   padding: var(--space-1) var(--space-2);
 }
 
+/* Rich definition content in the popup (screen). The glossary's own rules are
+   print-only; these give the same blocks a compact on-screen layout. */
+.viewer-definition__body .viewer-glossary__paragraph,
+.viewer-definition__body .viewer-glossary__heading {
+  display: block;
+  margin: 0.2rem 0;
+}
+
+.viewer-definition__body .viewer-glossary__heading {
+  font-weight: 700;
+}
+
+.viewer-definition__body .viewer-glossary__list {
+  margin: 0.2rem 0;
+  padding-left: 1.2rem;
+}
+
+.viewer-definition__body .viewer-glossary__math,
+.viewer-definition__body .viewer-glossary__math .katex-display,
+.viewer-definition__body .viewer-glossary__math .katex-display > .katex {
+  text-align: left;
+}
+
 /* ---- Route chrome: gate, skeleton, top bar ---------------------------------
    The screens a student meets before (and instead of) the worksheet. */
 

@@ -88,14 +88,23 @@ function GlossaryList({
   );
 }
 
-/** One block of a definition's content. */
-function GlossaryBlock({ block }: { block: DefinitionBlock }): ReactElement | null {
+/** One block of a definition's content. `inline` is the on-screen popup,
+ * which opens INSIDE a line of running text — a <p> there would nest inside
+ * the block's own paragraph, so text blocks become block-level spans. */
+function GlossaryBlock({
+  block,
+  inline = false,
+}: {
+  block: DefinitionBlock;
+  inline?: boolean;
+}): ReactElement | null {
+  const TextTag = inline ? 'span' : 'p';
   switch (block.type) {
     case 'paragraph':
       return (
-        <p className="viewer-glossary__paragraph">
+        <TextTag className="viewer-glossary__paragraph">
           <InlineContent nodes={block.content as never} />
-        </p>
+        </TextTag>
       );
 
     case 'heading': {
@@ -103,9 +112,9 @@ function GlossaryBlock({ block }: { block: DefinitionBlock }): ReactElement | nu
       // render at a fixed small size rather than at their authored level: an
       // h1 inside an appendix entry would outrank the appendix's own title.
       return (
-        <p className="viewer-glossary__heading" data-level={block.level}>
+        <TextTag className="viewer-glossary__heading" data-level={block.level}>
           <InlineContent nodes={block.content as never} />
-        </p>
+        </TextTag>
       );
     }
 
@@ -140,6 +149,26 @@ function GlossaryBlock({ block }: { block: DefinitionBlock }): ReactElement | nu
     default:
       return null;
   }
+}
+
+/**
+ * A rich definition's blocks, for the on-screen disclosure over a term
+ * (InlineContent's DefinitionTerm, which lazy-loads this module so the shell
+ * does not carry the glossary or GraphFigure). Same alphabet and renderer as
+ * the paper glossary, so a definition reads the same on both surfaces.
+ */
+export function DefinitionBlocks({
+  blocks,
+}: {
+  blocks: readonly DefinitionBlock[];
+}): ReactElement {
+  return (
+    <>
+      {blocks.map((block, index) => (
+        <GlossaryBlock key={block.id ?? index} block={block} inline />
+      ))}
+    </>
+  );
 }
 
 export interface DefinitionGlossaryProps {
