@@ -22,18 +22,19 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**AI-grading drop live steps — 1+2 DONE (2026-09-26):** 0042 applied +
-pushed in the right order (OV-7); **live verify-0042 ran green, 30/30**
-(read live: migrations at 42/0042). ⚠ `.env.supabase`'s DSN was rewritten
-to the pooler form (`postgres.<ref>@aws-1-us-east-2.pooler...`) — the
-stored direct `db.<ref>` host is IPv6-only and stopped resolving here.
-Still owed:
-3. **Re-run `pnpm import:batch`** — it now mirrors registry ids into
-   `misconception_registry` (live count today: 0; until seeded the submit
-   RPC refuses misconception-carrying suggestions). This is also B16's
-   re-import of the three re-shaped chain-1 files — one run covers both.
-4. Pilot start: provider flip + seed + worker steps are in
-   `packages/grading-worker/README.md` (TTHW <15 min).
+**AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
+(2026-09-26, author ruling — GPU box months away).** Proven against live:
+0042 applied (verify-0042 30/30), registry mirrored (35 ids +
+descriptions; empty-201 mirror crash fixed, b5de25c), worker login →
+claim round-trip as the author (`claimed 0`, pool empty), login-allowlist
+prereq fixed (b4a85db; `localhost:54329/callback` allowlisted).
+**`grading_provider` back to `off`** — honest with no worker; flip-on is
+the W-8 one-liner. ⚠ `.env.supabase` DSN is now the pooler form (the
+direct host stopped resolving).
+PARKED until the box (in order, README): vLLM → `worker:check` OK → E2b
+golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm sit
+behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
+checks (today 0, roster 1 student; §5.1's volume rule governs the window).
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
