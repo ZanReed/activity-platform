@@ -1159,3 +1159,30 @@ they carry authored meaning, and they must look the same on paper as on screen.
 STATE is replaced every session.)*
 
 - **Retention is COMPLETE and proven end to end (0022–0025).** The one thing to know when touching it: **`users.deleted_at` means "account disabled", NOT "retention clock running"** — `join_class` refuses accounts that have it set, so student dormancy is DERIVED live from `class_members`/`classes` (400-day window) and the purge job never writes that column. Don't "simplify" it into a stored flag; that reintroduces a between-terms lockout. "Who is dormant right now" has no column to read — the query is `scripts/verify-0025.sql` section D.
+
+## AI grading assist: a suggestion is NOT a grade (2026-09-26, migration 0042; full decision record in docs/design/ai-grading-assist.md)
+
+The architecture decisions for the AI-grading arc live in the design doc's
+own ratified record (D1–D14, W-1..9, DR-1..12, EH-1..16) — check THERE
+before re-deciding anything in this area. The four most likely to be
+"simplified" away by a future session, stated here for the check-first
+sweep:
+
+- **Suggestions convert to grades ONLY through `confirm_grade_suggestion`**,
+  which replays through `upsert_check_grade` under the teacher's uuid in one
+  transaction and computes the edit diff SERVER-side. A client that writes
+  `check_grades` from a draft directly, or labels its own edits, breaks the
+  telemetry the whole D7 quality gate reads.
+- **Supersession keys on the student's TEXT, never the attempt number** —
+  0034's G2 ruling, extended: an identical-text re-check re-keys the pending
+  draft instead of re-inferring. Attempt-keyed supersession re-buys the
+  wasted-inference cost G2 exists to prevent (metered money on the hosted
+  path).
+- **One validator, one quota computation, shared** (`validate_check_grade_
+  criteria`, `grading_quota_state`): the grade write and the draft write
+  must refuse the same matrix; the claim gate and the queue header must
+  read the same spend. Inlining either "for simplicity" reintroduces the
+  drift both were extracted to prevent.
+- **`billable` is sticky once true**: a hosted inference already spent
+  money, and a later local re-claim must not erase it from the quota
+  aggregate (found red by verify-0042 §E, fixed same day).

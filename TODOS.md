@@ -2354,3 +2354,13 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 **Context:** docs/design/ai-grading-assist.md §3b EH-9, EH-16; §7a.
 
 **Effort:** decisions M / S · **Priority:** P3 · **Depends on:** first named external teacher / `platform_api` arc opening.
+
+## Service worker: recover from a stale shell after a deploy (found live 2026-09-26)
+
+**What:** After a Cloudflare deploy, a browser holding the old SW shell can request purged hashed chunks — every route click fails ("can't open anything") until a hard refresh. Add chunk-load-failure recovery: catch vite's `preloadError` / failed lazy imports, force an SW update + one guarded automatic reload (sessionStorage one-shot against loops), and a red→green row in the sw e2e lane.
+
+**Why:** The author hit this the day the queue-UI deploy landed; a hard refresh fixed it. Every student with the app open across a deploy is exposed to the same dead-end, and students won't know the hard-refresh incantation.
+
+**Context:** `packages/app/vite.config.ts` (VitePWA: autoUpdate, precache index.html, CacheFirst `/assets/`), registration in `main.tsx`, lane `packages/app/e2e/sw/`. A spawn-task chip for this exists in the app; this entry is the durable copy.
+
+**Effort:** S / S · **Priority:** P2 · **Depends on:** nothing.

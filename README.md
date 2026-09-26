@@ -95,6 +95,7 @@ activity-platform/
 │   ├── schema/        — Zod types, document model, factories, fonts registry
 │   ├── viewer/        — @activity/viewer: block registry + components + sanitize/server + grading engine + fixtures + print layer
 │   ├── graph-kit/     — @activity/graph-kit: shared graphing kit + /scorers + /static-svg pure subpaths
+│   ├── grading-worker/ — @activity/grading-worker: the AI-grading pull worker CLI (teacher-session auth, claim/submit RPCs, local-LLM inference; see its README for the operator runbook)
 │   └── app/           — Vite + React 19 + TS + Tailwind v4 + React Router v7 (editor, dashboard, viewer routes, print)
 ├── supabase/
 │   ├── migrations/    — numbered SQL migrations (applied set = `supabase migration list`)

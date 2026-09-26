@@ -6,6 +6,20 @@
 migration (suggestions table + provider/metering fields) → RPCs → local
 worker → queue pre-fill UI → D7 agreement study.
 
+**Build status (2026-09-26):** steps 1–4 SHIPPED and LIVE-VERIFIED —
+migration 0042 (verify-0042, 30/30 against live), `packages/grading-worker`
+(W-1..W-9 as code; login → claim round-trip proven against live), and the
+queue pre-fill UI (DR-1..DR-12, 28 ruling-pinned component tests). The
+misconception registry mirrors live (35 ids WITH descriptions — the
+generated registry ships descriptors as inline comments, so EH-7's "richer
+entries" half arrived in-file; the skill-attachment half stays an open
+boundary-page ask). ⚠ **The MODEL half is PARKED (author ruling,
+2026-09-26): the GPU box is months away.** `grading_provider` sits at
+`off`; the E2b golden run, D7 step 2, and batch-confirm wait on hardware.
+D7 step 1 (hand-grading) is NOT parked — it waits only on student volume
+(zero checks live at this writing; §5.1's volume rule governs the study
+window). Box-arrival checklist: STATE.md + the worker README.
+
 **Pilot constraint (author, 2026-09-25):** first implementation runs against a
 LOCAL model on the author's machine (2× RTX 3090 — 24 GB VRAM each, 48 GB
 total). This is a feature, not a limitation: see §2.
