@@ -29,8 +29,7 @@ descriptions; empty-201 mirror crash fixed, b5de25c), worker login →
 claim round-trip as the author (`claimed 0`, pool empty), login-allowlist
 prereq fixed (b4a85db; `localhost:54329/callback` allowlisted).
 **`grading_provider` back to `off`** — honest with no worker; flip-on is
-the W-8 one-liner. ⚠ `.env.supabase` DSN is now the pooler form (the
-direct host stopped resolving).
+the W-8 one-liner.
 PARKED until the box (in order, README): vLLM → `worker:check` OK → E2b
 golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm sit
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
