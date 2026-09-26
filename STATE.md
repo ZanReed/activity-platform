@@ -22,8 +22,6 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**Push `4e181d7`, then refresh Linux print baselines.**
-
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (2026-09-26, author ruling — GPU box months away).** Proven against live:
 0042 applied (verify-0042 30/30), registry mirrored (35 ids +
