@@ -40,8 +40,8 @@ Notion stamp → `92a0c3a`; W-2 format adopted by the curriculum side
 `--strict` green. Students see the list now (the read keys on owner, not
 version). **OWED:** republish the 4 chain-1 activities (`report:stale`: all
 4 stale); the builder's call on 18 DIVERGENT local definitions (drop →
-re-import → republish, or keep as overrides); a `glossary.md` pointer row
-on the boundary page.
+re-import → republish, or keep as overrides; filed on the boundary page
+beside the new `glossary.md` pointer row).
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
