@@ -53,6 +53,8 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `![alt](https://url)` | an image block |
 | `[[term :: definition]]` | a **vocabulary definition** — the term with a pop-up explanation |
 | `[[term]]` + a ```definitions fence | a **rich vocabulary definition** — one that needs an equation, a list, or a figure |
+| `[[term]]` alone, in a catalogue file | a word from the **course glossary** (batch import only — see [Course glossary](#course-glossary-batch-import---glossary)) |
+| `\[[…]]` | literal brackets — never a definition |
 | `$$… \gap{answer} …$$` | a gradeable **in-equation gap** the student fills (Model A) |
 
 ## Rules that matter
@@ -1027,11 +1029,119 @@ Find the **[[Slope]]** of the line, then check its [[intercept]].
 
 - **Entries** — separated by a line containing only `---`, each headed by a `term:` line. Everything after it is that term's definition.
 - **Entry bodies use the same line rules as the [reference sheet](#reference-sheet-reference-fence)** — `$$…$$` displayed equations, `-`/`1.` list runs, `#`–`###` headings, `![alt](url)` images, `graph:` runs sharing one grid, and `axes:` windows. It is one shared grammar, not two.
-- **Referencing** — `[[term]]` with no `::` looks the term up, **case-insensitively**. The fence may sit anywhere in the document (top or bottom); references resolve either way. A `[[bracketed phrase]]` that is neither a `::` definition nor a fence entry stays literal text.
+- **Referencing** — `[[term]]` with no `::` looks the term up, **case-insensitively**. The fence may sit anywhere in the document (top or bottom); references resolve either way. A `[[bracketed phrase]]` that is neither a `::` definition nor a fence entry stays literal text. (In a catalogue file imported with a course glossary, it is looked up there next — see [Course glossary](#course-glossary-batch-import---glossary).)
+- **Literal brackets** — write `\[[like this]]` and the brackets print as they are: never a definition, never looked up, never warned about. Inside a code span the backslash is kept, because in code it is a real character.
 - **Side channel** — like `reference`, this fence contributes **nothing** to the worksheet body; its content travels inside the marks that reference it. A term defined but never referenced simply goes unused.
 - **One entry per term** — a duplicate `term:` warns and keeps the first.
 - **Not here** — columns and callouts are not valid definition content, and a definition can never contain another definition or a question (`{{…}}` stays literal). Blocks outside the allowed set are dropped with a warning.
 - **Printing** — definition pop-ups don't exist on paper. Turn on **⚙ → Print → "Include a glossary of defined words when printing"** to add every defined term as a glossary at the end of the worksheet.
+
+## Course glossary (batch import, `--glossary`)
+
+A course keeps its vocabulary in ONE glossary file, and a catalogue activity
+can name a word from it with a plain `[[term]]` — no fence in the activity.
+This is **batch import only** (`pnpm import:batch`); a paste into the app has
+no glossary and resolves only the activity's own definitions.
+
+### How a `[[term]]` resolves
+
+1. **The activity's own definition wins** — a ```definitions entry or an
+   inline `[[term :: …]]` anywhere in the file. It wins under ANY name of the
+   glossary entry it matches: an activity that defines *gradient* itself turns
+   `[[slope]]` into its own definition too, when `slope` is gradient's US name.
+2. **Otherwise the course glossary**, matched on the term or its US variant,
+   case- and accent-insensitively. The mark keeps the text you wrote and
+   carries the entry's id plus a copy of its definition, so print and a
+   first tap offline still have something to show; on screen the student sees
+   the glossary's current wording once it loads.
+3. **Otherwise it stays literal**, and the import names it:
+   `unit/a.md:12 [[gradiant]] — not in the course glossary or this activity, left as plain text; did you mean “gradient”?`
+   Under `--strict` that fails the run. A word the glossary has RETIRED counts
+   as not found — retirement stops new references without breaking old ones.
+
+Which glossary: with `--glossary <file>`, that file (it is about to be
+mirrored). Without it, the glossary the store already holds for `--owner`. If
+the database has no glossary table yet (migration 0043), the run says so in one
+line and checks only the activity's own definitions.
+
+### The glossary file — PROPOSED v1 format
+
+The curriculum side owns this file and its format; this is the platform's
+proposal (docs/design/glossary.md W-2), and only the loader changes if they
+choose otherwise. It is the ```definitions grammar above plus header lines at
+the top of each entry:
+
+```
+```definitions
+id: gradient
+term: gradient
+us: slope
+How steep a line is: the rise divided by the run.
+---
+id: y-intercept
+term: y-intercept
+Where a graph crosses the $y$-axis, at $x = 0$.
+---
+id: rate
+term: rate
+A comparison of two quantities with different units, such as
+$\frac{\text{km}}{\text{h}}$.
+```⠀
+```
+
+- **`id:` is required and permanent.** It is the entry's identity in the store
+  and in every published mark that points at it. It is never derived from the
+  term, so fixing a spelling in `term:` is not a rename. Lower-case letters,
+  digits, `.`, `_`, `-`. (Not `key:` — that already means an activity's
+  identity in the meta fence.)
+- **`us:`** is the one variant key v1 knows: the US word for the same idea.
+  Students see it as a second line under the term, and it matches `[[slope]]`
+  exactly like the term does. Any other two-letter key is reported (a typo
+  until someone decides it is a new locale).
+- **Header lines come first**, before any definition text. The header ends at
+  the first line that is not `id:`, `term:` or a two-letter key.
+- **Cross-links are automatic.** When one definition mentions another entry's
+  word, the student can tap through to it; do not write `[[…]]` inside a
+  glossary definition.
+- Every problem is reported as `<file>:<line> <id> — <problem>; <fix>`, and
+  every one fails `--strict`: a missing or malformed `id:`, a duplicate id or
+  term (the first is kept), a variant that is already another entry's word
+  (dropped), an answer gap `\gap{…}` in a definition, an entry over 16 KB,
+  more than 2,000 entries, or more than 1 MB of definitions in total (a live
+  run then refuses to mirror until it is smaller).
+
+### What a run does with it
+
+- **Mirrors the file into the store**, in one database transaction before any
+  activity is written: new and changed entries are written; an entry that is no
+  longer in the file is **retired, never deleted** (published worksheets keep
+  showing it); an id that comes back is un-retired.
+- **Refuses a mass retire** — more than 25 entries, or more than 20% of the
+  active ones (and more than 5) — before writing anything, printing the list.
+  That shape is usually the wrong file. `--allow-mass-retire` lets it through.
+- **Prints a glossary report** every run: entries, variants and cross-links in
+  the file; what the store would gain or lose; how references resolved; and
+  every activity definition that SHADOWS a glossary entry — DIVERGENT ones in
+  full (an override, or drift?), identical ones as a count (the local copy can
+  go; listed in full on a dry run).
+- **`--dry-run --glossary <file>`** resolves every reference against the file
+  and reports exactly what a live run would write — the database computes the
+  plan — and writes nothing.
+- A failed mirror is loud and the import carries on (references still resolve
+  against the file); under `--strict` it fails the run.
+
+### Hello world
+
+```bash
+BATCH_IMPORT_OUTPUT_ROOT=$(mktemp -d) pnpm import:batch scripts/fixtures/glossary/demo \
+  --owner <a local teacher> --glossary scripts/fixtures/glossary/glossary.fixture.md --dry-run
+```
+
+The demo activity references `gradient`, `slope` (gradient's US name) and
+`y-intercept`; the report shows all three resolving from the glossary.
+`BATCH_IMPORT_OUTPUT_ROOT` keeps the run from rewriting the repo's generated
+manifests with the demo's. The store's read side has its own hello world:
+`scripts/verify-0043.sql` seeds entries and reads them back as a student.
 
 ## Seeded variables (```seed fence)
 
