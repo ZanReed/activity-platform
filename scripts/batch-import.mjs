@@ -132,7 +132,7 @@
 
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
-import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -435,8 +435,8 @@ export async function findMarkdownFiles(root) {
  * turns that into a skip + a report (D3).
  */
 export function convertOne(pipeline, markdown, existingRow, sourcePath, options = {}) {
-    const { chainTitle = null } = options;
-    const result = pipeline.importer(markdown);
+    const { chainTitle = null, glossary = undefined } = options;
+    const result = pipeline.importer(markdown, glossary ? { glossary } : undefined);
 
     if (
         result.blocks.length === 0 &&
@@ -621,6 +621,9 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         // key rides out so main() can cross-check it against scanSourceKey's
         // pre-pass; the skills feed the registry check and the coverage
         // manifest; reservedKeys feeds the per-run receipt.
+        // How every [[term]] resolved (present only when a glossary source was
+        // passed) — the reference gate and the glossary report read it.
+        glossary: result.glossary ?? null,
         sourceKey: fence.sourceKey ?? null,
         primarySkill: fence.primarySkill ?? null,
         supportingSkills: fence.supportingSkills ?? [],
@@ -1640,6 +1643,10 @@ export async function loadPipeline() {
 
     return {
         importer: await mod.getMarkdownImporter(),
+        glossaryLoader: await mod.getGlossaryLoader(),
+        buildGlossaryIndex: mod.buildGlossaryIndex,
+        crossLinkTargets: mod.crossLinkTargets,
+        GLOSSARY_MAX_ENTRIES: mod.GLOSSARY_MAX_ENTRIES,
         wrapBlocksStrict: mod.wrapBlocksStrict,
         tiptapToActivity: mod.tiptapToActivity,
         // The load half of the round trip. Only the TEST uses it (the script
@@ -1661,6 +1668,58 @@ export async function loadPipeline() {
         DEFAULT_TITLE: mod.DEFAULT_TITLE,
         DEFAULT_COURSE: mod.DEFAULT_COURSE,
     };
+}
+
+// =============================================================================
+// The course glossary (docs/design/glossary.md R2, R4, R8, W-5–W-7, W-12, EN-12)
+// =============================================================================
+
+/**
+ * True when a PostgREST error says the TABLE or FUNCTION does not exist —
+ * i.e. migration 0043 has not been applied to this database. Routed on the
+ * codes PostgREST and Postgres actually send, never on a bare word that the
+ * request path might contain (the 0039/0041 source_key lesson, above).
+ */
+export function isMissingRelation(message) {
+    return /\b(PGRST205|PGRST202|42P01|42883)\b/.test(message);
+}
+
+/** EN-12: more than 25, OR more than 20% of the active entries AND more than 5. */
+export const MASS_RETIRE_MAX = 25;
+export function isMassRetire(retiredCount, activeBefore) {
+    return (
+        retiredCount > MASS_RETIRE_MAX ||
+        (retiredCount > 5 && retiredCount > 0.2 * activeBefore)
+    );
+}
+
+/** 1-based line of the first `[[text]]` in a file — W-7 wants every message
+ * located, and the converted document no longer knows where it came from. */
+export function lineOfReference(markdown, text) {
+    const lines = markdown.split('\n');
+    const needle = `[[${text}]]`;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(needle)) return i + 1;
+    }
+    const folded = needle.toLowerCase();
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].toLowerCase().includes(folded)) return i + 1;
+    }
+    return 1;
+}
+
+/** The R2 reference gate's warnings for one file, W-7 shaped. */
+export function unresolvedReferenceWarnings(sourcePath, markdown, report) {
+    return (report?.references ?? [])
+        .filter((r) => r.resolution === 'none')
+        .map(
+            (r) =>
+                `${sourcePath}:${lineOfReference(markdown, r.text)} [[${r.text}]] — not in the ` +
+                'course glossary or this activity, left as plain text; ' +
+                (r.suggestion
+                    ? `did you mean “${r.suggestion}”?`
+                    : `add it to the glossary file, or define it here with [[${r.text} :: …]]`),
+        );
 }
 
 // =============================================================================
@@ -1855,6 +1914,52 @@ export function makeDb(url, key) {
          * boundary-page ask. Ids are never deleted here — the curriculum
          * side's own rule is that a registry id, once minted, is permanent.
          */
+        /**
+         * The owner's ACTIVE glossary rows — the resolution source for a run
+         * without --glossary (R2), so a flag-less re-import never false-warns
+         * on a term the store already holds. Paged: PostgREST caps every read
+         * at 1,000 rows by default (EN-1), and a glossary may run to 2,000.
+         */
+        async activeGlossary(ownerId) {
+            const rows = [];
+            for (let offset = 0; ; offset += 1000) {
+                const page = await call(
+                    `/glossary_entry?owner_id=eq.${ownerId}&retired_at=is.null` +
+                        '&select=term_id,term,variants,body' +
+                        `&order=term_id&offset=${offset}&limit=1000`,
+                );
+                rows.push(...page);
+                if (page.length < 1000) break;
+            }
+            return rows.map((r) => ({
+                id: r.term_id,
+                term: r.term,
+                variants: r.variants ?? {},
+                body: r.body ?? [],
+            }));
+        },
+
+        /**
+         * The glossary mirror — ONE atomic service RPC (0043 EN-2). apply=false
+         * computes the identical report and writes nothing: the dry run and the
+         * mass-retire guard both read it before any write happens.
+         */
+        syncGlossary(ownerId, entries, apply) {
+            return call('/rpc/sync_glossary_entries', {
+                method: 'POST',
+                body: JSON.stringify({
+                    p_owner: ownerId,
+                    p_entries: entries.map((e) => ({
+                        term_id: e.id,
+                        term: e.term,
+                        variants: e.variants,
+                        body: e.body,
+                    })),
+                    p_apply: apply,
+                }),
+            });
+        },
+
         syncMisconceptionRegistry(ids, descriptions = new Map()) {
             // return=representation is LOAD-BEARING, not verbosity: a bare
             // upsert answers 201 with an EMPTY body, and call() JSON-parses
@@ -1887,6 +1992,8 @@ export function parseArgs(argv) {
     let strict = false;
     let registry = null;
     let skillsRegistry = null;
+    let glossary = null;
+    let allowMassRetire = false;
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -1908,6 +2015,9 @@ export function parseArgs(argv) {
         else if (arg === '--skills-registry') skillsRegistry = argv[++i] ?? null;
         else if (arg.startsWith('--skills-registry='))
             skillsRegistry = arg.slice('--skills-registry='.length);
+        else if (arg === '--glossary') glossary = argv[++i] ?? null;
+        else if (arg.startsWith('--glossary=')) glossary = arg.slice('--glossary='.length);
+        else if (arg === '--allow-mass-retire') allowMassRetire = true;
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
         else positional.push(arg);
     }
@@ -1920,15 +2030,19 @@ export function parseArgs(argv) {
         strict,
         registry,
         skillsRegistry,
+        glossary,
+        allowMassRetire,
     };
 }
 
-function usage(message) {
-    console.error(`
-${message}
-
+/** The help text. Every flag parseArgs accepts appears here (W-11; the
+ * batch-import test reads parseArgs's source and holds the two together). */
+export function usageText() {
+    return `
   pnpm import:batch <folder> --owner <email|uuid> [--dry-run] [--force]
-                             [--registry <file>] [--strict]
+                             [--registry <file>] [--skills-registry <file>]
+                             [--glossary <file>] [--allow-mass-retire]
+                             [--strict]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
                its path RELATIVE to this folder
@@ -1946,16 +2060,35 @@ ${message}
   --registry   a file of valid mis.* ids, one per line (# comments, blank lines
                ignored). Bindings outside it warn, by name. A folder that
                carries bindings and supplies no registry warns for that too
-  --strict     make every binding warning — a suspect id, an id outside the
-               registry, a mistake that can never fire, a missing registry —
-               exit 1. Without it they are printed and the exit code is
-               unchanged
+  --glossary   the course glossary file (\`\`\`definitions entries, each with a
+               required id: line — docs/markdown-import-format.md). Every
+               [[term]] resolves against it, and the run MIRRORS it into the
+               store: new and changed entries are written, entries no longer in
+               the file are RETIRED (never deleted). Without it, references
+               resolve against the store as it stands and the store is not
+               touched. --dry-run --glossary resolves and reports, writes nothing
+  --allow-mass-retire
+               let a live --glossary run retire more than 25 entries, or more
+               than 20% of the active ones (and more than 5). Without it such a
+               run is refused before any write and the retire set is printed
+  --strict     make every binding, catalogue and glossary warning — a suspect
+               id, an id outside the registry, a mistake that can never fire, a
+               missing registry, an unresolved [[term]], a glossary file
+               problem — and a FAILED mirror (the misconception registry's or
+               the glossary's) exit 1. Without it they are printed and the exit
+               code is unchanged
 
   Every run rewrites ${MANIFEST_PATH} — every binding, per file and
   across the folder, with singleton and near-duplicate ids flagged.
 
   Credentials come from .env.supabase (cp .env.supabase.example .env.supabase).
-`);
+  BATCH_IMPORT_OUTPUT_ROOT=<dir> writes the generated manifests under <dir>
+  instead of the repo (a demo or scratch run must not rewrite the real ones).
+`;
+}
+
+function usage(message) {
+    console.error(`\n${message}\n${usageText()}`);
     process.exit(2);
 }
 
@@ -2041,6 +2174,16 @@ async function main() {
         }
     }
 
+    // The glossary file, read UP FRONT like the registries: a typo'd path fails
+    // before the run, and "no glossary" always means none was passed. Its
+    // RULES run once the pipeline is loaded (they need the fence parser).
+    let glossaryText = null;
+    if (args.glossary) {
+        const path = resolve(args.glossary);
+        glossaryText = await readFile(path, 'utf8').catch(() => null);
+        if (glossaryText === null) usage(`--glossary ${path} could not be read.`);
+    }
+
     // The chain registry lives IN the catalogue beside the .md files it
     // governs, not behind a flag: it is part of the folder's structure rather
     // than a policy applied to it. Absent is legal — a catalogue that does not
@@ -2067,7 +2210,8 @@ async function main() {
     console.log(
         `mode      : ${args.dryRun ? 'DRY RUN — nothing will be written' : 'WRITE'}` +
             `${args.force ? ' · --force (app-side edits WILL be overwritten)' : ''}` +
-            `${args.strict ? ' · --strict (binding warnings fail the run)' : ''}`,
+            `${args.strict ? ' · --strict (warnings fail the run)' : ''}` +
+            `${args.allowMassRetire ? ' · --allow-mass-retire' : ''}`,
     );
     console.log(
         `registry  : ${registry ? `${registry.path} (${registry.ids.size} ids)` : 'none supplied'}`,
@@ -2088,13 +2232,22 @@ async function main() {
         }\n`,
     );
 
-    let files, existing, deletedRows, pipeline;
+    let files, existing, deletedRows, pipeline, storeRows;
     try {
-        [files, existing, deletedRows, pipeline] = await Promise.all([
+        [files, existing, deletedRows, pipeline, storeRows] = await Promise.all([
             findMarkdownFiles(root),
             db.existingFor(owner.id),
             db.deletedKeysFor(owner.id),
             loadPipeline(),
+            // Without --glossary the resolution source is the store as it
+            // stands (R2). A database without 0043 is not an error here — the
+            // run resolves locally and says so in ONE line (W-6).
+            glossaryText !== null
+                ? Promise.resolve(null)
+                : db.activeGlossary(owner.id).catch((err) => {
+                    if (isMissingRelation(err.message)) return 'missing';
+                    throw err;
+                }),
         ]);
     } catch (err) {
         // 0039 adds the drift guard's column. Refuse up front with the fix
@@ -2133,6 +2286,33 @@ async function main() {
         }
         throw err;
     }
+
+    // ---- the glossary source -------------------------------------------------
+    // ONE list of entries every file resolves against: the file (canonical,
+    // and about to be mirrored), else the owner's active store rows, else
+    // nothing (0043 missing). Marks resolve from this even when the mirror
+    // later fails.
+    let glossaryFile = null;
+    let glossarySource;
+    if (glossaryText !== null) {
+        glossaryFile = pipeline.glossaryLoader(glossaryText, args.glossary);
+        glossarySource = { kind: 'file', entries: glossaryFile.entries };
+    } else if (storeRows === 'missing') {
+        glossarySource = { kind: 'missing', entries: [] };
+    } else {
+        glossarySource = { kind: 'store', entries: storeRows };
+    }
+    console.log(
+        `glossary  : ${
+            glossarySource.kind === 'file'
+                ? `${args.glossary} (${glossaryFile.entries.length} entries, ` +
+                  `${glossaryFile.variantCount} variant${glossaryFile.variantCount === 1 ? '' : 's'})`
+                : glossarySource.kind === 'store'
+                    ? `the owner's store as it stands (${glossarySource.entries.length} active ` +
+                      'entries; pass --glossary <file> to mirror a new version)'
+                    : 'none — glossary_entry is missing (migration 0043 not applied)'
+        }\n`,
+    );
 
     // ---- the identity pre-pass ----------------------------------------------
     // Every file's text is read ONCE here and carried through the run: the key
@@ -2228,8 +2408,10 @@ async function main() {
         const folder = chainFolderOf(file.sourcePath);
         return folder === null ? null : (chains.titles.get(folder) ?? null);
     };
+    const glossaryReports = new Map();
     const record = (file, converted, row) => {
         collected.set(file.sourcePath, collectBindings(converted.document));
+        glossaryReports.set(file.sourcePath, converted.glossary);
         catalogue.set(file.sourcePath, {
             sourcePath: file.sourcePath,
             primarySkill: converted.primarySkill,
@@ -2256,6 +2438,7 @@ async function main() {
         try {
             const converted = convertOne(pipeline, file.markdown, null, file.sourcePath, {
                 chainTitle: chainTitleFor(file),
+                glossary: glossarySource.entries,
             });
             plannedCreates.push({ file, converted });
             record(file, converted, null);
@@ -2269,6 +2452,7 @@ async function main() {
         try {
             const converted = convertOne(pipeline, file.markdown, row, file.sourcePath, {
                 chainTitle: chainTitleFor(file),
+                glossary: glossarySource.entries,
             });
             plannedUpdates.push({ file, row, converted, adoptsKey, moved });
             record(file, converted, row);
@@ -2286,6 +2470,7 @@ async function main() {
         try {
             const converted = convertOne(pipeline, file.markdown, row, file.sourcePath, {
                 chainTitle: chainTitleFor(file),
+                glossary: glossarySource.entries,
             });
             record(file, converted, row);
         } catch {
@@ -2431,6 +2616,47 @@ async function main() {
         );
     }
 
+    // ---- glossary warnings (R2, R3, W-11) -------------------------------------
+    // The file's own problems, then every [[term]] that resolved to nothing —
+    // in every file, fence or no fence (R2). With no resolution source at all
+    // (0043 missing, no --glossary) the references cannot be CHECKED, which is
+    // a notice about the database, not N warnings about the catalogue (W-6).
+    const glossaryWarnings = [...(glossaryFile?.warnings ?? [])];
+    const referenceCounts = { store: 0, local: 0, none: 0 };
+    const shadows = [];
+    for (const file of files) {
+        const report = glossaryReports.get(file.sourcePath);
+        if (!report) continue;
+        for (const ref of report.references) referenceCounts[ref.resolution] += 1;
+        for (const shadow of report.shadows) shadows.push({ file: file.sourcePath, ...shadow });
+        if (glossarySource.kind !== 'missing') {
+            glossaryWarnings.push(
+                ...unresolvedReferenceWarnings(file.sourcePath, file.markdown, report),
+            );
+        }
+    }
+
+    // The mirror's plan, computed by the database itself with p_apply=false —
+    // the SAME call the live write makes, so the dry run cannot disagree with
+    // it (W-14). Reading it here, before any write, is also what lets the
+    // mass-retire guard refuse a run that has written nothing (W-5).
+    let glossaryPlan = null;
+    let glossaryMirrorFailed = null;
+    if (glossaryFile) {
+        try {
+            glossaryPlan = await db.syncGlossary(owner.id, glossaryFile.entries, false);
+        } catch (err) {
+            glossaryMirrorFailed = isMissingRelation(err.message)
+                ? 'glossary_entry is missing (migration 0043 not applied) — the store was ' +
+                  'not mirrored; every [[term]] above was still checked against the FILE. ' +
+                  'Apply 0043 and re-run.'
+                : err.message;
+        }
+    }
+    const massRetire =
+        glossaryPlan !== null &&
+        isMassRetire(glossaryPlan.retired.length, glossaryPlan.active_before);
+
     const suspectCount = warned.reduce(
         (n, { warnings }) => n + warnings.filter(isBindingWarning).length,
         0,
@@ -2520,7 +2746,14 @@ async function main() {
         }
     }
 
-    const manifestPath = resolve(repo, MANIFEST_PATH);
+    // BATCH_IMPORT_OUTPUT_ROOT sends the three generated artifacts somewhere
+    // other than the repo — for the glossary hello world (W-1) and the tests,
+    // which must never rewrite the committed manifests with a demo catalogue.
+    const outputRoot = process.env.BATCH_IMPORT_OUTPUT_ROOT
+        ? resolve(process.env.BATCH_IMPORT_OUTPUT_ROOT)
+        : repo;
+    await mkdir(resolve(outputRoot, 'docs'), { recursive: true });
+    const manifestPath = resolve(outputRoot, MANIFEST_PATH);
     await writeFile(manifestPath, `${renderManifest(summary)}`, 'utf8');
     console.log(`\n  manifest written to ${MANIFEST_PATH}`);
 
@@ -2564,18 +2797,86 @@ async function main() {
         );
     }
     await writeFile(
-        resolve(repo, COVERAGE_MANIFEST_PATH),
+        resolve(outputRoot, COVERAGE_MANIFEST_PATH),
         `${renderCoverageManifest(coverage)}`,
         'utf8',
     );
     await writeFile(
-        resolve(repo, COVERAGE_JSON_PATH),
+        resolve(outputRoot, COVERAGE_JSON_PATH),
         `${JSON.stringify(coverageJson(coverage), null, 2)}\n`,
         'utf8',
     );
     console.log(
         `  coverage written to ${COVERAGE_MANIFEST_PATH} and ${COVERAGE_JSON_PATH}`,
     );
+
+    // ---- the glossary report (R4, W-12) -------------------------------------
+    // Counts always. Unresolved references and DIVERGENT shadows need action,
+    // so they are listed in full (the unresolved ones in the warnings block
+    // below); IDENTICAL shadows are safe-to-delete housekeeping, a count except
+    // on a dry run, which is where the author reviews.
+    console.log('\nglossary:');
+    if (glossaryFile) {
+        const index = pipeline.buildGlossaryIndex(
+            glossaryFile.entries.map((e) => ({ ...e, retired: false, source: 'store' })),
+            [],
+        );
+        const crossLinks = glossaryFile.entries.reduce(
+            (n, e) => n + pipeline.crossLinkTargets(e.body, index, e.id).length,
+            0,
+        );
+        console.log(
+            `  file     : ${glossaryFile.entries.length} entries · ` +
+                `${glossaryFile.variantCount} variant${glossaryFile.variantCount === 1 ? '' : 's'} · ` +
+                `${crossLinks} cross-link${crossLinks === 1 ? '' : 's'}`,
+        );
+    }
+    if (glossaryPlan) {
+        const verb = args.dryRun ? 'would be' : 'to be';
+        console.log(
+            `  store    : ${glossaryPlan.new.length} new · ${glossaryPlan.changed.length} changed · ` +
+                `${glossaryPlan.retired.length} retired · ${glossaryPlan.unretired.length} un-retired ` +
+                `(${verb} written; ${glossaryPlan.active_before} active before)`,
+        );
+        if (glossaryPlan.retired.length > 0 && (args.dryRun || massRetire)) {
+            console.log(`  retire   : ${glossaryPlan.retired.join(', ')}`);
+        }
+        if (massRetire) {
+            console.log(
+                `  ⚠ that is a MASS retire (more than ${MASS_RETIRE_MAX}, or more than 20% of the ` +
+                    'active entries). A live run refuses it before any write unless ' +
+                    '--allow-mass-retire is passed.',
+            );
+        }
+    } else if (glossaryMirrorFailed) {
+        console.log(`  store    : ⚠ ${glossaryMirrorFailed}`);
+    }
+    if (glossarySource.kind === 'missing') {
+        const n = referenceCounts.none;
+        console.log(
+            `  ⚠ glossary_entry is missing (migration 0043 not applied) — ${n} [[term]] ` +
+                `reference${n === 1 ? '' : 's'} could not be checked against the store; apply ` +
+                '0043 or pass --glossary <file>.',
+        );
+    }
+    console.log(
+        `  refs     : ${referenceCounts.store} from the course glossary · ` +
+            `${referenceCounts.local} local · ${referenceCounts.none} unresolved`,
+    );
+    const divergent = shadows.filter((sh) => !sh.identical);
+    const identical = shadows.filter((sh) => sh.identical);
+    console.log(
+        `  shadows  : ${divergent.length} divergent · ${identical.length} identical ` +
+            '(an activity\'s own definition wins over the glossary entry it matches)',
+    );
+    for (const sh of divergent) {
+        console.log(`    DIVERGENT  ${sh.file}: “${sh.term}” differs from ${sh.id} — override, or drift?`);
+    }
+    if (args.dryRun) {
+        for (const sh of identical) {
+            console.log(`    identical  ${sh.file}: “${sh.term}” = ${sh.id} — the local copy can go`);
+        }
+    }
 
     // ---- the x_ receipt -----------------------------------------------------
     // The reserved namespace is unvalidated BY DESIGN — it carries the
@@ -2601,6 +2902,13 @@ async function main() {
             `\ncatalogue warnings${args.strict ? ' (--strict: these FAIL the run)' : ''}:`,
         );
         for (const w of catalogueWarnings) console.log(`  ${w}`);
+    }
+
+    if (glossaryWarnings.length) {
+        console.log(
+            `\nglossary warnings${args.strict ? ' (--strict: these FAIL the run)' : ''}:`,
+        );
+        for (const w of glossaryWarnings) console.log(`  ${w}`);
     }
 
     if (bindingWarnings.length) {
@@ -2659,13 +2967,32 @@ async function main() {
             skipped.length > 0 ||
                 drifted.length > 0 ||
                 conflicts.length > 0 ||
-                (args.strict && (bindingProblems > 0 || catalogueWarnings.length > 0))
+                (args.strict &&
+                    (bindingProblems > 0 ||
+                        catalogueWarnings.length > 0 ||
+                        glossaryWarnings.length > 0 ||
+                        glossaryMirrorFailed !== null))
                 ? 1
                 : 0,
         );
     }
 
     // ---- write --------------------------------------------------------------
+    // The mass-retire guard (W-5, EN-12) runs FIRST: a refused run writes
+    // nothing at all — not the registry mirror, not one activity.
+    if (massRetire && !args.allowMassRetire) {
+        console.error(
+            `\nREFUSED — this run would retire ${glossaryPlan.retired.length} of ` +
+                `${glossaryPlan.active_before} active glossary entries. Nothing was written.\n\n` +
+                `  ${glossaryPlan.retired.join('\n  ')}\n\n` +
+                '  A glossary file that lost most of its entries is far more often the wrong\n' +
+                '  file than an intended cull. If it is intended, re-run with\n' +
+                '  --allow-mass-retire. (Retired entries are never deleted, and a returning\n' +
+                '  id un-retires.)\n',
+        );
+        process.exit(1);
+    }
+
     // Registry mirror first (0042 EH-7): the ids the run just validated
     // bindings against are upserted into misconception_registry, so the
     // grading-assist submit RPC validates against the same id set this
@@ -2673,6 +3000,7 @@ async function main() {
     // predates migration 0042 must not kill a 150-file import over its
     // side artifact — but loudly, because a stale mirror silently rejects
     // every suggestion carrying a newer id.
+    let registryMirrorFailed = false;
     if (registry) {
         try {
             const mirrored = await db.syncMisconceptionRegistry(
@@ -2686,6 +3014,7 @@ async function main() {
                 `registry  : ${Array.isArray(mirrored) ? mirrored.length : 0} misconception ids mirrored (${registry.descriptions.size} with descriptions)`,
             );
         } catch (err) {
+            registryMirrorFailed = true;
             console.warn(
                 `⚠ misconception_registry mirror FAILED (${err.message}).\n` +
                     '  If the table does not exist, migration 0042 has not been applied to\n' +
@@ -2693,6 +3022,42 @@ async function main() {
                     '  mirror does not hold. The import itself continues.',
             );
         }
+    }
+
+    // The glossary mirror (R8): one atomic RPC, before any activity write, and
+    // only with --glossary. Fail-soft and LOUD like the registry mirror —
+    // except under --strict, where a failed mirror fails the run (W-4). Over
+    // the 1 MB cap the mirror is refused outright (EN-11); the activities still
+    // import and their marks still resolve from the file.
+    let glossaryMirrored = null;
+    if (glossaryFile && glossaryMirrorFailed === null) {
+        if (glossaryFile.overTotalCap) {
+            console.warn(
+                '⚠ glossary mirror REFUSED — the file is over the 1 MB cap (see glossary\n' +
+                    '  warnings). The store was not changed. The import itself continues.',
+            );
+        } else {
+            try {
+                glossaryMirrored = await db.syncGlossary(owner.id, glossaryFile.entries, true);
+                // Counts from the database's ECHO of what it applied, never from
+                // the plan (the registry mirror's lesson, 2026-09-26).
+                console.log(
+                    `glossary  : mirrored — ${glossaryMirrored.new.length} new · ` +
+                        `${glossaryMirrored.changed.length} changed · ` +
+                        `${glossaryMirrored.retired.length} retired · ` +
+                        `${glossaryMirrored.unretired.length} un-retired`,
+                );
+            } catch (err) {
+                glossaryMirrorFailed = err.message;
+            }
+        }
+    }
+    if (glossaryMirrorFailed !== null) {
+        console.warn(
+            `⚠ glossary mirror FAILED (${glossaryMirrorFailed}).\n` +
+                '  The store was not changed; every [[term]] still resolved against the file.\n' +
+                '  The import itself continues.',
+        );
     }
 
     // Updates first: they are the re-run case, they cannot collide on a slug,
@@ -2783,6 +3148,9 @@ async function main() {
             (bindingProblems > 0 ? ` · ${bindingProblems} binding warnings` : '') +
             (catalogueWarnings.length > 0
                 ? ` · ${catalogueWarnings.length} catalogue warnings`
+                : '') +
+            (glossaryWarnings.length > 0
+                ? ` · ${glossaryWarnings.length} glossary warnings`
                 : ''),
     );
     if (skipped.length) {
@@ -2802,7 +3170,12 @@ async function main() {
     process.exit(
         skipped.length > 0 ||
             conflicts.length > 0 ||
-            (args.strict && (bindingProblems > 0 || catalogueWarnings.length > 0))
+            (args.strict &&
+                (bindingProblems > 0 ||
+                    catalogueWarnings.length > 0 ||
+                    glossaryWarnings.length > 0 ||
+                    glossaryMirrorFailed !== null ||
+                    registryMirrorFailed))
             ? 1
             : 0,
     );

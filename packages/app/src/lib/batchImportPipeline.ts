@@ -33,7 +33,25 @@
 // =============================================================================
 
 export { getMarkdownImporter } from './markdownToTiptap';
-export type { ImportResult, ImportedMeta } from './markdownToTiptap';
+export type {
+    ImportResult,
+    ImportedMeta,
+    ImportOptions,
+    ImportGlossaryEntry,
+    GlossaryImportReport,
+} from './markdownToTiptap';
+
+// The course glossary (docs/design/glossary.md R3, R4): the file's loader —
+// the fence parse plus every rule on the file — and the pure schema pieces the
+// report needs (the cross-link count is the viewer's own linkify, counted).
+export { getGlossaryLoader } from './glossaryFile';
+export type { GlossaryLoadResult } from './glossaryFile';
+export {
+    buildGlossaryIndex,
+    crossLinkTargets,
+    GLOSSARY_MAX_ENTRIES,
+    GLOSSARY_TOTAL_MAX_BYTES,
+} from '@activity/schema';
 
 export { wrapBlocksStrict } from '../editor/strictGrid';
 

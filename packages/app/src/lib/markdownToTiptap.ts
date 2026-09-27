@@ -61,7 +61,14 @@ import {
 } from '@activity/graph-kit/formula';
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import { freeVariables } from '@activity/graph-kit/scorers';
-import { RESERVED_SEED_NAMES, type SeedVar as SeedVarType } from '@activity/schema';
+import {
+    RESERVED_SEED_NAMES,
+    resolveTerm,
+    suggestTerm,
+    termKey,
+    type GlossaryVariants,
+    type SeedVar as SeedVarType,
+} from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
 import type {
     ActivityMeta,
@@ -96,6 +103,8 @@ interface MdToken {
     info: string;
     children: MdToken[] | null;
     attrs: [string, string][] | null;
+    // Source line range [start, end) (0-based). Present on block tokens.
+    map?: [number, number] | null;
 }
 
 function attrGet(tok: MdToken, name: string): string | null {
@@ -130,6 +139,60 @@ export interface ImportResult {
     // fence flattened to text, a link's URL dropped, etc.). The dialog surfaces
     // these so the teacher knows what to fix by hand.
     warnings: string[];
+    // Present ONLY when the caller passed `options.glossary` (the batch
+    // importer). How every `[[term]]` reference resolved, and which of the
+    // activity's own definitions shadow a course-glossary entry — the raw
+    // material of the importer's glossary report (docs/design/glossary.md R2,
+    // R4). Unresolved references are reported HERE rather than in `warnings`,
+    // because the batch importer prints them in their own labelled block
+    // (W-11) and locates them in the file (W-7).
+    glossary?: GlossaryImportReport;
+}
+
+/**
+ * One course-glossary entry the batch importer resolves `[[term]]` against —
+ * from the `--glossary` file, or the owner's live ACTIVE store rows.
+ */
+export interface ImportGlossaryEntry {
+    readonly id: string;
+    readonly term: string;
+    readonly variants: GlossaryVariants;
+    readonly body: readonly DefinitionBlock[];
+    readonly retired?: boolean;
+}
+
+/**
+ * The importer's options seam (EN-17). The paste-markdown dialog passes
+ * nothing and behaves exactly as it always has: activity-local definitions
+ * only, and the old fence-only unresolved warning.
+ */
+export interface ImportOptions {
+    readonly glossary?: readonly ImportGlossaryEntry[];
+}
+
+export interface GlossaryReference {
+    /** The reference as authored, trimmed. */
+    readonly text: string;
+    readonly resolution: 'local' | 'store' | 'none';
+    /** The store entry's id, for a store resolution. */
+    readonly id?: string;
+    /** "Did you mean" (W-8), for an unresolved reference. */
+    readonly suggestion?: string;
+}
+
+export interface GlossaryShadow {
+    /** The activity-local term. */
+    readonly term: string;
+    /** The store entry it hides in this activity (R15). */
+    readonly id: string;
+    /** Same body as the store's — the local copy is safe to delete. */
+    readonly identical: boolean;
+}
+
+export interface GlossaryImportReport {
+    /** One per distinct reference text per resolution, in document order. */
+    readonly references: readonly GlossaryReference[];
+    readonly shadows: readonly GlossaryShadow[];
 }
 
 /**
@@ -240,13 +303,38 @@ export interface ImportedMeta {
     calculatorMode?: 'off' | 'scientific' | 'graphing';
 }
 
-export type MarkdownImporter = (markdown: string) => ImportResult;
+export type MarkdownImporter = (markdown: string, options?: ImportOptions) => ImportResult;
 
 // =============================================================================
 // Public API — lazy-loaded, cached importer
 // =============================================================================
 
 let importerPromise: Promise<MarkdownImporter> | null = null;
+let glossaryParserPromise: Promise<GlossaryFileParser> | null = null;
+
+interface MdLike {
+    parse(src: string, env: object): unknown;
+    parseInline(src: string, env: object): unknown;
+}
+
+let mdPromise: Promise<MdLike> | null = null;
+function getMd(): Promise<MdLike> {
+    if (!mdPromise) {
+        mdPromise = import('markdown-it').then(
+            ({ default: MarkdownIt }) => new MarkdownIt({ html: false, linkify: false }),
+        );
+    }
+    return mdPromise;
+}
+
+function inlineParser(md: MdLike): (line: string) => MdToken[] {
+    return (line) => {
+        // parseInline returns one 'inline' token whose children are the real
+        // inline stream mapInline already knows how to walk.
+        const parsed = md.parseInline(line, {}) as unknown as MdToken[];
+        return parsed[0]?.children ?? [];
+    };
+}
 
 // Resolves to a synchronous (markdown → ImportResult) function. markdown-it is
 // dynamic-imported and the parser constructed once, then memoised — repeated
@@ -254,26 +342,172 @@ let importerPromise: Promise<MarkdownImporter> | null = null;
 // the import cost.
 export function getMarkdownImporter(): Promise<MarkdownImporter> {
     if (!importerPromise) {
-        importerPromise = (async () => {
-            const { default: MarkdownIt } = await import('markdown-it');
-            const md = new MarkdownIt({ html: false, linkify: false });
-            return (markdown: string): ImportResult => {
+        importerPromise = getMd().then((md) => {
+            return (markdown: string, options?: ImportOptions): ImportResult => {
                 // Unwrap a whole-paste ```markdown fence (LLM safety net), then
                 // pull math out of the RAW source first (see extractMath) so LaTeX
                 // backslashes/underscores survive markdown-it's CommonMark
-                // escaping, then parse the placeholdered text.
+                // escaping, then protect escaped `\[[` (see protectEscapedBrackets),
+                // then parse the placeholdered text.
                 const { text, spans } = extractMath(stripMarkdownFence(markdown));
-                const tokens = md.parse(text, {}) as unknown as MdToken[];
-                return tokensToBlocks(tokens, spans, (line) => {
-                    // parseInline returns one 'inline' token whose children are
-                    // the real inline stream mapInline already knows how to walk.
-                    const parsed = md.parseInline(line, {}) as unknown as MdToken[];
-                    return parsed[0]?.children ?? [];
-                });
+                const tokens = md.parse(protectEscapedBrackets(text), {}) as unknown as MdToken[];
+                return restoreEscapedBrackets(
+                    tokensToBlocks(tokens, spans, inlineParser(md), options),
+                );
             };
-        })();
+        });
     }
     return importerPromise;
+}
+
+// ---- The course glossary FILE (docs/design/glossary.md W-2, R3) ------------------
+// The curriculum side's glossary is ```definitions fences in the SAME grammar a
+// worksheet's own fence uses, plus header lines at the head of each entry:
+//
+//     id: gradient          REQUIRED — the entry's permanent identity
+//     term: gradient        the display term
+//     us: slope             a locale variant (D9); v1 knows only `us`
+//
+// This is the RAW parse only: it finds the fences, splits entries, reads the
+// header run and builds each body with the fence's own line grammar. Every
+// RULE (id required and well-formed, duplicates, collisions, caps, the closed
+// locale set) lives in lib/glossaryFile.ts, where it can name a line and a fix.
+
+export interface ParsedGlossaryEntry {
+    /** 1-based line of the entry's first line in the file. */
+    readonly line: number;
+    /** Header values by key, lower-cased keys, first occurrence wins. */
+    readonly headers: ReadonlyMap<string, { value: string; line: number }>;
+    readonly body: DefinitionBlock[];
+    /** Body text existed but held nothing a definition can carry. */
+    readonly emptyBody: boolean;
+    /** The fence grammar's own degradations for this entry's body. */
+    readonly warnings: readonly string[];
+}
+
+export interface ParsedGlossaryFile {
+    readonly fences: number;
+    readonly entries: readonly ParsedGlossaryEntry[];
+}
+
+export type GlossaryFileParser = (markdown: string) => ParsedGlossaryFile;
+
+// A header line: `id:`, `term:`, or a two-letter locale key. The run of these
+// at the head of an entry is its header; the first other line starts the body.
+const GLOSSARY_HEADER = /^\s*(id|term|[a-z]{2})\s*:\s*(.*)$/i;
+
+export function getGlossaryFileParser(): Promise<GlossaryFileParser> {
+    if (!glossaryParserPromise) {
+        glossaryParserPromise = getMd().then((md) => (markdown: string) => {
+            const tokens = md.parse(markdown, {}) as unknown as MdToken[];
+            const entries: ParsedGlossaryEntry[] = [];
+            let fences = 0;
+            for (const token of tokens) {
+                if (token.type !== 'fence' || (token.info ?? '').trim() !== 'definitions') continue;
+                fences += 1;
+                // map[0] is the opening ``` line (0-based); content starts below it.
+                const firstLine = (token.map?.[0] ?? 0) + 2;
+                const lines = token.content.split('\n');
+                let chunk: { start: number; lines: string[] } = { start: firstLine, lines: [] };
+                const chunks: { start: number; lines: string[] }[] = [];
+                lines.forEach((raw, i) => {
+                    if (/^\s*---\s*$/.test(raw)) {
+                        chunks.push(chunk);
+                        chunk = { start: firstLine + i + 1, lines: [] };
+                    } else {
+                        chunk.lines.push(raw);
+                    }
+                });
+                chunks.push(chunk);
+                for (const c of chunks) {
+                    const lead = c.lines.findIndex((l) => l.trim() !== '');
+                    if (lead === -1) continue;
+                    const headers = new Map<string, { value: string; line: number }>();
+                    let i = lead;
+                    for (; i < c.lines.length; i += 1) {
+                        const m = GLOSSARY_HEADER.exec(c.lines[i] ?? '');
+                        if (!m) break;
+                        const key = (m[1] ?? '').toLowerCase();
+                        if (!headers.has(key)) {
+                            headers.set(key, { value: (m[2] ?? '').trim(), line: c.start + i });
+                        }
+                    }
+                    const bodySource = c.lines.slice(i).join('\n');
+                    const ctx: Ctx = {
+                        warnings: new Set(),
+                        spans: [],
+                        refPanelBlocks: [],
+                        definitions: new Map(),
+                        definitionTerms: new Map(),
+                        inline: inlineParser(md),
+                    };
+                    const { blocks } = parseContentLines(
+                        protectEscapedBrackets(bodySource),
+                        ctx,
+                        'Definition',
+                    );
+                    const body =
+                        blocks.length > 0
+                            ? tiptapToDefinitionContent({ type: 'doc', content: blocks })
+                            : [];
+                    const restored = restoreEscapedBrackets({ blocks: [], warnings: [...ctx.warnings] });
+                    entries.push({
+                        line: c.start + lead,
+                        headers,
+                        body: restoreEscapedBrackets({
+                            blocks: body as unknown as JSONContent[],
+                            warnings: [],
+                        }).blocks as unknown as DefinitionBlock[],
+                        emptyBody: bodySource.trim() !== '' && body.length === 0,
+                        warnings: restored.warnings,
+                    });
+                }
+            }
+            return { fences, entries };
+        });
+    }
+    return glossaryParserPromise;
+}
+
+// ---- The escaped literal `\[[…]]` (W-13, EN-16) ------------------------------
+// A backslash before `[[` means "these brackets are text, not a reference".
+// markdown-it UNESCAPES `\[` to `[` before DEFINITION_SUB ever sees the text
+// token, so the escape has to be honoured on the RAW source, the way
+// extractMath honours `\$`: the three characters become one private-use
+// sentinel that no regex here matches, and the finished result swaps it back.
+// Code (a code span, a fenced code block) keeps the author's backslash — in
+// code, `\[[` means exactly those three characters.
+const ESCAPED_BRACKETS = String.fromCharCode(0xe002);
+const ESCAPED_BRACKETS_RE = new RegExp(ESCAPED_BRACKETS, 'g');
+
+function protectEscapedBrackets(src: string): string {
+    return src.replace(/\\\[\[/g, ESCAPED_BRACKETS);
+}
+
+function restoreEscapedBrackets(result: ImportResult): ImportResult {
+    // A text node's TEXT is prose, where the escape has done its job and the
+    // brackets are literal. Code text, and every other string (latex, attrs,
+    // meta values, warnings), keeps exactly what the author typed.
+    const restore = (value: unknown, inCode: boolean): unknown => {
+        if (typeof value === 'string') {
+            return value.replace(ESCAPED_BRACKETS_RE, '\\[[');
+        }
+        if (Array.isArray(value)) return value.map((v) => restore(v, inCode));
+        if (value === null || typeof value !== 'object') return value;
+        const node = value as Record<string, unknown>;
+        const marks = Array.isArray(node.marks) ? (node.marks as { type?: unknown }[]) : [];
+        const code =
+            inCode || node.type === 'codeBlock' || marks.some((m) => m?.type === 'code');
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(node)) {
+            out[k] =
+                k === 'text' && node.type === 'text' && typeof v === 'string' && !code
+                    ? v.replace(ESCAPED_BRACKETS_RE, '[[')
+                    : restore(v, code);
+        }
+        return out;
+    };
+    return restore(result, false) as ImportResult;
 }
 
 // =============================================================================
@@ -581,6 +815,8 @@ interface Ctx {
     // reference in the body resolves regardless of whether the fence sits above
     // or below it. See parseDefinitionsFence.
     definitions: Map<string, DefinitionBlock[]>;
+    // The authored spelling of each `definitions` key (the key is lower-cased).
+    definitionTerms: Map<string, string>;
     // Activity metadata from a ```meta fence, filled in the same PRE-PASS as
     // definitions. Undefined until a fence supplies something.
     meta?: ImportedMeta;
@@ -600,18 +836,131 @@ interface Ctx {
      * divergent parse somewhere down the line.
      */
     inline: (text: string) => MdToken[];
+    // Course-glossary resolution — present only when the caller passed
+    // `options.glossary` (the batch importer). See makeDefinition.
+    glossary?: GlossaryCtx;
+}
+
+interface GlossaryCtx {
+    readonly store: readonly ImportGlossaryEntry[];
+    /** termKey of EVERY activity-local definition — fence entries AND inline
+     * `[[x :: y]]` ones (EN-3), filled by the pre-pass. */
+    readonly localKeys: Set<string>;
+    /** Local bodies by termKey, for a reference resolved to a local definition
+     * under a different name ([[slope]] beside a local "gradient"). */
+    readonly localContent: Map<string, DefinitionBlock[]>;
+    readonly references: GlossaryReference[];
+    readonly seen: Set<string>;
+    /** Every local definition, in document order — the shadow report. */
+    readonly localDefinitions: { term: string; body: DefinitionBlock[] }[];
+}
+
+// The inner text of every [[…]] in a run of source text. Global twin of
+// DEFINITION_SUB, used only by the glossary pre-pass.
+const DEFINITION_SCAN = /\[\[([^[\]]+)\]\]/g;
+
+function glossaryPrePass(tokens: MdToken[], ctx: Ctx, store: readonly ImportGlossaryEntry[]): void {
+    const glossary: GlossaryCtx = {
+        store,
+        localKeys: new Set(),
+        localContent: new Map(),
+        references: [],
+        seen: new Set(),
+        localDefinitions: [],
+    };
+    ctx.glossary = glossary;
+    const addLocal = (term: string, body: DefinitionBlock[]): void => {
+        const key = termKey(term);
+        if (!key || glossary.localKeys.has(key)) return;
+        glossary.localKeys.add(key);
+        glossary.localContent.set(key, body);
+        glossary.localDefinitions.push({ term, body });
+    };
+    for (const [lower, body] of ctx.definitions) {
+        const term = ctx.definitionTerms.get(lower) ?? lower;
+        addLocal(term, body);
+    }
+    // Inline `[[x :: y]]` definitions anywhere: paragraph text (math already
+    // lifted into placeholders, so inlineSchemaContent resolves it) and fence
+    // bodies (raw — the term is enough there; a body we cannot build here
+    // still makes the term LOCAL, which is what "local wins" needs).
+    const visit = (list: MdToken[]): void => {
+        for (const token of list) {
+            const source = token.content ?? '';
+            if (token.type === 'inline' || token.type === 'fence') {
+                for (const m of source.matchAll(DEFINITION_SCAN)) {
+                    const inner = m[1] ?? '';
+                    const idx = inner.indexOf('::');
+                    if (idx === -1) continue;
+                    const term = inner.slice(0, idx).trim();
+                    const defText = inner.slice(idx + 2).trim();
+                    if (!term || !defText) continue;
+                    const content =
+                        token.type === 'inline' ? inlineSchemaContent(defText, ctx) : [];
+                    addLocal(
+                        term,
+                        content.length > 0
+                            ? ([{ type: 'paragraph', content }] as DefinitionBlock[])
+                            : [],
+                    );
+                }
+            }
+            if (token.children) visit(token.children);
+        }
+    };
+    visit(tokens);
+}
+
+// Canonical JSON for comparing two definition bodies: sorted keys (a live
+// store row comes back from jsonb with its keys reordered) and no `id`s (the
+// fence parser mints a fresh block id every run). Either difference alone
+// would call every shadow DIVERGENT.
+function canonical(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+    if (value !== null && typeof value === 'object') {
+        const obj = value as Record<string, unknown>;
+        return `{${Object.keys(obj)
+            .filter((k) => obj[k] !== undefined && k !== 'id')
+            .sort()
+            .map((k) => `${JSON.stringify(k)}:${canonical(obj[k])}`)
+            .join(',')}}`;
+    }
+    return JSON.stringify(value);
+}
+
+function glossaryReport(glossary: GlossaryCtx): GlossaryImportReport {
+    const shadows: GlossaryShadow[] = [];
+    for (const local of glossary.localDefinitions) {
+        const key = termKey(local.term);
+        const entry = glossary.store.find(
+            (e) =>
+                !e.retired &&
+                [e.term, ...Object.values(e.variants)].some(
+                    (name) => typeof name === 'string' && termKey(name) === key,
+                ),
+        );
+        if (!entry) continue;
+        shadows.push({
+            term: local.term,
+            id: entry.id,
+            identical: local.body.length > 0 && canonical(local.body) === canonical(entry.body),
+        });
+    }
+    return { references: glossary.references, shadows };
 }
 
 function tokensToBlocks(
     tokens: MdToken[],
     spans: MathSpan[],
     inline: (text: string) => MdToken[],
+    options?: ImportOptions,
 ): ImportResult {
     const ctx: Ctx = {
         warnings: new Set(),
         spans,
         refPanelBlocks: [],
         definitions: new Map(),
+        definitionTerms: new Map(),
         inline,
     };
     // Pre-pass: collect every ```definitions fence before mapping any body
@@ -631,6 +980,7 @@ function tokensToBlocks(
         // the declarations, so they must exist before any body block maps.
         else if (info === 'seed') parseSeedFence(token.content, ctx);
     }
+    if (options?.glossary) glossaryPrePass(tokens, ctx, options.glossary);
     const blocks = mapBlocks(nest(tokens), ctx);
     validateSeedReferences(blocks, ctx);
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
@@ -640,6 +990,7 @@ function tokensToBlocks(
             : { blocks: ctx.refPanelBlocks };
     }
     if (ctx.meta) result.meta = ctx.meta;
+    if (ctx.glossary) result.glossary = glossaryReport(ctx.glossary);
     return result;
 }
 
@@ -1219,19 +1570,21 @@ function makeDefinition(
     if (idx === -1) {
         const term = inner.trim();
         const content = ctx.definitions.get(term.toLowerCase());
-        if (!content) {
-            if (term.length > 0 && ctx.definitions.size > 0) {
-                ctx.warnings.add(
-                    `“${term}” isn’t in a \`\`\`definitions fence — the [[…]] was left as plain text.`,
-                );
-            }
-            return null;
+        if (content) {
+            noteReference(ctx, { text: term, resolution: 'local' });
+            return {
+                type: 'text',
+                text: term,
+                marks: [...marksList, { type: 'definition', attrs: { content } }],
+            };
         }
-        return {
-            type: 'text',
-            text: term,
-            marks: [...marksList, { type: 'definition', attrs: { content } }],
-        };
+        if (ctx.glossary) return resolveAgainstGlossary(term, marksList, ctx, ctx.glossary);
+        if (term.length > 0 && ctx.definitions.size > 0) {
+            ctx.warnings.add(
+                `“${term}” isn’t in a \`\`\`definitions fence — the [[…]] was left as plain text.`,
+            );
+        }
+        return null;
     }
 
     const term = inner.slice(0, idx).trim();
@@ -1250,6 +1603,68 @@ function makeDefinition(
             },
         ],
     };
+}
+
+function noteReference(ctx: Ctx, ref: GlossaryReference): void {
+    const glossary = ctx.glossary;
+    if (!glossary) return;
+    const seenKey = `${ref.resolution}\u0000${termKey(ref.text)}`;
+    if (glossary.seen.has(seenKey)) return;
+    glossary.seen.add(seenKey);
+    glossary.references.push(ref);
+}
+
+// A `[[term]]` with no fence entry, in a batch import that supplied a course
+// glossary (docs/design/glossary.md R2, R9, EN-3). The ONE resolver decides:
+// a local definition — under this name or under any name of the store entry
+// this text matches — wins; else the store entry, as a KEYED mark carrying a
+// baked copy of its body (L3: print and an offline first tap still have
+// something to show; the viewer swaps in the live row once it loads). Nothing
+// → the literal text, and a reference the importer reports and --strict
+// fails on. This replaces the fence-only warning for these runs (EN-15): one
+// message per unresolved reference, in the importer's own block.
+function resolveAgainstGlossary(
+    term: string,
+    marksList: { type: string }[],
+    ctx: Ctx,
+    glossary: GlossaryCtx,
+): JSONContent | null {
+    const resolution = resolveTerm(term, glossary.localKeys, glossary.store);
+    const note = (ref: GlossaryReference): void => noteReference(ctx, ref);
+    if (resolution.kind === 'store') {
+        const { entry } = resolution;
+        note({ text: term, resolution: 'store', id: entry.id });
+        return {
+            type: 'text',
+            text: term,
+            marks: [
+                ...marksList,
+                {
+                    type: 'definition',
+                    attrs: { content: [...entry.body], glossaryKey: entry.id },
+                },
+            ],
+        };
+    }
+    if (resolution.kind === 'local') {
+        const content = glossary.localContent.get(resolution.localKey) ?? [];
+        note({ text: term, resolution: 'local' });
+        if (content.length === 0) return null;
+        return {
+            type: 'text',
+            text: term,
+            marks: [...marksList, { type: 'definition', attrs: { content } }],
+        };
+    }
+    if (term.length > 0) {
+        const candidates = glossary.store
+            .filter((e) => !e.retired)
+            .flatMap((e) => [e.term, ...Object.values(e.variants)])
+            .filter((name): name is string => typeof name === 'string');
+        const suggestion = suggestTerm(term, candidates);
+        note({ text: term, resolution: 'none', ...(suggestion ? { suggestion } : {}) });
+    }
+    return null;
 }
 
 // parseBlankSpec (the `{{…}}` sigil grammar) + TOLERANCE_RE moved to the shared
@@ -3343,6 +3758,7 @@ function parseDefinitionsFence(src: string, ctx: Ctx): void {
             continue;
         }
         ctx.definitions.set(key, content);
+        ctx.definitionTerms.set(key, term);
     }
 }
 

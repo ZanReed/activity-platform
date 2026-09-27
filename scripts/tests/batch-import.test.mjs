@@ -38,7 +38,8 @@ import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 
 import {
     bindingWarningsFor,
@@ -54,6 +55,9 @@ import {
     findMarkdownFiles,
     fingerprintDocument,
     isBindingWarning,
+    isMassRetire,
+    isMissingRelation,
+    lineOfReference,
     loadPipeline,
     makeDb,
     missingColumnFrom,
@@ -75,6 +79,8 @@ import {
     splitDriftedUpdates,
     summarizeBindings,
     titleFromPath,
+    unresolvedReferenceWarnings,
+    usageText,
 } from '../batch-import.mjs';
 
 // One bundle for the whole file — esbuild costs about a second, and every §A/§B
@@ -1341,6 +1347,8 @@ test('§I --strict and --registry parse, in either form', () => {
             strict: true,
             registry: 'tax.txt',
             skillsRegistry: null,
+            glossary: null,
+            allowMassRetire: false,
         },
     );
     assert.equal(parseArgs(['~/cat', '--registry=tax.txt']).registry, 'tax.txt');
@@ -1838,4 +1846,327 @@ test('§K with no registry there is no burndown to report', () => {
     assert.equal(summary.partsAuthored, null);
     assert.equal(summary.partsDeclared, null);
     assert.deepEqual(summary.multiPartSkills, {});
+});
+
+// =============================================================================
+// §L — the course glossary (docs/design/glossary.md R2, R3, R8, W-4–W-7, W-11,
+//      EN-12). Pure pieces first; then main() end to end against a stub
+//      PostgREST, because the rules that matter here are EXIT CODES and the
+//      ORDER of writes, which no unit test of a helper can see.
+// =============================================================================
+
+const GLOSSARY_FIXTURE = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'fixtures',
+    'glossary',
+    'glossary.fixture.md',
+);
+const DEMO_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'glossary', 'demo');
+
+test('§L --glossary and --allow-mass-retire parse, in either form', () => {
+    assert.equal(parseArgs(['~/cat', '--glossary', 'g.md']).glossary, 'g.md');
+    assert.equal(parseArgs(['~/cat', '--glossary=g.md']).glossary, 'g.md');
+    assert.equal(parseArgs(['~/cat']).glossary, null);
+    assert.equal(parseArgs(['~/cat', '--allow-mass-retire']).allowMassRetire, true);
+    assert.equal(parseArgs(['~/cat']).allowMassRetire, false);
+});
+
+test('§L every flag parseArgs accepts is documented in usage() (W-11)', () => {
+    // Read from parseArgs's SOURCE, so a flag added there without a usage line
+    // goes red here — the synopsis was already missing --skills-registry once.
+    const source = readFileSync(
+        join(dirname(fileURLToPath(import.meta.url)), '..', 'batch-import.mjs'),
+        'utf8',
+    );
+    const body = source.slice(
+        source.indexOf('export function parseArgs('),
+        source.indexOf('export function usageText('),
+    );
+    const flags = new Set(
+        [...body.matchAll(/arg === '(--[a-z-]+)'/g)].map((m) => m[1]).filter((f) => f !== '--'),
+    );
+    assert.ok(flags.size >= 8, `expected every flag, found ${[...flags]}`);
+    const text = usageText();
+    const synopsis = text.slice(0, text.indexOf('<folder>     '));
+    for (const flag of flags) {
+        assert.ok(text.includes(flag), `${flag} is accepted but not documented`);
+        if (flag !== '--owner') assert.ok(synopsis.includes(flag), `${flag} is missing from the synopsis`);
+    }
+});
+
+test('§L the mass-retire threshold is EN-12’s, at its edges', () => {
+    assert.equal(isMassRetire(26, 10_000), true, 'more than 25 is always mass');
+    assert.equal(isMassRetire(25, 10_000), false);
+    assert.equal(isMassRetire(6, 20), true, 'more than 20% AND more than 5');
+    assert.equal(isMassRetire(5, 10), false, 'a small store can retire five');
+    assert.equal(isMassRetire(1, 4), false, 'a four-entry store can still retire one');
+    assert.equal(isMassRetire(6, 30), false, 'exactly 20% is not more than 20%');
+});
+
+test('§L a missing table or function is recognised by its CODE, not a word in the path', () => {
+    assert.equal(isMissingRelation('GET /glossary_entry?… → 404: {"code":"PGRST205"}'), true);
+    assert.equal(isMissingRelation('POST /rpc/sync_glossary_entries → 404: {"code":"PGRST202"}'), true);
+    assert.equal(isMissingRelation('GET /glossary_entry?… → 500: {"code":"XX000"}'), false);
+});
+
+test('§L an unresolved reference is located and says what to do (R2, W-7, W-8)', () => {
+    const md = 'line one\nThe [[gradiant]] here.\nAnd [[zzz]].';
+    assert.equal(lineOfReference(md, 'gradiant'), 2);
+    assert.deepEqual(
+        unresolvedReferenceWarnings('unit/a.md', md, {
+            references: [
+                { text: 'gradiant', resolution: 'none', suggestion: 'gradient' },
+                { text: 'slope', resolution: 'store', id: 'gradient' },
+                { text: 'zzz', resolution: 'none' },
+            ],
+        }),
+        [
+            'unit/a.md:2 [[gradiant]] — not in the course glossary or this activity, left as ' +
+                'plain text; did you mean “gradient”?',
+            'unit/a.md:3 [[zzz]] — not in the course glossary or this activity, left as plain ' +
+                'text; add it to the glossary file, or define it here with [[zzz :: …]]',
+        ],
+    );
+});
+
+test('§L the node bundle loads the fixture and a KEYED mark survives into a valid document', () => {
+    // Bound to OUTPUT through the node-bundled pipeline (§A's reason): the
+    // glossary lib reaches the importer through the schema barrel, and the
+    // keyed mark must pass ActivityDocument — the gate before draft_content.
+    const loaded = pipeline.glossaryLoader(readFileSync(GLOSSARY_FIXTURE, 'utf8'), 'fixture');
+    assert.deepEqual(loaded.warnings, []);
+    const md = readFileSync(join(DEMO_DIR, 'reading-a-line.md'), 'utf8');
+    const out = convertOne(pipeline, md, null, 'reading-a-line.md', { glossary: loaded.entries });
+    const keys = [...JSON.stringify(out.document).matchAll(/"glossaryKey":"([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(keys, ['gradient', 'gradient', 'y-intercept']);
+    assert.deepEqual(
+        out.glossary.references.map((r) => [r.text, r.resolution]),
+        [['gradient', 'store'], ['slope', 'store'], ['y-intercept', 'store']],
+    );
+    // A second load of the same file is byte-identical — block ids are
+    // stripped, so a re-import is a no-op mirror rather than N "changed".
+    const again = pipeline.glossaryLoader(readFileSync(GLOSSARY_FIXTURE, 'utf8'), 'fixture');
+    assert.equal(JSON.stringify(again.entries), JSON.stringify(loaded.entries));
+});
+
+test('§L the live-store read pages past PostgREST’s 1,000-row cap (EN-1)', async () => {
+    const seen = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+        seen.push(String(url));
+        const n = seen.length === 1 ? 1000 : 3;
+        const rows = Array.from({ length: n }, (_, i) => ({
+            term_id: `t${seen.length}-${i}`,
+            term: 't',
+            variants: {},
+            body: [],
+        }));
+        return new Response(JSON.stringify(rows), { status: 200 });
+    };
+    try {
+        const rows = await makeDb('https://stub.example.com', 'sb_secret_x').activeGlossary('o1');
+        assert.equal(rows.length, 1003);
+        assert.deepEqual(Object.keys(rows[0]), ['id', 'term', 'variants', 'body']);
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(seen.length, 2);
+    assert.match(seen[0], /retired_at=is\.null/);
+    assert.match(seen[1], /offset=1000/);
+});
+
+// ---- main() end to end, against a stub PostgREST ----------------------------
+
+function stubSupabase(overrides = {}) {
+    const calls = [];
+    const send = (res, status, body) => {
+        res.writeHead(status, { 'content-type': 'application/json' });
+        res.end(body === undefined ? '' : JSON.stringify(body));
+    };
+    const plan = (over = {}) => ({
+        applied: false,
+        active_before: 0,
+        new: [],
+        changed: [],
+        retired: [],
+        unretired: [],
+        ...over,
+    });
+    const server = createServer((req, res) => {
+        let raw = '';
+        req.on('data', (c) => (raw += c));
+        req.on('end', () => {
+            const body = raw ? JSON.parse(raw) : null;
+            const url = decodeURIComponent(req.url);
+            calls.push({ method: req.method, url, body });
+            const route = `${req.method} ${url.split('?')[0]}`;
+            const custom = overrides[route];
+            if (custom) return custom(req, res, body, send, plan);
+            switch (route) {
+                case 'GET /rest/v1/users':
+                    return send(res, 200, [{ id: 'owner-1', email: 't@x.test', role: 'teacher' }]);
+                case 'GET /rest/v1/activities':
+                    return send(res, 200, []);
+                case 'GET /rest/v1/glossary_entry':
+                    return send(res, 200, []);
+                case 'POST /rest/v1/rpc/sync_glossary_entries':
+                    return send(res, 200, plan({ applied: body.p_apply, new: body.p_entries.map((e) => e.term_id) }));
+                case 'POST /rest/v1/misconception_registry':
+                    return send(res, 201, body);
+                case 'POST /rest/v1/activities':
+                    return send(res, 201, body);
+                default:
+                    return send(res, 500, { message: `unstubbed ${route}` });
+            }
+        });
+    });
+    return { server, calls, plan };
+}
+
+async function runImport(stub, args) {
+    await new Promise((r) => stub.server.listen(0, '127.0.0.1', r));
+    const { port } = stub.server.address();
+    const out = await mkdtemp(join(tmpdir(), 'glossary-e2e-'));
+    const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'batch-import.mjs');
+    try {
+        // spawn, not spawnSync: the stub answers on THIS event loop. The exit
+        // code is the process's own — never read through a pipe (W-4's
+        // "measured without a pipe": `| tail` would report tail's).
+        const child = spawn(process.execPath, [script, DEMO_DIR, '--owner', 't@x.test', ...args], {
+            env: {
+                ...process.env,
+                SUPABASE_URL: `http://127.0.0.1:${port}`,
+                SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test',
+                BATCH_IMPORT_OUTPUT_ROOT: out,
+            },
+        });
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (d) => (stdout += d));
+        child.stderr.on('data', (d) => (stderr += d));
+        const code = await new Promise((r) => child.on('close', r));
+        return { code, stdout, stderr, output: stdout + stderr };
+    } finally {
+        stub.server.close();
+        await rm(out, { recursive: true, force: true });
+    }
+}
+
+const writes = (calls) =>
+    calls.filter(
+        (c) =>
+            (c.method !== 'GET' && !c.url.includes('/rpc/sync_glossary_entries')) ||
+            (c.url.includes('/rpc/sync_glossary_entries') && c.body?.p_apply === true),
+    );
+
+test('§L a clean --glossary run mirrors BEFORE any activity write, and exits 0 under --strict', async () => {
+    const stub = stubSupabase();
+    const run = await runImport(stub, ['--glossary', GLOSSARY_FIXTURE, '--strict']);
+    assert.equal(run.code, 0, run.output);
+    const w = writes(stub.calls).map((c) => `${c.method} ${c.url.split('?')[0]}`);
+    assert.deepEqual(w, ['POST /rest/v1/rpc/sync_glossary_entries', 'POST /rest/v1/activities']);
+    assert.match(run.output, /refs {5}: 3 from the course glossary · 0 local · 0 unresolved/);
+    assert.match(run.output, /glossary {2}: mirrored — 5 new/);
+});
+
+test('§L a dry run asks the database for the plan and writes NOTHING (W-14)', async () => {
+    const stub = stubSupabase();
+    const run = await runImport(stub, ['--glossary', GLOSSARY_FIXTURE, '--dry-run']);
+    assert.equal(run.code, 0, run.output);
+    assert.deepEqual(writes(stub.calls), []);
+    const syncs = stub.calls.filter((c) => c.url.includes('/rpc/sync_glossary_entries'));
+    assert.deepEqual(syncs.map((c) => c.body.p_apply), [false]);
+    assert.match(run.output, /store {4}: 5 new .* \(would be written; 0 active before\)/);
+});
+
+test('§L a MASS retire is refused before any write, and --allow-mass-retire lets it through (W-5)', async () => {
+    const retiring = Array.from({ length: 30 }, (_, i) => `old-${i}`);
+    const override = {
+        'POST /rest/v1/rpc/sync_glossary_entries': (req, res, body, send, plan) =>
+            send(res, 200, plan({ applied: body.p_apply, active_before: 35, retired: retiring })),
+    };
+    const refused = stubSupabase(override);
+    const run = await runImport(refused, ['--glossary', GLOSSARY_FIXTURE]);
+    assert.equal(run.code, 1, run.output);
+    assert.match(run.output, /REFUSED — this run would retire 30 of 35 active glossary entries/);
+    assert.match(run.output, /old-29/);
+    assert.deepEqual(writes(refused.calls), [], 'not the registry mirror, not one activity');
+
+    const allowed = stubSupabase(override);
+    const ok = await runImport(allowed, ['--glossary', GLOSSARY_FIXTURE, '--allow-mass-retire']);
+    assert.equal(ok.code, 0, ok.output);
+    assert.ok(writes(allowed.calls).some((c) => c.body?.p_apply === true));
+});
+
+test('§L a failed GLOSSARY mirror fails --strict and only --strict (W-4, W-6)', async () => {
+    const missing = {
+        'POST /rest/v1/rpc/sync_glossary_entries': (req, res, body, send) =>
+            send(res, 404, { code: 'PGRST202', message: 'Could not find the function' }),
+    };
+    const soft = await runImport(stubSupabase(missing), ['--glossary', GLOSSARY_FIXTURE]);
+    assert.equal(soft.code, 0, soft.output);
+    assert.match(soft.output, /glossary_entry is missing \(migration 0043 not applied\)/);
+    assert.match(soft.output, /created 1/, 'the import itself continues');
+    const strict = await runImport(stubSupabase(missing), ['--glossary', GLOSSARY_FIXTURE, '--strict']);
+    assert.equal(strict.code, 1, strict.output);
+});
+
+test('§L a failed REGISTRY mirror now fails --strict too (W-4)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'registry-'));
+    const registryPath = join(dir, 'registry.txt');
+    await writeFile(registryPath, 'mis.demo.one   # a demo id\n');
+    const broken = {
+        'POST /rest/v1/misconception_registry': (req, res, body, send) =>
+            send(res, 404, { code: 'PGRST205', message: 'Could not find the table' }),
+    };
+    try {
+        // --glossary so every reference resolves: the mirror failure must be
+        // the ONLY thing that can fail this strict run (P9 — the first draft of
+        // this row was red for the demo's unresolved references instead).
+        const base = ['--registry', registryPath, '--glossary', GLOSSARY_FIXTURE];
+        const soft = await runImport(stubSupabase(broken), base);
+        assert.equal(soft.code, 0, soft.output);
+        assert.match(soft.output, /misconception_registry mirror FAILED/);
+        const healthy = await runImport(stubSupabase(), [...base, '--strict']);
+        assert.equal(healthy.code, 0, `control: a healthy strict run is green\n${healthy.output}`);
+        const strict = await runImport(stubSupabase(broken), [...base, '--strict']);
+        assert.equal(strict.code, 1, strict.output);
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+test('§L no --glossary and no table: ONE notice, not N warnings, and --strict stays green (R2, W-6)', async () => {
+    const stub = stubSupabase({
+        'GET /rest/v1/glossary_entry': (req, res, body, send) =>
+            send(res, 404, { code: 'PGRST205', message: 'Could not find the table' }),
+    });
+    const run = await runImport(stub, ['--strict']);
+    assert.equal(run.code, 0, run.output);
+    assert.match(
+        run.output,
+        /glossary_entry is missing \(migration 0043 not applied\) — 3 \[\[term\]\] references could not be checked/,
+    );
+    assert.doesNotMatch(run.output, /glossary warnings/);
+    assert.equal(stub.calls.filter((c) => c.url.includes('sync_glossary')).length, 0, 'no --glossary, no mirror');
+});
+
+test('§L no --glossary: the live store resolves references, and an unresolved one fails --strict (R2)', async () => {
+    const stub = stubSupabase({
+        'GET /rest/v1/glossary_entry': (req, res, body, send) =>
+            send(res, 200, [
+                {
+                    term_id: 'gradient',
+                    term: 'gradient',
+                    variants: { us: 'slope' },
+                    body: [{ type: 'paragraph', content: [{ type: 'text', text: 'rise over run', marks: [] }] }],
+                },
+            ]),
+    });
+    const run = await runImport(stub, ['--strict']);
+    assert.equal(run.code, 1, run.output);
+    assert.match(run.output, /refs {5}: 2 from the course glossary · 0 local · 1 unresolved/);
+    assert.match(run.output, /reading-a-line\.md:\d+ \[\[y-intercept\]\] — not in the course glossary/);
+    assert.equal(stub.calls.filter((c) => c.url.includes('sync_glossary')).length, 0, 'the store is untouched');
 });

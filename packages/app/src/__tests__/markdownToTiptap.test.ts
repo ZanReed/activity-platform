@@ -3723,3 +3723,141 @@ function dropEmptyAttrs(nodes: JSONContent[]): JSONContent[] {
     };
     return nodes.map(walk);
 }
+
+// =============================================================================
+// Course glossary resolution (docs/design/glossary.md R2, R9, EN-3, EN-15–17)
+// -----------------------------------------------------------------------------
+// Only the batch importer passes `options.glossary`. The paste dialog passes
+// nothing, and must behave exactly as it did before the arc (EN-17's CRITICAL
+// regression row).
+// =============================================================================
+describe('course glossary resolution', () => {
+    const para = (text: string) => ({
+        type: 'paragraph' as const,
+        content: [{ type: 'text' as const, text, marks: [] }],
+    });
+    const STORE = [
+        { id: 'gradient', term: 'gradient', variants: { us: 'slope' }, body: [para('rise over run')] },
+        { id: 'y-intercept', term: 'y-intercept', variants: {}, body: [para('where x = 0')] },
+        { id: 'old', term: 'old word', variants: {}, body: [para('gone')], retired: true },
+    ];
+    const glossary = { glossary: STORE };
+
+    const marksIn = (blocks: JSONContent[]) => {
+        const out: { text: string; attrs: Record<string, unknown> }[] = [];
+        const walk = (nodes: JSONContent[]): void => {
+            for (const n of nodes) {
+                for (const m of (n.marks ?? []) as { type?: string; attrs?: Record<string, unknown> }[]) {
+                    if (m.type === 'definition') out.push({ text: n.text ?? '', attrs: m.attrs ?? {} });
+                }
+                walk((n.content ?? []) as JSONContent[]);
+            }
+        };
+        walk(blocks);
+        return out;
+    };
+    const textOf = (blocks: JSONContent[]) =>
+        (blocks[0]?.content ?? []).map((n) => n.text).join('');
+
+    it('without options, the paste path is unchanged — no report, old fence-only warning', () => {
+        const md = '```definitions\nterm: rate\nA ratio.\n```\n\nThe [[gradient]] and [[rate]].';
+        const bare = convert(md);
+        expect(bare.glossary).toBeUndefined();
+        expect(marksIn(bare.blocks).map((m) => m.text)).toEqual(['rate']);
+        expect(bare.warnings.some((w) => /“gradient” isn’t in a/.test(w))).toBe(true);
+        // A fence-less paste still says nothing about an unresolved reference.
+        expect(convert('The [[gradient]].').warnings).toEqual([]);
+    });
+
+    it('resolves a store term to a KEYED mark with the baked body', () => {
+        const res = convert('The [[gradient]] is steep.', glossary);
+        expect(marksIn(res.blocks)).toEqual([
+            { text: 'gradient', attrs: { content: [para('rise over run')], glossaryKey: 'gradient' } },
+        ]);
+        expect(res.glossary?.references).toEqual([
+            { text: 'gradient', resolution: 'store', id: 'gradient' },
+        ]);
+    });
+
+    it('resolves a variant to its entry and keeps the authored text (R9)', () => {
+        const res = convert('The [[Slope]] is steep.', glossary);
+        expect(marksIn(res.blocks)).toEqual([
+            { text: 'Slope', attrs: { content: [para('rise over run')], glossaryKey: 'gradient' } },
+        ]);
+        expect(textOf(res.blocks)).toBe('The Slope is steep.');
+    });
+
+    it('a local fence entry wins over the store, and carries no glossaryKey', () => {
+        const md = '```definitions\nterm: gradient\nMy own words.\n```\n\nThe [[gradient]].';
+        const [mark] = marksIn(convert(md, glossary).blocks);
+        expect(mark?.attrs.glossaryKey).toBeUndefined();
+        expect(mark?.attrs.content).toMatchObject([para('My own words.')]);
+    });
+
+    it('[[slope]] with a LOCAL “gradient” resolves to the local definition (EN-3)', () => {
+        const md = '```definitions\nterm: gradient\nMy own words.\n```\n\nThe [[slope]].';
+        const res = convert(md, glossary);
+        const [mark] = marksIn(res.blocks);
+        expect(mark).toMatchObject({ text: 'slope', attrs: { content: [para('My own words.')] } });
+        expect(mark?.attrs.glossaryKey).toBeUndefined();
+        expect(res.glossary?.references).toEqual([{ text: 'slope', resolution: 'local' }]);
+    });
+
+    it('an inline [[x :: y]] definition is local too, wherever it sits', () => {
+        const res = convert('Later: [[gradient]]. First: [[gradient :: my inline words]].', glossary);
+        const marks = marksIn(res.blocks);
+        expect(marks.every((m) => m.attrs.glossaryKey === undefined)).toBe(true);
+        expect(marks[0]?.attrs.content).toEqual([para('my inline words')]);
+    });
+
+    it('an unresolved reference stays literal, is reported with a suggestion, and never warns inline (EN-15)', () => {
+        const res = convert('The [[gradiant]] and [[gradiant]] and [[zzz]].', glossary);
+        expect(textOf(res.blocks)).toBe('The [[gradiant]] and [[gradiant]] and [[zzz]].');
+        expect(res.glossary?.references).toEqual([
+            { text: 'gradiant', resolution: 'none', suggestion: 'gradient' },
+            { text: 'zzz', resolution: 'none' },
+        ]);
+        expect(res.warnings).toEqual([]);
+    });
+
+    it('a reference matching only a RETIRED entry is unresolved (R2)', () => {
+        const res = convert('The [[old word]].', glossary);
+        expect(marksIn(res.blocks)).toEqual([]);
+        expect(res.glossary?.references).toEqual([{ text: 'old word', resolution: 'none' }]);
+    });
+
+    it('reports local definitions that shadow the store — identical vs divergent (R4)', () => {
+        const md = [
+            '```definitions',
+            'term: gradient',
+            'rise over run',
+            '---',
+            'term: slope',
+            'Different words.',
+            '```',
+            '',
+            'Body.',
+        ].join('\n');
+        expect(convert(md, glossary).glossary?.shadows).toEqual([
+            { term: 'gradient', id: 'gradient', identical: true },
+            { term: 'slope', id: 'gradient', identical: false },
+        ]);
+    });
+
+    it('an escaped \\[[…]] is literal text, never resolved or reported (W-13, EN-16)', () => {
+        const res = convert('Write \\[[gradient]] to show brackets.', glossary);
+        expect(textOf(res.blocks)).toBe('Write [[gradient]] to show brackets.');
+        expect(marksIn(res.blocks)).toEqual([]);
+        expect(res.glossary?.references).toEqual([]);
+        // In code the backslash is the author's own character and survives.
+        const code = convert('Type `\\[[x]]` here.', glossary);
+        expect(JSON.stringify(code.blocks)).toContain('\\\\[[x]]');
+    });
+
+    it('the escape holds on the paste path too, and inside a fence body', () => {
+        expect(textOf(convert('A \\[[literal]].').blocks)).toBe('A [[literal]].');
+        const md = '```definitions\nterm: rate\nNot a \\[[link]].\n```\n\nThe [[rate]].';
+        const [mark] = marksIn(convert(md).blocks);
+        expect(mark?.attrs.content).toMatchObject([para('Not a [[link]].')]);
+    });
+});
