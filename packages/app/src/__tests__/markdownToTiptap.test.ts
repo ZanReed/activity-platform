@@ -455,6 +455,31 @@ describe('math', () => {
         ]);
     });
 
+    it('NEVER pairs escaped dollars into math (the live chain-1 red-text bug, 2026-09-27)', () => {
+        // The catalogue writes currency as CommonMark-escaped `\$`. Before the
+        // lookbehind fix, the TWO escaped dollars here paired into one inline
+        // math span whose latex ended in a lone backslash — KaTeX error-red
+        // across the student's sentence. markdown-it unescapes `\$` → `$`.
+        const out = blocks('3 muffins cost \\$4.50. One muffin costs \\${{=1.50}}.');
+        expect(out[0]!.type).toBe('fillInBlank');
+        const types = (out[0]!.content ?? []).map((n) => n.type);
+        expect(types).not.toContain('mathInline');
+        expect(out[0]!.content?.[0]).toEqual({
+            type: 'text',
+            text: '3 muffins cost $4.50. One muffin costs $',
+        });
+        expect(out[0]!.content?.[1]?.type).toBe('blank');
+    });
+
+    it('an escaped dollar beside REAL math costs the math nothing', () => {
+        const out = blocks('Pay \\$5 when $x^2$ holds.');
+        expect(out[0]!.content).toEqual([
+            { type: 'text', text: 'Pay $5 when ' },
+            { type: 'mathInline', attrs: { latex: 'x^2' } },
+            { type: 'text', text: ' holds.' },
+        ]);
+    });
+
     it('mixes math and a blank in one problem', () => {
         const out = blocks('Compute $2+2$ = {{4}}');
         expect(out[0]!.type).toBe('fillInBlank');

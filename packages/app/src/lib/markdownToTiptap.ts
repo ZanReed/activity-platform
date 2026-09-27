@@ -358,8 +358,18 @@ function stripMarkdownFence(src: string): string {
 // (longest delimiter), then $inline$ with a Pandoc-style guard — opening `$`
 // followed by a non-space, closing `$` preceded by a non-space and not followed
 // by a digit — so "$5 and $10" / "it costs $20" never read as math.
+//
+// ⚠ ESCAPED DOLLARS ARE NOT DELIMITERS (found live 2026-09-27): `\$` is the
+// CommonMark escape — markdown-it unescapes it to a literal `$` downstream —
+// and the catalogue writes currency that way throughout (`\$4.50`). Without
+// the lookbehinds, "cost \$4.50. One muffin costs \${{…}}" pairs its TWO
+// escaped dollars into one inline-math span whose latex ends in a lone
+// backslash, and KaTeX renders the whole sentence in error-red on the
+// student's page. The digit guard alone cannot catch it: the closing
+// candidate there is followed by `{`, not a digit. This lift only SKIPS the
+// escaped form — the unescaping stays markdown-it's job.
 const MATH_SCAN =
-    /(`+)([\s\S]*?)\1|\$\$([\s\S]+?)\$\$|\$(?=\S)([^$\n]*?\S)\$(?!\d)/g;
+    /(`+)([\s\S]*?)\1|(?<!\\)\$\$([\s\S]+?)(?<!\\)\$\$|(?<!\\)\$(?=\S)([^$\n]*?\S)(?<!\\)\$(?!\d)/g;
 
 function extractMath(src: string): { text: string; spans: MathSpan[] } {
     const spans: MathSpan[] = [];
