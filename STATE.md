@@ -33,16 +33,15 @@ golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
 checks (today 0, roster 1; §5.1's volume rule governs).
 
-**Glossary BUILT (2026-09-27; [glossary.md](docs/design/glossary.md),
-/autoplan APPROVED, R17 order):** popover over local terms `8899bdd` ·
-0043 store + verify-0043 `55d8f64` · importer `--glossary` loader, reference
-gate, mirror `5c64be5` · student store read `80c9567` · docs + prompt
-`92a0c3a`. **Done 2026-09-28:** 0043 applied + verify-0043 green live
-(read back: 43 migrations, both functions, anon/authenticated grants
-correct); pushed, CI green; Notion stamp → `92a0c3a`; W-2 format proposal
-posted to the boundary page as a pointer row. **OWED:** when their glossary
-file lands — `import:batch … --glossary <file> --dry-run`, then live, then
-republish (keyed marks reach students only through a new version).
+**Glossary LIVE (2026-09-28; [glossary.md](docs/design/glossary.md),
+commits `8899bdd`..`92a0c3a`):** 0043 applied + verify-0043 green live;
+Notion stamp → `92a0c3a`; W-2 format adopted by the curriculum side
+(`glossary.md` at their `f1faa07`, D40) and imported: 58 entries mirrored,
+`--strict` green. Students see the list now (the read keys on owner, not
+version). **OWED:** republish the 4 chain-1 activities (`report:stale`: all
+4 stale); the builder's call on 18 DIVERGENT local definitions (drop →
+re-import → republish, or keep as overrides); a `glossary.md` pointer row
+on the boundary page.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
