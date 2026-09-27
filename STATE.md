@@ -37,14 +37,12 @@ checks (today 0, roster 1; §5.1's volume rule governs).
 /autoplan APPROVED, R17 order):** popover over local terms `8899bdd` ·
 0043 store + verify-0043 `55d8f64` · importer `--glossary` loader, reference
 gate, mirror `5c64be5` · student store read `80c9567` · docs + prompt
-`92a0c3a`. **OWED, in order:** (1) `supabase db push` (0043), then
-`pnpm verify:auth --target live --only verify-0043` (13/13 local) —
-**before the push** (OV-7: `80c9567` calls the new RPC); (2) push, then
-refresh the Notion stamp for the regenerated catalogue prompt; (3) send
-W-2's format proposal (markdown-import-format.md → "Course glossary") to the
-boundary page; (4) when their file lands: `import:batch … --glossary <file>
---dry-run`, then live, then republish (keyed marks reach students only
-through a new version). No deploy or bundle regeneration owed.
+`92a0c3a`. **Done 2026-09-28:** 0043 applied + verify-0043 green live
+(read back: 43 migrations, both functions, anon/authenticated grants
+correct); pushed, CI green; Notion stamp → `92a0c3a`; W-2 format proposal
+posted to the boundary page as a pointer row. **OWED:** when their glossary
+file lands — `import:batch … --glossary <file> --dry-run`, then live, then
+republish (keyed marks reach students only through a new version).
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
