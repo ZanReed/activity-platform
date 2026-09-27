@@ -2754,8 +2754,11 @@ async function main() {
         : repo;
     await mkdir(resolve(outputRoot, 'docs'), { recursive: true });
     const manifestPath = resolve(outputRoot, MANIFEST_PATH);
+    // Name where the artifacts ACTUALLY went — a redirected run that reported
+    // the repo path would send the author looking at a file it never touched.
+    const shown = (path) => (outputRoot === repo ? path : resolve(outputRoot, path));
     await writeFile(manifestPath, `${renderManifest(summary)}`, 'utf8');
-    console.log(`\n  manifest written to ${MANIFEST_PATH}`);
+    console.log(`\n  manifest written to ${shown(MANIFEST_PATH)}`);
 
     // ---- skill coverage -----------------------------------------------------
     const coverage = summarizeCoverage(perFileCatalogue, skills);
@@ -2807,7 +2810,7 @@ async function main() {
         'utf8',
     );
     console.log(
-        `  coverage written to ${COVERAGE_MANIFEST_PATH} and ${COVERAGE_JSON_PATH}`,
+        `  coverage written to ${shown(COVERAGE_MANIFEST_PATH)} and ${shown(COVERAGE_JSON_PATH)}`,
     );
 
     // ---- the glossary report (R4, W-12) -------------------------------------
@@ -2958,7 +2961,7 @@ async function main() {
         // way to review a binding change, and requiring a real import to see
         // one would make the artifact go stale exactly when it matters.
         console.log(
-            `\nDRY RUN — nothing was written to the database (${MANIFEST_PATH}\nwas refreshed).\n`,
+            `\nDRY RUN — nothing was written to the database (${shown(MANIFEST_PATH)}\nwas refreshed).\n`,
         );
         // A refusal is an outcome that needs the author's attention, exactly like
         // a skip — a dry run that reported refusals must not exit clean. Under
