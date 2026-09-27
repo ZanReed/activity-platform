@@ -2364,3 +2364,33 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 **Context:** `packages/app/vite.config.ts` (VitePWA: autoUpdate, precache index.html, CacheFirst `/assets/`), registration in `main.tsx`, lane `packages/app/e2e/sw/`. A spawn-task chip for this exists in the app; this entry is the durable copy.
 
 **Effort:** S / S · **Priority:** P2 · **Depends on:** nothing.
+
+## Glossary: five follow-ons the author listed and did not assume into scope (glossary /autoplan, 2026-09-27)
+
+**What:** (E1) an A–Z index rail beside the default list; (E2) recently-viewed terms (session-local); (E3) read-aloud / pronunciation on a term; (E4) editor parity — the teacher previews the same popover from the editor; (E5) looked-up-terms analytics.
+
+**Why:** Each is real value (E3 for ESL students, E5 as formative signal — the vocabulary version of the misconception sensors). The author's §3 said none is assumed into scope; the review deferred all five rather than cutting them.
+
+**Context:** docs/design/glossary.md §3 and the CEO 0G table. E1 earns its place around ~200 terms (search already filters in one keystroke). E3 needs its own a11y/audio pass. E4 needs a viewer surface inside the editor (none today). E5 MUST ride the 0036 rollup pattern — never a hot-path counter (standing rule).
+
+**Effort:** E1 S/S · E2 S/S · E3 M/M · E4 M/M · E5 M/M · **Priority:** P3 · **Depends on:** the glossary arc shipped; E5 on the first real student lookups.
+
+## Glossary scope when co-ownership lands (glossary /autoplan, 2026-09-27)
+
+**What:** Decide whether `glossary_entry` stays keyed `(owner_id, term_id)` or gains a course/collection scope when a second teacher co-owns catalogue activities.
+
+**Why:** The store is owner-keyed (the 2026-06-19 tenant ruling). Under department co-ownership one course glossary would otherwise fragment into per-owner copies or need mirroring N times. A speculative `scope_id` column was REJECTED now (house rule: no speculative schema fields); this is the recorded input for the co-ownership arc's own design pass — the same precedent 0042 set for its owner predicate.
+
+**Context:** docs/design/glossary.md Review record (CEO F5); migration 0043; `glossary_for_activity` resolves the owner from the activity, so re-pointing is a one-function change.
+
+**Effort:** decision M / S · **Priority:** P3 · **Depends on:** the co-ownership arc's design pass.
+
+## `--registry` is ambiguous beside `--skills-registry` and `--glossary` (glossary DX review, 2026-09-27)
+
+**What:** Rename `pnpm import:batch --registry` to `--misconception-registry`, keeping `--registry` as a deprecated alias that prints one warning.
+
+**Why:** With three input files the bare `--registry` no longer says which registry. Renaming a shipped flag was out of the DX-polish scope of the glossary review.
+
+**Context:** `scripts/batch-import.mjs` parseArgs + `usage()`; the W-11 flag↔usage parity test will cover the alias.
+
+**Effort:** S / S · **Priority:** P3 · **Depends on:** nothing.
