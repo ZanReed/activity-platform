@@ -1,7 +1,9 @@
 # Glossary — the popover, the search, and the store
 
-**Status:** PROPOSED — author concept 2026-09-27; decisions **D1–D8 pending
-per-item ruling**. No code before the green light (house rule).
+**Status:** ✅ RULED — D1, D3–D8 accepted as proposed; **D2 RE-RULED by the
+author** (2026-09-27, below). Next: the curriculum-side glossary artifact
+(D8 ask sent), then the review pipeline before any code drop (the
+ai-grading-assist precedent).
 
 Companion docs: [vocabulary-definitions.md](vocabulary-definitions.md) (the
 shipped inline marks, the definitions fence, and the 2026-06-19
@@ -49,19 +51,35 @@ A **popover**, replacing the current in-place expansion, with:
   beside the calculator and reference panel) opens the same popover
   unfocused at the default A→Z list. One component, two entries — and the
   cluster's existing summon/dismiss/one-open rulings come free.
-- **D2 — v1 scope: the ACTIVITY's terms; the store arrives as an
-  AUTHORING reuse pool, importer-fed.** The popover searches and browses
-  the terms defined in the open activity's pinned document (plus its
-  definitions fence). The `glossary_entry` store lands in the same arc but
-  serves AUTHORING first: catalogue definitions are mirrored into it by
-  `import:batch` (the misconception-mirror pattern), and a `[[term]]`
-  short reference in any file resolves against the pool at import — write
-  a definition once, reuse it across the catalogue. Students see the
-  cross-ACTIVITY glossary later, when chains/courses give it a natural
-  scope; "every term in the account" in a student's popover would surface
-  vocabulary from unrelated or unpublished work. (This keeps the
-  2026-06-19 option-(a) posture available: store resolution happens at
-  import/publish time, so the student wire gains no new fetch.)
+- **D2 — RE-RULED (author, 2026-09-27): the MASS glossary ships now, as a
+  curriculum-side canonical artifact.** The original activity-scoped
+  proposal assumed glossary authoring was expensive; the author's
+  correction: the curriculum builder is an LLM, so the full course
+  glossary is a SINGLE-SESSION artifact that then pays twice — as
+  **context** (the builder authors every activity with the glossary in
+  hand, keeping terminology logically consistent across all curriculum
+  building) and as **another gate** (their CI can refuse a file whose
+  `[[term]]` references don't resolve, exactly like the misconception and
+  skill registries). Consequences, platform-side:
+  - The glossary lives in the curriculum repo (format is THEIR call —
+    registry-grammar or generated; their three-files-one-grammar rule
+    governs). `import:batch` mirrors the WHOLE glossary into
+    `glossary_entry` (the proven misconception-mirror pattern) and
+    validates `[[term]]` short references against it, warning on any that
+    don't resolve.
+  - The student popover's default A→Z list IS the full course glossary —
+    the author's original feature 1, now safe because the pool is curated
+    course vocabulary, not arbitrary teacher drafts.
+  - An activity-local `[[term :: definition]]` still works and WINS over
+    the store entry for that term within its own activity (the teacher's
+    voice, locally), per the 2026-06-19 precedence note.
+  - Viewer read path: the 2026-06-19 (a)-bake vs (b)-fetch choice resolves
+    to **(b), via the store itself** — a course glossary browsable from
+    every activity would go stale per-version under baking. Mechanism:
+    `glossary_entry` takes the `misconception_registry` posture (one
+    SELECT policy `to authenticated`; the viewer requires sign-in), read
+    once per session and cached client-side. No Edge Function, no hosted
+    JSON.
 - **D3 — Cross-links are computed at import/save, not at render.**
   Whole-word, case-insensitive match of other defined terms inside a
   definition's content; FIRST occurrence per definition only (an
@@ -85,12 +103,14 @@ A **popover**, replacing the current in-place expansion, with:
   links deep needs Back — an in-popover history stack (Back button +
   keyboard), session-only. Without it, cross-links are a trap, not a
   feature.
-- **D8 — The curriculum boundary ask waits for D2's ruling.** If the
-  reuse pool is accepted, the ask to the curriculum side is: bless shared
-  definitions as a catalogue-root artifact (authored or generated, their
-  call — their three-files-one-grammar rule applies), consumed by
-  `import:batch` into `glossary_entry`. Filed on the boundary page AFTER
-  scope is ruled, not before.
+- **D8 — The curriculum boundary ask (SENT 2026-09-27, D2 being ruled):**
+  build the course glossary as a canonical repo artifact in one session;
+  use it as authoring context thereafter; add the resolves-or-red CI gate
+  on their side. Platform consumes via `import:batch` → `glossary_entry`
+  and validates `[[term]]` refs at import. Format and gate mechanics are
+  theirs to rule; the platform's only constraints are: term + rich
+  definition body (the `[[term :: definition]]` alphabet — text +
+  `$inline$` math), stable term identity, and never-hand-edit-if-generated.
 
 ## 3. Additional features noted (author asked; none assumed into scope)
 

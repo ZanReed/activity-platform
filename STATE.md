@@ -33,9 +33,9 @@ golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
 checks (today 0, roster 1; §5.1's volume rule governs).
 
-**Glossary arc OPEN:** author concept captured in
-docs/design/glossary.md — popover + search sidebar + cross-links; D1–D8
-await the author's per-item ruling before any code.
+**Glossary RULED (D1–D8; docs/design/glossary.md):** D2 re-ruled — the
+mass glossary is curriculum-built (context + gate), ask sent. Next: their
+artifact → review pipeline → drop.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
