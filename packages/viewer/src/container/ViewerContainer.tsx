@@ -42,6 +42,7 @@ import { blockRegistry, familyOf } from '../registry/registry.js';
 import { buildNumbering, type ResolvedLabel } from '../numbering/numbering.js';
 import { resolveBlockComponent } from '../registry/resolveComponent.js';
 import { ReferencePanelTool } from './ReferencePanelTool.js';
+import { GlossaryHost, type GlossarySource } from '../glossary/GlossaryHost.js';
 import type { BlockComponentProps, BlockType } from '../registry/types.js';
 import type {
   SanitizedActivityDocument,
@@ -116,6 +117,12 @@ export interface ViewerContainerProps {
   readOnly?: boolean;
   /** The "Use it here" action. Absent ⇒ the takeover affordance is hidden. */
   onTakeOver?: () => void;
+  /**
+   * The course glossary for this activity (docs/design/glossary.md R1/EN-9),
+   * injected by the student route. Absent ⇒ the glossary still works over the
+   * activity's own definitions and the baked bodies of keyed marks.
+   */
+  glossary?: GlossarySource;
 }
 
 /** Registry-driven resolution honoring the D16 eager/lazy split — the SHARED
@@ -214,6 +221,7 @@ export function ViewerContainer({
   printVersion,
   readOnly = false,
   onTakeOver,
+  glossary,
 }: ViewerContainerProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const index = useMemo(() => indexDocument(doc), [doc]);
@@ -330,6 +338,15 @@ export function ViewerContainer({
       store={store}
       sectionByBlock={sectionByBlock}
       groupSections={groupSections}
+    >
+    {/* The glossary (D1/D6) is a SCREEN surface only: print mode — and so the
+        print preview and ActivityPrint — renders no host, which keeps every
+        term there on the old path and the paper appendix byte-identical. */}
+    <GlossaryScope
+      screen={mode === 'screen'}
+      document={doc}
+      source={glossary}
+      stackAboveReference={(doc.referencePanel?.blocks.length ?? 0) > 0}
     >
     <div
       className="viewer"
@@ -538,17 +555,43 @@ export function ViewerContainer({
       </fieldset>
 
       {/* The paper surface for inline vocabulary definitions. On screen a
-          definition is a disclosure opened over the word; on paper there is no
+          defined word opens the glossary dialog (D6); on paper there is no
           opening, so without this the content simply would not exist — which
           was tolerable when a definition was a short gloss and stopped being
           tolerable once one could carry a display equation, a list, and a
           figure. Gated by the teacher's setting, appended at the very end, and
-          hidden on screen (the disclosure is the screen surface). */}
+          hidden on screen (the glossary dialog is the screen surface). */}
       {print.printDefinitionGlossary ? (
         <DefinitionGlossary entries={glossaryEntries} />
       ) : null}
     </div>
+    </GlossaryScope>
     </ViewerProvider>
+  );
+}
+
+function GlossaryScope({
+  screen,
+  document: doc,
+  source,
+  stackAboveReference,
+  children,
+}: {
+  screen: boolean;
+  document: unknown;
+  source: GlossarySource | undefined;
+  stackAboveReference: boolean;
+  children: ReactNode;
+}) {
+  if (!screen) return <>{children}</>;
+  return (
+    <GlossaryHost
+      document={doc}
+      source={source}
+      stackAboveReference={stackAboveReference}
+    >
+      {children}
+    </GlossaryHost>
   );
 }
 

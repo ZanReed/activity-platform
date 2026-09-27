@@ -57,6 +57,7 @@
   --vw-color-paper: #ffffff;
   --vw-color-raised: #fafafa;
   --vw-color-overlay: #ffffff;
+  --vw-color-scrim: rgba(15, 23, 42, 0.35); /* behind a bottom sheet (glossary GD-1) */
   --vw-color-hover: #f1f5f9;      /* row hover fill (mc choices) */
 
   /* ---- Ink ---------------------------------------------------------------
@@ -243,6 +244,7 @@
     --vw-color-paper: #0f172a;
     --vw-color-raised: #1e293b;
     --vw-color-overlay: #1e293b;
+    --vw-color-scrim: rgba(2, 6, 23, 0.6);
     --vw-color-hover: #1e293b;
 
     --vw-color-ink: #f1f5f9;
@@ -306,6 +308,7 @@
   --vw-color-paper: #0f172a;
   --vw-color-raised: #1e293b;
   --vw-color-overlay: #1e293b;
+  --vw-color-scrim: rgba(2, 6, 23, 0.6);
   --vw-color-hover: #1e293b;
 
   --vw-color-ink: #f1f5f9;
@@ -369,6 +372,7 @@
     --vw-color-paper: #ffffff;
     --vw-color-raised: #ffffff;
     --vw-color-overlay: #ffffff;
+    --vw-color-scrim: rgba(15, 23, 42, 0.35);
     --vw-color-hover: transparent;
 
     --vw-color-ink: #000000;

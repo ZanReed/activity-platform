@@ -22,14 +22,23 @@
 //     `trust: false` + throwOnError:false in math.ts is what makes that safe,
 //     and the content is teacher-authored and server-sanitized besides.
 //
-//  3. DEFINITIONS ARE A DISCLOSURE, NOT A LINK. A definition mark renders as a
-//     <button> with aria-expanded, because activating it reveals content in
-//     place; a link would promise navigation. Screen readers get the term and
-//     its state; the definition body renders inline when open.
+//  3. A DEFINED TERM IS A BUTTON THAT OPENS THE GLOSSARY, NOT A LINK. Ruled
+//     2026-09-27 (docs/design/glossary.md D6, amending the original "disclosure
+//     in place" ruling): activation opens the glossary dialog focused on that
+//     term, so the term carries aria-haspopup="dialog" and aria-expanded bound
+//     to the dialog being open for IT. It stays a <button> — a link would
+//     promise page navigation, and none happens. Where no glossary host exists
+//     (print mode, a component rendered alone) the term keeps the old in-place
+//     disclosure, so nothing outside a screen worksheet changes. Print hides
+//     both and has its own appendix. A `glossary_link` mark — added at render by
+//     the glossary's linkify, never stored — is a cross-link inside a
+//     definition body and pushes its target onto the dialog's stack.
 // =============================================================================
 
-import { Suspense, lazy, useEffect, useId, useState } from 'react';
+import { Suspense, lazy, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { GLOSSARY_LINK_MARK } from '@activity/schema';
+import { useGlossaryNav, useGlossaryOpen } from '../glossary/context.js';
 import { loadMathRenderer, residentMathRenderer } from './math.js';
 
 // Rich definitions (paragraphs, display math, lists, figures) render through
@@ -44,6 +53,7 @@ const DefinitionBlocks = lazy(() =>
 /** Fixed nesting order, outermost first — see decision 1. */
 const MARK_ORDER = [
   'definition',
+  GLOSSARY_LINK_MARK,
   'bold',
   'italic',
   'underline',
@@ -128,12 +138,12 @@ function MarkedText({ text, marks }: { text: string; marks: MarkLike[] }) {
   // Build inside-out so the first entry in MARK_ORDER ends up outermost.
   let out: ReactNode = text;
   for (const mark of [...ordered].reverse()) {
-    out = wrapMark(mark, out);
+    out = wrapMark(mark, out, text);
   }
   return <>{out}</>;
 }
 
-function wrapMark(mark: MarkLike, child: ReactNode): ReactNode {
+function wrapMark(mark: MarkLike, child: ReactNode, text: string): ReactNode {
   switch (mark.type) {
     case 'bold':
       return <strong>{child}</strong>;
@@ -148,19 +158,45 @@ function wrapMark(mark: MarkLike, child: ReactNode): ReactNode {
     case 'superscript':
       return <sup>{child}</sup>;
     case 'definition':
-      return <DefinitionTerm mark={mark}>{child}</DefinitionTerm>;
+      return (
+        <DefinitionTerm mark={mark} text={text}>
+          {child}
+        </DefinitionTerm>
+      );
+    case GLOSSARY_LINK_MARK:
+      return typeof mark.target === 'string' ? (
+        <GlossaryLink target={mark.target}>{child}</GlossaryLink>
+      ) : (
+        child
+      );
     default:
       return child;
   }
 }
 
+/** A cross-link inside a definition body (D3 as amended by UC1). Outside the
+ * glossary dialog there is nowhere to navigate, so it is plain text. */
+function GlossaryLink({ target, children }: { target: string; children: ReactNode }) {
+  const nav = useGlossaryNav();
+  if (!nav) return <>{children}</>;
+  return (
+    <button type="button" className="glossary-link" onClick={() => nav.go(target)}>
+      {children}
+    </button>
+  );
+}
+
 function DefinitionTerm({
   mark,
+  text,
   children,
 }: {
   mark: MarkLike;
+  text: string;
   children: ReactNode;
 }) {
+  const glossary = useGlossaryOpen();
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const panelId = useId();
   // A simple definition carries `definition` text; a rich one carries
@@ -172,6 +208,32 @@ function DefinitionTerm({
     simple === null && Array.isArray(mark.content) && mark.content.length > 0
       ? (mark.content as never[])
       : null;
+  const glossaryKey =
+    typeof mark.glossaryKey === 'string' && mark.glossaryKey ? mark.glossaryKey : undefined;
+
+  if (glossary) {
+    // D6: the glossary dialog, focused on this term. A keyed mark stays a
+    // button even with an empty baked body (EN-5) — the live store row, or the
+    // dialog's own fallback line, has something to say about it.
+    return (
+      <span className="viewer-definition">
+        <button
+          ref={buttonRef}
+          type="button"
+          className="viewer-definition__term"
+          aria-haspopup="dialog"
+          aria-expanded={
+            glossary.activeOpener !== null && glossary.activeOpener === buttonRef.current
+          }
+          onClick={(event) =>
+            glossary.open({ glossaryKey, text, opener: event.currentTarget })
+          }
+        >
+          {children}
+        </button>
+      </span>
+    );
+  }
 
   return (
     <span className="viewer-definition">

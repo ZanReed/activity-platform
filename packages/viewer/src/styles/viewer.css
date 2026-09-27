@@ -2565,3 +2565,341 @@
     display: none !important;
   }
 }
+
+/* =============================================================================
+ * The glossary (docs/design/glossary.md §5b)
+ * ---------------------------------------------------------------------------
+ * A defined word opens this dialog (D6); the "Glossary" summon opens it at the
+ * list (D1). ≥768px it is ANCHORED to its opener with no scrim, so the
+ * sentence a student was reading stays in view (GD-1); under 768px it is a
+ * bottom sheet over a scrim, half height when a word opened it. It sits at
+ * --z-popover, over the non-modal calculator and reference panel, which stay
+ * open underneath (EN-7). Screen-only: print mode renders no host at all.
+ * ========================================================================== */
+
+/* The summon shares the bottom-LEFT corner with the reference panel's; when
+ * both exist it stacks above (GD-8: reading tools left, the doing tool right). */
+.tool-corner--stacked {
+  bottom: calc(var(--space-4) + var(--touch-target) + var(--space-2));
+}
+
+.glossary-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-popover);
+}
+
+.glossary-scrim {
+  background: var(--vw-color-scrim);
+  inset: 0;
+  pointer-events: auto;
+  position: absolute;
+}
+
+.glossary-dialog {
+  background: var(--vw-color-overlay);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-window);
+  box-shadow: var(--vw-shadow-window);
+  color: var(--vw-color-ink);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--vw-font-chrome);
+  font-size: var(--type-body);
+  max-height: 70vh;
+  pointer-events: auto;
+  position: fixed;
+  width: min(44rem, calc(100vw - 2 * var(--space-4)));
+  animation: glossary-in 120ms ease-out;
+}
+
+@keyframes glossary-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glossary-dialog {
+    animation: none;
+  }
+}
+
+.glossary-dialog__header {
+  align-items: center;
+  border-bottom: 1px solid var(--vw-color-line);
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.glossary-dialog__title {
+  flex: 1;
+  font-size: var(--type-small);
+  font-weight: 700;
+  margin: 0;
+}
+
+.glossary-back,
+.glossary-close,
+.glossary-browse,
+.glossary-suggest {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-accent);
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  padding: 0 var(--space-2);
+}
+
+.glossary-close {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-h2);
+}
+
+.glossary-back:hover,
+.glossary-close:hover,
+.glossary-browse:hover,
+.glossary-suggest:hover {
+  background: var(--vw-color-hover);
+}
+
+.glossary-back:focus-visible,
+.glossary-close:focus-visible,
+.glossary-browse:focus-visible,
+.glossary-suggest:focus-visible,
+.glossary-row:focus-visible,
+.glossary-search:focus-visible,
+.glossary-detail__term:focus-visible,
+.glossary-link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.glossary-dialog__panes {
+  display: grid;
+  grid-template-columns: 14rem minmax(22.5rem, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 959.98px) {
+  .glossary-dialog__panes {
+    grid-template-columns: 12.5rem minmax(0, 1fr);
+  }
+}
+
+/* `:not([hidden])` so the UA's [hidden] rule keeps working — any author
+ * display declaration would otherwise beat it. */
+.glossary-list-pane:not([hidden]) {
+  display: flex;
+}
+
+.glossary-list-pane {
+  border-right: 1px solid var(--vw-color-line);
+  flex-direction: column;
+  min-height: 0;
+}
+
+.glossary-search__label {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-3) 0;
+}
+
+.glossary-search {
+  background: var(--vw-color-raised);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-ink);
+  font: inherit;
+  margin: var(--space-1) var(--space-3) var(--space-2);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2);
+}
+
+.glossary-live {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+.glossary-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--space-2);
+}
+
+.glossary-group {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
+  font-weight: 700;
+  margin: var(--space-2) var(--space-3) var(--space-1);
+}
+
+.glossary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.glossary-row {
+  background: none;
+  border: none;
+  color: var(--vw-color-ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 2px;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  width: 100%;
+}
+
+.glossary-row:hover {
+  background: var(--vw-color-hover);
+}
+
+.glossary-row[aria-current='true'] {
+  background: var(--vw-color-accent-wash);
+}
+
+.glossary-row__term {
+  font-weight: 600;
+}
+
+.glossary-row__variant,
+.glossary-row__snippet {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
+}
+
+.glossary-mark {
+  background: var(--vw-color-accent-wash);
+  color: inherit;
+  font-weight: 700;
+}
+
+.glossary-empty,
+.glossary-loading {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-small);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.glossary-empty p {
+  margin: 0 0 var(--space-1);
+}
+
+.glossary-detail-pane {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.glossary-detail__term {
+  font-size: var(--type-h3);
+  margin: 0;
+}
+
+.glossary-detail .glossary-row__variant {
+  display: block;
+  margin-top: 2px;
+}
+
+.glossary-detail__body {
+  font-family: var(--vw-font-body);
+  line-height: var(--leading);
+  margin-top: var(--space-2);
+}
+
+.glossary-detail__body .viewer-glossary__paragraph,
+.glossary-detail__body .viewer-glossary__heading {
+  display: block;
+  margin: var(--space-1) 0;
+}
+
+.glossary-detail__body .viewer-glossary__heading {
+  font-weight: 700;
+}
+
+.glossary-detail__body .viewer-glossary__list {
+  margin: var(--space-1) 0;
+  padding-left: 1.2rem;
+}
+
+.glossary-detail__body .viewer-glossary__image {
+  max-width: 100%;
+}
+
+.glossary-detail__prompt {
+  color: var(--vw-color-ink-muted);
+  margin: var(--space-4) 0;
+}
+
+/* A cross-link: accent with a SOLID underline, so it never reads as a
+ * worksheet term (dotted underline). Inline text links take WCAG 2.5.8's
+ * inline exemption from the 44px target rule (GD-10). */
+.glossary-link {
+  background: none;
+  border: none;
+  color: var(--vw-color-accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---- Under 768px: a bottom sheet (GD-1, GD-3, GD-9) ------------------------ */
+.glossary-layer[data-layout='sheet'] .glossary-dialog {
+  border-radius: var(--vw-radius-window) var(--vw-radius-window) 0 0;
+  bottom: 0;
+  left: 0;
+  max-height: none;
+  width: 100%;
+}
+
+.glossary-layer[data-layout='sheet'] .glossary-dialog[data-height='half'] {
+  height: 50dvh;
+}
+
+.glossary-layer[data-layout='sheet'] .glossary-dialog[data-height='full'] {
+  height: 90dvh;
+}
+
+.glossary-layer[data-layout='sheet'] .glossary-dialog__panes {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.glossary-layer[data-layout='sheet'] .glossary-list-pane {
+  border-right: none;
+  flex: 1;
+}
+
+.glossary-layer[data-layout='sheet'] .glossary-detail-pane {
+  flex: 1;
+}
+
+.glossary-browse {
+  margin-top: var(--space-3);
+}

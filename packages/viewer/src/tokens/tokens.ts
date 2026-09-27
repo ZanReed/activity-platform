@@ -15,6 +15,7 @@ export const colorTokens = [
   '--vw-color-paper',
   '--vw-color-raised',
   '--vw-color-overlay',
+  '--vw-color-scrim',
   '--vw-color-hover',
   '--vw-color-ink',
   '--vw-color-ink-muted',

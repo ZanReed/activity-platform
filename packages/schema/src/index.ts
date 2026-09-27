@@ -253,3 +253,45 @@ export {
   fontFamilyValue,
 } from './fonts.js';
 export type { ActivityFontSpec } from './fonts.js';
+
+// The course glossary's pure core (docs/design/glossary.md §5d EN-9): the ONE
+// resolver, index merge, search, suggestion and cross-link code the batch
+// importer and the student viewer both run.
+export {
+  GLOSSARY_MAX_ENTRIES,
+  GLOSSARY_ENTRY_MAX_BYTES,
+  GLOSSARY_TOTAL_MAX_BYTES,
+  GLOSSARY_LOCALES,
+  GLOSSARY_LINK_MARK,
+  localeLabel,
+  foldWithMap,
+  foldText,
+  termKey,
+  definitionPlainText,
+  parseGlossaryVariants,
+  localEntryId,
+  buildGlossaryIndex,
+  entryForMark,
+  resolveTerm,
+  findFolded,
+  snippetAround,
+  searchGlossary,
+  suggestTerm,
+  linkify,
+  crossLinkTargets,
+} from './glossary.js';
+// The zod half, split so the viewer can load it lazily (keeps zod out of the
+// student shell — see glossary-body.ts).
+export { parseGlossaryBody } from './glossary-body.js';
+export type {
+  GlossaryLocale,
+  GlossaryVariants,
+  GlossarySourceEntry,
+  GlossaryName,
+  GlossaryIndexEntry,
+  GlossaryIndex,
+  ResolvableStoreEntry,
+  TermResolution,
+  MatchRange,
+  GlossarySearchResult,
+} from './glossary.js';
