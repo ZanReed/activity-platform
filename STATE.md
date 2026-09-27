@@ -23,17 +23,19 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
-(2026-09-26, author ruling — GPU box months away).** Proven against live:
+(author ruling 2026-09-26 — GPU box months away).** Proven against live:
 0042 applied (verify-0042 30/30), registry mirrored (35 ids +
-descriptions; empty-201 mirror crash fixed, b5de25c), worker login →
-claim round-trip as the author (`claimed 0`, pool empty), login-allowlist
-prereq fixed (b4a85db; `localhost:54329/callback` allowlisted).
-**`grading_provider` back to `off`** — honest with no worker; flip-on is
-the W-8 one-liner.
-PARKED until the box (in order, README): vLLM → `worker:check` OK → E2b
-golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm sit
+descriptions), worker login → claim round-trip as the author. Fixed
+same-day: the mirror's empty-201 crash (b5de25c), the login allowlist
+hang (b4a85db). **`grading_provider` back to `off`.**
+PARKED until the box (README, in order): vLLM → `worker:check` OK → E2b
+golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
-checks (today 0, roster 1 student; §5.1's volume rule governs the window).
+checks (today 0, roster 1; §5.1's volume rule governs).
+
+**OWED — republish all four chain-1 activities:** live pages still show
+the escaped-dollar mangle (importer fixed at c6fb079, drafts re-imported
+clean). Verify: currency renders black.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
