@@ -1453,7 +1453,8 @@ function extractMarks(
             // inline content and/or a separate `image` — is normalized by the
             // same schema helper stored documents go through (D7: the image
             // became a trailing image block). Keep the mark only if it carries
-            // content. glossaryKey is reserved for Phase 4, carried if set.
+            // content. glossaryKey (a course-glossary entry id, set by the batch
+            // importer — docs/design/glossary.md R9) is carried if set.
             const content = sanitizeDefinitionContent(
                 m.attrs?.content,
                 m.attrs?.image,

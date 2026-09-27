@@ -1,5 +1,17 @@
 # HISTORY.md
 
+**▶ 0041 applied — moved out of STATE 2026-09-27 (glossary close-out needed the words).**
+
+✅ **0041 IS APPLIED AND VERIFIED LIVE (2026-08-26).** `schema_migrations` = 41,
+max `0041`; the column and its partial unique index both read back from
+`information_schema`. **No deploy, no bundle regeneration and no republish were
+owed and none happened** — nothing in `packages/schema`, the viewer's
+sanitize/registry source, the viewer server or graph-kit's scorers was touched.
+⚠ **The author applied it, not this session** — it was already on the remote
+before our dry run, which is the third time this repo has had to check who
+pushed.
+
+
 **▶ ACTIVITY FLOW MODES — shipped 2026-08-24, narrative moved out of STATE 2026-08-25 when the misconception arc took the current-focus slot.** Kept verbatim as it stood in STATE:
 
 

@@ -33,9 +33,18 @@ golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
 checks (today 0, roster 1; §5.1's volume rule governs).
 
-**Glossary RULED (D1–D9; docs/design/glossary.md):** D2 re-ruled — the
-mass glossary is curriculum-built (context + gate), ask sent. Next: their
-artifact → review pipeline → drop.
+**Glossary BUILT (2026-09-27; [glossary.md](docs/design/glossary.md),
+/autoplan APPROVED, R17 order):** popover over local terms `8899bdd` ·
+0043 store + verify-0043 `55d8f64` · importer `--glossary` loader, reference
+gate, mirror `5c64be5` · student store read `80c9567` · docs + prompt
+`92a0c3a`. **OWED, in order:** (1) `supabase db push` (0043), then
+`pnpm verify:auth --target live --only verify-0043` (13/13 local) —
+**before the push** (OV-7: `80c9567` calls the new RPC); (2) push, then
+refresh the Notion stamp for the regenerated catalogue prompt; (3) send
+W-2's format proposal (markdown-import-format.md → "Course glossary") to the
+boundary page; (4) when their file lands: `import:batch … --glossary <file>
+--dry-run`, then live, then republish (keyed marks reach students only
+through a new version). No deploy or bundle regeneration owed.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
@@ -50,14 +59,6 @@ name on the transform equation field) were fixed and verified same-day.
 
 
 
-✅ **0041 IS APPLIED AND VERIFIED LIVE (2026-08-26).** `schema_migrations` = 41,
-max `0041`; the column and its partial unique index both read back from
-`information_schema`. **No deploy, no bundle regeneration and no republish were
-owed and none happened** — nothing in `packages/schema`, the viewer's
-sanitize/registry source, the viewer server or graph-kit's scorers was touched.
-⚠ **The author applied it, not this session** — it was already on the remote
-before our dry run, which is the third time this repo has had to check who
-pushed.
 
 **⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
 
@@ -205,7 +206,6 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 - **Re-architecture follow-ons (accepted 2026-07-28):** (1) Clever/ClassLink district SSO — demand-triggered; **IdP map recorded 2026-08-09** — LMSes are not IdPs; expansion order is Azure/Entra → Clever/ClassLink → LTI 1.3. (2) Realtime push arc — trigger = first named live feature. (3) Sampled behavioral telemetry — only after the census can't answer a concrete question AND the compliance pack is amended. (4) Print variants. (5) Solution-unlock pedagogy pass. (6) /design-consultation brand pass — includes replacing the system-ui chrome font stack (design-review ding, 2026-08-18).
 - **✅ Admission model — RULED, BUILT AND LIVE 2026-08-15** ([admission-model.md](docs/design/admission-model.md) §5b R1–R11 + T1–T7). Kept in the backlog only for what it left behind: the durable **Edmodo lesson** (the violation was outsourcing consent duties without operator-side notice/minimization — **copy Gimkit's enrollment-=-consent mechanism, not Blooket's "school is responsible" clause**), and the follow-ons now split by design — **under-13 (D7), the DPA template, and the cap-lifting surface live in [TODOS.md](TODOS.md)**; email+password, extra OAuth providers, the guest tier and CAPTCHA stay in §7. Gate 4 proceeds unchanged (the domain fast path is untouched).
 - **Free activity catalog / "Activity Bank"** (Phase 2 cold-start lever; [free-activity-catalog.md](docs/design/free-activity-catalog.md)). Moved behind the rewrite 2026-07-28; Drop 0 hosting prep done. One open item: taxonomy/tags — author wants a tags discussion at kickoff. Post-S9: the discovery surface is a viewer route, not an R2 URL. **The admission signal above is now a kickoff input.**
-- **Vocabulary glossary — Phase 4** (tenant-scoped store + `glossaryKey` resolution; additive to the shipped mark).
 - **Long-term OCR/AI:** [pdf-import.md](docs/design/pdf-import.md) + [photo-grading.md](docs/design/photo-grading.md). Photo-grading needs server-shareable answer evaluation — largely arrived with S4's grading engine; re-check at kickoff.
 - **Teacher "how your name appears to students" control** (deferred 2026-08-04): a small edit writing `users.display_name` under existing self-only RLS. **Design signal from the author's own two rulings that day:** the control should NOT silently adopt Google's `full_name` as the published attribution — default to showing nothing and let the teacher opt IN. Until then the pre-auth screen says "your teacher".
 - **Canvas keyboard stops** — Check sits 76 tab stops in on a full worksheet, ~17 of them canvas handles (all named, so not a violation). Measurement + the design question in [TODOS.md](TODOS.md).

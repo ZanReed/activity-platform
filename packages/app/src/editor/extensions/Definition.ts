@@ -7,10 +7,11 @@ import type { DefinitionBlock } from '@activity/schema';
 // A mark (not a node): the defined text is still text — it wraps, can layer
 // other marks, and is authored "select text → Define" rather than inserted.
 // Carries `content` — a canonical DefinitionBlock[] (paragraphs, headings,
-// lists, display math, images, static graph figures) — and a reserved
-// `glossaryKey` (Phase 4 tenant glossary; no UI sets it). The published-page
-// runtime shows the content in a popover; see packages/renderer/RUNTIME.md,
-// docs/design/vocabulary-definitions.md, and
+// lists, display math, images, static graph figures) — and an optional
+// `glossaryKey`: the course-glossary entry a batch-imported `[[term]]`
+// resolved to (docs/design/glossary.md R9; no editor UI sets it). The viewer
+// opens the content in the glossary dialog; see
+// docs/design/vocabulary-definitions.md and
 // docs/design/definition-rich-content.md.
 //
 // The former separate `image` attr is GONE (design doc D7): an image is now a

@@ -2394,3 +2394,12 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 **Context:** `scripts/batch-import.mjs` parseArgs + `usage()`; the W-11 flag↔usage parity test will cover the alias.
 
 **Effort:** S / S · **Priority:** P3 · **Depends on:** nothing.
+
+## A stale comment rides the NEXT server-bundle regeneration (glossary close-out, 2026-09-27)
+
+**What:** Rewrite the `DefinitionMark` header comment in `packages/schema/src/inline.ts` (above `glossaryKey: z.string().optional()`): it still calls `glossaryKey` "reserved for the Phase 4 tenant glossary store (resolved at publish)… unused in Phase 2" and cites the dead renderer / `RUNTIME.md`. Since 0043 + the importer (`5c64be5`), `glossaryKey` is a `glossary_entry.term_id` set by the batch importer, and `content` is a BAKED copy the viewer replaces with the live row (glossary.md R9/L3/EN-4).
+
+**Why not now:** both committed Edge Function bundles embed this file's comments verbatim, so a comment-only edit forces `pnpm bundle:viewer-server` + `bundle:grading-server` — and then the committed bundles stop hash-matching the DEPLOYED ones, which is this repo's primary deploy proof (CLAUDE.md, the sha256 method). A proof that reads "mismatch" over a comment teaches people to ignore it.
+
+**Fold it into:** the next change that regenerates either bundle for a real reason (same commit, zero extra deploy). The three sibling comments (serialize.ts, Definition.ts, print/definitions.ts) were fixed in the close-out commit — they are not in a bundle.
+**Priority:** P3 · **Owner:** whichever slice next touches `packages/schema` or `viewer/src/server`.

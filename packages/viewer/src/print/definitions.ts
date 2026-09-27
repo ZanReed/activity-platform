@@ -50,10 +50,11 @@ interface MarkedText {
  *
  * Dedup is by term, case-insensitively, FIRST OCCURRENCE WINS — the convention
  * the vocabulary design already commits to. Two senses of one word therefore
- * collapse on paper. That is a known limitation with a known owner (the
- * reserved `glossaryKey` field, when the Phase 4 activity-level glossary
- * lands), and it is a better failure than printing "factor" twice with no way
- * to tell which entry belongs to which use.
+ * collapse on paper. That is a known limitation, and it SURVIVED the course
+ * glossary on purpose: print is untouched by that arc (author ruling,
+ * docs/design/glossary.md EN-5), so a keyed mark dedupes by its text like any
+ * other. It is a better failure than printing "factor" twice with no way to
+ * tell which entry belongs to which use.
  *
  * Alphabetical rather than document order because an appendix is looked up,
  * not read through.
