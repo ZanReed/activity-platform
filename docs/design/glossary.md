@@ -104,14 +104,24 @@ A **popover**, replacing the current in-place expansion, with:
   links deep needs Back — an in-popover history stack (Back button +
   keyboard), session-only. Without it, cross-links are a trap, not a
   feature.
-- **D8 — The curriculum boundary ask (SENT 2026-09-27, D2 being ruled):**
-  build the course glossary as a canonical repo artifact in one session;
-  use it as authoring context thereafter; add the resolves-or-red CI gate
-  on their side. Platform consumes via `import:batch` → `glossary_entry`
-  and validates `[[term]]` refs at import. Format and gate mechanics are
-  theirs to rule; the platform's only constraints are: term + rich
-  definition body (the `[[term :: definition]]` alphabet — text +
-  `$inline$` math), stable term identity, and never-hand-edit-if-generated.
+- **D8 — The curriculum boundary ask (SENT 2026-09-27; ACKED same day,
+  with one reality correction absorbed):** build the course glossary as a
+  canonical repo artifact in one session; use it as authoring context
+  thereafter. Platform consumes via `import:batch` → `glossary_entry`.
+  ⚠ **The gate split, corrected by the curriculum session:** activity
+  `.md` files are NOT in their repo (local folder, no VCS), so their CI
+  cannot check `[[term]]` references in activities — **the
+  reference-resolution gate is THIS side's importer** (its
+  unresolved-`[[term]]` warning; promote it to a `--strict` failure at
+  the build, same as binding warnings), plus any pre-handover script
+  their side runs. Their CI gates the glossary FILE itself: unique term
+  identities, well-formed entries, retire-not-rename. Who-does-what,
+  confirmed: definitions are authored curriculum content (builder +
+  author write them); the repo side hosts the file, sets the format, adds
+  the file checks; locale variants (D9) are in the format from v1.
+  Platform constraints unchanged: term + rich definition body (the
+  `[[term :: definition]]` alphabet — text + `$inline$` math), stable
+  term identity, never-hand-edit-if-generated.
 
 - **D9 — Locale-variant CAPACITY ships in the artifact (author,
   2026-09-27):** each entry may carry optional locale variants of its TERM
