@@ -4,6 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CHECK_ACTIVITY_FUNCTION,
+  GLOSSARY_FOR_ACTIVITY_RPC,
   LIST_CLASS_ACTIVITIES_RPC,
   PUBLISH_ACTIVITY_RPC,
   SHARE_ACTIVITY_RPC,
@@ -47,6 +48,7 @@ describe('rpc name constants', () => {
     SHARE_ACTIVITY_RPC,
     UNSHARE_ACTIVITY_RPC,
     LIST_CLASS_ACTIVITIES_RPC,
+    GLOSSARY_FOR_ACTIVITY_RPC,
   ];
   it.each(rpcs)('%s is defined by a migration', (rpc) => {
     const definition = new RegExp(`create or replace function ${rpc}\\(`);

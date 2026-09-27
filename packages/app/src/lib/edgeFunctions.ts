@@ -28,3 +28,6 @@ export const PUBLISH_ACTIVITY_RPC = 'publish_activity';
 export const SHARE_ACTIVITY_RPC = 'share_activity_to_class';
 export const UNSHARE_ACTIVITY_RPC = 'unshare_activity_from_class';
 export const LIST_CLASS_ACTIVITIES_RPC = 'list_class_activities';
+/** The course glossary's student read (0043, docs/design/glossary.md R1/EN-1):
+ * one jsonb per published activity, deferred past first paint. */
+export const GLOSSARY_FOR_ACTIVITY_RPC = 'glossary_for_activity';

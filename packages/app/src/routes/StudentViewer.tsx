@@ -67,6 +67,7 @@ import { useSession } from '../lib/SessionContext';
 import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
 import { SLOW_LOAD_MS } from '../lib/slowLoad';
+import { studentGlossaryCache } from '../lib/glossaryService';
 import { SignInFailedCard, useAuthCallbackError } from '../components/AuthScreens';
 
 // functionsBase comes from lib/supabase (A21) — the one env-read site, so
@@ -361,6 +362,11 @@ export default function StudentViewer() {
     // matter (a different student on the same tab must get a different store).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityId, versionId, userId, getAccessToken]);
+
+  const glossarySource = useMemo(
+    () => ({ activityId, cache: studentGlossaryCache() }),
+    [activityId],
+  );
 
   const servedDocument = state.phase === 'ready' ? state.served.document : null;
 
@@ -674,6 +680,10 @@ export default function StudentViewer() {
         document={state.served.document}
         store={store}
         versionId={state.served.versionId}
+        // The course glossary (0043): read at idle after first paint, never on
+        // the worksheet's critical path; the activity's own definitions work
+        // with or without it.
+        glossary={glossarySource}
         readOnly={!tabHeld}
         // D13: an under-covered check is RECORDABLE, not just visible — the
         // container's banner says it to the student; this says it to the log

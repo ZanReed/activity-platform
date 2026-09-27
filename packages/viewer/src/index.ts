@@ -382,6 +382,7 @@ export {
 // The course glossary's screen surface (docs/design/glossary.md). The route
 // injects a GlossaryService; the host, the dialog and the per-page cache live
 // here, the pure core in @activity/schema.
+export { createGlossaryCache } from './glossary/service.js';
 export type {
   GlossaryService,
   GlossaryCache,

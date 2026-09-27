@@ -88,7 +88,7 @@ create policy glossary_entry_read_own on glossary_entry
 --   {"entries": [{term_id, term, variants, body, retired}], "capped": bool}
 -- Retired entries ARE returned (flagged): a published mark keyed to a retired
 -- term must keep its definition; the viewer keeps them out of list and search.
-create function glossary_for_activity(p_activity_id uuid)
+create or replace function glossary_for_activity(p_activity_id uuid)
 returns jsonb
 language plpgsql
 stable
@@ -151,7 +151,7 @@ comment on function glossary_for_activity(uuid) is
 --
 -- p_entries: [{term_id, term, variants, body}, …] — already validated by the
 -- importer (loader rules R3/W-2/W-3/EN-8); the table's CHECKs are the backstop.
-create function sync_glossary_entries(
+create or replace function sync_glossary_entries(
   p_owner   uuid,
   p_entries jsonb,
   p_apply   boolean default false
