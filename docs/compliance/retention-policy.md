@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-09-25-draft-8`. Windows below are the author-ruled S1 defaults
+> Version `2026-09-27-draft-9`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
@@ -29,6 +29,12 @@
 > opposite directions:** draft-5 asserted a production fact that a scheduled job was
 > about to falsify; draft-6 asserted one that a scheduled job had not yet made true.
 >
+> `draft-9` (2026-09-27) adds the course glossary row (migration 0043,
+> `glossary_entry`): curriculum content keyed to its owning teacher, no
+> student data. Kept for the owner's account lifetime and removed by the
+> account purge's CASCADE from `users`; a term that leaves the source file is
+> retired in place (`retired_at`), never deleted, because published worksheets
+> must keep resolving it. Mechanism asserted by `verify-0043.sql` §E.
 > `draft-8` (2026-09-25) adds the AI grading drafts row (migration 0042,
 > `check_grade_suggestions`): machine-drafted feedback about student work,
 > retained on exactly the checks' own windows via FK CASCADE — no new window,
@@ -80,6 +86,7 @@
 | **AI grading drafts** (`check_grade_suggestions` — machine-drafted scores, feedback and misconception observations about a student's response, incl. an md5 of the response text; migration 0042) | **exactly the windows of the check they draft against** — 400 days via the account path, 30 days via activity deletion, whichever fires first | same clocks as `section_checks` above | FK `ON DELETE CASCADE` from `section_checks` (asserted by `verify-0042.sql` §F): both purge paths delete checks, and the drafts fall with them — `purge_soft_deleted` was not edited and never learns the table exists (the 0034 `check_grades` pattern). Drafts are never student-visible; a draft a teacher confirms becomes a `check_grades` row and is then governed by THAT row's line above |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
+| Course glossary (`glossary_entry` — a teacher's course vocabulary; curriculum content, no student data; migration 0043) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0043.sql` §E). Terms dropped from the source file are RETIRED (`retired_at`), never deleted, so a published worksheet's marks keep resolving; nothing else removes a row |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
 | Legacy localStorage (published pages) | never leaves the student device | — | student clears browser storage; page's own reset |
 | Viewer local buffer (T7) | until sign-out or sync | — | `signOutEverything()` purges the namespace |

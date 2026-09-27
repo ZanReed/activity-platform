@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-09-25-draft-9`. Mirrors migrations 0001–**0042**, verified
+> Version `2026-09-27-draft-10`. Mirrors migrations 0001–**0043**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,17 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-10` (2026-09-27) — 0043 adds NO student data.** The glossary
+> slice (docs/design/glossary.md) adds `glossary_entry`: a course's defined
+> words, their US display variants and definition bodies, mirrored from the
+> curriculum side's glossary file by the batch importer. It is curriculum
+> CONTENT; its one person reference is `owner_id`, the teacher whose catalogue
+> the vocabulary belongs to — mapped below alongside `activities.owner_id`.
+> Students read it only through `glossary_for_activity`, gated on the same
+> predicate as `get_published_activity` (signed in + published), so what a
+> student learns is course vocabulary the teacher already publishes. No read
+> is logged. The range moves to 0043 on that basis.
 >
 > **`draft-9` (2026-09-25) — 0042 ADDS personal data, and a processing
 > posture worth stating precisely.** The AI-grading-assist slice
@@ -178,6 +189,7 @@
 | `check_grade_suggestions.source_text_hash` (0042) | md5 of the student's response text at claim time | student (derived) | claim RPC | supersession keying — a draft on unchanged text is re-keyed, not re-inferred | with the row |
 | `check_grade_suggestions.model_id` / `prompt_rev` / `schema_rev` / `tokens_in` / `tokens_out` / `machine_confidence` / `billable` (0042) | machine telemetry on the drafting run, **not personal per se** — listed because the rows they stamp are about a student | — | claim/submit RPCs | quality auditing per revision; spend metering for the (unreachable) hosted path | with the row |
 | `grading_settings.teacher_id` + `provider` / `quota_microdollars` (0042) | teacher identity on AI-grading config — provider choice is a compliance-significant setting (it decides where student work is processed) | teacher | author-run SQL for the pilot (no client write path; zero policies) | the D11 provider seam + D13 budget quota | account lifetime (CASCADE from `users`) |
+| `glossary_entry.owner_id` (0043) | teacher identity on course vocabulary (term, US variant, definition body — curriculum content, **no student data**) | teacher | the batch importer's service connection, via `sync_glossary_entries` (no client write path) | whose catalogue a glossary belongs to; students read it through `glossary_for_activity` for a published activity | account lifetime (CASCADE from `users`); terms leaving the file are RETIRED, never deleted, so published worksheets keep resolving |
 | `check_rollup_daily.*` / `check_item_rollup_daily.*` (0036) | per-day counts of checks, verdicts and **distinct students** per question — **no student identifier by construction** (absence asserted against `information_schema` by `verify-0036.sql` §B) | — | nightly `run_analytics_maintenance` from `section_checks` | durable teacher analytics that survive the pruning of superseded attempts | ⚠ **the life of the ACTIVITY — these OUTLIVE the individual checks they summarize, and are NOT recomputed when a student is purged.** A row reading `students = 1` describes one identifiable student's day. Full statement + the reasoning in [retention-policy.md](retention-policy.md); this is **counsel question Q10** |
 | `allowlist.email` | teacher email | teacher | author-entered | invite gate | until removed |
 | `student_domain.domain` | district domain (not personal per se) | — | author-entered | student admission gate | until removed |
