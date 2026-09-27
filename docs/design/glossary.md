@@ -1,7 +1,8 @@
 # Glossary — the popover, the search, and the store
 
 **Status:** ✅ RULED — D1, D3–D8 accepted as proposed; **D2 RE-RULED by the
-author** (2026-09-27, below). Next: the curriculum-side glossary artifact
+author**; **D9 added by the author** (locale-variant capacity; both
+2026-09-27, below). Next: the curriculum-side glossary artifact
 (D8 ask sent), then the review pipeline before any code drop (the
 ai-grading-assist precedent).
 
@@ -111,6 +112,23 @@ A **popover**, replacing the current in-place expansion, with:
   theirs to rule; the platform's only constraints are: term + rich
   definition body (the `[[term :: definition]]` alphabet — text +
   `$inline$` math), stable term identity, and never-hand-edit-if-generated.
+
+- **D9 — Locale-variant CAPACITY ships in the artifact (author,
+  2026-09-27):** each entry may carry optional locale variants of its TERM
+  (`gradient` → US `slope`; indices/exponents; trapezium/trapezoid), with
+  one stable term identity — variants are display strings, never a second
+  entry, so cross-links and `[[term]]` refs survive any display mode.
+  **Search always matches variants regardless of display** (a US teacher
+  typing "slope" finds "gradient" — this alone is most of the value).
+  Definition BODIES stay single-variant (NZ, matching the curriculum): a
+  body-text toggle would double the builder's consistency surface for
+  little gain, and full content localization is its own future arc (the
+  graph's D31 US-alignment arrays are the context for that day, not this
+  one). DISPLAY fork deliberately open: v1 may cross-list both forms in
+  the entry header ("gradient (US: slope)") with zero settings surface;
+  the per-teacher TOGGLE lands when the first American teacher exists
+  (the named-external-teacher trigger pattern). Data shape is identical
+  either way.
 
 ## 3. Additional features noted (author asked; none assumed into scope)
 

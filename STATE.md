@@ -33,7 +33,7 @@ golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
 checks (today 0, roster 1; §5.1's volume rule governs).
 
-**Glossary RULED (D1–D8; docs/design/glossary.md):** D2 re-ruled — the
+**Glossary RULED (D1–D9; docs/design/glossary.md):** D2 re-ruled — the
 mass glossary is curriculum-built (context + gate), ask sent. Next: their
 artifact → review pipeline → drop.
 
