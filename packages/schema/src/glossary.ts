@@ -64,17 +64,30 @@ export function localeLabel(locale: GlossaryLocale): string {
 // ---- Folding -------------------------------------------------------------------
 
 /**
+ * Typographic dashes that fold to a plain hyphen: hyphen, non-breaking hyphen,
+ * figure dash, en dash, em dash, horizontal bar, minus sign, and the small and
+ * full-width hyphen-minus forms. A word processor or a drafting model turns
+ * "point-gradient form" into "point–gradient form" without anyone typing a
+ * dash, and a reference must not miss its entry over that (curriculum-side v2
+ * ask 1, 2026-09-28). One character in, one character out — the map stays exact.
+ */
+const DASHES = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/;
+
+/**
  * Fold a string for matching: lower case, compatibility-decomposed, combining
- * marks stripped. `map[i]` is the index in the ORIGINAL string of the
- * character that produced folded[i]; `map[folded.length]` is the original
- * length, so a folded range [a, b) maps back to [map[a], map[b]).
+ * marks stripped, typographic dashes made plain hyphens. `map[i]` is the index
+ * in the ORIGINAL string of the character that produced folded[i];
+ * `map[folded.length]` is the original length, so a folded range [a, b) maps
+ * back to [map[a], map[b]).
  */
 export function foldWithMap(text: string): { folded: string; map: number[] } {
   let folded = '';
   const map: number[] = [];
   let offset = 0;
   for (const ch of text) {
-    const f = ch.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '');
+    const f = DASHES.test(ch)
+      ? '-'
+      : ch.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '');
     for (const unit of f) {
       folded += unit;
       for (let k = 0; k < unit.length; k += 1) map.push(offset);

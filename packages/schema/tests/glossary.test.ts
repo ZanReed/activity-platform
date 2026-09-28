@@ -58,6 +58,21 @@ describe('folding', () => {
   it('maps a folded match back to the ORIGINAL characters', () => {
     expect(findFolded('The Écart here', 'ecart')).toEqual([4, 9]);
   });
+
+  it('folds every typographic dash to a plain hyphen (curriculum v2 ask 1)', () => {
+    for (const dash of ['\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2015', '\u2212', '\uFE58', '\uFE63', '\uFF0D']) {
+      expect(termKey(`Point${dash}gradient form`)).toBe('point-gradient form');
+    }
+    // One character in, one out: the highlight still lands on the original.
+    expect(findFolded('Use point–gradient form', 'point-gradient')).toEqual([4, 18]);
+  });
+
+  it('an en-dashed reference resolves to its hyphenated entry, both ways', () => {
+    const entries = [{ id: 'pg', term: 'point-gradient form', variants: {} }];
+    expect(resolveTerm('point–gradient form', new Set(), entries)).toMatchObject({ kind: 'store' });
+    const dashed = [{ id: 'pg', term: 'point—gradient form', variants: {} }];
+    expect(resolveTerm('point-gradient form', new Set(), dashed)).toMatchObject({ kind: 'store' });
+  });
 });
 
 describe('resolveTerm (EN-3: one resolver, local wins structurally)', () => {

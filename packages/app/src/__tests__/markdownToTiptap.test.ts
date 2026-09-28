@@ -3820,6 +3820,14 @@ describe('course glossary resolution', () => {
         expect(res.warnings).toEqual([]);
     });
 
+    it('an en-dashed reference finds its hyphenated entry (typographic dashes fold)', () => {
+        const store = [{ id: 'pg', term: 'point-gradient form', variants: {}, body: [para('y − y1 = m(x − x1)')] }];
+        const res = convert('Use [[point–gradient form]] here.', { glossary: store });
+        expect(marksIn(res.blocks)).toEqual([
+            { text: 'point–gradient form', attrs: { content: [para('y − y1 = m(x − x1)')], glossaryKey: 'pg' } },
+        ]);
+    });
+
     it('a reference matching only a RETIRED entry is unresolved (R2)', () => {
         const res = convert('The [[old word]].', glossary);
         expect(marksIn(res.blocks)).toEqual([]);

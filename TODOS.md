@@ -2403,3 +2403,13 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Fold it into:** the next change that regenerates either bundle for a real reason (same commit, zero extra deploy). The three sibling comments (serialize.ts, Definition.ts, print/definitions.ts) were fixed in the close-out commit — they are not in a bundle.
 **Priority:** P3 · **Owner:** whichever slice next touches `packages/schema` or `viewer/src/server`.
+
+## Glossary v2 — two format asks from the curriculum side (their page, 2026-09-28; D40)
+
+Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum `f1faa07`). Their v2 ask 1 (typographic dashes fold to a hyphen in `termKey`) SHIPPED 2026-09-28 in `foldWithMap`. The other two need design, not just code — do them as one small arc with its own design pass and a curriculum-side ruling, the W-2 pattern.
+
+**2. Scope variants to their locale.** Today a `us:` variant matches `[[…]]` and search in every display mode (the gate ruled cross-list display, D9). Their real case: *standard form* is the US name for a line's general form and the NZ name for scientific notation, so D40 omits that variant rather than let a US alias shadow an NZ word. Fixing it means resolution and search must know the viewer's locale — which only exists once the deferred per-teacher variant toggle (D9's other fork) does. **Decide together with that toggle**; until then the curriculum side's omission is the correct workaround. Touches `resolveTerm`, `buildGlossaryIndex` names, the importer (which has no locale today — a batch import would need the course's locale), and the variant-collision rule in `lib/glossaryFile.ts`.
+
+**3. Same-locale aliases (`aka:`).** So `[[turning point]]` finds *vertex* and `[[chord]]` finds *secant line* with no second entry. A NEW header key is a format change: the curriculum side's CI (`scripts/check_glossary.py`, D40) and our loader both change, and the design must say whether an alias is displayed (a "also called" line?) or only matched, whether it counts as a name for the collision rule (it must), and whether cross-links fire on aliases. The author ruled both names acceptable "for now"; this is the lever for later.
+
+**Effort:** 2 M/M (blocked on the toggle design) · 3 S/M · **Priority:** P3 · **Depends on:** a real authoring case that the workaround cannot absorb.
