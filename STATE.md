@@ -38,10 +38,10 @@ commits `8899bdd`..`92a0c3a`):** 0043 applied + verify-0043 green live;
 Notion stamp → `92a0c3a`; W-2 format adopted by the curriculum side
 (`glossary.md` at their `f1faa07`, D40) and imported: 58 entries mirrored,
 `--strict` green. Students see the list now (the read keys on owner, not
-version). **OWED:** republish the 4 chain-1 activities (`report:stale`: all
-4 stale); the builder's call on 18 DIVERGENT local definitions (drop →
-re-import → republish, or keep as overrides; filed on the boundary page
-beside the new `glossary.md` pointer row).
+version). The builder dropped its 18 divergent local definitions; the
+re-import receipt (15 refs from the glossary, 0 shadows) closed that on the
+boundary page. **OWED:** republish the 4 chain-1 activities — their drafts
+carry the glossary-keyed marks, the published versions do not yet.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
