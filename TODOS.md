@@ -131,6 +131,25 @@ definition control on print (all-or-nothing glossary today).
 `partialCredit` (DECISIONS.md → "The last orphan classes"). Nothing blocks —
 design passes proceed in greenlit order.
 
+## Y7 figure + chart capability ask (curriculum "wish #3", moved EARLY 2026-09-29)
+
+Source: `proposals/y7-chain-stubs.md` open question 5 on the curriculum repo's
+`proposals-y7-stubs-threads` branch (draft PR #4, `status: draft` — stub
+counts may move). 7 of 19 stubbed Y7 chains need, **in prompts**: labelled
+geometry figures (triangles/polygons, parallel lines, transformations,
+area-volume, nets) and statistics charts (bar charts, dot plots, time-series).
+⚠ Their "#3" is the CURRICULUM wish queue's number — NOT this file's wishlist
+#3 (unit-bearing answers, shipped). Quote their label, not the number.
+
+Platform fit, verified 2026-09-29: **dot plots exist** (`data_plot` display
+mode + the ```dataplot``` fence — [data-plot-block.md](docs/design/data-plot-block.md);
+histograms and box plots too); **categorical bar charts and time-series have
+no primitive** (`data_plot`'s bars are histogram bins on a numeric axis);
+**labelled geometry figures have no primitive** — the
+image block is the fallback. Needs its own design pass with numbered
+decisions before code; not scheduled. Nothing is blocked until Y7 drafting
+starts (D38 bottom-up order).
+
 ## CURRICULUM-ARCHITECTURE ALIGNMENT — four gaps found 2026-08-25
 
 **Source:** the author's `curriculum-architecture.md` (lives in the AUTHORING
