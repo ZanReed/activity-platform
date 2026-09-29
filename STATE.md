@@ -40,8 +40,8 @@ Notion stamp → `92a0c3a`; W-2 format adopted by the curriculum side
 `--strict` green. Students see the list now (the read keys on owner, not
 version). The builder dropped its 18 divergent local definitions; the
 re-import receipt (15 refs from the glossary, 0 shadows) closed that on the
-boundary page. **OWED:** republish the 4 chain-1 activities — their drafts
-carry the glossary-keyed marks, the published versions do not yet.
+boundary page; chain 1 republished 2026-09-28 (published versions carry
+4/5/5/4 glossary-keyed marks). Nothing owed; v2 asks 2–3 in TODOS.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
