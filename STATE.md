@@ -22,6 +22,14 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
+**Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; code waits on the
+curriculum side's yes/no** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
+§4, all accepted; §2 re-derived — shell headroom is
+`node scripts/check-perf-budget.mjs`, not a number here). The authoring
+model is an ask on the boundary page. **Author actions:** push this commit
+(the boundary row points at `main`); record their disposition in §4; then
+the geometry slice T1–T8.
+
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
 0042 applied (verify-0042 30/30), registry mirrored (35 ids +
@@ -33,15 +41,8 @@ golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
 checks (today 0, roster 1; §5.1's volume rule governs).
 
-**Glossary LIVE (2026-09-28; [glossary.md](docs/design/glossary.md),
-commits `8899bdd`..`92a0c3a`):** 0043 applied + verify-0043 green live;
-Notion stamp → `92a0c3a`; W-2 format adopted by the curriculum side
-(`glossary.md` at their `f1faa07`, D40) and imported: 58 entries mirrored,
-`--strict` green. Students see the list now (the read keys on owner, not
-version). The builder dropped its 18 divergent local definitions; the
-re-import receipt (15 refs from the glossary, 0 shadows) closed that on the
-boundary page; chain 1 republished 2026-09-28 (published versions carry
-4/5/5/4 glossary-keyed marks). Nothing owed; v2 asks 2–3 in TODOS.
+**Glossary LIVE (2026-09-28)** — nothing owed; narrative moved to HISTORY
+2026-09-30 (the Y7 review needed the words); v2 asks 2–3 in TODOS.
 
 ✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
 wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
@@ -192,7 +193,9 @@ HISTORY, not re-argued here.)*
 ## The shell budget — the ~150 KiB target is MET
 
 **`SHELL_JS_GZ_KIB` 172 → 158 and `SHELL_CSS_GZ_KIB` 14 → 15 (2026-08-23).**
-P1A's target is met for the first time. **Read the real numbers from
+P1A's target is met for the first time. **Passed again since (glossary arc,
+measured 2026-09-30): the next slimming rung is due before any eager
+addition beyond the Y7 geometry marks.** **Read the real numbers from
 `node scripts/check-perf-budget.mjs`, never from here** — this line has carried
 a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
 DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,

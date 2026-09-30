@@ -1,5 +1,18 @@
 # HISTORY.md
 
+**▶ Glossary LIVE — moved out of STATE 2026-09-30 (the Y7 figures/charts review needed the words).** Kept verbatim:
+
+**Glossary LIVE (2026-09-28; [glossary.md](docs/design/glossary.md),
+commits `8899bdd`..`92a0c3a`):** 0043 applied + verify-0043 green live;
+Notion stamp → `92a0c3a`; W-2 format adopted by the curriculum side
+(`glossary.md` at their `f1faa07`, D40) and imported: 58 entries mirrored,
+`--strict` green. Students see the list now (the read keys on owner, not
+version). The builder dropped its 18 divergent local definitions; the
+re-import receipt (15 refs from the glossary, 0 shadows) closed that on the
+boundary page; chain 1 republished 2026-09-28 (published versions carry
+4/5/5/4 glossary-keyed marks). Nothing owed; v2 asks 2–3 in TODOS.
+
+
 **▶ 0041 applied — moved out of STATE 2026-09-27 (glossary close-out needed the words).**
 
 ✅ **0041 IS APPLIED AND VERIFIED LIVE (2026-08-26).** `schema_migrations` = 41,

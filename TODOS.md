@@ -151,10 +151,14 @@ image block is the fallback.
 **DESIGN PASS RULED 2026-09-30** — D1–D12 accepted as proposed:
 [y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md). Geometry
 figures first (extend `graph_figure` + the eager engine), then a new lazy
-`chart` block. **Next: the author runs a full plan-design-review in a
-separate session**; its §4 lists the ten open forks it must settle. No code
-before that review. Y7 is the first part of the builder's order, so this
-is on the critical path for Y7 drafting.
+`chart` block. **DESIGN-REVIEWED 2026-09-30** — the ten §4 forks plus seven
+new findings ruled (all accepted); §2 re-derived (two renderers per drawable
+kind, the editor cannot insert a body figure, shell headroom 5.5 KiB not
+15). **Next: the curriculum side confirms the ```figure / ```chart authoring
+model** (boundary-page ask, 2026-09-30); then the geometry slice T1–T8 in
+the doc's task list. Y7 is the first part of the builder's order, so this
+is on the critical path for Y7 drafting. The degenerate-axis `refine`
+entry below rides this arc (N2).
 
 ## CURRICULUM-ARCHITECTURE ALIGNMENT — four gaps found 2026-08-25
 
