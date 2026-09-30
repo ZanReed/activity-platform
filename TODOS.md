@@ -146,9 +146,15 @@ mode + the ```dataplot``` fence — [data-plot-block.md](docs/design/data-plot-b
 histograms and box plots too); **categorical bar charts and time-series have
 no primitive** (`data_plot`'s bars are histogram bins on a numeric axis);
 **labelled geometry figures have no primitive** — the
-image block is the fallback. Needs its own design pass with numbered
-decisions before code; not scheduled. Nothing is blocked until Y7 drafting
-starts (D38 bottom-up order).
+image block is the fallback.
+
+**DESIGN PASS RULED 2026-09-30** — D1–D12 accepted as proposed:
+[y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md). Geometry
+figures first (extend `graph_figure` + the eager engine), then a new lazy
+`chart` block. **Next: the author runs a full plan-design-review in a
+separate session**; its §4 lists the ten open forks it must settle. No code
+before that review. Y7 is the first part of the builder's order, so this
+is on the critical path for Y7 drafting.
 
 ## CURRICULUM-ARCHITECTURE ALIGNMENT — four gaps found 2026-08-25
 
