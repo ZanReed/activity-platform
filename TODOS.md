@@ -154,9 +154,10 @@ figures first (extend `graph_figure` + the eager engine), then a new lazy
 `chart` block. **DESIGN-REVIEWED 2026-09-30** — the ten §4 forks plus seven
 new findings ruled (all accepted); §2 re-derived (two renderers per drawable
 kind, the editor cannot insert a body figure, shell headroom 5.5 KiB not
-15). **Next: the curriculum side confirms the ```figure / ```chart authoring
-model** (boundary-page ask, 2026-09-30); then the geometry slice T1–T8 in
-the doc's task list. Y7 is the first part of the builder's order, so this
+15). ✅ **Curriculum side CONFIRMED the authoring model 2026-09-30** (all
+five yes; N8 "Not to scale" auto-caption ruled on their question; build
+order triangles-polygons first). **Next: `/plan-eng-review`**, then the
+geometry slice T1–T8 in the doc's task list. Y7 is the first part of the builder's order, so this
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).
 

@@ -6,9 +6,11 @@
 code (P10; six corrections, none reopening a ruling), the ten §4 forks
 plus seven new findings ruled — **all accepted as recommended** (§4). Two
 D-rulings carry amendments, not reversals: D7's mechanism is stated (N5)
-and D11 is split for charts (N3). ⏳ **Curriculum side asked to confirm the
-authoring model** (boundary page, 2026-09-30) before code. Nothing here is
-built.
+and D11 is split for charts (N3). ✅ **Curriculum side CONFIRMED the
+authoring model** (their boundary page, 2026-09-30: five yes/no's all yes,
+author-ruled) — disposition and the one ruling it produced (**N8**, the
+automatic "Not to scale" caption) are at the end of §4. Nothing here is
+built; next is the eng review.
 
 **Why now.** Y7 is the first part of the curriculum builder's order (D38
 bottom-up), and the curriculum's Y7 stubs (`proposals/y7-chain-stubs.md`, open
@@ -228,7 +230,7 @@ angle ACB right
 ticks BC 2
 parallel AB DC
 segment A C dashed
-text (4,-1.5) "not to scale"
+text (4,-1.5) "base"
 ```
 ```
 
@@ -236,7 +238,10 @@ Rules: names resolve in a SECOND pass, in any order, and must be a
 `point … "X"` in the same fence; plain `(x,y)` coordinates are accepted
 anywhere a name is; `angle ABC` is the angle under 180° at B from BA to BC,
 `reflex` selects the other; `right` draws the square only (never square +
-arc); `polygon A B C` is an OUTLINE (`filled: false`) — `region` keeps
+arc); an angle's label is a degree value (`68°`), `right`, or a QUOTED
+text label (`"x"`) — never bare text, so the parser has one text rule
+fence-wide and `right`/`68°` can never be read as a label (confirmed to
+the curriculum side 2026-09-30); `polygon A B C` is an OUTLINE (`filled: false`) — `region` keeps
 today's filled meaning; **the whole fence is ONE figure and blank lines are
 ignored** (the ```reference rule "a blank line ends the figure" must not
 leak — the model would split every figure); a bad line warns and is
@@ -394,6 +399,33 @@ the boundary page for a yes/no per surface before code — chain by chain
 against §1's needs. Their answer lands on their page; this doc records the
 disposition when it arrives.
 
+✅ **Disposition (their "Figure/chart primitive: authoring model" section,
+2026-09-30, author-ruled).** All five yes: ∠ABC notation (`reflex` needed
+at Y7), not-to-scale by default, `alt:`/`title:` required — with a
+curriculum-side rule that `alt:` names an unknown as the figure does
+("angle x"), never its value — the caps, and the v1 exclusions (where they
+bite: dimension lines → area-volume composites use a dashed segment + free
+text; solids → nets use images; "draw" items stay choose/read/complete
+until the graded chart slice). Their one "gap", text labels on angles, was
+already in Q3 (`angle ABC "x"`); the quoted-only rule above is the answer.
+**Build order within the geometry slice follows their chains:**
+triangles-polygons → parallel-lines → area-volume → transformations →
+charts (T9–T13) → nets.
+
+**N8 — Automatic "Not to scale" caption (author, 2026-09-30, on the
+curriculum side's question).** Every plane-less figure renders a caption
+**"Not to scale"** below the drawing, as NZ assessment figures do; a
+`plane: on` figure never does. A fence line `to scale` opts one figure
+out (`GraphFigureBlock.toScale: boolean`, default false, meaningful only
+when plane-less). It is an HTML `<figcaption>` inside the `.viewer-figure`,
+NOT SVG text: screen readers read it after the `alt:` name, it prints, and
+it can never collide with Q1's automatic label placement. The drafting
+model no longer writes it, so the prompt teaches `to scale` only (rare —
+a true-size drawing). Guard (close-out Q1): a component test asserting
+the caption's presence over a plane-less fixture, its absence under
+`plane: on` and under `toScale: true`, mutation-tested by deleting the
+render.
+
 ## 5. Consequences (updated by the review)
 
 - **Two renderers per new kind.** Every annotation kind lands in
@@ -464,8 +496,8 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
 
 **Geometry slice (D12 first)**
 
-- [ ] **T1 (P1, human: ~1.5 d / CC: ~40 min)** — schema — the five annotation kinds + `segment.style` + `GraphFigureBlock.alt/plane/sizing` + the `AxisConfig` refine (corpus check first)
-  - Surfaced by: Q2, Q4, N2, N6, D11
+- [ ] **T1 (P1, human: ~1.5 d / CC: ~40 min)** — schema — the five annotation kinds + `segment.style` + `GraphFigureBlock.alt/plane/sizing/toScale` + the `AxisConfig` refine (corpus check first)
+  - Surfaced by: Q2, Q4, N2, N6, N8, D11
   - Files: `packages/schema/src/graph-primitives.ts`, `blocks/graph-figure.ts`, `sizing.ts`; `pnpm bundle:viewer-server`
   - Verify: schema tests; `jsonb_path_exists` corpus query for bad windows before the refine lands
 - [ ] **T2 (P1, human: ~2 d / CC: ~1 h)** — static engine — plane-less mode (Q4 viewBox/aspect/auto-fit), the five marks with Q1's placement numbers, INK labels via `--gk-svg-ink` (Q5), dashed segments
@@ -476,16 +508,16 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: §2 two-renderer correction, Q10
   - Files: `packages/graph-kit/src/board.ts`
   - Verify: a board test counting created elements per kind; the ```graph fixture with `show:` marks renders them on screen
-- [ ] **T4 (P1, human: ~2 d / CC: ~1 h)** — importer — the ```figure fence: name pass, Q3 grammar, `alt:` required under `--strict` (N7), N2 warnings, outline polygons
-  - Surfaced by: Q3, N2, N7
+- [ ] **T4 (P1, human: ~2 d / CC: ~1 h)** — importer — the ```figure fence: name pass, Q3 grammar, `alt:` required under `--strict` (N7), N2 warnings, outline polygons, quoted-only angle labels, the `to scale` line (N8)
+  - Surfaced by: Q3, N2, N7, N8
   - Files: `packages/app/src/lib/markdownToTiptap.ts`, `scripts/batch-import.mjs`
   - Verify: importer unit tests per line form + each N2 refusal; `pnpm --filter @activity/app test`
 - [ ] **T5 (P1, human: ~1 d / CC: ~30 min)** — cuboid — `cuboid` drawable + fence line per Q6
   - Surfaced by: Q6, D6
   - Files: `graph-primitives.ts`, `graph-svg.ts`, `board.ts` (display-only case), `markdownToTiptap.ts`
   - Verify: 3 dashed hidden edges + unit-line count (Q9)
-- [ ] **T6 (P1, human: ~1 d / CC: ~30 min)** — viewer — `alt` → `aria-label`, unavailable-reason enum, sizing on `graph_figure`, aspect on the fallback
-  - Surfaced by: D11, N2, N6, Q4
+- [ ] **T6 (P1, human: ~1 d / CC: ~30 min)** — viewer — `alt` → `aria-label`, unavailable-reason enum, sizing on `graph_figure`, aspect on the fallback, the "Not to scale" `<figcaption>` (N8)
+  - Surfaced by: D11, N2, N6, N8, Q4
   - Files: `packages/viewer/src/blocks/GraphFigure.tsx`, `viewer.css`
   - Verify: a11y lane; `figure/capped` row over a plane-less fixture
 - [ ] **T7 (P1, human: ~1.5 d / CC: ~45 min)** — editor — register `graphFigure` in the main editor; source popover re-running the importer parser (Q8)
