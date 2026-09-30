@@ -2443,3 +2443,13 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 **3. Same-locale aliases (`aka:`).** So `[[turning point]]` finds *vertex* and `[[chord]]` finds *secant line* with no second entry. A NEW header key is a format change: the curriculum side's CI (`scripts/check_glossary.py`, D40) and our loader both change, and the design must say whether an alias is displayed (a "also called" line?) or only matched, whether it counts as a name for the collision rule (it must), and whether cross-links fire on aliases. The author ruled both names acceptable "for now"; this is the lever for later.
 
 **Effort:** 2 M/M (blocked on the toggle design) · 3 S/M · **Priority:** P3 · **Depends on:** a real authoring case that the workaround cannot absorb.
+
+## AI grading: consume misconception-attachments.txt (curriculum PR #5; platform slice after their merge)
+
+**What:** Three pieces, in order: (1) a small migration replacing `misconception_registry.skill` (nullable text, NULL on all 35 live rows, zero code readers — verified 2026-10-01) with `skills text[] not null default '{}'` + verify rows; (2) an importer pass mirroring `misconception-attachments.txt` pairs (`skill.id   mis.id`, comment-and-line grammar, 79 pairs at review) into that column on every `import:batch` run, fail-soft like the registry mirror; (3) the grading worker's prompt builder filters registry entries to the item's skill — which first needs the claim payload to EXPOSE the item's skill (activity-level `skill:` meta → claim item), a small 0042-family RPC addition.
+
+**Why:** Completes EH-7's skill-attachment half (docs/design/ai-grading-assist.md §3b): today the prompt carries ALL registry entries; skill-filtered entries are the D5 quality lever. Format review passed 2026-10-01 (record on the boundary page): every pair resolves against both registries; many-to-many confirmed (26 of 35 multi-skill), which is why the single `skill` column dies.
+
+**Context:** github.com/ZanReed/curriculum PR #5 (open, CI green, awaiting author merge); boundary page review row 2026-10-01; scripts/batch-import.mjs `syncMisconceptionRegistry` (the pattern + its return=representation lesson); packages/grading-worker/src/promptBuilder.ts.
+
+**Effort:** S–M / S · **Priority:** P3 (model half parked until the GPU box; no urgency before it) · **Depends on:** PR #5 merged.
