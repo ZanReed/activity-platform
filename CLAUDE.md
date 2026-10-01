@@ -41,6 +41,7 @@ Rules and orientation for AI sessions on this repo. Read `STATE.md` next — it 
 - Best-practice over shortcut; ask before assuming on anything ambiguous; give rationale alongside actions; skip ceremony.
 - Design pass → green light → code drop: before large changes, surface the real decisions as a numbered list and wait for the author's yes/no per item.
 - UX is a priority: performance budget, optimistic autosave, visible state indicators, predictable shortcuts.
+- **A NEW WISH GETS A TRIGGER, NOT A SLOT (author ruling, 2026-10-02).** File it in TODOS with the event that would make it next. It enters the build queue (TODOS → "BUILD ORDER") only when an authored draft is capped by it. A wish with a long-lead joint contract gets its DESIGN pass early and nothing else. One build arc and one design arc at a time. The rule exists because wishes were arriving from the curriculum side's planning rather than from authored files hitting a wall, and the last one to arrive kept getting built. Re-ranking the queue is the author's call, not a session's.
 - More in `docs/COLLABORATION.md`.
 
 ## Session close-out (run before you hand back; ~2 minutes)

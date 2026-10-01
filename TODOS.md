@@ -3,6 +3,63 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## BUILD ORDER — ruled by the author 2026-10-02 (sequencing review)
+
+The author asked for a ranking of every open arc "to stop reacting to whichever
+arrived last". Ten items were put up; this is what was ruled. **This section is
+the queue. An entry's own Priority line below does not outrank it.**
+
+1. **B14 — rebuild the capability generator** (entry below; was P3). Quoted from
+   the curriculum graph at `c136790` (v0.15.2): four of its 22 `capabilities`
+   entries still read `"status": "proposed"` — `draggable_curve`,
+   `nway_correspondence`, `seeded_data`, `graded_polynomial` — and all four
+   shipped here 2026-09-01. Their §9 says "Draft only with capabilities marked
+   shipped", so shipped work is not authorable by their own rule, and figures
+   would land in the same hole. ⚠ **This is a LATENT block, not an active one**
+   (liaison C-7, verified here 2026-10-02): no draft is capped today — the
+   only drafts, `~/activity-catalogue-pilot/01-chain.rate.proportional/`,
+   mention none of the four and no fallback — but §9 is applied to whatever
+   the registry says, so the first chain needing one of the four would be
+   forced into a fallback it does not need. The curriculum side will not
+   hand-edit the statuses (regeneration is platform-owned).
+2. **Y7 geometry figures** — `/plan-eng-review`, then T1–T8.
+3. **D43 practice blocks — DESIGN PASS ONLY**, alongside 1–2. No D43 build
+   before geometry ships.
+4. **Service worker stale-shell recovery** (entry below, P2) — before any real
+   student.
+5. **Y7 charts (T9–T13)** — PULLED when a statistics chain is next to be
+   drafted, not built straight after geometry.
+6. **D43 builds**, subject to the design pass: fluency + diagnostics first;
+   mixed practice + scheduler gated on TWO chains with ratified §17 banks;
+   period assembly last.
+
+**The intake rule (ruled the same day; the standing copy is CLAUDE.md → Working
+style):** a new wish is filed with a TRIGGER, not a slot. It enters this queue
+only when an authored draft is capped by it. A wish with a long-lead joint
+contract gets its DESIGN pass early and nothing else. One build arc and one
+design arc at a time.
+
+**Dates and dependencies that came out of the review:**
+- **First classes: ~early February 2027** (author, 2026-10-02: "4 months").
+  Year levels not yet stated.
+- **Y7 CLASSROOM USE depends on under-13 support** (entry below) — Y7–Y8
+  students are under 13 and v1 excludes them by teacher assertion. Y7 DRAFTING
+  does not. No build until the author states year levels or counsel answers Q4.
+- **Figures block 23 of the 61 proposed Y7 activities** (geometry 14 in 5
+  chains, charts 9 in 2), per `proposals/y7-chain-stubs.md` at `c136790`. The
+  other 12 Y7 chains need no figure.
+- **The curriculum side's drafting order is UNRULED across strands** (C-7,
+  verified): D38 says Y7 first, all six strands, but their B13 row says chain
+  2's activities are "the next authoring work", and no order is recorded
+  between the figure chains and number/algebra. They have asked the author.
+  That ruling is what pulls item 5 (charts).
+- **No §17 practice bank exists** (C-7; none in their repo at `c136790`), and
+  all four of D43's curriculum-side open items are at the starting line — the
+  fact scope is furthest along, with one confirmed statement (S33).
+- **Still open from the ruling:** item 8 (the parked list, and whether
+  co-ownership is wanted this term) was answered "no" and is ambiguous —
+  nothing was changed on its account; ask before acting on it.
+
 ## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
 
 Source: the catalogue builder's direct answer to "what do you need to be
@@ -156,8 +213,9 @@ new findings ruled (all accepted); §2 re-derived (two renderers per drawable
 kind, the editor cannot insert a body figure, shell headroom 5.5 KiB not
 15). ✅ **Curriculum side CONFIRMED the authoring model 2026-09-30** (all
 five yes; N8 "Not to scale" auto-caption ruled on their question; build
-order triangles-polygons first). **Next: `/plan-eng-review`**, then the
-geometry slice T1–T8 in the doc's task list. Y7 is the first part of the builder's order, so this
+order triangles-polygons first). **Next (BUILD ORDER, 2026-10-02): B14 first,
+then `/plan-eng-review`** and the geometry slice T1–T8 in the doc's task list;
+the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted. Y7 is the first part of the builder's order, so this
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).
 
@@ -2164,7 +2222,11 @@ back "teacher assertion is not enough", this stops being a deferred arc and beco
 required work — so it needs an entry that a session can pick up cold.
 
 **Trigger:** the D24 counsel read answering Q4 against the current design, OR a
-teacher asking for a 6th/7th-grade class.
+teacher asking for a 6th/7th-grade class. ⚠ **Named dependency since 2026-10-02
+(author-ruled):** the Y7 catalogue is being drafted for students who are under
+13, so Y7 CLASSROOM USE depends on this arc even though Y7 drafting does not —
+and D43's per-student mastery would make the stored record longitudinal. First
+classes are ~early February 2027; the year levels are the fact that fires this.
 
 **Scope sketch (not a design):** birthdate gate before auth; a parent-consent
 branch for independent learners; school-consent enrollment for school users; the
@@ -2343,7 +2405,7 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Context:** Boundary item B14 on the Curriculum → Platform Notion page (their freeze + verification-gap write-up); the curriculum repo's README records the exclusion. Once rebuilt, it JOINS github.com/ZanReed/curriculum under CI — the curriculum side has already agreed. Remove the B14 gate only as part of this rebuild.
 
-**Effort:** M · **Priority:** P3 · **Depends on:** nothing; trigger is the next platform change that alters capability-relevant schema, or chain-2 authoring needing a current registry.
+**Effort:** M · **Priority:** ~~P3~~ **NEXT — item 1 of the BUILD ORDER (author, 2026-10-02)**; reasons at the top of this file · **Depends on:** nothing.
 
 ## AI grading: suggestion-quality panel in ActivityAnalytics (E3, deferred from the ai-grading-assist review)
 
@@ -2472,4 +2534,4 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Context (known overlaps; re-derive at kickoff, P10):** ROADMAP 2.5a/2.5b (authoring-time and runtime parametric templates — the importer has no template syntax today); the Activity Bank's existing `role: practice` label (a DIFFERENT thing — an activity role, not a practice block); per-student mastery is new student-derived personal data → `docs/compliance/data-map.md` + `retention-policy.md` ride the migration (CLAUDE.md rule); the analytics rollup/census machinery (0036) is the nearest existing per-student aggregate. Curriculum-side still open per D43: the fact scope per year, the fluency criterion for non-multiplication facts, a Y7 entry bank, and §17 banks for chains already drafted — so the BANK CONTRACT (item format) is a joint question to settle early on the boundary pages, not assume.
 
-**Effort:** XL (an arc, several slices) · **Priority:** author to rank against the rest of the backlog — see the sequencing note in the kickoff prompt · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.
+**Effort:** XL (an arc, several slices) · **Priority:** RANKED 2026-10-02 — design pass now (BUILD ORDER item 3), builds after Y7 geometry in the order fluency + diagnostics → mixed practice (gated on two chains with ratified banks) → period assembly (item 6) · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.

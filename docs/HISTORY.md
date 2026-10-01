@@ -1,5 +1,33 @@
 # HISTORY.md
 
+**▶ The 2026-09-01 "Last updated" close-out (wishlists #2–#6, curriculum alignment) — moved out of STATE 2026-10-02 (the ruled build order needed the words).** Kept verbatim:
+
+**Last updated:** 2026-09-01, session CLOSED with everything landed and
+verified live. **WISHLISTS #5 AND #6 SHIPPED — the wishlist arc is COMPLETE**
+(full Build records in draggable-curve.md / seeded-data.md: rulings honored,
+as-built corrections — sharpest: #6 moved R8's meta strip to SERVE time after
+re-deriving the cache-hit flow, cancelling the predicted ALGO_REV bump —
+twenty mutations, one of which caught its own test's vacuous assertion).
+**Both function deploys verified byte-identical; the push landed; CI run
+33520006285 is green on every job** after two same-day fixes: the fresh
+correspondence + interactive_graph print baselines (generated post-push via
+the manual workflow, inspected, committed) and an a11y fix naming the
+transform equation field's MathLive keyboard sink AFTER append (the connect
+re-render wipes a pre-append name — verified live both ways).
+**The next lever is AUTHORING**: every capability the catalogue builder's
+wishlist blocked on now exists; remaining author items are D24, Gate 4, and
+the `display_name` one-row fix (Pending, unchanged).
+Earlier the same day — **WISHLISTS #3 AND #4 SHIPPED**: #3 unit-bearing
+blanks (unit-bearing-blanks.md), #4 `correspondence` (nway-correspondence.md;
+`CHECK_WIRE_VERSION` 2→3 makes the redeploy order BINDING — see Pending).
+2026-08-31 — **WISHLIST #2 SHIPPED: cubic + quartic families**
+(graded-function-families.md; redeploys pending) and **LANE B BUILT — the
+curriculum-alignment arc is COMPLETE** (list orders by catalogue path; the
+importer's phantom `course`/`unit` change fixed). 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER**
+(declared identity 0041, skill/chain/part registries, `chain_role`, the
+in-math answer-leak detector, the generated authoring prompt).
+
+
 **▶ Glossary LIVE — moved out of STATE 2026-09-30 (the Y7 figures/charts review needed the words).** Kept verbatim:
 
 **Glossary LIVE (2026-09-28; [glossary.md](docs/design/glossary.md),

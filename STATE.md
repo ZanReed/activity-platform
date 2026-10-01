@@ -26,8 +26,9 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
 §4, all accepted, their disposition + N8 recorded at the end of §4; §2
 re-derived — shell headroom is `node scripts/check-perf-budget.mjs`, not a
-number here). Pushed. **Next:** `/plan-eng-review`, then the geometry slice
-T1–T8.
+number here). Pushed. **Next (ruled 2026-10-02):** B14 first, THEN
+`/plan-eng-review` + the geometry slice T1–T8; charts T9–T13 are pulled by
+drafting order, not built straight after.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
@@ -200,9 +201,20 @@ a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
 DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,
 preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
+## Build order — RULED by the author 2026-10-02
+
+1. **B14** capability-generator rebuild (was P3). 2. **Y7 geometry figures**
+(eng review → T1–T8). 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2;
+no D43 build before geometry ships. 4. SW stale-shell recovery, before any real
+student. 5. **Y7 charts**, pulled when a statistics chain is next to be drafted.
+6. D43 builds: fluency + diagnostics → mixed practice (gated on two chains with
+ratified banks) → period assembly. **First classes: ~early Feb 2027** (author,
+"4 months"; year levels not yet stated — Y7–8 would pull under-13 support onto
+the path). The intake rule that goes with this is in [CLAUDE.md](CLAUDE.md) →
+Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
+
 ## Backlog / candidate arcs
 
-- **Practice blocks (D43/§17, 2026-10-02)** — new product area; design pass first. [TODOS.md](TODOS.md) "Practice blocks".
 - **Re-architecture follow-ons (accepted 2026-07-28):** (1) Clever/ClassLink district SSO — demand-triggered; **IdP map recorded 2026-08-09** — LMSes are not IdPs; expansion order is Azure/Entra → Clever/ClassLink → LTI 1.3. (2) Realtime push arc — trigger = first named live feature. (3) Sampled behavioral telemetry — only after the census can't answer a concrete question AND the compliance pack is amended. (4) Print variants. (5) Solution-unlock pedagogy pass. (6) /design-consultation brand pass — includes replacing the system-ui chrome font stack (design-review ding, 2026-08-18).
 - **✅ Admission model — RULED, BUILT AND LIVE 2026-08-15** ([admission-model.md](docs/design/admission-model.md) §5b R1–R11 + T1–T7). Kept in the backlog only for what it left behind: the durable **Edmodo lesson** (the violation was outsourcing consent duties without operator-side notice/minimization — **copy Gimkit's enrollment-=-consent mechanism, not Blooket's "school is responsible" clause**), and the follow-ons now split by design — **under-13 (D7), the DPA template, and the cap-lifting surface live in [TODOS.md](TODOS.md)**; email+password, extra OAuth providers, the guest tier and CAPTCHA stay in §7. Gate 4 proceeds unchanged (the domain fast path is untouched).
 - **Free activity catalog / "Activity Bank"** (Phase 2 cold-start lever; [free-activity-catalog.md](docs/design/free-activity-catalog.md)). Moved behind the rewrite 2026-07-28; Drop 0 hosting prep done. One open item: taxonomy/tags — author wants a tags discussion at kickoff. Post-S9: the discovery surface is a viewer route, not an R2 URL. **The admission signal above is now a kickoff input.**
@@ -247,30 +259,10 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ---
 
-**Last updated:** 2026-09-01, session CLOSED with everything landed and
-verified live. **WISHLISTS #5 AND #6 SHIPPED — the wishlist arc is COMPLETE**
-(full Build records in draggable-curve.md / seeded-data.md: rulings honored,
-as-built corrections — sharpest: #6 moved R8's meta strip to SERVE time after
-re-deriving the cache-hit flow, cancelling the predicted ALGO_REV bump —
-twenty mutations, one of which caught its own test's vacuous assertion).
-**Both function deploys verified byte-identical; the push landed; CI run
-33520006285 is green on every job** after two same-day fixes: the fresh
-correspondence + interactive_graph print baselines (generated post-push via
-the manual workflow, inspected, committed) and an a11y fix naming the
-transform equation field's MathLive keyboard sink AFTER append (the connect
-re-render wipes a pre-append name — verified live both ways).
-**The next lever is AUTHORING**: every capability the catalogue builder's
-wishlist blocked on now exists; remaining author items are D24, Gate 4, and
-the `display_name` one-row fix (Pending, unchanged).
-Earlier the same day — **WISHLISTS #3 AND #4 SHIPPED**: #3 unit-bearing
-blanks (unit-bearing-blanks.md), #4 `correspondence` (nway-correspondence.md;
-`CHECK_WIRE_VERSION` 2→3 makes the redeploy order BINDING — see Pending).
-2026-08-31 — **WISHLIST #2 SHIPPED: cubic + quartic families**
-(graded-function-families.md; redeploys pending) and **LANE B BUILT — the
-curriculum-alignment arc is COMPLETE** (list orders by catalogue path; the
-importer's phantom `course`/`unit` change fixed). 2026-08-30 — **CURRICULUM ALIGNMENT SHIPPED AND CUT OVER**
-(declared identity 0041, skill/chain/part registries, `chain_role`, the
-in-math answer-leak detector, the generated authoring prompt).
+**Last updated:** 2026-10-02 — the BUILD ORDER was ruled (section above;
+full list + triggers in [TODOS.md](TODOS.md) → "BUILD ORDER"). No code moved.
+The 2026-09-01 wishlist-arc close-out that stood here is in
+[HISTORY.md](docs/HISTORY.md).
 
 **The lesson this arc paid for, and it is not a repo lesson — it is a
 correspondence one.** Eleven letters were exchanged with the curriculum side. Of
