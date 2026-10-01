@@ -92,9 +92,13 @@ design arc at a time.
   the fact-scope registry carries, lets an answer carry a leading minus and a
   decimal point (the runner is no longer digits-only; CR-16 to CR-21), and
   rules the probe's mix and length: equal weights, at least 5 items per
-  family, length the larger of 30 and 5 × families. ⚠ SIX probe questions are
-  OPEN with the curriculum side (B-20; P-1 to P-6 in the design doc),
-  including what the five-minute budget becomes past six families. **Design-reviewed the
+  family, length the larger of 30 and 5 × families. The six probe questions
+  the author sent to them (B-20) are ANSWERED by their seventh (their `main`
+  at `03e8ed0`, items 22 to 26): assembly by weight with a per-family minimum
+  of 5 or the family's fact count; a family is met at 80% of its counted
+  items, shown to teachers per family now; NO time cap, the probe sits
+  outside the daily period; one registry revision id; templates use `{a}`,
+  `{b}` and `__`. Nothing is open with the curriculum side. **Design-reviewed the
   same day** (`/plan-design-review`, DR-1 to DR-24, all accepted; score 3 → 8;
   a clickable prototype is the visual reference). What it changed that a
   builder must not miss: the student link is `/facts/:CODE`, keyed by the class
