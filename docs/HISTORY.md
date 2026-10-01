@@ -1,5 +1,18 @@
 # HISTORY.md
 
+**▶ The 2026-09-01 deploy record — moved out of STATE's Pending section 2026-10-02 (the practice-blocks handoff needed the words; nothing in it was pending).**
+
+✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
+wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
+false`) and `check-activity` v23 (`verify_jwt: true`), deployed TOGETHER per
+seeded_data's D10, before the push. Proven by **byte-identical sha256**
+between each deployed `_shared` bundle and the committed one (downloaded from
+a temp dir per the CLAUDE.md method); flags read via `list_edge_functions`.
+The wire bump (`CHECK_WIRE_VERSION` 2→3) and the seeded serve/grade pairing
+are live. Post-push CI run 33520006285 is fully green — the pushed run's two
+reds (missing correspondence print baseline; a MathLive keyboard-sink a11y
+name on the transform equation field) were fixed and verified same-day.
+
 **▶ The 2026-09-01 "Last updated" close-out (wishlists #2–#6, curriculum alignment) — moved out of STATE 2026-10-02 (the ruled build order needed the words).** Kept verbatim:
 
 **Last updated:** 2026-09-01, session CLOSED with everything landed and

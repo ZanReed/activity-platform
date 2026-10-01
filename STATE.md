@@ -22,12 +22,17 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**OWED BY 1 NOVEMBER 2026 (practice blocks, [practice-blocks.md](docs/design/practice-blocks.md)):**
-ask the school for the year-level placement, and send the counsel packet with
-the practice-data question (its E5) added. **1 December 2026** is the probe's
-dated checkpoint (TODOS → BUILD ORDER). The Notion boundary page's pointer row
-for practice-blocks.md is written (2026-10-02); its stamp is hand-kept, so
-refresh it when the doc is next edited.
+**PRACTICE BLOCKS — design COMPLETE 2026-10-02, nothing built**
+([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
+design-reviewed, then amended for the curriculum side's D43 amendments three
+to seven; rulings ER-1–26, DR-1–24, CR-1–21; nothing open between the sides).
+**⏭ THE NEXT SESSION RECEIVES THE FACT-SCOPE REGISTRY** from the curriculum
+side. Read it from their `main`, never from a message; check it against the
+doc's "fact-scope mirror" bullet and their items 18–26; refresh both Notion
+stamps (the doc's is hand-kept); and BUILD NOTHING: the mirror pass waits at
+build-order item 6. **Owed by 1 November 2026:** the year-level placement, and
+the counsel packet with the practice-data question (E5), which is NOT drafted
+yet (the packet stops at Q10). **1 December 2026** is the dated checkpoint.
 
 **Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; curriculum side
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
@@ -50,20 +55,6 @@ checks (today 0, roster 1; §5.1's volume rule governs).
 
 **Glossary LIVE (2026-09-28)** — nothing owed; narrative moved to HISTORY
 2026-09-30 (the Y7 review needed the words); v2 asks 2–3 in TODOS.
-
-✅ **BOTH FUNCTIONS DEPLOYED AND CODE-VERIFIED (2026-09-01), covering all six
-wishlist slices through seeded_data.** `get-activity` v28 (`verify_jwt:
-false`) and `check-activity` v23 (`verify_jwt: true`), deployed TOGETHER per
-seeded_data's D10, before the push. Proven by **byte-identical sha256**
-between each deployed `_shared` bundle and the committed one (downloaded from
-a temp dir per the CLAUDE.md method); flags read via `list_edge_functions`.
-The wire bump (`CHECK_WIRE_VERSION` 2→3) and the seeded serve/grade pairing
-are live. Post-push CI run 33520006285 is fully green — the pushed run's two
-reds (missing correspondence print baseline; a MathLive keyboard-sink a11y
-name on the transform equation field) were fixed and verified same-day.
-
-
-
 
 **⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
 
@@ -268,8 +259,10 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 ---
 
 **Last updated:** 2026-10-02 — the BUILD ORDER was ruled (section above;
-full list + triggers in [TODOS.md](TODOS.md) → "BUILD ORDER"). No code moved.
-The 2026-09-01 wishlist-arc close-out that stood here is in
+full list + triggers in [TODOS.md](TODOS.md) → "BUILD ORDER"), and the
+practice-blocks design was reviewed three ways and reconciled with five
+same-day curriculum rulings (Pending, above). No code moved. The 2026-09-01
+close-out and deploy record that stood here are in
 [HISTORY.md](docs/HISTORY.md).
 
 **The lesson this arc paid for, and it is not a repo lesson — it is a
