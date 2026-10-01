@@ -8,11 +8,12 @@
     "partial": 0,
     "uncovered": 44,
     "partsAuthored": 3,
-    "partsDeclared": 51
+    "partsDeclared": 52
   },
   "multiPartSkills": {
     "function.repr.correspondence": 3,
-    "linear.model.contextual": 3
+    "linear.model.contextual": 3,
+    "linear.slope.two-points": 2
   },
   "skills": [
     {
