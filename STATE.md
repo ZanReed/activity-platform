@@ -22,13 +22,12 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; code waits on the
-curriculum side's yes/no** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
-§4, all accepted; §2 re-derived — shell headroom is
-`node scripts/check-perf-budget.mjs`, not a number here). The authoring
-model is an ask on the boundary page. **Author actions:** push this commit
-(the boundary row points at `main`); record their disposition in §4; then
-the geometry slice T1–T8.
+**Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; curriculum side
+CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
+§4, all accepted, their disposition + N8 recorded at the end of §4; §2
+re-derived — shell headroom is `node scripts/check-perf-budget.mjs`, not a
+number here). Pushed. **Next:** `/plan-eng-review`, then the geometry slice
+T1–T8.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
