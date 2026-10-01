@@ -25,10 +25,10 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 **PRACTICE BLOCKS — design COMPLETE 2026-10-02, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
 design-reviewed, then amended for the curriculum side's D43 amendments three
-to seven; rulings ER-1–26, DR-1–24, CR-1–21; nothing open between the sides).
+to eight; rulings ER-1–26, DR-1–24, CR-1–21; nothing open between the sides).
 **⏭ THE NEXT SESSION RECEIVES THE FACT-SCOPE REGISTRY** from the curriculum
 side. Read it from their `main`, never from a message; check it against the
-doc's "fact-scope mirror" bullet and their items 18–26; refresh both Notion
+doc's "fact-scope mirror" bullet and their items 18–30; refresh both Notion
 stamps (the doc's is hand-kept); and BUILD NOTHING: the mirror pass waits at
 build-order item 6. **Owed by 1 November 2026:** the year-level placement, and
 the counsel packet with the practice-data question (E5), which is NOT drafted
