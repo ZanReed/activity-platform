@@ -63,7 +63,13 @@ design arc at a time.
   (its A3/A4): if the probe's eng review has not started it moves ahead of the
   remaining geometry tasks, and if the curriculum side's fact-scope registry or
   criterion values do not exist the author chooses between a written interim
-  and a slip. Next for D43: `/plan-ceo-review` (scope), then `/plan-eng-review`.
+  and a slip. **Scope-reviewed the same day** (`/plan-ceo-review`, selective
+  expansion): a wrong-versus-slow grouping and a storeless preview mode joined
+  slice 1; the late-joiner probe and the calibration export are filed at the
+  end of this file with triggers; partial results count (G1) and there is an
+  explicit skip (G2). The curriculum side ruled the class verdict a RATE
+  against a floor it owns (their `main` at `3f7e5f5`). Next for D43:
+  `/plan-eng-review`, then `/plan-design-review` before any UI.
 - **The curriculum side RULED its drafting order the same day** (their `main`
   at `de97186`, D38 amendment): within Y7, geometry first, starting with
   `chain.geom.triangles-polygons`; chain 2's activities wait for Y9; the Y7
@@ -2553,3 +2559,24 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 **Design:** [practice-blocks.md](docs/design/practice-blocks.md) — APPROVED 2026-10-02 (slices 1–2; mixed practice, the diagnostic's skill half and period assembly get their own pass). The curriculum side answered the eight joint questions in their decision log (`de97186`, D43 amendment); the "still open" list in **Context** above is superseded by that entry and by the doc's Open Questions.
 
 **Effort:** XL (an arc, several slices) · **Priority:** RANKED 2026-10-02 — design pass now (BUILD ORDER item 3), builds after Y7 geometry in the order fluency + diagnostics → mixed practice (gated on two chains with ratified banks) → period assembly (item 6) · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.
+
+## Practice blocks: an individual probe for a late joiner (scope review, 2026-10-02 — DEFERRED by the author)
+
+**What:** Let a teacher open a fact probe for ONE named student, shown beside the class's last snapshot. It is the facts half of D43's late-joiner diagnostic; the skills half waits for practice banks.
+
+**Why:** In the approved design a student who joins after the class probe closed gets no fluency reading until next term. Deferred, not cut: no student has joined late yet, and the intake rule says a wish gets a trigger.
+
+**Context:** [practice-blocks.md](docs/design/practice-blocks.md) → Probe lifecycle. It adds a per-student scoping dimension to `class_probes`, which every lifecycle rule (one open probe per class, the snapshot, the minimum-students count) then has to handle.
+
+**Effort:** S–M / S · **Priority:** P3 · **Trigger:** a student joins a class after its probe has closed · **Depends on:** practice-blocks slice 1 shipped.
+
+## Practice blocks: a calibration export of raw fact attempts (scope review, 2026-10-02 — DEFERRED by the author)
+
+**What:** An author-run script producing per-fact-family response-time distributions (raw and net of the typing baseline) with NO student identifiers, readable by the curriculum side.
+
+**Why:** Raw attempts are kept for the school year on the stated ground that they recalibrate the fluency criterion (D43 calls the 3-second target a working definition). Until this exists, that retention reason has no reader — the P1 rule (a primitive is not delivered until something calls it) applied to a retention window.
+
+**Context:** [practice-blocks.md](docs/design/practice-blocks.md) → premise 5 and "Roll-up and prune". Shape it against real data, which is why it waits.
+
+**Effort:** S / S · **Priority:** P2 once triggered · **Trigger:** the first real probe closes · **Depends on:** practice-blocks slice 1 shipped.
+
