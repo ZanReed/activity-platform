@@ -212,7 +212,7 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 1. **B14** capability-generator rebuild (was P3). 2. **Y7 geometry figures**
 (eng review → T1–T8). 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2
-(design APPROVED + scope-reviewed 2026-10-02; eng review next); no D43 build before
+(design APPROVED, scope- and eng-reviewed 2026-10-02; design review next); no D43 build before
 geometry ships. 4. SW stale-shell recovery, before any real
 student. 5. **Y7 charts**, pulled when a statistics chain is next to be drafted.
 6. D43 builds: fluency + diagnostics → mixed practice (gated on two chains with

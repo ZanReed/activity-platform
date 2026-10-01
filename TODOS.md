@@ -68,8 +68,15 @@ design arc at a time.
   slice 1; the late-joiner probe and the calibration export are filed at the
   end of this file with triggers; partial results count (G1) and there is an
   explicit skip (G2). The curriculum side ruled the class verdict a RATE
-  against a floor it owns (their `main` at `3f7e5f5`). Next for D43:
-  `/plan-eng-review`, then `/plan-design-review` before any UI.
+  against a floor it owns (their `main` at `3f7e5f5`). **Eng-reviewed the same
+  day** (`/plan-eng-review`, 26 rulings ER-1 to ER-26, all accepted; slice 1's
+  section is amended in place). What it changed that a builder must not miss:
+  the item list is stored on the probe row and the SERVER derives correctness;
+  auto-close is by rule with no cron job; a save after close is refused; and
+  slice 1's migration re-creates `purge_soft_deleted` (the deletion claim in
+  the first draft was wrong). The wrong-versus-slow grouping is NOT built until
+  the curriculum side rules its form (asked in B-16). Next for D43:
+  `/plan-design-review` before any UI.
 - **The curriculum side RULED its drafting order the same day** (their `main`
   at `de97186`, D38 amendment): within Y7, geometry first, starting with
   `chain.geom.triangles-polygons`; chain 2's activities wait for Y9; the Y7
