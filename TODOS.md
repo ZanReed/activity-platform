@@ -74,8 +74,15 @@ design arc at a time.
   the item list is stored on the probe row and the SERVER derives correctness;
   auto-close is by rule with no cron job; a save after close is refused; and
   slice 1's migration re-creates `purge_soft_deleted` (the deletion claim in
-  the first draft was wrong). The wrong-versus-slow grouping is NOT built until
-  the curriculum side rules its form (asked in B-16). **Design-reviewed the
+  the first draft was wrong). ~~The wrong-versus-slow grouping is NOT built
+  until the curriculum side rules its form (asked in B-16).~~ ANSWERED the same
+  day, and it moved more than the grouping: their third D43 amendment (their
+  `main` at `2bd9eca`, items 12 to 14) makes the class rate NET time with a
+  per-keystroke typing baseline (the raw basis the eng review verified is
+  superseded), makes the floor CALCULATED per year from a factor k they author,
+  and rules the grouping accuracy first (90%, then 80%). The platform's nine
+  rulings on it are CR-1 to CR-9 in the design doc; B-17 asks them two
+  follow-ups. **Design-reviewed the
   same day** (`/plan-design-review`, DR-1 to DR-24, all accepted; score 3 → 8;
   a clickable prototype is the visual reference). What it changed that a
   builder must not miss: the student link is `/facts/:CODE`, keyed by the class
@@ -83,7 +90,8 @@ design arc at a time.
   through joining to the first fact; the keys belong to a focusable answer
   region, never the document; and "probe" never renders (students see "Quick
   number facts", teachers "Number facts snapshot"). Next for D43: the build, at
-  item 6, once the curriculum side's three artifacts exist.
+  item 6, once the curriculum side's three artifacts exist (the fact-scope
+  registry, the per-family criteria, and k).
 - **The curriculum side RULED its drafting order the same day** (their `main`
   at `de97186`, D38 amendment): within Y7, geometry first, starting with
   `chain.geom.triangles-polygons`; chain 2's activities wait for Y9; the Y7
