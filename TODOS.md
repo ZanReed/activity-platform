@@ -2453,3 +2453,13 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 **Context:** github.com/ZanReed/curriculum PR #5 (open, CI green, awaiting author merge); boundary page review row 2026-10-01; scripts/batch-import.mjs `syncMisconceptionRegistry` (the pattern + its return=representation lesson); packages/grading-worker/src/promptBuilder.ts.
 
 **Effort:** S–M / S · **Priority:** P3 (model half parked until the GPU box; no urgency before it) · **Depends on:** PR #5 merged.
+
+## Graded uploads of drawn student work (curriculum wish, 2026-10-01 — "the endgame for drawn work")
+
+**What:** Students draw on paper (nets first), photograph/scan, upload; the grader interprets the drawing against a rubric and pre-fills the teacher's queue. Author-raised via the curriculum side's Y7 start table; named drivers: Phase 3's Y7 nets (S82 — currently narrowed to "identify and complete" because drawings can't be graded) and the statistics chains' "draw" items.
+
+**Why:** Unlocks item types the curriculum currently designs AROUND. Not greenfield: docs/design/photo-grading.md already rules the pattern (model pre-grades → teacher reviews → never authoritative; machine confidence never reuses student confidence), ROADMAP 2.8 covers the upload/media half, and the 0042 suggestion store + confirm flow is the live grading machinery it rides — this wish is largely the composition of three existing pieces plus vision-model evaluation.
+
+**Context:** boundary page change-log row 2026-10-01; docs/design/photo-grading.md; ROADMAP 2.8; docs/design/ai-grading-assist.md (the suggestion/confirm rails). Vision grading needs its own model validation (the E2b/golden-run discipline, visual edition) and its own compliance row (student photos may capture more than the drawing — hands, desks, names on pages).
+
+**Effort:** L / M · **Priority:** P3 (non-urgent by the wishers' own framing) · **Depends on:** Y7 figure/chart arc (nets rendering comes first), and realistically the AI-grading model half unparking (same GPU/hosted question).
