@@ -88,7 +88,13 @@ design arc at a time.
   renamed "needs strategy". Their fifth (item 17) rules the sprint: both
   groups below fluent are shown the strategy for families not met. Their
   `main` is at `83cd7ee`; the platform's follow-on rulings are CR-10 to
-  CR-15. **Design-reviewed the
+  CR-15. Their SIXTH (their `main` at `889709c`, items 18 to 21) fixes what
+  the fact-scope registry carries, lets an answer carry a leading minus and a
+  decimal point (the runner is no longer digits-only; CR-16 to CR-21), and
+  rules the probe's mix and length: equal weights, at least 5 items per
+  family, length the larger of 30 and 5 × families. ⚠ SIX probe questions are
+  OPEN with the curriculum side (B-20; P-1 to P-6 in the design doc),
+  including what the five-minute budget becomes past six families. **Design-reviewed the
   same day** (`/plan-design-review`, DR-1 to DR-24, all accepted; score 3 → 8;
   a clickable prototype is the visual reference). What it changed that a
   builder must not miss: the student link is `/facts/:CODE`, keyed by the class
