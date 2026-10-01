@@ -81,8 +81,14 @@ design arc at a time.
   per-keystroke typing baseline (the raw basis the eng review verified is
   superseded), makes the floor CALCULATED per year from a factor k they author,
   and rules the grouping accuracy first (90%, then 80%). The platform's nine
-  rulings on it are CR-1 to CR-9 in the design doc; B-17 asks them two
-  follow-ups. **Design-reviewed the
+  rulings on it are CR-1 to CR-9 in the design doc; B-17 asked them two
+  follow-ups, ANSWERED by their fourth amendment (items 15 to 16): the
+  ceiling and the 90% / 80% thresholds are curriculum graph keys, the interim
+  ceiling is 15 s on NET time (not the platform's 30 s), and "inaccurate" is
+  renamed "needs strategy". Their fifth (item 17) rules the sprint: both
+  groups below fluent are shown the strategy for families not met. Their
+  `main` is at `83cd7ee`; the platform's follow-on rulings are CR-10 to
+  CR-15. **Design-reviewed the
   same day** (`/plan-design-review`, DR-1 to DR-24, all accepted; score 3 → 8;
   a clickable prototype is the visual reference). What it changed that a
   builder must not miss: the student link is `/facts/:CODE`, keyed by the class
@@ -90,8 +96,8 @@ design arc at a time.
   through joining to the first fact; the keys belong to a focusable answer
   region, never the document; and "probe" never renders (students see "Quick
   number facts", teachers "Number facts snapshot"). Next for D43: the build, at
-  item 6, once the curriculum side's three artifacts exist (the fact-scope
-  registry, the per-family criteria, and k).
+  item 6, once the curriculum side's artifacts exist (the fact-scope registry,
+  the per-family criteria, k, the two thresholds and the ceiling).
 - **The curriculum side RULED its drafting order the same day** (their `main`
   at `de97186`, D38 amendment): within Y7, geometry first, starting with
   `chain.geom.triangles-polygons`; chain 2's activities wait for Y9; the Y7
