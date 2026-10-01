@@ -25,9 +25,9 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 **OWED BY 1 NOVEMBER 2026 (practice blocks, [practice-blocks.md](docs/design/practice-blocks.md)):**
 ask the school for the year-level placement, and send the counsel packet with
 the practice-data question (its E5) added. **1 December 2026** is the probe's
-dated checkpoint (TODOS → BUILD ORDER). **Owed on the Notion boundary page:**
-the pointer row for practice-blocks.md, once it is pushed (the stamp label and
-the build-order pointer were written 2026-10-02).
+dated checkpoint (TODOS → BUILD ORDER). The Notion boundary page's pointer row
+for practice-blocks.md is written (2026-10-02); its stamp is hand-kept, so
+refresh it when the doc is next edited.
 
 **Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; curriculum side
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
