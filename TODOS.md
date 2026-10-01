@@ -56,6 +56,20 @@ design arc at a time.
 - **No §17 practice bank exists** (C-7; none in their repo at `c136790`), and
   all four of D43's curriculum-side open items are at the starting line — the
   fact scope is furthest along, with one confirmed statement (S33).
+- **D43 design APPROVED 2026-10-02:**
+  [practice-blocks.md](docs/design/practice-blocks.md) — slice 1 (the
+  class-entry fact probe) designed, slice 2 (the sprint) sketched behind a
+  gate, mixed practice deferred. **1 December 2026 is a dated checkpoint**
+  (its A3/A4): if the probe's eng review has not started it moves ahead of the
+  remaining geometry tasks, and if the curriculum side's fact-scope registry or
+  criterion values do not exist the author chooses between a written interim
+  and a slip. Next for D43: `/plan-ceo-review` (scope), then `/plan-eng-review`.
+- **The curriculum side RULED its drafting order the same day** (their `main`
+  at `de97186`, D38 amendment): within Y7, geometry first, starting with
+  `chain.geom.triangles-polygons`; chain 2's activities wait for Y9; the Y7
+  stubs' graph PR must land before the first Y7 draft. The order of the
+  remaining Y7 strands is still unruled, so item 5 (charts) has no pull yet.
+  This supersedes the "UNRULED across strands" bullet above for geometry.
 - **Parked, with their existing triggers standing** (author, 2026-10-02):
   drawn-work uploads, glossary v2 asks 2–3, the AI-grading model half, and
   misconception-attachments piece 3. **Co-ownership with the Algebra I
@@ -2535,5 +2549,7 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 **Why:** D43 rules that an activity is capped and the period is no longer its unit, so roughly half of every period is unplanned until practice blocks exist. This is the curriculum's answer to the ROADMAP's own "retrieval practice and spaced practice … out of scope until Phase 4+" line — it pulls that forward.
 
 **Context (known overlaps; re-derive at kickoff, P10):** ROADMAP 2.5a/2.5b (authoring-time and runtime parametric templates — the importer has no template syntax today); the Activity Bank's existing `role: practice` label (a DIFFERENT thing — an activity role, not a practice block); per-student mastery is new student-derived personal data → `docs/compliance/data-map.md` + `retention-policy.md` ride the migration (CLAUDE.md rule); the analytics rollup/census machinery (0036) is the nearest existing per-student aggregate. Curriculum-side still open per D43: the fact scope per year, the fluency criterion for non-multiplication facts, a Y7 entry bank, and §17 banks for chains already drafted — so the BANK CONTRACT (item format) is a joint question to settle early on the boundary pages, not assume.
+
+**Design:** [practice-blocks.md](docs/design/practice-blocks.md) — APPROVED 2026-10-02 (slices 1–2; mixed practice, the diagnostic's skill half and period assembly get their own pass). The curriculum side answered the eight joint questions in their decision log (`de97186`, D43 amendment); the "still open" list in **Context** above is superseded by that entry and by the doc's Open Questions.
 
 **Effort:** XL (an arc, several slices) · **Priority:** RANKED 2026-10-02 — design pass now (BUILD ORDER item 3), builds after Y7 geometry in the order fluency + diagnostics → mixed practice (gated on two chains with ratified banks) → period assembly (item 6) · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.

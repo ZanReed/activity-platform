@@ -22,6 +22,13 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
+**OWED BY 1 NOVEMBER 2026 (practice blocks, [practice-blocks.md](docs/design/practice-blocks.md)):**
+ask the school for the year-level placement, and send the counsel packet with
+the practice-data question (its E5) added. **1 December 2026** is the probe's
+dated checkpoint (TODOS → BUILD ORDER). **Owed on the Notion boundary page**
+(Notion returned 500s on 2026-10-02): the stamp row's commit label →
+curriculum `de97186` (graph hash unchanged), and the build-order pointer row.
+
 **Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; curriculum side
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
 §4, all accepted, their disposition + N8 recorded at the end of §4; §2
@@ -204,8 +211,9 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 ## Build order — RULED by the author 2026-10-02
 
 1. **B14** capability-generator rebuild (was P3). 2. **Y7 geometry figures**
-(eng review → T1–T8). 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2;
-no D43 build before geometry ships. 4. SW stale-shell recovery, before any real
+(eng review → T1–T8). 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2
+(design APPROVED 2026-10-02; CEO + eng reviews next); no D43 build before
+geometry ships. 4. SW stale-shell recovery, before any real
 student. 5. **Y7 charts**, pulled when a statistics chain is next to be drafted.
 6. D43 builds: fluency + diagnostics → mixed practice (gated on two chains with
 ratified banks) → period assembly. **First classes: ~early Feb 2027** (author,
