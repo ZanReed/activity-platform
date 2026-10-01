@@ -56,9 +56,11 @@ design arc at a time.
 - **No §17 practice bank exists** (C-7; none in their repo at `c136790`), and
   all four of D43's curriculum-side open items are at the starting line — the
   fact scope is furthest along, with one confirmed statement (S33).
-- **Still open from the ruling:** item 8 (the parked list, and whether
-  co-ownership is wanted this term) was answered "no" and is ambiguous —
-  nothing was changed on its account; ask before acting on it.
+- **Parked, with their existing triggers standing** (author, 2026-10-02):
+  drawn-work uploads, glossary v2 asks 2–3, the AI-grading model half, and
+  misconception-attachments piece 3. **Co-ownership with the Algebra I
+  department is NOT wanted this term** — it stays a candidate arc with its own
+  design pass owed, and nothing schedules it.
 
 ## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
 
