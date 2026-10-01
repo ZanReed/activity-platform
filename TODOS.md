@@ -75,8 +75,15 @@ design arc at a time.
   auto-close is by rule with no cron job; a save after close is refused; and
   slice 1's migration re-creates `purge_soft_deleted` (the deletion claim in
   the first draft was wrong). The wrong-versus-slow grouping is NOT built until
-  the curriculum side rules its form (asked in B-16). Next for D43:
-  `/plan-design-review` before any UI.
+  the curriculum side rules its form (asked in B-16). **Design-reviewed the
+  same day** (`/plan-design-review`, DR-1 to DR-24, all accepted; score 3 → 8;
+  a clickable prototype is the visual reference). What it changed that a
+  builder must not miss: the student link is `/facts/:CODE`, keyed by the class
+  JOIN CODE (not the class id), so one link takes a student from sign-in
+  through joining to the first fact; the keys belong to a focusable answer
+  region, never the document; and "probe" never renders (students see "Quick
+  number facts", teachers "Number facts snapshot"). Next for D43: the build, at
+  item 6, once the curriculum side's three artifacts exist.
 - **The curriculum side RULED its drafting order the same day** (their `main`
   at `de97186`, D38 amendment): within Y7, geometry first, starting with
   `chain.geom.triangles-polygons`; chain 2's activities wait for Y9; the Y7
@@ -2587,3 +2594,14 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Effort:** S / S · **Priority:** P2 once triggered · **Trigger:** the first real probe closes · **Depends on:** practice-blocks slice 1 shipped.
 
+## Practice blocks: leave one student out of the class result (design review, 2026-10-02 — filed with a trigger)
+
+**What:** A per-student control on the snapshot's results that leaves a student out of the class median, with the reason kept on the row.
+
+**Why:** The clock starts when a fact is painted, before a screen reader has finished speaking it, so a student using a screen reader or switch access is measured slow by construction. Slice 1 only SAYS so on the results screen (DR-23).
+
+**Pros:** The class verdict stops carrying a reading the teacher knows is unfair. **Cons:** A new stored flag, an audit row, and one more thing the snapshot at close has to fix in place; one student rarely moves a median of thirty.
+
+**Context:** [practice-blocks.md](docs/design/practice-blocks.md) → "Design review", DR-23, and "Responsive and accessibility". Decide at pickup whether it also suits a student with a known accommodation who uses no assistive technology.
+
+**Effort:** S / S · **Priority:** P3 · **Trigger:** the first class that includes a student using a screen reader or switch access, or the first teacher who asks · **Depends on:** practice-blocks slice 1 shipped.
