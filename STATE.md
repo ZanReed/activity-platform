@@ -22,17 +22,16 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**PRACTICE BLOCKS — design COMPLETE 2026-10-02, nothing built**
+**PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
-design-reviewed, then amended for the curriculum side's D43 amendments three
-to eight; rulings ER-1–26, DR-1–24, CR-1–21; nothing open between the sides).
-**⏭ THE NEXT SESSION RECEIVES THE FACT-SCOPE REGISTRY** from the curriculum
-side. Read it from their `main`, never from a message; check it against the
-doc's "fact-scope mirror" bullet and their items 18–30; refresh both Notion
-stamps (the doc's is hand-kept); and BUILD NOTHING: the mirror pass waits at
-build-order item 6. **Owed by 1 November 2026:** the year-level placement, and
+design-reviewed, then amended for D43 items 12–33; rulings ER-1–26, DR-1–24,
+CR-1–24; nothing open between the sides, last letters C-22 / B-25). The
+machine-readable fact-scope registry is on their `main` (`da63527`, graph
+v0.16.0, revision `ac8f9fd2…`) and was re-expanded independently (1124 facts,
+13 families, probes 40/55/65/65). Both Notion stamps are current. BUILD
+NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 November 2026:** the year-level placement, and
 the counsel packet with the practice-data question (E5), which is NOT drafted
-yet (the packet stops at Q10). **1 December 2026** is the dated checkpoint.
+yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
 **Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; curriculum side
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
