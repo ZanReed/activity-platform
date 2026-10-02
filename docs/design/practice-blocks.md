@@ -2302,7 +2302,8 @@ approved and stored as structured fields with no markup: `intro` (or null),
 `lines` of `{ label, text }` (one line with an empty label for a paragraph
 family) and `example` (or null). The platform lays it out; that layout is
 the slice 2 pass's "what a strategy looks like on screen", which now designs
-against this shape. Their revision 4 also passed the word-for-word quote
+against this shape. Accepted by the author 2026-10-03 and sent as B-24: a
+change of shape, a new field or any markup goes to them as a question first. Their revision 4 also passed the word-for-word quote
 check (lines cited by phase, year and strand, no S-numbers).
 
 ## GSTACK REVIEW REPORT
