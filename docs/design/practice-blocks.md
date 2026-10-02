@@ -1840,7 +1840,7 @@ order allows it (after B14 and the Y7 geometry figures, subject to A3).
   - Surfaced by: ER-16, ER-17, ER-18
   - Files: `docs/compliance/data-map.md`, `docs/compliance/retention-policy.md`
   - Verify: `data-map-coverage.test.mjs`
-- [ ] **T4 (P1, human: ~1 day / CC: ~30 min)** — importer — the fact-scope mirror pass (BLOCKED on the registry)
+- [ ] **T4 (P1, human: ~1 day / CC: ~30 min)** — importer — the fact-scope mirror pass (registry LANDED 2026-10-03 at their `da63527`, revision `ac8f9fd2…`; waits only on its build-order slot)
   - Surfaced by: ER-13
   - Files: `scripts/batch-import.mjs`
   - Verify: a dry run prints the revision and the fact count; a second run of one revision changes nothing
@@ -2305,6 +2305,33 @@ the slice 2 pass's "what a strategy looks like on screen", which now designs
 against this shape. Accepted by the author 2026-10-03 and sent as B-24: a
 change of shape, a new field or any markup goes to them as a question first. Their revision 4 also passed the word-for-word quote
 check (lines cited by phase, year and strand, no S-numbers).
+
+### The machine-readable registry (their PR #21, graph v0.16.0)
+
+Read from their `main` at `da63527`, not from C-22. `fact-scope-registry.json`
+at their repo root is GENERATED from the graph's new `fact_scope` and
+`activity_defaults.fact_probe`, and a seventh CI step regenerates it and fails
+on any diff. Shape: `{ header: { generated_from, revision, revision_rule,
+note }, body: { fact_probe, families, year_scope, fraction_names } }`. The
+revision is the sha256 of the canonical body (sorted keys, no whitespace,
+UTF-8), header excluded. Retired ids go in their append-only
+`fact-ids-retired.txt` (empty today), and their generator fails if one
+reappears.
+
+Checked independently on the platform side, 2026-10-03: the file hash and
+the revision re-derived; every family re-expanded by a script written from
+this document's rules and driven by `operation` (a fixed vocabulary of ten:
+multiply, divide, add, subtract, square, cube, square_root, cube_root,
+fraction_to_decimal, fraction_to_percent; the `shown` and `answer` strings are
+for humans and the expander does not read them), giving 66, 121, 11, 5, 11,
+11, 11, 5, 155, 345, 126, 243 and 14 facts (1124), each equal to its
+`fact_count` (CR-23); probes 40, 55, 65 and 65; every answer fits CR-17;
+every denominator is in `fraction_names` (CR-22); the 14 listed ids are
+unique (CR-24); the only placeholders are `{a}`, `{b}` and
+`{b-fraction-name}`. Three generate shapes exist and the expander needs all
+three: `x` alone, `x` and `y` ranges with `exclude`, and an explicit `pairs`
+list (the two fraction families). Year 10's `description` is null, so the
+picker composes its line (it adds nothing). This is the artifact T4 mirrors.
 
 ## GSTACK REVIEW REPORT
 
