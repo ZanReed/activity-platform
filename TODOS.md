@@ -282,6 +282,38 @@ the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).
 
+## Side-by-side figures for "which one?" items (curriculum C-35 wish, 2026-10-03)
+
+**TRIGGER: `chain.geom.transformations` is next to be drafted.** That is the
+event that makes this next; until then it does not enter BUILD ORDER. The
+design pass may run early (it is a joint contract: the authoring grammar).
+
+**What:** 2–4 small figures labelled A–D side by side, then a plain ```mc.
+Their case: "which shows a reflection in the line?", where each choice is a
+before/after pair. Four pairs on one grid crowd it, and the distractors'
+spacing leaks the answer, which is where the reflect-vs-rotate
+misconception lives. A milder case: area-volume same-perimeter pairs. No Y7
+stub needs per-choice figures inside the mc itself (C-35).
+
+**Re-derived 2026-10-03:**
+- ```columns parses each `---` segment line by line (`parseBodyLines`); a
+  ```figure fence cannot nest inside it (the inner ``` closes the outer). So
+  the import grammar has no route today.
+- Everything downstream is ready: Column.blocks is the full Block union, the
+  viewer renders graph_figure in a column, each figure has its own `alt:` and
+  "Not to scale" caption, and sizing (N6) shrinks it to the column.
+- THE REAL COST IS LEGIBILITY. At quarter width (~160 px) the 400-unit viewBox
+  scales to ~0.4: plane-on tick labels (11 units) come out ~4–5 px, figure
+  labels (16) ~6 px. Small `plane: on` transformation pairs need a
+  small-figure label scale (or no tick labels), not just a grammar route.
+- Charts (D7) would ride the same route once the chart block exists.
+
+**Design questions for the pass:** the syntax (a `figure:` segment marker
+inside ```columns reusing figureFence.ts, versus a ```figures fence with
+`---` dividers); the label scale at narrow widths; whether choice letters
+are authored or derived; print at 2–4 per row. Accepted cost (theirs):
+choice order can't shuffle when letters are fixed to columns.
+
 ## CURRICULUM-ARCHITECTURE ALIGNMENT — four gaps found 2026-08-25
 
 **Source:** the author's `curriculum-architecture.md` (lives in the AUTHORING
