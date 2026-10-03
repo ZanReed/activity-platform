@@ -2476,6 +2476,9 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 6. Retire the old `~/Project folder/curriculum/generate-capabilities.mjs`, leaving a pointer.
 7. Order: their answers → our facts script + committed file + drift test + one mutation (stale file goes red) → pre-merge notice with the values → their PR (checker + flips + prose) → stamps.
 
+**C-30 (2026-10-03) accepted all four, with changes:** their CI gates against a PINNED copy of our `docs/capability-facts.json` (our commit + sha256 beside it), never our live `main`; a SCHEDULED workflow there reports drift; a pin bump that changes a derived field gets a pre-merge notice, and we may open pin-bump PRs. `per_cell` is a new score_shape (8 values); `table` is a new capability. Rulings to be recorded in their decision log (asked in B-31).
+**OUR SIDE BUILT 2026-10-03:** `packages/app/src/lib/capabilityFacts.ts` (join + derivation + problems), `pnpm facts:capabilities` → `docs/capability-facts.json`, `capabilityFacts.test.ts` (11 tests; three mutations each went red once: stale file, dropped `table`, a family the schema lacks). The file agrees with their graph on all 18 already-shipped entries; it differs only in the four flips + `table`. **Next:** push → pre-merge notice (B-32) with the values → their PR (Python checker, pinned copy, scheduled drift workflow, flips, `table`, `per_cell`, their prose) → stamps → promote the pin-bump duty to CLAUDE.md once the checker is live.
+
 ## AI grading: suggestion-quality panel in ActivityAnalytics (E3, deferred from the ai-grading-assist review)
 
 **What:** Surface per-rev suggestion quality (confirmed-unchanged / edited / rejected rates, abstain rate, misconception precision once measured) as a panel in the existing ActivityAnalytics route.
