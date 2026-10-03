@@ -9,13 +9,13 @@ D-rulings carry amendments, not reversals: D7's mechanism is stated (N5)
 and D11 is split for charts (N3). ✅ **Curriculum side CONFIRMED the
 authoring model** (their boundary page, 2026-09-30: five yes/no's all yes,
 author-ruled) — disposition and the one ruling it produced (**N8**, the
-automatic "Not to scale" caption) are at the end of §4. ⏳ **ENG-REVIEWED
+automatic "Not to scale" caption) are at the end of §4. ✅ **ENG-REVIEWED
 2026-10-03** (`/plan-eng-review`, geometry slice T1–T8 only): §8 holds
-fifteen rulings **ER-1 to ER-15, PROPOSED and awaiting the author's yes/no**,
-plus six factual corrections to §2, §5 and §7. No D-, Q- or N-ruling is
+fifteen rulings **ER-1 to ER-15, all APPROVED by the author 2026-10-03
+("yes to all")**, plus six factual corrections to §2, §5 and §7. No D-, Q- or N-ruling is
 reopened; three have their MECHANISM corrected because the code contradicts
 it (Q3's "serialize untouched", Q5's ink colour, N8's figcaption markup).
-Nothing here is built.
+Geometry slice building from 2026-10-03.
 
 **Why now.** Y7 is the first part of the curriculum builder's order (D38
 bottom-up), and the curriculum's Y7 stubs (`proposals/y7-chain-stubs.md`, open
@@ -498,9 +498,9 @@ render.
 ## 8. Eng review (/plan-eng-review, 2026-10-03)
 
 Target: this document, §4–§5 and tasks T1–T8 (the geometry slice). Charts
-(T9–T13) were not reviewed. Review only; nothing is built. **ER-1 to ER-15
-are PROPOSED. Each waits for the author's yes/no**; a "no" reverts that
-row's lines in the task list below.
+(T9–T13) were not reviewed. **ER-1 to ER-15 are APPROVED** — the author's
+build brief of 2026-10-03: "My rulings on ER-1 to ER-15: yes to all". No row
+was answered "no", so the task list below stands as written.
 
 **What was read (at `main` @ 5c7d8bf).** `graph-primitives.ts`,
 `blocks/graph-figure.ts`, `sizing.ts`; `static-svg/graph-svg.ts` whole;
@@ -546,9 +546,9 @@ already exists); the polygon read-only row in `drawableText.ts:47-49`; the
 `figure/standalone-capped` print row; the `FENCES` registry guard and the
 capability-facts drift test.
 
-### Decision ledger (State: PROPOSED, awaiting the author)
+### Decision ledger (State: APPROVED by the author 2026-10-03, "yes to all")
 
-| ID | Proposed ruling | Finding it closes |
+| ID | Ruling (approved 2026-10-03) | Finding it closes |
 |---|---|---|
 | ER-1 | **Block fields ride the editor node and the serializer.** `alt`, `plane`, `toScale`, `width`, `align` are added to the Tiptap `graphFigure` attrs (`GraphFigure.ts:48-79`) and to BOTH `serialize.ts` directions (`:1169-1180`, `:1575-1583`). Guard: a serialize round-trip test over a block carrying all five, plus Q9's rendered-output guards. | [P1] (10/10) Without this no figure ever has `alt` or `plane`, file-backed or not: the importer emits Tiptap JSON and the pipeline converts it through this function. Opening any activity in the editor and saving would also strip them. |
 | ER-2 | **`plane` lives on `GraphFigureBlock`, not `AxisConfig`.** `plane: z.boolean().default(true)`; the ```figure fence writes `false` unless `plane: on`. `renderGraphSvg` takes it as an option. D3's "an `AxisConfig` switch" is amended in mechanism only. | [P1] (9/10) `AxisConfig` (`graph-primitives.ts:32-43`) is shared by `interactive_graph`, choice figures and the JSXGraph board. A switch there is an orphan on every surface but one. T1 already wrote `GraphFigureBlock.plane`; this makes D3 agree. |
@@ -566,7 +566,7 @@ capability-facts drift test.
 | ER-14 | **B14: yes, this slice changes `docs/capability-facts.json`.** A `figure` entry in `FENCES` turns `capabilityFacts.test.ts` red until `JOIN` gains `figure: { fence: 'figure', probe: { type: 'graph_figure' }, scoring: 'none' }`. That lands in T4's commit with `pnpm facts:capabilities`. New task **T8b**: after the author pushes and deploys, open the pin-bump PR on `ZanReed/curriculum` with a pre-merge notice (letter B-34) proposing the id `figure`; they write its prose. The `show:` annotation grammar on ```graph changes no derived field, so T3 and T5 trigger nothing. | [P1] (9/10) The curriculum graph (v0.17.2, 23 capabilities) has no figure entry, and their §9 lets them draft only with shipped capabilities, so figures are not authorable until the pin bump merges. |
 | ER-15 | **No commit leaves a field unread.** T1, T2 and T6 land as ONE commit (schema, engine, viewer, serializer, guards). Execution order: T1+T2+T6, T4, T3, T5, T7, T8, T8b. The pin bump may go as soon as T4 is live; it does not wait for T7. | [P2] (8/10) Close-out question 1 and P1: a schema commit on its own is an orphan interval, and the curriculum side is drafting triangles-polygons now, which needs marks plus the fence and nothing else. |
 
-Approval readiness: NOT YET. Fifteen rows await the author's answer.
+Approval readiness: PASS. All fifteen rows approved (author, 2026-10-03, "yes to all").
 
 ### Section findings
 
@@ -668,7 +668,7 @@ taken; that is missing coverage, not a clean pass.
 - What already exists: written (§7 plus Step 0 above)
 - TODOS.md updates: 0 items proposed (the status line for this arc was refreshed)
 - Failure modes: 0 critical gaps flagged
-- Unresolved decisions: 15 in this review (ER-1 to ER-15, awaiting the author)
+- Unresolved decisions: 0 (ER-1 to ER-15 approved by the author 2026-10-03)
 - Outside voice: codex, unavailable (not installed; native fallback unavailable)
 - Parallelization: 1 lane, 0 parallel / 1 sequential
 - Lake Score: N/A (no coverage choice has been answered yet)
@@ -676,7 +676,7 @@ taken; that is missing coverage, not a clean pass.
 ## Implementation Tasks
 Synthesized from the design review and the eng review (§8). Each task
 derives from a specific finding. **The geometry list below is the eng
-review's PROPOSED list**: lines tagged ER-n depend on that ruling's yes.
+review's list, APPROVED 2026-10-03** (ER-1 to ER-15, "yes to all"; no line reverted).
 Run with Claude Code or Codex; checkbox as you ship.
 
 **Geometry slice (D12 first). Execution order (ER-15): T1+T2+T6 as one
@@ -736,7 +736,7 @@ _No new tasks from Pass 4 (AI slop)._
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run (scope ruled by the author, D1–D12) |
 | Outside Review | codex (not installed); native Claude subagent | Independent 2nd opinion | 2 | design phase 2026-09-30: unavailable (outside) / completed (native, single-model). Eng phase 2026-10-03: unavailable, no reviewer ran | design: 6 findings, all folded into Q1–Q10, N2–N4. eng: none taken |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | ISSUES OPEN (15 rulings await the author) | 38 issues (15 findings proposed as ER-1 to ER-15, 23 test gaps on unbuilt code; plus 6 corrections of fact), 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (ER-1 to ER-15 approved by the author 2026-10-03) | 38 issues (15 findings ruled as ER-1 to ER-15, 23 test gaps on unbuilt code; plus 6 corrections of fact), 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 5/10 → 9/10, 17 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | not run |
 
@@ -744,21 +744,6 @@ Design pass scores (2026-09-30, before → after): Info Arch 5 → 9 · States 3
 
 **OUTSIDE COVERAGE:** provider codex, not installed on this host. Design phase: native Claude subagent completed (single-model), six findings folded into the rulings. Eng phase (plan-review): unavailable, the native fallback could not run in this session, so no second opinion was taken. Missing outside coverage is recorded, not inferred clean.
 
-**VERDICT:** DESIGN CLEARED (9/10). ENG REVIEW RUN 2026-10-03, NOT YET CLEARED: eng review required to close, which needs the author's yes/no on ER-1 to ER-15 (§8). Build nothing until then.
+**VERDICT:** DESIGN CLEARED (9/10). ENG CLEARED 2026-10-03: ER-1 to ER-15 approved by the author ("yes to all"). The geometry slice T1–T8 + T8b is cleared to build.
 
-**UNRESOLVED DECISIONS:**
-- ER-1: block fields through the editor node and both serializer directions
-- ER-2: `plane` on `GraphFigureBlock`, not `AxisConfig`
-- ER-3: auto-fit at import through `fitFigureWindow`
-- ER-4: one shared mark-geometry module for both renderers
-- ER-5: board proof by e2e row plus a kind-roster scan
-- ER-6: both server bundles in T1; both functions deployed before the first import
-- ER-7: INK labels by inline style
-- ER-8: wrapper markup so the figcaption is real and reachable
-- ER-9: budget plan and stop lines (CSS 15.0, JS 156.5)
-- ER-10: generated source text for the editor popover
-- ER-11: `parseFigureLine` on the figure fence and `show:` only
-- ER-12: the two failure rules
-- ER-13: figure problems fail `--strict` through a typed channel
-- ER-14: the `figure` capability, facts regeneration, and T8b the pin bump
-- ER-15: T1+T2+T6 as one commit; execution order
+NO UNRESOLVED DECISIONS

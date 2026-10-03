@@ -22,7 +22,7 @@ the queue. An entry's own Priority line below does not outrank it.**
    the registry says, so the first chain needing one of the four would be
    forced into a fallback it does not need. The curriculum side will not
    hand-edit the statuses (regeneration is platform-owned).
-2. **Y7 geometry figures** — `/plan-eng-review`, then T1–T8.
+2. **Y7 geometry figures** — eng-cleared 2026-10-03; BUILDING T1–T8 + T8b.
 3. **D43 practice blocks — DESIGN PASS ONLY**, alongside 1–2. No D43 build
    before geometry ships.
 4. **Service worker stale-shell recovery** (entry below, P2) — before any real
@@ -274,9 +274,9 @@ kind, the editor cannot insert a body figure, shell headroom 5.5 KiB not
 15). ✅ **Curriculum side CONFIRMED the authoring model 2026-09-30** (all
 five yes; N8 "Not to scale" auto-caption ruled on their question; build
 order triangles-polygons first). **ENG-REVIEWED 2026-10-03** (doc §8): ER-1 to
-ER-15 proposed and awaiting the author's yes/no; this slice DOES change
+ER-15 APPROVED by the author the same day ("yes to all"); this slice DOES change
 `docs/capability-facts.json` (a `figure` capability), so the task list gained
-T8b, the pin-bump PR. **Next: the author's rulings, then** the geometry slice
+T8b, the pin-bump PR. **Now BUILDING** the geometry slice
 T1–T8 + T8b in the doc's task list;
 the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted. Y7 is the first part of the builder's order, so this
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
