@@ -1297,9 +1297,12 @@ the app may contain them and they are inert there.
 | `skill` | The **one** primary skill this activity targets, e.g. `rate.unit-rate`. Validated against `--skills-registry`. Exactly one — a comma here warns and is ignored, because "targets exactly one primary skill" is the rule this key exists to make checkable. Required under `--strict`. |
 | `supporting_skills` | Other skills the activity touches, comma-separated. Same validation. **Spelled in full rather than `skills`** deliberately: `skill` and `skills` differ by one character and mean different things, and the plural is the likelier typo — it would leave the activity with no primary skill at all. A file that says `skills:` gets a warning naming both keys. |
 
-**`unit` usually comes from the chain, not from the file.** A catalogue with a
-`chain-registry.txt` in its root maps each chain folder to the unit title, so
-renaming a chain is one line rather than an edit to every activity in it. A file
+**`unit` usually comes from the chain, not from the file.** A chain registry
+maps each chain folder to the unit title, so renaming a chain is one line rather
+than an edit to every activity in it. The run reads it from
+`--chain-registry <file>`, or without that flag from `chain-registry.txt` in the
+catalogue root. With the flag, a copy left in the root is **not** read, and the
+run prints a line saying so. A file
 may still state its own `unit:` and it wins — and the run reports that as an
 override, but only where it **differs** from the chain's registered title.
 

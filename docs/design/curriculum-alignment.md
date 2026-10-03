@@ -127,6 +127,9 @@ title. The original objection (a chain descriptor could import as a
 student-reachable worksheet) does not survive: `findMarkdownFiles` collects
 `.md` only, which `misconception-registry.txt` already demonstrates.
 **Precedence: a file's own `unit:` > the registry title > unset.**
+*(Amended 2026-10-04, B-42 / C-40: `--chain-registry <file>` reads the registry
+from anywhere, so a run can point at the curriculum repo's own file. The root
+lookup is the default when the flag is absent.)*
 
 **R9 — the `x_` reserved namespace is skipped silently**, so the builder's
 item-level data lives in the activity file rather than a parallel document that

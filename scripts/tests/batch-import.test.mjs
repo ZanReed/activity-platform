@@ -68,6 +68,7 @@ import {
     nearDuplicateIds,
     parseArgs,
     parseChainRegistry,
+    readChainRegistry,
     parseNumericValue,
     parseSkillRegistry,
     parseRegistry,
@@ -1587,6 +1588,7 @@ test('§I --strict and --registry parse, in either form', () => {
             strict: true,
             registry: 'tax.txt',
             skillsRegistry: null,
+            chainRegistry: null,
             glossary: null,
             allowMassRetire: false,
         },
@@ -2110,6 +2112,84 @@ test('§L --glossary and --allow-mass-retire parse, in either form', () => {
     assert.equal(parseArgs(['~/cat']).glossary, null);
     assert.equal(parseArgs(['~/cat', '--allow-mass-retire']).allowMassRetire, true);
     assert.equal(parseArgs(['~/cat']).allowMassRetire, false);
+});
+
+// ---- --chain-registry (B-42 / C-40) -----------------------------------------
+
+test('--chain-registry parses, in either form', () => {
+    assert.equal(parseArgs(['~/cat', '--chain-registry', 'c.txt']).chainRegistry, 'c.txt');
+    assert.equal(parseArgs(['~/cat', '--chain-registry=c.txt']).chainRegistry, 'c.txt');
+    assert.equal(parseArgs(['~/cat']).chainRegistry, null);
+});
+
+test('readChainRegistry: the flag wins over the root copy, and names the copy it skipped', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'chain-registry-'));
+    const elsewhere = await mkdtemp(join(tmpdir(), 'chain-registry-src-'));
+    try {
+        // No flag, no root file: legal, and distinguishable from a bad flag.
+        const none = await readChainRegistry(root, null);
+        assert.equal(none.source, 'none');
+        assert.equal(none.text, null);
+
+        await writeFile(join(root, 'chain-registry.txt'), '801-chain.a = From the root\n');
+        const fromRoot = await readChainRegistry(root, null);
+        assert.equal(fromRoot.source, 'root');
+        assert.equal(parseChainRegistry(fromRoot.text).titles.get('801-chain.a'), 'From the root');
+        assert.equal(fromRoot.shadowed, null);
+
+        const flagFile = join(elsewhere, 'chains.txt');
+        await writeFile(flagFile, '801-chain.a = From the flag\n');
+        const fromFlag = await readChainRegistry(root, flagFile);
+        assert.equal(fromFlag.source, 'flag');
+        assert.equal(parseChainRegistry(fromFlag.text).titles.get('801-chain.a'), 'From the flag');
+        assert.equal(fromFlag.shadowed, join(root, 'chain-registry.txt'));
+        assert.equal(fromFlag.label, flagFile);
+
+        // Pointing the flag AT the root copy shadows nothing.
+        const same = await readChainRegistry(root, join(root, 'chain-registry.txt'));
+        assert.equal(same.shadowed, null);
+
+        // A flag that cannot be read must NOT fall back to the root copy: that
+        // would turn a typo into a silent read of the file being retired.
+        const typo = await readChainRegistry(root, join(elsewhere, 'nope.txt'));
+        assert.equal(typo.source, 'flag');
+        assert.equal(typo.text, null);
+    } finally {
+        await rm(root, { recursive: true, force: true });
+        await rm(elsewhere, { recursive: true, force: true });
+    }
+});
+
+test('--chain-registry: an unreadable or empty file refuses the run before it starts', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'chain-registry-cli-'));
+    try {
+        const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'batch-import.mjs');
+        const run = (flagPath) =>
+            spawnSync(
+                process.execPath,
+                [script, dir, '--owner', 'a@b.c', '--dry-run', '--chain-registry', flagPath],
+                {
+                    encoding: 'utf8',
+                    // The refusal comes BEFORE any database call, so the pair
+                    // only has to be present; nothing listens on this address.
+                    env: {
+                        ...process.env,
+                        SUPABASE_URL: 'http://127.0.0.1:9',
+                        SUPABASE_SERVICE_ROLE_KEY: 'unused',
+                    },
+                },
+            );
+        const missing = run(join(dir, 'nope.txt'));
+        assert.equal(missing.status, 2);
+        assert.match(missing.stderr, /--chain-registry .*nope\.txt could not be read/);
+
+        await writeFile(join(dir, 'empty.txt'), '# only a comment\n');
+        const empty = run(join(dir, 'empty.txt'));
+        assert.equal(empty.status, 2);
+        assert.match(empty.stderr, /lists no chains/);
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
 });
 
 test('§L every flag parseArgs accepts is documented in usage() (W-11)', () => {

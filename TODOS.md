@@ -282,9 +282,11 @@ the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).
 
-## `--chain-registry <path>` for the batch importer (agreed with the curriculum side, B-42 / C-40, 2026-10-04)
+## ✅ BUILT 2026-10-04 — `--chain-registry <path>` for the batch importer (agreed with the curriculum side, B-42 / C-40)
 
-**TRIGGER: the curriculum side's chain-registry rows PR** (rows for the Y7 chains, after the author rules their teaching order). Retires the LAST hand-carried copy in the catalogue folder.
+**As built:** `readChainRegistry` in `scripts/batch-import.mjs`. The flag wins over the root copy; an unreadable or empty flag file refuses the run (exit 2) and never falls back to the root; a root copy that the flag shadows is named in the run header. Proved on the pilot folder with all three registries read from the curriculum repo (`--dry-run --strict`, exit 0, 36 chains). **Left for the author:** delete `~/activity-catalogue-pilot/chain-registry.txt` (the run names it until then).
+
+**TRIGGER (as filed): the curriculum side's chain-registry rows PR** (rows for the Y7 chains, after the author rules their teaching order). Retires the LAST hand-carried copy in the catalogue folder.
 
 **What:** today `batch-import.mjs` reads `chain-registry.txt` only from the catalogue ROOT (`resolve(root, 'chain-registry.txt')`, no flag), so the pilot folder holds a copy of the curriculum repo's hand-maintained file. Add `--chain-registry <path>` (default: today's root lookup) so a run reads their repo's file directly, like `--registry` / `--skills-registry` already do. Agreed in the same exchange: the pilot's skill-, misconception- and external-prereq registry copies are deleted (the author's folder, the author's act) and runs point the two flags at their main.
 

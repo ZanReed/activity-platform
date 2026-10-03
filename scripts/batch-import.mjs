@@ -464,6 +464,47 @@ export function parseChainRegistry(text) {
     return { titles, duplicates };
 }
 
+/**
+ * Where a run reads its chain registry from, and the text it found there.
+ *
+ * `--chain-registry <path>` reads the curriculum repo's own file, like
+ * `--registry` and `--skills-registry` do — it exists to retire the copy the
+ * catalogue folder had to carry (B-42 / C-40). Without the flag the catalogue
+ * ROOT is still looked in, and finding nothing there stays legal: a catalogue
+ * that does not use chains states `unit:` per file.
+ *
+ * The two sources fail differently ON PURPOSE. A missing root file is "this
+ * catalogue has no chains"; a flag that cannot be read is a typo, and returns
+ * `text: null` with `source: 'flag'` so the caller can refuse the run before
+ * it starts rather than import 150 files with no unit titles.
+ *
+ * `shadowed` is the root copy's path when the flag was given AND a root copy
+ * still exists — that copy was NOT read, and saying so is the difference
+ * between retiring a hand-carried file and silently forking it.
+ */
+export async function readChainRegistry(root, flagPath, read = (p) => readFile(p, 'utf8')) {
+    const rootPath = resolve(root, 'chain-registry.txt');
+    const rootText = await read(rootPath).catch(() => null);
+    if (flagPath) {
+        const path = resolve(flagPath);
+        const text = await read(path).catch(() => null);
+        return {
+            source: 'flag',
+            path,
+            label: flagPath,
+            text,
+            shadowed: rootText !== null && path !== rootPath ? rootPath : null,
+        };
+    }
+    return {
+        source: rootText === null ? 'none' : 'root',
+        path: rootPath,
+        label: 'chain-registry.txt',
+        text: rootText,
+        shadowed: null,
+    };
+}
+
 /** The chain folder a catalogue file belongs to: its first path segment, or
  *  null for a file sitting loose in the catalogue root. */
 export function chainFolderOf(sourcePath) {
@@ -2132,6 +2173,7 @@ export function parseArgs(argv) {
     let strict = false;
     let registry = null;
     let skillsRegistry = null;
+    let chainRegistry = null;
     let glossary = null;
     let allowMassRetire = false;
 
@@ -2155,6 +2197,9 @@ export function parseArgs(argv) {
         else if (arg === '--skills-registry') skillsRegistry = argv[++i] ?? null;
         else if (arg.startsWith('--skills-registry='))
             skillsRegistry = arg.slice('--skills-registry='.length);
+        else if (arg === '--chain-registry') chainRegistry = argv[++i] ?? null;
+        else if (arg.startsWith('--chain-registry='))
+            chainRegistry = arg.slice('--chain-registry='.length);
         else if (arg === '--glossary') glossary = argv[++i] ?? null;
         else if (arg.startsWith('--glossary=')) glossary = arg.slice('--glossary='.length);
         else if (arg === '--allow-mass-retire') allowMassRetire = true;
@@ -2170,6 +2215,7 @@ export function parseArgs(argv) {
         strict,
         registry,
         skillsRegistry,
+        chainRegistry,
         glossary,
         allowMassRetire,
     };
@@ -2181,8 +2227,8 @@ export function usageText() {
     return `
   pnpm import:batch <folder> --owner <email|uuid> [--dry-run] [--force]
                              [--registry <file>] [--skills-registry <file>]
-                             [--glossary <file>] [--allow-mass-retire]
-                             [--strict]
+                             [--chain-registry <file>] [--glossary <file>]
+                             [--allow-mass-retire] [--strict]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
                its path RELATIVE to this folder
@@ -2197,6 +2243,11 @@ export function usageText() {
                ignored). Turns "which skills are covered" from unanswerable into
                a generated manifest, because coverage needs the ids that EXIST,
                not only the ones the catalogue happens to name
+  --chain-registry
+               the chain registry file (chain folder = unit title, one per line).
+               Without it the run reads chain-registry.txt from the catalogue
+               root, if there is one. With it, a copy left in the root is NOT
+               read, and the run says so
   --registry   a file of valid mis.* ids, one per line (# comments, blank lines
                ignored). Bindings outside it warn, by name. A folder that
                carries bindings and supplies no registry warns for that too
@@ -2324,16 +2375,28 @@ async function main() {
         if (glossaryText === null) usage(`--glossary ${path} could not be read.`);
     }
 
-    // The chain registry lives IN the catalogue beside the .md files it
-    // governs, not behind a flag: it is part of the folder's structure rather
-    // than a policy applied to it. Absent is legal — a catalogue that does not
-    // use chains states `unit:` per file, which is what the four pilot
-    // activities did before chains existed.
-    const chainRegistryPath = resolve(root, 'chain-registry.txt');
-    const chainText = await readFile(chainRegistryPath, 'utf8').catch(() => null);
+    // The chain registry: --chain-registry <file>, else chain-registry.txt in
+    // the catalogue root (readChainRegistry has the reasoning). Absent from the
+    // root is legal — a catalogue that does not use chains states `unit:` per
+    // file. A FLAG that cannot be read, or that lists nothing, is refused up
+    // front like the other registries: it would otherwise file every activity
+    // under no unit and report each chain folder as unregistered.
+    const chainSource = await readChainRegistry(root, args.chainRegistry);
+    const chainText = chainSource.text;
+    if (chainSource.source === 'flag' && chainText === null) {
+        usage(`--chain-registry ${chainSource.path} could not be read.`);
+    }
     const chains = chainText === null
         ? { titles: new Map(), duplicates: [] }
         : parseChainRegistry(chainText);
+    if (chainSource.source === 'flag' && chains.titles.size === 0) {
+        usage(
+            `--chain-registry ${chainSource.path} lists no chains.\n\n` +
+                '  An empty chain registry would report every chain folder as unregistered\n' +
+                '  and file every activity under no unit — a mis-pointed flag, not a\n' +
+                '  catalogue with no chains.',
+        );
+    }
 
     try {
         rejectUnusableKey(key);
@@ -2368,7 +2431,12 @@ async function main() {
         `chains    : ${
             chainText === null
                 ? 'no chain-registry.txt in the catalogue root'
-                : `chain-registry.txt (${chains.titles.size} chains)`
+                : `${chainSource.label} (${chains.titles.size} chains)`
+        }${
+            chainSource.shadowed
+                ? `\n            ⚠ ${chainSource.shadowed} also exists and was NOT read — ` +
+                  'delete that copy.'
+                : ''
         }\n`,
     );
 
@@ -2726,7 +2794,7 @@ async function main() {
         for (const folder of [...foldersSeen].sort()) {
             if (!chains.titles.has(folder)) {
                 catalogueWarnings.push(
-                    `chain folder “${folder}” has no entry in chain-registry.txt, so every ` +
+                    `chain folder “${folder}” has no entry in ${chainSource.label}, so every ` +
                         'activity in it will be filed under whatever unit each file states, ' +
                         'or under none.',
                 );
@@ -2734,14 +2802,14 @@ async function main() {
         }
         for (const folders of duplicateChainTitles(chains.titles)) {
             catalogueWarnings.push(
-                `chain-registry.txt gives the same title to ${folders.join(' and ')} — the ` +
+                `${chainSource.label} gives the same title to ${folders.join(' and ')} — the ` +
                     'activities list groups by the unit STRING, so those chains would merge ' +
                     'into one outline group with nothing to show they were ever separate.',
             );
         }
         for (const folder of chains.duplicates) {
             catalogueWarnings.push(
-                `chain-registry.txt lists “${folder}” more than once; the last line won.`,
+                `${chainSource.label} lists “${folder}” more than once; the last line won.`,
             );
         }
     }
