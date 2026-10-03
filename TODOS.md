@@ -387,7 +387,7 @@ is a lookup rather than semantic overlap detection. The analysis below stands.
 Of the document's 13 checkable rules, this repo can own about four: the `mis.*`
 registry check, the id-shape warning, `--strict`, and partially
 distractor-on-a-non-auto-scored-type. The rest — faded beat (hard error), DoL
-shape, hook count ≥ `ceil(activities/2)`, the approval gate, review reach,
+shape, the chain hook count (their `hook_contract`; never restated here), the approval gate, review reach,
 `planting_for` — need **chain, skill, DoL and status concepts the platform
 schema does not have**. Verified 2026-08-25: no chain, no DoL, no locale, no
 hook concept exists (the greps that hit were React hooks and print locale).
