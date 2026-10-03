@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MARK,
+  angleLabelRadius,
   angleMark,
   chevrons,
   markContext,
@@ -114,6 +115,30 @@ describe('angle marks (Q1)', () => {
     const t = out.find((m) => m.t === 'text') as MarkText;
     expect(dist([t.x, t.y], [100, 300])).toBeCloseTo(MARK.angleLabelRadius, 6);
     expect(t.x - 100).toBeCloseTo(300 - t.y, 6); // on the 45° bisector
+  });
+
+  it('a NARROW angle pushes its label farther out until it clears both arms (author, 2026-10-03)', () => {
+    // An 18° angle at the origin, opening rightwards: arms along 0° and 18°.
+    const at: Pt = [100, 300];
+    const deg = (d: number): Pt => [100 + 200 * Math.cos((-d * Math.PI) / 180), 300 + 200 * Math.sin((-d * Math.PI) / 180)];
+    const t = angleMark(at, deg(0), deg(18), { label: '18°' }).find((m) => m.t === 'text') as MarkText;
+    const r = dist([t.x, t.y], at);
+    expect(r).toBeGreaterThan(MARK.angleLabelRadius);
+    // Distance from the label centre to each arm ≥ the label's half-diagonal.
+    const toArm = (d: number) => {
+      const ux = Math.cos((-d * Math.PI) / 180);
+      const uy = Math.sin((-d * Math.PI) / 180);
+      return Math.abs((t.x - at[0]) * uy - (t.y - at[1]) * ux);
+    };
+    const halfDiag = Math.hypot((3 * 16 * 0.55) / 2, (16 * 0.7) / 2);
+    expect(toArm(0)).toBeGreaterThanOrEqual(halfDiag);
+    expect(toArm(18)).toBeGreaterThanOrEqual(halfDiag);
+  });
+
+  it('a WIDE angle keeps the label at exactly 40, and a sliver is capped', () => {
+    expect(angleLabelRadius('68°', (90 * Math.PI) / 180)).toBe(MARK.angleLabelRadius);
+    expect(angleLabelRadius('68°', (70 * Math.PI) / 180)).toBe(MARK.angleLabelRadius);
+    expect(angleLabelRadius('5°', (2 * Math.PI) / 180)).toBe(MARK.angleLabelMaxRadius);
   });
 
   it('refuses degenerate angles: coincident points, 0° and 180°', () => {

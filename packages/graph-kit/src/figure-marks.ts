@@ -45,6 +45,11 @@ export const MARK = {
   secondArcRadius: 27,
   rightSquare: 14,
   angleLabelRadius: 40,
+  // Narrow angles (author ruling 2026-10-03, amending Q1): the label moves
+  // farther out along the bisector until its box clears both arms by this
+  // gap, never past the cap. 40 stays the minimum, so wide angles are unchanged.
+  angleLabelClearance: 4,
+  angleLabelMaxRadius: 120,
   tickLength: 12,
   tickSpacing: 5,
   chevron: 10,
@@ -310,15 +315,30 @@ export function angleMark(
   }
   if (opts.label) {
     const mid = a1 + delta / 2;
+    const r = angleLabelRadius(opts.label, Math.abs(delta)) * unit;
     out.push({
       t: 'text',
-      x: at[0] + Math.cos(mid) * MARK.angleLabelRadius * unit,
-      y: at[1] + Math.sin(mid) * MARK.angleLabelRadius * unit,
+      x: at[0] + Math.cos(mid) * r,
+      y: at[1] + Math.sin(mid) * r,
       text: opts.label,
       role: 'label',
     });
   }
   return out;
+}
+
+/**
+ * How far along the bisector an angle's label sits (viewBox units, before
+ * `unit`). At radius r the label's centre is r·sin(θ/2) from each arm; the
+ * label clears the arm when that distance exceeds the radius of its bounding
+ * box plus a gap. Q1's 40 is the floor; the cap keeps a sliver of an angle
+ * from throwing its label off the figure (the `text` line is the escape hatch).
+ */
+export function angleLabelRadius(label: string, sweep: number): number {
+  const half = Math.min(Math.abs(sweep), Math.PI) / 2;
+  const [hw, hh] = halfExtents(label, MARK.labelSize);
+  const need = (Math.hypot(hw, hh) + MARK.angleLabelClearance) / Math.max(Math.sin(half), 1e-6);
+  return Math.min(MARK.angleLabelMaxRadius, Math.max(MARK.angleLabelRadius, need));
 }
 
 /**

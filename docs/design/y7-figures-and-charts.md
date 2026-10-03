@@ -201,7 +201,7 @@ belongs to no polygon — **plus 8 more when the same edge carries ticks or
 chevrons** (the prototype showed "6 cm" sitting on its own tick marks).
 Vertex letters: **18** along the exterior-angle bisector (lone points: away
 from the centroid). Angle arc radius **22**, second arc **27**, right-angle
-square side **14**; the angle label sits on the interior bisector at **40**.
+square side **14**; the angle label sits on the interior bisector at **40**, *(amended 2026-10-03, author: in a NARROW angle the label moves farther out along the bisector until its box clears both arms by 4, capped at 120; 40 stays the minimum, so wide angles are unchanged. Found on the curriculum's activity 01, where `18°` sat on its own edge.)*
 Equal-length ticks: **12** long, **5** apart, at the edge midpoint.
 Parallel chevrons: **10**, at t = 0.5 of the edge, or t = 0.7 when ticks
 share it. No collision solver in slice 1 — the escape hatch is the free
