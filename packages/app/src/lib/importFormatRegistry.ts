@@ -91,6 +91,15 @@ export const FENCES: FenceSpec[] = [
         options: [],
     },
     {
+        // Y7 charts (docs/design/y7-figures-and-charts.md, T12): a static
+        // statistics chart of category data. Display only.
+        tag: 'chart',
+        blockType: 'chart',
+        summary: 'a statistics chart of category data (bar, stacked or clustered bars, time-series line) — display only',
+        example: 'title: Books borrowed\ncategories: Mon, Tue, Wed\nseries: 12, 7, 15',
+        options: [],
+    },
+    {
         tag: 'numberline',
         blockType: 'numberLine',
         summary: 'a 1-D number-line question (plot points or graph an inequality)',

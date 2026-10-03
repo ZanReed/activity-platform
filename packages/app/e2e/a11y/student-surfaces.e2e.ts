@@ -47,6 +47,9 @@ const LAZY_MOUNT_MARKERS: Record<string, string> = {
   data_plot: '[data-graph-canvas] svg',
   // A gap-bearing equation swaps the static KaTeX render for a MathLive field.
   math_block: 'math-field',
+  // The chart draws a static SVG once its chunk is in; `svg.chart-paper` is
+  // the engine's own root, so a Suspense fallback cannot satisfy it.
+  chart: '[data-block-type="chart"] svg.chart-paper',
 };
 
 /** The registry's lazy tier, derived — never retyped (P2). */

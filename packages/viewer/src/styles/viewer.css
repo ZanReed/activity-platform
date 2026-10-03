@@ -1940,6 +1940,7 @@
      renderer's baseline rule omitted them, which let a numbered equation, a
      chart, or a prompt separated from its writing box split across a page
      (ruling S5-OV6 + the author's extension to short_answer/essay). */
+  [data-block-type='chart'],
   [data-block-type='data_plot'],
   [data-block-type='essay'],
   [data-block-type='faded_worked_example'],

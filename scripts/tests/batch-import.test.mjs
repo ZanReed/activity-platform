@@ -212,14 +212,60 @@ test('§A2 a ```figure imports as a plane-less graph_figure with its marks, alt 
 test('§A2 a figure with no alt: SKIPS the file in a plain (non-strict) run', () => {
     assert.throws(
         () => convertOne(pipeline, FIGURE_MD(TRIANGLE.slice(1)), null, 'geom/triangles.md'),
-        /figure problem[\s\S]*alt:/,
+        /figure or chart problem[\s\S]*alt:/,
     );
 });
 
 test('§A2 a mark that names an unknown point SKIPS the file — a dropped mark is a wrong question', () => {
     assert.throws(
         () => convertOne(pipeline, FIGURE_MD([...TRIANGLE, 'ticks AX 1']), null, 'geom/triangles.md'),
-        /figure problem[\s\S]*"ticks AX 1"/,
+        /figure or chart problem[\s\S]*"ticks AX 1"/,
+    );
+});
+
+// ---- ```chart (Y7 charts, T12) through the node bundle ---------------------
+// The chart fence parser reaches @activity/schema's zod-free chart-limits and
+// nothing from graph-kit, so this is also the run that would die if it ever
+// reached the barrel.
+
+const CHART_MD = (body) =>
+    ['```meta', 'title: Travel', 'course: Year 7', '```', '', 'Read the chart.', '', '```chart', ...body, '```'].join('\n');
+const CHART = [
+    'type: clustered',
+    'title: How we get to school',
+    'categories: Mon, Tue, Wed',
+    'series: Walk = 12, 7, 15',
+    'series: Bus = 4, 6, 3',
+];
+
+test('§A3 a ```chart imports as a chart block with its series, and the document is schema-valid', () => {
+    const out = convertOne(pipeline, CHART_MD(CHART), null, 'stats/travel.md');
+    const chart = out.document.sections
+        .flatMap((s) => s.rows)
+        .flatMap((r) => r.columns)
+        .flatMap((c) => c.blocks)
+        .find((b) => b.type === 'chart');
+    assert.ok(chart, 'no chart block reached the document');
+    assert.equal(chart.chart, 'clustered');
+    assert.deepEqual(chart.categories, ['Mon', 'Tue', 'Wed']);
+    assert.deepEqual(chart.series, [
+        { name: 'Walk', values: [12, 7, 15] },
+        { name: 'Bus', values: [4, 6, 3] },
+    ]);
+    assert.ok(pipeline.ActivityDocument.safeParse(out.document).success);
+});
+
+test('§A3 a series of the wrong length SKIPS the file — a dropped series is a wrong chart', () => {
+    assert.throws(
+        () => convertOne(pipeline, CHART_MD([...CHART, 'series: Car = 1, 2']), null, 'stats/travel.md'),
+        /figure or chart problem[\s\S]*"series: Car = 1, 2"/,
+    );
+});
+
+test('§A3 a chart with no title: SKIPS the file in a plain (non-strict) run', () => {
+    assert.throws(
+        () => convertOne(pipeline, CHART_MD(CHART.filter((l) => !l.startsWith('title:'))), null, 'stats/travel.md'),
+        /figure or chart problem[\s\S]*title:/,
     );
 });
 
@@ -239,7 +285,7 @@ test('§A2 a figure: column (T7b) reaches a schema-valid document beside its que
 test('§A2 a figure: column in a THREE-column row SKIPS the file (v1 limit, C-36)', () => {
     assert.throws(
         () => convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['Text.'], ['More.']), null, 'geom/t.md'),
-        /figure problem[\s\S]*exactly 2 columns/,
+        /figure or chart problem[\s\S]*exactly 2 columns/,
     );
 });
 

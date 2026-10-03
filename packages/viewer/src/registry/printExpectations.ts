@@ -541,6 +541,26 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
       expect: { kind: 'drawable-count', zero: false },
     },
   ],
+  chart: [
+    {
+      id: 'chart/capped',
+      rule: 'A chart is capped so it cannot run off the sheet.',
+      // The chart reuses the figure's markup: the engine's <svg> is a direct
+      // child of .viewer-figure, and the hidden data table is its SIBLING.
+      target: '.viewer-figure > svg',
+      expect: { kind: 'max-width-capped' },
+    },
+    {
+      id: 'chart/draws-its-data',
+      rule: 'A chart prints its data — an empty frame where a chart was authored is content loss.',
+      // The engine's `data-drawables` is series × categories, so the axis and
+      // gridlines cannot satisfy it. Like the figure row above, it catches
+      // "drew nothing", not a dropped series: tests/components/chart.test.tsx
+      // counts the bars.
+      target: '.viewer-figure > svg',
+      expect: { kind: 'drawable-count', zero: false },
+    },
+  ],
   interactive_graph: [
     {
       id: 'graph/hand-plottable-cap',

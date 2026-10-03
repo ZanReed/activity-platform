@@ -61,6 +61,7 @@ import {
 } from '@activity/graph-kit/formula';
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import { parseFigureFence } from './figureFence';
+import { parseChartFence } from './chartFence';
 import { freeVariables } from '@activity/graph-kit/scorers';
 import {
     RESERVED_SEED_NAMES,
@@ -148,8 +149,9 @@ export interface ImportResult {
     // because the batch importer prints them in their own labelled block
     // (W-11) and locates them in the file (W-7).
     glossary?: GlossaryImportReport;
-    // Present ONLY when a ```figure fence had a problem: a skipped or refused
-    // line, a missing alt:, or a figure with nothing drawable (Y7 geometry,
+    // Present ONLY when a ```figure or ```chart fence had a problem: a skipped
+    // or refused line, a missing alt: (figure) or title: (chart), or a fence
+    // with nothing drawable. Charts joined this channel 2026-10-04 (Y7 geometry,
     // ER-13 as amended 2026-10-03). The same text is in `warnings`, so the paste
     // dialog shows it and still imports; the BATCH importer reads this typed
     // channel instead and skips the file in every run, strict or not — in a
@@ -1163,6 +1165,22 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 }
                 if (!fig.attrs) return [];
                 return [{ type: 'graphFigure', attrs: { id: crypto.randomUUID(), ...fig.attrs } }];
+            }
+            if ((node.token.info ?? '').trim() === 'chart') {
+                // Y7 statistics chart (chartFence.ts). A body-level chart block.
+                // Its problems ride the figure channel on purpose: a skipped
+                // series is a chart showing the wrong data, and a question
+                // about that chart is then a wrong question — the same reason
+                // a figure problem skips the file in a batch run (ER-13).
+                // Like a figure, a fence with nothing drawable produces NO
+                // block, never the raw fence as text.
+                const parsed = parseChartFence(node.token.content);
+                for (const p of parsed.problems) {
+                    ctx.warnings.add(p);
+                    ctx.figureProblems.push(p);
+                }
+                if (!parsed.attrs) return [];
+                return [{ type: 'chart', attrs: { id: crypto.randomUUID(), data: parsed.attrs } }];
             }
             if ((node.token.info ?? '').trim() === 'reference') {
                 // Side channel: the fence's blocks land in ctx.refPanelBlocks

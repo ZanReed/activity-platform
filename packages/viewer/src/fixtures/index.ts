@@ -739,6 +739,22 @@ function authoredRawByType(
       ],
     },
   });
+  // TWO NAMED SERIES, deliberately: the second series is what carries the
+  // hatch pattern and the legend, so a one-series fixture would leave both
+  // unexercised in every fixture-driven lane (print rules, a11y, dark contrast).
+  put('chart', {
+    id: fid(),
+    type: 'chart',
+    chart: 'clustered',
+    title: 'How we get to school',
+    xLabel: 'Day',
+    yLabel: 'Number of students',
+    categories: ['Mon', 'Tue', 'Wed'],
+    series: [
+      { name: 'Walk', values: [12, 7, 15] },
+      { name: 'Bus', values: [4, 6, 3] },
+    ],
+  });
   put('graph_figure', {
     id: fid(),
     type: 'graph_figure',

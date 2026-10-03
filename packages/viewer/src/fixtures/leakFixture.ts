@@ -494,6 +494,13 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     answer: [text(STR)],
     solution: sentinelInline(),
   });
+  put('chart', {
+    id: uuid(),
+    type: 'chart',
+    chart: 'bar',
+    categories: ['a', 'b'],
+    series: [{ values: [1, 2] }],
+  });
   put('graph_figure', {
     id: uuid(),
     type: 'graph_figure',

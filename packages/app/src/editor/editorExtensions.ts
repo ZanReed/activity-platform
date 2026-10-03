@@ -44,6 +44,7 @@ import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { GraphFigure } from './extensions/GraphFigure';
+import { Chart } from './extensions/Chart';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
@@ -188,5 +189,8 @@ export function buildEditorExtensions({
         // block since T7 (Q8): offered by the slash menu and the pickers, with
         // a "Figure source" popover over the fence text.
         GraphFigure,
+        // Chart — a static statistics chart of category data (Y7 charts), from
+        // the ```chart fence, with a "Chart source" popover over that text.
+        Chart,
     ];
 }

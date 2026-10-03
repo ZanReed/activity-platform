@@ -336,6 +336,17 @@ export const slashMenuItems: SlashMenuItem[] = [
         },
     },
     {
+        title: 'Chart',
+        description: 'A bar chart, stacked or clustered bars, or a time-series line. Display only.',
+        keywords: ['chart', 'bar', 'graph', 'statistics', 'data', 'stacked', 'clustered', 'line', 'time series', 'display'],
+        group: 'Structure',
+        subgroup: 'Media & figures',
+        icon: BarChart3,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertChart().run();
+        },
+    },
+    {
         title: 'Static graph',
         description: 'A display-only graph — a figure or exemplar. No answer collected.',
         keywords: ['graph', 'static', 'display', 'figure', 'diagram', 'stimulus', 'exemplar', 'chart', 'plot'],

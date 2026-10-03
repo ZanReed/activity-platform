@@ -90,6 +90,13 @@ export const blockBindings: Partial<
     loading: 'lazy',
     load: () => import('../blocks/DataPlot.js') as never,
   },
+  // The chart is lazy with NO heavy dependency behind it (Y7 N5): its static
+  // engine is a few KiB, but the shell has no room for it, and a chart sits
+  // below the fold of a statistics activity rather than in every worksheet.
+  chart: {
+    loading: 'lazy',
+    load: () => import('../blocks/Chart.js') as never,
+  },
   // math_block is lazy for a different reason than the canvas blocks: a
   // GAP-BEARING equation mounts MathLive, the heaviest dependency in the
   // product. A promptless one renders with KaTeX and never reaches that path,

@@ -78,6 +78,7 @@ import type {
     ShortAnswerBlock,
     EssayBlock,
     GraphFigureBlock,
+    ChartBlock,
 } from '@activity/schema';
 import {
     // The runtime union, aliased because `Block` is already imported as a type
@@ -108,6 +109,7 @@ import {
     ChoiceGraph,
 } from '@activity/schema';
 import type { JSONContent } from '@tiptap/react';
+import type { ChartAttrs } from './chartFence';
 import { emptyPlaceholders } from '../editor/mathPromptSync';
 
 // Canonical inline content (rich text + inline math) as the schema models it.
@@ -464,6 +466,8 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
             return tiptapWorkedExampleToActivity(node);
         case 'graphFigure':
             return tiptapGraphFigureToActivity(node);
+        case 'chart':
+            return tiptapChartToActivity(node);
         case 'fadedWorkedExample':
             return tiptapFadedWorkedExampleToActivity(node);
         case 'selfExplanation':
@@ -1188,6 +1192,35 @@ function tiptapGraphFigureToActivity(node: JSONContent): GraphFigureBlock {
     return block;
 }
 
+// Static statistics chart (Y7 charts). The node carries ONE `data` attr — the
+// ChartAttrs the ```chart fence parses to — so this copies it field by field
+// into the block. A node with no usable data (a hand-crafted payload) is
+// dropped rather than stored: the schema would refuse it at the save boundary
+// and take the whole document's save with it.
+function tiptapChartToActivity(node: JSONContent): ChartBlock | null {
+    const data = (node.attrs?.data ?? null) as Partial<ChartAttrs> | null;
+    if (!data || !Array.isArray(data.categories) || !Array.isArray(data.series)) return null;
+    if (data.categories.length === 0 || data.series.length === 0) return null;
+    const block: ChartBlock = {
+        id: crypto.randomUUID(),
+        type: 'chart',
+        chart: data.chart ?? 'bar',
+        categories: [...data.categories],
+        series: data.series.map((s) => ({
+            ...(s.name ? { name: s.name } : {}),
+            values: [...s.values],
+        })),
+    };
+    if (data.title) block.title = data.title;
+    if (data.xLabel) block.xLabel = data.xLabel;
+    if (data.yLabel) block.yLabel = data.yLabel;
+    if (data.alt) block.alt = data.alt;
+    if (typeof data.yMax === 'number') block.yMax = data.yMax;
+    if (typeof data.yStep === 'number') block.yStep = data.yStep;
+    applySizingAttrs(block, node);
+    return block;
+}
+
 function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
     const attrs = node.attrs ?? {};
     const fresh = createNumberLineBlock();
@@ -1595,6 +1628,25 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     ...sizingTiptapAttrs(block),
                 },
             };
+
+        case 'chart': {
+            // The reverse of tiptapChartToActivity.
+            const data: ChartAttrs = {
+                chart: block.chart,
+                ...(block.title ? { title: block.title } : {}),
+                ...(block.xLabel ? { xLabel: block.xLabel } : {}),
+                ...(block.yLabel ? { yLabel: block.yLabel } : {}),
+                ...(block.alt ? { alt: block.alt } : {}),
+                categories: [...block.categories],
+                series: block.series.map((s) => ({
+                    ...(s.name ? { name: s.name } : {}),
+                    values: [...s.values],
+                })),
+                ...(block.yMax !== undefined ? { yMax: block.yMax } : {}),
+                ...(block.yStep !== undefined ? { yStep: block.yStep } : {}),
+            };
+            return { type: 'chart', attrs: { id: block.id, data, ...sizingTiptapAttrs(block) } };
+        }
 
         case 'faded_worked_example':
             return activityFadedWorkedExampleToTiptap(block);

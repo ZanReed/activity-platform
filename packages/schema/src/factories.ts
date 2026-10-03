@@ -47,6 +47,7 @@ import type {
   ShortAnswerBlock,
   EssayBlock,
   GraphFigureBlock,
+  ChartBlock,
   TableBlock,
   HeadingLevel,
   CalloutVariant,
@@ -133,6 +134,16 @@ export function createGraphFigureBlock(): GraphFigureBlock {
     drawables: [],
     plane: true,
     toScale: false,
+  };
+}
+
+export function createChartBlock(): ChartBlock {
+  return {
+    id: uuid(),
+    type: 'chart',
+    chart: 'bar',
+    categories: ['A', 'B', 'C'],
+    series: [{ values: [3, 5, 2] }],
   };
 }
 

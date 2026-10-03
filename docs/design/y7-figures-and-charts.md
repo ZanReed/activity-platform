@@ -1,6 +1,6 @@
 # Y7 figures and charts — geometry figures in prompts, statistics charts
 
-**Status:** ✅ **GEOMETRY SLICE BUILT 2026-10-04** (T1–T8, T7b, T8b; T3's graded-stimulus half filed with a trigger — TODOS "Graded stimuli"). Charts (T9–T13) not started. ✅ RULED 2026-09-30 — D1–D12 accepted by the author as proposed
+**Status:** ✅ **GEOMETRY SLICE BUILT 2026-10-04** (T1–T8, T7b, T8b; T3's graded-stimulus half filed with a trigger — TODOS "Graded stimuli"). Charts (T9–T13) BUILT 2026-10-04 (see "Chart slice AS BUILT"). ✅ RULED 2026-09-30 — D1–D12 accepted by the author as proposed
 (all twelve recommendations, no amendments). ✅ **DESIGN-REVIEWED
 2026-09-30** (`/plan-design-review`, author-run): §2 re-derived against the
 code (P10; six corrections, none reopening a ruling), the ten §4 forks
@@ -731,13 +731,27 @@ commit, then T4, T3, T5, T7, T7b, T8, T8b.**
 
 **Chart slice (D12 second)**
 
-- [ ] **T9 (P1, human: ~1 d / CC: ~30 min)** — schema — `ChartBlock` (Q7) + sizing (N6); registry row; sanitize strip list; `pnpm bundle:viewer-server`
-- [ ] **T10 (P1, human: ~2 d / CC: ~1 h)** — static chart renderer — bar/stacked/clustered/line, nice-step ceiling, zero baseline, hatch patterns (N1), label wrap (N4), `--gk-svg-*` chrome (Q5)
+- [x] **T9 (P1, human: ~1 d / CC: ~30 min)** — schema — `ChartBlock` (Q7) + sizing (N6); registry row; sanitize strip list; `pnpm bundle:viewer-server`
+- [x] **T10 (P1, human: ~2 d / CC: ~1 h)** — static chart renderer — bar/stacked/clustered/line, nice-step ceiling, zero baseline, hatch patterns (N1), label wrap (N4), `--gk-svg-*` chrome (Q5)
   - Verify: Q9 chart guards, mutation-tested
-- [ ] **T11 (P1, human: ~1 d / CC: ~30 min)** — viewer — lazy `chart` block (N5), hidden data table (N3), print row in `printExpectations.ts`
+- [x] **T11 (P1, human: ~1 d / CC: ~30 min)** — viewer — lazy `chart` block (N5), hidden data table (N3), print row in `printExpectations.ts`
   - Verify: print e2e over a chart fixture; a11y lane
-- [ ] **T12 (P1, human: ~1 d / CC: ~30 min)** — importer + editor + docs — ```chart fence (Q7, N2 series-length warning), source popover, format doc, prompt regeneration
-- [ ] **T13 (P2, human: ~2 h / CC: ~10 min)** — TODOS — close the degenerate-axis entry by quoting T1's refine; leave the dark-grid nit
+- [x] **T12 (P1, human: ~1 d / CC: ~30 min)** — importer + editor + docs — ```chart fence (Q7, N2 series-length warning), source popover, format doc, prompt regeneration
+- [x] **T13 (P2, human: ~2 h / CC: ~10 min)** — TODOS — close the degenerate-axis entry by quoting T1's refine; leave the dark-grid nit
+
+**Chart slice AS BUILT (2026-10-04).** T9–T13 shipped in one commit. Where the build differs from the rulings above, and why:
+
+- **No `color` on a series (Q7).** The fence has no line that sets one and the editor has no form, so the field would be an orphan the day it shipped. Series take a fixed colour by position, and the hatch (N1) carries the distinction on paper.
+- **"One value per category" is not a schema refine.** `ChartBlock` is a discriminated-union member and a refined object cannot be discriminated. The importer refuses a mismatched series by line, and the viewer checks `chartIsDrawable` and shows "Chart unavailable".
+- **A chart problem skips the file in every batch run**, the figure's ER-13 as amended, applied to charts (N2 said "warns and the chart survives", which still holds for the paste dialog). A dropped series is a chart showing the wrong data.
+- **A missing `title:` is a reported problem** (Q7 made it a prompt rule only). It is the chart's accessible name when there is no `alt:`.
+- **The y label is horizontal, above the axis.** N4 rules out rotated category labels; the same reading load applies to a rotated axis title.
+- **A thin space separates thousands from five digits up** (N4 said "thousands separator"): `1500`, `12 000`.
+- **The chart reuses the figure's markup and CSS** (`.viewer-figure > svg`), raising the two cap custom properties inline, so the block added one selector to the shell stylesheet (the print `break-inside` list) and nothing else.
+- **The editor's node view is its own lazy chunk.** The editor chunk's ledger row was at its cap; that row's comment had pre-chosen a lazy chunk for the next editor feature.
+- **Not built, no ruling covered them:** a chart inside a ```columns column, a width line in the fence, a chart in the reference sheet.
+
+Guards (Q9), each mutation-tested once: `packages/viewer/tests/components/chart.test.tsx` (every field against the rendered DOM), `packages/graph-kit/tests/chart-svg.test.ts`, `packages/app/src/__tests__/chartFence.test.ts`, `packages/app/e2e/chart-source.e2e.ts`.
 
 _No new tasks from Pass 4 (AI slop)._
 

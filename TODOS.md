@@ -3,6 +3,17 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## THE AUTHOR'S TEST QUEUE — build run of 2026-10-04
+
+One entry per issue the author reports while testing a hand-off: what he saw, where, and the fix or the open question. Worked through together between items.
+
+**Open questions raised by the build (not yet findings):**
+
+- **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
+- **Charts — a chart beside its question.** A ```chart inside a ```columns column is not built (no ruling). Trigger: the first drafted statistics activity that wants the question beside the chart.
+- **Charts — per-series colour.** Dropped from the schema (no authoring surface). Trigger: an activity whose text refers to a series by colour.
+- **Shell — live sign-out.** The auth-js stubs are proven by the lanes; one live Google sign-in and sign-out on the deployed app is the remaining check.
+
 ## BUILD ORDER — ruled by the author 2026-10-02 (sequencing review)
 
 The author asked for a ranking of every open arc "to stop reacting to whichever
@@ -284,7 +295,7 @@ entry below rides this arc (N2).
 
 ## ✅ BUILT 2026-10-04 — `--chain-registry <path>` for the batch importer (agreed with the curriculum side, B-42 / C-40)
 
-**As built:** `readChainRegistry` in `scripts/batch-import.mjs`. The flag wins over the root copy; an unreadable or empty flag file refuses the run (exit 2) and never falls back to the root; a root copy that the flag shadows is named in the run header. Proved on the pilot folder with all three registries read from the curriculum repo (`--dry-run --strict`, exit 0, 36 chains). **Left for the author:** delete `~/activity-catalogue-pilot/chain-registry.txt` (the run names it until then).
+**As built:** `readChainRegistry` in `scripts/batch-import.mjs`. The flag wins over the root copy; an unreadable or empty flag file refuses the run (exit 2) and never falls back to the root; a root copy that the flag shadows is named in the run header. Proved on the pilot folder with all three registries read from the curriculum repo (`--dry-run --strict`, exit 0, 36 chains). The pilot copy was removed 2026-10-04 (author; their C-46), so every run now passes all three registry flags; their header comment was corrected in their PR #31 (`debd852`).
 
 **TRIGGER (as filed): the curriculum side's chain-registry rows PR** (rows for the Y7 chains, after the author rules their teaching order). Retires the LAST hand-carried copy in the catalogue folder.
 
@@ -1027,7 +1038,13 @@ interaction must keep both properties or the letters stop matching the bank.
 **Depends on:** the choice-figures slice landing first (it makes the case
 concrete and adds the fixtures a drag interaction would need to test against).
 
-## Reject a degenerate axis window at the authoring surfaces (eng review 2026-08-23, ruling 6A follow-on)
+## ✅ CLOSED 2026-10-04 (Y7 T13) — Reject a degenerate axis window at the authoring surfaces (eng review 2026-08-23, ruling 6A follow-on)
+
+**Closed by the Y7 geometry slice's T1**, quoted from `packages/schema/src/graph-primitives.ts`:
+`export const AxisConfig = AxisConfigShape.refine((a) => a.xMax > a.xMin && a.yMax > a.yMin, { message: 'The axis window is empty: the maximum must be greater than the minimum on both axes.' })`.
+The editor half is `useAxisWindowGuard` + `AxisWindowError` (`editor/components/axisWindow`), and the viewer names the leftover case `degenerate-axis`. The "grid louder than the data on dark" nit is a separate, still-open item.
+
+*The entry as filed:*
 
 **What:** A zod `refine` on `AxisConfig` (`xMax > xMin`, `yMax > yMin`) plus an
 inline error in the editor's axis NumCells and a warning from the importer's

@@ -107,6 +107,9 @@ export {
   Rubric,
   RubricCriterion,
   GraphFigureBlock,
+  ChartBlock,
+  ChartKind,
+  ChartSeries,
   TableBlock,
   TableRow,
   TableCell,
@@ -233,6 +236,7 @@ export {
   createWorkedExampleBlock,
   createFadedWorkedExampleBlock,
   createGraphFigureBlock,
+  createChartBlock,
   createTableBlock,
   createSelfExplanationBlock,
   createShortAnswerBlock,
@@ -280,6 +284,8 @@ export {
   linkify,
   crossLinkTargets,
 } from './glossary.js';
+// Zod-free on purpose (see chart-limits.ts): the viewer's chart chunk reads them.
+export { CHART_MAX_CATEGORIES, CHART_MAX_SERIES, chartIsDrawable } from './chart-limits.js';
 // The zod half, split so the viewer can load it lazily (keeps zod out of the
 // student shell — see glossary-body.ts).
 export { parseGlossaryBody } from './glossary-body.js';

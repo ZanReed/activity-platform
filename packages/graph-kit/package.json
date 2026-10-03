@@ -14,6 +14,7 @@
     "./math-prompt-convert": "./src/math-prompt-convert.ts",
     "./scorers": "./src/scorers.ts",
     "./static-svg": "./src/static-svg.ts",
+    "./chart-svg": "./src/static-svg/chart-svg.ts",
     "./model-format": "./src/model-format.ts"
   },
   "scripts": {

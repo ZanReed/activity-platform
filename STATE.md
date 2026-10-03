@@ -22,6 +22,17 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
+**Y7 CHARTS BUILT 2026-10-04 — two redeploys owed, in this order, BEFORE any
+chart is published.** The chart block is a new registry entry, so
+`SANITIZER_REV` moved (`2-3d4db5c5` → `2-0a3d4bc7`) and both server bundles
+were regenerated. (1) `pnpm deploy:get-activity` (the only `--no-verify-jwt`
+function); (2) `pnpm deploy:check`. Prove each by hashing the deployed
+`_shared/*.bundle.js` against the repo's (CLAUDE.md → the download-and-hash
+method), not by version number. No migration. Until both are live, an
+activity holding a ```chart must not be published: the live read function
+does not know the block. After the push, the curriculum repo needs the
+capability-facts pin-bump PR (`chart` joins `docs/capability-facts.json`).
+
 **PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
 design-reviewed, then amended for D43 items 12–33; rulings ER-1–26, DR-1–24,
@@ -254,26 +265,6 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 **Last updated:** 2026-10-04 — a seven-item build run started (author's list, overriding the trigger rule for this run): shell rung 2 and `--chain-registry` are built, pushed and CI-green; Y7 charts are next, waiting on the curriculum side's capability id (B-54). Earlier the same day: the Y7 geometry slice was built and pushed (T1–T8, T7b, T8b; T3 half), the importer learned move-only/unchanged writes, and the curriculum side's PRs #28–#30 were verified and stamped. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
 
-**The lesson this arc paid for, and it is not a repo lesson — it is a
-correspondence one.** Eleven letters were exchanged with the curriculum side. Of
-the mistakes caught, **the two most expensive were each caught by the OTHER
-side**: they found that our proposed misconception-label check caught neither
-bug it was designed for, and we found that their graph's `grading_model`
-correction had left thirteen copies of the same false claim in the capability
-registry. Neither side's own tests could have found the other's, because each
-defect lived in the half of the contract the other owns.
-
-**Three corollaries, all of them cheap and all of them earned:**
-- **An example is a claim.** Two ids we invented as format illustrations were
-  taken as real — one nearly got ratified into their registry, the other cost
-  two exchanges. Illustrative things now get marked illustrative.
-- **A metric computed over an authored corpus measures authoring order.** Their
-  misconception registry was "a picture of where the writing has been"; our
-  near-duplicate detector has never fired at 4, 22 or 35 ids, so the evidence we
-  gave them for D21 could not distinguish working from never-at-risk. Retracted.
-- **Every checker either side proposed computes a structural shadow of a
-  semantic property.** The shadow is derivable; the property is not. Three
-  independent arrivals at the same posture: a check can narrow the question a
-  human answers and can never answer it.
+The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
 _Prior entries archived in [docs/HISTORY.md](docs/HISTORY.md)._

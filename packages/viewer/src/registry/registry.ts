@@ -567,6 +567,20 @@ export const blockRegistry: BlockRegistry = {
     sanitize: { strip: [] },
     print: { breakInside: 'auto', treatment: 'figure' },
   },
+
+  // Y7 charts (y7-figures-and-charts.md D7): display-only, so nothing to
+  // strip and nothing to grade. `avoid`, unlike graph_figure: a chart cut in
+  // two by a page boundary is unreadable (the S5-OV6 ruling for data_plot).
+  chart: {
+    type: 'chart',
+    family: 'static',
+    interactivity: 'container',
+    category: 'content',
+    numbered: 'never',
+    analyticsKey: 'chart',
+    sanitize: { strip: [] },
+    print: { breakInside: 'avoid', treatment: 'figure' },
+  },
 };
 
 /** Every registered type, in registry declaration order. */

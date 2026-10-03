@@ -358,7 +358,14 @@ describe('the declaration is where it is for a reason', () => {
     // block registered (wishlist #4) with its own sanitize spec (strip key +
     // solution) — a new registry entry is a declaration change by definition.
     // Same redeploy discipline; the redeploys were already queued.
-    expect(SANITIZER_REV).toBe('2-3d4db5c5');
+    //
+    // MOVED 2026-10-04: '2-3d4db5c5' → '2-0a3d4bc7'. The chart block
+    // registered (Y7 charts, T9) — display-only, an EMPTY strip list, but a new
+    // registry entry is a declaration change by definition. Both server bundles
+    // are regenerated in the same commit; the get-activity and check-activity
+    // redeploys are queued as pending author actions, and no chart may be
+    // published before they are live.
+    expect(SANITIZER_REV).toBe('2-0a3d4bc7');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

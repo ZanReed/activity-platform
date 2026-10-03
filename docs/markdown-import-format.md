@@ -30,6 +30,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
 | a ` ```graph ` fenced block | a **coordinate-plane question** — plot a point, graph a line or inequality, shade a region (see below) |
 | a ` ```figure ` fenced block | a **labelled geometry figure**: named points, polygons, angle marks, equal-side ticks, parallel arrows, side labels; "Not to scale" by default (see below) |
+| a ` ```chart ` fenced block | a **statistics chart** of category data: a bar chart, clustered or stacked bars, or a time-series line. Display only; a hidden data table carries the numbers for screen readers |
 | a ` ```numberline ` fenced block | a **1-D number-line question** — plot points, or graph an inequality (see below) |
 | a ` ```dataplot ` fenced block | a **statistics-chart question** — dot plot, histogram, box plot (see below) |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
@@ -525,6 +526,36 @@ GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
 - A mistyped figure line is not a small thing: the batch importer refuses
   the whole file until it is fixed.
 
+CHART (a `chart` fence draws a bar chart or a time-series line)
+- ```chart … ``` draws ONE statistics chart of category data. It is a
+  picture to read from (never interactive): put the questions about it in
+  the blocks after it.
+    type: bar
+    title: Books borrowed each day
+    xlabel: Day
+    ylabel: Number of books
+    categories: Mon, Tue, Wed, Thu, Fri
+    series: 12, 7, 15, 9, 4
+- title: is REQUIRED: say what the chart shows. Never put the answer to a
+  question in it. xlabel: and ylabel: name the two axes.
+- categories: is the comma-separated list along the bottom, at most 12;
+  keep each name short (under 20 characters).
+- series: gives one number per category, in the same order. For more than
+  one series write a name before an equals sign on each, at most 4:
+    series: Walk = 12, 7, 15, 9, 4
+    series: Bus = 4, 6, 3, 5, 2
+  The names become the legend. Numbers are 0 or more.
+- type: is bar (one series), clustered (series side by side), stacked
+  (series on top of each other) or line (a time series: points joined in
+  order, for categories that are times such as days or months).
+- The value axis always starts at 0 and picks its own top. y: 0..20 step 5
+  sets the top and the step; leave it out unless the question needs
+  particular gridlines.
+- alt: (optional) adds one sentence for screen readers; the chart's numbers
+  are already available to them as a table.
+- A mistyped chart line is not a small thing: the batch importer refuses
+  the whole file until it is fixed.
+
 REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Content in this fence does NOT appear in the worksheet body: it becomes
   the reference panel — a formula sheet / vocab list students open from a
@@ -630,7 +661,7 @@ OTHER
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, and ```reference — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
@@ -1474,6 +1505,49 @@ text (4,-1.5) "base"
 - **Batch import (`pnpm import:batch`):** the file is **skipped**, in every run, with or without `--strict`. It is not written, it is named in the report, and the run exits 1. In a geometry activity the marks are the answer: a tick dropped on a typo turns an isosceles triangle scalene while the answer key still says isosceles.
 
 **Not here (v1):** dimension lines and arrowheads on segments, seeded values in labels, and figure names inside multiple-choice or matching choice figures (each choice carries one drawable, so there is nothing for a name to refer to). Choice figures and `reference` figures keep the `show:` forms.
+
+## Statistics charts (```chart fence)
+
+A fenced code block with the `chart` language tag draws **one statistics chart of category data** in the worksheet body: a bar chart, clustered or stacked bars, or a time-series line. It is a picture to read from (never interactive), so the questions about it go in the blocks that follow. The `dataplot` fence is the other statistics block: it draws ONE numeric data set on a number axis (dot plot, histogram, box plot) and can be a graded "build the chart" question.
+
+```
+```chart
+type: clustered
+title: How we get to school
+xlabel: Day
+ylabel: Number of students
+categories: Mon, Tue, Wed, Thu, Fri
+series: Walk = 12, 7, 15, 9, 4
+series: Bus = 4, 6, 3, 5, 2
+y: 0..20 step 5
+```⠀
+```
+
+| line | does |
+|---|---|
+| `type: bar` | `bar` (one series), `clustered` (series side by side), `stacked` (series on top of each other) or `line` (a time series). Left out, it is `bar`; a `bar` with more than one series is stored and drawn as `clustered`. |
+| `title: …` | drawn above the chart, and the chart's accessible name. **Required** (see "Problems"). |
+| `xlabel: …` / `ylabel: …` | the axis names. The y label is written horizontally above the axis, never rotated. |
+| `categories: Mon, Tue, …` | the labels along the bottom, comma-separated, **at most 12**, drawn in the order written. A label wraps to two lines at about 10 characters; one over 20 characters is reported. |
+| `series: 12, 7, 15` | one number per category, in the same order. Numbers are 0 or more. |
+| `series: Bus = 4, 6, 3` | a **named** series: the name (everything before the first `=`) becomes a legend entry. **At most 4** series. |
+| `y: 0..20 step 5` | the value axis's top and step (`step` optional). It must start at 0 and reach the data. Left out, the top is the next 1, 2 or 5 × 10ⁿ step at or above the largest value (for `stacked`, the largest total). |
+| `alt: …` | optional: one sentence for screen readers, used as the chart's name in place of the title. |
+
+- **The value axis always starts at zero.** There is no way to truncate it.
+- **Lines may come in any order**, and blank lines are ignored. One fence is one chart.
+- **Series 2, 3 and 4 carry a hatch pattern** (diagonal, cross, dots) as well as a colour, and the legend shows it, so stacked and clustered bars still read on a grayscale printout. On a `line` chart each series has its own dash pattern and marker shape for the same reason.
+- **A `line` chart is a time series on evenly spaced categories**: the points are joined in the order written. There is no real time scale, so write the categories as the times (`Mon, Tue, …`, `Jan, Feb, …`).
+- **Screen readers** get the chart's numbers as a table (caption = title, one column per category, one row per series), built from the same data and always present.
+- **Numbers of five or more digits** are written with a thin space (`12 000`).
+- **In the editor** the block shows the chart with a **Chart source** button: the same lines as the fence, re-read by the same parser when you press Apply.
+
+**Problems.** A line that cannot be read (an unknown key, a series with a value that is not a number, a series with the wrong number of values, a `y:` that does not start at 0 or does not reach the data) is **skipped**. Data the chart cannot hold (more than 12 categories, a fifth series, a negative value, an empty category name) is **refused**. A chart with no `title:`, and a chart with several series where one has no name, are reported too.
+
+- **Paste dialog:** the problems are listed as warnings, and the chart imports with the lines that worked. A fence with no `categories:` or no usable `series:` adds no block (never the raw fence as text).
+- **Batch import (`pnpm import:batch`):** the file is **skipped**, in every run, with or without `--strict`, exactly as for a `figure` problem. A dropped series is a chart showing the wrong data, and every question about it is then a wrong question.
+
+**Not here (v1):** a chart inside a `columns` column, a chart in the reference sheet, a width setting in the fence (set the width in the editor), per-series colours, rotated labels, a real time scale, and any student interaction (drawing the bars is a later, separate block).
 
 ## Reference sheet (```reference fence)
 

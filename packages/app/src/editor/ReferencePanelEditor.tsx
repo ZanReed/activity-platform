@@ -27,6 +27,7 @@ import { LearningObjectives } from './extensions/LearningObjectives';
 import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { GraphFigure } from './extensions/GraphFigure';
+import { Chart } from './extensions/Chart';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
@@ -144,6 +145,11 @@ export default function ReferencePanelEditor({
             // lines are parallel" on a formula sheet). Since Y7 T7 the main
             // editor offers it too (body geometry figures).
             GraphFigure,
+            // Registered for the SCHEMA only, like the question blocks above:
+            // Column's content expression names `chart`, and an unregistered
+            // name fails the whole schema. The reference toolbar does not offer
+            // one (the Chart slash item is not referenceSafe).
+            Chart,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

@@ -1912,3 +1912,27 @@ STATE keeps the OWED ACTION for each; the history that explains how each got the
 ### display_name
 
 **📌 NOT reproducible from migrations: the ORIGINAL three teacher `display_name`s are NULL by a direct data edit** — ✅ confirmed by the author 2026-08-22 (05-05, 05-05, 07-29 rows all NULL). **But the predicted consequence has now happened: the two teacher accounts created 2026-08-19 through the self-serve door (0033) DO carry Google's `full_name`**, so any activity they publish serves that name to anonymous visitors via `get_activity_public_meta`. They are the author's own test accounts, so nothing is exposed today — but this is the first live instance of the default-on name attribution, and the "show nothing until the teacher opts in" control in Backlog is now the fix for a real row, not a hypothetical. Clearing them is the same one-row `update … set display_name = null`, not a migration. 0021's backfill NULLed the two rows holding emails; the author then ruled (2026-08-04) the third — a 2026-07-29 account where Google DID supply `full_name` — should be NULL too. That row was outside 0021's scope by design, so it was cleared with a one-row UPDATE, **not a migration**. Consequence: a restored-from-migrations database would NOT reproduce this, and **a brand-new teacher signing in with a Google account that has a `full_name` will publish that name**. See the name-appearance design signal in Backlog.
+
+## The curriculum-alignment arc's correspondence lesson (moved out of STATE 2026-10-04)
+
+**The lesson this arc paid for, and it is not a repo lesson — it is a
+correspondence one.** Eleven letters were exchanged with the curriculum side. Of
+the mistakes caught, **the two most expensive were each caught by the OTHER
+side**: they found that our proposed misconception-label check caught neither
+bug it was designed for, and we found that their graph's `grading_model`
+correction had left thirteen copies of the same false claim in the capability
+registry. Neither side's own tests could have found the other's, because each
+defect lived in the half of the contract the other owns.
+
+**Three corollaries, all of them cheap and all of them earned:**
+- **An example is a claim.** Two ids we invented as format illustrations were
+  taken as real — one nearly got ratified into their registry, the other cost
+  two exchanges. Illustrative things now get marked illustrative.
+- **A metric computed over an authored corpus measures authoring order.** Their
+  misconception registry was "a picture of where the writing has been"; our
+  near-duplicate detector has never fired at 4, 22 or 35 ids, so the evidence we
+  gave them for D21 could not distinguish working from never-at-risk. Retracted.
+- **Every checker either side proposed computes a structural shadow of a
+  semantic property.** The shadow is derivable; the property is not. Three
+  independent arrivals at the same posture: a check can narrow the question a
+  human answers and can never answer it.

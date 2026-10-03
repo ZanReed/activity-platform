@@ -230,6 +230,16 @@ const graphFigure = thumb(
     </>
 );
 
+// Three bars on a baseline — the Y7 ```chart block.
+const chart = thumb(
+    <>
+        <path d="M16 8 V46 H86" fill="none" stroke={INK} strokeWidth={1.5} />
+        <rect x={26} y={26} width={12} height={20} fill={LINE} />
+        <rect x={46} y={14} width={12} height={32} fill={LINE} />
+        <rect x={66} y={32} width={12} height={14} fill={LINE} />
+    </>
+);
+
 const fillInBlank = thumb(
     <>
         {bar(12, 16, 20)}
@@ -434,6 +444,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     Image: image,
     'Static graph': staticGraph,
     'Graph figure': graphFigure,
+    Chart: chart,
     'Fill in the blank': fillInBlank,
     'Answer blank': answerBlank,
     'Multiple choice': multipleChoice,

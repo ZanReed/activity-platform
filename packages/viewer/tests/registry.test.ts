@@ -299,6 +299,7 @@ describe('print declarations (faithful to the baseline print layer)', () => {
     // off this list: no prompt is ever separated from the space to answer it.
     expect(avoid.sort()).toEqual(
       [
+        'chart',
         'correspondence',
         'data_plot',
         'essay',

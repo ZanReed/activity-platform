@@ -2256,6 +2256,17 @@ img.mc-block__figure-preview {
     border-radius: 4px;
     border: 1px solid var(--ed-border); /* slate-200 */
 }
+.chart-view__preview {
+    max-width: 34rem;
+}
+.chart-view__preview svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.chart-view__preview svg text {
+    fill: currentColor;
+}
 .graph-figure-view__actions {
     display: flex;
     gap: 0.4rem;

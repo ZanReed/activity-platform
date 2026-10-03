@@ -46,6 +46,7 @@ import {
     createWorkedExampleBlock,
     createFadedWorkedExampleBlock,
     createGraphFigureBlock,
+    createChartBlock,
     createSelfExplanationBlock,
     createShortAnswerBlock,
     createEssayBlock,
@@ -151,6 +152,8 @@ function representativeBlock(type: string): Block {
             block.drawables = [{ kind: 'point', at: [1, 2] }];
             return block;
         }
+        case 'chart':
+            return createChartBlock();
         case 'self_explanation': {
             const block = createSelfExplanationBlock();
             block.prompt = [

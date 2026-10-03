@@ -614,7 +614,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
     // typed channel, never by matching warning text.
     if (result.figureProblems && result.figureProblems.length > 0) {
         throw new Error(
-            `figure problem${result.figureProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
+            `figure or chart problem${result.figureProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
                 result.figureProblems.join('\n      '),
         );
     }
