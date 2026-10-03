@@ -176,6 +176,121 @@ export function fingerprintDocument(document) {
 }
 
 /**
+ * Every field a full update writes. ONE builder for both the write and the
+ * "unchanged" comparison below, so a field added to the payload later joins
+ * the comparison automatically — the curriculum side's condition on (b)
+ * (C-44): "unchanged" must cover EVERY field the update would write, or an
+ * edit to a column-only setting is silently dropped, the one failure that
+ * failing safe does not catch.
+ */
+export function updatePayload(file, converted, now = new Date().toISOString()) {
+    return {
+        // The payload MIRRORS the app's autosave (ActivityEditor.tsx:542).
+        // course/unit are absent deliberately — publish-truth, one writer.
+        draft_content: converted.document,
+        title: converted.title,
+        tags: converted.tags,
+        pedagogical_role: converted.pedagogicalRole,
+        // D7.4: fingerprint what we WROTE, so the next run can tell an
+        // app-side edit from an untouched draft.
+        source_fingerprint: fingerprintDocument(converted.document),
+        // IDENTITY, written on every update for two different reasons.
+        // source_key: an adoption — the row learns the key it was matched by
+        // path under, which is what makes the NEXT move free. Writing it
+        // unconditionally is safe (it is the value we matched on) and means a
+        // row can never be left half-keyed.
+        ...(file.key ? { source_key: file.key } : {}),
+        // source_path: where the file sits NOW. This column stopped being
+        // identity at 0041 and became organization — and the activities list
+        // reads it as the teaching order, so a stale one would sort the outline
+        // by where files USED to be.
+        source_path: file.sourcePath,
+        updated_at: now,
+    };
+}
+
+/** Fields that never decide "unchanged": identity, bookkeeping, the clock. */
+const NOT_CONTENT = new Set(['source_path', 'source_key', 'source_fingerprint', 'updated_at']);
+
+const MINTED_ID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\bg[0-9a-f]{32}\b/g;
+
+/**
+ * A comparison key for "would this update change anything?" (author ruling
+ * (b) + the agreed extension, curriculum B-46/C-44).
+ *
+ * NOT the stored fingerprint, and the reason was MEASURED: converting each of
+ * chain 1's four files twice gave 251 differing `id` fields and 9 differing
+ * `latex` fields (math-gap ids embedded as \placeholder[g…]). Every conversion
+ * mints fresh identifiers, so a fingerprint over them never matches an
+ * unchanged file. Here: each document is parsed by the CURRENT schema (so a
+ * default added since it was stored compares equal), every field is
+ * key-sorted, and then every minted identifier — UUIDs and g-prefixed gap ids,
+ * wherever they appear, keys included — is renamed in order of first
+ * appearance. Equal keys = equal content up to identifier renaming.
+ */
+export function contentKey(fields, documentSchema) {
+    const normalized = {};
+    for (const [k, v] of Object.entries(fields)) {
+        if (NOT_CONTENT.has(k)) continue;
+        if (k === 'draft_content' && v && documentSchema) {
+            const parsed = documentSchema.safeParse(v);
+            normalized[k] = parsed.success ? parsed.data : v;
+        } else {
+            normalized[k] = v === undefined ? null : v;
+        }
+    }
+    const names = new Map();
+    return canonicalJson(normalized).replace(MINTED_ID, (id) => {
+        if (!names.has(id)) names.set(id, `#${names.size + 1}`);
+        return names.get(id);
+    });
+}
+
+/**
+ * Split planned updates by what they would actually change.
+ *
+ *   pathOnly  — content unchanged but the row needs identity written (the
+ *               file MOVED, or the row ADOPTS its key): write source_path /
+ *               source_key only. Ruling (b): a renamed chain folder must not
+ *               put identical drafts on published activities.
+ *   unchanged — content unchanged, same path, nothing to adopt: write NOTHING
+ *               (the agreed extension; retires the empty-folder workaround
+ *               for mirrors-only runs).
+ *   full      — anything else: today's full update.
+ *
+ * "Current" content is the row's draft when it has one, else its CURRENT
+ * PUBLISHED version (`currentContentFor(row)`; publishing clears the draft).
+ * Fails SAFE: no current content, or a row whose fingerprint was never written
+ * (the guard arms only on a full write), always goes to `full`.
+ */
+export function classifyUpdates(planned, currentContentFor, documentSchema) {
+    const pathOnly = [];
+    const unchanged = [];
+    const full = [];
+    for (const entry of planned) {
+        const { file, row, converted } = entry;
+        const content = row.draft_content ?? currentContentFor(row) ?? null;
+        if (content === null || (row.source_fingerprint ?? null) === null) {
+            full.push(entry);
+            continue;
+        }
+        const now = {
+            draft_content: content,
+            title: row.title,
+            tags: row.tags,
+            pedagogical_role: row.pedagogical_role,
+        };
+        const same =
+            contentKey(updatePayload(file, converted), documentSchema) ===
+            contentKey(now, documentSchema);
+        if (!same) full.push(entry);
+        else if (entry.moved || entry.adoptsKey) pathOnly.push(entry);
+        else unchanged.push(entry);
+    }
+    return { pathOnly, unchanged, full };
+}
+
+/**
  * Which planned updates were edited IN THE APP since the importer last wrote
  * them (D7.4) — the rows where "the file wins" would destroy real work.
  *
@@ -1876,8 +1991,18 @@ export function makeDb(url, key) {
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
                     '&select=id,source_path,source_key,status,title,tags,' +
                     'pedagogical_role,course,unit,draft_content,' +
-                    'source_fingerprint',
+                    'source_fingerprint,current_version_id',
             );
+        },
+
+        /** The content of the given published versions, by version id. Used
+         *  only to decide whether an update would change anything. */
+        async versionContents(ids) {
+            if (ids.length === 0) return new Map();
+            const rows = await call(
+                `/activity_versions?id=in.(${ids.join(',')})&select=id,content`,
+            );
+            return new Map(rows.map((r) => [r.id, r.content]));
         },
 
         /**
@@ -2477,6 +2602,19 @@ async function main() {
         }
     }
 
+    // Would each update actually change anything? (ruling (b) + the agreed
+    // extension.) A row with no draft is compared against its CURRENT
+    // PUBLISHED version, fetched here — one query, only for those rows.
+    const versionIds = plannedUpdates
+        .filter(({ row }) => row.draft_content == null && row.current_version_id)
+        .map(({ row }) => row.current_version_id);
+    const versionContent = await db.versionContents(versionIds);
+    const { pathOnly, unchanged, full: fullUpdates } = classifyUpdates(
+        plannedUpdates,
+        (row) => (row.current_version_id ? (versionContent.get(row.current_version_id) ?? null) : null),
+        pipeline.ActivityDocument,
+    );
+
     for (const { file, row } of drifted) {
         // Read-only, for the manifest alone. A conversion failure here is
         // swallowed deliberately: the file is refused either way, its refusal
@@ -2681,7 +2819,8 @@ async function main() {
     // ---- report -------------------------------------------------------------
     console.log(
         `found ${files.length} file${files.length === 1 ? '' : 's'} · ` +
-            `${plannedCreates.length} to create · ${plannedUpdates.length} to update · ` +
+            `${plannedCreates.length} to create · ${fullUpdates.length} to update · ` +
+            `${pathOnly.length} path only · ${unchanged.length} unchanged · ` +
             `${drifted.length} edited in the app · ` +
             `${orphans.length} orphan${orphans.length === 1 ? '' : 's'} · ` +
             `${skipped.length} skipped\n`,
@@ -2700,7 +2839,18 @@ async function main() {
     for (const { file, converted } of plannedCreates) {
         console.log(`  create  ${file.sourcePath}  →  “${converted.title}”`);
     }
-    for (const { file, converted } of plannedUpdates) {
+    for (const { file, row } of pathOnly) {
+        // Content identical to what the row holds now; only where the file sits
+        // (or its key) is written — no draft lands on a published activity.
+        console.log(
+            `  path    ${file.sourcePath}  (content unchanged — path only` +
+                `${row.source_path && row.source_path !== file.sourcePath ? `, was ${row.source_path}` : ''})`,
+        );
+    }
+    for (const { file } of unchanged) {
+        console.log(`  same    ${file.sourcePath}  (unchanged, nothing written)`);
+    }
+    for (const { file, converted } of fullUpdates) {
         console.log(`  update  ${file.sourcePath}  →  “${converted.title}”`);
         // D5: the file wins on an update, so every field it changed is named.
         // An overwrite the author cannot see is the failure this printing
@@ -3084,36 +3234,31 @@ async function main() {
     let updated = 0;
     let adopted = 0;
     let moved = 0;
-    for (const { file, row, converted, adoptsKey, moved: didMove } of plannedUpdates) {
+    for (const { file, row, converted, adoptsKey, moved: didMove } of fullUpdates) {
         try {
-            // The payload MIRRORS the app's autosave (ActivityEditor.tsx:542).
-            // course/unit are absent deliberately — publish-truth, one writer.
-            await db.update(row.id, {
-                draft_content: converted.document,
-                title: converted.title,
-                tags: converted.tags,
-                pedagogical_role: converted.pedagogicalRole,
-                // D7.4: fingerprint what we WROTE, so the next run can tell an
-                // app-side edit from an untouched draft.
-                source_fingerprint: fingerprintDocument(converted.document),
-                // IDENTITY, written on every update for two different reasons.
-                // source_key: an adoption — the row learns the key it was
-                // matched by path under, which is what makes the NEXT move
-                // free. Writing it unconditionally is safe (it is the value we
-                // matched on) and means a row can never be left half-keyed.
-                ...(file.key ? { source_key: file.key } : {}),
-                // source_path: where the file sits NOW. This column stopped
-                // being identity at 0041 and became organization — and the
-                // activities list reads it as the teaching order, so a stale
-                // one would sort the outline by where files USED to be.
-                source_path: file.sourcePath,
-                updated_at: new Date().toISOString(),
-            });
+            await db.update(row.id, updatePayload(file, converted));
             updated++;
             if (adoptsKey) adopted++;
             if (didMove) moved++;
         } catch (err) {
             skipped.push({ file, error: `update failed: ${err.message}` });
+        }
+    }
+    // Path only (ruling (b)): identity, nothing else — not the draft, not the
+    // fingerprint (the stored one still describes the stored draft), not
+    // updated_at (a move is not an edit; the recency strip must not move).
+    let pathOnlyWritten = 0;
+    for (const { file, row, adoptsKey, moved: didMove } of pathOnly) {
+        try {
+            await db.update(row.id, {
+                source_path: file.sourcePath,
+                ...(file.key ? { source_key: file.key } : {}),
+            });
+            pathOnlyWritten++;
+            if (adoptsKey) adopted++;
+            if (didMove) moved++;
+        } catch (err) {
+            skipped.push({ file, error: `path update failed: ${err.message}` });
         }
     }
 
@@ -3160,6 +3305,7 @@ async function main() {
 
     console.log(
         `\ncreated ${created} · updated ${updated} · ` +
+            `path only ${pathOnlyWritten} · unchanged ${unchanged.length} · ` +
             `refused ${drifted.length} · skipped ${skipped.length}` +
             (adopted > 0 ? ` · ${adopted} adopted a key` : '') +
             (moved > 0 ? ` · ${moved} followed a moved file` : '') +

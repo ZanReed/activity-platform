@@ -46,6 +46,9 @@ import {
     canNeverFire,
     canonicalJson,
     chainFolderOf,
+    classifyUpdates,
+    contentKey,
+    updatePayload,
     coverageJson,
     collectBindings,
     convertOne,
@@ -237,6 +240,160 @@ test('§A2 a figure: column in a THREE-column row SKIPS the file (v1 limit, C-36
         () => convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['Text.'], ['More.']), null, 'geom/t.md'),
         /figure problem[\s\S]*exactly 2 columns/,
     );
+});
+
+// =============================================================================
+// §A3 — "would this update change anything?" (author ruling (b) + the agreed
+// extension, curriculum B-46/C-44). The comparison is built from the SAME
+// updatePayload the write uses, so every written field is compared (C-44).
+// =============================================================================
+
+const SCHEMA = pipeline.ActivityDocument;
+const PATH = 'unit-3/factoring.md';
+const fileAt = (sourcePath, key = null) => ({ sourcePath, key });
+// A row whose stored content is exactly what an earlier run of SAMPLE wrote.
+function storedRowFor(markdown, extra = {}) {
+    const earlier = convertOne(pipeline, markdown, null, PATH);
+    const p = updatePayload(fileAt(PATH), earlier);
+    return {
+        id: 'row-1',
+        source_path: PATH,
+        title: p.title,
+        tags: p.tags,
+        pedagogical_role: p.pedagogical_role,
+        draft_content: p.draft_content,
+        source_fingerprint: p.source_fingerprint,
+        current_version_id: null,
+        ...extra,
+    };
+}
+const nowFields = (row) => ({
+    draft_content: row.draft_content,
+    title: row.title,
+    tags: row.tags,
+    pedagogical_role: row.pedagogical_role,
+});
+
+test('§A3 the same file converted twice is UNCHANGED despite freshly minted ids', () => {
+    const a = convertOne(pipeline, SAMPLE, null, PATH);
+    const b = convertOne(pipeline, SAMPLE, null, PATH);
+    // The raw fingerprints differ — that is the measured trap (251 ids / 9 latex
+    // on chain 1). The content key must not.
+    assert.notEqual(fingerprintDocument(a.document), fingerprintDocument(b.document));
+    assert.equal(
+        contentKey(updatePayload(fileAt(PATH), a), SCHEMA),
+        contentKey(updatePayload(fileAt(PATH), b), SCHEMA),
+    );
+});
+
+test('§A3 a math-gap id inside LaTeX is renamed like any other minted id', () => {
+    const md = '```meta\ntitle: Gaps\n```\n\nSolve: $\\frac{10}{5} = {{2}}$\n';
+    const a = convertOne(pipeline, md, null, PATH);
+    const b = convertOne(pipeline, md, null, PATH);
+    assert.equal(
+        contentKey(updatePayload(fileAt(PATH), a), SCHEMA),
+        contentKey(updatePayload(fileAt(PATH), b), SCHEMA),
+    );
+});
+
+test('§A3 one changed character makes it CHANGED', () => {
+    const a = convertOne(pipeline, SAMPLE, null, PATH);
+    const b = convertOne(pipeline, SAMPLE.replace('mitochondria', 'mitochondrion'), null, PATH);
+    assert.notEqual(
+        contentKey(updatePayload(fileAt(PATH), a), SCHEMA),
+        contentKey(updatePayload(fileAt(PATH), b), SCHEMA),
+    );
+});
+
+test('§A3 a SETTING-ONLY edit (calculator:) is CHANGED — never silently dropped (C-44)', () => {
+    const base = SAMPLE.replace('```meta\n', '```meta\ncalculator: off\n');
+    const edited = SAMPLE.replace('```meta\n', '```meta\ncalculator: scientific\n');
+    const row = storedRowFor(base);
+    const out = convertOne(pipeline, edited, row, PATH);
+    const { full } = classifyUpdates([{ file: fileAt(PATH), row, converted: out, moved: false, adoptsKey: false }], () => null, SCHEMA);
+    assert.equal(full.length, 1, 'a calculator-only edit must take the full update');
+});
+
+test('§A3 a TITLE-only edit is CHANGED (a column outside the document)', () => {
+    const row = storedRowFor(SAMPLE);
+    const out = convertOne(pipeline, SAMPLE, { ...row, title: 'Something else' }, PATH);
+    const { full } = classifyUpdates(
+        [{ file: fileAt(PATH), row: { ...row, title: 'Something else' }, converted: out, moved: false, adoptsKey: false }],
+        () => null,
+        SCHEMA,
+    );
+    assert.equal(full.length, 1);
+});
+
+test('§A3 a stored document missing a schema DEFAULT compares equal (stored before the field existed)', () => {
+    const row = storedRowFor(SAMPLE);
+    const stored = structuredClone(row.draft_content);
+    // Drop every defaulted boolean the current schema would re-add; jsonb also
+    // loses key order — both must not register as a change.
+    const strip = (n) => {
+        if (Array.isArray(n)) return n.forEach(strip);
+        if (n && typeof n === 'object') {
+            // `skills` defaults to [] on every block (z.default) — a stored copy
+            // without it is what a document written before the default reads like.
+            if (Array.isArray(n.skills) && n.skills.length === 0) delete n.skills;
+            Object.values(n).forEach(strip);
+        }
+    };
+    strip(stored);
+    assert.notEqual(canonicalJson(stored), canonicalJson(row.draft_content), 'the fixture must actually drop something');
+    // jsonb does not keep key order: reverse every object's keys, deeply.
+    const reverseKeys = (n) =>
+        Array.isArray(n)
+            ? n.map(reverseKeys)
+            : n && typeof n === 'object'
+              ? Object.fromEntries(Object.keys(n).reverse().map((k) => [k, reverseKeys(n[k])]))
+              : n;
+    const out = convertOne(pipeline, SAMPLE, row, PATH);
+    assert.equal(
+        contentKey(updatePayload(fileAt(PATH), out), SCHEMA),
+        contentKey({ ...nowFields(row), draft_content: reverseKeys(stored) }, SCHEMA),
+    );
+});
+
+test('§A3 classify: moved+unchanged → PATH ONLY; same path → UNCHANGED; adopting a key → PATH ONLY', () => {
+    const row = storedRowFor(SAMPLE);
+    const out = convertOne(pipeline, SAMPLE, row, PATH);
+    const moved = { file: fileAt('801-x/' + PATH, 'act.x'), row, converted: out, moved: true, adoptsKey: false };
+    const still = { file: fileAt(PATH, 'act.x'), row, converted: out, moved: false, adoptsKey: false };
+    const adopt = { file: fileAt(PATH, 'act.x'), row, converted: out, moved: false, adoptsKey: true };
+    const r = classifyUpdates([moved, still, adopt], () => null, SCHEMA);
+    assert.deepEqual([r.pathOnly.length, r.unchanged.length, r.full.length], [2, 1, 0]);
+    assert.equal(r.pathOnly[0], moved);
+    assert.equal(r.unchanged[0], still);
+});
+
+test('§A3 classify compares a PUBLISHED row (no draft) against its current version', () => {
+    const row = storedRowFor(SAMPLE);
+    const published = { ...row, draft_content: null, current_version_id: 'v-7' };
+    const out = convertOne(pipeline, SAMPLE, published, PATH);
+    const versions = new Map([['v-7', row.draft_content]]);
+    const r = classifyUpdates(
+        [{ file: fileAt('801-x/' + PATH), row: published, converted: out, moved: true, adoptsKey: false }],
+        (rw) => versions.get(rw.current_version_id) ?? null,
+        SCHEMA,
+    );
+    assert.equal(r.pathOnly.length, 1, 'the chain-1 rename case: path only, no draft written');
+});
+
+test('§A3 classify FAILS SAFE: no current content, or no stored fingerprint → full update', () => {
+    const row = storedRowFor(SAMPLE);
+    const out = convertOne(pipeline, SAMPLE, row, PATH);
+    const noContent = { ...row, draft_content: null, current_version_id: null };
+    const noFp = { ...row, source_fingerprint: null };
+    const r = classifyUpdates(
+        [
+            { file: fileAt(PATH), row: noContent, converted: out, moved: true, adoptsKey: false },
+            { file: fileAt(PATH), row: noFp, converted: out, moved: false, adoptsKey: false },
+        ],
+        () => null,
+        SCHEMA,
+    );
+    assert.equal(r.full.length, 2);
 });
 
 // =============================================================================

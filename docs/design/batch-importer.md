@@ -133,6 +133,37 @@ update, because removing a tag from the file has to remove it from the row.
 
 ---
 
+### D5a — an update that changes nothing writes nothing (2026-10-04)
+
+**Author ruling (b)** on the curriculum side's year-banded chain rename (their
+D46), plus an **extension both sides agreed** under the author's standing
+instruction (curriculum B-46 / C-44). Before this, every matched file took a
+full update: a renamed chain folder put identical drafts on published
+activities, and a mirrors-only run had to use an EMPTY folder to avoid the
+same thing.
+
+- **"Unchanged"** = the would-be update payload (built by the same
+  `updatePayload` the write uses, so EVERY written field is compared — the
+  curriculum side's condition) equals the row's current state: its draft, or
+  its CURRENT PUBLISHED version when it has none. Both are parsed by the
+  current schema (defaults added since compare equal), key-sorted, and every
+  minted identifier (UUIDs, `g…` math-gap ids, keys included) is renamed in
+  order of first appearance. **Not the stored fingerprint, measured:** two
+  conversions of the same file differ in 251 ids and 9 LaTeX gap ids on
+  chain 1's four files, so a fingerprint never matches an unchanged file.
+- **path only** — unchanged, but the file moved or the row adopts its key:
+  writes `source_path` / `source_key` only (not the draft, the fingerprint or
+  `updated_at` — a move is not an edit).
+- **unchanged** — unchanged, same path, nothing to adopt: writes nothing.
+- **full** — anything else, still behind the app-edit drift guard. Fails
+  safe: no current content, or a row whose fingerprint was never written,
+  always takes the full update.
+- The dry run lists `path` and `same` lines apart from `update`, so a receipt
+  accounts for every file. Note: the comparison only holds when a run passes
+  the same `--glossary` and registries that produced the stored content
+  (glossary marks are content); otherwise it falls back to full, never to a
+  wrong skip.
+
 ## What it writes, and what it deliberately does not
 
 The write payload **mirrors the app's own autosave**
