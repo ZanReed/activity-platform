@@ -33,7 +33,7 @@ NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 Novem
 the counsel packet with the practice-data question (E5), which is NOT drafted
 yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
-**Y7 geometry figures — slice BUILT and pushed** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): everything except T3's graded-`show:` half, which needs a ruling. **Owed now: `pnpm deploy:get-activity` + `pnpm deploy:check` for T5's cuboid schema.** The full open queue (8 items) is in [TODOS.md](TODOS.md) → "Y7 geometry slice — OPEN QUEUE".
+**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. **Owed by the author:** the real batch import over the renamed pilot folder (dry run: 4 path-only moves). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next in BUILD ORDER: D43 design is done; item 4 (SW stale-shell recovery) or the author's pick.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
@@ -194,8 +194,8 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ## Build order — RULED by the author 2026-10-02
 
-1. ~~**B14**~~ DONE 2026-10-03 (their PR #26 at `279a5a4`; pin-bump duty in CLAUDE.md). 2. **Y7 geometry figures**
-(eng review → T1–T8). 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2
+1. ~~**B14**~~ DONE 2026-10-03 (their PR #26 at `279a5a4`; pin-bump duty in CLAUDE.md). 2. ~~**Y7 geometry figures**~~
+DONE 2026-10-04. 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2
 (design APPROVED; scope-, eng- and design-reviewed 2026-10-02); no D43 build before
 geometry ships. 4. SW stale-shell recovery, before any real
 student. 5. **Y7 charts**, pulled when a statistics chain is next to be drafted.

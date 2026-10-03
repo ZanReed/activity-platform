@@ -1,6 +1,6 @@
 # Y7 figures and charts — geometry figures in prompts, statistics charts
 
-**Status:** ✅ RULED 2026-09-30 — D1–D12 accepted by the author as proposed
+**Status:** ✅ **GEOMETRY SLICE BUILT 2026-10-04** (T1–T8, T7b, T8b; T3's graded-stimulus half filed with a trigger — TODOS "Graded stimuli"). Charts (T9–T13) not started. ✅ RULED 2026-09-30 — D1–D12 accepted by the author as proposed
 (all twelve recommendations, no amendments). ✅ **DESIGN-REVIEWED
 2026-09-30** (`/plan-design-review`, author-run): §2 re-derived against the
 code (P10; six corrections, none reopening a ruling), the ten §4 forks
@@ -704,6 +704,7 @@ commit, then T4, T3, T5, T7, T7b, T8, T8b.**
   - Surfaced by: §2 two-renderer correction, Q10; ER-4, ER-5, ER-11, ER-12
   - Files: `packages/graph-kit/src/board.ts`, `packages/app/src/lib/markdownToTiptap.ts`, `scripts/tests/` (the roster scan)
   - Verify: the roster scan (every `Drawable` kind has a `case` in both renderers); a student-lane e2e row over a ```graph fixture with `show:` marks (ER-5)
+  - ✅ **Ruled 2026-10-04 (author): option B** — the graded-stimulus half is filed in TODOS ("Graded stimuli") with the trigger "chain.geom.transformations is next to be drafted". T3 is otherwise closed.
   - ⚠ **HALF BUILT, HALF BLOCKED (2026-10-04, P10).** BUILT: the board draws all five kinds through `figure-marks.ts` (graph units → board pixels, sizes scaled by board width / 400), dashed segments, the input filter; `scripts/tests/drawable-roster.test.mjs` (roster read from the schema union; mutation-tested twice); `e2e/board-marks.e2e.ts` on `/dev/graph-question?scenario=marks` (mutation-tested). BLOCKED on an author ruling: Q10/§2 say "a graded ```graph block already accepts `show:` display drawables beside its `answer:`" — **the code says otherwise.** `parseGraphFence` drops `show:` lines next to an `answer:` with the warning "aren't drawn yet (coming with graded stimuli)", the schema has no drawables field on any graded interaction (only `display` carries them; its comment calls a stimulus-with-answer "additive, later"), and the student viewer never mounts a display board (display graphs render statically). So D9's graded transformation ("plot the image vertices" over a shown pre-image) needs a NEW graded-stimulus field — schema, graded-board drawing, print twin, importer, editor, both bundles — which no task here builds. The `show:`-grammar half of T3 waits for that ruling.
 - [x] **T5 (P1, human: ~1.5 d / CC: ~45 min)** — cuboid — `cuboid` drawable + fence line per Q6, in both renderers; both bundles again (ER-6)
   - Surfaced by: Q6, D6

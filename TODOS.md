@@ -22,7 +22,7 @@ the queue. An entry's own Priority line below does not outrank it.**
    the registry says, so the first chain needing one of the four would be
    forced into a fallback it does not need. The curriculum side will not
    hand-edit the statuses (regeneration is platform-owned).
-2. **Y7 geometry figures** — eng-cleared 2026-10-03; T1, T2, T6, T4 built; T3, T5, T7, T7b (figure in a column, author-added), T8, T8b to go.
+2. ~~**Y7 geometry figures**~~ DONE 2026-10-04 (T1–T8, T7b, T8b; graded stimuli filed with a trigger — entry "Graded stimuli").
 3. **D43 practice blocks — DESIGN PASS ONLY**, alongside 1–2. No D43 build
    before geometry ships.
 4. **Service worker stale-shell recovery** (entry below, P2) — before any real
@@ -290,49 +290,55 @@ entry below rides this arc (N2).
 
 **Facts to keep in view (re-derived 2026-10-04):** the chain is the FIRST path segment (`chainFolderOf`), so catalogue folders must stay FLAT; the folder ordinal is teaching order across all courses in the teacher's outline (Lane B, `comparePaths`); `course:` groups nothing.
 
-## Y7 geometry slice — OPEN QUEUE to work through with the author (2026-10-04)
+## Y7 geometry slice — CLOSED 2026-10-04; what it left behind
 
-Built and pushed: T1+T2+T6 `f2ff039`, T4 `4df546a`, T7b `3df5024`, T3 board
-half `9620c2f`, T5 `9dd5788`, T7 `02672ee`, T8 (teaching + stamps), T8b (their
-PR #28 merged). Plus the importer's move-only/unchanged writes `4fe728d`.
+Built, pushed, CI green, both functions redeployed (bundles hash-verified):
+T1+T2+T6 `f2ff039`, T4 `4df546a`, T7b `3df5024`, T3 board half `9620c2f`,
+T5 `9dd5788`, T7 `02672ee`, T8, T8b (their PR #28). Importer move-only /
+unchanged writes `4fe728d`. The author's answers to the close-out queue:
 
-1. **RULING NEEDED — graded stimuli (T3's other half, D9/Q10).** The design's
-   premise that a graded ```graph accepts `show:` drawables beside `answer:`
-   is false in the code: `parseGraphFence` drops them with "aren't drawn yet
-   (coming with graded stimuli)", no graded interaction has a drawables field,
-   and the student viewer never mounts a display board. "Plot the image
-   vertices over a shown pre-image" needs a NEW graded-stimulus field (schema,
-   graded-board drawing, print twin, importer, editor, both bundles). Options:
-   (A) build it now; (B) file it with trigger "chain.geom.transformations is
-   next to be drafted" (same trigger as the side-by-side half); (C) another
-   shape. Recommendation: B — the curriculum order puts transformations after
-   triangles, parallel lines and area-volume.
-2. **DEPLOYS OWED for T5** (a schema change, pushed): `pnpm deploy:get-activity`
-   then `pnpm deploy:check`, then verify by bundle hash. Until then nobody
-   authors a cuboid in the app (the live functions would reject it).
-3. **The real import over the renamed pilot folder** is the author's: the dry
-   run showed 4 path-only moves, 0 updates. Command: `pnpm import:batch
-   ~/activity-catalogue-pilot --owner <you> --strict --registry
-   <curriculum main>/misconception-registry.txt --skills-registry
-   <curriculum main>/skill-registry.txt` (dry run first, as always).
-4. **Shell JS budget is at the stop line**: 156.445 / 156.5 KiB after T5. The
-   slimming rung (ladder in this file) must run before ANY further eager
-   addition. Charts are lazy and unaffected.
-5. **`--chain-registry` ranking**: its trigger (the curriculum rows PR) has
-   fired; ~1 h; author's call where it ranks.
-6. **Two unexplained one-offs this session** (watch, don't fix blind): a
-   SIGABRT while loading modules in `@activity/grading-worker` tests, and one
-   unhandled error in the app vitest run under `pnpm verify` (1 in 12 runs; the
-   text was lost to verify's truncated output). Different packages, same
-   session; a third sighting makes it a pattern.
-7. **Mechanism choices made without a ruling (FYI, revisit if wrong):**
-   plane-less labelled points draw as letters without a dot; plane-less
-   segments carry no endpoint dots unless authored; side labels clear a
-   vertical edge by their width; Q6's `hidden: off` is a fence-level line
-   (like `plane:`); narrow rows holding a figure stack below ~656 px.
-8. **Unexplained 0.5 KiB** between two shell readings (155.2 → 155.7) with a
-   measured code delta of 0 between those commits — likely a measurement
-   artefact; low priority, noted so the next reading is compared carefully.
+- **Graded transformations — ruled (B): filed with a trigger**, entry below.
+- **The real import over the renamed pilot folder** — the author runs it
+  (dry run showed 4 path-only moves, 0 updates).
+- **Shell JS budget at the stop line** — added to the size ladder entry below
+  ("The student shell's size ladder").
+- **`--chain-registry`** — its own entry above stands; trigger fired.
+- **Mechanism choices made without a ruling** — accepted provisionally (author:
+  "sounds fine to start"; revisit after testing the feature): plane-less
+  labelled points as letters without a dot; plane-less segments without
+  endpoint dots unless authored; side labels clear a vertical edge by their
+  width; `hidden: off` as a fence-level line; rows holding a figure stack
+  below ~656 px.
+- **Two unexplained one-off test aborts (2026-10-04)** — a SIGABRT while
+  loading modules in `@activity/grading-worker`'s tests, and one unhandled
+  error in the app's vitest run under `pnpm verify` (1 in 12 runs; text lost
+  to verify's truncated output). Different packages, one session. A third
+  sighting is a pattern: capture the full output (run `pnpm -r test`
+  directly) before calling it noise.
+
+## Graded stimuli — drawables shown BESIDE a graded graph's answer (Y7 D9; author ruled 2026-10-04: file with a trigger)
+
+**TRIGGER: `chain.geom.transformations` is next to be drafted** (the same
+trigger as the side-by-side figures entry below). Design pass may run early
+(joint: the `show:`-beside-`answer:` grammar is curriculum-facing).
+
+**Why:** D9 grades transformations as "plot the image vertices" over a SHOWN
+pre-image and mirror line, and Q10 assumed a graded ```graph already accepts
+`show:` drawables beside `answer:`. It does not (re-derived 2026-10-04,
+P10): `parseGraphFence` drops such lines with "show lines alongside an
+answer aren't drawn yet (coming with graded stimuli)"; no graded interaction
+in `schema/src/blocks/interactive-graph.ts` carries drawables (only
+`display`, whose comment calls a stimulus-with-answer "additive, later");
+and the student viewer never mounts a display board.
+
+**What it takes:** a stimulus drawables field on graded `interactive_graph`
+(sanitize keeps it — question material); the graded boards in
+`graph-question.ts` draw it (the board already draws every mark kind, T3);
+the print twin draws it on the STUDENT sheet (`questionDrawables`); the
+importer accepts `show:` beside `answer:` through `figureFence.ts` (ER-11;
+annotation lines skip-with-warning, ER-12a, and count as figure problems);
+editor rows; both bundles + both deploys. Scoring is unchanged (labels never
+reach `plot_point`).
 
 ## Side-by-side figures for "which one?" items (curriculum C-35 wish, 2026-10-03)
 
@@ -2053,6 +2059,13 @@ changes belongs here. Recorded with enough context to act without archaeology.
 **Depends on:** nothing. Each is independent.
 
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
+
+> ⚠ **2026-10-04: shell JS is at the Y7 stop line — 156.445 of 156.5 KiB**
+> (ER-9; cap 158.0) after the Y7 geometry slice's cuboid, the last eager
+> addition it was allowed. The NEXT rung of this ladder must run before ANY
+> further eager addition to the student shell. Lazy additions (the Y7 chart
+> block, N5) are unaffected. Read the live number with
+> `node scripts/check-perf-budget.mjs`.
 
 **⚖ THE ~150 KiB gz TARGET IS MET.** Two rungs shipped: slice 1 (the Supabase
 sub-clients, 2026-08-18) and rung 1 (the zod audit, 2026-08-23). **Do not read a
