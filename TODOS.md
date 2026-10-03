@@ -273,8 +273,11 @@ new findings ruled (all accepted); §2 re-derived (two renderers per drawable
 kind, the editor cannot insert a body figure, shell headroom 5.5 KiB not
 15). ✅ **Curriculum side CONFIRMED the authoring model 2026-09-30** (all
 five yes; N8 "Not to scale" auto-caption ruled on their question; build
-order triangles-polygons first). **Next (BUILD ORDER, 2026-10-02): B14 first,
-then `/plan-eng-review`** and the geometry slice T1–T8 in the doc's task list;
+order triangles-polygons first). **ENG-REVIEWED 2026-10-03** (doc §8): ER-1 to
+ER-15 proposed and awaiting the author's yes/no; this slice DOES change
+`docs/capability-facts.json` (a `figure` capability), so the task list gained
+T8b, the pin-bump PR. **Next: the author's rulings, then** the geometry slice
+T1–T8 + T8b in the doc's task list;
 the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted. Y7 is the first part of the builder's order, so this
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).

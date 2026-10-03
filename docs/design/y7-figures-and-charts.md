@@ -9,8 +9,13 @@ D-rulings carry amendments, not reversals: D7's mechanism is stated (N5)
 and D11 is split for charts (N3). ✅ **Curriculum side CONFIRMED the
 authoring model** (their boundary page, 2026-09-30: five yes/no's all yes,
 author-ruled) — disposition and the one ruling it produced (**N8**, the
-automatic "Not to scale" caption) are at the end of §4. Nothing here is
-built; next is the eng review.
+automatic "Not to scale" caption) are at the end of §4. ⏳ **ENG-REVIEWED
+2026-10-03** (`/plan-eng-review`, geometry slice T1–T8 only): §8 holds
+fifteen rulings **ER-1 to ER-15, PROPOSED and awaiting the author's yes/no**,
+plus six factual corrections to §2, §5 and §7. No D-, Q- or N-ruling is
+reopened; three have their MECHANISM corrected because the code contradicts
+it (Q3's "serialize untouched", Q5's ink colour, N8's figcaption markup).
+Nothing here is built.
 
 **Why now.** Y7 is the first part of the curriculum builder's order (D38
 bottom-up), and the curriculum's Y7 stubs (`proposals/y7-chain-stubs.md`, open
@@ -490,43 +495,228 @@ render.
 - `answerKeyDrawables` (letters post-check, Q10); the ```graph fence's
   `show:` lines (Q10).
 
+## 8. Eng review (/plan-eng-review, 2026-10-03)
+
+Target: this document, §4–§5 and tasks T1–T8 (the geometry slice). Charts
+(T9–T13) were not reviewed. Review only; nothing is built. **ER-1 to ER-15
+are PROPOSED. Each waits for the author's yes/no**; a "no" reverts that
+row's lines in the task list below.
+
+**What was read (at `main` @ 5c7d8bf).** `graph-primitives.ts`,
+`blocks/graph-figure.ts`, `sizing.ts`; `static-svg/graph-svg.ts` whole;
+`board.ts` 1786–1982; `GraphFigure.tsx`; `viewer.css` figure rules and the
+print block; `tokens.css`; `registry.ts` and `printExpectations.ts`
+(graph_figure rows); `markdownToTiptap.ts` (`parseContentLines`,
+`parseShowDrawable`, `parseGraphFence`); `importFormatRegistry.ts`;
+`capabilityFacts.ts`; `serialize.ts` (both graph-figure directions);
+`editor/extensions/GraphFigure.ts`, `editorExtensions.ts`, `SlashMenu.ts`,
+`drawableText.ts`, the `DrawableAttr` twin; `batch-import.mjs` exit
+conditions; both server handlers; `swRegistration.ts`; TODOS (BUILD ORDER,
+the degenerate-axis entry); the curriculum graph v0.17.2 capability list.
+
+**Budget, re-measured 2026-10-03** (`node scripts/check-perf-budget.mjs`,
+dist built 17:19 the same day): shell JS **152.5 / 158.0 KiB gz**, shell CSS
+**14.7 / 15.0 KiB gz**. Same as the brief. CSS headroom is about 300 bytes
+gz. The editor's CSS is a separate lazy file (`ImagePopoverHost-*.css`), so
+only `viewer.css` and `tokens.css` additions count against the shell.
+
+### Corrections of fact (no ruling needed)
+
+| # | The doc says | The code says |
+|---|---|---|
+| C1 | §2: "the main editor doesn't register the node" | It does. `editorExtensions.ts:186-192` registers `GraphFigure` "so the main editor can REPRESENT one". Only the slash item is hidden (`slashMenuItems.ts:343` `referenceOnly: true`); the comment at `SlashMenu.ts:34-36` is stale. T7 is un-hiding plus the popover, not a registration. |
+| C2 | §5: grading bundle only "if `graph-score.ts` or the server walk learn anything" | Both bundles carry the schema. `check-activity-handler.ts:406` and `get-activity-handler.ts:429` call `upgradeActivityDocument`, which runs `ActivityDocument.safeParse` (`upgrade.ts:101`). A `Drawable` union change drifts BOTH bundles (ER-6). |
+| C3 | Q3: "`serialize.ts` and the round-trip are untouched" | True for drawables, false for block fields. `tiptapGraphFigureToActivity` (`serialize.ts:1169-1180`) copies `axis` and `drawables` only, and the batch importer itself goes through it (`batchImportPipeline.ts:26`). See ER-1. |
+| C4 | §7: Q4 "changes `SIZE`'s role and `py`'s scale, nothing else" | `SIZE` is used as the HEIGHT at thirteen sites in `graph-svg.ts` (grid and axis lines 122–141, tick-label clamps 148 and 163, `insideBox` 230, `clipToBox` 242–245, vertical lines and shading 360–366, half-plane edge 373, ray extension 429, the clip rect 616). Each must become height-aware or a ray's arrowhead lands outside a wide figure. Folded into T2 with its own guard. |
+| C5 | Q9: "the existing `.block-sized` path" | No such class. Sizing is applied by the container: `ViewerContainer.tsx:806` adds `viewer-block--sized` from `isSized(layout)` (`layoutStyles.ts:147`). T6 extends that path. |
+| C6 | T3: "a board test counting created elements per kind" | No unit test in the repo loads JSXGraph (`packages/graph-kit/tests` has none; `createDisplayBoard` is untested outside e2e). See ER-5. |
+
+### Step 0: scope challenge
+
+The slice touches about 22 files across four packages, so the complexity
+gate tripped. No feature is cut: every D-, Q- and N-ruling stays. Two files
+are added that the task list did not name (a shared mark-geometry module,
+ER-4; a figure-line parser function inside the importer, ER-11) and one task
+(T8b, the pin bump, ER-14). Result: **scope accepted as-is.**
+
+What already solves part of it: `renderGraphSvg` and its `Plane` map; the
+`data-drawable` wrapper and `data-drawables` count; `sizingFields` and the
+container's sized path; `.viewer-image__caption` (the caption's exact style
+already exists); the polygon read-only row in `drawableText.ts:47-49`; the
+`figure/standalone-capped` print row; the `FENCES` registry guard and the
+capability-facts drift test.
+
+### Decision ledger (State: PROPOSED, awaiting the author)
+
+| ID | Proposed ruling | Finding it closes |
+|---|---|---|
+| ER-1 | **Block fields ride the editor node and the serializer.** `alt`, `plane`, `toScale`, `width`, `align` are added to the Tiptap `graphFigure` attrs (`GraphFigure.ts:48-79`) and to BOTH `serialize.ts` directions (`:1169-1180`, `:1575-1583`). Guard: a serialize round-trip test over a block carrying all five, plus Q9's rendered-output guards. | [P1] (10/10) Without this no figure ever has `alt` or `plane`, file-backed or not: the importer emits Tiptap JSON and the pipeline converts it through this function. Opening any activity in the editor and saving would also strip them. |
+| ER-2 | **`plane` lives on `GraphFigureBlock`, not `AxisConfig`.** `plane: z.boolean().default(true)`; the ```figure fence writes `false` unless `plane: on`. `renderGraphSvg` takes it as an option. D3's "an `AxisConfig` switch" is amended in mechanism only. | [P1] (9/10) `AxisConfig` (`graph-primitives.ts:32-43`) is shared by `interactive_graph`, choice figures and the JSXGraph board. A switch there is an orphan on every surface but one. T1 already wrote `GraphFigureBlock.plane`; this makes D3 agree. |
+| ER-3 | **Auto-fit runs at IMPORT.** The importer calls a pure `fitFigureWindow(drawables)` exported from `@activity/graph-kit/static-svg` (a node-safe subpath) and writes a concrete `axis`. The schema keeps `axis` required; the engine never guesses a window. A zero-span box (collinear points) is padded to a non-zero span. | [P2] (8/10) Q4 does not say where auto-fit runs. Render-time fitting would make `axis` optional (a schema change felt by four other consumers) and would put fitting code on both renderers. |
+| ER-4 | **One shared mark-geometry module.** `packages/graph-kit/src/figure-marks.ts`, pure and DOM-free, turns a mark plus a px mapping into primitives (lines, paths, text anchors) using Q1's numbers. The static engine stringifies them; the board draws the same primitives. Unit-tested once. | [P2] (8/10) Q1's twelve placement numbers would otherwise be typed twice (`graph-svg.ts` and `board.ts`) and drift, which is the two-renderer lesson in a new form. Two proposed callers, both named. Alternative on the table: parallel implementations, the `display-arrows.ts` precedent. |
+| ER-5 | **Board proof is an e2e row plus a roster scan.** T3's verify becomes (a) a Playwright row in the student lane over a ```graph fixture with `show:` marks, asserting on-screen elements per kind, and (b) a script test that reads the `Drawable` union's kind literals and fails if `board.ts` or `graph-svg.ts` lacks a `case` for one. | [P1] (9/10) `board.ts:1970-1971` is `default: break`, so a kind the board does not know draws nothing, silently. No JSXGraph unit harness exists (C6). |
+| ER-6 | **T1 regenerates BOTH server bundles, and both functions deploy before the first figure is imported.** Pending author actions, in order: push, `pnpm deploy:get-activity`, `pnpm deploy:check`, then import. | [P1] (9/10) C2. A deployed function with the old schema fails `safeParse` on a new drawable kind, so the student's open (and every check on that activity) errors. CI also fails on grading-bundle drift. |
+| ER-7 | **INK labels are set by inline `style`, not a `fill` attribute.** The engine emits `style="fill:var(--gk-svg-ink,#1e293b)"` on side, angle, vertex and free-text labels. Tick labels are unchanged. Zero CSS bytes. | [P1] (9/10) `viewer.css:634-637` sets `.viewer-figure > svg text { fill: var(--vw-color-ink-muted) }`, and a CSS rule beats a presentation attribute (that file's own comment says so). Q5's ink labels would render muted on every figure. |
+| ER-8 | **The caption needs a wrapper.** Markup becomes `<figure class="viewer-figure-wrap">` holding `<div class="viewer-figure" role="img" aria-label={alt}>` (engine SVG, still a direct child) and `<figcaption class="viewer-image__caption">Not to scale</figcaption>`. Every existing `.viewer-figure > svg` selector, print row and test keeps matching. | [P1] (9/10) N8 puts a `<figcaption>` inside `.viewer-figure`, but that element carries `dangerouslySetInnerHTML` (`GraphFigure.tsx:107`), which cannot coexist with children, and `role="img"` (`:98`) makes its children presentational, so a screen reader would never reach the caption. |
+| ER-9 | **Budget plan and stop lines.** Eager CSS added by this slice is the `--gk-svg-ink` token (four declarations) and one selector for the wrapper's margin. The caption reuses `.viewer-image__caption`; sizing and the non-square fallback use inline custom properties on the element (`--vw-figure-cap-standalone`, `aspect-ratio`), not new rules. T2, T6 and T5 each re-measure. Stop and bring it to the author if shell CSS would pass 15.0 KiB or shell JS would pass 156.5 KiB; no cap is raised inside this slice. | [P1] (8/10) About 300 bytes gz of CSS headroom. The engine is 3.3 KiB gz today and gains five marks, plane-less mode, the cuboid and the fit function, so D10's "+1–2 KiB" is a guess until measured. |
+| ER-10 | **The source popover's text is GENERATED, never stored.** `formatFigureSource(block)` is the inverse of the fence parser (letters recovered from labelled points). Guard: `parse(format(block))` equals `block` over a fixture of every line form. No `source` field in the schema. In `DrawableListEditor` the new kinds show as read-only summary rows (the polygon precedent); the `DrawableAttr` twin (`InteractiveGraph.ts:163`) gains them. | [P2] (8/10) Q8 says the popover "holds the fence text" but the importer emits coordinates only, so there is no text to hold. Storing it would be a second copy of the truth. Alternative on the table: defer the popover to a triggered TODO and ship un-hide plus read-only rows only. |
+| ER-11 | **New grammar gets its own parser, on two surfaces only.** A `parseFigureLine` plus the name pass serves the ```figure fence and the ```graph fence's `show:` lines (Q10). `parseShowDrawable`'s other callers (MC and matching `graph:` choices, ```reference and ```definitions `graph:` lines) keep today's grammar. | [P2] (8/10) `parseShowDrawable` strips the words `open`, `closed`, `dashed` and every quoted string from the whole line before reading it (`markdownToTiptap.ts:4297-4306`), which would eat a label such as "open box"; and a choice figure carries one drawable, so a name can never resolve there. |
+| ER-12 | **Two failure rules.** (a) Inside ```graph, a bad annotation `show:` line warns and is skipped (N2); today's kinds keep failing the whole block (`:4551-4553`). (b) A ```figure fence with no valid drawable produces a warning and NO block, never the raw fence as plain text. | [P2] (7/10) A label typo should not turn a graded question into plain text, and an eleven-year-old should never see fence source. Prior learning applied: importer-degrade-paths-can-leak-answer-keys (9/10, 2026-08-21). |
+| ER-13 | **Figure problems fail `--strict` through a typed channel.** `ImportResult` gains `figureProblems: string[]` (missing `alt`, a refused or skipped figure line); `batch-import.mjs` adds them to `catalogueWarnings`. No matching on warning text. | [P1] (9/10) N7 says `--strict` FAILS a figure without `alt`, but importer warnings go to `warned` (`batch-import.mjs:2445`) and are absent from both exit conditions (`:2968-2977`, `:3172-3180`). As written, N7 and N2's refusals would pass a strict run. |
+| ER-14 | **B14: yes, this slice changes `docs/capability-facts.json`.** A `figure` entry in `FENCES` turns `capabilityFacts.test.ts` red until `JOIN` gains `figure: { fence: 'figure', probe: { type: 'graph_figure' }, scoring: 'none' }`. That lands in T4's commit with `pnpm facts:capabilities`. New task **T8b**: after the author pushes and deploys, open the pin-bump PR on `ZanReed/curriculum` with a pre-merge notice (letter B-34) proposing the id `figure`; they write its prose. The `show:` annotation grammar on ```graph changes no derived field, so T3 and T5 trigger nothing. | [P1] (9/10) The curriculum graph (v0.17.2, 23 capabilities) has no figure entry, and their §9 lets them draft only with shipped capabilities, so figures are not authorable until the pin bump merges. |
+| ER-15 | **No commit leaves a field unread.** T1, T2 and T6 land as ONE commit (schema, engine, viewer, serializer, guards). Execution order: T1+T2+T6, T4, T3, T5, T7, T8, T8b. The pin bump may go as soon as T4 is live; it does not wait for T7. | [P2] (8/10) Close-out question 1 and P1: a schema commit on its own is an orphan interval, and the curriculum side is drafting triangles-polygons now, which needs marks plus the fence and nothing else. |
+
+Approval readiness: NOT YET. Fifteen rows await the author's answer.
+
+### Section findings
+
+**1. Architecture (7).** ER-1, ER-2, ER-3, ER-6, ER-8, ER-14, ER-15.
+One realistic production failure per new path:
+
+| Path | Failure | Covered by |
+|---|---|---|
+| import → document | block fields dropped in the serializer | ER-1 round-trip test |
+| document → get-activity | old deployed schema rejects a new kind; open fails | ER-6 deploy order; marker grep after deploy |
+| engine, plane-less | arrowhead or clip computed against a square box | C4 fixture: a ray in a 2:1 figure, tip inside the viewBox |
+| board (`show:` marks) | kind unknown to the board draws nothing | ER-5 roster scan + e2e row |
+| stale precached shell | old engine skips unknown kinds; a triangle with no labels | NOT covered here. It is build-order item 4 (SW stale-shell recovery), ruled "before any real student". Visible, not silent to a teacher previewing; flagged, not a critical gap while no real student exists. |
+
+**2. Code quality (5).** ER-4, ER-7, ER-10, ER-11, ER-12.
+**3. Tests (2 rulings, 23 gaps on unbuilt code).** ER-5, ER-13; C6.
+**4. Performance (1).** ER-9. No query, memory or caching concern: the
+engine is a synchronous string builder and auto-fit runs once at import.
+
+### Coverage diagram (everything below is unbuilt; each GAP is a required test)
+
+```
+CODE PATHS                                              USER FLOWS
+[+] schema (T1)                                         [+] Curriculum author: file → import → student
+  ├── [GAP] 5 kinds + segment.style parse                 ├── [GAP] [→E2E] ```figure imports, renders,
+  ├── [GAP] AxisConfig refine rejects xMin>=xMax          │        prints (print lane, plane-less fixture)
+  └── [GAP] old documents still parse (REGRESSION)        ├── [GAP] --strict fails without alt (ER-13)
+[+] serialize.ts (ER-1)                                   └── [GAP] --strict fails on a refused figure
+  └── [GAP] round-trip of alt/plane/toScale/width/align [+] Student: graded transformation (Q10)
+[+] figure-marks.ts (ER-4)                                └── [GAP] [→E2E] show: marks visible on the
+  ├── [GAP] each mark: Q1 numbers, both polygon windings           board (student lane, ER-5)
+  ├── [GAP] side label +8 when ticks share the edge     [+] Teacher: editor
+  └── [GAP] reflex / right / coincident-point refusal     ├── [GAP] [→E2E] slash-insert a figure, edit
+[+] graph-svg.ts (T2)                                     │        source, Done, reload: same figure
+  ├── [GAP] Q9 per-kind element counts (mutation-tested)  └── [GAP] open + save keeps alt/plane (ER-1)
+  ├── [GAP] plane off: no grid lines, non-square viewBox[+] Error states
+  ├── [GAP] plane on: byte-identical to today (REGRESSION)├── [GAP] unknown point name: line skipped, warned
+  ├── [GAP] ray arrow inside a 2:1 viewBox (C4)           ├── [GAP] empty figure fence: no block (ER-12b)
+  └── [GAP] label text carries the ink style (ER-7)       └── [★★ TESTED] degenerate axis shows "Figure
+[+] GraphFigure.tsx (T6)                                           unavailable" — graph-figure.test.tsx:126
+  ├── [GAP] alt → aria-label; absent → "Graph figure"
+  ├── [GAP] caption present / absent ×3 (N8), mutation-tested
+  ├── [★★★ TESTED] svg is a direct child, capped — figure/standalone-capped
+  └── [GAP] unavailable reason enum, both values
+[+] board.ts (T3) ── [GAP] roster scan (ER-5b)
+[+] importer (T4)
+  ├── [GAP] every Q3 line form; names in any order
+  ├── [GAP] each N2 refusal names its line
+  ├── [GAP] fitFigureWindow: padding, label margin, zero-span (ER-3)
+  └── [GAP] FENCES guard + capabilityFacts drift (ER-14)
+
+COVERAGE: 2/25 paths tested (8%)  |  Code paths: 1/18  |  User flows: 1/7
+QUALITY: ★★★:1 ★★:1  |  GAPS: 23 (3 E2E, 0 eval)
+```
+
+Legend: ★★★ behavior + edge + error | ★★ happy path | [→E2E] needs a browser lane.
+
+**Regression rule.** Two existing behaviors are at risk and both get a
+named test: a `plane: on` figure must render byte-identically to today
+(every reference-panel figure and choice figure in the catalogue), and
+every stored document must still parse after the `AxisConfig` refine (the
+TODOS corpus query runs first; a hit blocks the refine, not the slice).
+
+**No LLM eval is owed by T1–T7.** T8 changes `markdownImportPrompt.ts`; the
+existing prompt guards (`FENCES` examples import cleanly, the catalogue
+prompt drift test) cover it. A drafting-quality eval of the ```figure
+grammar is the curriculum side's first authored chain, which is the plan.
+
+### Added to "NOT in scope"
+
+- **Seeded values in figure labels** (`side AB "{a} cm"`): not designed and
+  not checked against `substitute.ts`. Y7 geometry does not seed.
+- **Annotation grammar in choice figures and the reference panel** (ER-11):
+  one drawable per choice cannot carry names.
+- **A JSXGraph unit harness** (ER-5): the e2e row and the roster scan are
+  the proof; a harness is a project of its own.
+- **Stale-shell rendering of new kinds**: build-order item 4.
+
+### Parallelization
+
+Sequential implementation, no parallelization opportunity. T4, T3 and T7
+touch disjoint modules after the first commit, but every session shares this
+one checkout (CLAUDE.md, Division of labor), and T5 touches all of them.
+
+### Outside voice
+
+Unavailable. Codex is not installed on this host, and the native fallback
+needs a bounded-wait tool this session does not have. No second opinion was
+taken; that is missing coverage, not a clean pass.
+
+### Completion summary
+
+- Step 0: Scope Challenge: scope accepted as-is
+- Architecture Review: 7 issues found
+- Code Quality Review: 5 issues found
+- Test Review: diagram produced, 23 gaps identified (all on unbuilt code)
+- Performance Review: 1 issue found
+- NOT in scope: written (§6 plus four additions above)
+- What already exists: written (§7 plus Step 0 above)
+- TODOS.md updates: 0 items proposed (the status line for this arc was refreshed)
+- Failure modes: 0 critical gaps flagged
+- Unresolved decisions: 15 in this review (ER-1 to ER-15, awaiting the author)
+- Outside voice: codex, unavailable (not installed; native fallback unavailable)
+- Parallelization: 1 lane, 0 parallel / 1 sequential
+- Lake Score: N/A (no coverage choice has been answered yet)
+
 ## Implementation Tasks
-Synthesized from this review's findings. Each task derives from a specific
-finding above. Run with Claude Code or Codex; checkbox as you ship.
+Synthesized from the design review and the eng review (§8). Each task
+derives from a specific finding. **The geometry list below is the eng
+review's PROPOSED list**: lines tagged ER-n depend on that ruling's yes.
+Run with Claude Code or Codex; checkbox as you ship.
 
-**Geometry slice (D12 first)**
+**Geometry slice (D12 first). Execution order (ER-15): T1+T2+T6 as one
+commit, then T4, T3, T5, T7, T8, T8b.**
 
-- [ ] **T1 (P1, human: ~1.5 d / CC: ~40 min)** — schema — the five annotation kinds + `segment.style` + `GraphFigureBlock.alt/plane/sizing/toScale` + the `AxisConfig` refine (corpus check first)
-  - Surfaced by: Q2, Q4, N2, N6, N8, D11
-  - Files: `packages/schema/src/graph-primitives.ts`, `blocks/graph-figure.ts`, `sizing.ts`; `pnpm bundle:viewer-server`
-  - Verify: schema tests; `jsonb_path_exists` corpus query for bad windows before the refine lands
-- [ ] **T2 (P1, human: ~2 d / CC: ~1 h)** — static engine — plane-less mode (Q4 viewBox/aspect/auto-fit), the five marks with Q1's placement numbers, INK labels via `--gk-svg-ink` (Q5), dashed segments
-  - Surfaced by: Q1, Q4, Q5
-  - Files: `packages/graph-kit/src/static-svg/graph-svg.ts`, `packages/viewer/src/tokens/tokens.{css,ts}`
-  - Verify: `tests/components/graph-figure.test.tsx` per Q9, mutation-tested; `node scripts/check-perf-budget.mjs`
-- [ ] **T3 (P1, human: ~1 d / CC: ~30 min)** — kit board — the same five kinds on the JSXGraph board (Q10)
-  - Surfaced by: §2 two-renderer correction, Q10
-  - Files: `packages/graph-kit/src/board.ts`
-  - Verify: a board test counting created elements per kind; the ```graph fixture with `show:` marks renders them on screen
-- [ ] **T4 (P1, human: ~2 d / CC: ~1 h)** — importer — the ```figure fence: name pass, Q3 grammar, `alt:` required under `--strict` (N7), N2 warnings, outline polygons, quoted-only angle labels, the `to scale` line (N8)
-  - Surfaced by: Q3, N2, N7, N8
-  - Files: `packages/app/src/lib/markdownToTiptap.ts`, `scripts/batch-import.mjs`
-  - Verify: importer unit tests per line form + each N2 refusal; `pnpm --filter @activity/app test`
-- [ ] **T5 (P1, human: ~1 d / CC: ~30 min)** — cuboid — `cuboid` drawable + fence line per Q6
+- [ ] **T1 (P1, human: ~2 d / CC: ~1 h)** — schema + serializer — the five annotation kinds, `segment.style`, `GraphFigureBlock.alt / plane / toScale` + sizing, the `AxisConfig` refine; the same fields on the Tiptap node and through both `serialize.ts` directions (ER-1); `plane` on the block (ER-2); the `DrawableAttr` twin
+  - Surfaced by: Q2, Q4, N2, N6, N8, D11; ER-1, ER-2, ER-6, C3
+  - Files: `packages/schema/src/graph-primitives.ts`, `blocks/graph-figure.ts`; `packages/app/src/lib/serialize.ts`, `editor/extensions/{GraphFigure,InteractiveGraph}.ts`; the axis NumCells' inline error and the importer's `axes:` warning (the TODOS entry's other two parts); `pnpm bundle:viewer-server` AND `pnpm bundle:grading-server` (ER-6)
+  - Verify: schema tests incl. "old documents still parse"; the serialize round-trip test; the `jsonb_path_exists` corpus query for bad windows BEFORE the refine lands (a hit blocks the refine, not the slice)
+- [ ] **T2 (P1, human: ~2.5 d / CC: ~1.5 h)** — static engine — `figure-marks.ts` (ER-4) with Q1's numbers; plane-less mode (Q4) with every `SIZE`-as-height site made height-aware (C4); INK labels by inline style (ER-7); dashed segments; `fitFigureWindow` exported from the `static-svg` subpath (ER-3)
+  - Surfaced by: Q1, Q4, Q5; ER-3, ER-4, ER-7, C4
+  - Files: `packages/graph-kit/src/figure-marks.ts` (new), `static-svg/graph-svg.ts`, `static-svg.ts`; `packages/viewer/src/tokens/tokens.{css,ts}` (`--gk-svg-ink`)
+  - Verify: unit tests on `figure-marks.ts`; `tests/components/graph-figure.test.tsx` per Q9, mutation-tested; `plane: on` output byte-identical to today; a ray's arrow inside a 2:1 viewBox; `node scripts/check-perf-budget.mjs` against ER-9's stop lines
+- [ ] **T6 (P1, human: ~1 d / CC: ~30 min)** — viewer — wrapper markup with a real `<figcaption>` (ER-8), `alt` → `aria-label`, the unavailable-reason enum, sizing through the container's `viewer-block--sized` path with an inline cap override (C5, ER-9), aspect on the fallback
+  - Surfaced by: D11, N2, N6, N8, Q4; ER-8, ER-9, C5
+  - Files: `packages/viewer/src/blocks/GraphFigure.tsx`, `container/layoutStyles.ts`, `styles/viewer.css` (one selector)
+  - Verify: caption present / absent ×3, mutation-tested; a11y lane; `figure/standalone-capped` over a plane-less fixture added to `scripts/graph-figure-test.md`; budget re-measure
+- [ ] **T4 (P1, human: ~2.5 d / CC: ~1.5 h)** — importer — the ```figure fence: `parseFigureLine` + name pass (ER-11), Q3 grammar, import-time fit (ER-3), `alt:`, `to scale`, N2 refusals, the two failure rules (ER-12), `figureProblems` into `--strict` (ER-13); the `FENCES` entry, the `JOIN` entry and `pnpm facts:capabilities` (ER-14)
+  - Surfaced by: Q3, N2, N7, N8; ER-3, ER-11, ER-12, ER-13, ER-14
+  - Files: `packages/app/src/lib/markdownToTiptap.ts`, `importFormatRegistry.ts`, `capabilityFacts.ts`, `docs/capability-facts.json`, `scripts/batch-import.mjs`
+  - Verify: importer unit tests per line form and per refusal; a strict dry run that FAILS on a figure without `alt`; `capabilityFacts.test.ts` green; `pnpm --filter @activity/app test`
+  - Pending author actions after this lands (ER-6): push, `pnpm deploy:get-activity`, `pnpm deploy:check`, and only then import a figure
+- [ ] **T3 (P1, human: ~1.5 d / CC: ~45 min)** — kit board — the five kinds on the JSXGraph board from the same `figure-marks.ts` primitives (Q10, ER-4); `show:` lines in ```graph take the figure grammar (ER-11) and skip-with-warning on a bad annotation (ER-12a)
+  - Surfaced by: §2 two-renderer correction, Q10; ER-4, ER-5, ER-11, ER-12
+  - Files: `packages/graph-kit/src/board.ts`, `packages/app/src/lib/markdownToTiptap.ts`, `scripts/tests/` (the roster scan)
+  - Verify: the roster scan (every `Drawable` kind has a `case` in both renderers); a student-lane e2e row over a ```graph fixture with `show:` marks (ER-5)
+- [ ] **T5 (P1, human: ~1.5 d / CC: ~45 min)** — cuboid — `cuboid` drawable + fence line per Q6, in both renderers; both bundles again (ER-6)
   - Surfaced by: Q6, D6
-  - Files: `graph-primitives.ts`, `graph-svg.ts`, `board.ts` (display-only case), `markdownToTiptap.ts`
-  - Verify: 3 dashed hidden edges + unit-line count (Q9)
-- [ ] **T6 (P1, human: ~1 d / CC: ~30 min)** — viewer — `alt` → `aria-label`, unavailable-reason enum, sizing on `graph_figure`, aspect on the fallback, the "Not to scale" `<figcaption>` (N8)
-  - Surfaced by: D11, N2, N6, N8, Q4
-  - Files: `packages/viewer/src/blocks/GraphFigure.tsx`, `viewer.css`
-  - Verify: a11y lane; `figure/capped` row over a plane-less fixture
-- [ ] **T7 (P1, human: ~1.5 d / CC: ~45 min)** — editor — register `graphFigure` in the main editor; source popover re-running the importer parser (Q8)
-  - Surfaced by: §2 editor correction, Q8
-  - Files: `packages/app/src/editor/extensions/{GraphFigure,SlashMenu}.ts`, `nodeViews/GraphFigureView.tsx`
-  - Verify: editor e2e inserts a figure from the slash menu and round-trips the source
+  - Files: `graph-primitives.ts`, `figure-marks.ts`, `graph-svg.ts`, `board.ts`, `markdownToTiptap.ts`
+  - Verify: 3 dashed hidden edges + unit-line count (Q9); the roster scan stays green; budget re-measure (the last eager addition, ER-9)
+- [ ] **T7 (P1, human: ~2 d / CC: ~1 h)** — editor — un-hide the slash item (C1); the source popover over `formatFigureSource` (ER-10); read-only rows for the new kinds
+  - Surfaced by: Q8; ER-10, C1
+  - Files: `packages/app/src/editor/slashMenuItems.ts`, `extensions/SlashMenu.ts` (stale comment), `nodeViews/GraphFigureView.tsx`, `components/{DrawableListEditor.tsx,drawableText.ts}`, `lib/figureSource.ts` (new)
+  - Verify: `parse(format(block))` equals `block` over every line form; editor e2e inserts a figure from the slash menu and round-trips the source
 - [ ] **T8 (P1, human: ~0.5 d / CC: ~15 min)** — docs + prompt — format doc section, `markdownImportPrompt.ts`, `pnpm prompt:catalogue`, boundary stamp
   - Surfaced by: D12, §5
   - Verify: `catalogueAuthoringPrompt.test.ts`; stamp row refreshed after the push
+- [ ] **T8b (P1, human: ~1 h / CC: ~15 min)** — pin bump (ER-14) — after the author has pushed T4 and deployed both functions: open the pin-bump PR on `ZanReed/curriculum` (re-copy `capability-facts.json`, new commit + sha256, the graph's derived fields for `figure`, graph version bump, regenerated registries) and send the pre-merge notice as B-34
+  - Surfaced by: the B14 standing rule (CLAUDE.md → Standing constraints)
+  - Verify: their capability check green on the PR; their `capability-drift.yml` green after merge
 
 **Chart slice (D12 second)**
 
@@ -545,15 +735,30 @@ _No new tasks from Pass 4 (AI slop)._
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run (scope ruled by the author, D1–D12) |
-| Outside Review | Claude subagent (native); Codex not installed | Independent 2nd opinion | 1 | unavailable (outside) / completed (native, single-model) | 6 findings, all folded into Q1–Q10, N2–N4 |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 | — | not run |
+| Outside Review | codex (not installed); native Claude subagent | Independent 2nd opinion | 2 | design phase 2026-09-30: unavailable (outside) / completed (native, single-model). Eng phase 2026-10-03: unavailable, no reviewer ran | design: 6 findings, all folded into Q1–Q10, N2–N4. eng: none taken |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | ISSUES OPEN (15 rulings await the author) | 38 issues (15 findings proposed as ER-1 to ER-15, 23 test gaps on unbuilt code; plus 6 corrections of fact), 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 5/10 → 9/10, 17 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | not run |
 
-Pass scores (before → after): Info Arch 5 → 9 · States 3 → 9 · Journey 5 → 9 · AI Slop 6 → 9 (OPERATE/READ surface; no slop patterns, vagueness only) · Design System 6 → 9 · Responsive/a11y 4 → 9. Pass 7: 17 resolved, 0 deferred. Overall 5/10 → 9/10 (lowest pass). Mockups: one rendered SVG prototype (not the AI designer — the surface is an SVG figure whose questions are geometric), approved by the rulings it evidenced.
+Design pass scores (2026-09-30, before → after): Info Arch 5 → 9 · States 3 → 9 · Journey 5 → 9 · AI Slop 6 → 9 · Design System 6 → 9 · Responsive/a11y 4 → 9. Overall 5/10 → 9/10.
 
-**OUTSIDE COVERAGE:** provider codex — not installed on this host; phase design — native Claude subagent completed (single-model); its six findings were folded into the rulings. Missing outside coverage is recorded, not inferred clean.
+**OUTSIDE COVERAGE:** provider codex, not installed on this host. Design phase: native Claude subagent completed (single-model), six findings folded into the rulings. Eng phase (plan-review): unavailable, the native fallback could not run in this session, so no second opinion was taken. Missing outside coverage is recorded, not inferred clean.
 
-**VERDICT:** DESIGN CLEARED (9/10, 0 unresolved). Eng review required before the geometry slice starts (recommended: `/plan-eng-review` over §4–§5 + the task list once the curriculum side confirms the authoring model).
+**VERDICT:** DESIGN CLEARED (9/10). ENG REVIEW RUN 2026-10-03, NOT YET CLEARED: eng review required to close, which needs the author's yes/no on ER-1 to ER-15 (§8). Build nothing until then.
 
-NO UNRESOLVED DECISIONS
+**UNRESOLVED DECISIONS:**
+- ER-1: block fields through the editor node and both serializer directions
+- ER-2: `plane` on `GraphFigureBlock`, not `AxisConfig`
+- ER-3: auto-fit at import through `fitFigureWindow`
+- ER-4: one shared mark-geometry module for both renderers
+- ER-5: board proof by e2e row plus a kind-roster scan
+- ER-6: both server bundles in T1; both functions deployed before the first import
+- ER-7: INK labels by inline style
+- ER-8: wrapper markup so the figcaption is real and reachable
+- ER-9: budget plan and stop lines (CSS 15.0, JS 156.5)
+- ER-10: generated source text for the editor popover
+- ER-11: `parseFigureLine` on the figure fence and `show:` only
+- ER-12: the two failure rules
+- ER-13: figure problems fail `--strict` through a typed channel
+- ER-14: the `figure` capability, facts regeneration, and T8b the pin bump
+- ER-15: T1+T2+T6 as one commit; execution order

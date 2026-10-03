@@ -37,9 +37,9 @@ yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for 
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
 §4, all accepted, their disposition + N8 recorded at the end of §4; §2
 re-derived — shell headroom is `node scripts/check-perf-budget.mjs`, not a
-number here). Pushed. **Next (ruled 2026-10-02):** B14 is DONE (2026-10-03), so NOW
-`/plan-eng-review` + the geometry slice T1–T8; charts T9–T13 are pulled by
-drafting order, not built straight after.
+number here). **ENG-REVIEWED 2026-10-03: ER-1 to ER-15 (doc §8) await the
+author's yes/no; build nothing until then.** Then the geometry slice T1–T8 +
+T8b (the pin bump); charts T9–T13 are pulled by drafting order.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
