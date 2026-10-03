@@ -8,6 +8,7 @@ import DrawableListEditor, {
 } from '../components/DrawableListEditor';
 import type { GraphAxisConfig, DrawableAttr } from '../extensions/InteractiveGraph';
 import { AxisWindowError, useAxisWindowGuard } from '../components/axisWindow';
+import { formatFigureSource, parseFigureSource } from '../../lib/figureSource';
 
 // ============================================================================
 // GraphFigureView — NodeView for the static graph-figure block (reference-
@@ -35,6 +36,12 @@ export default function GraphFigureView({
     editor,
 }: NodeViewProps) {
     const [editing, setEditing] = useState(false);
+    // The "figure source" popover (Y7 T7, Q8 + ER-10): the figure as GENERATED
+    // ```figure text — never stored — re-parsed by the importer's own parser
+    // on Apply. Local React state, like `editing` (the NodeView selection
+    // hazard: selection-gated controls collapse after one keystroke).
+    const [source, setSource] = useState<{ text: string; lossy: string[] } | null>(null);
+    const [sourceProblems, setSourceProblems] = useState<string[]>([]);
     const axis = node.attrs.axis as GraphAxisConfig;
     const drawables = node.attrs.drawables as DrawableAttr[];
     const id = (node.attrs.id as string) || 'figure';
@@ -79,6 +86,77 @@ export default function GraphFigureView({
                     >
                         Edit figure
                     </button>
+                    <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                            setSourceProblems([]);
+                            setSource(
+                                formatFigureSource({
+                                    axis,
+                                    drawables,
+                                    alt: node.attrs.alt as string | null,
+                                    plane: node.attrs.plane !== false,
+                                    toScale: node.attrs.toScale === true,
+                                }),
+                            );
+                        }}
+                    >
+                        Figure source
+                    </button>
+                </div>
+            )}
+            {source && (
+                <div className="graph-figure-source" contentEditable={false}>
+                    <label className="graph-figure-source__label">
+                        Figure source — the same lines a ```figure fence takes
+                        <textarea
+                            className="graph-figure-source__text"
+                            value={source.text}
+                            rows={Math.min(18, source.text.split('\n').length + 2)}
+                            spellCheck={false}
+                            disabled={disabled}
+                            onChange={(e) => setSource({ ...source, text: e.target.value })}
+                        />
+                    </label>
+                    {source.lossy.length > 0 && (
+                        <p className="graph-figure-source__warn" role="note">
+                            Applying will drop what these lines cannot spell: {source.lossy.join('; ')}.
+                        </p>
+                    )}
+                    {sourceProblems.length > 0 && (
+                        <ul className="graph-figure-source__problems" role="alert">
+                            {sourceProblems.map((p) => (
+                                <li key={p}>{p}</li>
+                            ))}
+                        </ul>
+                    )}
+                    <div className="graph-figure-view__done-row">
+                        <button type="button" onClick={() => setSource(null)}>
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                                const parsed = parseFigureSource(source.text);
+                                setSourceProblems(parsed.problems);
+                                if (!parsed.attrs) return;
+                                updateAttributes({
+                                    axis: parsed.attrs.axis,
+                                    drawables: parsed.attrs.drawables,
+                                    alt: parsed.attrs.alt ?? null,
+                                    plane: parsed.attrs.plane,
+                                    toScale: parsed.attrs.toScale,
+                                });
+                                // Clean apply closes; problems keep it open so
+                                // the teacher sees which lines were skipped.
+                                if (parsed.problems.length === 0) setSource(null);
+                            }}
+                        >
+                            Apply
+                        </button>
+                    </div>
                 </div>
             )}
             {editing && (

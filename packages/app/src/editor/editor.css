@@ -903,6 +903,40 @@
     padding: 0 0.25rem;
 }
 
+/* Figure source popover (Y7 T7): the figure as ```figure lines. */
+.graph-figure-source {
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+    border: 1px solid var(--ed-border, #e2e8f0);
+    border-radius: 6px;
+}
+
+.graph-figure-source__label {
+    display: grid;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.graph-figure-source__text {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8rem;
+    width: 100%;
+    resize: vertical;
+}
+
+.graph-figure-source__warn,
+.graph-figure-source__problems {
+    font-size: 0.72rem;
+    margin: 0;
+}
+
+.graph-figure-source__problems {
+    color: var(--ed-danger);
+    padding-left: 1rem;
+}
+
 /* The axis window refused an edit that would empty it (Y7 T1, AxisConfig refine). */
 .axis-window-error {
     font-size: 0.72rem;

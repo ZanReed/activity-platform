@@ -183,12 +183,10 @@ export function buildEditorExtensions({
         // capture as self-explanation; graded later against a rubric.
         ShortAnswer,
         Essay,
-        // Graph figure — a static coordinate-plane picture, authored FOR the
-        // reference panel. Registered here so the main editor can REPRESENT
-        // one (schema-legal anywhere; pasted or column-nested content must not
-        // crash), but never offered for insert — its slash-menu item is
-        // referenceOnly, since the body's static-graph story is the
-        // interactive_graph display mode.
+        // Graph figure — a static picture: a coordinate plane, or (Y7) a
+        // plane-less labelled geometry figure from the ```figure fence. A BODY
+        // block since T7 (Q8): offered by the slash menu and the pickers, with
+        // a "Figure source" popover over the fence text.
         GraphFigure,
     ];
 }

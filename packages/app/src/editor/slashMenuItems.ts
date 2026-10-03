@@ -65,16 +65,11 @@ export interface SlashMenuItem {
     // Available in the constrained reference-panel editor (which registers no
     // SectionBreak / graph extensions and hides question authoring).
     referenceSafe?: boolean;
-    // Offered ONLY in the reference-panel editor's pickers. The main editor
-    // registers the node for representability but never offers inserting it
-    // (e.g. graphFigure: the body's static-graph story is the
-    // interactive_graph display mode). Implies referenceSafe.
-    referenceOnly?: boolean;
     // Available in the constrained DEFINITION dialog (docs/design/
     // definition-rich-content.md), which registers paragraph/heading/list +
     // math_block + image + graph_figure and nothing else. Orthogonal to
-    // referenceSafe/referenceOnly: graph_figure is referenceOnly yet belongs
-    // here, and columns/callout are referenceSafe yet do not (D2/D3).
+    // referenceSafe: columns/callout are referenceSafe yet do not belong here
+    // (D2/D3).
     definitionSafe?: boolean;
     // Excluded from the "+ Insert" dropdown (still in the slash menu) — used
     // for inline inserts that already have a flat toolbar button (ƒx).
@@ -97,14 +92,7 @@ export interface SlashMenuItem {
 // from the block picker. Shared with the thumbnail parity guard
 // (blockThumbnails.test.tsx) so the two catalogues can't drift.
 export function isPickableBlock(item: SlashMenuItem): boolean {
-    // referenceOnly items live solely in the reference-panel editor's Insert
-    // dropdown — the main editor's pickers must not offer a node it doesn't
-    // register.
-    return (
-        item.group !== 'Text' &&
-        item.insertMenu !== false &&
-        item.referenceOnly !== true
-    );
+    return item.group !== 'Text' && item.insertMenu !== false;
 }
 
 // Focused chain, with the slash menu's typed "/query" deleted when present.
@@ -334,13 +322,14 @@ export const slashMenuItems: SlashMenuItem[] = [
     },
     {
         title: 'Graph figure',
-        description: 'A static coordinate-plane picture. Never interactive.',
-        keywords: ['graph', 'figure', 'coordinate', 'plane', 'grid', 'line', 'plot', 'picture', 'reference'],
+        description: 'A static picture: a labelled geometry figure or a coordinate plane. Never interactive.',
+        // Y7 (Q8, C1): a body block since the ```figure fence; was
+        // reference-panel-only. Its "Figure source" popover edits the fence text.
+        keywords: ['graph', 'figure', 'coordinate', 'plane', 'grid', 'line', 'plot', 'picture', 'reference', 'geometry', 'triangle', 'angle', 'shape'],
         group: 'Structure',
         subgroup: 'Media & figures',
         icon: LineChart,
         referenceSafe: true,
-        referenceOnly: true,
         definitionSafe: true,
         command: ({ editor, range }) => {
             begin(editor, range).insertGraphFigure().run();

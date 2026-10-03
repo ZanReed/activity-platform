@@ -13,12 +13,10 @@ import { sizingNodeAttributes } from './sizingNodeAttributes';
 // data-* attributes so editor copy-paste round-trips. serialize.ts maps this
 // node <-> the schema's GraphFigureBlock.
 //
-// Authored in ReferencePanelEditor; the main editor registers the node only
-// so it can REPRESENT one (pasted or column-nested content must not crash)
-// but never offers inserting it — the body's static-graph story is the
-// interactive_graph display mode, and the panel's contract is "students never
-// work on or input into it": this node can't accept input by construction.
-// The slash-menu item is referenceOnly.
+// Authored in ReferencePanelEditor and, since Y7 T7 (Q8), in the main editor
+// too: the ```figure fence makes it a body block (a labelled geometry figure).
+// It can't accept student input by construction, which is also the reference
+// panel's contract.
 // ============================================================================
 
 function parseJson<T>(raw: string | null, fallback: T): T {

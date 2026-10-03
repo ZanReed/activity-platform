@@ -141,9 +141,8 @@ export default function ReferencePanelEditor({
             // GraphFigure is genuinely AUTHORABLE here (unlike the registered-
             // only-for-the-schema question blocks above): a static coordinate-
             // plane picture is exactly reference-panel content ("these two
-            // lines are parallel" on a formula sheet). The main editor
-            // registers the node too (representability only); its Insert item
-            // is referenceOnly, so THIS is the one surface that offers it.
+            // lines are parallel" on a formula sheet). Since Y7 T7 the main
+            // editor offers it too (body geometry figures).
             GraphFigure,
         ],
         content: initialContent,

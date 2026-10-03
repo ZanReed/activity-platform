@@ -219,6 +219,17 @@ const staticGraph = thumb(
     </>
 );
 
+// A labelled triangle with an angle arc and equal-side ticks — the Y7
+// ```figure block (a plane-less geometry figure), distinct from the plotted
+// static graph above.
+const graphFigure = thumb(
+    <>
+        <path d="M18 44 L82 44 L40 10 Z" fill="none" stroke={LINE} strokeWidth={2.5} strokeLinejoin="round" />
+        <path d="M28 44 A10 10 0 0 0 25.8 37.7" fill="none" stroke={INK} strokeWidth={1.5} />
+        <path d="M58 24 L63 29 M61 21.5 L66 26.5" stroke={INK} strokeWidth={1.5} />
+    </>
+);
+
 const fillInBlank = thumb(
     <>
         {bar(12, 16, 20)}
@@ -422,6 +433,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     'Faded worked example': fadedWorkedExample,
     Image: image,
     'Static graph': staticGraph,
+    'Graph figure': graphFigure,
     'Fill in the blank': fillInBlank,
     'Answer blank': answerBlank,
     'Multiple choice': multipleChoice,

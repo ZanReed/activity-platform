@@ -354,7 +354,7 @@ draft. The dialog does not register the `Definition` mark, which enforces non-re
 editor level too.
 
 A new `definitionSafe` slash-item flag drives the Insert menu. It is orthogonal to
-`referenceSafe`/`referenceOnly`, and had to be: `graph_figure` is `referenceOnly` yet belongs in a
+*(Note 2026-10-04: the `referenceOnly` flag was retired in the Y7 slice's T7 — graph_figure became a body block — so `definitionSafe` now sits beside `referenceSafe` alone.)* `referenceSafe`/`referenceOnly`, and had to be: `graph_figure` is `referenceOnly` yet belongs in a
 definition, while columns and callout are `referenceSafe` yet do not (D2/D3).
 
 ### 9.8 Slice 5 (import) — the fence is a third kind of side channel
