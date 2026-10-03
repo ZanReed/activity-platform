@@ -19,23 +19,23 @@
 
 | id | uses | files |
 | --- | ---: | --- |
-| `mis.proportional.line-misses-origin` | 7 | `01-chain.rate.proportional/03-proportional-graph.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
-| `mis.proportional.one-pair-assumed-constant` | 4 | `01-chain.rate.proportional/02-constant-of-proportionality.md`, `01-chain.rate.proportional/03-proportional-graph.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
-| `mis.rate.compares-totals` | 2 | `01-chain.rate.proportional/01-unit-rate.md` |
-| `mis.rate.ratio-inverted` | 6 | `01-chain.rate.proportional/01-unit-rate.md`, `01-chain.rate.proportional/02-constant-of-proportionality.md`, `01-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.proportional.line-misses-origin` | 7 | `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.proportional.one-pair-assumed-constant` | 4 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.rate.compares-totals` | 2 | `801-chain.rate.proportional/01-unit-rate.md` |
+| `mis.rate.ratio-inverted` | 6 | `801-chain.rate.proportional/01-unit-rate.md`, `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 
 ## By file
 
-- `01-chain.rate.proportional/01-unit-rate.md` — 4 bindings
+- `801-chain.rate.proportional/01-unit-rate.md` — 4 bindings
     - `mis.rate.compares-totals` ×2
     - `mis.rate.ratio-inverted` ×2
-- `01-chain.rate.proportional/02-constant-of-proportionality.md` — 5 bindings
+- `801-chain.rate.proportional/02-constant-of-proportionality.md` — 5 bindings
     - `mis.proportional.one-pair-assumed-constant` ×2
     - `mis.rate.ratio-inverted` ×3
-- `01-chain.rate.proportional/03-proportional-graph.md` — 5 bindings
+- `801-chain.rate.proportional/03-proportional-graph.md` — 5 bindings
     - `mis.proportional.line-misses-origin` ×4
     - `mis.proportional.one-pair-assumed-constant` ×1
-- `01-chain.rate.proportional/04-proportional-consolidation.md` — 5 bindings
+- `801-chain.rate.proportional/04-proportional-consolidation.md` — 5 bindings
     - `mis.proportional.line-misses-origin` ×3
     - `mis.proportional.one-pair-assumed-constant` ×1
     - `mis.rate.ratio-inverted` ×1

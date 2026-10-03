@@ -298,8 +298,9 @@ T5 `9dd5788`, T7 `02672ee`, T8, T8b (their PR #28). Importer move-only /
 unchanged writes `4fe728d`. The author's answers to the close-out queue:
 
 - **Graded transformations — ruled (B): filed with a trigger**, entry below.
-- **The real import over the renamed pilot folder** — the author runs it
-  (dry run showed 4 path-only moves, 0 updates).
+- **The real import over the renamed pilot folder** — RUN by the author
+  2026-10-04: `path only 4`, nothing else written; read back live (all four
+  at 801-, published, no draft, `updated_at` unchanged since 2026-09-28).
 - **Shell JS budget at the stop line** — added to the size ladder entry below
   ("The student shell's size ladder").
 - **`--chain-registry`** — its own entry above stands; trigger fired.

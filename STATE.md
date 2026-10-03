@@ -33,7 +33,7 @@ NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 Novem
 the counsel packet with the practice-data question (E5), which is NOT drafted
 yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
-**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. **Owed by the author:** the real batch import over the renamed pilot folder (dry run: 4 path-only moves). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next in BUILD ORDER: D43 design is done; item 4 (SW stale-shell recovery) or the author's pick.
+**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next in BUILD ORDER: D43 design is done; item 4 (SW stale-shell recovery) or the author's pick.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:

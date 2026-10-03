@@ -3323,10 +3323,17 @@ async function main() {
             console.log(`  ${file.sourcePath}  ${error}`);
         }
     }
-    console.log(
-        '\nAll imported activities are DRAFTS. Publish from the app — the batch\n' +
-            'script cannot publish (see the PUBLISHING note in this file).\n',
-    );
+    // Only when a draft was actually written: since D5a, path-only and
+    // unchanged files write no draft, and "they are drafts" would then send the
+    // author to republish activities that are already current.
+    if (created + updated > 0) {
+        console.log(
+            '\nAll imported activities are DRAFTS. Publish from the app — the batch\n' +
+                'script cannot publish (see the PUBLISHING note in this file).\n',
+        );
+    } else {
+        console.log('\nNo drafts were written — published activities stay as published.\n');
+    }
 
     // D3: skipped files are surfaced AND make the run non-clean. --strict adds
     // the binding warnings to that set; without it the exit code is exactly

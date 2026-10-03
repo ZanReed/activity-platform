@@ -29,7 +29,7 @@
       "complete": true,
       "published": true,
       "parts": [
-        "01-chain.rate.proportional/02-constant-of-proportionality.md"
+        "801-chain.rate.proportional/02-constant-of-proportionality.md"
       ],
       "consolidations": [],
       "supporting": []
@@ -41,10 +41,10 @@
       "complete": true,
       "published": true,
       "parts": [
-        "01-chain.rate.proportional/03-proportional-graph.md"
+        "801-chain.rate.proportional/03-proportional-graph.md"
       ],
       "consolidations": [
-        "01-chain.rate.proportional/04-proportional-consolidation.md"
+        "801-chain.rate.proportional/04-proportional-consolidation.md"
       ],
       "supporting": []
     },
@@ -55,7 +55,7 @@
       "complete": true,
       "published": true,
       "parts": [
-        "01-chain.rate.proportional/01-unit-rate.md"
+        "801-chain.rate.proportional/01-unit-rate.md"
       ],
       "consolidations": [],
       "supporting": []
@@ -162,9 +162,9 @@
   "unregistered": [],
   "activitiesWithoutPrimarySkill": [],
   "files": [
-    "01-chain.rate.proportional/01-unit-rate.md",
-    "01-chain.rate.proportional/02-constant-of-proportionality.md",
-    "01-chain.rate.proportional/03-proportional-graph.md",
-    "01-chain.rate.proportional/04-proportional-consolidation.md"
+    "801-chain.rate.proportional/01-unit-rate.md",
+    "801-chain.rate.proportional/02-constant-of-proportionality.md",
+    "801-chain.rate.proportional/03-proportional-graph.md",
+    "801-chain.rate.proportional/04-proportional-consolidation.md"
   ]
 }
