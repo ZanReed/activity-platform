@@ -2467,6 +2467,15 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Effort:** M · **Priority:** ~~P3~~ **NEXT — item 1 of the BUILD ORDER (author, 2026-10-02)**; reasons at the top of this file · **Depends on:** nothing.
 
+**DESIGN PASS 2026-10-03 — all seven items approved by the author; ASK-BACK B-30 sent, awaiting C-30. Build nothing until they answer Q1–Q4.**
+1. Split: this repo generates + commits `docs/capability-facts.json` (per id: `status`, `grading.{scoring, captures_response, score_shape}`, plus prose-check facts such as graded families) under a drift test; the curriculum repo gets a Python checker that fetches it from our `main` and fails CI on any derived-field disagreement. (Their CI cannot import our TS; the old generator could not join as written.)
+2. Derived fields ours, authored fields (`label`, `medium`, `affords`, `constraints`, `grading.note`) theirs; prose contradicted by a fact is FLAGGED, never failed or edited.
+3. The four status flips land in ONE curriculum PR with their prose rewrite.
+4. Fence join: `correspond` → `nway_correspondence` (`per_pair`, or `per_cell` if they rule it); `table` → new capability (scoring none); `seed` → `seeded_data` (scoring none, a data source like `definition`); `meta` exempt ("settings, not a capability"); `draggable_curve` = graph `transform_curve`; `graded_polynomial` = `cubic` + `quartic` families.
+5. Shape gate replaces the version gate (unknown or missing derived field → fail).
+6. Retire the old `~/Project folder/curriculum/generate-capabilities.mjs`, leaving a pointer.
+7. Order: their answers → our facts script + committed file + drift test + one mutation (stale file goes red) → pre-merge notice with the values → their PR (checker + flips + prose) → stamps.
+
 ## AI grading: suggestion-quality panel in ActivityAnalytics (E3, deferred from the ai-grading-assist review)
 
 **What:** Surface per-rev suggestion quality (confirmed-unchanged / edited / rejected rates, abstain rate, misconception precision once measured) as a panel in the existing ActivityAnalytics route.
