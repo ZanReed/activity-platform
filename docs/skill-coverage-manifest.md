@@ -12,9 +12,9 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**3 of 47 skills covered** (3 published, 0 draft only) · 0 partly covered · 4 activities
+**3 of 97 skills covered** (3 published, 0 draft only) · 0 partly covered · 4 activities
 
-**3 of 52 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+**3 of 108 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
 ## Covered
 
@@ -29,6 +29,13 @@
 Registered skills no activity targets. This list is the artifact's
 reason for existing — a count alone cannot be acted on.
 
+- `algebra.equations.one-step`
+- `algebra.equations.two-step`
+- `algebra.expressions.like-terms`
+- `algebra.expressions.substitute`
+- `algebra.formulae.rearrange`
+- `algebra.notation.write`
+- `coord.four-quadrant`
 - `deriv.definition.at-a-point`
 - `deriv.f-prime-as-function`
 - `deriv.from-definition.polynomial`
@@ -45,6 +52,14 @@ reason for existing — a count alone cannot be acted on.
 - `function.notation.evaluate`
 - `function.notation.solve`
 - `function.repr.correspondence`
+- `geom.angles.parallel-transversal`
+- `geom.angles.relationships`
+- `geom.angles.triangle-quad-sum`
+- `geom.nets.identify`
+- `geom.transform.reflect`
+- `geom.transform.rotate`
+- `geom.transform.translate`
+- `geom.triangles.classify`
 - `limit.difference-quotient.setup`
 - `limit.difference-quotient.simplify`
 - `limit.graphical.estimate`
@@ -60,11 +75,46 @@ reason for existing — a count alone cannot be acted on.
 - `linear.slope.from-graph`
 - `linear.slope.interpret-context`
 - `linear.slope.two-points`
+- `measure.area.composite`
+- `measure.area.rect-triangle`
+- `measure.perimeter.polygons`
+- `measure.time.duration`
+- `measure.time.timetables`
+- `measure.volume.cuboid`
+- `number.divisibility.rules`
+- `number.exponents.evaluate`
+- `number.factors.hcf-lcm`
+- `number.fractions.equivalent`
+- `number.fractions.to-decimal`
+- `number.integers.additive-inverse`
+- `number.integers.number-line`
+- `number.operations.order`
+- `number.percent.hundredths`
+- `number.place-value.decimals`
+- `number.place-value.powers-of-ten`
+- `number.primes.classify`
+- `number.roots.square`
+- `number.round.cash`
+- `pattern.linear.graph`
+- `pattern.linear.rule`
+- `prob.complement`
+- `prob.experimental.large-numbers`
+- `prob.experimental.relative-frequency`
+- `prob.sample-space.list`
+- `prob.theoretical.equally-likely`
 - `roc.average.from-table`
 - `roc.average.function-notation`
 - `roc.average.interpret-context`
 - `roc.average.secant`
 - `roc.average.varies-nonlinear`
+- `stats.display.categorical`
+- `stats.display.dot-plot`
+- `stats.display.time-series`
+- `stats.summary.mean`
+- `stats.summary.median-mode`
+- `stats.summary.outlier-effect`
+- `stats.summary.range`
+- `stats.variables.classify`
 - `transform.compose-order`
 - `transform.horizontal.stretch`
 - `transform.horizontal.translate`
