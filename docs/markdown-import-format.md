@@ -29,6 +29,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a list whose items contain `{{…}}` | **one problem block per item** |
 | `## Topic {checkpoint}` | a **checkpoint section break** titled "Topic" |
 | a ` ```graph ` fenced block | a **coordinate-plane question** — plot a point, graph a line or inequality, shade a region (see below) |
+| a ` ```figure ` fenced block | a **labelled geometry figure**: named points, polygons, angle marks, equal-side ticks, parallel arrows, side labels; "Not to scale" by default (see below) |
 | a ` ```numberline ` fenced block | a **1-D number-line question** — plot points, or graph an inequality (see below) |
 | a ` ```dataplot ` fenced block | a **statistics-chart question** — dot plot, histogram, box plot (see below) |
 | a ` ```mc ` fenced block | a **multiple-choice question** (see below) |
@@ -468,6 +469,42 @@ CALLOUT (a `callout` fence is a tinted note box)
     Double-check your units before submitting.
 - The body is one line of text ($inline$ math ok); extra lines join together.
 
+GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
+- ```figure … ``` draws ONE static picture (never interactive): triangles,
+  polygons, angles, parallel lines. Name each point, then refer to it by its
+  name. Lines may come in any order; blank lines are ignored:
+    alt: Triangle ABC with AB = 8 cm and angle A = 68°
+    point (0,0) "A"
+    point (8,0) "B"
+    point (2,5) "C"
+    polygon A B C
+    side AB "8 cm"
+    angle BAC 68°
+    angle ABC "x"
+    angle ACB right
+    ticks BC 2
+- alt: is REQUIRED: one sentence saying what the figure shows, for screen
+  readers. Never put the answer to a question in it.
+- point (x, y) "A" names a point (its letter is drawn beside it);
+  polygon A B C draws the outline (region A B C draws it shaded);
+  segment A C draws a line between two points (segment A C dashed for dashes).
+- side AB "8 cm" labels a side; the label goes outside the shape.
+- angle BAC marks the angle AT THE MIDDLE letter (here A). Its label is a
+  degree value (68°), right (draws the small square), or text in quotes
+  ("x"). Leave the label off to draw the arc alone; add reflex for the angle
+  bigger than 180°. Never an unquoted text label, never an empty "".
+- ticks BC 2 marks equal sides (1, 2 or 3 ticks; the same count = equal);
+  parallel AB DC marks two parallel sides with arrows (add 2 for double).
+- text (4,-1.5) "base" puts free text at a point: only for a label the
+  automatic placement gets wrong. A coordinate (x, y) can stand in for any
+  name anywhere.
+- Every figure prints "Not to scale" by itself. Write to scale on its own
+  line only when the drawing is accurate (e.g. an angle to estimate).
+  plane: on shows the grid and axes (for coordinate work); axes: -2..10,
+  -2..7 sets the window, but leave it out: the figure fits itself.
+- A mistyped figure line is not a small thing: the batch importer refuses
+  the whole file until it is fixed.
+
 REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Content in this fence does NOT appear in the worksheet body: it becomes
   the reference panel — a formula sheet / vocab list students open from a
@@ -573,7 +610,7 @@ OTHER
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, and ```reference — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
@@ -1343,6 +1380,57 @@ Two items labelled `1`, and an answer key that matches neither.
 **So:** write instructions as plain sentences, and let every numbered item be a
 real question. A numbered list is still the right tool for *steps inside* a
 worked example or a reference sheet, where no problem numbering is in play.
+
+## Geometry figures (```figure fence)
+
+A fenced code block with the `figure` language tag draws **one labelled geometry figure** in the worksheet body: triangles, polygons, angles, parallel lines. It is a static picture (never interactive), drawn by the same engine as every other figure, so it looks identical on screen and on paper. Points are placed by coordinates and labelled independently, so a figure is **not to scale** unless you say so, the way NZ textbook and assessment figures are. Design: [y7-figures-and-charts.md](design/y7-figures-and-charts.md).
+
+```
+```figure
+alt: Triangle ABC with AB = 8 cm, AC = 6 cm and angle A = 68°
+point (0,0) "A"
+point (8,0) "B"
+point (2,5) "C"
+polygon A B C
+side AB "8 cm"
+side AC "6 cm"
+angle BAC 68°
+angle ABC "x"
+angle ACB right
+ticks BC 2
+segment A C dashed
+text (4,-1.5) "base"
+```⠀
+```
+
+| line | draws |
+|---|---|
+| `alt: …` | the figure's accessible name: what a screen reader says. **Required** (see "Problems" below). |
+| `point (x, y) "A"` | a named point. The name is what every other line refers to; its letter is drawn outside the shape. `point (x, y)` with no name draws a dot. |
+| `polygon A B C …` | the outline through the named points. `region A B C …` draws it shaded. |
+| `segment A C` | a line between two points; add `dashed` for a height, a hidden edge or a construction line. |
+| `side AB "8 cm"` | a side label, placed outside the shape beside that side (further out when the side also has ticks or arrows). |
+| `angle BAC 68°` | the angle **at the middle letter** (A), from AB round to AC: under 180° unless you add `reflex`. The label is a degree value (`68°`), `right` (the small square only, never square + arc), or quoted text (`"x"`). **No label** draws the arc alone. |
+| `ticks BC 2` | equal-length marks on a side: 1, 2 or 3 (default 1). Sides with the same count are equal. |
+| `parallel AB DC` | arrow marks on two sides, pointing the way each side is written; add `2` for double arrows. |
+| `text (x, y) "base"` | free text at a point: the escape hatch when the automatic placement puts a label somewhere unhelpful. |
+| `line y = 2x` / `ray (a,b) (c,d)` | the `show:` forms of the `graph` fence, unchanged. (`expression` is never drawn in a figure.) |
+| `to scale` | removes the automatic **"Not to scale"** caption, for a drawing that is accurate (an angle to estimate). |
+| `plane: on` | shows the coordinate grid, axes and tick labels (coordinate work, transformations). Without it a figure is **plane-less**: no grid, and x and y share one scale so angles look true. |
+| `axes: -2..10, -2..7` | the window. Normally leave it out: the figure fits itself to everything it draws, labels included. |
+
+- **Names** resolve after the whole fence is read, so lines can come in any order. Names written together (`AB`, `BAC`) or apart (`A B`) both work, and multi-letter names (`A'`, `P1`) are matched longest first. A coordinate `(x, y)` can stand in for any name.
+- **One fence is one figure.** Blank lines are ignored (unlike `reference`, where a blank line ends a figure).
+- **Labels** are a degree value, `right`, or text in quotes. Never unquoted text (`angle ABC x` is a problem), never an empty `""`.
+- **"Not to scale"** prints under every plane-less figure as a real caption, read by screen readers after the `alt:` text. A `plane: on` figure never has one.
+- **Placement is automatic.** There are no offset settings: vertex letters sit outside each corner, side labels outside each side, angle labels inside each angle on its bisector. If one lands badly, use a `text` line.
+
+**Problems.** A line that cannot be read (an unknown point name, an unquoted label, a tick count of 4) is **skipped**, and a line that describes impossible geometry (a 0° or 180° angle, a polygon with no area, a side from a point to itself) is **refused**. Each problem names its line, and a figure missing its `alt:` line, or with nothing drawable at all, is a problem too. What happens next depends on how you import:
+
+- **Paste dialog:** the problems are listed as warnings, and the figure imports with the lines that worked, so you can see it and fix it in the editor. A fence with nothing drawable adds no block (never the raw fence as text).
+- **Batch import (`pnpm import:batch`):** the file is **skipped**, in every run, with or without `--strict`. It is not written, it is named in the report, and the run exits 1. In a geometry activity the marks are the answer: a tick dropped on a typo turns an isosceles triangle scalene while the answer key still says isosceles.
+
+**Not here (v1):** dimension lines and arrowheads on segments, seeded values in labels, and figure names inside multiple-choice or matching choice figures (each choice carries one drawable, so there is nothing for a name to refer to). Choice figures and `reference` figures keep the `show:` forms.
 
 ## Reference sheet (```reference fence)
 

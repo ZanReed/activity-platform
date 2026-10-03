@@ -82,6 +82,15 @@ export const FENCES: FenceSpec[] = [
         ],
     },
     {
+        // Y7 geometry (docs/design/y7-figures-and-charts.md, T4): a static
+        // labelled figure in the BODY, with point names resolved at import.
+        tag: 'figure',
+        blockType: 'graphFigure',
+        summary: 'a labelled geometry figure (triangles, polygons, angles, parallel lines)',
+        example: 'alt: A right-angled triangle ABC\npoint (0,0) "A"\npoint (4,0) "B"\npoint (0,3) "C"\npolygon A B C\nangle BAC right',
+        options: [],
+    },
+    {
         tag: 'numberline',
         blockType: 'numberLine',
         summary: 'a 1-D number-line question (plot points or graph an inequality)',

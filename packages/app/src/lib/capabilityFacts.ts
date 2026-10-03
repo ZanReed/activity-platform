@@ -123,6 +123,10 @@ export const JOIN: Record<string, Join> = {
     table: { fence: 'table', probe: { type: 'table', rows: [] }, scoring: 'none' },
     callout: { fence: 'callout', probe: { type: 'callout' }, scoring: 'none' },
     reference: { fence: 'reference', probe: { type: 'graph_figure' }, scoring: 'none' },
+    // Y7 geometry figures (ER-14). Display-only, like `reference`: the block
+    // around it (a blank, an MC, a ```graph) carries the grading. Id confirmed
+    // by the curriculum side (C-35, author-ruled 2026-10-03).
+    figure: { fence: 'figure', probe: { type: 'graph_figure' }, scoring: 'none' },
     // A data source, like `definition`: the blanks that read its values carry
     // the grading (their ruling on B-30 Q3).
     seeded_data: { fence: 'seed', probe: null, scoring: 'none' },

@@ -60,6 +60,7 @@ import {
     parseRaySegment,
 } from '@activity/graph-kit/formula';
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
+import { parseFigureFence } from './figureFence';
 import { freeVariables } from '@activity/graph-kit/scorers';
 import {
     RESERVED_SEED_NAMES,
@@ -147,6 +148,14 @@ export interface ImportResult {
     // because the batch importer prints them in their own labelled block
     // (W-11) and locates them in the file (W-7).
     glossary?: GlossaryImportReport;
+    // Present ONLY when a ```figure fence had a problem: a skipped or refused
+    // line, a missing alt:, or a figure with nothing drawable (Y7 geometry,
+    // ER-13 as amended 2026-10-03). The same text is in `warnings`, so the paste
+    // dialog shows it and still imports; the BATCH importer reads this typed
+    // channel instead and skips the file in every run, strict or not — in a
+    // geometry activity the marks are the answer, so a dropped mark is a wrong
+    // question, not a cosmetic warning. Never derived by matching warning text.
+    figureProblems?: string[];
 }
 
 /**
@@ -437,6 +446,7 @@ export function getGlossaryFileParser(): Promise<GlossaryFileParser> {
                         warnings: new Set(),
                         spans: [],
                         refPanelBlocks: [],
+                        figureProblems: [],
                         definitions: new Map(),
                         definitionTerms: new Map(),
                         inline: inlineParser(md),
@@ -802,6 +812,8 @@ const CHECKPOINT_RE = /\s*\{checkpoint\}\s*$/i;
 
 interface Ctx {
     warnings: Set<string>;
+    // ```figure problems, ALSO added to warnings (see ImportResult.figureProblems).
+    figureProblems: string[];
     // Math spans lifted from the raw source (see extractMath), indexed by the
     // placeholder number the mapper re-expands.
     spans: MathSpan[];
@@ -959,6 +971,7 @@ function tokensToBlocks(
         warnings: new Set(),
         spans,
         refPanelBlocks: [],
+        figureProblems: [],
         definitions: new Map(),
         definitionTerms: new Map(),
         inline,
@@ -984,6 +997,7 @@ function tokensToBlocks(
     const blocks = mapBlocks(nest(tokens), ctx);
     validateSeedReferences(blocks, ctx);
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
+    if (ctx.figureProblems.length > 0) result.figureProblems = [...ctx.figureProblems];
     if (ctx.refPanelBlocks.length > 0) {
         result.referencePanel = ctx.refPanelTitle
             ? { title: ctx.refPanelTitle, blocks: ctx.refPanelBlocks }
@@ -1136,6 +1150,19 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 return ctx.meta?.seedVars && ctx.meta.seedVars.length > 0
                     ? []
                     : [rawTextParagraph(node.token.content)];
+            }
+            if ((node.token.info ?? '').trim() === 'figure') {
+                // Y7 geometry figure (figureFence.ts). A body-level graph_figure.
+                // A fence with nothing drawable produces NO block and never the
+                // raw fence as text (ER-12b): an eleven-year-old must not see
+                // fence source.
+                const fig = parseFigureFence(node.token.content, (line) => parseShowDrawable(line));
+                for (const p of fig.problems) {
+                    ctx.warnings.add(p);
+                    ctx.figureProblems.push(p);
+                }
+                if (!fig.attrs) return [];
+                return [{ type: 'graphFigure', attrs: { id: crypto.randomUUID(), ...fig.attrs } }];
             }
             if ((node.token.info ?? '').trim() === 'reference') {
                 // Side channel: the fence's blocks land in ctx.refPanelBlocks

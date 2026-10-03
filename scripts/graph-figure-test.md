@@ -47,3 +47,28 @@ graph: segment (-4, -2) (0, 2)
 graph: ray (1, -3) (3, -1)
 graph: region (-4, 4), (-2, 4), (-3, 2)
 ```
+
+## 2 — A plane-less geometry figure in the body (Y7, ```figure) {checkpoint}
+
+Added 2026-10-03 with the Y7 geometry slice ([y7-figures-and-charts.md](../docs/design/y7-figures-and-charts.md)).
+**How to read it:** no grid or axes; true angles (one scale); the letters A, B, C
+outside each corner; "8 cm" below AB; the 68° arc at A; double arcs at B; the two
+ticks on BC; the arrow on AB; a dashed height from C; "base" under AB; and a
+"Not to scale" caption under the figure. Print it: the caption prints too.
+
+```figure
+alt: Triangle ABC with AB = 8 cm, angle A = 68° and a dashed height from C
+point (0,0) "A"
+point (8,0) "B"
+point (2,5) "C"
+polygon A B C
+side AB "8 cm"
+angle BAC 68°
+angle ABC "x"
+ticks BC 2
+parallel AB (1,6) (9,6)
+segment C (2,0) dashed
+text (4,-1.8) "base"
+```
+
+Angle A is marked. How many degrees is it? {{=68}}

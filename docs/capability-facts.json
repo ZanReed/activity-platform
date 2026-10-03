@@ -122,6 +122,17 @@
         "fence": "faded"
       }
     },
+    "figure": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "none",
+        "captures_response": false,
+        "score_shape": "none"
+      },
+      "reached_by": {
+        "fence": "figure"
+      }
+    },
     "fill_blank": {
       "status": "shipped",
       "grading": {

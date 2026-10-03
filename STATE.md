@@ -33,13 +33,7 @@ NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 Novem
 the counsel packet with the practice-data question (E5), which is NOT drafted
 yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
-**Y7 figures + charts — DESIGN-REVIEWED 2026-09-30; curriculum side
-CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
-§4, all accepted, their disposition + N8 recorded at the end of §4; §2
-re-derived — shell headroom is `node scripts/check-perf-budget.mjs`, not a
-number here). **ENG-CLEARED 2026-10-03: ER-1 to ER-15 (doc §8) approved by the
-author: "yes to all".** BUILDING the geometry slice T1–T8 + T8b (the
-pin bump) now; charts T9–T13 are pulled by drafting order.
+**Y7 geometry figures — BUILDING** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md), ER-1–15 approved): T1+T2+T6 (`f2ff039`) and T4 (the ```figure fence) are on `main`; T3, T5, T7 follow. **Owed, IN THIS ORDER (ER-6):** push; `pnpm deploy:get-activity`; `pnpm deploy:check`; only then import a figure activity. Then T8b, the curriculum pin bump.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:

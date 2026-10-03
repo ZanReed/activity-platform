@@ -448,6 +448,21 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         );
     }
 
+    // Y7 geometry (ER-13, amended 2026-10-03): a ```figure problem SKIPS the
+    // file in EVERY run, strict or not. In a geometry activity the marks are
+    // the answer — `ticks AC 1` dropped on a typo draws an isosceles triangle
+    // as scalene while the key says isosceles — so a figure that lost a line
+    // is a wrong question, not a warning. Thrown here, the caller's catch puts
+    // the file in `skipped`: never written, named, and the run exits 1. NOT the
+    // drift `refused` path, which --force overrides. Read from the importer's
+    // typed channel, never by matching warning text.
+    if (result.figureProblems && result.figureProblems.length > 0) {
+        throw new Error(
+            `figure problem${result.figureProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
+                result.figureProblems.join('\n      '),
+        );
+    }
+
     const fence = result.meta ?? {};
     const changes = [];
     let meta;

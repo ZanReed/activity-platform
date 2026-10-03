@@ -157,6 +157,69 @@ test('§A a file with no importable content is rejected, not written', () => {
 });
 
 // =============================================================================
+// §A2 — the Y7 ```figure fence through the REAL node pipeline (T4)
+// -----------------------------------------------------------------------------
+// The node bundle is the surface the graph-kit barrel trap bites (CLAUDE.md):
+// the fence imports fitFigureWindow from the static-svg SUBPATH, and this is
+// the run that would die if it reached the barrel. Then ER-13 as amended: a
+// figure problem makes the file SKIP in every run — convertOne throws, and the
+// caller's catch puts it in `skipped` (never written, exit 1).
+// =============================================================================
+
+const FIGURE_MD = (body) =>
+    ['```meta', 'title: Triangles', 'course: Year 7', '```', '', 'Name the triangle.', '', '```figure', ...body, '```'].join('\n');
+const TRIANGLE = [
+    'alt: Triangle ABC with AC and BC marked equal',
+    'point (0,0) "A"',
+    'point (6,0) "B"',
+    'point (3,8) "C"',
+    'polygon A B C',
+    'ticks AC 1',
+    'ticks BC 1',
+    'angle CAB 70°',
+    'side AB "6 cm"',
+];
+
+function figureBlocks(doc) {
+    return doc.sections
+        .flatMap((s) => s.rows)
+        .flatMap((r) => r.columns)
+        .flatMap((c) => c.blocks)
+        .filter((b) => b.type === 'graph_figure');
+}
+
+test('§A2 a ```figure imports as a plane-less graph_figure with its marks, alt and a fitted window', () => {
+    const out = convertOne(pipeline, FIGURE_MD(TRIANGLE), null, 'geom/triangles.md');
+    const [fig] = figureBlocks(out.document);
+    assert.ok(fig, 'no graph_figure block reached the document');
+    assert.equal(fig.plane, false);
+    assert.equal(fig.toScale, false);
+    assert.equal(fig.alt, 'Triangle ABC with AC and BC marked equal');
+    assert.deepEqual(
+        fig.drawables.map((d) => d.kind),
+        ['point', 'point', 'point', 'polygon', 'tick_mark', 'tick_mark', 'angle_mark', 'side_label'],
+    );
+    assert.ok(fig.axis.xMin < 0 && fig.axis.xMax > 6 && fig.axis.yMax > 8, 'the window does not cover the triangle');
+    // Tight, not merely covering (the ±10 default covers it too): it was FITTED.
+    assert.ok(fig.axis.xMax < 10 && fig.axis.yMax < 10, `the window was not fitted: ${JSON.stringify(fig.axis)}`);
+    assert.ok(pipeline.ActivityDocument.safeParse(out.document).success);
+});
+
+test('§A2 a figure with no alt: SKIPS the file in a plain (non-strict) run', () => {
+    assert.throws(
+        () => convertOne(pipeline, FIGURE_MD(TRIANGLE.slice(1)), null, 'geom/triangles.md'),
+        /figure problem[\s\S]*alt:/,
+    );
+});
+
+test('§A2 a mark that names an unknown point SKIPS the file — a dropped mark is a wrong question', () => {
+    assert.throws(
+        () => convertOne(pipeline, FIGURE_MD([...TRIANGLE, 'ticks AX 1']), null, 'geom/triangles.md'),
+        /figure problem[\s\S]*"ticks AX 1"/,
+    );
+});
+
+// =============================================================================
 // §B — merge authority (D5): never-clobber on create, file wins on update
 // =============================================================================
 

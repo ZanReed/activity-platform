@@ -682,23 +682,24 @@ Run with Claude Code or Codex; checkbox as you ship.
 **Geometry slice (D12 first). Execution order (ER-15): T1+T2+T6 as one
 commit, then T4, T3, T5, T7, T8, T8b.**
 
-- [ ] **T1 (P1, human: ~2 d / CC: ~1 h)** — schema + serializer — the five annotation kinds, `segment.style`, `GraphFigureBlock.alt / plane / toScale` + sizing, the `AxisConfig` refine; the same fields on the Tiptap node and through both `serialize.ts` directions (ER-1); `plane` on the block (ER-2); the `DrawableAttr` twin
+- [x] **T1 (P1, human: ~2 d / CC: ~1 h)** — schema + serializer — the five annotation kinds, `segment.style`, `GraphFigureBlock.alt / plane / toScale` + sizing, the `AxisConfig` refine; the same fields on the Tiptap node and through both `serialize.ts` directions (ER-1); `plane` on the block (ER-2); the `DrawableAttr` twin
   - Surfaced by: Q2, Q4, N2, N6, N8, D11; ER-1, ER-2, ER-6, C3
   - Files: `packages/schema/src/graph-primitives.ts`, `blocks/graph-figure.ts`; `packages/app/src/lib/serialize.ts`, `editor/extensions/{GraphFigure,InteractiveGraph}.ts`; the axis NumCells' inline error and the importer's `axes:` warning (the TODOS entry's other two parts); `pnpm bundle:viewer-server` AND `pnpm bundle:grading-server` (ER-6)
   - Verify: schema tests incl. "old documents still parse"; the serialize round-trip test; the `jsonb_path_exists` corpus query for bad windows BEFORE the refine lands (a hit blocks the refine, not the slice)
-- [ ] **T2 (P1, human: ~2.5 d / CC: ~1.5 h)** — static engine — `figure-marks.ts` (ER-4) with Q1's numbers; plane-less mode (Q4) with every `SIZE`-as-height site made height-aware (C4); INK labels by inline style (ER-7); dashed segments; `fitFigureWindow` exported from the `static-svg` subpath (ER-3)
+- [x] **T2 (P1, human: ~2.5 d / CC: ~1.5 h)** — static engine — `figure-marks.ts` (ER-4) with Q1's numbers; plane-less mode (Q4) with every `SIZE`-as-height site made height-aware (C4); INK labels by inline style (ER-7); dashed segments; `fitFigureWindow` exported from the `static-svg` subpath (ER-3)
   - Surfaced by: Q1, Q4, Q5; ER-3, ER-4, ER-7, C4
   - Files: `packages/graph-kit/src/figure-marks.ts` (new), `static-svg/graph-svg.ts`, `static-svg.ts`; `packages/viewer/src/tokens/tokens.{css,ts}` (`--gk-svg-ink`)
   - Verify: unit tests on `figure-marks.ts`; `tests/components/graph-figure.test.tsx` per Q9, mutation-tested; `plane: on` output byte-identical to today; a ray's arrow inside a 2:1 viewBox; `node scripts/check-perf-budget.mjs` against ER-9's stop lines
-- [ ] **T6 (P1, human: ~1 d / CC: ~30 min)** — viewer — wrapper markup with a real `<figcaption>` (ER-8), `alt` → `aria-label`, the unavailable-reason enum, sizing through the container's `viewer-block--sized` path with an inline cap override (C5, ER-9), aspect on the fallback
+- [x] **T6 (P1, human: ~1 d / CC: ~30 min)** — viewer — wrapper markup with a real `<figcaption>` (ER-8), `alt` → `aria-label`, the unavailable-reason enum, sizing through the container's `viewer-block--sized` path with an inline cap override (C5, ER-9), aspect on the fallback
   - Surfaced by: D11, N2, N6, N8, Q4; ER-8, ER-9, C5
   - Files: `packages/viewer/src/blocks/GraphFigure.tsx`, `container/layoutStyles.ts`, `styles/viewer.css` (one selector)
   - Verify: caption present / absent ×3, mutation-tested; a11y lane; `figure/standalone-capped` over a plane-less fixture added to `scripts/graph-figure-test.md`; budget re-measure
-- [ ] **T4 (P1, human: ~2.5 d / CC: ~1.5 h)** — importer — the ```figure fence: `parseFigureLine` + name pass (ER-11), Q3 grammar, import-time fit (ER-3), `alt:`, `to scale`, N2 refusals, the two failure rules (ER-12), `figureProblems` skip the file in every batch run (ER-13, amended); the `FENCES` entry, the `JOIN` entry and `pnpm facts:capabilities` (ER-14)
+- [x] **T4 (P1, human: ~2.5 d / CC: ~1.5 h)** — importer — the ```figure fence: `parseFigureLine` + name pass (ER-11), Q3 grammar, import-time fit (ER-3), `alt:`, `to scale`, N2 refusals, the two failure rules (ER-12), `figureProblems` skip the file in every batch run (ER-13, amended); the `FENCES` entry, the `JOIN` entry and `pnpm facts:capabilities` (ER-14)
   - Surfaced by: Q3, N2, N7, N8; ER-3, ER-11, ER-12, ER-13, ER-14
   - Files: `packages/app/src/lib/markdownToTiptap.ts`, `importFormatRegistry.ts`, `capabilityFacts.ts`, `docs/capability-facts.json`, `scripts/batch-import.mjs`
   - Verify: importer unit tests per line form and per refusal; a strict dry run that FAILS on a figure without `alt`; `capabilityFacts.test.ts` green; `pnpm --filter @activity/app test`
   - Pending author actions after this lands (ER-6): push, `pnpm deploy:get-activity`, `pnpm deploy:check`, and only then import a figure
+  - As built: the parser is its own module, `packages/app/src/lib/figureFence.ts` (T3 and T7 reuse it). The fence-registry guard requires every fence to be taught in `markdownImportPrompt.ts` AND `docs/markdown-import-format.md` in the same commit, so T8's prompt + format-doc teaching landed here (P10), with `pnpm prompt:catalogue`. Curriculum B-36 fixed three parser behaviours, all within Q3: `side GH "7 cm"`; a bare `angle ABC` draws the arc alone; `angle ABC ""` is refused; `to scale` drops only the caption. Their activity 01 (eleven figures) imports with zero problems.
 - [ ] **T3 (P1, human: ~1.5 d / CC: ~45 min)** — kit board — the five kinds on the JSXGraph board from the same `figure-marks.ts` primitives (Q10, ER-4); `show:` lines in ```graph take the figure grammar (ER-11) and skip-with-warning on a bad annotation (ER-12a)
   - Surfaced by: §2 two-renderer correction, Q10; ER-4, ER-5, ER-11, ER-12
   - Files: `packages/graph-kit/src/board.ts`, `packages/app/src/lib/markdownToTiptap.ts`, `scripts/tests/` (the roster scan)
@@ -711,10 +712,10 @@ commit, then T4, T3, T5, T7, T8, T8b.**
   - Surfaced by: Q8; ER-10, C1
   - Files: `packages/app/src/editor/slashMenuItems.ts`, `extensions/SlashMenu.ts` (stale comment), `nodeViews/GraphFigureView.tsx`, `components/{DrawableListEditor.tsx,drawableText.ts}`, `lib/figureSource.ts` (new)
   - Verify: `parse(format(block))` equals `block` over every line form; editor e2e inserts a figure from the slash menu and round-trips the source
-- [ ] **T8 (P1, human: ~0.5 d / CC: ~15 min)** — docs + prompt — format doc section, `markdownImportPrompt.ts`, `pnpm prompt:catalogue`, boundary stamp
+- [ ] **T8 (P1, human: ~0.5 d / CC: ~15 min)** — docs + prompt — format doc section, `markdownImportPrompt.ts`, `pnpm prompt:catalogue`, boundary stamp *(the ```figure teaching landed in T4, forced by the fence-registry guard; T8 is now the stamp refresh after the push, plus the `show:`/cuboid lines T3 and T5 add)*
   - Surfaced by: D12, §5
   - Verify: `catalogueAuthoringPrompt.test.ts`; stamp row refreshed after the push
-- [ ] **T8b (P1, human: ~1 h / CC: ~15 min)** — pin bump (ER-14) — after the author has pushed T4 and deployed both functions: open the pin-bump PR on `ZanReed/curriculum` (re-copy `capability-facts.json`, new commit + sha256, the graph's derived fields for `figure`, graph version bump, regenerated registries) and send the pre-merge notice as B-34
+- [ ] **T8b (P1, human: ~1 h / CC: ~15 min)** — pin bump (ER-14) — after the author has pushed T4 and deployed both functions: open the pin-bump PR on `ZanReed/curriculum` (re-copy `capability-facts.json`, new commit + sha256, the graph's derived fields for `figure`, graph version bump, regenerated registries) and send the pre-merge notice as the next B-letter (B-34 went to other business; the id was asked in B-38)
   - Surfaced by: the B14 standing rule (CLAUDE.md → Standing constraints)
   - Verify: their capability check green on the PR; their `capability-drift.yml` green after merge
 
