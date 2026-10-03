@@ -11,6 +11,7 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
 - **Charts — a chart beside its question.** A ```chart inside a ```columns column is not built (no ruling). Trigger: the first drafted statistics activity that wants the question beside the chart.
+- **Charts — students DRAW the bars or the time series (D8 slice 2).** Not built; a separate capability with its own id. **TRIGGER (curriculum side, C-47): `chain.stats.data-displays` is next to be drafted.** It WILL cap drafts: `stats.display.categorical` is "Read, draw and choose bar graphs" and `stats.display.time-series` is "Read and draw time-series graphs"; until then those items are read / choose / complete. Their "choose the display" mc (`mis.timeseries.joins-categories`) also wants charts as CHOICES, which belongs to the side-by-side figures item.
 - **Charts — per-series colour.** Dropped from the schema (no authoring surface). Trigger: an activity whose text refers to a series by colour.
 - **Shell — live sign-out.** The auth-js stubs are proven by the lanes; one live Google sign-in and sign-out on the deployed app is the remaining check.
 
