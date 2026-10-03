@@ -30,8 +30,8 @@ function); (2) `pnpm deploy:check`. Prove each by hashing the deployed
 `_shared/*.bundle.js` against the repo's (CLAUDE.md → the download-and-hash
 method), not by version number. No migration. Until both are live, an
 activity holding a ```chart must not be published: the live read function
-does not know the block. After the push, the curriculum repo needs the
-capability-facts pin-bump PR (`chart` joins `docs/capability-facts.json`).
+does not know the block. The curriculum repo's pin-bump is their PR #32, held by letter B-55
+until both deploys are verified: send the go-ahead letter after the hashes match.
 
 **PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
@@ -44,7 +44,7 @@ NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 Novem
 the counsel packet with the practice-data question (E5), which is NOT drafted
 yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
-**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, Y7 charts, graded stimuli, side-by-side figures, SW stale-shell recovery, D43 builds. His test findings go in a queue in TODOS.
+**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, ~~Y7 charts~~, graded stimuli, side-by-side figures, SW stale-shell recovery, D43 builds. His test findings go in a queue in TODOS.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
@@ -263,7 +263,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-04 — a seven-item build run started (author's list, overriding the trigger rule for this run): shell rung 2 and `--chain-registry` are built, pushed and CI-green; Y7 charts are next, waiting on the curriculum side's capability id (B-54). Earlier the same day: the Y7 geometry slice was built and pushed (T1–T8, T7b, T8b; T3 half), the importer learned move-only/unchanged writes, and the curriculum side's PRs #28–#30 were verified and stamped. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
+**Last updated:** 2026-10-04 — a seven-item build run started (author's list, overriding the trigger rule for this run): shell rung 2, `--chain-registry` and Y7 charts (T9–T13) are built, pushed and CI-green; graded stimuli are next (design pass first). Earlier the same day: the Y7 geometry slice was built and pushed (T1–T8, T7b, T8b; T3 half), the importer learned move-only/unchanged writes, and the curriculum side's PRs #28–#30 were verified and stamped. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
