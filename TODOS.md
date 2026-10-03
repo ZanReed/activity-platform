@@ -290,6 +290,50 @@ entry below rides this arc (N2).
 
 **Facts to keep in view (re-derived 2026-10-04):** the chain is the FIRST path segment (`chainFolderOf`), so catalogue folders must stay FLAT; the folder ordinal is teaching order across all courses in the teacher's outline (Lane B, `comparePaths`); `course:` groups nothing.
 
+## Y7 geometry slice — OPEN QUEUE to work through with the author (2026-10-04)
+
+Built and pushed: T1+T2+T6 `f2ff039`, T4 `4df546a`, T7b `3df5024`, T3 board
+half `9620c2f`, T5 `9dd5788`, T7 `02672ee`, T8 (teaching + stamps), T8b (their
+PR #28 merged). Plus the importer's move-only/unchanged writes `4fe728d`.
+
+1. **RULING NEEDED — graded stimuli (T3's other half, D9/Q10).** The design's
+   premise that a graded ```graph accepts `show:` drawables beside `answer:`
+   is false in the code: `parseGraphFence` drops them with "aren't drawn yet
+   (coming with graded stimuli)", no graded interaction has a drawables field,
+   and the student viewer never mounts a display board. "Plot the image
+   vertices over a shown pre-image" needs a NEW graded-stimulus field (schema,
+   graded-board drawing, print twin, importer, editor, both bundles). Options:
+   (A) build it now; (B) file it with trigger "chain.geom.transformations is
+   next to be drafted" (same trigger as the side-by-side half); (C) another
+   shape. Recommendation: B — the curriculum order puts transformations after
+   triangles, parallel lines and area-volume.
+2. **DEPLOYS OWED for T5** (a schema change, pushed): `pnpm deploy:get-activity`
+   then `pnpm deploy:check`, then verify by bundle hash. Until then nobody
+   authors a cuboid in the app (the live functions would reject it).
+3. **The real import over the renamed pilot folder** is the author's: the dry
+   run showed 4 path-only moves, 0 updates. Command: `pnpm import:batch
+   ~/activity-catalogue-pilot --owner <you> --strict --registry
+   <curriculum main>/misconception-registry.txt --skills-registry
+   <curriculum main>/skill-registry.txt` (dry run first, as always).
+4. **Shell JS budget is at the stop line**: 156.445 / 156.5 KiB after T5. The
+   slimming rung (ladder in this file) must run before ANY further eager
+   addition. Charts are lazy and unaffected.
+5. **`--chain-registry` ranking**: its trigger (the curriculum rows PR) has
+   fired; ~1 h; author's call where it ranks.
+6. **Two unexplained one-offs this session** (watch, don't fix blind): a
+   SIGABRT while loading modules in `@activity/grading-worker` tests, and one
+   unhandled error in the app vitest run under `pnpm verify` (1 in 12 runs; the
+   text was lost to verify's truncated output). Different packages, same
+   session; a third sighting makes it a pattern.
+7. **Mechanism choices made without a ruling (FYI, revisit if wrong):**
+   plane-less labelled points draw as letters without a dot; plane-less
+   segments carry no endpoint dots unless authored; side labels clear a
+   vertical edge by their width; Q6's `hidden: off` is a fence-level line
+   (like `plane:`); narrow rows holding a figure stack below ~656 px.
+8. **Unexplained 0.5 KiB** between two shell readings (155.2 → 155.7) with a
+   measured code delta of 0 between those commits — likely a measurement
+   artefact; low priority, noted so the next reading is compared carefully.
+
 ## Side-by-side figures for "which one?" items (curriculum C-35 wish, 2026-10-03)
 
 **SPLIT by the author 2026-10-03.** The SYNTAX half (a figure inside a

@@ -334,6 +334,18 @@ describe('cuboid (Q6, Q9)', () => {
     expect(g(cub()).querySelectorAll('line[stroke-width="1"]')).toHaveLength(0);
   });
 
+  it('`at` moves the solid: its front-bottom-left corner sits at the authored point', () => {
+    // Same window, two positions: every visible edge shifts by the same px.
+    const xs = (c: HTMLElement) =>
+      Array.from(g(c).querySelectorAll('line[stroke-width="2"]'), (l) => Number(l.getAttribute('x1')));
+    const home = xs(cub());
+    const moved = xs(cub({ at: [1, 0] }));
+    expect(moved).toHaveLength(home.length);
+    const shift = moved[0]! - home[0]!;
+    expect(shift).toBeGreaterThan(0);
+    moved.forEach((x, i) => expect(x - home[i]!).toBeCloseTo(shift, 0));
+  });
+
   it('labels the three dimensions with the unit word, and nothing without one', () => {
     const labels = Array.from(g(cub({ unit: 'cm' })).querySelectorAll('text'), (t) => t.textContent);
     expect(labels.sort()).toEqual(['2 cm', '3 cm', '4 cm']);
