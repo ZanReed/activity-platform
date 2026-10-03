@@ -22,7 +22,7 @@ the queue. An entry's own Priority line below does not outrank it.**
    the registry says, so the first chain needing one of the four would be
    forced into a fallback it does not need. The curriculum side will not
    hand-edit the statuses (regeneration is platform-owned).
-2. **Y7 geometry figures** — eng-cleared 2026-10-03; T1, T2, T6, T4 built; T3, T5, T7, T8, T8b to go.
+2. **Y7 geometry figures** — eng-cleared 2026-10-03; T1, T2, T6, T4 built; T3, T5, T7, T7b (figure in a column, author-added), T8, T8b to go.
 3. **D43 practice blocks — DESIGN PASS ONLY**, alongside 1–2. No D43 build
    before geometry ships.
 4. **Service worker stale-shell recovery** (entry below, P2) — before any real
@@ -284,9 +284,12 @@ entry below rides this arc (N2).
 
 ## Side-by-side figures for "which one?" items (curriculum C-35 wish, 2026-10-03)
 
-**TRIGGER: `chain.geom.transformations` is next to be drafted.** That is the
-event that makes this next; until then it does not enter BUILD ORDER. The
-design pass may run early (it is a joint contract: the authoring grammar).
+**SPLIT by the author 2026-10-03.** The SYNTAX half (a figure inside a
+```columns segment, so a file-authored activity can put a figure beside its
+question) was PULLED into the Y7 geometry slice as T7b. What stays here is
+the NARROW-COLUMN half: 3–4 small figures per row legible at quarter width,
+and choice letters A–D. **TRIGGER for that half: `chain.geom.transformations`
+is next to be drafted.** Its design pass may run early (joint contract).
 
 **What:** 2–4 small figures labelled A–D side by side, then a plain ```mc.
 Their case: "which shows a reflection in the line?", where each choice is a

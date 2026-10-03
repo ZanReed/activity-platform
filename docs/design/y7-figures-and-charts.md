@@ -680,7 +680,7 @@ review's list, APPROVED 2026-10-03** (ER-1 to ER-15, "yes to all"; no line rever
 Run with Claude Code or Codex; checkbox as you ship.
 
 **Geometry slice (D12 first). Execution order (ER-15): T1+T2+T6 as one
-commit, then T4, T3, T5, T7, T8, T8b.**
+commit, then T4, T3, T5, T7, T7b, T8, T8b.**
 
 - [x] **T1 (P1, human: ~2 d / CC: ~1 h)** — schema + serializer — the five annotation kinds, `segment.style`, `GraphFigureBlock.alt / plane / toScale` + sizing, the `AxisConfig` refine; the same fields on the Tiptap node and through both `serialize.ts` directions (ER-1); `plane` on the block (ER-2); the `DrawableAttr` twin
   - Surfaced by: Q2, Q4, N2, N6, N8, D11; ER-1, ER-2, ER-6, C3
@@ -712,6 +712,11 @@ commit, then T4, T3, T5, T7, T8, T8b.**
   - Surfaced by: Q8; ER-10, C1
   - Files: `packages/app/src/editor/slashMenuItems.ts`, `extensions/SlashMenu.ts` (stale comment), `nodeViews/GraphFigureView.tsx`, `components/{DrawableListEditor.tsx,drawableText.ts}`, `lib/figureSource.ts` (new)
   - Verify: `parse(format(block))` equals `block` over every line form; editor e2e inserts a figure from the slash menu and round-trips the source
+- [ ] **T7b (P1, human: ~0.5 d / CC: ~1 h)** — a figure INSIDE a ```columns segment (author, 2026-10-03, pulled into this slice from the curriculum C-35 wish) — a column segment whose first line is `figure:` is read whole by `figureFence.ts` and becomes that column's graph_figure: its own `alt:`, caption, problem checks and the ER-13 skip. No nested fences: the AI already wraps its whole reply in a ``` block, so a third fence level is the failure mode. Closes "a file-authored activity cannot put a figure beside its question" (the layout, viewer, print and editor already support it; only the import syntax was missing). Syntax confirmed with the curriculum side before build (joint contract)
+  - Surfaced by: curriculum C-35; author ruling 2026-10-03
+  - Files: `packages/app/src/lib/markdownToTiptap.ts` (`parseColumnsFence`), `markdownImportPrompt.ts`, `docs/markdown-import-format.md`, `pnpm prompt:catalogue`
+  - Verify: importer tests (figure segment beside a text segment; empty or bad figure segment; problems reach `figureProblems`); a batch-import row; the print lane over a half-width figure-beside-question row
+  - NOT in it: the narrow-column label scale for 3–4 small figures per row (stays on its TODOS trigger, the transformations chain), and choice letters A–D
 - [ ] **T8 (P1, human: ~0.5 d / CC: ~15 min)** — docs + prompt — format doc section, `markdownImportPrompt.ts`, `pnpm prompt:catalogue`, boundary stamp *(the ```figure teaching landed in T4, forced by the fence-registry guard; T8 is now the stamp refresh after the push, plus the `show:`/cuboid lines T3 and T5 add)*
   - Surfaced by: D12, §5
   - Verify: `catalogueAuthoringPrompt.test.ts`; stamp row refreshed after the push
