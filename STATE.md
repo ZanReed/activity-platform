@@ -33,7 +33,7 @@ NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 Novem
 the counsel packet with the practice-data question (E5), which is NOT drafted
 yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
-**Y7 geometry figures — BUILDING** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md), ER-1–15 approved): T1+T2+T6 (`f2ff039`) and T4 (the ```figure fence) are on `main`; T3, T5, T7 follow. **Owed, IN THIS ORDER (ER-6):** push; `pnpm deploy:get-activity`; `pnpm deploy:check`; only then import a figure activity. Then T8b, the curriculum pin bump.
+**Y7 geometry figures — BUILDING** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md), ER-1–15 approved): T1, T2, T6, T4, T7b, T5 and T3's board half built; T3's graded-`show:` half awaits an author ruling (see design doc T3); T7, T8 follow. **Owed, IN THIS ORDER (ER-6), again for T5's cuboid (a schema change):** push; `pnpm deploy:get-activity`; `pnpm deploy:check`; only then import a cuboid figure. T8b pin bump DONE (their #28).
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:

@@ -1858,7 +1858,7 @@ function readDrawables(raw: unknown): DisplayDrawable[] {
     'point', 'curve', 'expression', 'segment', 'ray', 'polygon',
     // Y7 geometry marks — the roster scan (scripts/tests/drawable-roster)
     // fails if this list and the Drawable union drift apart.
-    'angle_mark', 'tick_mark', 'parallel_mark', 'side_label', 'text',
+    'angle_mark', 'tick_mark', 'parallel_mark', 'side_label', 'text', 'cuboid',
   ];
   return raw.filter(
     (d): d is DisplayDrawable =>

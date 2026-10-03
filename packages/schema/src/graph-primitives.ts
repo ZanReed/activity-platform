@@ -342,6 +342,25 @@ const TextDrawable = z.object({
   text: z.string().min(1),
 });
 
+// The one 3-D drawable (D6, Q6): a cuboid in cabinet oblique — 45°, depth
+// drawn at half scale, receding up and to the right. `at` is the front-bottom-
+// left corner. `unit` labels the three dimensions outside the solid ("4 cm");
+// absent = unlabelled. `units` draws the unit-cube grid on the three visible
+// faces (whole-number dimensions only, at most 12 per dimension — the importer
+// refuses more). `hidden` false omits the three dashed hidden edges, which are
+// drawn by default because Y7 counts edges.
+const CuboidDrawable = z.object({
+  kind: z.literal('cuboid'),
+  at: Coord.optional(),
+  length: z.number().positive(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  unit: z.string().min(1).optional(),
+  units: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  color: DrawableColor.optional(),
+});
+
 export const Drawable = z.discriminatedUnion('kind', [
   PointDrawable,
   CurveDrawable,
@@ -354,5 +373,6 @@ export const Drawable = z.discriminatedUnion('kind', [
   ParallelMarkDrawable,
   SideLabelDrawable,
   TextDrawable,
+  CuboidDrawable,
 ]);
 export type Drawable = z.infer<typeof Drawable>;

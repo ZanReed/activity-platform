@@ -22,6 +22,8 @@
 //   parallel AB DC
 //   segment A C dashed
 //   text (4,-1.5) "base"
+//   cuboid 4 2 3 cm units      ← length width height [unit word] [units] (Q6)
+//   hidden: off                ← the cuboid's dashed hidden edges omitted
 //   to scale                   ← drops the "Not to scale" caption (N8)
 //   plane: on                  ← grid + axes back (default: plane-less)
 //   axes: -2..10, -2..7        ← optional; absent = auto-fit (ER-3)
@@ -135,7 +137,9 @@ function angleDeg(at: XY, from: XY, to: XY): number {
 
 // ---- the parser -------------------------------------------------------------------
 
-const LINE_KINDS = ['point', 'polygon', 'region', 'segment', 'side', 'angle', 'ticks', 'parallel', 'text'] as const;
+const LINE_KINDS = ['point', 'polygon', 'region', 'segment', 'side', 'angle', 'ticks', 'parallel', 'text', 'cuboid'] as const;
+/** Q6 / N2: more unit cubes than this per dimension is refused. */
+const MAX_UNIT_CUBES = 12;
 const DEGREE_RE = new RegExp(String.raw`^(${NUM})°$`);
 
 /**
@@ -187,6 +191,7 @@ export function parseFigureFence(src: string, fallback?: FigureFallback): Figure
     let alt: string | undefined;
     let plane = false;
     let toScale = false;
+    let hidden = true;
     let window: FigureWindow | null = null;
     const drawables: Out[] = [];
 
@@ -219,6 +224,14 @@ export function parseFigureFence(src: string, fallback?: FigureFallback): Figure
             toScale = true;
             continue;
         }
+        const hiddenM = /^hidden:\s*(\S*)$/i.exec(line);
+        if (hiddenM) {
+            const v = hiddenM[1]!.toLowerCase();
+            if (v === 'off') hidden = false;
+            else if (v === 'on') hidden = true;
+            else skip(line, 'hidden is "on" or "off"');
+            continue;
+        }
 
         const toks = tokenize(line);
         const head = toks[0];
@@ -233,7 +246,7 @@ export function parseFigureFence(src: string, fallback?: FigureFallback): Figure
                 if (r.ok) drawables.push(r.drawable);
                 else skip(line, r.message);
             } else {
-                skip(line, 'not a figure line (point, polygon, region, segment, side, angle, ticks, parallel, text, line, ray)');
+                skip(line, 'not a figure line (point, polygon, region, segment, side, angle, ticks, parallel, text, cuboid, line, ray)');
             }
             continue;
         }
@@ -385,6 +398,45 @@ export function parseFigureFence(src: string, fallback?: FigureFallback): Figure
                 }
                 break;
             }
+            case 'cuboid': {
+                // cuboid L W H [unit word] [units] — three numbers, then an
+                // optional unit word (absent = unlabelled), then the optional
+                // `units` flag for the unit-cube grid.
+                const nums = words.filter((t) => /^-?\d+(\.\d+)?$/.test(t.v)).map((t) => Number(t.v));
+                const rest = words.filter((t) => !/^-?\d+(\.\d+)?$/.test(t.v));
+                const units = rest.some((t) => t.v.toLowerCase() === 'units');
+                const unitWords = rest.filter((t) => t.v.toLowerCase() !== 'units');
+                if (strs.length || rest.length > 2 || unitWords.length > 1 || rest.some((t) => t.t !== 'word') || rest.length !== unitWords.length + (units ? 1 : 0)) {
+                    skip(line, 'a cuboid is cuboid <length> <width> <height> [unit] [units], as in cuboid 4 2 3 cm units');
+                    break;
+                }
+                if (nums.length !== 3) {
+                    skip(line, 'a cuboid needs exactly three numbers: length, width, height');
+                    break;
+                }
+                const [length, width, height] = nums as [number, number, number];
+                if (nums.some((n) => !(n > 0))) {
+                    refuse(line, 'every cuboid dimension must be greater than 0');
+                    break;
+                }
+                if (units && nums.some((n) => !Number.isInteger(n))) {
+                    refuse(line, 'units draws whole unit cubes, so every dimension must be a whole number');
+                    break;
+                }
+                if (units && nums.some((n) => n > MAX_UNIT_CUBES)) {
+                    refuse(line, `units draws at most ${MAX_UNIT_CUBES} cubes per dimension`);
+                    break;
+                }
+                drawables.push({
+                    kind: 'cuboid',
+                    length,
+                    width,
+                    height,
+                    ...(unitWords[0] ? { unit: unitWords[0].v } : {}),
+                    ...(units ? { units: true } : {}),
+                });
+                break;
+            }
             case 'text': {
                 const pts = refs(pointToks(() => false));
                 if (strs.length !== 1 || strs[0]!.v === '') skip(line, 'text needs one quoted label, as in text (4,-1.5) "base"');
@@ -403,6 +455,9 @@ export function parseFigureFence(src: string, fallback?: FigureFallback): Figure
     if (!alt) {
         problems.push('Figure: it needs an alt: line describing what it shows (for screen readers).');
     }
+
+    // `hidden: off` applies to every cuboid in the figure (Q6).
+    if (!hidden) for (const d of drawables) if (d.kind === 'cuboid') d.hidden = false;
 
     const fitted = window
         ? { ...DEFAULT_WINDOW, ...window }

@@ -21,9 +21,18 @@
 
 export type Pt = readonly [number, number];
 
-/** An open polyline. Two points stringify as an SVG `<line>`, more as a `<path>`. */
+/** An open polyline. Two points stringify as an SVG `<line>`, more as a `<path>`.
+ *  `weight`: 'mark' (1.5, the default), 'edge' (2, a solid's outline) or 'grid'
+ *  (1, unit-cube lines); `dashed`: a hidden edge (Q6). */
 export interface MarkLine {
   readonly t: 'line';
+  readonly pts: readonly Pt[];
+  readonly weight?: 'mark' | 'edge' | 'grid';
+  readonly dashed?: boolean;
+}
+/** A filled face (a cuboid's visible faces, Q6): fill only, no stroke. */
+export interface MarkFace {
+  readonly t: 'face';
   readonly pts: readonly Pt[];
 }
 /** Text centred on (x, y). `vertex` = a vertex letter (15, italic); `label` = 16. */
@@ -34,7 +43,7 @@ export interface MarkText {
   readonly text: string;
   readonly role: 'label' | 'vertex';
 }
-export type MarkPrim = MarkLine | MarkText;
+export type MarkPrim = MarkLine | MarkText | MarkFace;
 
 /** Q1's numbers (viewBox units, 400-wide). Exported for the tests that pin them. */
 export const MARK = {
@@ -58,6 +67,10 @@ export const MARK = {
   chevronTWithTicks: 0.7,
   labelSize: 16,
   vertexSize: 15,
+  // Cuboid (Q6): cabinet oblique, depth at half scale, 45°.
+  cuboidDepthScale: 0.5,
+  cuboidLabelGap: 16,
+  cuboidFaceOpacity: 0.12,
 } as const;
 
 /** A structural view of the drawables the context is built from — the board
@@ -377,4 +390,82 @@ export function vertexLetter(ctx: MarkContext, p: Pt, text: string, unit = 1): M
 /** A free text label centred at p. */
 export function freeText(p: Pt, text: string): MarkPrim[] {
   return [{ t: 'text', x: p[0], y: p[1], text, role: 'label' }];
+}
+
+/**
+ * A cuboid in cabinet oblique (D6, Q6). Inputs are GRAPH units plus the px
+ * mapping, because depth recedes at 45° in the FIGURE's own (one-scale) space:
+ * the depth offset is computed in px from the px length of one graph unit.
+ *
+ * Returns, in draw order: the three visible faces (filled), the unit-cube grid
+ * on those faces, the three dashed hidden edges (unless `hidden` is false),
+ * the nine visible edges, then the dimension labels outside the solid —
+ * length below the front-bottom edge, height LEFT of the front-left edge (the
+ * right side collides with the grid), depth beside the receding bottom-right
+ * edge.
+ */
+export function cuboid(
+  map: (v: readonly number[]) => Pt,
+  c: { at?: readonly number[]; length: number; width: number; height: number; unit?: string; units?: boolean; hidden?: boolean },
+  unit = 1,
+): MarkPrim[] {
+  const [x, y] = [c.at?.[0] ?? 0, c.at?.[1] ?? 0];
+  const L = c.length;
+  const W = c.width;
+  const H = c.height;
+  // One graph unit along x, in px (the figure is one-scale when plane-less).
+  const ux = map([x + 1, y])[0] - map([x, y])[0];
+  const d = W * MARK.cuboidDepthScale * ux * Math.SQRT1_2;
+  const back: Pt = [d, -d]; // y-down: receding = right and UP
+  const P = (gx: number, gy: number, depth = 0): Pt => {
+    const p = map([gx, gy]);
+    return [p[0] + back[0] * depth, p[1] + back[1] * depth];
+  };
+  // Corners: f = front, b = back; l/r = left/right; d/u = down/up.
+  const fld = P(x, y), frd = P(x + L, y), fru = P(x + L, y + H), flu = P(x, y + H);
+  const bld = P(x, y, 1), brd = P(x + L, y, 1), bru = P(x + L, y + H, 1), blu = P(x, y + H, 1);
+  const out: MarkPrim[] = [
+    { t: 'face', pts: [fld, frd, fru, flu] },
+    { t: 'face', pts: [flu, fru, bru, blu] },
+    { t: 'face', pts: [frd, brd, bru, fru] },
+  ];
+  if (c.units) {
+    const grid = (a: Pt, b: Pt): void => void out.push({ t: 'line', pts: [a, b], weight: 'grid' });
+    for (let i = 1; i < L; i++) {
+      grid(P(x + i, y), P(x + i, y + H)); // front verticals
+      grid(P(x + i, y + H), P(x + i, y + H, 1)); // top, receding
+    }
+    for (let j = 1; j < H; j++) {
+      grid(P(x, y + j), P(x + L, y + j)); // front horizontals
+      grid(P(x + L, y + j), P(x + L, y + j, 1)); // right, receding
+    }
+    for (let k = 1; k < W; k++) {
+      const t = k / W;
+      grid(P(x, y + H, t), P(x + L, y + H, t)); // top, across
+      grid(P(x + L, y, t), P(x + L, y + H, t)); // right, vertical
+    }
+  }
+  if (c.hidden !== false) {
+    for (const [a, b] of [[bld, brd], [bld, blu], [bld, fld]] as [Pt, Pt][]) {
+      out.push({ t: 'line', pts: [a, b], weight: 'mark', dashed: true });
+    }
+  }
+  for (const [a, b] of [
+    [fld, frd], [frd, fru], [fru, flu], [flu, fld],
+    [flu, blu], [blu, bru], [bru, fru], [frd, brd], [brd, bru],
+  ] as [Pt, Pt][]) {
+    out.push({ t: 'line', pts: [a, b], weight: 'edge' });
+  }
+  if (c.unit) {
+    const g = MARK.cuboidLabelGap * unit;
+    const num = (n: number): string => String(Number(n.toFixed(3)));
+    const hw = (n: number): number => halfExtents(`${num(n)} ${c.unit}`, MARK.labelSize * unit)[0];
+    out.push(
+      { t: 'text', x: (fld[0] + frd[0]) / 2, y: fld[1] + g, text: `${num(L)} ${c.unit}`, role: 'label' },
+      { t: 'text', x: fld[0] - g - hw(H), y: (fld[1] + flu[1]) / 2, text: `${num(H)} ${c.unit}`, role: 'label' },
+      // Beside the receding bottom-right edge, pushed down-right (outward).
+      { t: 'text', x: (frd[0] + brd[0]) / 2 + g * Math.SQRT1_2 + hw(W), y: (frd[1] + brd[1]) / 2 + g * Math.SQRT1_2, text: `${num(W)} ${c.unit}`, role: 'label' },
+    );
+  }
+  return out;
 }

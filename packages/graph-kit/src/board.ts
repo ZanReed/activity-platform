@@ -26,6 +26,7 @@ import { resolveDrawableColor } from './drawable-palette.js';
 import {
   angleMark,
   chevrons,
+  cuboid,
   freeText,
   markContext,
   markOwner,
@@ -1695,7 +1696,8 @@ export interface DisplayDrawable {
     | 'tick_mark'
     | 'parallel_mark'
     | 'side_label'
-    | 'text';
+    | 'text'
+    | 'cuboid';
   at?: [number, number];
   label?: string;
   model?: Record<string, unknown>;
@@ -1721,6 +1723,13 @@ export interface DisplayDrawable {
   count?: number;
   reflex?: boolean;
   text?: string;
+  // Y7 cuboid (Q6).
+  length?: number;
+  width?: number;
+  height?: number;
+  unit?: string;
+  units?: boolean;
+  hidden?: boolean;
 }
 
 export interface DisplayConfig {
@@ -1888,15 +1897,21 @@ export function createDisplayBoard(
           fixed: true,
           highlight: false,
         });
-      } else if (m.pts.length === 2) {
-        board.create('segment', [fromPx(m.pts[0]!), fromPx(m.pts[1]!)], {
-          strokeColor: color, strokeWidth: 1.5, fixed: true, highlight: false,
+      } else if (m.t === 'face') {
+        board.create('polygon', m.pts.map(fromPx) as unknown[], {
+          fillColor: color, fillOpacity: 0.12, hasInnerPoints: false, fixed: true,
+          vertices: { visible: false, fixed: true },
+          borders: { strokeWidth: 0, highlight: false, fixed: true },
         });
       } else {
-        const pts = m.pts.map(fromPx);
-        board.create('curve', [pts.map((p) => p[0]), pts.map((p) => p[1])], {
-          strokeColor: color, strokeWidth: 1.5, fixed: true, highlight: false,
-        });
+        const width = m.weight === 'edge' ? 2 : m.weight === 'grid' ? 1 : 1.5;
+        const attrs = { strokeColor: color, strokeWidth: width, dash: m.dashed ? 2 : 0, fixed: true, highlight: false };
+        if (m.pts.length === 2) {
+          board.create('segment', [fromPx(m.pts[0]!), fromPx(m.pts[1]!)], attrs);
+        } else {
+          const pts = m.pts.map(fromPx);
+          board.create('curve', [pts.map((p) => p[0]), pts.map((p) => p[1])], attrs);
+        }
       }
     }
   };
@@ -2081,6 +2096,21 @@ export function createDisplayBoard(
       case 'text': {
         if (!isPair(d.at) || !d.text) break;
         drawPrims(freeText(toPx(d.at), d.text), color);
+        break;
+      }
+      case 'cuboid': {
+        const dims = [d.length, d.width, d.height];
+        if (!dims.every((n) => typeof n === 'number' && n > 0)) break;
+        drawPrims(
+          cuboid(toPx, {
+            length: d.length!, width: d.width!, height: d.height!,
+            ...(isPair(d.at) ? { at: d.at } : {}),
+            ...(d.unit ? { unit: d.unit } : {}),
+            ...(d.units ? { units: true } : {}),
+            ...(d.hidden === false ? { hidden: false } : {}),
+          }, unit),
+          color,
+        );
         break;
       }
       default:

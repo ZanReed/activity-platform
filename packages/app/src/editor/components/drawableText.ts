@@ -65,6 +65,8 @@ export function formatDrawable(d: DrawableAttr): string {
             return `side ${pt(d.from)} ${pt(d.to)} "${d.text}"`;
         case 'text':
             return `text ${pt(d.at)} "${d.text}"`;
+        case 'cuboid':
+            return `cuboid ${d.length} ${d.width} ${d.height}${d.unit ? ` ${d.unit}` : ''}${d.units ? ' units' : ''}`;
     }
 }
 
@@ -78,6 +80,7 @@ const READ_ONLY_KINDS: ReadonlySet<DrawableAttr['kind']> = new Set([
     'parallel_mark',
     'side_label',
     'text',
+    'cuboid',
 ]);
 
 export type DrawableTextUpdate =

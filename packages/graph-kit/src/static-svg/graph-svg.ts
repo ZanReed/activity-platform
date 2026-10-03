@@ -43,6 +43,7 @@ import { resolveDrawableColor } from '../drawable-palette.js';
 import {
   angleMark,
   chevrons,
+  cuboid,
   freeText,
   markContext,
   markOwner,
@@ -93,6 +94,7 @@ const CURVE_SAMPLES = 96;
 const INK_STYLE = 'fill:var(--gk-svg-ink,#1e293b)';
 // Geometry marks are thinner than the shapes they annotate (Q1).
 const MARK_STROKE = 1.5;
+const WEIGHT = { mark: MARK_STROKE, edge: 2, grid: 1 } as const;
 // Plane-less height clamp (Q4): between 1:3 and 3:1 of the 400 width.
 const MIN_H = SIZE / 3;
 const MAX_H = SIZE * 3;
@@ -509,14 +511,18 @@ function prims(list: readonly MarkPrim[], color: string): string {
         `<text x="${round1(m.x)}" y="${round1(m.y)}" text-anchor="middle" dominant-baseline="central"` +
         ` font-size="${vertex ? 15 : 16}"${vertex ? ' font-style="italic"' : ''} font-family="inherit"` +
         ` style="${INK_STYLE}">${escape(m.text)}</text>`;
+    } else if (m.t === 'face') {
+      const pts = m.pts.map((q) => `${round1(q[0])},${round1(q[1])}`).join(' ');
+      out += `<polygon points="${pts}" fill="${color}" fill-opacity="0.12" stroke="none"/>`;
     } else if (m.pts.length === 2) {
       const [a, b] = m.pts as [Pt, Pt];
       out +=
         `<line x1="${round1(a[0])}" y1="${round1(a[1])}" x2="${round1(b[0])}" y2="${round1(b[1])}"` +
-        ` stroke="${color}" stroke-width="${MARK_STROKE}"/>`;
+        ` stroke="${color}" stroke-width="${WEIGHT[m.weight ?? 'mark']}"` +
+        `${m.dashed ? ' stroke-dasharray="6 4"' : ''}/>`;
     } else {
       const d = m.pts.map((q, i) => `${i ? 'L' : 'M'}${round1(q[0])} ${round1(q[1])}`).join('');
-      out += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${MARK_STROKE}"/>`;
+      out += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${WEIGHT[m.weight ?? 'mark']}"/>`;
     }
   }
   return out;
@@ -575,6 +581,10 @@ function renderDrawable(p: Plane, d: Drawable, markerId: string, color: string, 
     case 'side_label':
     case 'text':
       return renderMark(p, d, color, ctx);
+    case 'cuboid':
+      // Geometry in figure-marks.ts (shared with the board): faces, unit
+      // grid, dashed hidden edges, visible edges, outside labels (Q6).
+      return prims(cuboid((v) => pt(p, v), d), color);
   }
 }
 
@@ -733,6 +743,15 @@ export function fitFigureWindow(drawables: readonly Drawable[]): AxisConfig | nu
         take(d.from);
         take(d.to);
         break;
+      case 'cuboid': {
+        // The solid's own box: front face plus the receding depth, which in a
+        // one-scale figure is (w·½·cos45°, w·½·sin45°) graph units.
+        const [x, y] = [d.at?.[0] ?? 0, d.at?.[1] ?? 0];
+        const dd = d.width * 0.5 * Math.SQRT1_2;
+        take([x, y]);
+        take([x + d.length + dd, y + d.height + dd]);
+        break;
+      }
       case 'curve':
       case 'expression':
         break;

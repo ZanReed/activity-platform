@@ -270,3 +270,31 @@ describe('a figure: column inside ```columns (T7b)', () => {
         expect(res.figureProblems?.some((p) => p.includes('"ticks AX 1"'))).toBe(true);
     });
 });
+
+describe('cuboid line (T5, Q6)', () => {
+    it('cuboid 4 2 3 cm units → one cuboid drawable, fitted around it', () => {
+        const r = fig(ALT, 'cuboid 4 2 3 cm units');
+        expect(r.problems).toEqual([]);
+        expect(r.attrs?.drawables).toEqual([{ kind: 'cuboid', length: 4, width: 2, height: 3, unit: 'cm', units: true }]);
+        expect(r.attrs!.axis.xMax).toBeGreaterThan(4);
+        expect(r.attrs!.axis.yMax).toBeGreaterThan(3);
+    });
+
+    it('the unit word and `units` are both optional; hidden: off reaches every cuboid', () => {
+        const r = fig(ALT, 'cuboid 5 3 2', 'hidden: off');
+        expect(r.attrs?.drawables).toEqual([{ kind: 'cuboid', length: 5, width: 3, height: 2, hidden: false }]);
+    });
+
+    it.each([
+        ['a zero dimension', 'cuboid 4 0 3', /greater than 0/],
+        ['units with a fraction', 'cuboid 4.5 2 3 units', /whole number/],
+        ['more than 12 cubes', 'cuboid 13 2 3 units', /at most 12/],
+        ['two numbers', 'cuboid 4 2 cm', /exactly three numbers/],
+        ['two unit words', 'cuboid 4 2 3 cm m', /cuboid <length>/],
+    ])('%s is a problem naming its line', (_n, line, why) => {
+        const r = fig(ALT, line, ...POINTS);
+        expect(r.problems).toHaveLength(1);
+        expect(r.problems[0]).toContain(`"${line}"`);
+        expect(r.problems[0]).toMatch(why);
+    });
+});

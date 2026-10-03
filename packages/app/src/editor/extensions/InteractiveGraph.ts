@@ -191,7 +191,18 @@ export type DrawableAttr =
     | { kind: 'tick_mark'; from: [number, number]; to: [number, number]; count: 1 | 2 | 3; color?: DrawableColorKey }
     | { kind: 'parallel_mark'; from: [number, number]; to: [number, number]; count: 1 | 2; color?: DrawableColorKey }
     | { kind: 'side_label'; from: [number, number]; to: [number, number]; text: string }
-    | { kind: 'text'; at: [number, number]; text: string };
+    | { kind: 'text'; at: [number, number]; text: string }
+    | {
+          kind: 'cuboid';
+          at?: [number, number];
+          length: number;
+          width: number;
+          height: number;
+          unit?: string;
+          units?: boolean;
+          hidden?: boolean;
+          color?: DrawableColorKey;
+      };
 export interface DisplayInteractionAttr {
     type: 'display';
     drawables: DrawableAttr[];

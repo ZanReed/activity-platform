@@ -513,6 +513,11 @@ GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
 - text (4,-1.5) "base" puts free text at a point: only for a label the
   automatic placement gets wrong. A coordinate (x, y) can stand in for any
   name anywhere.
+- A CUBOID: cuboid 4 2 3 cm units draws a box of length 4, width (depth) 2
+  and height 3 in the usual slanted textbook view, labelled 4 cm / 2 cm /
+  3 cm (leave the unit word off for no labels; units adds the unit-cube
+  grid for counting layers, whole numbers up to 12 each). Hidden edges are
+  dashed; a line hidden: off leaves them out.
 - Every figure prints "Not to scale" by itself. Write to scale on its own
   line only when the drawing is accurate (e.g. an angle to estimate).
   plane: on shows the grid and axes (for coordinate work); axes: -2..10,
@@ -1448,6 +1453,8 @@ text (4,-1.5) "base"
 | `parallel AB DC` | arrow marks on two sides, pointing the way each side is written; add `2` for double arrows. |
 | `text (x, y) "base"` | free text at a point: the escape hatch when the automatic placement puts a label somewhere unhelpful. |
 | `line y = 2x` / `ray (a,b) (c,d)` | the `show:` forms of the `graph` fence, unchanged. (`expression` is never drawn in a figure.) |
+| `cuboid 4 2 3 cm units` | a cuboid of length 4, width (depth) 2 and height 3 in cabinet oblique (45°, depth at half scale, receding up and right). The unit word is optional: with it the three dimensions are labelled outside the solid (length below, height on the left, depth beside the receding edge); without it, no labels. `units` draws the unit-cube grid on the three visible faces (whole-number dimensions, at most 12 each). The three hidden edges are dashed. |
+| `hidden: off` | leaves out every cuboid's dashed hidden edges. |
 | `to scale` | removes the automatic **"Not to scale"** caption, for a drawing that is accurate (an angle to estimate). |
 | `plane: on` | shows the coordinate grid, axes and tick labels (coordinate work, transformations). Without it a figure is **plane-less**: no grid, and x and y share one scale so angles look true. |
 | `axes: -2..10, -2..7` | the window. Normally leave it out: the figure fits itself to everything it draws, labels included. |

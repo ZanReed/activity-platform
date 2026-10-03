@@ -311,3 +311,32 @@ describe('sizing (N6)', () => {
     expect(wrap.style.getPropertyValue('--vw-figure-cap-standalone')).toBe('');
   });
 });
+
+describe('cuboid (Q6, Q9)', () => {
+  const CUBOID = { kind: 'cuboid', length: 4, width: 2, height: 3 };
+  const BOX = { ...AXIS, xMin: -2, xMax: 7, yMin: -2, yMax: 6 };
+  const cub = (extra: Record<string, unknown> = {}) =>
+    renderFigure([{ ...CUBOID, ...extra }], BOX, 'fig-cub', { plane: false });
+  const g = (c: HTMLElement) => c.querySelector('[data-drawable="cuboid"]')!;
+
+  it('draws exactly 3 dashed hidden edges, and none with hidden: false', () => {
+    expect(g(cub()).querySelectorAll('line[stroke-dasharray="6 4"]')).toHaveLength(3);
+    expect(g(cub({ hidden: false })).querySelectorAll('line[stroke-dasharray]')).toHaveLength(0);
+  });
+
+  it('draws 9 visible edges and 3 filled faces', () => {
+    expect(g(cub()).querySelectorAll('line[stroke-width="2"]')).toHaveLength(9);
+    expect(g(cub()).querySelectorAll('polygon[fill-opacity="0.12"]')).toHaveLength(3);
+  });
+
+  it('`units` draws the unit-cube grid on the three visible faces: 2(l+w+h) − 6 lines', () => {
+    expect(g(cub({ units: true })).querySelectorAll('line[stroke-width="1"]')).toHaveLength(2 * (4 + 2 + 3) - 6);
+    expect(g(cub()).querySelectorAll('line[stroke-width="1"]')).toHaveLength(0);
+  });
+
+  it('labels the three dimensions with the unit word, and nothing without one', () => {
+    const labels = Array.from(g(cub({ unit: 'cm' })).querySelectorAll('text'), (t) => t.textContent);
+    expect(labels.sort()).toEqual(['2 cm', '3 cm', '4 cm']);
+    expect(g(cub()).querySelectorAll('text')).toHaveLength(0);
+  });
+});
