@@ -37,7 +37,7 @@ yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for 
 CONFIRMED the authoring model 2026-09-30** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)
 §4, all accepted, their disposition + N8 recorded at the end of §4; §2
 re-derived — shell headroom is `node scripts/check-perf-budget.mjs`, not a
-number here). Pushed. **Next (ruled 2026-10-02):** B14 first, THEN
+number here). Pushed. **Next (ruled 2026-10-02):** B14 is DONE (2026-10-03), so NOW
 `/plan-eng-review` + the geometry slice T1–T8; charts T9–T13 are pulled by
 drafting order, not built straight after.
 
@@ -200,7 +200,7 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 
 ## Build order — RULED by the author 2026-10-02
 
-1. **B14** capability-generator rebuild (was P3). 2. **Y7 geometry figures**
+1. ~~**B14**~~ DONE 2026-10-03 (their PR #26 at `279a5a4`; pin-bump duty in CLAUDE.md). 2. **Y7 geometry figures**
 (eng review → T1–T8). 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2
 (design APPROVED; scope-, eng- and design-reviewed 2026-10-02); no D43 build before
 geometry ships. 4. SW stale-shell recovery, before any real

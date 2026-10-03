@@ -9,7 +9,7 @@ The author asked for a ranking of every open arc "to stop reacting to whichever
 arrived last". Ten items were put up; this is what was ruled. **This section is
 the queue. An entry's own Priority line below does not outrank it.**
 
-1. **B14 — rebuild the capability generator** (entry below; was P3). Quoted from
+1. ✅ **DONE 2026-10-03 — B14, rebuild the capability generator** (their PR #26 at `279a5a4`; entry below). Kept for the record: Quoted from
    the curriculum graph at `c136790` (v0.15.2): four of its 22 `capabilities`
    entries still read `"status": "proposed"` — `draggable_curve`,
    `nway_correspondence`, `seeded_data`, `graded_polynomial` — and all four
@@ -2457,7 +2457,12 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Effort:** M · **Priority:** P3 · **Depends on:** answer-key slice T2 (attrs + serialize round-trip).
 
-## Rebuild generate-capabilities.mjs against the current schema (B14)
+## ✅ DONE 2026-10-03 — Rebuild generate-capabilities.mjs against the current schema (B14)
+
+**CLOSED:** our side `b03fe2a`; their PR #26 merged at `279a5a4` (graph v0.17.2, pin = `b03fe2a`, eighth CI step green). Ruling of record: their "D27 amendment (2026-10-03)". The standing pin-bump duty is in CLAUDE.md → Standing constraints. Follow-up below (the prose-flag regex).
+
+<details><summary>Original entry and the design-pass record</summary>
+
 
 **What:** The capability-registry generator (lives in the `curriculum/` workspace, not this repo) is two schema generations stale and FROZEN behind a schema gate (exit 3 on any graph ≥ v0.11.2, added 2026-09-09 at the curriculum side's request). Rebuild it so its derived-field output matches the post-D27 shape: no `grading.authoritative` per entry, and a fence join covering `correspond`/`table`/`seed`/`meta` (and whatever the registry holds by then).
 
@@ -2478,6 +2483,19 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **C-30 (2026-10-03) accepted all four, with changes:** their CI gates against a PINNED copy of our `docs/capability-facts.json` (our commit + sha256 beside it), never our live `main`; a SCHEDULED workflow there reports drift; a pin bump that changes a derived field gets a pre-merge notice, and we may open pin-bump PRs. `per_cell` is a new score_shape (8 values); `table` is a new capability. Rulings to be recorded in their decision log (asked in B-31).
 **OUR SIDE BUILT 2026-10-03:** `packages/app/src/lib/capabilityFacts.ts` (join + derivation + problems), `pnpm facts:capabilities` → `docs/capability-facts.json`, `capabilityFacts.test.ts` (11 tests; three mutations each went red once: stale file, dropped `table`, a family the schema lacks). The file agrees with their graph on all 18 already-shipped entries; it differs only in the four flips + `table`. **Next:** push → pre-merge notice (B-32) with the values → their PR (Python checker, pinned copy, scheduled drift workflow, flips, `table`, `per_cell`, their prose) → stamps → promote the pin-bump duty to CLAUDE.md once the checker is live.
+
+
+</details>
+
+## B14 follow-up: the checker's prose-flag regex misses real stale prose
+
+**What:** `scripts/check_capabilities.py` (curriculum repo) flags prose matching `graph grades|up to (linear|quadratic|cubic)`. At PR #26 it missed three stale claims the curriculum side then fixed by hand: `graph.constraints` ("grades only five families", "Cubic+ can be shown, not graded"), `dataplot.constraints` ("Dataset is a literal — no randomness or sampling"), and §9's "literal datasets". Widen it (e.g. any graded-family word NOT in `prose_facts.graded_curve_families` near "grade"; "literal"/"no randomness" when `seeded_data` is shipped).
+
+**Why:** report-only, so low stakes — but a flag that misses three of three is not doing its job.
+
+**Trigger:** the NEXT pin-bump PR (the checker lives in their repo; the regex rides that PR). Also there: their pre-existing `definition` flag (prose never names the ```definitions fence) — their call; they chose to leave it.
+
+**Effort:** S · **Priority:** P3 · **Depends on:** a pin bump.
 
 ## AI grading: suggestion-quality panel in ActivityAnalytics (E3, deferred from the ai-grading-assist review)
 
