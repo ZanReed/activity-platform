@@ -33,7 +33,7 @@ NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 Novem
 the counsel packet with the practice-data question (E5), which is NOT drafted
 yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
 
-**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next in BUILD ORDER: D43 design is done; item 4 (SW stale-shell recovery) or the author's pick.
+**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, Y7 charts, graded stimuli, side-by-side figures, SW stale-shell recovery, D43 builds. His test findings go in a queue in TODOS.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
@@ -252,7 +252,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-04 — the Y7 geometry slice was built and pushed (T1–T8, T7b, T8b; T3 half), the importer learned move-only/unchanged writes, and the curriculum side's PRs #28–#30 were verified and stamped. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
+**Last updated:** 2026-10-04 — a seven-item build run started (author's list, overriding the trigger rule for this run): shell rung 2 and `--chain-registry` are built, pushed and CI-green; Y7 charts are next, waiting on the curriculum side's capability id (B-54). Earlier the same day: the Y7 geometry slice was built and pushed (T1–T8, T7b, T8b; T3 half), the importer learned move-only/unchanged writes, and the curriculum side's PRs #28–#30 were verified and stamped. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
 
 **The lesson this arc paid for, and it is not a repo lesson — it is a
 correspondence one.** Eleven letters were exchanged with the curriculum side. Of
