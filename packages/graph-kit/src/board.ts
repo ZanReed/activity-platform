@@ -24,6 +24,18 @@ import {
 } from './display-arrows.js';
 import { resolveDrawableColor } from './drawable-palette.js';
 import {
+  angleMark,
+  chevrons,
+  freeText,
+  markContext,
+  markOwner,
+  sideLabel,
+  ticks,
+  type MarkPrim,
+  type MarkSource,
+  type Pt,
+} from './figure-marks.js';
+import {
     CURVE as CURVE_COLOR,
     SCATTER as SCATTER_COLOR,
     FIT as FIT_COLOR,
@@ -87,6 +99,11 @@ interface JxgBoard {
   getBoundingBox(): [number, number, number, number];
   getUsrCoordsOfMouse(evt: Event): [number, number];
   on(event: string, handler: (e: Event) => void): void;
+  // Pixels per graph unit and the canvas width — read by the Y7 mark drawing
+  // to map graph coordinates into figure-marks' pixel space.
+  unitX: number;
+  unitY: number;
+  canvasWidth: number;
 }
 
 // A JSXGraph point handle. `moveTo` repositions (used by the trace and the
@@ -1665,7 +1682,20 @@ export function createSystemAnswerBoard(
 // @activity/schema; the wire shape is the contract). Optional fields are read
 // per `kind`.
 export interface DisplayDrawable {
-  kind: 'point' | 'curve' | 'expression' | 'segment' | 'ray' | 'polygon';
+  kind:
+    | 'point'
+    | 'curve'
+    | 'expression'
+    | 'segment'
+    | 'ray'
+    | 'polygon'
+    // Y7 geometry marks (y7-figures-and-charts.md Q2), placed by the SAME
+    // figure-marks.ts the static engine uses (ER-4).
+    | 'angle_mark'
+    | 'tick_mark'
+    | 'parallel_mark'
+    | 'side_label'
+    | 'text';
   at?: [number, number];
   label?: string;
   model?: Record<string, unknown>;
@@ -1674,8 +1704,8 @@ export interface DisplayDrawable {
   through?: [number, number];
   vertices?: [number, number][];
   filled?: boolean;
-  // Drop 5 additions
-  style?: 'solid' | 'dashed';
+  // Drop 5 additions (+ Y7: an angle mark's arc | double | right)
+  style?: 'solid' | 'dashed' | 'arc' | 'double' | 'right';
   shade?: 'above' | 'below' | 'left' | 'right';
   domain?: { min?: number; minStyle?: string; max?: number; maxStyle?: string };
   expression?: string;
@@ -1687,6 +1717,10 @@ export interface DisplayDrawable {
   // Authored color palette key (see drawable-palette.ts). Absent = the shared
   // default; an unknown key falls back to it too (resolveDrawableColor).
   color?: string;
+  // Y7 marks: tick/parallel count, angle reflex, side/free text.
+  count?: number;
+  reflex?: boolean;
+  text?: string;
 }
 
 export interface DisplayConfig {
@@ -1829,6 +1863,55 @@ export function createDisplayBoard(
     });
   };
 
+  // ---- Y7 geometry marks: shared placement (figure-marks.ts, ER-4) ----------
+  // figure-marks works in a y-DOWN pixel space with lengths in 400-wide
+  // viewBox units. Map graph coordinates to the board's own pixels, scale the
+  // mark lengths by board width / 400 so a mark is the same fraction of the
+  // figure as on paper, and map each primitive back to graph units to draw it.
+  const ux = board.unitX;
+  const uy = board.unitY;
+  const toPx = (v: readonly number[]): Pt => [v[0]! * ux, -v[1]! * uy];
+  const fromPx = (p: Pt): [number, number] => [p[0] / ux, -p[1] / uy];
+  const unit = (board.canvasWidth || 400) / 400;
+  const marks = markContext(config.drawables as MarkSource[], toPx);
+  const ink = boardColors(theme).ink;
+  const drawPrims = (prims: readonly MarkPrim[], color: string): void => {
+    for (const m of prims) {
+      if (m.t === 'text') {
+        const vertex = m.role === 'vertex';
+        board.create('text', [...fromPx([m.x, m.y]), m.text], {
+          anchorX: 'middle',
+          anchorY: 'middle',
+          fontSize: (vertex ? 15 : 16) * unit,
+          strokeColor: ink,
+          cssStyle: vertex ? 'font-style:italic' : '',
+          fixed: true,
+          highlight: false,
+        });
+      } else if (m.pts.length === 2) {
+        board.create('segment', [fromPx(m.pts[0]!), fromPx(m.pts[1]!)], {
+          strokeColor: color, strokeWidth: 1.5, fixed: true, highlight: false,
+        });
+      } else {
+        const pts = m.pts.map(fromPx);
+        board.create('curve', [pts.map((p) => p[0]), pts.map((p) => p[1])], {
+          strokeColor: color, strokeWidth: 1.5, fixed: true, highlight: false,
+        });
+      }
+    }
+  };
+  // A mark with no authored colour takes the colour of the shape it annotates (Q5).
+  const ownerColor = (d: DisplayDrawable): string => {
+    if (d.color) return resolveDrawableColor(d.color);
+    const owner =
+      d.kind === 'angle_mark' && isPair(d.at)
+        ? markOwner(marks, toPx(d.at))
+        : (d.kind === 'tick_mark' || d.kind === 'parallel_mark') && isPair(d.from) && isPair(d.to)
+          ? markOwner(marks, toPx(d.from), toPx(d.to))
+          : undefined;
+    return resolveDrawableColor(owner === undefined ? undefined : config.drawables[owner]?.color);
+  };
+
   for (const d of config.drawables) {
     const color = resolveDrawableColor(d.color);
     switch (d.kind) {
@@ -1942,6 +2025,7 @@ export function createDisplayBoard(
           strokeWidth: 2,
           highlight: false,
           fixed: true,
+          dash: d.style === 'dashed' ? 2 : 0,
         });
         if (d.endpoints) {
           board.create('point', d.from, dotAttrs(d.endpoints[0], color, openFill));
@@ -1965,6 +2049,38 @@ export function createDisplayBoard(
             fixed: true,
           },
         });
+        break;
+      }
+      case 'angle_mark': {
+        if (!isPair(d.at) || !isPair(d.from) || !isPair(d.to)) break;
+        drawPrims(
+          angleMark(toPx(d.at), toPx(d.from), toPx(d.to), {
+            ...(d.style === 'right' || d.style === 'double' || d.style === 'arc' ? { style: d.style } : {}),
+            ...(d.reflex ? { reflex: true } : {}),
+            ...(d.label ? { label: d.label } : {}),
+          }, unit),
+          ownerColor(d),
+        );
+        break;
+      }
+      case 'tick_mark': {
+        if (!isPair(d.from) || !isPair(d.to)) break;
+        drawPrims(ticks(toPx(d.from), toPx(d.to), d.count ?? 1, unit), ownerColor(d));
+        break;
+      }
+      case 'parallel_mark': {
+        if (!isPair(d.from) || !isPair(d.to)) break;
+        drawPrims(chevrons(marks, toPx(d.from), toPx(d.to), d.count ?? 1, unit), ownerColor(d));
+        break;
+      }
+      case 'side_label': {
+        if (!isPair(d.from) || !isPair(d.to) || !d.text) break;
+        drawPrims(sideLabel(marks, toPx(d.from), toPx(d.to), d.text, unit), color);
+        break;
+      }
+      case 'text': {
+        if (!isPair(d.at) || !d.text) break;
+        drawPrims(freeText(toPx(d.at), d.text), color);
         break;
       }
       default:

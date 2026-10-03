@@ -168,6 +168,27 @@ const SCENARIOS: Record<string, Scenario> = {
       { kind: 'curve', model: { family: 'linear', slope: -0.4, intercept: 8 }, style: 'dashed', arrows: false },
     ],
   },
+  // Y7 T3 (ER-5): every geometry mark kind on the JSXGraph DISPLAY board,
+  // placed by the same figure-marks.ts as the static engine. The only
+  // surfaces that mount this board are this route and the editor's preview
+  // (the student viewer draws display graphs statically), so the browser proof
+  // that the board's cases DRAW lives here.
+  marks: {
+    label: 'Static display — Y7 geometry marks on the board',
+    interactionType: 'display',
+    answerKey: null,
+    restorePoints: [],
+    hint: 'Triangle with an angle arc + 68°, two ticks, a chevron, "8 cm", free text "base", a dashed height.',
+    displayDrawables: [
+      { kind: 'polygon', vertices: [[-4, -3], [4, -3], [-2, 3]], filled: false, color: 'teal' },
+      { kind: 'angle_mark', at: [-4, -3], from: [4, -3], to: [-2, 3], label: '68°' },
+      { kind: 'tick_mark', from: [4, -3], to: [-2, 3], count: 2 },
+      { kind: 'parallel_mark', from: [-4, -3], to: [4, -3], count: 1 },
+      { kind: 'side_label', from: [-4, -3], to: [4, -3], text: '8 cm' },
+      { kind: 'text', at: [3, 3], text: 'base' },
+      { kind: 'segment', from: [-2, 3], to: [-2, -3], style: 'dashed' },
+    ],
+  },
   'sin-expression': {
     label: 'Static display — sin(3x) expression continuation arrows',
     interactionType: 'display',
@@ -256,7 +277,11 @@ export default function DevGraphQuestion() {
   const [narration, setNarration] = useState('');
   const [checked, setChecked] = useState<GraphResponseData | null>(null);
   const [locked, setLocked] = useState(false);
-  const [scenarioKey, setScenarioKey] = useState<keyof typeof SCENARIOS>('point');
+  // `?scenario=<key>` deep-links one scenario (the e2e proof of T3 uses it).
+  const [scenarioKey, setScenarioKey] = useState<keyof typeof SCENARIOS>(() => {
+    const q = new URLSearchParams(window.location.search).get('scenario');
+    return q && q in SCENARIOS ? (q as keyof typeof SCENARIOS) : 'point';
+  });
 
   const scenario = SCENARIOS[scenarioKey]!;
 

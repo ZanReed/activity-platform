@@ -1854,7 +1854,12 @@ function readDrawables(raw: unknown): DisplayDrawable[] {
   // Every Drawable kind the board renders. This list once lagged the Drop 5
   // additions (expression/ray silently vanished from published figures) —
   // keep it in lockstep with board.ts's DisplayDrawable switch.
-  const kinds = ['point', 'curve', 'expression', 'segment', 'ray', 'polygon'];
+  const kinds = [
+    'point', 'curve', 'expression', 'segment', 'ray', 'polygon',
+    // Y7 geometry marks — the roster scan (scripts/tests/drawable-roster)
+    // fails if this list and the Drawable union drift apart.
+    'angle_mark', 'tick_mark', 'parallel_mark', 'side_label', 'text',
+  ];
   return raw.filter(
     (d): d is DisplayDrawable =>
       typeof d === 'object' &&
