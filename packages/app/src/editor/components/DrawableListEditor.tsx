@@ -178,14 +178,17 @@ function RowOptions({
 
     return (
         <div className="drawable-row__options">
-            <div className="drawable-row__opt-line">
-                <span className="drawable-row__opt-label">Color</span>
-                <ColorPicker
-                    value={d.color}
-                    disabled={disabled}
-                    onChange={(color) => onChange({ ...d, color })}
-                />
-            </div>
+            {/* side_label / text are always ink (Q5) — no colour to pick. */}
+            {d.kind !== 'side_label' && d.kind !== 'text' && (
+                <div className="drawable-row__opt-line">
+                    <span className="drawable-row__opt-label">Color</span>
+                    <ColorPicker
+                        value={d.color}
+                        disabled={disabled}
+                        onChange={(color) => onChange({ ...d, color })}
+                    />
+                </div>
+            )}
 
             {d.kind === 'point' && (
                 <div className="drawable-row__opt-line">
@@ -341,7 +344,7 @@ function DrawableRow({
                 <span
                     className="drawable-row__swatch"
                     style={{
-                        background: resolveDrawableColor(d.color),
+                        background: resolveDrawableColor('color' in d ? d.color : undefined),
                         borderRadius: swatchRadius(d.kind),
                     }}
                     aria-hidden="true"

@@ -26,6 +26,8 @@ export {
   renderGraphSvg,
   answerKeyDrawables,
   questionDrawables,
+  figureGeometry,
+  fitFigureWindow,
 } from './static-svg/graph-svg.js';
 export {
   renderNumberLineSvg,

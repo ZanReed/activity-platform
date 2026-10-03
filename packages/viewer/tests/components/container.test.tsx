@@ -154,6 +154,36 @@ describe('rendering the served document', () => {
   });
 });
 
+describe('a sized graph_figure takes the container\'s sized path (Y7 N6, C5)', () => {
+  // Sizing is applied by the CONTAINER from the block's own width/align, not
+  // by the block component. This row proves graph_figure's new sizing fields
+  // reach that path in rendered output — the schema field alone would be an
+  // orphan if the container ever narrowed which types it sizes.
+  const figure = (extra: Record<string, unknown>) => ({
+    id: 'eeeeeeee-0000-4000-8000-0000000000f1',
+    type: 'graph_figure',
+    axis: { xMin: 0, xMax: 4, yMin: 0, yMax: 4, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+    drawables: [{ kind: 'point', at: [1, 1] }],
+    plane: true,
+    toScale: false,
+    ...extra,
+  });
+
+  it('width + align → viewer-block--sized with the width and the alignment', () => {
+    const { container } = setup(docOf(figure({ width: 0.5, align: 'right' })));
+    const slot = container.querySelector('.viewer-block[data-block-type="graph_figure"]') as HTMLElement;
+    expect(slot.classList.contains('viewer-block--sized')).toBe(true);
+    expect(slot.style.getPropertyValue('--activity-block-width')).toBe('50%');
+    expect(slot.getAttribute('data-block-align')).toBe('right');
+  });
+
+  it('no width → not sized', () => {
+    const { container } = setup(docOf(figure({})));
+    const slot = container.querySelector('.viewer-block[data-block-type="graph_figure"]') as HTMLElement;
+    expect(slot.classList.contains('viewer-block--sized')).toBe(false);
+  });
+});
+
 describe('block boundary (ruling D12)', () => {
   it('one crashing block never blanks the worksheet — siblings still render', () => {
     const mc = blocksOf('multiple_choice')[0] as { id: string };

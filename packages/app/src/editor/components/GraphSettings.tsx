@@ -24,6 +24,7 @@ import type {
     GraphInteraction,
     GraphMistakeEntry,
 } from '../extensions/InteractiveGraph';
+import { AxisWindowError, useAxisWindowGuard } from './axisWindow';
 
 // ============================================================================
 // GraphSettings — the interactive_graph block's settings, rendered as a single
@@ -124,8 +125,11 @@ function GraphSettingsPanel({
 
     const setInteraction = (next: GraphInteraction): void =>
         setNodeAttr(editor, pos, 'interaction', next);
+    const axisGuard = useAxisWindowGuard<GraphAxisConfig>((next) =>
+        setNodeAttr(editor, pos, 'axisConfig', next),
+    );
     const setAxis = (patch: Partial<GraphAxisConfig>): void =>
-        setNodeAttr(editor, pos, 'axisConfig', { ...axisConfig, ...patch });
+        axisGuard.write({ ...axisConfig, ...patch });
 
     // --- Mistake feedback CRUD (relocated; reads the live node) --------------
     const mistakeEntries = (node.attrs.mistakeFeedback ?? []) as GraphMistakeEntry[];
@@ -226,6 +230,7 @@ function GraphSettingsPanel({
                         </label>
                     ))}
                 </div>
+                <AxisWindowError error={axisGuard.error} />
                 <ToggleRow
                     checked={axisConfig.showGrid}
                     disabled={!isEditable}

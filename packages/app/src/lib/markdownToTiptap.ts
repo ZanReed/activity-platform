@@ -3188,6 +3188,10 @@ function parseContentLines(
                 );
                 continue;
             }
+            if (!(Number(a[2]) > Number(a[1])) || !(Number(a[4]) > Number(a[3]))) {
+                ctx.warnings.add(`${surface}: ${EMPTY_WINDOW} — the line was skipped.`);
+                continue;
+            }
             pendingAxis = {
                 ...DEFAULT_CHOICE_AXIS,
                 xMin: Number(a[1]),
@@ -4405,6 +4409,11 @@ function parseChoiceGraph(
     return { axis: DEFAULT_CHOICE_AXIS, drawables: [r.drawable] };
 }
 
+// The schema refuses a degenerate window (AxisConfig's refine, Y7 slice T1),
+// so the importer says so at the line rather than letting the whole document
+// fail validation downstream.
+const EMPTY_WINDOW = 'the axes window is empty (each maximum must be greater than its minimum, as in "-5..5, -5..5")';
+
 function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     const axis = { xMin: -10, xMax: 10, yMin: -10, yMax: 10, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true };
     let interaction: Record<string, unknown> | null = null;
@@ -4434,6 +4443,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             case 'axes': {
                 const a = /^(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)$/.exec(value);
                 if (!a) return fail('axes must look like "-10..10, -10..10"');
+                if (!(Number(a[2]) > Number(a[1])) || !(Number(a[4]) > Number(a[3]))) return fail(EMPTY_WINDOW);
                 axis.xMin = Number(a[1]); axis.xMax = Number(a[2]);
                 axis.yMin = Number(a[3]); axis.yMax = Number(a[4]);
                 break;

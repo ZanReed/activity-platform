@@ -47,8 +47,38 @@ export function formatDrawable(d: DrawableAttr): string {
         case 'polygon':
             // Read-only summary — not reparseable (edited via the row options).
             return `polygon ${d.vertices.map(([x, y]) => `(${x}, ${y})`).join(' ')}`;
+        // Y7 geometry marks: read-only summaries too. They are authored in the
+        // ```figure fence (letters, not coordinates) and edited through the
+        // figure-source popover, never row by row.
+        case 'angle_mark':
+            return (
+                `angle at ${pt(d.at)} from ${pt(d.from)} to ${pt(d.to)}` +
+                (d.style === 'right' ? ' right' : '') +
+                (d.reflex ? ' reflex' : '') +
+                (d.label ? ` "${d.label}"` : '')
+            );
+        case 'tick_mark':
+            return `ticks ${pt(d.from)} ${pt(d.to)} ×${d.count}`;
+        case 'parallel_mark':
+            return `parallel ${pt(d.from)} ${pt(d.to)} ×${d.count}`;
+        case 'side_label':
+            return `side ${pt(d.from)} ${pt(d.to)} "${d.text}"`;
+        case 'text':
+            return `text ${pt(d.at)} "${d.text}"`;
     }
 }
+
+const pt = ([x, y]: [number, number]): string => `(${x}, ${y})`;
+
+/** Kinds shown as read-only summary rows — their text never re-parses. */
+const READ_ONLY_KINDS: ReadonlySet<DrawableAttr['kind']> = new Set([
+    'polygon',
+    'angle_mark',
+    'tick_mark',
+    'parallel_mark',
+    'side_label',
+    'text',
+]);
 
 export type DrawableTextUpdate =
     | { ok: true; drawable: DrawableAttr }
@@ -73,8 +103,8 @@ export function updateDrawableFromText(
     raw: string,
     kinds: readonly DrawableAttr['kind'][],
 ): DrawableTextUpdate {
-    // Polygon rows are not text-editable.
-    if (prev.kind === 'polygon') return { ok: true, drawable: prev };
+    // Polygon and geometry-mark rows are not text-editable.
+    if (READ_ONLY_KINDS.has(prev.kind)) return { ok: true, drawable: prev };
 
     // Identity guard — unchanged text is a true no-op.
     if (normalize(formatDrawable(prev)) === normalize(raw)) {
@@ -133,6 +163,10 @@ function mergeExtras(prev: DrawableAttr, next: DrawableAttr): DrawableAttr {
         }
     }
     // Color is kind-agnostic — preserve across any edit, including a kind change.
-    if (prev.color !== undefined) merged = { ...merged, color: prev.color };
+    // (side_label / text carry no colour — they are always ink — and are
+    // read-only anyway, so neither side of this merge can be one.)
+    if ('color' in prev && prev.color !== undefined && merged.kind !== 'side_label' && merged.kind !== 'text') {
+        merged = { ...merged, color: prev.color };
+    }
     return merged;
 }

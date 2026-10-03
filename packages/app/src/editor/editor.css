@@ -903,6 +903,13 @@
     padding: 0 0.25rem;
 }
 
+/* The axis window refused an edit that would empty it (Y7 T1, AxisConfig refine). */
+.axis-window-error {
+    font-size: 0.72rem;
+    color: var(--ed-danger);
+    padding: 0 0.25rem;
+}
+
 .drawable-row__kebab,
 .drawable-row__remove {
     display: inline-flex;

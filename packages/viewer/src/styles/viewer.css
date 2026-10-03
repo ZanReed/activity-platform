@@ -589,12 +589,14 @@
   margin-top: var(--space-2);
 }
 
-.viewer-figure {
+.viewer-figure,
+.viewer-figure-wrap {
   margin: 0;
 }
 
 /* The engine's <svg> is a DIRECT child of .viewer-figure (GraphFigure sets the
- * markup on the figure itself, deliberately — a wrapper element would push the
+ * markup on that element itself, deliberately — the caption lives on the outer
+ * .viewer-figure-wrap, never between them; a wrapper element would push the
  * svg out of reach of the `figure/capped` print rule's `.viewer-figure > svg`
  * target and the rule would pass by matching nothing). It carries the engine's
  * own `graph-paper` class, which the viewer does not style: sizing belongs to

@@ -375,6 +375,30 @@ test.describe('structural print rules', () => {
         }
     });
 
+    test('figure/planeless — a Y7 geometry figure prints capped, with its marks and "Not to scale"', async ({
+        page,
+    }) => {
+        // The plane-less mode changes the svg's aspect (Q4), so the standalone
+        // cap and the drawable count are re-asserted over it, plus N8's caption,
+        // which must PRINT (it is an HTML figcaption, not SVG text).
+        await page.goto('/dev/viewer?type=graph_figure&planeless=1');
+        await page.emulateMedia({ media: 'print' });
+        const svg = page.locator('.viewer-figure > svg').first();
+        await expect(svg).toBeAttached();
+        expect(await svg.evaluate((el) => getComputedStyle(el).maxWidth)).not.toBe('none');
+        const [w, h] = (await svg.getAttribute('viewBox'))!.split(' ').slice(2).map(Number);
+        expect(w, 'plane-less figures are not square').not.toBe(h);
+        expect(Number(await svg.getAttribute('data-drawables'))).toBe(12);
+        await expect(page.locator('.viewer-figure-wrap figcaption').first()).toBeVisible();
+        await expect(page.locator('.viewer-figure-wrap figcaption').first()).toHaveText('Not to scale');
+        // Label text is INK on paper: --gk-svg-ink resolves to black in print.
+        const ink = await svg
+            .locator('[data-drawable="side_label"] text')
+            .first()
+            .evaluate((el) => getComputedStyle(el).fill);
+        expect(ink).toBe('rgb(0, 0, 0)');
+    });
+
     test('structure/ruled-grid — an explicitly ruled row draws its box and dividers', async ({
         page,
     }) => {

@@ -93,6 +93,8 @@
   --gk-svg-grid: #cbd5e1;
   --gk-svg-axis: #64748b;
   --gk-svg-label: #475569;
+  /* Geometry-figure label text (Y7, Q5) — set inline by the engine (ER-7). */
+  --gk-svg-ink: #1e293b;
 
   /* ---- State vocabulary (rulings 7.2A / 2.1A / TV3-A) --------------------
    * ONE trio + recorded, reused everywhere a state pill, blank, row, or
@@ -269,6 +271,7 @@
     --gk-svg-grid: #1e293b;
     --gk-svg-axis: #64748b;
     --gk-svg-label: #475569;
+    --gk-svg-ink: #e2e8f0;
 
     --state-correct-ink: #34d399;
     --state-correct-border: #34d399;
@@ -333,6 +336,7 @@
   --gk-svg-grid: #1e293b;
   --gk-svg-axis: #64748b;
   --gk-svg-label: #475569;
+  --gk-svg-ink: #e2e8f0;
 
   --state-correct-ink: #34d399;
   --state-correct-border: #34d399;
@@ -392,6 +396,7 @@
     --gk-svg-grid: #cbd5e1;
     --gk-svg-axis: #64748b;
     --gk-svg-label: #475569;
+    --gk-svg-ink: #000000;
 
     /* A printed worksheet is the BLANK version — scored state is neutralized
      * (standing print constraint), so the state roles flatten to ink/paper. */

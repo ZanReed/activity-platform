@@ -7,6 +7,7 @@ import DrawableListEditor, {
     NumCell,
 } from '../components/DrawableListEditor';
 import type { GraphAxisConfig, DrawableAttr } from '../extensions/InteractiveGraph';
+import { AxisWindowError, useAxisWindowGuard } from '../components/axisWindow';
 
 // ============================================================================
 // GraphFigureView — NodeView for the static graph-figure block (reference-
@@ -45,12 +46,19 @@ export default function GraphFigureView({
                 axis as AxisConfig,
                 drawables as Drawable[],
                 'edfig-' + id,
+                undefined,
+                // The preview shows the figure as the student will see it:
+                // plane-less (Y7) when the block says so.
+                { plane: node.attrs.plane !== false },
             ),
-        [axis, drawables, id],
+        [axis, drawables, id, node.attrs.plane],
     );
 
+    const axisGuard = useAxisWindowGuard<GraphAxisConfig>((next) =>
+        updateAttributes({ axis: next }),
+    );
     const setAxis = (patch: Partial<GraphAxisConfig>): void =>
-        updateAttributes({ axis: { ...axis, ...patch } });
+        axisGuard.write({ ...axis, ...patch });
 
     return (
         <NodeViewWrapper className="graph-figure-view" data-block-type="graph_figure">
@@ -99,6 +107,7 @@ export default function GraphFigureView({
                             </label>
                         ))}
                     </div>
+                    <AxisWindowError error={axisGuard.error} />
                     <DrawableListEditor
                         drawables={drawables}
                         disabled={disabled}

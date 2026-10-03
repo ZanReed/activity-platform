@@ -29,7 +29,14 @@ import { z } from 'zod';
 // The coordinate plane the student works in. Graph units throughout — tolerance
 // and grid steps are in the same units, never pixels, so a published page that
 // re-lays-out at a different size still scores identically.
-export const AxisConfig = z.object({
+//
+// The refine rejects a DEGENERATE window (xMax <= xMin or yMax <= yMin), which
+// the static engine refuses to draw. It rode the Y7 geometry slice (T1, N2),
+// after the corpus query over every stored draft and version found 0 bad
+// windows in 18 axis-bearing documents (2026-10-03). It is a refine on the
+// object, not a field rule, so `AxisConfig` is a ZodEffects: it nests as a
+// field everywhere it did, but has no `.shape`/`.extend` (nothing used them).
+const AxisConfigShape = z.object({
   xMin: z.number(),
   xMax: z.number(),
   yMin: z.number(),
@@ -41,6 +48,10 @@ export const AxisConfig = z.object({
   // nudge always moves by one grid step regardless (Shift = 0.1 step, fine).
   snapToGrid: z.boolean().default(true),
 });
+export const AxisConfig = AxisConfigShape.refine(
+  (a) => a.xMax > a.xMin && a.yMax > a.yMin,
+  { message: 'The axis window is empty: the maximum must be greater than the minimum on both axes.' },
+);
 export type AxisConfig = z.infer<typeof AxisConfig>;
 
 // ---- Endpoint style ---------------------------------------------------------
@@ -193,8 +204,8 @@ export type FunctionModel = z.infer<typeof FunctionModel>;
 // ---- Drawables --------------------------------------------------------------
 // `Drawable` is discriminated on `kind`. `curve` REUSES FunctionModel, so the
 // day quadratic/exponential/logarithmic land they light up here AND in
-// plot_function at once. A `label` text-annotation drawable is deliberately
-// deferred (point.label covers the common case) — YAGNI, additive when needed.
+// plot_function at once. The free `text` drawable and the four geometry marks
+// below arrived with the Y7 geometry slice (y7-figures-and-charts.md, Q2).
 // Authored per-drawable color. Stored as a palette KEY (not a hex) so colors
 // stay semantic; the key list is defined HERE (dependency-free) and the key ->
 // hex map lives in @activity/graph-kit's DRAWABLE_PALETTE. A drift guard test
@@ -252,6 +263,9 @@ const SegmentDrawable = z.object({
   to: z.tuple([z.number(), z.number()]),
   // Drop 5: open/closed endpoint dots ([from, to]). Default closed.
   endpoints: z.tuple([EndpointStyle, EndpointStyle]).optional(),
+  // Y7 geometry (D4): a dashed segment — a height, a hidden edge, a
+  // construction line. Same vocabulary as curve/expression.style.
+  style: z.enum(['solid', 'dashed']).optional(),
   color: DrawableColor.optional(),
 });
 
@@ -272,6 +286,62 @@ const PolygonDrawable = z.object({
   filled: z.boolean().default(true),
   color: DrawableColor.optional(),
 });
+// ---- Geometry marks (Y7 figures, Q2) ------------------------------------------
+// STANDALONE, coordinate-based kinds rather than decorations on a polygon, so
+// one vocabulary annotates polygons, segments and parallel lines alike. Every
+// position is a coordinate: the ```figure fence resolves point NAMES to
+// coordinates at import (Q3), so nothing here knows a letter. Placement is
+// automatic (Q1) — there is deliberately no offset field. Each kind has a
+// `case` in BOTH renderers (graph-svg.ts and board.ts); a roster scan fails
+// the build if one is missing.
+const Coord = z.tuple([z.number(), z.number()]);
+
+// The angle at `at`, swept from the ray at→from to the ray at→to: the angle
+// under 180° unless `reflex`. style: arc (default) | double (two arcs) |
+// right (the square only, never square + arc). `label` is the text drawn on
+// the bisector — a degree value ("68°") or a text label ("x").
+const AngleMarkDrawable = z.object({
+  kind: z.literal('angle_mark'),
+  at: Coord,
+  from: Coord,
+  to: Coord,
+  label: z.string().min(1).optional(),
+  style: z.enum(['arc', 'double', 'right']).optional(),
+  reflex: z.boolean().optional(),
+  color: DrawableColor.optional(),
+});
+// Equal-length ticks across the edge from→to (1, 2 or 3 strokes).
+const TickMarkDrawable = z.object({
+  kind: z.literal('tick_mark'),
+  from: Coord,
+  to: Coord,
+  count: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  color: DrawableColor.optional(),
+});
+// Parallel chevrons on the edge from→to, pointing from→to (single/double).
+const ParallelMarkDrawable = z.object({
+  kind: z.literal('parallel_mark'),
+  from: Coord,
+  to: Coord,
+  count: z.union([z.literal(1), z.literal(2)]),
+  color: DrawableColor.optional(),
+});
+// A side label, placed outside the shape beside the edge from→to. Label text
+// is always INK (Q5), so it has no colour.
+const SideLabelDrawable = z.object({
+  kind: z.literal('side_label'),
+  from: Coord,
+  to: Coord,
+  text: z.string().min(1),
+});
+// Free text centred at a coordinate — the escape hatch for anything Q1's
+// automatic placement gets wrong. INK, no colour.
+const TextDrawable = z.object({
+  kind: z.literal('text'),
+  at: Coord,
+  text: z.string().min(1),
+});
+
 export const Drawable = z.discriminatedUnion('kind', [
   PointDrawable,
   CurveDrawable,
@@ -279,5 +349,10 @@ export const Drawable = z.discriminatedUnion('kind', [
   SegmentDrawable,
   RayDrawable,
   PolygonDrawable,
+  AngleMarkDrawable,
+  TickMarkDrawable,
+  ParallelMarkDrawable,
+  SideLabelDrawable,
+  TextDrawable,
 ]);
 export type Drawable = z.infer<typeof Drawable>;

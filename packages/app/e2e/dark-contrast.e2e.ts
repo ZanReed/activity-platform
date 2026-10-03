@@ -225,3 +225,39 @@ for (const theme of ['light', 'dark'] as const) {
         ).toBeGreaterThan(1.1);
     });
 }
+
+// -----------------------------------------------------------------------------
+// Y7 geometry LABEL text (Q5, ER-7). Side, angle, vertex and free-text labels
+// are INK through --gk-svg-ink, set as inline style so the muted tick-label
+// rule above cannot reach them. jsdom has no computed colour, so the only
+// proof that the token resolves on BOTH themes is a real browser.
+for (const theme of ['light', 'dark'] as const) {
+    test(`${theme}: geometry-figure labels are ink, at full AA`, async ({ page }) => {
+        await page.goto('/dev/viewer?type=graph_figure&planeless=1');
+        await expect(page.locator('.viewer-figure > svg')).toBeVisible();
+        const measured = await page.evaluate((t) => {
+            const root = document.documentElement;
+            const prev = root.getAttribute('data-theme');
+            root.setAttribute('data-theme', t);
+            const svg = document.querySelector('.viewer-figure > svg')!;
+            const rgb = (s: string): [number, number, number] =>
+                s.match(/\d+(\.\d+)?/g)!.slice(0, 3).map(Number) as [number, number, number];
+            let el: HTMLElement | null = svg.parentElement;
+            let bg = 'rgba(0, 0, 0, 0)';
+            while (el && (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent')) {
+                bg = getComputedStyle(el).backgroundColor;
+                el = el.parentElement;
+            }
+            const labels = ['side_label', 'angle_mark', 'text'].map((k) =>
+                rgb(getComputedStyle(svg.querySelector(`[data-drawable="${k}"] text`)!).fill),
+            );
+            const vertex = rgb(getComputedStyle(svg.querySelector('[data-drawable="point"] text')!).fill);
+            if (prev) root.setAttribute('data-theme', prev);
+            else root.removeAttribute('data-theme');
+            return { surface: rgb(bg), labels: [...labels, vertex] };
+        }, theme);
+        for (const label of measured.labels) {
+            expect(contrast(label, measured.surface), `${theme}: a figure label must be readable`).toBeGreaterThanOrEqual(AA);
+        }
+    });
+}

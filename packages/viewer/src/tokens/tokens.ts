@@ -36,6 +36,7 @@ export const colorTokens = [
   '--gk-svg-grid',
   '--gk-svg-axis',
   '--gk-svg-label',
+  '--gk-svg-ink',
   '--state-correct-ink',
   '--state-correct-border',
   '--state-correct-surface',

@@ -1169,14 +1169,23 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
 function tiptapGraphFigureToActivity(node: JSONContent): GraphFigureBlock {
     const attrs = node.attrs ?? {};
     const fresh = createGraphFigureBlock();
-    return {
+    const block: GraphFigureBlock = {
         id: crypto.randomUUID(),
         type: 'graph_figure',
         axis: (attrs.axis as GraphFigureBlock['axis']) ?? fresh.axis,
         drawables: Array.isArray(attrs.drawables)
             ? (attrs.drawables as GraphFigureBlock['drawables'])
             : [],
+        // Y7 geometry (ER-1). The batch importer converts through THIS
+        // function, so a field not copied here never reaches a document.
+        // plane: only an explicit false turns it off; toScale: only an
+        // explicit true turns it on; alt only when non-empty.
+        plane: attrs.plane !== false,
+        toScale: attrs.toScale === true,
     };
+    if (typeof attrs.alt === 'string' && attrs.alt.trim() !== '') block.alt = attrs.alt;
+    applySizingAttrs(block, node);
+    return block;
 }
 
 function tiptapNumberLineToActivity(node: JSONContent): NumberLineBlock {
@@ -1579,6 +1588,11 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     id: block.id,
                     axis: block.axis,
                     drawables: block.drawables,
+                    // ER-1: the reverse of tiptapGraphFigureToActivity.
+                    plane: block.plane !== false,
+                    toScale: block.toScale === true,
+                    ...(block.alt ? { alt: block.alt } : {}),
+                    ...sizingTiptapAttrs(block),
                 },
             };
 

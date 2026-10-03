@@ -50,10 +50,11 @@ function renderFigure(
   drawables: readonly unknown[],
   axis: Record<string, unknown> = AXIS,
   id = 'fig-1',
+  extra: Record<string, unknown> = {},
 ) {
   const { container } = render(
     <GraphFigure
-      block={{ id, type: 'graph_figure', axis, drawables } as never}
+      block={{ id, type: 'graph_figure', axis, drawables, ...extra } as never}
       mode="screen"
     />,
   );
@@ -142,7 +143,7 @@ describe('a figure that cannot be drawn says so', () => {
 describe('accessibility', () => {
   it('names the figure on the WRAPPER — the engine svg is aria-hidden', () => {
     const container = renderFigure([line(1, 0)]);
-    const figure = container.querySelector('figure');
+    const figure = container.querySelector('.viewer-figure');
 
     expect(figure?.getAttribute('role')).toBe('img');
     expect(figure?.getAttribute('aria-label')).toBe('Graph figure');
@@ -166,5 +167,147 @@ describe('an empty figure is not an error', () => {
     const container = renderFigure([]);
     expect(container.querySelector('svg')?.getAttribute('data-drawables')).toBe('0');
     expect(container.textContent).not.toContain('Figure unavailable');
+  });
+});
+
+// =============================================================================
+// Y7 geometry (y7-figures-and-charts.md Q9). Every row is bound to RENDERED
+// output and was mutation-tested the day it was written: the wiring it guards
+// was reverted and the row went red (the record is in the commit message).
+// =============================================================================
+
+const TRI = [
+  { kind: 'point', at: [0, 0], label: 'A' },
+  { kind: 'point', at: [8, 0], label: 'B' },
+  { kind: 'point', at: [2, 5], label: 'C' },
+  { kind: 'polygon', vertices: [[0, 0], [8, 0], [2, 5]], filled: false },
+];
+const FIT = { ...AXIS, xMin: -2, xMax: 10, yMin: -2, yMax: 7 };
+const planeless = (drawables: readonly unknown[], extra: Record<string, unknown> = {}) =>
+  renderFigure(drawables, FIT, 'fig-y7', { plane: false, ...extra });
+const inMark = (c: HTMLElement, kind: string) => c.querySelectorAll(`[data-drawable="${kind}"]`);
+
+describe('each annotation kind draws its marks (Q9)', () => {
+  it('angle_mark: one arc <path> + its label; double = two arcs; right = one square', () => {
+    const c = planeless([...TRI, { kind: 'angle_mark', at: [0, 0], from: [8, 0], to: [2, 5], label: '68°' }]);
+    const g = inMark(c, 'angle_mark');
+    expect(g).toHaveLength(1);
+    expect(g[0]!.querySelectorAll('path')).toHaveLength(1);
+    expect(g[0]!.querySelector('text')?.textContent).toBe('68°');
+
+    const d = planeless([...TRI, { kind: 'angle_mark', at: [8, 0], from: [0, 0], to: [2, 5], style: 'double' }]);
+    expect(inMark(d, 'angle_mark')[0]!.querySelectorAll('path')).toHaveLength(2);
+
+    const r = planeless([...TRI, { kind: 'angle_mark', at: [0, 0], from: [8, 0], to: [0, 5], style: 'right' }]);
+    expect(inMark(r, 'angle_mark')[0]!.querySelectorAll('path')).toHaveLength(1);
+    expect(inMark(r, 'angle_mark')[0]!.querySelectorAll('text')).toHaveLength(0);
+  });
+
+  it('tick_mark: `count` <line>s', () => {
+    const c = planeless([...TRI, { kind: 'tick_mark', from: [8, 0], to: [2, 5], count: 2 }]);
+    expect(inMark(c, 'tick_mark')[0]!.querySelectorAll('line')).toHaveLength(2);
+  });
+
+  it('parallel_mark: `count` chevron <path>s', () => {
+    const c = planeless([...TRI, { kind: 'parallel_mark', from: [0, 0], to: [8, 0], count: 2 }]);
+    expect(inMark(c, 'parallel_mark')[0]!.querySelectorAll('path')).toHaveLength(2);
+  });
+
+  it('side_label and text: one <text> carrying the authored string', () => {
+    const c = planeless([
+      ...TRI,
+      { kind: 'side_label', from: [0, 0], to: [8, 0], text: '8 cm' },
+      { kind: 'text', at: [4, -1.5], text: 'base' },
+    ]);
+    expect(inMark(c, 'side_label')[0]!.querySelector('text')?.textContent).toBe('8 cm');
+    expect(inMark(c, 'text')[0]!.querySelector('text')?.textContent).toBe('base');
+  });
+
+  it('marks count as drawables in data-drawables (the print row reads it)', () => {
+    const c = planeless([...TRI, { kind: 'tick_mark', from: [8, 0], to: [2, 5], count: 1 }]);
+    expect(c.querySelector('.viewer-figure > svg')?.getAttribute('data-drawables')).toBe('5');
+  });
+});
+
+describe('plane on / off (Q9, D3)', () => {
+  it('plane: false — no grid lines and a non-square viewBox', () => {
+    const c = planeless(TRI);
+    const svg = c.querySelector('.viewer-figure > svg')!;
+    const [, , w, h] = svg.getAttribute('viewBox')!.split(' ').map(Number);
+    expect(w).not.toBe(h);
+    // With the plane off the only <line>s are marks; this figure has none.
+    expect(svg.querySelectorAll('line')).toHaveLength(0);
+  });
+
+  it('plane: true (and absent) — the grid is back and the box is square', () => {
+    for (const extra of [{ plane: true }, {}]) {
+      const c = renderFigure(TRI, FIT, 'fig-on', extra);
+      const svg = c.querySelector('.viewer-figure > svg')!;
+      expect(svg.getAttribute('viewBox')).toBe('0 0 400 400');
+      expect(svg.querySelectorAll('g[stroke] > line').length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('alt text names the figure (D11)', () => {
+  it('aria-label equals the authored alt', () => {
+    const c = planeless(TRI, { alt: 'Triangle ABC with AB = 8 cm' });
+    expect(c.querySelector('.viewer-figure')?.getAttribute('aria-label')).toBe('Triangle ABC with AB = 8 cm');
+  });
+
+  it('absent or blank alt falls back to "Graph figure"', () => {
+    expect(planeless(TRI).querySelector('.viewer-figure')?.getAttribute('aria-label')).toBe('Graph figure');
+    expect(planeless(TRI, { alt: '   ' }).querySelector('.viewer-figure')?.getAttribute('aria-label')).toBe(
+      'Graph figure',
+    );
+  });
+});
+
+describe('"Not to scale" caption (N8)', () => {
+  const caption = (c: HTMLElement) => c.querySelector('figcaption');
+
+  it('a plane-less figure carries it, as a real figcaption OUTSIDE the role=img node', () => {
+    const c = planeless(TRI);
+    expect(caption(c)?.textContent).toBe('Not to scale');
+    // Reachable: not inside the presentational role="img" subtree (ER-8).
+    expect(caption(c)?.closest('[role="img"]')).toBeNull();
+    expect(caption(c)?.parentElement?.tagName).toBe('FIGURE');
+  });
+
+  it('is absent with the plane on', () => {
+    expect(caption(renderFigure(TRI, FIT, 'on', { plane: true }))).toBeNull();
+  });
+
+  it('is absent when the author says `to scale`', () => {
+    expect(caption(planeless(TRI, { toScale: true }))).toBeNull();
+  });
+});
+
+describe('unavailable reasons (N2)', () => {
+  it('a plane-less figure with nothing on it is "degenerate-figure", boxed at the computed aspect', () => {
+    const c = planeless([]);
+    const fig = c.querySelector('[data-figure-unavailable="degenerate-figure"]') as HTMLElement | null;
+    expect(fig).not.toBeNull();
+    expect(fig!.style.aspectRatio).toMatch(/^400 \/ /);
+    expect(fig!.style.aspectRatio).not.toBe('400 / 400');
+  });
+
+  it('a degenerate window is still "degenerate-axis"', () => {
+    const c = renderFigure([line(1, 0)], { ...AXIS, xMin: 5, xMax: 5 }, 'bad', { plane: false });
+    expect(c.querySelector('[data-figure-unavailable="degenerate-axis"]')).not.toBeNull();
+  });
+});
+
+describe('sizing (N6)', () => {
+  it('a sized figure lifts the standalone cap on screen and on paper', () => {
+    const c = planeless(TRI, { width: 1 });
+    const wrap = c.querySelector('.viewer-figure-wrap') as HTMLElement;
+    expect(wrap.style.getPropertyValue('--vw-figure-cap-standalone')).toBe('100%');
+    expect(wrap.style.getPropertyValue('--vw-figure-cap-standalone-print')).toBe('100%');
+  });
+
+  it('an unsized figure keeps the caps', () => {
+    const wrap = planeless(TRI).querySelector('.viewer-figure-wrap') as HTMLElement;
+    expect(wrap.style.getPropertyValue('--vw-figure-cap-standalone')).toBe('');
   });
 });

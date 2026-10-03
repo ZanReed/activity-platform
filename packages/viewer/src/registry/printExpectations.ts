@@ -508,8 +508,9 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
       id: 'figure/standalone-capped',
       rule: 'A standalone graph figure is capped so it cannot run off the sheet.',
       // A DIRECT child, and the component guarantees it: GraphFigure sets the
-      // engine markup on the <figure> itself rather than on a wrapper, so this
-      // selector cannot be pushed out of reach by an added element.
+      // engine markup on the .viewer-figure element itself; the Y7 caption
+      // wrapper (ER-8) sits OUTSIDE it, so this selector cannot be pushed out
+      // of reach by an added element.
       target: '.viewer-figure > svg',
       expect: { kind: 'max-width-capped' },
     },
@@ -518,7 +519,10 @@ const TYPE_CHECKS: Partial<Record<BlockType, readonly PrintCheck[]>> = {
       rule: 'A standalone figure prints drawables — an empty grid where a picture was authored is the content loss this block type shipped with for four months.',
       // Bound to the engine's OWN output contract, the same `data-drawables`
       // count the static-svg canvases assert through, so grid lines cannot
-      // satisfy it.
+      // satisfy it. Since the Y7 geometry slice the count includes MARKS
+      // (angle_mark, tick_mark, parallel_mark, side_label, text): each is a
+      // drawable in its own right (Q2), so a figure of marks alone is not
+      // empty, and a triangle with five marks reports six.
       //
       // ⚠ WHAT THIS ROW DOES NOT CATCH, measured rather than assumed. The
       // count is of drawables the engine was GIVEN, so on a fixture carrying a

@@ -24,6 +24,7 @@ import type { EditorMcChoice } from '../extensions/MultipleChoice';
 import type { GraphAxisConfig } from '../extensions/InteractiveGraph';
 import { problemNumberAt } from '../problemNumbering';
 import { ProblemNumberGutter } from './problemNumberGutter';
+import { AxisWindowError, useAxisWindowGuard } from '../components/axisWindow';
 
 // ============================================================================
 // MultipleChoiceView — NodeView for the multiple_choice block.
@@ -119,8 +120,11 @@ export function ChoiceFigureEditor({
                 : '',
         [graph, choice.id],
     );
+    const axisGuard = useAxisWindowGuard<GraphAxisConfig>((next) => {
+        if (graph) onGraph({ ...graph, axis: next });
+    });
     const setAxis = (patch: Partial<GraphAxisConfig>): void => {
-        if (graph) onGraph({ ...graph, axis: { ...graph.axis, ...patch } });
+        if (graph) axisGuard.write({ ...graph.axis, ...patch });
     };
 
     return (
@@ -238,6 +242,7 @@ export function ChoiceFigureEditor({
                             </label>
                         ))}
                     </div>
+                    <AxisWindowError error={axisGuard.error} />
                     <DrawableListEditor
                         drawables={graph.drawables}
                         disabled={disabled}

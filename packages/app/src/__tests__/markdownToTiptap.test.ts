@@ -1667,6 +1667,12 @@ describe('```graph fence (Drop 7)', () => {
         expect(g.content).toEqual([{ type: 'text', text: 'Graph the line.' }]);
     });
 
+    it('refuses an EMPTY axes window by name (Y7 T1)', () => {
+        const { blocks, warnings } = convert('```graph\naxes: -5..5, 3..-3\nprompt: Graph it.\nanswer: y = x\n```');
+        expect(blocks.some((b) => b.type === 'interactiveGraph')).toBe(false);
+        expect(warnings.some((w) => /axes window is empty/.test(w))).toBe(true);
+    });
+
     it('imports a cubic answer through the shared parser (wishlist #2)', () => {
         const md = '```graph\nprompt: Graph it.\nanswer: y = x^3 - 3x\n```';
         const { blocks, warnings } = convert(md);
@@ -2600,6 +2606,13 @@ describe('reference fence (```reference → the reference panel)', () => {
         );
         expect(fig?.attrs?.axis).toMatchObject({ xMin: -10, xMax: 10 });
         expect(res.warnings.some((w) => /axes/i.test(w))).toBe(true);
+    });
+
+    it('an EMPTY axes window warns and is skipped — the schema would refuse it (Y7 T1)', () => {
+        const res = convert('```reference\naxes: 5..5, -5..5\ngraph: line y = x\n```');
+        const fig = res.referencePanel?.blocks.find((b) => b.type === 'graphFigure');
+        expect(fig?.attrs?.axis).toMatchObject({ xMin: -10, xMax: 10 });
+        expect(res.warnings.some((w) => /axes window is empty/.test(w))).toBe(true);
     });
 
     it('an expression graph line is skipped with a warning, keeping the rest', () => {

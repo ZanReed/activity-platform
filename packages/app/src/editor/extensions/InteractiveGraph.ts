@@ -173,9 +173,25 @@ export type DrawableAttr =
           color?: DrawableColorKey;
       }
     | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed'; arrows?: boolean; color?: DrawableColorKey }
-    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed']; color?: DrawableColorKey }
+    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed']; style?: 'solid' | 'dashed'; color?: DrawableColorKey }
     | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed'; arrows?: boolean; color?: DrawableColorKey }
-    | { kind: 'polygon'; vertices: [number, number][]; filled: boolean; color?: DrawableColorKey };
+    | { kind: 'polygon'; vertices: [number, number][]; filled: boolean; color?: DrawableColorKey }
+    // Y7 geometry marks (Q2) — produced by the ```figure fence, never by a
+    // form; the editor shows them as read-only rows (the polygon precedent).
+    | {
+          kind: 'angle_mark';
+          at: [number, number];
+          from: [number, number];
+          to: [number, number];
+          label?: string;
+          style?: 'arc' | 'double' | 'right';
+          reflex?: boolean;
+          color?: DrawableColorKey;
+      }
+    | { kind: 'tick_mark'; from: [number, number]; to: [number, number]; count: 1 | 2 | 3; color?: DrawableColorKey }
+    | { kind: 'parallel_mark'; from: [number, number]; to: [number, number]; count: 1 | 2; color?: DrawableColorKey }
+    | { kind: 'side_label'; from: [number, number]; to: [number, number]; text: string }
+    | { kind: 'text'; at: [number, number]; text: string };
 export interface DisplayInteractionAttr {
     type: 'display';
     drawables: DrawableAttr[];

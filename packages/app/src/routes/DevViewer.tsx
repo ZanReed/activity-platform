@@ -234,6 +234,40 @@ export default function DevViewer() {
       if (first) first.workSpace = 4;
     }
 
+    // `planeless=1` — the Y7 geometry figure (y7-figures-and-charts.md): the
+    // first block becomes a PLANE-LESS graph_figure carrying every mark kind,
+    // an alt, and the automatic "Not to scale" caption. A separate param, not
+    // a second fixture instance, so the committed print baselines of the
+    // primary graph_figure fixture do not move.
+    if (params.get('planeless') === '1') {
+      const row = next.sections[0]?.rows[0];
+      const first = row?.columns[0]?.blocks[0] as Record<string, unknown> | undefined;
+      if (row && first) {
+        row.columns[0]!.blocks[0] = {
+          id: first.id,
+          type: 'graph_figure',
+          axis: { xMin: -2.5, xMax: 10.5, yMin: -3, yMax: 7.5, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+          plane: false,
+          toScale: false,
+          alt: 'Triangle ABC with AB = 8 cm, AC = 6 cm and angle A = 68°',
+          drawables: [
+            { kind: 'point', at: [0, 0], label: 'A' },
+            { kind: 'point', at: [8, 0], label: 'B' },
+            { kind: 'point', at: [2, 5], label: 'C' },
+            { kind: 'polygon', vertices: [[0, 0], [8, 0], [2, 5]], filled: false },
+            { kind: 'side_label', from: [0, 0], to: [8, 0], text: '8 cm' },
+            { kind: 'side_label', from: [0, 0], to: [2, 5], text: '6 cm' },
+            { kind: 'angle_mark', at: [0, 0], from: [8, 0], to: [2, 5], label: '68°' },
+            { kind: 'angle_mark', at: [8, 0], from: [0, 0], to: [2, 5], label: 'x', style: 'double' },
+            { kind: 'tick_mark', from: [8, 0], to: [2, 5], count: 2 },
+            { kind: 'parallel_mark', from: [0, 0], to: [8, 0], count: 1 },
+            { kind: 'segment', from: [2, 5], to: [2, 0], style: 'dashed' },
+            { kind: 'text', at: [4, -1.8], text: 'base' },
+          ],
+        };
+      }
+    }
+
     // `ruled=on` — an explicit per-row override. `ruled=inherit` — the row says
     // 'inherit' and the ACTIVITY default turns it on, which is the other half
     // of the tri-state and the half a teacher actually uses (one toggle in ⚙).

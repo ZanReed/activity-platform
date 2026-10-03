@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import { createGraphFigureBlock } from '@activity/schema';
 import type { GraphAxisConfig, DrawableAttr } from './InteractiveGraph';
 import GraphFigureView from '../nodeViews/GraphFigureView';
+import { sizingNodeAttributes } from './sizingNodeAttributes';
 
 // ============================================================================
 // GraphFigure — Tiptap block node for the static graph-figure block
@@ -76,6 +77,31 @@ export const GraphFigure = Node.create({
                     'data-figure-drawables': JSON.stringify(attrs.drawables),
                 }),
             },
+            // Y7 geometry block fields (ER-1). They must ride the node: the
+            // batch importer emits Tiptap JSON and converts it through
+            // serialize.ts, and opening + saving any activity round-trips
+            // through these attrs — a field missing here is dropped for good.
+            alt: {
+                default: null as string | null,
+                parseHTML: (el) => el.getAttribute('data-figure-alt'),
+                renderHTML: (attrs) =>
+                    typeof attrs.alt === 'string' && attrs.alt !== ''
+                        ? { 'data-figure-alt': attrs.alt }
+                        : {},
+            },
+            plane: {
+                default: true,
+                parseHTML: (el) => el.getAttribute('data-figure-plane') !== 'off',
+                renderHTML: (attrs) =>
+                    attrs.plane === false ? { 'data-figure-plane': 'off' } : {},
+            },
+            toScale: {
+                default: false,
+                parseHTML: (el) => el.getAttribute('data-figure-to-scale') === 'true',
+                renderHTML: (attrs) =>
+                    attrs.toScale === true ? { 'data-figure-to-scale': 'true' } : {},
+            },
+            ...sizingNodeAttributes(),
         };
     },
 

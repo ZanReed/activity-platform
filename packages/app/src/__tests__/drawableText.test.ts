@@ -88,13 +88,13 @@ describe('updateDrawableFromText — color always survives', () => {
     it('color persists across a coord edit', () => {
         const d: DrawableAttr = { kind: 'point', at: [2, 3], color: 'red' };
         const res = updateDrawableFromText(d, '(5, 7)', KINDS);
-        expect(res.ok && res.drawable.color).toBe('red');
+        expect(res.ok && 'color' in res.drawable && res.drawable.color).toBe('red');
     });
     it('color persists even when the edit changes the kind (point → curve)', () => {
         const d: DrawableAttr = { kind: 'point', at: [2, 3], color: 'teal' };
         const res = updateDrawableFromText(d, 'y = 2x', KINDS);
         expect(res.ok && res.drawable.kind).toBe('curve');
-        expect(res.ok && res.drawable.color).toBe('teal');
+        expect(res.ok && 'color' in res.drawable && res.drawable.color).toBe('teal');
     });
 });
 

@@ -3601,6 +3601,86 @@ describe('graph figure ⇄ tiptap (reference-panel content)', () => {
 });
 
 // =============================================================================
+// Y7 geometry block fields (ER-1)
+// -----------------------------------------------------------------------------
+// The batch importer emits Tiptap JSON and converts it through
+// tiptapGraphFigureToActivity, and opening + saving any activity goes the
+// other way. A field either direction drops is lost for good — file-backed or
+// not — so all five ride both directions, alongside the new mark kinds.
+// =============================================================================
+describe('graph_figure Y7 fields round-trip both serializer directions (ER-1)', () => {
+    const axis = {
+        xMin: -2, xMax: 10, yMin: -2, yMax: 7,
+        xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,
+    };
+    const drawables = [
+        { kind: 'point', at: [0, 0], label: 'A' },
+        { kind: 'polygon', vertices: [[0, 0], [8, 0], [2, 5]], filled: false },
+        { kind: 'angle_mark', at: [0, 0], from: [8, 0], to: [2, 5], label: '68°' },
+        { kind: 'tick_mark', from: [8, 0], to: [2, 5], count: 2 },
+        { kind: 'parallel_mark', from: [0, 0], to: [8, 0], count: 1 },
+        { kind: 'side_label', from: [0, 0], to: [8, 0], text: '8 cm' },
+        { kind: 'text', at: [4, -1.5], text: 'base' },
+        { kind: 'segment', from: [2, 5], to: [2, 0], style: 'dashed' },
+    ];
+    const attrs = {
+        id: 'x',
+        axis,
+        drawables,
+        alt: 'Triangle ABC with AB = 8 cm',
+        plane: false,
+        toScale: true,
+        width: 0.5,
+        align: 'right',
+    };
+    const doc: JSONContent = { type: 'doc', content: [{ type: 'graphFigure', attrs }] };
+
+    it('Tiptap → document carries alt, plane, toScale, width and align', () => {
+        const activity = tiptapToActivity(doc, META);
+        const block = flatBlocks(activity.sections[0]!)[0]!;
+        expect(block.type).toBe('graph_figure');
+        if (block.type !== 'graph_figure') return;
+        expect(block.alt).toBe('Triangle ABC with AB = 8 cm');
+        expect(block.plane).toBe(false);
+        expect(block.toScale).toBe(true);
+        expect(block.width).toBe(0.5);
+        expect(block.align).toBe('right');
+        expect(block.drawables).toEqual(drawables);
+        expect(ActivityDocument.safeParse(activity).success).toBe(true);
+    });
+
+    it('document → Tiptap → document is lossless', () => {
+        const once = tiptapToActivity(doc, META);
+        const find = (n: JSONContent): JSONContent | undefined =>
+            n.type === 'graphFigure' ? n : (n.content ?? []).map(find).find(Boolean);
+        const node = find(activityToTiptap(once));
+        expect(node?.attrs).toMatchObject({
+            alt: attrs.alt, plane: false, toScale: true, width: 0.5, align: 'right',
+        });
+        const twice = tiptapToActivity(activityToTiptap(once), META);
+        const [a, b] = [once, twice].map((d) => {
+            const blk = { ...(flatBlocks(d.sections[0]!)[0] as Record<string, unknown>) };
+            delete blk.id;
+            return blk;
+        });
+        expect(b).toEqual(a);
+    });
+
+    it('defaults: plane on, not to scale, no alt, unsized', () => {
+        const activity = tiptapToActivity(
+            { type: 'doc', content: [{ type: 'graphFigure', attrs: { id: '', axis, drawables: [] } }] },
+            META,
+        );
+        const block = flatBlocks(activity.sections[0]!)[0]!;
+        if (block.type !== 'graph_figure') throw new Error('not a figure');
+        expect(block.plane).toBe(true);
+        expect(block.toScale).toBe(false);
+        expect('alt' in block).toBe(false);
+        expect('width' in block).toBe(false);
+    });
+});
+
+// =============================================================================
 // Misconception bindings
 // -----------------------------------------------------------------------------
 // The opaque `misconceptionId` tag rides on three carriers (blank
