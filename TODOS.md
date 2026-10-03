@@ -7,6 +7,14 @@ ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during revi
 
 One entry per issue the author reports while testing a hand-off: what he saw, where, and the fix or the open question. Worked through together between items.
 
+**Findings, 2026-10-04 (charts hand-off; the author pasted the test activity):**
+
+- ✅ **The green "#" after a numeric blank.** Seen in the editor after `{{=1}}`. It was the numeric-mode marker (`.blank-chip.is-numeric::after`, there since numeric blanks shipped; git has no commit that ever removed it). REMOVED: the mode stays on the chip's hover tooltip and in its popover.
+- ✅ **No form to edit a chart.** Only "Chart source" existed (Q8 had ruled source-only). BUILT: "Edit chart" opens a form (type, title, axis labels, a categories × series grid with add/remove, axis top and step, screen-reader description). Fields commit on blur or Enter; a value the chart cannot hold snaps back. `ChartForm.tsx`, guarded by `chart-source.e2e.ts`.
+- ✅ **"+" between two blocks put a columns block at the BOTTOM.** Cause: every block of a single-column run lives in one stack row, and `insertColumns` (and `insertSectionBreak`, same fault) inserted "after the row holding the caret". FIXED: the stack is split at the selection (`stackSplitAt` in `strictGrid.ts`). ⚠ This also changes the slash-menu path: a columns block or section break typed mid-run now lands below the CURRENT block, not below the whole run.
+- ✅ **"Split into columns" did nothing from a "+" strip.** Cause: the selection there is a seam, which sits on no block, so the command found no target and returned false. FIXED: the target is the block just below the seam (the one above it at the end of a column).
+- Student view: reported fine after the deploys.
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.

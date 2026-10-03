@@ -22,16 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**Y7 CHARTS BUILT 2026-10-04 — two redeploys owed, in this order, BEFORE any
-chart is published.** The chart block is a new registry entry, so
-`SANITIZER_REV` moved (`2-3d4db5c5` → `2-0a3d4bc7`) and both server bundles
-were regenerated. (1) `pnpm deploy:get-activity` (the only `--no-verify-jwt`
-function); (2) `pnpm deploy:check`. Prove each by hashing the deployed
-`_shared/*.bundle.js` against the repo's (CLAUDE.md → the download-and-hash
-method), not by version number. No migration. Until both are live, an
-activity holding a ```chart must not be published: the live read function
-does not know the block. The curriculum repo's pin-bump is their PR #32, held by letter B-55
-until both deploys are verified: send the go-ahead letter after the hashes match.
+**Y7 CHARTS — BUILT AND LIVE 2026-10-04.** Both functions were redeployed by the author and verified by hash (deployed `viewer-server.bundle.js` and `grading-server.bundle.js` byte-identical to the repo's at `0a8e052`; flags read live). The curriculum repo's pin-bump is their PR #32, released by letter B-56; refresh the boundary page's stamp row once it merges.
 
 **PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and

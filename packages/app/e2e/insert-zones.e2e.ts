@@ -140,6 +140,85 @@ test('inserting from the zone above an ATOM lands above it (not snapped below)',
     expect(after[mathIdx + 1]).toBe('mathBlock'); // original pushed down by one
 });
 
+// The top-level shape: one entry per doc child. A row is written as its
+// columns' block types, so `[['paragraph'], ['paragraph'], []]` style reads as
+// "which blocks sit in which column".
+function docShape(page: Page): Promise<unknown[]> {
+    return page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        const out: unknown[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.forEach((top: any) => {
+            if (top.type.name !== 'row') return void out.push(top.type.name);
+            const cols: string[][] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            top.forEach((col: any) => {
+                const types: string[] = [];
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                col.forEach((n: any) => types.push(n.type.name));
+                cols.push(types);
+            });
+            out.push(cols);
+        });
+        return out;
+    });
+}
+
+async function pick(page: Page, zone: number, query: string): Promise<void> {
+    await clickZone(page, zone);
+    await expect(page.locator('.block-insert-overlay')).toBeVisible();
+    await page.getByRole('textbox', { name: 'Search all blocks' }).fill(query);
+    await page.locator('.block-insert-tile').first().click();
+    await expect(page.locator('.block-insert-overlay')).toHaveCount(0);
+}
+
+// Author finding 2026-10-04: every block of a single-column run lives in ONE
+// stack row, and the top-level inserts went "after the row holding the caret"
+// — so a columns block asked for between two blocks landed at the bottom.
+test('2 columns from a zone BETWEEN two blocks lands between them, not at the bottom', async ({
+    page,
+}) => {
+    const before = await columnTypes(page);
+    expect(before.length).toBeGreaterThan(2);
+    await pick(page, 2, '2 columns'); // the seam above the THIRD block
+
+    const shape = await docShape(page);
+    expect(shape).toEqual([
+        [before.slice(0, 2)], // the two blocks above the seam, still one stack
+        [['paragraph'], ['paragraph']], // the new two-column row
+        [before.slice(2)], // everything below, in its own stack
+    ]);
+});
+
+test('2 columns from the zone above the FIRST block lands at the top', async ({ page }) => {
+    const before = await columnTypes(page);
+    await pick(page, 0, '2 columns');
+    expect(await docShape(page)).toEqual([[['paragraph'], ['paragraph']], [before]]);
+});
+
+test('a section break from a zone between two blocks splits the stack there', async ({ page }) => {
+    const before = await columnTypes(page);
+    await pick(page, 2, 'section break');
+    expect(await docShape(page)).toEqual([[before.slice(0, 2)], 'sectionBreak', [before.slice(2)]]);
+});
+
+// Author finding 2026-10-04: from a zone the selection is a seam, which sits
+// on no block, so the command found no target and silently did nothing.
+test('Split into columns from a zone moves the block BELOW the seam into column 1', async ({
+    page,
+}) => {
+    const before = await columnTypes(page);
+    await pick(page, 1, 'split into columns'); // the seam above the SECOND block
+
+    const shape = await docShape(page);
+    expect(shape).toEqual([
+        [before.slice(0, 1)],
+        [[before[1]], ['paragraph']], // that block, beside one empty column
+        [before.slice(2)],
+    ]);
+});
+
 test('the picker offers top-level-only blocks at a 1-col stack seam', async ({
     page,
 }) => {

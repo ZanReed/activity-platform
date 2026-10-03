@@ -1,7 +1,12 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { renderChartSvg } from '@activity/graph-kit/chart-svg';
-import { formatChartSource, parseChartFence, type ChartAttrs } from '../../lib/chartFence';
+import {
+    formatChartSource,
+    parseChartFence,
+    type ChartAttrs,
+} from '../../lib/chartFence';
+import ChartForm from './ChartForm';
 
 // ============================================================================
 // ChartViewBody — the chart block's NodeView (Y7 charts, T12; Q8), loaded
@@ -9,10 +14,12 @@ import { formatChartSource, parseChartFence, type ChartAttrs } from '../../lib/c
 // the editor chunk (the prosemirror ledger row had 0 KiB to spare).
 //
 // The preview IS the student's picture: renderChartSvg is the engine the
-// viewer's Chart block calls. Authoring is a "Chart source" popover holding
-// the SAME lines a ```chart fence takes, re-parsed by the importer's own
-// parser on Apply — no per-field form (Q8: catalogue activities are
-// file-backed, so a form is weeks of UI for a surface they never touch).
+// viewer's Chart block calls. Two ways to author, over the same node data:
+// "Edit chart" opens a form (ChartForm — type, title, labels, a categories ×
+// series grid, the axis), and "Chart source" holds the SAME lines a ```chart
+// fence takes, re-parsed by the importer's own parser on Apply. Q8 ruled the
+// source popover only; the author asked for the form on first use
+// (2026-10-04), because every earlier block is edited in place.
 //
 // The popover is LOCAL React state, not ProseMirror's `selected`: typing in
 // the textarea drops node selection, so a selection-gated control collapses
@@ -35,6 +42,10 @@ export default function ChartViewBody({ node, updateAttributes, editor }: NodeVi
     const disabled = !editor.isEditable;
     const [source, setSource] = useState<{ text: string; lossy: string[] } | null>(null);
     const [problems, setProblems] = useState<string[]>([]);
+    // The form (author finding 2026-10-04: a chart needs the same kind of
+    // in-place editing every earlier block has, not only fence text). Local
+    // React state, like the source popover, for the same NodeView reason.
+    const [editing, setEditing] = useState(false);
 
     const svg = useMemo(() => renderChartSvg(data, 'edchart-' + id), [data, id]);
 
@@ -52,8 +63,19 @@ export default function ChartViewBody({ node, updateAttributes, editor }: NodeVi
                     This chart has nothing to draw. Open Chart source and give it categories and a series.
                 </p>
             )}
-            {!source && (
+            {editing && (
+                <ChartForm
+                    data={data}
+                    disabled={disabled}
+                    onChange={(next) => updateAttributes({ data: next })}
+                    onDone={() => setEditing(false)}
+                />
+            )}
+            {!source && !editing && (
                 <div className="graph-figure-view__actions" contentEditable={false}>
+                    <button type="button" disabled={disabled} onClick={() => setEditing(true)}>
+                        Edit chart
+                    </button>
                     <button
                         type="button"
                         disabled={disabled}

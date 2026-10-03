@@ -1,8 +1,9 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { SectionBreakView } from '../nodeViews/SectionBreakView';
-import { topLevelRowAt } from '../strictGrid';
+import { stackSplitAt, topLevelRowAt } from '../strictGrid';
 
 // =============================================================================
 // SectionBreak — Tiptap atom node that opens a new Section in the document.
@@ -84,17 +85,36 @@ export const SectionBreak = Node.create({
                 const rowType = state.schema.nodes.row;
                 const columnType = state.schema.nodes.column;
                 if (!breakType || !rowType || !columnType) return false;
+                // In a 1-col stack the break lands WHERE THE SELECTION IS: the
+                // stack is split around it, and the blocks below become the
+                // new section's content (stackSplitAt has the reasoning).
+                const split = stackSplitAt(state.selection);
                 const anchor = topLevelRowAt(state.selection.$from);
-                const insertPos = anchor
+                let insertPos = anchor
                     ? anchor.pos + anchor.node.nodeSize
                     : state.doc.content.size;
                 if (dispatch) {
                     const emptyColumn = columnType.createAndFill();
                     if (!emptyColumn) return false;
-                    const newRow = rowType.create({ id: crypto.randomUUID() }, [
-                        emptyColumn,
-                    ]);
-                    tr.insert(insertPos, [breakType.create(), newRow]);
+                    const stack = (blocks: readonly ProseMirrorNode[]): ProseMirrorNode =>
+                        rowType.create({ id: crypto.randomUUID() }, [
+                            columnType.create(null, blocks),
+                        ]);
+                    const newRow =
+                        split && split.after.length > 0
+                            ? stack(split.after)
+                            : rowType.create({ id: crypto.randomUUID() }, [emptyColumn]);
+                    if (split) {
+                        const head = split.before.length > 0 ? [stack(split.before)] : [];
+                        tr.replaceWith(split.rowPos, split.rowPos + split.row.nodeSize, [
+                            ...head,
+                            breakType.create(),
+                            newRow,
+                        ]);
+                        insertPos = split.rowPos + (head[0]?.nodeSize ?? 0);
+                    } else {
+                        tr.insert(insertPos, [breakType.create(), newRow]);
+                    }
                     // Caret into the new section's empty paragraph (past the
                     // break + into the new row/column).
                     const caret = insertPos + breakType.create().nodeSize + 2;

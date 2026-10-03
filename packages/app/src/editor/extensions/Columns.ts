@@ -9,7 +9,7 @@ import {
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { settleMetaKey } from './SettleMotion';
-import { activeBlockAt, topLevelRowAt } from '../strictGrid';
+import { activeBlockAt, stackSplitAt, topLevelRowAt } from '../strictGrid';
 import { openRowMenu } from '../components/gridRowMenu';
 
 // =============================================================================
@@ -533,12 +533,14 @@ export const Columns = Node.create<ColumnsOptions>({
                 const columnType = state.schema.nodes.column;
                 const rowType = state.schema.nodes.row;
                 if (!columnType || !rowType) return false;
-                // Strict grid: a `row` lives ONLY at the doc top level, so a
-                // fresh multi-col row is inserted just AFTER the top-level row
-                // holding the caret (a new region below the current stack),
-                // never at the nested caret (which is inside a column).
+                // Strict grid: a `row` lives ONLY at the doc top level, never
+                // at the nested caret (which is inside a column). In a 1-col
+                // stack the new row lands WHERE THE SELECTION IS — the stack is
+                // split around it (stackSplitAt has the reasoning). Anywhere
+                // else it goes just after the top-level row holding the caret.
+                const split = stackSplitAt(state.selection);
                 const anchor = topLevelRowAt(state.selection.$from);
-                const insertPos = anchor
+                let insertPos = anchor
                     ? anchor.pos + anchor.node.nodeSize
                     : state.doc.content.size;
                 if (dispatch) {
@@ -550,7 +552,22 @@ export const Columns = Node.create<ColumnsOptions>({
                         { id: crypto.randomUUID() },
                         cols as ProseMirrorNode[],
                     );
-                    tr.insert(insertPos, row);
+                    if (split) {
+                        const stack = (blocks: ProseMirrorNode[]): ProseMirrorNode =>
+                            rowType.create({ id: crypto.randomUUID() }, [
+                                columnType.create(null, blocks),
+                            ]);
+                        const head = split.before.length > 0 ? [stack(split.before)] : [];
+                        const tail = split.after.length > 0 ? [stack(split.after)] : [];
+                        tr.replaceWith(split.rowPos, split.rowPos + split.row.nodeSize, [
+                            ...head,
+                            row,
+                            ...tail,
+                        ]);
+                        insertPos = split.rowPos + (head[0]?.nodeSize ?? 0);
+                    } else {
+                        tr.insert(insertPos, row);
+                    }
                     tr.setMeta(settleMetaKey, 'insert');
                     // Caret into the first column of the new row.
                     const posInFirstCol = insertPos + 2; // into row +1, column +1
@@ -583,8 +600,22 @@ export const Columns = Node.create<ColumnsOptions>({
                 if (!columnType || !rowType) return false;
 
                 // Resolve the target block (its parent is a column) + its host
-                // top-level row.
-                const active = activeBlockAt(state);
+                // top-level row. From an insert zone the selection is a SEAM (a
+                // GapCursor whose parent is the column), which sits on no
+                // block: the target is then the block just below the seam, or
+                // the one above it at the end of the column. Without this the
+                // command found nothing and silently did nothing (author
+                // finding, 2026-10-04).
+                const $from = state.selection.$from;
+                const seamBlock =
+                    $from.parent.type.name === 'column'
+                        ? $from.nodeAfter
+                            ? { node: $from.nodeAfter, pos: $from.pos }
+                            : $from.nodeBefore
+                              ? { node: $from.nodeBefore, pos: $from.pos - $from.nodeBefore.nodeSize }
+                              : null
+                        : null;
+                const active = activeBlockAt(state) ?? seamBlock;
                 if (!active) return false;
                 const anchor = topLevelRowAt(state.doc.resolve(active.pos));
                 if (!anchor || anchor.node.type.name !== 'row') return false;

@@ -1,4 +1,4 @@
-import { NodeSelection, type EditorState } from '@tiptap/pm/state';
+import { NodeSelection, type EditorState, type Selection } from '@tiptap/pm/state';
 import type { Node as PMNode, ResolvedPos } from '@tiptap/pm/model';
 import type { JSONContent } from '@tiptap/core';
 
@@ -305,4 +305,45 @@ export function wrapBlocksStrict(blocks: JSONContent[]): JSONContent {
     // Never emit an empty doc — the schema requires ≥1 (sectionBreak | row).
     if (content.length === 0) return emptyDocJSON();
     return { type: 'doc', content };
+}
+
+/**
+ * Where a NEW TOP-LEVEL node (a multi-column row, a section break) belongs when
+ * the selection sits in a top-level 1-col STACK row.
+ *
+ * Every block of a single-column run lives in ONE stack row, so "after the row
+ * holding the caret" means "after every block in the run" — a row asked for
+ * between blocks 2 and 3 landed below block 9 (author finding, 2026-10-04).
+ * The stack has to be SPLIT at the selection instead: the blocks above it stay
+ * in one stack row, the new node goes in between, and the blocks below move to
+ * a stack row of their own.
+ *
+ * The split point:
+ *   - a SEAM (a GapCursor from an insert zone; the selection's parent is the
+ *     column itself) splits exactly AT the seam;
+ *   - a NodeSelection on a block, or a caret inside one, splits AFTER that
+ *     block, which is what "insert below this" has always meant.
+ *
+ * Null when the selection is not in a top-level stack row (a multi-col cell, a
+ * doc-level selection): callers keep their append-after-the-row fallback.
+ */
+export function stackSplitAt(selection: Selection): {
+    rowPos: number;
+    row: PMNode;
+    before: PMNode[];
+    after: PMNode[];
+} | null {
+    const $from = selection.$from;
+    if ($from.depth < 2) return null;
+    const row = $from.node(1);
+    const column = $from.node(2);
+    if (row.type.name !== 'row' || row.childCount !== 1 || column.type.name !== 'column') {
+        return null;
+    }
+    const atSeam = $from.depth === 2 && !(selection instanceof NodeSelection);
+    const index = atSeam ? $from.index(2) : $from.index(2) + 1;
+    const before: PMNode[] = [];
+    const after: PMNode[] = [];
+    column.forEach((child, _offset, i) => (i < index ? before : after).push(child));
+    return { rowPos: $from.before(1), row, before, after };
 }

@@ -42,8 +42,8 @@ export default function BlankView({ node, selected }: NodeViewProps) {
     // Order-independent grouping: this blank is interchangeable with the one
     // before it. A leading ⇄ marker makes the link visible between the chips.
     const grouped = node.attrs.interchangeableWithPrevious === true;
-    // Numeric answer mode: scored by numeric equivalence (0.5 = 1/2), shown
-    // with a # marker so the mode is visible without opening the popover.
+    // Numeric answer mode: scored by numeric equivalence (0.5 = 1/2). Named in
+    // the hover tooltip below; the chip carries no marker (see editor.css).
     const numeric = node.attrs.answerType === 'numeric';
     const tolerance = node.attrs.tolerance as number | undefined;
     const width = deriveBlankWidth(answer);

@@ -85,3 +85,64 @@ test('a bad line is reported and the chart keeps the lines that worked', async (
     await expect(page.locator('.graph-figure-source__problems')).toContainText('"series: Car = 1, 2"');
     expect((await chartData(page)).series).toHaveLength(2);
 });
+
+// Author finding 2026-10-04: a chart needs in-place editing like every earlier
+// block, not only fence text.
+test('Edit chart: the form changes the type, a value, a name and the grid, and the picture follows', async ({ page }) => {
+    await boot(page);
+    await page.getByRole('button', { name: 'Edit chart' }).click();
+    const form = page.locator('.chart-form');
+
+    // A title, committed on blur.
+    await form.getByLabel('Chart title').fill('Pets in our class');
+    await form.getByLabel('Chart title').blur();
+    await expect(page.locator('.chart-view__preview [data-chart-text="title"]')).toHaveText('Pets in our class');
+
+    // Rename a category and change its value (Enter commits).
+    await form.getByLabel('Category 1 name').fill('Cats');
+    await form.getByLabel('Category 1 name').press('Enter');
+    await form.getByLabel('Value, Cats').fill('9');
+    await form.getByLabel('Value, Cats').press('Enter');
+    let data = await chartData(page);
+    expect(data.categories[0]).toBe('Cats');
+    expect(data.series[0].values[0]).toBe(9);
+
+    // A second series names the first and turns a bar chart into clustered bars.
+    await form.getByRole('button', { name: '+ Series' }).click();
+    data = await chartData(page);
+    expect(data.chart).toBe('clustered');
+    expect(data.series.map((s: { name?: string }) => s.name)).toEqual(['Series 1', 'Series 2']);
+    await expect(page.locator('.chart-view__preview rect[data-bar]')).toHaveCount(6);
+
+    // A fourth category adds a column to every series.
+    await form.getByRole('button', { name: '+ Category' }).click();
+    data = await chartData(page);
+    expect(data.categories).toHaveLength(4);
+    expect(data.series.every((s: { values: number[] }) => s.values.length === 4)).toBe(true);
+
+    // The type select.
+    await form.getByLabel('Type').selectOption('line');
+    await expect(page.locator('.chart-view__preview polyline')).toHaveCount(2);
+
+    await form.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('.chart-form')).toHaveCount(0);
+});
+
+test('Edit chart: a value the chart cannot hold snaps back instead of reaching the node', async ({ page }) => {
+    await boot(page);
+    await page.getByRole('button', { name: 'Edit chart' }).click();
+    const form = page.locator('.chart-form');
+    const before = await chartData(page);
+
+    const value = form.getByLabel('Value, A');
+    await value.fill('-4');
+    await value.blur();
+    await expect(value).toHaveValue(String(before.series[0].values[0]));
+
+    const name = form.getByLabel('Category 1 name');
+    await name.fill('');
+    await name.blur();
+    await expect(name).toHaveValue('A');
+
+    expect(await chartData(page)).toEqual(before);
+});
