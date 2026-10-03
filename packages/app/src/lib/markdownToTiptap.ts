@@ -3061,17 +3061,77 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
     // needs a way to opt ONE row out, and that is what `unruled` is for.
     let gridLines: 'inherit' | 'on' | 'off' = 'inherit';
 
-    // Split into column segments on a `---` divider line.
+    // Split into column segments on a `---` divider line. Only `---` ends a
+    // segment; blank lines inside one are kept (and ignored by a figure).
     const segments: string[][] = [[]];
     for (const rawLine of src.split('\n')) {
-        const trimmed = rawLine.trim();
-        if (trimmed === '---') {
+        if (rawLine.trim() === '---') {
             segments.push([]);
             continue;
         }
+        segments[segments.length - 1]!.push(rawLine);
+    }
 
-        const directive = /^options:\s*(.*)$/i.exec(trimmed);
-        if (directive) {
+    // T7b (Y7 geometry, confirmed by the curriculum side in C-36): a segment
+    // whose first non-blank line is `figure:` is read WHOLE as one ```figure —
+    // the same grammar, no nested fence (the AI already wraps its whole reply
+    // in a ``` block, so a third fence level is where drafting models fail).
+    const figureProblem = (msg: string): void => {
+        ctx.warnings.add(msg);
+        ctx.figureProblems.push(msg);
+    };
+    let figureColumns = 0;
+    const columns: JSONContent[] = segments.map((lines) => {
+        const first = lines.findIndex((l) => l.trim() !== '');
+        const marker = first === -1 ? null : /^figure:\s*(.*)$/i.exec(lines[first]!.trim());
+        if (marker) {
+            figureColumns++;
+            if ((marker[1] ?? '').trim() !== '') {
+                figureProblem(
+                    `Columns block figure: "${lines[first]!.trim()}" — write figure: with nothing after the colon; the text was ignored.`,
+                );
+            }
+            // An `options:` line sets the WHOLE row, so inside a figure column
+            // it would be ambiguous: refused there (C-36), valid in text columns.
+            const body: string[] = [];
+            for (const line of lines.slice(first + 1)) {
+                if (/^options:/i.test(line.trim())) {
+                    figureProblem(
+                        `Columns block figure: "${line.trim()}" — options: sets the whole row, so it goes in a text column, never a figure column; the line was skipped.`,
+                    );
+                    continue;
+                }
+                body.push(line);
+            }
+            const fig = parseFigureFence(body.join('\n'), (line) => parseShowDrawable(line));
+            for (const problem of fig.problems) figureProblem(problem);
+            // A column is `block+`: an undrawable figure leaves an empty
+            // paragraph, never the fence source (ER-12b).
+            return {
+                type: 'column',
+                content: fig.attrs
+                    ? [{ type: 'graphFigure', attrs: { id: crypto.randomUUID(), ...fig.attrs } }]
+                    : [{ type: 'paragraph' }],
+            };
+        }
+
+        // A text column. `gridLines` is a ROW property, so its directive is
+        // recognised in ANY text column — an options line describes the whole
+        // row, and a row has no position inside itself, which is what makes
+        // `options: ruled` mean the same thing above the first `---` and below
+        // the last one.
+        //
+        // The tri-state is the point, not a boolean: `ruled` forces the box ON,
+        // `unruled` forces it OFF, and saying nothing stays 'inherit' so the
+        // activity-wide ⚙ toggle governs. A teacher who ruled the whole activity
+        // needs a way to opt ONE row out, and that is what `unruled` is for.
+        const text: string[] = [];
+        for (const rawLine of lines) {
+            const directive = /^options:\s*(.*)$/i.exec(rawLine.trim());
+            if (!directive) {
+                text.push(rawLine);
+                continue;
+            }
             for (const opt of (directive[1] ?? '')
                 .split(',')
                 .map((o) => o.trim().toLowerCase())) {
@@ -3082,21 +3142,25 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
                         `Columns block: unknown option “${opt}” (use ruled or unruled) — ignored.`,
                     );
             }
-            continue;
         }
-
-        segments[segments.length - 1]!.push(rawLine);
-    }
-
-    const columns: JSONContent[] = segments.map((lines) => {
         // Column.blocks is the FULL Block union, so a column takes the same
         // body grammar an example does — lists, headings and images included.
-        const blocks = parseBodyLines(lines, ctx, true, 'Columns block');
+        const blocks = parseBodyLines(text, ctx, true, 'Columns block');
         // A column's content is `block+` — seed an empty paragraph when the
         // segment held nothing.
         if (blocks.length === 0) blocks.push({ type: 'paragraph' });
         return { type: 'column', content: blocks };
     });
+
+    // v1 LIMIT (author, C-36): a row holding a figure column has EXACTLY two
+    // columns. At a third or quarter width the labels shrink to ~5–6 px, and
+    // in a geometry item the marks are the answer, so a legal file must not
+    // render them illegibly. Wider rows wait for a small-figure label scale.
+    if (figureColumns > 0 && columns.length !== 2) {
+        figureProblem(
+            `Columns block: a row with a figure: column must have exactly 2 columns (this one has ${columns.length}) — at narrower widths the figure's labels are too small to read.`,
+        );
+    }
 
     if (columns.length < 2) {
         ctx.warnings.add(

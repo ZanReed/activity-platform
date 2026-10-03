@@ -239,7 +239,10 @@ export default function DevViewer() {
     // an alt, and the automatic "Not to scale" caption. A separate param, not
     // a second fixture instance, so the committed print baselines of the
     // primary graph_figure fixture do not move.
-    if (params.get('planeless') === '1') {
+    // `figurerow=1` (T7b): the same figure in the LEFT column of a two-column
+    // row, its question in the right — the half-width layout the curriculum
+    // side asked about (C-36), so print and screen can MEASURE its labels.
+    if (params.get('planeless') === '1' || params.get('figurerow') === '1') {
       const row = next.sections[0]?.rows[0];
       const first = row?.columns[0]?.blocks[0] as Record<string, unknown> | undefined;
       if (row && first) {
@@ -267,6 +270,25 @@ export default function DevViewer() {
         };
       }
     }
+    if (params.get('figurerow') === '1') {
+      const row = next.sections[0]?.rows[0];
+      if (row) {
+        row.columns = [
+          row.columns[0]!,
+          {
+            id: 'col-figurerow-question',
+            blocks: [
+              {
+                id: 'para-figurerow-question',
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'By its sides, triangle ABC is scalene. Which angle is the largest?' }],
+              },
+            ],
+          },
+        ];
+      }
+    }
+
 
     // `ruled=on` — an explicit per-row override. `ruled=inherit` — the row says
     // 'inherit' and the ACTIVITY default turns it on, which is the other half

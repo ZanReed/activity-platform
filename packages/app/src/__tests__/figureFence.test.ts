@@ -202,3 +202,71 @@ describe('importer integration', () => {
         expect(res.figureProblems?.some((p) => /not imported/.test(p))).toBe(true);
     });
 });
+
+// =============================================================================
+// T7b — a figure inside a ```columns column (curriculum C-36, author-ruled)
+// =============================================================================
+describe('a figure: column inside ```columns (T7b)', () => {
+    let importMd: Awaited<ReturnType<typeof getMarkdownImporter>>;
+    beforeAll(async () => {
+        importMd = await getMarkdownImporter();
+    });
+    const cols = (...segments: string[][]) =>
+        importMd(['```columns', ...segments.flatMap((s, i) => (i ? ['---', ...s] : s)), '```'].join('\n'));
+    const FIG = ['figure:', ALT, ...POINTS, 'polygon A B C'];
+    const TEXT = ['By its sides, ABC is {{scalene}}.'];
+    const figureIn = (res: ReturnType<typeof importMd>) =>
+        res.blocks[0]?.content?.flatMap((c) => c.content ?? []).find((b) => b.type === 'graphFigure');
+
+    it('a figure column beside a text column: one graphFigure + the question, nothing reported', () => {
+        const res = cols(FIG, TEXT);
+        expect(res.blocks[0]?.type).toBe('row');
+        expect(res.blocks[0]?.content).toHaveLength(2);
+        expect(figureIn(res)?.attrs).toMatchObject({ alt: 'Triangle ABC', plane: false });
+        expect(res.blocks[0]?.content?.[1]?.content?.[0]?.type).toBe('fillInBlank');
+        expect(res.figureProblems).toBeUndefined();
+        expect(res.warnings).toEqual([]);
+    });
+
+    it('`to scale` and `plane: on` work exactly as in a body figure (C-36 Q3)', () => {
+        const res = cols([...FIG, 'to scale', 'plane: on'], TEXT);
+        expect(figureIn(res)?.attrs).toMatchObject({ toScale: true, plane: true });
+    });
+
+    it('blank lines inside the figure column split nothing; only --- ends it (C-36 Q3)', () => {
+        const res = cols(['figure:', ALT, '', POINTS[0]!, '', '', POINTS[1]!, POINTS[2]!, '', 'polygon A B C'], TEXT);
+        expect(figureIn(res)?.attrs?.drawables).toHaveLength(4);
+        expect(res.blocks[0]?.content).toHaveLength(2);
+    });
+
+    it('options: inside a FIGURE column is a figure problem; in a TEXT column it still sets the row (C-36 Q2)', () => {
+        const bad = cols([...FIG, 'options: ruled'], TEXT);
+        expect(bad.figureProblems?.some((p) => p.includes('options: ruled'))).toBe(true);
+        expect(bad.blocks[0]?.attrs?.gridLines).toBe('inherit');
+        const good = cols(FIG, ['options: ruled', ...TEXT]);
+        expect(good.figureProblems).toBeUndefined();
+        expect(good.blocks[0]?.attrs?.gridLines).toBe('on');
+    });
+
+    it('a row with a figure column and 3 columns is a figure problem (v1 limit, C-36 Q1)', () => {
+        const res = cols(FIG, TEXT, ['More text.']);
+        expect(res.figureProblems?.some((p) => /exactly 2 columns/.test(p))).toBe(true);
+    });
+
+    it('`figure: A` (text after the colon) is a figure problem in v1', () => {
+        const res = cols(['figure: A', ...FIG.slice(1)], TEXT);
+        expect(res.figureProblems?.some((p) => p.includes('figure: A'))).toBe(true);
+    });
+
+    it('a figure column with nothing drawable leaves an empty paragraph and reports, never the source', () => {
+        const res = cols(['figure:', ALT, 'circle A 3'], TEXT);
+        expect(figureIn(res)).toBeUndefined();
+        expect(JSON.stringify(res.blocks)).not.toContain('circle A 3');
+        expect(res.figureProblems?.some((p) => /not imported/.test(p))).toBe(true);
+    });
+
+    it('the figure column gets the same line checks (a bad mark is a figure problem)', () => {
+        const res = cols([...FIG, 'ticks AX 1'], TEXT);
+        expect(res.figureProblems?.some((p) => p.includes('"ticks AX 1"'))).toBe(true);
+    });
+});

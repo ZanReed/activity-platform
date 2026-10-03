@@ -362,6 +362,21 @@ COLUMNS (a `columns` fence lays blocks out side by side)
   Say nothing and the activity-wide setting decides. Reach for ruled when the
   student writes INSIDE the columns (a T-chart, a two-column proof, a
   cut-out) — it is boxed regions to write in, not lines to write on.
+- A FIGURE BESIDE ITS QUESTION: a column whose first line is figure: is one
+  ```figure (same lines, no inner fence), in a row of EXACTLY 2 columns:
+    figure:
+    alt: Triangle PQR with sides PQ and QR marked equal
+    point (0,0) "P"
+    point (3,1.73) "Q"
+    point (6,0) "R"
+    polygon P Q R
+    ticks PQ 1
+    ticks QR 1
+    ---
+    By its sides, PQR is {{isosceles}}.
+  The whole column is the figure (text goes in the other column); write
+  figure: with nothing after the colon; put any options: line in the TEXT
+  column. A row with a figure column and 3 or more columns is refused.
 
 NUMBERING — do not write your own question numbers
 - The platform numbers questions for you, on screen and on paper. A line you

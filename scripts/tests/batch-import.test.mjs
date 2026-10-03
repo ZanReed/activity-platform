@@ -219,6 +219,26 @@ test('§A2 a mark that names an unknown point SKIPS the file — a dropped mark 
     );
 });
 
+const COLUMNS_MD = (...segments) =>
+    ['```meta', 'title: Triangles', 'course: Year 7', '```', '', '```columns', ...segments.flatMap((seg, i) => (i ? ['---', ...seg] : seg)), '```'].join('\n');
+
+test('§A2 a figure: column (T7b) reaches a schema-valid document beside its question', () => {
+    const out = convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['By its sides, ABC is {{isosceles}}.']), null, 'geom/t.md');
+    const row = out.document.sections.flatMap((s) => s.rows).find((r) => r.columns.length === 2);
+    assert.ok(row, 'no two-column row');
+    assert.equal(row.columns[0].blocks[0].type, 'graph_figure');
+    assert.equal(row.columns[0].blocks[0].alt, 'Triangle ABC with AC and BC marked equal');
+    assert.equal(row.columns[1].blocks[0].type, 'fill_in_blank');
+    assert.ok(pipeline.ActivityDocument.safeParse(out.document).success);
+});
+
+test('§A2 a figure: column in a THREE-column row SKIPS the file (v1 limit, C-36)', () => {
+    assert.throws(
+        () => convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['Text.'], ['More.']), null, 'geom/t.md'),
+        /figure problem[\s\S]*exactly 2 columns/,
+    );
+});
+
 // =============================================================================
 // §B — merge authority (D5): never-clobber on create, file wins on update
 // =============================================================================

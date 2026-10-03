@@ -448,6 +448,21 @@ COLUMNS (a `columns` fence lays blocks out side by side)
   Say nothing and the activity-wide setting decides. Reach for ruled when the
   student writes INSIDE the columns (a T-chart, a two-column proof, a
   cut-out) — it is boxed regions to write in, not lines to write on.
+- A FIGURE BESIDE ITS QUESTION: a column whose first line is figure: is one
+  ```figure (same lines, no inner fence), in a row of EXACTLY 2 columns:
+    figure:
+    alt: Triangle PQR with sides PQ and QR marked equal
+    point (0,0) "P"
+    point (3,1.73) "Q"
+    point (6,0) "R"
+    polygon P Q R
+    ticks PQ 1
+    ticks QR 1
+    ---
+    By its sides, PQR is {{isosceles}}.
+  The whole column is the figure (text goes in the other column); write
+  figure: with nothing after the colon; put any options: line in the TEXT
+  column. A row with a figure column and 3 or more columns is refused.
 
 NUMBERING — do not write your own question numbers
 - The platform numbers questions for you, on screen and on paper. A line you
@@ -1026,6 +1041,24 @@ The blank: {{2}} is the smallest prime.
   - `options: ruled` — draw the ruled grid: a box around the row, a vertical rule between columns, and a horizontal rule between stacked blocks in a column. **Boxed regions to write in or cut out** — not ruled lines to write *on*, which the platform does not have.
   - `options: unruled` — never draw it, even when the activity-wide setting rules every row. This is how one row opts out.
   - Say nothing and the row stays `inherit`: **⚙ → Print → grid lines** decides. Ruling is off by default, so an activity that never mentions it is unruled everywhere.
+- **A figure beside its question** — a column whose **first line is `figure:`** is read, whole, as one [```figure](#geometry-figures-figure-fence) (the same lines, no inner fence; the curriculum side confirmed this syntax in C-36):
+
+  ```
+  ```columns
+  figure:
+  alt: Triangle PQR with sides PQ and QR marked equal
+  point (0,0) "P"
+  point (3,1.73) "Q"
+  point (6,0) "R"
+  polygon P Q R
+  ticks PQ 1
+  ticks QR 1
+  ---
+  By its sides, PQR is {{isosceles}}.
+  ```⠀
+  ```
+
+  The whole column is the figure: text goes in the other column, and blank lines inside it split nothing (only `---` ends it). It keeps its own `alt:`, its own "Not to scale" caption, `to scale` and `plane: on`, and every figure check. **v1 limits, each a figure problem** (a batch import skips the file; the paste dialog warns): the row has **exactly 2 columns** (narrower figures shrink their labels below reading size); `figure:` takes nothing after the colon; an `options:` line belongs in the **text** column, never the figure column. On a screen narrower than about 656px a row holding a figure stacks, so the figure keeps its full size.
 - **Not here** — nested question fences (`mc`, `match`, `graph`, …) inside a column have no Markdown round-trip; author those in the editor after import. Column widths and reserved work space also default (adjust them in the editor's column toolbar).
 
 ## Callout blocks (```callout fence)

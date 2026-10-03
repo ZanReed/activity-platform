@@ -399,6 +399,39 @@ test.describe('structural print rules', () => {
         expect(ink).toBe('rgb(0, 0, 0)');
     });
 
+    // T7b + curriculum C-36: is a HALF-WIDTH figure legible? Measured, not
+    // assumed — the rendered height of a 16-unit label, on paper and on a
+    // tablet-width screen. Phones (<= 480px) stack the row, so they get the
+    // full-width figure and need no row of their own.
+    for (const surface of ['print', 'screen-768', 'screen-700', 'screen-500'] as const) {
+        test(`figure/half-width-legible — ${surface}: a figure column's labels stay readable`, async ({ page }) => {
+            if (surface !== 'print') await page.setViewportSize({ width: Number(surface.slice(7)), height: 1024 });
+            await page.goto('/dev/viewer?type=graph_figure&figurerow=1');
+            if (surface === 'print') await page.emulateMedia({ media: 'print' });
+            const row = page.locator('.viewer-row').first();
+            await expect(row.locator('.viewer-column')).toHaveCount(2);
+            const svg = row.locator('.viewer-figure > svg').first();
+            await expect(svg).toBeVisible();
+            const m = await svg.evaluate((el) => {
+                const label = el.querySelector('[data-drawable="side_label"] text')!;
+                const vertex = el.querySelector('[data-drawable="point"] text')!;
+                const scale = el.getBoundingClientRect().width / 400;
+                return {
+                    svgWidth: el.getBoundingClientRect().width,
+                    labelPx: 16 * scale,
+                    vertexPx: 15 * scale,
+                    labelBox: label.getBoundingClientRect().height,
+                    vertexBox: vertex.getBoundingClientRect().height,
+                };
+            });
+            console.log(`[half-width ${surface}] svg ${m.svgWidth.toFixed(0)}px · label ${m.labelPx.toFixed(1)}px (box ${m.labelBox.toFixed(1)}) · vertex ${m.vertexPx.toFixed(1)}px`);
+            // 10 CSS px ≈ 7.5 pt: the floor for a label a student must read.
+            expect(m.labelPx, `${surface}: half-width label ${m.labelPx.toFixed(1)}px`).toBeGreaterThanOrEqual(10);
+            expect(m.vertexPx).toBeGreaterThanOrEqual(10);
+            await expect(row.locator('figcaption')).toHaveText('Not to scale');
+        });
+    }
+
     test('structure/ruled-grid — an explicitly ruled row draws its box and dividers', async ({
         page,
     }) => {

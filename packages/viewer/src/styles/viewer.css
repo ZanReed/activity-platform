@@ -56,6 +56,18 @@
   margin-top: var(--space-5);
 }
 
+/* A row holding a FIGURE stacks below ~656px (T7b). Measured 2026-10-03: at a
+ * 500px screen a half-width figure renders 175px wide with 7px labels — and in
+ * a geometry item the marks are the answer. Above ~656px the column is wide
+ * enough (labels >= 10px); phones (<= 480px) already stack every row. One
+ * declaration: the row's own grid gap spaces the stacked columns, and the
+ * inline --activity-columns-template is a custom property, so this outranks it. */
+@media (max-width: 41rem) {
+  .viewer-row:has(.viewer-figure-wrap) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .viewer-column > .viewer-block + .viewer-block {
   margin-top: var(--space-5);
 }
