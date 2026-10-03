@@ -282,6 +282,14 @@ the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).
 
+## `--chain-registry <path>` for the batch importer (agreed with the curriculum side, B-42 / C-40, 2026-10-04)
+
+**TRIGGER: the curriculum side's chain-registry rows PR** (rows for the Y7 chains, after the author rules their teaching order). Retires the LAST hand-carried copy in the catalogue folder.
+
+**What:** today `batch-import.mjs` reads `chain-registry.txt` only from the catalogue ROOT (`resolve(root, 'chain-registry.txt')`, no flag), so the pilot folder holds a copy of the curriculum repo's hand-maintained file. Add `--chain-registry <path>` (default: today's root lookup) so a run reads their repo's file directly, like `--registry` / `--skills-registry` already do. Agreed in the same exchange: the pilot's skill-, misconception- and external-prereq registry copies are deleted (the author's folder, the author's act) and runs point the two flags at their main.
+
+**Facts to keep in view (re-derived 2026-10-04):** the chain is the FIRST path segment (`chainFolderOf`), so catalogue folders must stay FLAT; the folder ordinal is teaching order across all courses in the teacher's outline (Lane B, `comparePaths`); `course:` groups nothing.
+
 ## Side-by-side figures for "which one?" items (curriculum C-35 wish, 2026-10-03)
 
 **SPLIT by the author 2026-10-03.** The SYNTAX half (a figure inside a
