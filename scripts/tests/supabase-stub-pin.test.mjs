@@ -35,7 +35,15 @@ const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const appDir = join(repo, 'packages/app');
 const stubDir = join(appDir, 'src/lib/supabase-stubs');
 
-const STUBS = ['realtime-js.ts', 'storage-js.ts'];
+const STUBS = [
+    'realtime-js.ts',
+    'storage-js.ts',
+    // Rung 2 (2026-10-04): auth-js's never-executed modules, wired by the
+    // activity:auth-js-dead-modules plugin rather than resolve.alias.
+    'auth-webauthn.ts',
+    'auth-web3-ethereum.ts',
+    'auth-admin-api.ts',
+];
 
 const REAUDIT =
     '\n\nTO FIX — re-audit, do not just edit the number:\n' +
@@ -147,4 +155,71 @@ test('vite.config.ts still aliases BOTH sub-clients at the stubs', () => {
                 'scripts/perf-budgets.mjs together.',
         );
     }
+});
+
+// -----------------------------------------------------------------------------
+// Rung 2 — the auth-js stubs (2026-10-04). Same hazard, one layer down: they
+// mirror auth-js internals (GoTrueClient's import list, and the fact that
+// ordinary sign-out goes through `this.admin.signOut`).
+// -----------------------------------------------------------------------------
+
+const AUTH_REAUDIT =
+    '\n\nTO FIX — re-audit, do not just edit the number:\n' +
+    '  1. Read node_modules/@supabase/auth-js/dist/module/GoTrueClient.js.\n' +
+    '     Check its imports from ./lib/webauthn and ./lib/web3/ethereum (every\n' +
+    '     imported name must be exported by the matching stub) and EVERY use of\n' +
+    '     `this.admin` (today: the constructor and signOut, nothing else).\n' +
+    '  2. Compare GoTrueAdminApi.js\'s signOut with the copy in\n' +
+    '     packages/app/src/lib/supabase-stubs/auth-admin-api.ts.\n' +
+    '  3. Bump the exact pins in packages/app/package.json (BOTH packages) and\n' +
+    '     the `AUDITED AGAINST:` line in each stub header.';
+
+test('auth-js is a direct dependency pinned to the version supabase-js uses', () => {
+    const pkg = JSON.parse(readFileSync(join(appDir, 'package.json'), 'utf8'));
+    const pin = pkg.dependencies?.['@supabase/auth-js'];
+    assert.match(
+        pin ?? '',
+        /^\d+\.\d+\.\d+$/,
+        `@supabase/auth-js is declared as "${pin}". The admin stub deep-imports ` +
+            'auth-js internals, so it must be a direct dependency with an exact pin.' +
+            AUTH_REAUDIT,
+    );
+    const direct = JSON.parse(
+        readFileSync(join(appDir, 'node_modules/@supabase/auth-js/package.json'), 'utf8'),
+    ).version;
+    assert.equal(direct, pin, `auth-js ${direct} is installed but ${pin} is pinned.` + AUTH_REAUDIT);
+    const supabasePkg = JSON.parse(
+        readFileSync(join(appDir, 'node_modules/@supabase/supabase-js/package.json'), 'utf8'),
+    );
+    assert.equal(
+        supabasePkg.dependencies?.['@supabase/auth-js'],
+        pin,
+        'supabase-js depends on a different auth-js than the app pins — two copies ' +
+            'would be bundled, and the stubs would be audited against the wrong one.' +
+            AUTH_REAUDIT,
+    );
+});
+
+test('vite.config.ts still redirects all THREE auth-js modules at the stubs', () => {
+    const config = readFileSync(join(appDir, 'vite.config.ts'), 'utf8');
+    assert.match(config, /^\s*authJsDeadModules\(\),$/m, 'the plugin is defined but not in `plugins`');
+    for (const [module, file] of [
+        ['dist/module/lib/webauthn.js', 'auth-webauthn.ts'],
+        ['dist/module/lib/web3/ethereum.js', 'auth-web3-ethereum.ts'],
+        ['dist/module/GoTrueAdminApi.js', 'auth-admin-api.ts'],
+    ]) {
+        assert.ok(
+            config.includes(`'${module}': './src/lib/supabase-stubs/${file}'`),
+            `packages/app/vite.config.ts no longer redirects auth-js ${module} to ` +
+                `src/lib/supabase-stubs/${file}. If the stub was retired on purpose, ` +
+                'remove the stub file, its STUBS entry here, and its absence row in ' +
+                'scripts/perf-budgets.mjs together.',
+        );
+    }
+    assert.match(
+        config,
+        /inline: \[[^\]]*'@supabase\/auth-js'/,
+        'vitest no longer inlines @supabase/auth-js, so the unit rows would exercise ' +
+            'the real modules instead of the stubs.',
+    );
 });

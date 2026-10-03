@@ -77,6 +77,65 @@ function mathliveFonts(): Plugin {
   };
 }
 
+// ------------------------------------------------------------------
+// auth-js's three never-executed modules (2026-10-04, shell-slimming rung 2).
+//
+// GoTrueClient statically imports the WebAuthn ceremony, the web3 (ethereum)
+// sign-in helpers and the whole service-role admin API. This app signs in with
+// Google OAuth and calls four auth methods, so none of that ever ran — and it
+// rode in the entry chunk: 156.48 -> 151.82 KiB gz with these three replaced.
+//
+// A PLUGIN, not resolve.alias, because these are RELATIVE imports made from
+// inside auth-js ('./lib/webauthn'); an alias matches the specifier text only
+// and would catch any package's './lib/webauthn'. This hook matches on the
+// RESOLVED file, and only when the importer is auth-js itself — so the admin
+// stub's own deep imports of auth-js's fetch/errors pass straight through.
+//
+// The stubs' headers carry the audited contract. The one that matters:
+// ordinary signOut() goes through `this.admin.signOut`, so the admin stub
+// keeps that single method, verbatim.
+//
+// ⚠ BUILD AND VITEST ONLY. `vite dev` pre-bundles supabase-js with esbuild,
+// where this hook does not run, so the dev server loads the real modules.
+// That is harmless — the stubs remove code nothing calls — and the e2e lanes
+// run against the built dist, which is where the stubs are proven.
+// ------------------------------------------------------------------
+const AUTH_JS_DEAD_MODULES: Record<string, string> = {
+  'dist/module/lib/webauthn.js': './src/lib/supabase-stubs/auth-webauthn.ts',
+  'dist/module/lib/web3/ethereum.js': './src/lib/supabase-stubs/auth-web3-ethereum.ts',
+  'dist/module/GoTrueAdminApi.js': './src/lib/supabase-stubs/auth-admin-api.ts',
+};
+const AUTH_JS_DIR = /[\\/]@supabase[\\/]auth-js[\\/]/;
+
+function authJsDeadModules(): Plugin {
+  return {
+    name: 'activity:auth-js-dead-modules',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      // Vitest resolves a bare '@supabase/auth-js' to its CJS build (the
+      // package has no exports map, and SSR resolution takes `main`), whose
+      // internal require() calls never reach this hook — so the unit rows
+      // would exercise the real modules. Pointing the bare specifier at the
+      // ESM entry is a no-op for the browser build, which already takes it.
+      if (source === '@supabase/auth-js') {
+        return this.resolve(
+          '@supabase/auth-js/dist/module/index.js',
+          path.resolve(__dirname, 'src/main.tsx'),
+          { ...options, skipSelf: true },
+        );
+      }
+      if (!importer || !source.startsWith('.') || !AUTH_JS_DIR.test(importer)) return null;
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (!resolved) return null;
+      const id = resolved.id.split(path.sep).join('/');
+      for (const [suffix, stub] of Object.entries(AUTH_JS_DEAD_MODULES)) {
+        if (id.endsWith(`/@supabase/auth-js/${suffix}`)) return path.resolve(__dirname, stub);
+      }
+      return null;
+    },
+  };
+}
+
 // Tailwind v4 ships as a Vite plugin — no PostCSS config, no tailwind.config.js.
 // All theme customization (if any) goes in src/index.css via @theme directives.
 //
@@ -88,6 +147,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     mathliveFonts(),
+    authJsDeadModules(),
     // ------------------------------------------------------------------
     // Service worker (S6 V8, rulings S6-5 / S6-11).
     //
@@ -199,7 +259,10 @@ export default defineConfig({
     test: {
       server: {
         deps: {
-          inline: ['@supabase/supabase-js'],
+          // auth-js is inlined for the same reason, one layer down: the
+          // activity:auth-js-dead-modules plugin only sees modules that go
+          // through Vite's pipeline.
+          inline: ['@supabase/supabase-js', '@supabase/auth-js'],
         },
       },
     },

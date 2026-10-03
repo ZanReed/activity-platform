@@ -140,6 +140,16 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * cap did move — 172 → 158 — and it moved because the SHELL shrank to 143.2.
  * A cap that equals a former measurement is a coincidence of arithmetic here,
  * not a leftover.
+ *
+ * RUNG 2, 2026-10-04 — auth-js's never-executed modules (WebAuthn, web3, the
+ * admin API) replaced by stubs: 156.48 → 151.82 KiB gz. The geometry slice had
+ * spent the headroom above (143.2 → 156.4, figures and the glossary being
+ * eager by ruling). ⚠ THE CAP DID NOT MOVE, and that is deliberate rather than
+ * forgotten: the ~10% policy on 151.82 gives ≈ 167, which is ABOVE 158, and a
+ * cap is never raised to follow a policy. 158 over 151.82 is 4% headroom (measured as built: 151.82) —
+ * tighter than the policy, so not a fossil (R6). The working stop line for
+ * eager additions stays 156.5 (Y7 ER-9; TODOS → "The student shell's size
+ * ladder").
  */
 export const SHELL_JS_GZ_KIB = 158;
 
@@ -353,6 +363,26 @@ export const ABSENT_FROM_BUILD = [
         name: 'iceberg-js',
         marker: /X-Iceberg-Access-Delegation|CommitStateUnknownException/,
         why: "storage-js's dependency — an Apache Iceberg client, on a path that uploads PNGs.",
+    },
+    // Rung 2 (2026-10-04): auth-js's never-executed modules, replaced by the
+    // activity:auth-js-dead-modules plugin. Each marker is a string that lives
+    // ONLY in the replaced file — GoTrueClient keeps its own WebAuthn and web3
+    // wording ('Browser does not support WebAuthn', 'window.ethereum'), so
+    // those would match a correct build.
+    {
+        name: '@supabase/auth-js lib/webauthn',
+        marker: /Cancelling existing WebAuthn API call|rpId is required for WebAuthn/,
+        why: 'The passkey ceremony. The app signs in with Google OAuth only.',
+    },
+    {
+        name: '@supabase/auth-js lib/web3/ethereum',
+        marker: /Invalid SIWE message field/,
+        why: 'Sign-in with a crypto wallet. No call site.',
+    },
+    {
+        name: '@supabase/auth-js GoTrueAdminApi',
+        marker: /\/admin\/generate_link|\/admin\/users/,
+        why: 'The service-role admin API. A browser must never hold the key it needs; the stub keeps signOut, which ordinary sign-out routes through.',
     },
 ];
 

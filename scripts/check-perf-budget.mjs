@@ -272,11 +272,13 @@ for (const spec of ABSENT_FROM_BUILD) {
             detail:
                 `${spec.name} is back in the bundle: ` +
                 matched.map((m) => `${m.file} (${fmt(m.gz)} KiB)`).join(', ') +
-                `. ${spec.why} The usual cause is the resolve.alias entry in ` +
-                'packages/app/vite.config.ts being removed or stopping short of a ' +
-                'new import path. This is not a cap to raise — either restore the ' +
-                'alias, or retire the stub deliberately (delete this row, the stub, ' +
-                'and scripts/tests/supabase-stub-pin.test.mjs together, and say so ' +
+                `. ${spec.why} The usual cause is its wiring in ` +
+                'packages/app/vite.config.ts (a resolve.alias entry for the two ' +
+                'sub-clients, the activity:auth-js-dead-modules plugin for auth-js) ' +
+                'being removed or stopping short of a new import path. This is not ' +
+                'a cap to raise — either restore the wiring, or retire the stub ' +
+                'deliberately (delete this row, the stub, and its entry in ' +
+                'scripts/tests/supabase-stub-pin.test.mjs together, and say so ' +
                 'in the diff). Background: docs/design/shell-slim-supabase.md.',
         });
     }

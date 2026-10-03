@@ -68,6 +68,9 @@ importers:
       '@fontsource/lexend':
         specifier: ^5.2.11
         version: 5.2.11
+      '@supabase/auth-js':
+        specifier: 2.105.3
+        version: 2.105.3
       '@supabase/supabase-js':
         specifier: 2.105.3
         version: 2.105.3

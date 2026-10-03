@@ -2063,12 +2063,26 @@ changes belongs here. Recorded with enough context to act without archaeology.
 
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 
-> ⚠ **2026-10-04: shell JS is at the Y7 stop line — 156.445 of 156.5 KiB**
-> (ER-9; cap 158.0) after the Y7 geometry slice's cuboid, the last eager
-> addition it was allowed. The NEXT rung of this ladder must run before ANY
-> further eager addition to the student shell. Lazy additions (the Y7 chart
-> block, N5) are unaffected. Read the live number with
+> ✅ **2026-10-04: RUNG 2 SHIPPED — auth-js's never-executed modules.** The
+> shell had reached the Y7 stop line (156.445 of 156.5 KiB, ER-9; cap 158.0).
+> A fresh sourcemap attribution found three modules GoTrueClient imports
+> statically and this app never runs: the WebAuthn ceremony, web3 (ethereum)
+> sign-in, and the service-role admin API. They are replaced by stubs in
+> `packages/app/src/lib/supabase-stubs/auth-*.ts`, wired by the
+> `activity:auth-js-dead-modules` plugin in `vite.config.ts` (a plugin, not an
+> alias: the imports are relative). **156.48 → 151.82 KiB gz.** The cap stays
+> 158 and the stop line stays 156.5, so about 4.7 KiB is free for eager
+> additions. ⚠ The admin stub is NOT inert: ordinary `signOut()` goes through
+> `this.admin.signOut`, so that one method is kept verbatim. Guards: three
+> absence rows in `scripts/perf-budgets.mjs`, the unit rows in
+> `supabaseStubs.test.ts`, and `supabase-stub-pin.test.mjs` (all three
+> mutation-tested by disabling the plugin). Read the live number with
 > `node scripts/check-perf-budget.mjs`.
+>
+> **The attribution at this rung (gz, approximate, 2026-10-04):** react-dom 53,
+> auth-js 29 → 22, react-router 11, viewer blocks 8, app routes + lib 11,
+> viewer container 5, postgrest 5, graph-kit static-svg + figure marks 5.5.
+> Stale by construction after the next slice; re-derive before rung 3.
 
 **⚖ THE ~150 KiB gz TARGET IS MET.** Two rungs shipped: slice 1 (the Supabase
 sub-clients, 2026-08-18) and rung 1 (the zod audit, 2026-08-23). **Do not read a

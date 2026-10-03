@@ -160,3 +160,90 @@ describe('V2/V3 — the stubbed surfaces fail loud, naming the way back', () => 
         expect(message).toContain('activity-images');
     });
 });
+
+// =============================================================================
+// Rung 2 (2026-10-04) — auth-js's dead modules: WebAuthn, web3, the admin API.
+// Wired by the activity:auth-js-dead-modules plugin, not resolve.alias; the
+// reasoning is in vite.config.ts and the stubs' headers.
+// =============================================================================
+
+describe('the auth-js plugin is actually in force (anti-vacuity for the rows below)', () => {
+    it('GoTrueClient constructs against the admin and WebAuthn STUBS', () => {
+        const client = createClient(FAKE_URL, FAKE_KEY, {
+            auth: { persistSession: false, autoRefreshToken: false },
+        });
+        // The real GoTrueAdminApi carries listUsers/createUser/deleteUser; the
+        // stub carries signOut and a marker, nothing else. If vitest stopped
+        // running auth-js through Vite's pipeline, this is the row that says so.
+        const admin = client.auth.admin as unknown as Record<string, unknown>;
+        expect(admin.isStub).toBe(true);
+        expect('listUsers' in admin).toBe(false);
+        const webauthn = client.auth.mfa.webauthn as unknown as Record<string, unknown>;
+        expect(webauthn.isStub).toBe(true);
+    });
+});
+
+describe('sign-out still reaches the server through the admin stub', () => {
+    function clientWith(fetchImpl: typeof fetch) {
+        return createClient(FAKE_URL, FAKE_KEY, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { fetch: fetchImpl },
+        });
+    }
+
+    it('POSTs /logout with the scope and the session token', async () => {
+        // GoTrueClient.signOut calls this.admin.signOut(accessToken, scope) —
+        // the one admin method a browser session uses, and the reason the admin
+        // stub is not inert. Called directly so the row needs no stored session.
+        const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+        const fetchSpy = (async (input: RequestInfo | URL, init?: RequestInit) => {
+            calls.push({ url: String(input), init });
+            return new Response(null, { status: 204 });
+        }) as typeof fetch;
+        const client = clientWith(fetchSpy);
+
+        const { error } = await client.auth.admin.signOut('token-under-test', 'global');
+
+        expect(error).toBeNull();
+        expect(calls).toHaveLength(1);
+        expect(calls[0]?.url).toBe(`${FAKE_URL}/auth/v1/logout?scope=global`);
+        expect(calls[0]?.init?.method).toBe('POST');
+        const headers = new Headers(calls[0]?.init?.headers);
+        expect(headers.get('Authorization')).toBe('Bearer token-under-test');
+    });
+
+    it('a rejected token comes back as an AuthError VALUE, not a throw', async () => {
+        // GoTrueClient reads the returned error's class and status to decide
+        // whether a 401/403/404 still clears the local session. A stub that
+        // threw here, or returned a bare object, would strand a signed-in
+        // student on a shared Chromebook.
+        const fetch401 = (async () =>
+            new Response(JSON.stringify({ code: 401, msg: 'invalid JWT' }), {
+                status: 401,
+                headers: { 'content-type': 'application/json' },
+            })) as typeof fetch;
+        const client = clientWith(fetch401);
+
+        const { error } = await client.auth.admin.signOut('expired', 'global');
+
+        expect(error).not.toBeNull();
+        expect(error?.name).toBe('AuthApiError');
+        expect(error?.status).toBe(401);
+    });
+});
+
+describe('the stubbed-out auth paths fail by name, never silently', () => {
+    it('web3 sign-in names the stub', async () => {
+        const client = createClient(FAKE_URL, FAKE_KEY, {
+            auth: { persistSession: false, autoRefreshToken: false },
+        });
+        await expect(
+            client.auth.signInWithWeb3({
+                chain: 'ethereum',
+                wallet: {
+                    request: async () => ['0x0000000000000000000000000000000000000000'],
+                } as never,
+            }),
+        ).rejects.toThrow(/STUBBED OUT/);
+    });
+});
