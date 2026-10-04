@@ -738,6 +738,10 @@
   border-radius: var(--vw-radius-sm) var(--vw-radius-sm) 0 0;
   color: inherit;
   font: inherit;
+  /* Never wider than the column it sits in: an unsized blank is the browser's
+     default 20 characters, which overran a third-width column (author finding
+     2026-10-04). */
+  max-width: 100%;
   min-width: 4ch;
   padding: 0 var(--space-1);
   text-align: center;
