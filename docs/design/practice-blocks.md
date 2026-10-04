@@ -2358,6 +2358,25 @@ expander CHECKS a family's `shown` and `answer` strings against a fixed pair
 per operation rather than ignoring them, so a family that says one thing and
 would be expanded as another stops the run.
 
+### Slice 1's database half and build order — ruled 2026-10-05
+
+Re-derived against the shipped code first (P10): `is_class_teacher` (0027),
+`is_class_member` (0014), `join_class` (0033, promotes a pending account),
+`list_class_members` (0014), the `audit_action` enum and the latest
+`purge_soft_deleted` (0036) are all as this design assumes; nothing
+contradicted a ruling. Authority for every row: the author, one choice per
+question, 2026-10-05 (each the recommended option).
+
+| # | Ruling |
+|---|---|
+| S-1 | **0045 is ONE migration**: `class_probes`, `practice_sessions`, `fact_attempts`; the open, close, entry, save and results functions; the internal finalise, statistic and grouping (T9); audit actions `fact_probe.open` and `fact_probe.close`; and `purge_soft_deleted` re-created from 0036 with a counted delete of practice data (ER-16). `verify-0045.sql`, `data-map.md`, `retention-policy.md` and the roll-up/prune TODOS entry ride the same commit. |
+| S-2 | **Items are picked deterministically from the probe id**: within a family, facts ranked by a hash of probe id + fact id; the length shared by weight with largest-remainder rounding and the min(5, fact count) floor (their items 20, 22); a turnaround pair's order from one hash bit; then the whole list shuffled by a second hash so families are MIXED (in blocks, fatigue would fall on whichever family is last). No `random()`. The list is still stored on the row (ER-6). |
+| S-3 | **A probe opens against the most recently mirrored revision** (`fact_scope_revision.mirrored_at`); the year list is that revision's years within 7–10, each line its `description` or one composed from family names when null (Year 10 today). |
+| S-4 | **The teacher's live view and results are a lazy route, `/classes/:classId/facts`** (DR-17's full-width page); the class card's "Number facts" disclosure links to it. |
+| S-5 | **Student names follow the roster's rule**: display name, else email (as `list_class_members` and the roster show), behind "Show students" (DR-21, DR-22). |
+| S-6 | **The typing baseline is two typed nullable columns** on `practice_sessions`, `baseline_keyboard_ms` and `baseline_keypad_ms` (milliseconds per keystroke, range-checked), not JSON keyed by modality. Same meaning as CR-1. |
+| S-7 | **Ship order (OV-7, a push is a deploy)**: (1) the runner and `/facts/demo`, which make no server call, pushed first so the author can try the student experience; (2) the author applies 0045 live; (3) only then the student `/facts/:CODE` route and the teacher route are pushed. |
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
