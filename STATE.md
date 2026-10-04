@@ -262,7 +262,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-04 — the author's seven-item build run reached item 7: shell rung 2, `--chain-registry`, Y7 charts, graded stimuli, side-by-side figures and SW stale-shell recovery (with the tab-return reload fix) are built, pushed and CI-green at `0d26b43`. NEXT SESSION STARTS AT D43 practice blocks (the fact-scope registry mirror pass). Open with the author: the `caption` hygiene redeploys, his "tab switch still reloads" report, and the default width of an unsized blank in a narrow column (both in the TODOS test queue). Open items are a queue in [TODOS.md](TODOS.md), not prose here.
+**Last updated:** 2026-10-04 — the author's seven-item build run reached item 7: shell rung 2, `--chain-registry`, Y7 charts, graded stimuli, side-by-side figures and SW stale-shell recovery (with the tab-return reload fix) are built, pushed and CI-green at `e8acfb5`. NEXT SESSION STARTS AT D43 practice blocks (the fact-scope registry mirror pass). Open with the author: the `caption` hygiene redeploys, and the default width of an unsized blank in a narrow column (TODOS test queue). He confirmed on the live site that the tab-switch reload is gone and the update notice works. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
