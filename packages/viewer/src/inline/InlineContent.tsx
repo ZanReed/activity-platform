@@ -83,7 +83,7 @@ export interface InlineContentProps {
   nodes: readonly RenderableInlineNode[];
   /** Renders a blank token — supplied by fill_in_blank; static blocks omit it
    * and any stray blank renders as its bare underline placeholder. */
-  renderBlank?: (blank: { id: string; width?: number }) => ReactNode;
+  renderBlank?: (blank: { id: string; width?: number; answerType?: string }) => ReactNode;
 }
 
 export function InlineContent({ nodes, renderBlank }: InlineContentProps) {
@@ -113,7 +113,13 @@ function InlineNode({
     case 'math_inline':
       return <InlineMath latex={String(node.latex ?? '')} />;
     case 'blank': {
-      const blank = { id: String(node.id), ...(typeof node.width === 'number' ? { width: node.width } : {}) };
+      // answerType is served (not an answer-key field) and sizes an unsized
+      // numeric blank's input (blocks/blankSize.ts).
+      const blank = {
+        id: String(node.id),
+        ...(typeof node.width === 'number' ? { width: node.width } : {}),
+        ...(typeof node.answerType === 'string' ? { answerType: node.answerType } : {}),
+      };
       return (
         <>{renderBlank ? renderBlank(blank) : <span className="viewer-blank-placeholder" data-blank-id={blank.id} />}</>
       );

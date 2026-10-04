@@ -33,6 +33,7 @@ import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
+import { blankInputSize } from './blankSize.js';
 
 /** Plain text of a cell's inline content — the accessible name a header cell
  *  lends to the cells it heads. Math and blanks contribute nothing readable, so
@@ -168,7 +169,7 @@ export default function Table({
                               {...(keyAnswer !== undefined
                                 ? { 'data-answer-key': 'filled' }
                                 : {})}
-                              {...(blank.width ? { size: blank.width } : {})}
+                              size={blankInputSize(blank, mode)}
                               {...(result
                                 ? {
                                     'data-verdict': result.verdict,

@@ -8,7 +8,7 @@
 //
 //  - A blank's id is the response key (R1: id-keyed, never positional), so
 //    reordering prose never re-assigns a student's answers.
-//  - `hint` and `width` SURVIVE sanitization deliberately — they shape the
+//  - `hint`, `width` and `answerType` SURVIVE sanitization deliberately — they shape the
 //    input before any check. `answer` and `acceptableAnswers` do not, and the
 //    type will not let this file name them.
 //  - Verdicts are PER BLANK, not per block: one sentence can hold three blanks
@@ -28,6 +28,7 @@ import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
+import { blankInputSize } from './blankSize.js';
 
 export default function FillInBlank({
   block,
@@ -110,7 +111,7 @@ export default function FillInBlank({
                   readOnly={mode === 'print' || keyAnswer !== undefined}
                   aria-label={ariaLabel}
                   {...(keyAnswer !== undefined ? { 'data-answer-key': 'filled' } : {})}
-                  {...(blank.width ? { size: blank.width } : {})}
+                  size={blankInputSize(blank, mode)}
                   {...(result
                     ? { 'data-verdict': result.verdict, 'aria-invalid': result.verdict === 'incorrect' }
                     : {})}
