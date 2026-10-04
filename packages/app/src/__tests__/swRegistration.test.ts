@@ -33,7 +33,10 @@ describe('stale-chunk recovery', () => {
     /** One install per test, detached afterwards: listeners left on `window`
      * make an earlier test's guard swallow a later test's event. */
     function install(reload: () => void) {
-        installed = installStaleChunkRecovery({ reload });
+        // `inUse` is pinned: the default reads the page's AGE, and a test
+        // process that has been running for more than ten seconds would count
+        // as "in use" and never reload (this went red on CI, green locally).
+        installed = installStaleChunkRecovery({ reload, inUse: () => false });
     }
 
     beforeEach(() => {
