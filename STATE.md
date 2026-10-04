@@ -26,24 +26,15 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **GRADED STIMULI — BUILT AND LIVE 2026-10-04.** Both functions were redeployed (by Claude, on the author's explicit instruction for this one deploy) and verified by hash: the deployed `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `5285c68`; flags read live (`get-activity` false, `check-activity` true). The standing rule is unchanged: the author runs deploys unless he says otherwise.
 
-**SIDE-BY-SIDE FIGURES BUILT 2026-10-04 — two redeploys owed for hygiene.**
-`caption` is a new field on `graph_figure`, so both committed server bundles
-changed: `pnpm deploy:get-activity` then `pnpm deploy:check`, proved by hash.
-Not a gate (the read path passes undeclared fields through, and grading never
-reads a figure). `SANITIZER_REV` did not move. No migration.
+**SIDE-BY-SIDE FIGURES — LIVE 2026-10-04.** The two hygiene redeploys ran (Claude, on the author's "run them"); the CLI reported "No change found" for both, and the downloaded `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `68b0ba0`; flags read live (`get-activity` false, `check-activity` true). Nothing owed.
 
-**PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
-([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
-design-reviewed, then amended for D43 items 12–33; rulings ER-1–26, DR-1–24,
-CR-1–24; nothing open between the sides, last letters C-22 / B-25). The
-machine-readable fact-scope registry is on their `main` (`da63527`, graph
-v0.16.0, revision `ac8f9fd2…`) and was re-expanded independently (1124 facts,
-13 families, probes 40/55/65/65). Both Notion stamps are current. BUILD
-NOTHING yet: the mirror pass (T4) waits at build-order item 6. **Owed by 1 November 2026:** the year-level placement, and
-the counsel packet with the practice-data question (E5), which is NOT drafted
-yet (the packet stops at Q10). **1 December 2026** was the dated checkpoint for the curriculum artifacts; they have all landed.
+**PRACTICE BLOCKS (D43) — BUILDING. Two live steps owed, IN THIS ORDER:**
+1. **Apply migration 0044** (the fact-scope mirror; no student data): `supabase db push`, then `pnpm verify:auth --target live --only verify-0044` (8 rows).
+2. **Mirror the registry**, dry run first: `pnpm import:batch ~/activity-catalogue-pilot --owner <email> --fact-registry ~/Project\ folder/curriculum-repo/fact-scope-registry.json --dry-run` should print `revision ac8f9fd2…`, `1124 in 13 families`, probes `Y7 … 40 · Y8 … 55 · Y9 … 65 · Y10 … 65 items` and `NEW revision`; then the same without `--dry-run`; a re-run prints `unchanged`. Pull the curriculum repo's `main` first.
 
-**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, ~~Y7 charts~~, ~~graded stimuli~~, ~~side-by-side figures~~, ~~SW stale-shell recovery~~, D43 builds (next: the fact-scope registry mirror pass). His test findings go in a queue in TODOS.
+Built so far: the mirror pass (T4) — [practice-blocks.md](docs/design/practice-blocks.md) → "The mirror pass, as built" (decisions 1–9, author yes 2026-10-04). Next: 0045 (probe tables, RPCs, re-created purge, compliance docs) and the runner. Mixed practice stays GATED: no ratified §17 bank exists on their `main` (`aeeab52`). **Owed by 1 November 2026:** the year-level placement, and the counsel packet's practice-data question (E5), not drafted yet.
+
+**Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, ~~Y7 charts~~, ~~graded stimuli~~, ~~side-by-side figures~~, ~~SW stale-shell recovery~~, D43 builds (in progress, above). His test findings queue in TODOS.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
@@ -262,7 +253,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-04 — the author's seven-item build run reached item 7: shell rung 2, `--chain-registry`, Y7 charts, graded stimuli, side-by-side figures and SW stale-shell recovery (with the tab-return reload fix) are built, pushed and CI-green at `e8acfb5`. NEXT SESSION STARTS AT D43 practice blocks (the fact-scope registry mirror pass). Open with the author: the `caption` hygiene redeploys, and the default width of an unsized blank in a narrow column (TODOS test queue). He confirmed on the live site that the tab-switch reload is gone and the update notice works. Open items are a queue in [TODOS.md](TODOS.md), not prose here.
+**Last updated:** 2026-10-04 — build run item 7 (D43) started: the fact-scope mirror pass is built (0044 + `--fact-registry`), unapplied live; the caption redeploys ran and are hash-verified. NEXT: 0045 and the runner. Open with the author: the unsized-blank default width (TODOS test queue).
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 

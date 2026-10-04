@@ -73,6 +73,15 @@ export {
 } from './applyImportedMeta';
 export type { ImportMetaTarget, ImportMetaOutcome } from './applyImportedMeta';
 
+// The fact-scope registry's expander (D43, ER-13): the ONE place the fact
+// grammar runs. The importer mirrors its output into 0044's tables.
+export {
+    expandFactScope,
+    probeLengthFor,
+    FACT_GRAMMAR_REV,
+} from './factScope';
+export type { FactScopeMirror, FactScopeResult } from './factScope';
+
 export { slugify, slugWithSuffix } from './slug';
 
 export { normalizeTags } from './normalizeTags';

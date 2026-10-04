@@ -1840,7 +1840,7 @@ order allows it (after B14 and the Y7 geometry figures, subject to A3).
   - Surfaced by: ER-16, ER-17, ER-18
   - Files: `docs/compliance/data-map.md`, `docs/compliance/retention-policy.md`
   - Verify: `data-map-coverage.test.mjs`
-- [ ] **T4 (P1, human: ~1 day / CC: ~30 min)** — importer — the fact-scope mirror pass (registry LANDED 2026-10-03 at their `da63527`, revision `ac8f9fd2…`; waits only on its build-order slot)
+- [x] **T4 (P1, human: ~1 day / CC: ~30 min)** — importer — the fact-scope mirror pass (BUILT 2026-10-04: migration 0044 + `--fact-registry`; see "The mirror pass, as built")
   - Surfaced by: ER-13
   - Files: `scripts/batch-import.mjs`
   - Verify: a dry run prints the revision and the fact count; a second run of one revision changes nothing
@@ -2332,6 +2332,31 @@ unique (CR-24); the only placeholders are `{a}`, `{b}` and
 three: `x` alone, `x` and `y` ranges with `exclude`, and an explicit `pairs`
 list (the two fraction families). Year 10's `description` is null, so the
 picker composes its line (it adds nothing). This is the artifact T4 mirrors.
+
+### The mirror pass, as built (T4, 2026-10-04)
+
+Re-derived against the shipped code before building (P10); no ruling above
+was contradicted. Nine build-time decisions, each a yes from the author
+(2026-10-04, "yes to all 9"):
+
+| # | Decision |
+|---|---|
+| 1 | The mirror is its own migration, **0044**; the probe tables, RPCs and the re-created purge are **0045**. 0044 holds no student data and can be applied and mirrored live while the probe is built. |
+| 2 | The mirror is GLOBAL (like `misconception_registry`), not owner-keyed. A probe opens against the most recently mirrored revision. No client reads the tables: RLS forced with no policy; only 0045's definer RPCs will read them. |
+| 3 | Three tables, `fact_scope_revision`, `fact_scope_family` and `fact_scope_fact`, keyed by (`registry_rev`, `fact_grammar_rev`) and INSERT-ONLY by trigger. An identical re-mirror writes nothing; a divergent one is refused (the expander changed without a `FACT_GRAMMAR_REV` bump). The header's graph version is stored as "first mirrored from" and is not content: it moves on every graph bump while the revision does not. |
+| 4 | A turnaround pair stores BOTH orders' finished strings (`display_swapped`, `spoken_swapped`; null when the operands are equal), so the probe's seed picks an order without any template grammar in SQL. |
+| 5 | Fact ids are `<family id>:<a>,<b>` with the smaller operand first for a turnaround pair (`fact.mult.to-12:7,8`, `fact.int.add:-3,5`); one-operand families `<family id>:<a>` (`fact.root.square:144`); listed facts keep their authored ids. `FACT_GRAMMAR_REV` starts at 1. |
+| 6 | Spoken numbers are New Zealand English: "one hundred and forty-four divided by twelve", "negative three minus negative five", "three quarters as a decimal". |
+| 7 | `pnpm import:batch … --fact-registry <file>`, read up front. The expander and template fill are `packages/app/src/lib/factScope.ts`, loaded through the importer's node bundle; no student route imports it. |
+| 8 | The run stops with nothing written on: a revision that is not the sha256 of the canonical body; a family whose expansion differs from its `fact_count` (CR-23); an unknown operation, flag, generate shape, placeholder or FIELD anywhere in the file; `shown`/`answer` strings that disagree with the operation; a turnaround on a non-commutative operation; an answer outside CR-17; a denominator with no fraction name; a cumulative year list that is not the running total. The database re-checks each family's fact count and the row CHECKs, and its dry run runs the same inserts and rolls them back. |
+| 9 | Their registry at revision `ac8f9fd2…` (their `aeeab52`) is committed as `packages/app/src/__tests__/fixtures/fact-scope-registry.ac8f9fd2.json`; `factScope.test.ts` asserts the expansion against it, `batch-import.test.mjs` §FS the revision and the node bundle, and `verify-0044.sql` the database half. |
+
+Two choices made while building, inside the decisions above: the flags read
+the SHOWN operands and the answer (`exclude_plain_whole` drops a fact whose
+shown operands and answer are all ≥ 0; that reproduces 345), and the
+expander CHECKS a family's `shown` and `answer` strings against a fixed pair
+per operation rather than ignoring them, so a family that says one thing and
+would be expanded as another stops the run.
 
 ## GSTACK REVIEW REPORT
 

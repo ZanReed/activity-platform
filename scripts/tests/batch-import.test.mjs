@@ -45,6 +45,7 @@ import {
     bindingWarningsFor,
     canNeverFire,
     canonicalJson,
+    checkFactRegistryRevision,
     chainFolderOf,
     classifyUpdates,
     contentKey,
@@ -1646,6 +1647,7 @@ test('§I --strict and --registry parse, in either form', () => {
             skillsRegistry: null,
             chainRegistry: null,
             glossary: null,
+            factRegistry: null,
             allowMassRetire: false,
         },
     );
@@ -2545,4 +2547,57 @@ test('§L no --glossary: the live store resolves references, and an unresolved o
     assert.match(run.output, /refs {5}: 2 from the course glossary · 0 local · 1 unresolved/);
     assert.match(run.output, /reading-a-line\.md:\d+ \[\[y-intercept\]\] — not in the course glossary/);
     assert.equal(stub.calls.filter((c) => c.url.includes('sync_glossary')).length, 0, 'the store is untouched');
+});
+
+// =============================================================================
+// §FS — the fact-scope registry (D43, ER-13; decisions 7–9 of the mirror pass)
+// =============================================================================
+// The fixture is their generated registry at revision ac8f9fd2 (their main
+// aeeab52), committed byte for byte; packages/app's factScope.test.ts covers
+// the expansion in detail. These rows prove the node-side halves: the revision
+// re-derivation, the flag, and that the expander runs in the node bundle.
+
+const FACT_FIXTURE = JSON.parse(
+    readFileSync(
+        join(repoRoot, 'packages/app/src/__tests__/fixtures/fact-scope-registry.ac8f9fd2.json'),
+        'utf8',
+    ),
+);
+
+test('§FS the registry revision re-derives from the canonical body', () => {
+    const ok = checkFactRegistryRevision(FACT_FIXTURE);
+    assert.equal(ok.derived, 'ac8f9fd2fb3f0f6329e44f2438bc5072754cf855cdb47c5715215cf76bd41019');
+    assert.equal(ok.ok, true);
+
+    // One changed value in the body, header untouched: refused.
+    const tampered = JSON.parse(JSON.stringify(FACT_FIXTURE));
+    tampered.body.fact_probe.response_ceiling_s = 16;
+    const bad = checkFactRegistryRevision(tampered);
+    assert.equal(bad.ok, false);
+    assert.notEqual(bad.derived, bad.stated);
+
+    // The HEADER is outside the hash: a graph bump alone keeps the revision.
+    const bumped = JSON.parse(JSON.stringify(FACT_FIXTURE));
+    bumped.header.generated_from = 'curriculum-graph.json v9.9.9';
+    assert.equal(checkFactRegistryRevision(bumped).ok, true);
+
+    assert.equal(checkFactRegistryRevision({}).ok, false);
+});
+
+test('§FS --fact-registry is parsed in both spellings', () => {
+    assert.equal(parseArgs(['cat', '--owner=a', '--fact-registry', 'f.json']).factRegistry, 'f.json');
+    assert.equal(parseArgs(['cat', '--owner=a', '--fact-registry=g.json']).factRegistry, 'g.json');
+    assert.equal(parseArgs(['cat', '--owner=a']).factRegistry, null);
+    assert.match(usageText(), /--fact-registry/);
+});
+
+test('§FS the expander runs in the node bundle and reproduces the registry', () => {
+    const out = pipeline.expandFactScope(FACT_FIXTURE);
+    assert.equal(out.ok, true, out.ok ? '' : out.errors.join('\n'));
+    assert.equal(out.mirror.facts.length, 1124);
+    assert.equal(out.mirror.registry_rev, FACT_FIXTURE.header.revision);
+    assert.deepEqual(
+        ['7', '8', '9', '10'].map((y) => pipeline.probeLengthFor(out.mirror, y)),
+        [40, 55, 65, 65],
+    );
 });

@@ -176,6 +176,23 @@ export function fingerprintDocument(document) {
 }
 
 /**
+ * The fact-scope registry's revision rule, re-derived (D43; their header's
+ * `revision_rule`): sha256 of the canonical JSON body — sorted keys, no
+ * whitespace, UTF-8 — header excluded. canonicalJson IS that serialisation
+ * (JSON.stringify leaves non-ASCII unescaped, as Python's ensure_ascii=False
+ * does). A file whose stated revision differs is refused before anything is
+ * read from it: the revision is what every probe records, so a wrong one
+ * would mislabel every result that ever cites it.
+ */
+export function checkFactRegistryRevision(registry) {
+    const stated = registry?.header?.revision ?? null;
+    const derived = registry?.body
+        ? createHash('sha256').update(canonicalJson(registry.body), 'utf8').digest('hex')
+        : null;
+    return { ok: stated !== null && stated === derived, stated, derived };
+}
+
+/**
  * Every field a full update writes. ONE builder for both the write and the
  * "unchanged" comparison below, so a field added to the payload later joins
  * the comparison automatically — the curriculum side's condition on (b)
@@ -1815,6 +1832,8 @@ export async function loadPipeline() {
     return {
         importer: await mod.getMarkdownImporter(),
         glossaryLoader: await mod.getGlossaryLoader(),
+        expandFactScope: mod.expandFactScope,
+        probeLengthFor: mod.probeLengthFor,
         buildGlossaryIndex: mod.buildGlossaryIndex,
         crossLinkTargets: mod.crossLinkTargets,
         GLOSSARY_MAX_ENTRIES: mod.GLOSSARY_MAX_ENTRIES,
@@ -2141,6 +2160,19 @@ export function makeDb(url, key) {
             });
         },
 
+        /**
+         * The fact-scope mirror (0044, D43 ER-13): ONE atomic service RPC.
+         * apply=false runs the same inserts and rolls them back, so the dry
+         * run reports exactly what the write would do. An identical re-mirror
+         * is a no-op; a divergent one raises.
+         */
+        syncFactScope(mirror, apply) {
+            return call('/rpc/sync_fact_scope', {
+                method: 'POST',
+                body: JSON.stringify({ p_mirror: mirror, p_apply: apply }),
+            });
+        },
+
         syncMisconceptionRegistry(ids, descriptions = new Map()) {
             // return=representation is LOAD-BEARING, not verbosity: a bare
             // upsert answers 201 with an EMPTY body, and call() JSON-parses
@@ -2175,6 +2207,7 @@ export function parseArgs(argv) {
     let skillsRegistry = null;
     let chainRegistry = null;
     let glossary = null;
+    let factRegistry = null;
     let allowMassRetire = false;
 
     for (let i = 0; i < argv.length; i++) {
@@ -2202,6 +2235,9 @@ export function parseArgs(argv) {
             chainRegistry = arg.slice('--chain-registry='.length);
         else if (arg === '--glossary') glossary = argv[++i] ?? null;
         else if (arg.startsWith('--glossary=')) glossary = arg.slice('--glossary='.length);
+        else if (arg === '--fact-registry') factRegistry = argv[++i] ?? null;
+        else if (arg.startsWith('--fact-registry='))
+            factRegistry = arg.slice('--fact-registry='.length);
         else if (arg === '--allow-mass-retire') allowMassRetire = true;
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
         else positional.push(arg);
@@ -2217,6 +2253,7 @@ export function parseArgs(argv) {
         skillsRegistry,
         chainRegistry,
         glossary,
+        factRegistry,
         allowMassRetire,
     };
 }
@@ -2228,6 +2265,7 @@ export function usageText() {
   pnpm import:batch <folder> --owner <email|uuid> [--dry-run] [--force]
                              [--registry <file>] [--skills-registry <file>]
                              [--chain-registry <file>] [--glossary <file>]
+                             [--fact-registry <file>]
                              [--allow-mass-retire] [--strict]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
@@ -2258,6 +2296,14 @@ export function usageText() {
                the file are RETIRED (never deleted). Without it, references
                resolve against the store as it stands and the store is not
                touched. --dry-run --glossary resolves and reports, writes nothing
+  --fact-registry
+               the curriculum side's fact-scope-registry.json (D43). Its
+               revision is re-derived and must match; every family is expanded
+               and must reproduce its fact_count; anything not agreed (an
+               operation, flag, generate shape, placeholder or field) stops the
+               run before any write. The run MIRRORS the expansion into the fact
+               scope tables, insert-only: an identical revision writes nothing.
+               --dry-run --fact-registry expands and reports, writes nothing
   --allow-mass-retire
                let a live --glossary run retire more than 25 entries, or more
                than 20% of the active ones (and more than 5). Without it such a
@@ -2265,8 +2311,8 @@ export function usageText() {
   --strict     make every binding, catalogue and glossary warning — a suspect
                id, an id outside the registry, a mistake that can never fire, a
                missing registry, an unresolved [[term]], a glossary file
-               problem — and a FAILED mirror (the misconception registry's or
-               the glossary's) exit 1. Without it they are printed and the exit
+               problem — and a FAILED mirror (the misconception registry's, the
+               glossary's or the fact scope's) exit 1. Without it they are printed and the exit
                code is unchanged
 
   Every run rewrites ${MANIFEST_PATH} — every binding, per file and
@@ -2373,6 +2419,33 @@ async function main() {
         const path = resolve(args.glossary);
         glossaryText = await readFile(path, 'utf8').catch(() => null);
         if (glossaryText === null) usage(`--glossary ${path} could not be read.`);
+    }
+
+    // The fact-scope registry (D43), read and REVISION-CHECKED up front: a
+    // file whose stated revision is not the hash of its body is refused before
+    // the run starts, like a typo'd registry path. Its expansion needs the
+    // pipeline and runs once that is loaded.
+    let factRegistry = null;
+    if (args.factRegistry) {
+        const path = resolve(args.factRegistry);
+        const text = await readFile(path, 'utf8').catch(() => null);
+        if (text === null) usage(`--fact-registry ${path} could not be read.`);
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (err) {
+            usage(`--fact-registry ${path} is not JSON (${err.message}).`);
+        }
+        const revision = checkFactRegistryRevision(parsed);
+        if (!revision.ok) {
+            usage(
+                `--fact-registry ${path}: the stated revision does not match its body.\n\n` +
+                    `  stated : ${revision.stated}\n  derived: ${revision.derived}\n\n` +
+                    '  The revision is the sha256 of the canonical body. A file that disagrees\n' +
+                    '  was edited by hand or truncated; read it from the curriculum repo\'s main.',
+            );
+        }
+        factRegistry = { path: args.factRegistry, json: parsed };
     }
 
     // The chain registry: --chain-registry <file>, else chain-registry.txt in
@@ -2493,6 +2566,28 @@ async function main() {
             return;
         }
         throw err;
+    }
+
+    // ---- the fact scope (D43, ER-13) ------------------------------------------
+    // Expanded HERE, before anything else is planned: every problem stops the
+    // run with nothing written (decision 8), and naming them all at once beats
+    // a fix-one-rerun loop.
+    let factScope = null;
+    if (factRegistry) {
+        const expanded = pipeline.expandFactScope(factRegistry.json);
+        if (!expanded.ok) {
+            console.error(
+                `\nREFUSED — ${factRegistry.path} cannot be mirrored. Nothing was written.\n`,
+            );
+            for (const e of expanded.errors) console.error(`  ${e}`);
+            console.error(
+                '\n  Anything the platform has not agreed to read (a new operation, flag,\n' +
+                    '  generate shape, placeholder or field) is an ask-back to the platform\n' +
+                    '  first (B-24, B-25), not a fix in this file.\n',
+            );
+            process.exit(1);
+        }
+        factScope = expanded.mirror;
     }
 
     // ---- the glossary source -------------------------------------------------
@@ -2861,6 +2956,26 @@ async function main() {
     // the SAME call the live write makes, so the dry run cannot disagree with
     // it (W-14). Reading it here, before any write, is also what lets the
     // mass-retire guard refuse a run that has written nothing (W-5).
+    // The fact-scope plan, from the database's own dry run (the same inserts,
+    // rolled back). A DIVERGENT re-mirror of one revision is not a warning: it
+    // means the expander's output moved without a FACT_GRAMMAR_REV bump, and
+    // the run stops before any write.
+    let factScopePlan = null;
+    let factScopeMirrorFailed = null;
+    if (factScope) {
+        try {
+            factScopePlan = await db.syncFactScope(factScope, false);
+        } catch (err) {
+            if (!isMissingRelation(err.message)) {
+                console.error(`\nREFUSED — the fact-scope mirror: ${err.message}\nNothing was written.\n`);
+                process.exit(1);
+            }
+            factScopeMirrorFailed =
+                'the fact-scope tables are missing (migration 0044 not applied) — the ' +
+                'registry was expanded and checked, but not mirrored. Apply 0044 and re-run.';
+        }
+    }
+
     let glossaryPlan = null;
     let glossaryMirrorFailed = null;
     if (glossaryFile) {
@@ -3114,6 +3229,52 @@ async function main() {
         }
     }
 
+    // ---- the fact-scope report (D43) ----------------------------------------
+    if (factScope) {
+        console.log('\nfact scope:');
+        console.log(
+            `  file     : ${factRegistry.path} · revision ${factScope.registry_rev.slice(0, 8)}… · ` +
+                `graph v${factScope.graph_version} · fact grammar ${factScope.fact_grammar_rev}`,
+        );
+        for (const fam of factScope.families) {
+            console.log(
+                `    ${fam.family_id.padEnd(22)} ${String(fam.fact_count).padStart(4)} facts · ` +
+                    `${fam.criterion_s} s${fam.turnaround ? ' · turnaround' : ''}`,
+            );
+        }
+        console.log(
+            `  facts    : ${factScope.facts.length} in ${factScope.families.length} families`,
+        );
+        console.log(
+            '  probes   : ' +
+                Object.keys(factScope.year_scope)
+                    .sort((a, b) => Number(a) - Number(b))
+                    .map(
+                        (y) =>
+                            `Y${y} ${factScope.year_scope[y].cumulative.length} families → ` +
+                            `${pipeline.probeLengthFor(factScope, y)} items`,
+                    )
+                    .join(' · '),
+        );
+        if (factScopePlan) {
+            const latest = factScopePlan.latest_before;
+            console.log(
+                `  store    : ${
+                    factScopePlan.status === 'unchanged'
+                        ? 'unchanged — this revision is already mirrored; nothing to write'
+                        : `NEW revision — ${args.dryRun ? 'would be' : 'to be'} mirrored`
+                }${
+                    latest && factScopePlan.status !== 'unchanged'
+                        ? ` (latest mirrored: ${String(latest.registry_rev).slice(0, 8)}… ` +
+                          `grammar ${latest.fact_grammar_rev})`
+                        : ''
+                }`,
+            );
+        } else if (factScopeMirrorFailed) {
+            console.log(`  store    : ⚠ ${factScopeMirrorFailed}`);
+        }
+    }
+
     // ---- the x_ receipt -----------------------------------------------------
     // The reserved namespace is unvalidated BY DESIGN — it carries the
     // curriculum builder's own item-level data, which this platform stores
@@ -3207,7 +3368,8 @@ async function main() {
                     (bindingProblems > 0 ||
                         catalogueWarnings.length > 0 ||
                         glossaryWarnings.length > 0 ||
-                        glossaryMirrorFailed !== null))
+                        glossaryMirrorFailed !== null ||
+                        factScopeMirrorFailed !== null))
                 ? 1
                 : 0,
         );
@@ -3294,6 +3456,25 @@ async function main() {
                 '  The store was not changed; every [[term]] still resolved against the file.\n' +
                 '  The import itself continues.',
         );
+    }
+
+    // The fact-scope mirror (0044): one atomic RPC, before any activity write.
+    // An unchanged revision writes nothing and says so.
+    if (factScopePlan && factScopePlan.status === 'new') {
+        try {
+            const mirrored = await db.syncFactScope(factScope, true);
+            // From the database's echo, never from the plan.
+            console.log(
+                `fact scope: ${mirrored.status} — revision ${factScope.registry_rev.slice(0, 8)}… · ` +
+                    `${mirrored.families} families · ${mirrored.facts} facts`,
+            );
+        } catch (err) {
+            factScopeMirrorFailed = err.message;
+            console.warn(
+                `⚠ fact-scope mirror FAILED (${err.message}).\n` +
+                    '  Nothing was written to the fact scope. The import itself continues.',
+            );
+        }
     }
 
     // Updates first: they are the re-run case, they cannot collide on a slug,
@@ -3414,6 +3595,7 @@ async function main() {
                     catalogueWarnings.length > 0 ||
                     glossaryWarnings.length > 0 ||
                     glossaryMirrorFailed !== null ||
+                    factScopeMirrorFailed !== null ||
                     registryMirrorFailed))
             ? 1
             : 0,

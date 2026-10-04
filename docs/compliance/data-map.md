@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-09-27-draft-10`. Mirrors migrations 0001–**0043**, verified
+> Version `2026-10-04-draft-11`. Mirrors migrations 0001–**0044**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,18 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-11` (2026-10-04) — 0044 adds NO personal data of any kind.**
+> The fact-scope mirror (docs/design/practice-blocks.md, D43 ER-13) adds
+> `fact_scope_revision`, `fact_scope_family` and `fact_scope_fact`: the
+> curriculum side's number-fact registry (fact families, their criteria and
+> the expanded facts with display and spoken strings), mirrored by the batch
+> importer. It is curriculum CONTENT, global rather than owner-keyed, and has
+> no person reference at all — no owner, author or student column. No client
+> role can read it; only the slice-1 probe functions (0045) will. **The
+> probe's own tables (0045) DO hold student-derived data (response times,
+> typed answers) and move this map and the retention policy in their own
+> commit.** The range moves to 0044 on that basis.
 >
 > **`draft-10` (2026-09-27) — 0043 adds NO student data.** The glossary
 > slice (docs/design/glossary.md) adds `glossary_entry`: a course's defined
