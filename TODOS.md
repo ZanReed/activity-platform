@@ -15,6 +15,12 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - ✅ **"Split into columns" did nothing from a "+" strip.** Cause: the selection there is a seam, which sits on no block, so the command found no target and returned false. FIXED: the target is the block just below the seam (the one above it at the end of a column).
 - Student view: reported fine after the deploys.
 
+**Findings, 2026-10-04 (graded-stimuli hand-off):**
+
+- ✅ **"The import failed"** (graph 1 came in as plain text; graph 2 had no shown shapes). NOT an importer fault: the tab was running the previous build. The live site served the new code and the current importer reads the activity cleanly. Cause and fix: the stale-shell entry ("Service worker: recover from a stale shell").
+- ✅ **"Whenever I tab out I lose all work."** Cause: supabase-js re-announces the stored session each time the tab becomes visible (a new object, same user, same token); the student viewer keyed its content load, read client and STORE on that object, so every return to the tab re-fetched the activity and rebuilt the worksheet. An hourly token refresh did the same. FIXED: `SessionContext` keeps the same object unless the user or token changed (`sameSession`), and `StudentViewer` keys on the user id and reads the token through a ref. Guard: `e2e/student/tab-return.e2e.ts` (red before: 6 extra loads over 3 returns).
+- ⏳ **A general student-side issue — the author's message was cut off** ("when I…"). Ask him to finish it.
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
@@ -2703,7 +2709,15 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Effort:** decisions M / S · **Priority:** P3 · **Depends on:** first named external teacher / `platform_api` arc opening.
 
-## Service worker: recover from a stale shell after a deploy (found live 2026-09-26)
+## ✅ BUILT 2026-10-04 — Service worker: recover from a stale shell after a deploy (found live 2026-09-26)
+
+**As built** (author rulings 2026-10-04). The chunk-404 reload and the stale-document reload already existed; the gap was a tab held open across a deploy that fails at NOTHING (the worker checked for a new version only at page load and answered old chunks from its cache). Hit live: an editor tab ran the previous importer and turned a valid ```graph fence into plain text.
+- **Update checks while open:** every 15 minutes and each time the tab becomes visible (`scheduleUpdateChecks`).
+- **No reload under someone working (author ruling):** once a key or pointer press has happened, a new build only raises the `UpdateNotice` bar ("This page has been updated… Refresh now / Later"). The page reloads itself only if nobody has touched it yet.
+- **Guards:** `e2e/sw/update-under-open-tab.e2e.ts` serves a copy of dist, changes its `sw.js` on disk and returns to the tab (three rows; red with the checks removed, red with always-reload); unit rows in `swRegistration.test.ts`.
+- **Still automatic, deliberately left:** the chunk-404 reload (`installStaleChunkRecovery`). It fires when a lazy chunk no longer exists on the server; without the reload that control is dead. OPEN QUESTION for the author: should that one also become a notice once the user has started working?
+
+*The entry as filed:*
 
 **What:** After a Cloudflare deploy, a browser holding the old SW shell can request purged hashed chunks — every route click fails ("can't open anything") until a hard refresh. Add chunk-load-failure recovery: catch vite's `preloadError` / failed lazy imports, force an SW update + one guarded automatic reload (sessionStorage one-shot against loops), and a red→green row in the sw e2e lane.
 

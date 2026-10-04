@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router';
 import { SessionProvider } from './lib/SessionContext';
 import RequireAuth from './components/RequireAuth';
 import ThemeToggle from './components/ThemeToggle';
+import UpdateNotice from './components/UpdateNotice';
 import Home from './routes/Home';
 import StudentViewer from './routes/StudentViewer';
 import JoinClass from './routes/JoinClass';
@@ -176,6 +177,7 @@ export default function App() {
         </Routes>
         </Suspense>
         <ThemeToggle />
+        <UpdateNotice />
         </SessionProvider>
     );
 }

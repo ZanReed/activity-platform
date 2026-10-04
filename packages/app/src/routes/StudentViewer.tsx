@@ -28,8 +28,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useState,
-} from 'react';
+  useState, useRef } from 'react';
 import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
 import { useParams } from 'react-router';
 import {
@@ -122,6 +121,9 @@ type LoadState =
 export default function StudentViewer() {
   const { activityId = '' } = useParams();
   const { session, loading: sessionLoading } = useSession();
+  // WHO is signed in, as a string: the only thing about the session the
+  // effects below should react to.
+  const sessionUserId = session?.user.id ?? null;
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
   const [meta, setMeta] = useState<ActivityMeta | null>(null);
   const [slow, setSlow] = useState(false);
@@ -138,7 +140,7 @@ export default function StudentViewer() {
   // out for real (signOutEverything — the S6-6 contract) and flags the
   // signed-out Home so it can say what happened.
   useEffect(() => {
-    if (!session) return;
+    if (!sessionUserId) return;
     const watcher = watchIdleSignOut({
       onPrompt: () => setIdlePrompt(true),
       onDismiss: () => setIdlePrompt(false),
@@ -151,7 +153,7 @@ export default function StudentViewer() {
       setIdlePrompt(false);
       watcher.stop();
     };
-  }, [session]);
+  }, [sessionUserId]);
   // Storage failure (D4): the buffer's status port, finally wired — quota or
   // an unavailable store means work is NOT being saved, and silence here was
   // the one S6 failure mode with no visible symptom.
@@ -163,9 +165,16 @@ export default function StudentViewer() {
   // which is how a pinned student got opposite advice.
   const [newerVersionId, setNewerVersionId] = useState<string | null>(null);
 
+  // The token is read through a REF, so this callback — and the read client
+  // and store built on it — keep their identity when the token is refreshed.
+  // Keyed on `session`, an hourly TOKEN_REFRESHED rebuilt the read client,
+  // re-ran the content load and replaced the store under a working student:
+  // the same reload the tab-return bug caused, on a timer (2026-10-04).
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const getAccessToken = useCallback(
-    () => session?.access_token ?? null,
-    [session],
+    () => sessionRef.current?.access_token ?? null,
+    [],
   );
 
   const readClient = useMemo(
@@ -181,7 +190,7 @@ export default function StudentViewer() {
   // name the activity. Harmless to fetch when signed in too (it is the same
   // two fields), but we only need it before sign-in.
   useEffect(() => {
-    if (!activityId || session) return;
+    if (!activityId || sessionUserId) return;
     let cancelled = false;
     void readClient
       .fetchMeta(activityId)
@@ -195,11 +204,11 @@ export default function StudentViewer() {
     return () => {
       cancelled = true;
     };
-  }, [activityId, session, readClient]);
+  }, [activityId, sessionUserId, readClient]);
 
   // Content load, once signed in.
   useEffect(() => {
-    if (sessionLoading || !session || !activityId) return;
+    if (sessionLoading || !sessionUserId || !activityId) return;
     let cancelled = false;
     setState({ phase: 'loading' });
     setSlow(false);
@@ -207,7 +216,7 @@ export default function StudentViewer() {
       if (!cancelled) setSlow(true);
     }, SLOW_LOAD_MS);
 
-    const userId = session.user.id;
+    const userId = sessionUserId;
 
     void readClient
       .load(activityId)
@@ -292,7 +301,7 @@ export default function StudentViewer() {
         if (kind === 'offline') {
           const storage = safeStorage();
           const cached = storage
-            ? loadAnyCachedDocument(storage, session.user.id, activityId)
+            ? loadAnyCachedDocument(storage, userId, activityId)
             : null;
           if (cached) {
             // Worth trying even here: the service worker runtime-caches hashed
@@ -329,7 +338,7 @@ export default function StudentViewer() {
       cancelled = true;
       clearTimeout(slowTimer);
     };
-  }, [activityId, session, sessionLoading, readClient, attempt]);
+  }, [activityId, sessionUserId, sessionLoading, readClient, attempt]);
 
   // One store per served VERSION: a republish mid-session means different
   // content, and carrying a store across that would attach answers to blocks

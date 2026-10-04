@@ -189,13 +189,132 @@ export function warmAssetCache(cacheName: string): void {
   else window.addEventListener('load', warm);
 }
 
+// -----------------------------------------------------------------------------
+// 4. A NEW BUILD ARRIVING UNDER AN OPEN TAB (stale-shell recovery, 2026-10-04)
+// -----------------------------------------------------------------------------
+// Jobs 2 and 3 above recover when something FAILS. The gap they left: a tab
+// held open across a deploy fails at nothing. The worker only looked for a new
+// version when the page loaded, and it answers the old hashed chunks from its
+// own cache — so the old build kept running, self-consistent and silent. Found
+// live: an editor tab opened before a deploy ran the previous importer and
+// turned a valid fence into plain text.
+//
+// Two halves:
+//   * LOOK for a new version while the tab is open: every 15 minutes, and each
+//     time the tab becomes visible again.
+//   * When one arrives, NEVER reload under someone who has started working
+//     (author ruling, 2026-10-04: an automatic reload "loses all work no
+//     matter what" from where the user sits). Show a notice with a Refresh
+//     button and let them choose the moment. The one automatic reload left is
+//     when the update lands before the user has touched the page at all — the
+//     first seconds of a visit right after a deploy, where there is no work to
+//     lose and the alternative is greeting every visitor with a notice.
+// -----------------------------------------------------------------------------
+
+/** How often an open tab asks whether a newer build exists. */
+export const UPDATE_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+
+const UPDATE_READY_EVENT = 'activity:update-ready';
+let updateReady = false;
+
+/** True once a newer build has taken over and this page is still the old one. */
+export function isUpdateReady(): boolean {
+  return updateReady;
+}
+
+/** Subscribe to "a newer build is ready" (the notice bar's source). */
+export function onUpdateReady(listener: () => void): () => void {
+  window.addEventListener(UPDATE_READY_EVENT, listener);
+  return () => window.removeEventListener(UPDATE_READY_EVENT, listener);
+}
+
+/** Test seam: forget a previous announcement. */
+export function resetUpdateReadyForTests(): void {
+  updateReady = false;
+}
+
+export interface UpdateArrivalOptions {
+  /** Has the user pressed a key or pointer on this page yet? */
+  interacted: () => boolean;
+  reload?: () => void;
+}
+
+/**
+ * A newer build has taken control of this (old) page. Reload only when the
+ * user has not started doing anything; otherwise announce it and wait for
+ * them. Returns what it did, for the tests.
+ */
+export function handleUpdateArrival(options: UpdateArrivalOptions): 'reloaded' | 'announced' {
+  if (!options.interacted()) {
+    (options.reload ?? (() => window.location.reload()))();
+    return 'reloaded';
+  }
+  updateReady = true;
+  window.dispatchEvent(new Event(UPDATE_READY_EVENT));
+  return 'announced';
+}
+
+/** Watch for the first sign that a person is using this page. */
+export function trackInteraction(): { interacted: () => boolean; stop: () => void } {
+  let seen = false;
+  const mark = () => {
+    seen = true;
+  };
+  const EVENTS = ['pointerdown', 'keydown'] as const;
+  for (const e of EVENTS) window.addEventListener(e, mark, { capture: true, passive: true });
+  return {
+    interacted: () => seen,
+    stop: () => {
+      for (const e of EVENTS) window.removeEventListener(e, mark, { capture: true });
+    },
+  };
+}
+
+/**
+ * Ask for a newer worker on a timer and whenever the tab becomes visible.
+ * `update()` is cheap (one conditional request for sw.js) and its failure —
+ * offline, a blocked request — is not worth surfacing: the next tick retries.
+ */
+export function scheduleUpdateChecks(
+  registration: Pick<ServiceWorkerRegistration, 'update'>,
+  intervalMs: number = UPDATE_CHECK_INTERVAL_MS,
+): { stop: () => void } {
+  const check = () => {
+    void Promise.resolve()
+      .then(() => registration.update())
+      .catch(() => {});
+  };
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') check();
+  };
+  const timer = window.setInterval(check, intervalMs);
+  document.addEventListener('visibilitychange', onVisible);
+  return {
+    stop: () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    },
+  };
+}
+
 export async function registerServiceWorker(): Promise<void> {
   // Dev serves modules unbundled and the generated worker does not exist, so
   // registering there would be registering something else entirely.
   if (!import.meta.env.PROD) return;
   try {
     const { registerSW } = await import('virtual:pwa-register');
-    registerSW({ immediate: true });
+    const { interacted } = trackInteraction();
+    registerSW({
+      immediate: true,
+      // Without this hook the plugin reloads the page the instant a new
+      // worker activates — under whatever the user was doing.
+      onNeedReload: () => {
+        handleUpdateArrival({ interacted });
+      },
+      onRegisteredSW: (_url, registration) => {
+        if (registration) scheduleUpdateChecks(registration);
+      },
+    });
   } catch {
     // No worker support, or a blocked registration. Everything on this page
     // works online without it; offline reopen is the only thing lost.

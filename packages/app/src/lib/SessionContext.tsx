@@ -43,6 +43,13 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
+/** Same user holding the same access token: nothing a consumer could act on. */
+export function sameSession(a: Session | null, b: Session | null): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return a.user.id === b.user.id && a.access_token === b.access_token;
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
@@ -122,7 +129,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, newSession) => {
-            setSession(newSession);
+            // KEEP THE SAME OBJECT when nothing about the session changed.
+            // auth-js re-announces the stored session every time the tab
+            // becomes visible again (a SIGNED_IN carrying a freshly parsed
+            // object: same user, same token). Handing React a new identity
+            // each time made every consumer keyed on `session` behave as if
+            // the user had just signed in — the student viewer reloaded its
+            // activity and rebuilt its store on every return to the tab
+            // (author finding 2026-10-04: "whenever I tab out I lose all
+            // work"). Identity now changes only when the user or the token
+            // does. Guarded by e2e/student/tab-return.e2e.ts.
+            setSession((prev) => (sameSession(prev, newSession) ? prev : newSession));
             syncRole(newSession);
         });
 
