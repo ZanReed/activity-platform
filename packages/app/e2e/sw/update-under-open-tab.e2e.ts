@@ -144,7 +144,26 @@ test('"Later" hides the notice without reloading', async ({ page }) => {
   }
 });
 
-test('a new build under a page nobody has touched reloads it, with no notice', async ({ page }) => {
+test('a page someone is only READING is not reloaded either: after ten seconds it gets the notice', async ({ page }) => {
+  // Author finding 2026-10-04: switching tabs on a student activity and coming
+  // back reloaded it. No key, no click — just an open page past its first
+  // seconds — must be treated as in use.
+  const site = await serveCopyOfDist();
+  try {
+    await openControlled(page, site);
+    await page.waitForTimeout(10_500);
+
+    await site.deploy();
+    await returnToTab(page);
+
+    await expect(page.locator('[data-update-notice]')).toBeVisible({ timeout: 20_000 });
+    expect(await sameLoad(page), 'the page must not have been reloaded').toBe(true);
+  } finally {
+    await site.close();
+  }
+});
+
+test('a new build in the FIRST SECONDS of an untouched page reloads it, with no notice', async ({ page }) => {
   const site = await serveCopyOfDist();
   try {
     await openControlled(page, site);

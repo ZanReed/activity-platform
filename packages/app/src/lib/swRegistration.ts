@@ -206,9 +206,10 @@ export function warmAssetCache(cacheName: string): void {
 //     (author ruling, 2026-10-04: an automatic reload "loses all work no
 //     matter what" from where the user sits). Show a notice with a Refresh
 //     button and let them choose the moment. The one automatic reload left is
-//     when the update lands before the user has touched the page at all — the
-//     first seconds of a visit right after a deploy, where there is no work to
-//     lose and the alternative is greeting every visitor with a notice.
+//     when the update lands in the first seconds of a visit AND nobody has
+//     touched the page (FRESH_LOAD_MS) — a visit that began on the old shell
+//     right after a deploy, where there is no work to lose and the
+//     alternative is greeting every visitor with a notice.
 // -----------------------------------------------------------------------------
 
 /** How often an open tab asks whether a newer build exists. */
@@ -252,6 +253,23 @@ export function handleUpdateArrival(options: UpdateArrivalOptions): 'reloaded' |
   updateReady = true;
   window.dispatchEvent(new Event(UPDATE_READY_EVENT));
   return 'announced';
+}
+
+/**
+ * How long after a page load an update may still reload it unasked.
+ *
+ * The automatic reload exists for ONE moment: a visit that starts on the old
+ * shell right after a deploy, where the update lands within a second or two
+ * and reloading is invisible. Past that window the page is treated as in use
+ * whether or not a key was pressed — someone READING a worksheet, who switches
+ * tabs and comes back, must not find it reloaded (author finding 2026-10-04:
+ * "when I switch tabs on a student activity the browser still reloads").
+ */
+export const FRESH_LOAD_MS = 10_000;
+
+/** In use = touched, or simply open longer than the fresh-load window. */
+export function pageIsInUse(interacted: boolean, sinceLoadMs: number = performance.now()): boolean {
+  return interacted || sinceLoadMs > FRESH_LOAD_MS;
 }
 
 /** Watch for the first sign that a person is using this page. */
@@ -309,7 +327,7 @@ export async function registerServiceWorker(): Promise<void> {
       // Without this hook the plugin reloads the page the instant a new
       // worker activates — under whatever the user was doing.
       onNeedReload: () => {
-        handleUpdateArrival({ interacted });
+        handleUpdateArrival({ interacted: () => pageIsInUse(interacted()) });
       },
       onRegisteredSW: (_url, registration) => {
         if (registration) scheduleUpdateChecks(registration);

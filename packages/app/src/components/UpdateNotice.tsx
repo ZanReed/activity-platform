@@ -4,8 +4,8 @@ import { isUpdateReady, onUpdateReady } from '../lib/swRegistration';
 // =============================================================================
 // UpdateNotice — "this page has been updated; refresh when you are ready"
 // -----------------------------------------------------------------------------
-// Shown when a newer build has arrived under an open tab and the user has
-// already started working (lib/swRegistration.ts, job 4). The page is NEVER
+// Shown when a newer build has arrived under an open tab that is in use
+// (touched, or simply open past its first seconds) (lib/swRegistration.ts, job 4). The page is NEVER
 // reloaded for them (author ruling, 2026-10-04): they are told, advised to keep
 // a copy of anything unsaved, and given the button.
 //

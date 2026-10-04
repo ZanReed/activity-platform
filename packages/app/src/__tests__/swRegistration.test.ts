@@ -205,6 +205,8 @@ import {
     scheduleUpdateChecks,
     trackInteraction,
     UPDATE_CHECK_INTERVAL_MS,
+    FRESH_LOAD_MS,
+    pageIsInUse,
 } from '../lib/swRegistration';
 
 describe('a newer build arrives', () => {
@@ -280,5 +282,19 @@ describe('looking for a newer build while the tab is open', () => {
         document.dispatchEvent(new Event('visibilitychange'));
         await vi.advanceTimersByTimeAsync(0);
         expect(update).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('when a page counts as in use', () => {
+    it('touched pages are in use at any age', () => {
+        expect(pageIsInUse(true, 0)).toBe(true);
+    });
+    it('an untouched page is fresh for the first ten seconds only', () => {
+        expect(FRESH_LOAD_MS).toBe(10_000);
+        expect(pageIsInUse(false, 2_000)).toBe(false);
+        expect(pageIsInUse(false, FRESH_LOAD_MS)).toBe(false);
+        // Someone reading, who switched tabs and came back: never reloaded.
+        expect(pageIsInUse(false, FRESH_LOAD_MS + 1)).toBe(true);
+        expect(pageIsInUse(false, 30 * 60_000)).toBe(true);
     });
 });
