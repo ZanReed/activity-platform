@@ -51,6 +51,8 @@ const ActivityAnalytics = lazy(() => import('./routes/ActivityAnalytics'));
 // student shell's entry chunk (the S8 budget).
 const ActivityResponses = lazy(() => import('./routes/ActivityResponses'));
 const Privacy = lazy(() => import('./routes/Privacy'));
+// The number-facts demo (D43 slice 1): public, lazy, saves nothing.
+const FactsDemo = lazy(() => import('./routes/FactsDemo'));
 
 const Playground = lazy(() => import('./routes/Playground'));
 const DevFoldableColumns = lazy(() => import('./routes/DevFoldableColumns'));
@@ -102,6 +104,9 @@ export default function App() {
             it shares their chunk anyway (same shell components). Not
             RequireAuth: the route runs its own gate (same 3.2A shape). */}
         <Route path="/join/:code" element={<JoinClass />} />
+        {/* The number-facts demo: public, saves nothing (D43 slice 1, S-7).
+            /facts/:CODE joins it after migration 0045 is live. */}
+        <Route path="/facts/demo" element={<FactsDemo />} />
         <Route
         path="/activities"
         element={

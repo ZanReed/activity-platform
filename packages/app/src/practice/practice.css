@@ -1,0 +1,187 @@
+/* =============================================================================
+   practice.css — the number-facts runner (D43 slice 1; DR-7 to DR-14)
+   -----------------------------------------------------------------------------
+   Imported by the LAZY runner module, so it ships in that chunk's CSS and never
+   in the shell (the shell CSS has ~200 bytes left; CLAUDE.md constraint). Uses
+   the app's colour tokens from index.css (AA in light and dark), and only
+   `fx-` classes, which no Tailwind utility name matches. Visual reference: the
+   approved prototype (practice-blocks.md → "Approved prototype"). No motion
+   anywhere in the runner (DR-7): the next item replaces the last instantly.
+   ========================================================================== */
+
+.fx-stage {
+  align-items: center;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+.fx-banner {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 6px;
+  color: var(--color-strong);
+  font-size: 14px;
+  margin-bottom: 16px;
+  max-width: 24rem;
+  padding: 8px 12px;
+  text-align: center;
+  width: 100%;
+}
+
+.fx-runner {
+  max-width: 24rem;
+  outline: none;
+  width: 100%;
+}
+
+.fx-bar {
+  background: var(--color-surface-2);
+  border-radius: 2px;
+  height: 4px;
+  overflow: hidden;
+}
+
+.fx-bar > span {
+  background: var(--color-muted);
+  display: block;
+  height: 100%;
+}
+
+.fx-sr {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* The expression: large, bold, tabular lining numerals; shrinks for long
+   prompts and never wraps (CR-21). */
+.fx-expr {
+  font-size: clamp(3rem, 12vw, 5rem);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 12px 0 16px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.fx-expr[data-long] {
+  font-size: clamp(2rem, 8vw, 3.25rem);
+}
+
+/* FIXED size, so it never hints at the answer's length (DR-7). */
+.fx-answer {
+  align-items: center;
+  background: var(--color-canvas);
+  border: 2px solid var(--color-line-strong);
+  border-radius: 8px;
+  display: flex;
+  font-size: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  height: 72px;
+  justify-content: center;
+}
+
+.fx-answer:focus-visible,
+.fx-answer:focus {
+  border-color: var(--color-ink);
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.fx-hint {
+  color: var(--color-muted);
+  font-size: 14px;
+  margin: 6px 0;
+  min-height: 24px;
+  text-align: center;
+}
+
+/* CR-16: one fixed four-column layout — digits in three columns, delete and a
+   tall Enter in the fourth, a bottom row of minus, 0 and point. */
+.fx-pad {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.fx-pad button {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 8px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 600;
+  height: 60px;
+  touch-action: manipulation;
+}
+
+.fx-pad button:active {
+  background: var(--color-surface-2);
+}
+
+.fx-pad button:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.fx-pad .fx-enter {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  font-size: 1rem;
+  grid-column: 4;
+  grid-row: 2 / span 3;
+  height: auto;
+}
+
+.fx-pad .fx-blank {
+  visibility: hidden;
+}
+
+.fx-skiprow {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.fx-skip {
+  background: none;
+  border: 0;
+  color: var(--color-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  min-height: 44px;
+  padding: 8px 20px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fx-skip:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* A short, wide screen (a Chromebook in landscape): expression and answer
+   left, keypad right, so the runner never scrolls at 1366 × 768. */
+@media (max-height: 620px) and (min-width: 640px) {
+  .fx-runner {
+    align-items: center;
+    display: grid;
+    gap: 24px;
+    grid-template-columns: 1fr 1fr;
+    max-width: 44rem;
+  }
+}

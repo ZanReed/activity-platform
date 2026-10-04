@@ -2377,6 +2377,43 @@ question, 2026-10-05 (each the recommended option).
 | S-6 | **The typing baseline is two typed nullable columns** on `practice_sessions`, `baseline_keyboard_ms` and `baseline_keypad_ms` (milliseconds per keystroke, range-checked), not JSON keyed by modality. Same meaning as CR-1. |
 | S-7 | **Ship order (OV-7, a push is a deploy)**: (1) the runner and `/facts/demo`, which make no server call, pushed first so the author can try the student experience; (2) the author applies 0045 live; (3) only then the student `/facts/:CODE` route and the teacher route are pushed. |
 
+### The runner and /facts/demo, as built (S-7 step 1, 2026-10-05)
+
+`packages/app/src/practice/` (lazy; with `practice.css` in its own chunk) and
+`routes/FactsDemo.tsx`. The timing rules live in a pure state machine
+(`factRun.ts`) that takes each event's own timestamp; the React layer only
+wires DOM events to it. No server call anywhere: there is no save port yet
+(the real one, with the sessionStorage mirror of ER-19, comes with
+`/facts/:CODE` after 0045). DR-4's second step ("See what your teacher sees")
+comes with the teacher results screen.
+
+Built-time choices inside the rulings, for the record:
+- **The clock's start has a fallback.** An item's clock starts on the next
+  animation frame after it is committed, OR 100 ms later from a timer if no
+  frame came, whichever is first. Found while testing: a hidden preview pane
+  skips frames while reporting `visible`, and the runner then ignored Enter
+  with nothing on screen saying why. A covered Chromebook split screen can do
+  the same.
+- **The keypad's minus and point keys** appear when the probe's ITEM LIST
+  uses them (CR-16 says "scope"; the list is what the runner holds, and the
+  probe's list will carry the flag if a scope ever needs the key without a
+  sampled item using it).
+- **Warm-up decimals never end in 0** ("0.60" is not a number anyone types).
+- **The done screen in the demo** says "This was the demo, so nothing was
+  saved. It is not marked." and offers "Run the demo again".
+
+Guards (each mutation-tested the day it was written): `factRun.test.ts` (the
+guard, a held key, Enter counted as a keystroke, an interrupted fact not asked
+again — each removed in turn went red), `FactRunner.test.tsx` (a keypad tap
+never takes focus — red with `preventDefault` removed; "probe" never renders),
+`e2e/student/facts-demo.e2e.ts` (a keyboard-only run to the done screen and
+ZERO requests to the Supabase origin — red when the demo was made to query
+once; the first attempt at that mutation was itself vacuous, a query builder
+that is never awaited sends nothing), and two rows in the a11y lane (axe on
+the intro and a fact; the answer box's own 2 px ring — a "not none" check
+passed with the rule deleted because Chrome draws a default ring, so the row
+asserts the app's ring exactly).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

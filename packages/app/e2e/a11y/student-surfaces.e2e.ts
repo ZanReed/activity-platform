@@ -641,3 +641,49 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     await expectNoAxeViolations(page);
   });
 });
+
+// ---- the number-facts runner (D43 slice 1; /facts/demo needs no account) -----
+// The runner is a student surface like the worksheet: zero WCAG A/AA
+// violations on its intro and on a fact, and the answer box — the ONE focusable
+// region that owns the keys (DR-2) — shows a visible focus ring by computed
+// style, not by assumption.
+test.describe('the number-facts runner', () => {
+  async function toFirstFact(page: Page): Promise<void> {
+    await page.goto('/facts/demo');
+    await page.getByRole('button', { name: 'Start' }).click();
+    const expr = page.locator('.fx-expr');
+    for (let i = 0; i < 25; i++) {
+      if (await page.getByRole('heading', { name: 'Warm-up done' }).isVisible()) break;
+      const shown = (await expr.textContent())!.replace('−', '-');
+      await page.waitForTimeout(320);
+      await page.keyboard.type(shown);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(150);
+    }
+    await page.getByRole('button', { name: 'Start' }).click();
+    await expect(page.locator('.fx-bar')).toBeVisible();
+  }
+
+  test('the intro has no axe violations', async ({ page }) => {
+    await page.goto('/facts/demo');
+    await expect(page.getByRole('heading', { name: 'Quick number facts' })).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test('a fact has no axe violations, and the answer box shows its focus ring', async ({ page }) => {
+    test.setTimeout(90_000);
+    await toFirstFact(page);
+    await expectNoAxeViolations(page);
+    const answer = page.getByTestId('fx-answer');
+    await expect(answer).toBeFocused();
+    // The app's OWN ring, not the browser's: the last action before this fact
+    // was a CLICK (Start), after which Chrome's :focus-visible default draws
+    // nothing — so an 'auto' or 'none' here means the runner's rule is missing.
+    // (Checking only "not none" passed with the rule deleted: mutation-tested.)
+    const ring = await answer.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return `${s.outlineStyle} ${s.outlineWidth}`;
+    });
+    expect(ring).toBe('solid 2px');
+  });
+});
