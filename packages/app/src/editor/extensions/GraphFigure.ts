@@ -87,6 +87,14 @@ export const GraphFigure = Node.create({
                         ? { 'data-figure-alt': attrs.alt }
                         : {},
             },
+            caption: {
+                default: null as string | null,
+                parseHTML: (el) => el.getAttribute('data-figure-caption'),
+                renderHTML: (attrs) =>
+                    typeof attrs.caption === 'string' && attrs.caption !== ''
+                        ? { 'data-figure-caption': attrs.caption }
+                        : {},
+            },
             plane: {
                 default: true,
                 parseHTML: (el) => el.getAttribute('data-figure-plane') !== 'off',

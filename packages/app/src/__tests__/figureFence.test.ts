@@ -248,14 +248,48 @@ describe('a figure: column inside ```columns (T7b)', () => {
         expect(good.blocks[0]?.attrs?.gridLines).toBe('on');
     });
 
-    it('a row with a figure column and 3 columns is a figure problem (v1 limit, C-36 Q1)', () => {
-        const res = cols(FIG, TEXT, ['More text.']);
-        expect(res.figureProblems?.some((p) => /exactly 2 columns/.test(p))).toBe(true);
+    // ---- side-by-side figures (2026-10-04; curriculum C-50) ------------------
+    // The two rows that stood here pinned the v1 limits this slice lifts:
+    // "exactly 2 columns" and "`figure: A` is a problem".
+
+    it('a row with figure columns may have 3 or 4 columns; 5 is a figure problem', () => {
+        expect(cols(FIG, TEXT, ['More text.']).figureProblems).toBeUndefined();
+        expect(cols(FIG, FIG, FIG, FIG).figureProblems).toBeUndefined();
+        expect(cols(FIG, FIG, FIG, FIG).blocks[0]?.content).toHaveLength(4);
+        const five = cols(FIG, FIG, FIG, FIG, TEXT);
+        expect(five.figureProblems?.some((p) => /at most 4 columns \(this one has 5\)/.test(p))).toBe(true);
     });
 
-    it('`figure: A` (text after the colon) is a figure problem in v1', () => {
+    it('`figure: A` — the text after the colon is the figure\'s caption', () => {
         const res = cols(['figure: A', ...FIG.slice(1)], TEXT);
-        expect(res.figureProblems?.some((p) => p.includes('figure: A'))).toBe(true);
+        expect(res.figureProblems).toBeUndefined();
+        expect(figureIn(res)?.attrs).toMatchObject({ caption: 'A', alt: 'Triangle ABC' });
+        // A word works as well as a letter; a bare `figure:` has no caption.
+        expect(figureIn(cols(['figure: Before', ...FIG.slice(1)], TEXT))?.attrs?.caption).toBe('Before');
+        expect(figureIn(cols(FIG, TEXT))?.attrs?.caption).toBeUndefined();
+    });
+
+    it('four lettered figures import in order, each with its own caption', () => {
+        const fig = (letter: string) => [`figure: ${letter}`, ...FIG.slice(1)];
+        const res = cols(fig('A'), fig('B'), fig('C'), fig('D'));
+        expect(res.figureProblems).toBeUndefined();
+        const captions = res.blocks[0]?.content?.map((c) => c.content?.[0]?.attrs?.caption);
+        expect(captions).toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    it('two figures in one row with the same caption is a figure problem (C-50), case-insensitively', () => {
+        const fig = (letter: string) => [`figure: ${letter}`, ...FIG.slice(1)];
+        const res = cols(fig('A'), fig('a'));
+        expect(res.figureProblems).toEqual([
+            'Columns block: two figures in this row are both captioned "a" — give each figure its own letter.',
+        ]);
+    });
+
+    it('a caption over 12 characters is skipped and reported; the figure survives', () => {
+        const res = cols(['figure: A very long caption', ...FIG.slice(1)], TEXT);
+        expect(figureIn(res)?.attrs?.caption).toBeUndefined();
+        expect(figureIn(res)?.attrs?.alt).toBe('Triangle ABC');
+        expect(res.figureProblems?.[0]).toMatch(/at most 12 characters/);
     });
 
     it('a figure column with nothing drawable leaves an empty paragraph and reports, never the source', () => {
@@ -296,5 +330,54 @@ describe('cuboid line (T5, Q6)', () => {
         expect(r.problems).toHaveLength(1);
         expect(r.problems[0]).toContain(`"${line}"`);
         expect(r.problems[0]).toMatch(why);
+    });
+});
+
+describe('caption: in a standalone ```figure (side-by-side figures)', () => {
+    it('is read like the columns form, and survives the source round trip', async () => {
+        const { formatFigureSource, parseFigureSource } = await import('../lib/figureSource');
+        const parsed = fig('caption: Before', ALT, ...POINTS, 'polygon A B C');
+        expect(parsed.problems).toEqual([]);
+        expect(parsed.attrs?.caption).toBe('Before');
+        const text = formatFigureSource(parsed.attrs as never).text;
+        expect(text.split('\n')[0]).toBe('caption: Before');
+        expect(parseFigureSource(text).attrs?.caption).toBe('Before');
+    });
+
+    it('an empty caption: line is skipped with a problem', () => {
+        const parsed = fig('caption:', ALT, ...POINTS, 'polygon A B C');
+        expect(parsed.attrs?.caption).toBeUndefined();
+        expect(parsed.problems[0]).toMatch(/caption: needs the label/);
+    });
+});
+
+describe('```mc options: keep-order (side-by-side figures)', () => {
+    let importMd: Awaited<ReturnType<typeof getMarkdownImporter>>;
+    beforeAll(async () => {
+        importMd = await getMarkdownImporter();
+    });
+    const mc = (...lines: string[]) => importMd(['```mc', ...lines, '```'].join('\n'));
+    const CHOICES = ['( ) A :: That is a half turn, not a flip. :: mis.reflect.half-turn-confused', '(x) B', '( ) C', '( ) D'];
+
+    it('locks the choice order and leaves bindings untouched (C-50, condition 3)', () => {
+        const res = mc('prompt: Which diagram shows a reflection?', 'options: keep-order', ...CHOICES);
+        expect(res.warnings).toEqual([]);
+        const attrs = res.blocks[0]!.attrs as {
+            lockChoiceOrder?: boolean;
+            choices: { correct: boolean; misconceptionId?: string; feedback?: unknown[] }[];
+        };
+        expect(attrs.lockChoiceOrder).toBe(true);
+        expect(attrs.choices.map((c) => c.correct)).toEqual([false, true, false, false]);
+        expect(attrs.choices[0]!.misconceptionId).toBe('mis.reflect.half-turn-confused');
+        expect(attrs.choices[0]!.feedback).toBeDefined();
+    });
+
+    it('without the option the order is left to shuffle, as before', () => {
+        const attrs = mc('prompt: Which?', ...CHOICES).blocks[0]!.attrs as { lockChoiceOrder?: boolean };
+        expect(attrs.lockChoiceOrder).toBeUndefined();
+    });
+
+    it('an unknown option still fails the block', () => {
+        expect(mc('prompt: Which?', 'options: keep-ordre', ...CHOICES).blocks[0]!.type).not.toBe('multipleChoice');
     });
 });

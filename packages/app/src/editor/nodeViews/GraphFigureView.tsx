@@ -69,6 +69,17 @@ export default function GraphFigureView({
 
     return (
         <NodeViewWrapper className="graph-figure-view" data-block-type="graph_figure">
+            {typeof node.attrs.caption === 'string' && node.attrs.caption !== '' && (
+                // The figure's caption (the letter a question names it by),
+                // above the picture as the student sees it.
+                <div
+                    className="graph-figure-view__caption"
+                    contentEditable={false}
+                    style={{ fontWeight: 700, textAlign: 'center', maxWidth: '16rem' }}
+                >
+                    {node.attrs.caption as string}
+                </div>
+            )}
             <div
                 className="graph-figure-view__preview"
                 aria-hidden="true"
@@ -96,6 +107,7 @@ export default function GraphFigureView({
                                     axis,
                                     drawables,
                                     alt: node.attrs.alt as string | null,
+                                    caption: node.attrs.caption as string | null,
                                     plane: node.attrs.plane !== false,
                                     toScale: node.attrs.toScale === true,
                                 }),
@@ -146,6 +158,7 @@ export default function GraphFigureView({
                                     axis: parsed.attrs.axis,
                                     drawables: parsed.attrs.drawables,
                                     alt: parsed.attrs.alt ?? null,
+                                    caption: parsed.attrs.caption ?? null,
                                     plane: parsed.attrs.plane,
                                     toScale: parsed.attrs.toScale,
                                 });

@@ -82,6 +82,8 @@ import {
   isSized,
   resolveGridLines,
   type BlockLayout,
+  ColumnShareContext,
+  columnShare,
 } from './layoutStyles.js';
 
 /** What a section check could not cover — never silently empty. */
@@ -531,17 +533,22 @@ export function ViewerContainer({
                           data-column-id={column.id}
                           style={columnStyle(column)}
                         >
-                          {column.blocks.map((block) => (
-                            <BlockSlot
-                              key={(block as { id: string }).id}
-                              block={block}
-                              mode={mode}
-                              resetKey={versionId}
-                              resolveComponent={resolveComponent}
-                              onCrash={handleCrash}
-                              label={numbering[(block as { id: string }).id]}
-                            />
-                          ))}
+                          {/* The column's share of the row: a figure drawn
+                              three or four to a row enlarges its labels from
+                              this (layoutStyles.ts). */}
+                          <ColumnShareContext.Provider value={columnShare(row.columns, column)}>
+                            {column.blocks.map((block) => (
+                              <BlockSlot
+                                key={(block as { id: string }).id}
+                                block={block}
+                                mode={mode}
+                                resetKey={versionId}
+                                resolveComponent={resolveComponent}
+                                onCrash={handleCrash}
+                                label={numbering[(block as { id: string }).id]}
+                              />
+                            ))}
+                          </ColumnShareContext.Provider>
                         </div>
                       ))}
                     </div>

@@ -35,6 +35,7 @@
 // student onto a 375px screen.
 // =============================================================================
 
+import { createContext } from 'react';
 import type { CSSProperties } from 'react';
 
 /** The authored bits this module reads. Structural only — deliberately not the
@@ -168,3 +169,25 @@ export function resolveGridLines(
   if (gridLines === 'off') return false;
   return activityDefault;
 }
+
+// -----------------------------------------------------------------------------
+// A block's SHARE of its row (side-by-side figures, 2026-10-04)
+// -----------------------------------------------------------------------------
+// A figure drawn three or four to a row has to enlarge its labels to stay
+// readable, and the only thing that knows how wide it will be drawn is the row
+// it sits in. The container publishes each column's share of the row here; a
+// block that cares (GraphFigure) multiplies by its own width fraction. Default
+// 1: a block rendered outside a row (the reference panel, a definition) is at
+// full width.
+// -----------------------------------------------------------------------------
+
+/** The fraction of the row's width a column takes, from the columns' weights. */
+export function columnShare(
+  columns: readonly { readonly width?: number | undefined }[],
+  column: { readonly width?: number | undefined },
+): number {
+  const total = columns.reduce((sum, c) => sum + (c.width ?? 1), 0);
+  return total > 0 ? (column.width ?? 1) / total : 1;
+}
+
+export const ColumnShareContext = createContext(1);

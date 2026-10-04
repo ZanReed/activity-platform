@@ -107,6 +107,7 @@ export {
   Rubric,
   RubricCriterion,
   GraphFigureBlock,
+  GRAPH_FIGURE_CAPTION_MAX,
   ChartBlock,
   ChartKind,
   ChartSeries,

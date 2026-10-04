@@ -543,3 +543,68 @@ describe('the reference panel reaches the screen (sixth S9 orphan)', () => {
     expect(container.querySelector('.viewer-reference-print')).not.toBeNull();
   });
 });
+
+// =============================================================================
+// Side-by-side figures (2026-10-04): the CONTAINER tells a figure its share of
+// the row. The component rows (graph-figure.test.tsx) prove what a figure does
+// with a share; this proves the real row hands it the right one.
+// =============================================================================
+
+describe('a row tells each figure its share of the width', () => {
+  const figure = (id: string) => ({
+    id,
+    type: 'graph_figure',
+    axis: { xMin: -4, xMax: 4, yMin: -4, yMax: 4, xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true },
+    drawables: [{ kind: 'point', at: [1, 1], label: 'P' }],
+    plane: true,
+    toScale: false,
+  });
+
+  function rowOf(count: number): SanitizedActivityDocument {
+    return {
+      ...fullDoc,
+      sections: [
+        {
+          ...fullDoc.sections[0]!,
+          id: 'sec-1',
+          title: 'Section one',
+          rows: [
+            {
+              id: 'row-figs',
+              gridLines: 'inherit',
+              columns: Array.from({ length: count }, (_, i) => ({
+                id: `col-${i}`,
+                blocks: [figure(`fig-${i}`)],
+              })),
+            },
+          ],
+        },
+      ],
+    } as unknown as SanitizedActivityDocument;
+  }
+
+  /** The point label's font size in each figure (13 at full size). */
+  const labelSizes = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('[data-block-type="graph_figure"] svg text'))
+      .filter((t) => t.textContent === 'P')
+      .map((t) => Number(t.getAttribute('font-size')));
+  const tickLabels = (container: HTMLElement) =>
+    container.querySelectorAll('[data-block-type="graph_figure"] svg g[font-size="11"] text').length;
+
+  it('two per row: full-size labels, tick labels kept', () => {
+    const { container } = setup(rowOf(2));
+    expect(labelSizes(container)).toEqual([13, 13]);
+    expect(tickLabels(container)).toBeGreaterThan(0);
+  });
+
+  it('four per row: labels 1.75x, no tick labels', () => {
+    const { container } = setup(rowOf(4));
+    expect(labelSizes(container)).toEqual([22.8, 22.8, 22.8, 22.8]);
+    expect(tickLabels(container)).toBe(0);
+  });
+
+  it('three per row: labels 1.3x', () => {
+    const { container } = setup(rowOf(3));
+    expect(labelSizes(container)).toEqual([16.9, 16.9, 16.9]);
+  });
+});

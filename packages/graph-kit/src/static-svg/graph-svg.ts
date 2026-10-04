@@ -110,6 +110,12 @@ interface Plane {
   px(x: number): number;
   /** Graph y → viewBox px (inverted: yMax at the top). */
   py(y: number): number;
+  /** Label + mark scale (1 = full size). Above 1 for a figure drawn small —
+   * three or four to a row — so its text stays readable (side-by-side figures,
+   * 2026-10-04). Mark GEOMETRY scales with it, so placement stays right. */
+  scale: number;
+  /** false = no tick labels (the grid and axes still draw). */
+  tickLabels: boolean;
 }
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
@@ -199,7 +205,10 @@ function renderGridAndAxes(p: Plane): string {
     const vy = Math.min(Math.max(round1(p.py(y) + 4), 12), p.H - 4);
     labels += `<text x="${round1(yLabelX)}" y="${vy}" text-anchor="${yAnchor}">${escape(fmt(y))}</text>`;
   });
-  if (labels) {
+  // Dropped for a figure drawn small: at a quarter of the row an 11-unit
+  // label is about 4px, and a "which diagram?" item is judged by shape and by
+  // counting squares, not by reading coordinates (curriculum C-50).
+  if (labels && p.tickLabels) {
     out += `<g fill="${LABEL_COLOR}" font-size="11" font-family="inherit">${labels}</g>`;
   }
   return out;
@@ -375,12 +384,12 @@ function renderPoint(
 ): string {
   // Plane-less (Q5): a labelled point is a VERTEX LETTER — no dot, ink, italic,
   // placed outside the shape (Q1). An unlabelled point keeps its dot.
-  if (!p.plane && d.label) return prims(vertexLetter(ctx, pt(p, d.at), d.label), color);
+  if (!p.plane && d.label) return prims(vertexLetter(ctx, pt(p, d.at), d.label, p.scale), color, p.scale);
   let out = endpointDot(p, d.at, d.style ?? 'closed', color);
   if (d.label) {
     out +=
-      `<text x="${round1(p.px(d.at[0]) + 7)}" y="${round1(p.py(d.at[1]) - 7)}"` +
-      ` fill="${color}" font-size="13" font-family="inherit">${escape(d.label)}</text>`;
+      `<text x="${round1(p.px(d.at[0]) + 7 * p.scale)}" y="${round1(p.py(d.at[1]) - 7 * p.scale)}"` +
+      ` fill="${color}" font-size="${round1(13 * p.scale)}" font-family="inherit">${escape(d.label)}</text>`;
   }
   return out;
 }
@@ -502,14 +511,14 @@ function renderPolygon(p: Plane, d: Extract<Drawable, { kind: 'polygon' }>, colo
 
 const pt = (p: Plane, v: readonly number[]): Pt => [p.px(v[0]!), p.py(v[1]!)];
 
-function prims(list: readonly MarkPrim[], color: string): string {
+function prims(list: readonly MarkPrim[], color: string, scale = 1): string {
   let out = '';
   for (const m of list) {
     if (m.t === 'text') {
       const vertex = m.role === 'vertex';
       out +=
         `<text x="${round1(m.x)}" y="${round1(m.y)}" text-anchor="middle" dominant-baseline="central"` +
-        ` font-size="${vertex ? 15 : 16}"${vertex ? ' font-style="italic"' : ''} font-family="inherit"` +
+        ` font-size="${round1((vertex ? 15 : 16) * scale)}"${vertex ? ' font-style="italic"' : ''} font-family="inherit"` +
         ` style="${INK_STYLE}">${escape(m.text)}</text>`;
     } else if (m.t === 'face') {
       const pts = m.pts.map((q) => `${round1(q[0])},${round1(q[1])}`).join(' ');
@@ -538,17 +547,18 @@ function renderMark(p: Plane, d: Extract<Drawable, { kind: MarkKind }>, color: s
           ...(d.style ? { style: d.style } : {}),
           ...(d.reflex ? { reflex: true } : {}),
           ...(d.label ? { label: d.label } : {}),
-        }),
+        }, p.scale),
         color,
+        p.scale,
       );
     case 'tick_mark':
-      return prims(ticks(pt(p, d.from), pt(p, d.to), d.count), color);
+      return prims(ticks(pt(p, d.from), pt(p, d.to), d.count, p.scale), color, p.scale);
     case 'parallel_mark':
-      return prims(chevrons(ctx, pt(p, d.from), pt(p, d.to), d.count), color);
+      return prims(chevrons(ctx, pt(p, d.from), pt(p, d.to), d.count, p.scale), color, p.scale);
     case 'side_label':
-      return prims(sideLabel(ctx, pt(p, d.from), pt(p, d.to), d.text), color);
+      return prims(sideLabel(ctx, pt(p, d.from), pt(p, d.to), d.text, p.scale), color, p.scale);
     case 'text':
-      return prims(freeText(pt(p, d.at), d.text), color);
+      return prims(freeText(pt(p, d.at), d.text), color, p.scale);
   }
 }
 
@@ -584,7 +594,7 @@ function renderDrawable(p: Plane, d: Drawable, markerId: string, color: string, 
     case 'cuboid':
       // Geometry in figure-marks.ts (shared with the board): faces, unit
       // grid, dashed hidden edges, visible edges, outside labels (Q6).
-      return prims(cuboid((v) => pt(p, v), d), color);
+      return prims(cuboid((v) => pt(p, v), d, p.scale), color, p.scale);
   }
 }
 
@@ -693,6 +703,29 @@ export function stimulusDrawables(block: { stimulus?: readonly Drawable[] | unde
   );
 }
 
+// ---- small figures (side-by-side, 2026-10-04) ---------------------------------
+
+/**
+ * How much to enlarge a figure's labels and marks, and whether to keep its
+ * tick labels, from the SHARE of the row's width the figure is drawn at.
+ *
+ * Derived at render time, never stored: the viewer knows the column a figure
+ * sits in and the block's own width fraction, and a stored "small" flag would
+ * be one more field to drift from the layout it describes.
+ *
+ *   share > 0.4   (full width, two per row)  → 1,    tick labels kept
+ *   share > 0.29  (three per row)            → 1.3,  no tick labels
+ *   otherwise     (four per row)             → 1.75, no tick labels
+ *
+ * A 16-unit label in a 400-unit drawing shown ~160px wide is 6px; at 1.75 it
+ * is ~11px, the floor the two-column layout already meets.
+ */
+export function figureLabelScale(share: number): { labelScale: number; tickLabels: boolean } {
+  if (!(share > 0) || share > 0.4) return { labelScale: 1, tickLabels: true };
+  if (share > 0.29) return { labelScale: 1.3, tickLabels: false };
+  return { labelScale: 1.75, tickLabels: false };
+}
+
 // ---- figure geometry (plane-less mode, Q4) -----------------------------------
 
 /** ViewBox size + mapping for a window. Plane on: today's 400 square with x and
@@ -702,6 +735,9 @@ export function stimulusDrawables(block: { stimulus?: readonly Drawable[] | unde
 export function figureGeometry(
   axis: AxisConfig,
   plane = true,
+  // Plane-less only: extra room (viewBox units) kept clear on every side, so
+  // labels drawn LARGER than the window was fitted for are not clipped.
+  inset = 0,
 ): { W: number; H: number; px: (x: number) => number; py: (y: number) => number } | null {
   const xs = axis.xMax - axis.xMin;
   const ys = axis.yMax - axis.yMin;
@@ -715,7 +751,7 @@ export function figureGeometry(
     };
   }
   const H = round1(Math.min(MAX_H, Math.max(MIN_H, (SIZE * ys) / xs)));
-  const s = Math.min(SIZE / xs, H / ys);
+  const s = Math.min((SIZE - 2 * inset) / xs, (H - 2 * inset) / ys);
   const ox = (SIZE - xs * s) / 2;
   const oy = (H - ys * s) / 2;
   return { W: SIZE, H, px: (x) => ox + (x - axis.xMin) * s, py: (y) => oy + (axis.yMax - y) * s };
@@ -837,12 +873,18 @@ export function renderGraphSvg(
   defaultColor: string = resolveDrawableColor(undefined),
   // plane: false = plane-less geometry mode (GraphFigureBlock.plane, D3/Q4).
   // Absent = true, so every existing caller renders byte-identically.
-  opts: { plane?: boolean } = {},
+  // labelScale: enlarge labels and marks for a figure drawn small (see
+  // figureLabelScale). tickLabels: false drops the plane's tick labels.
+  // Absent = 1 / true, so every existing caller renders byte-identically.
+  opts: { plane?: boolean; labelScale?: number; tickLabels?: boolean } = {},
 ): string {
   const plane = opts.plane !== false;
-  const g = figureGeometry(axis, plane);
+  const scale = opts.labelScale !== undefined && opts.labelScale > 1 ? opts.labelScale : 1;
+  // The window was fitted (at import) with a label margin for FULL-SIZE text;
+  // larger text needs proportionally more of it.
+  const g = figureGeometry(axis, plane, plane ? 0 : FIT_LABEL_MARGIN * (scale - 1));
   if (!g) return '';
-  const p: Plane = { axis, plane, ...g };
+  const p: Plane = { axis, plane, ...g, scale, tickLabels: opts.tickLabels !== false };
   const ctx = markContext(drawables, (v) => pt(p, v));
   const clipId = 'gclip-' + uid;
   // One arrow marker PER distinct drawable color (an SVG marker's fill is fixed,

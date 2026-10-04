@@ -118,7 +118,9 @@ export const FENCES: FenceSpec[] = [
         blockType: 'multipleChoice',
         summary: 'a multiple-choice question (single or select-all)',
         example: 'prompt: Pick one\n(x) yes\n( ) no',
-        options: [],
+        // keep-order: the choices stay in the order written (the letters of
+        // figures above the question; "all of the above").
+        options: ['keep-order'],
     },
     {
         tag: 'match',

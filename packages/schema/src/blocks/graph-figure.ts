@@ -27,6 +27,9 @@ import { sizingFields } from '../sizing.js';
 // reference panel's contract.
 // =============================================================================
 
+/** The longest caption a figure may carry. */
+export const GRAPH_FIGURE_CAPTION_MAX = 12;
+
 export const GraphFigureBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('graph_figure'),
@@ -45,6 +48,13 @@ export const GraphFigureBlock = z.object({
   // toScale — opts a plane-less figure out of the automatic "Not to scale"
   // caption (N8). Meaningless when plane is true (a plane figure never has one).
   toScale: z.boolean().default(false),
+  // caption — a short label drawn in bold above the figure (side-by-side
+  // figures, 2026-10-04): the letter a "which diagram?" question names (`A`),
+  // or a word ("Before"). AUTHORED, never derived from position, so the source
+  // shows the letter beside the mc that refers to it. At most 12 characters: it
+  // is a tag for the figure, not its description (that is `alt`). Read by the
+  // viewer's GraphFigure; guarded by tests/components/graph-figure.test.tsx.
+  caption: z.string().min(1).max(GRAPH_FIGURE_CAPTION_MAX).optional(),
   // Width fraction + align (N6), the same fragment image/math/data_plot carry.
   ...sizingFields,
 });

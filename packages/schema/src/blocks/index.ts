@@ -110,7 +110,7 @@ export {
 } from './data-plot.js';
 export { LearningObjectivesBlock } from './learning-objectives.js';
 export { WorkedExampleBlock, WorkedExampleChild } from './worked-example.js';
-export { GraphFigureBlock } from './graph-figure.js';
+export { GraphFigureBlock, GRAPH_FIGURE_CAPTION_MAX } from './graph-figure.js';
 export { ChartBlock, ChartKind, ChartSeries } from './chart.js';
 export {
   FadedWorkedExampleBlock,

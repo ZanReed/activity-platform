@@ -62,6 +62,16 @@
  * enough (labels >= 10px); phones (<= 480px) already stack every row. One
  * declaration: the row's own grid gap spaces the stacked columns, and the
  * inline --activity-columns-template is a custom property, so this outranks it. */
+/* Four figures to a row (side-by-side figures) go two-by-two below ~960px, so
+ * a figure is never drawn smaller than a two-column row would draw it. `screen`
+ * on purpose: a printed page is narrower than this and must keep all four
+ * side by side. The 41rem rule below then stacks them singly. */
+@media screen and (max-width: 60rem) {
+  .viewer-row[data-column-count='4']:has(.viewer-figure-wrap) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 41rem) {
   .viewer-row:has(.viewer-figure-wrap) {
     grid-template-columns: 1fr;

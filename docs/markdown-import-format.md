@@ -298,6 +298,9 @@ MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice ques
   (marking more than one (x) also makes it multi-select automatically).
 - Optional feedback after :: on any choice is shown to a student who picks it.
 - Optional line:  solution: <worked explanation>
+- options: keep-order keeps the choices in the order written (they shuffle
+  otherwise). Use it when the order carries meaning: the letters of figures
+  above the question, or "all of the above".
 - Choice text and the prompt may include $inline$ math.
 - A choice may carry an image, shown below its text:  (x) ![a square](https://…)
   — the choice text may be the image alone.
@@ -472,7 +475,7 @@ COLUMNS (a `columns` fence lays blocks out side by side)
   student writes INSIDE the columns (a T-chart, a two-column proof, a
   cut-out) — it is boxed regions to write in, not lines to write on.
 - A FIGURE BESIDE ITS QUESTION: a column whose first line is figure: is one
-  ```figure (same lines, no inner fence), in a row of EXACTLY 2 columns:
+  ```figure (same lines, no inner fence):
     figure:
     alt: Triangle PQR with sides PQ and QR marked equal
     point (0,0) "P"
@@ -483,9 +486,32 @@ COLUMNS (a `columns` fence lays blocks out side by side)
     ticks QR 1
     ---
     By its sides, PQR is {{isosceles}}.
-  The whole column is the figure (text goes in the other column); write
-  figure: with nothing after the colon; put any options: line in the TEXT
-  column. A row with a figure column and 3 or more columns is refused.
+  The whole column is the figure (text goes in the other column); put any
+  options: line in the TEXT column. A row with a figure column has 2, 3 or
+  4 columns; 5 or more is refused.
+- FIGURES AS CHOICES ("which diagram shows...?"): give each figure column
+  a letter after the colon, 2 to 4 in one row, then ask with an mc whose
+  choices are those letters, kept in order:
+    figure: A
+    alt: A shaded triangle left of a dashed line and an unshaded one right of it
+    plane: on
+    ...
+    ---
+    figure: B
+    alt: ...
+  then, after the columns block:
+    prompt: Which diagram shows a reflection in the dashed line?
+    options: keep-order
+    ( ) A :: That is a half turn, not a flip.
+    (x) B
+  The text after figure: is a short caption drawn above the figure (a
+  letter, or a word such as Before; at most 12 characters). Every figure in
+  a row needs a DIFFERENT caption. In a choice figure, alt: describes what is
+  DRAWN (the shapes, where they sit, the dashed line) and never names the
+  transformation or property the question asks about - that would give the
+  answer to a student using a screen reader. Small figures are drawn with
+  larger labels automatically; with plane: on, three or four to a row show
+  the grid without numbers on the axes.
 
 NUMBERING — do not write your own question numbers
 - The platform numbers questions for you, on screen and on paper. A line you
@@ -523,6 +549,8 @@ GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
     ticks BC 2
 - alt: is REQUIRED: one sentence saying what the figure shows, for screen
   readers. Never put the answer to a question in it.
+- caption: A (optional) draws a short label in bold above the figure, for
+  a question that names it ("which diagram...?"). At most 12 characters.
 - point (x, y) "A" names a point (its letter is drawn beside it);
   polygon A B C draws the outline (region A B C draws it shaded);
   segment A C draws a line between two points (segment A C dashed for dashes).
@@ -785,6 +813,7 @@ solution: Add the ones column.
 - `prompt:` the question text. Both it and choice text accept `$inline$` math.
 - **Per-choice images**: a markdown image — `![alt](https://…)` — anywhere in a choice's text becomes the choice's figure, rendered below the text ("which diagram shows…"). The image markdown is stripped from the text; an image-only choice is legal. An unparseable URL stays as literal text so the author notices. **Per-choice graphs**: `graph: <show-spec>` on a choice line — e.g. `(x) graph: line y = 2x` — using the same `show:` forms as elsewhere (point/line/curve/segment/ray/region). One drawable per choice, and `expression` is refused (it needs the calculator's parser, which the static renderer does not carry). `graph:` and `![](…)` are mutually exclusive on one choice; a graph-only choice is legal. *(This sentence used to say per-choice graphs had no fence syntax and were editor-only. That was wrong from the day the importer learned to parse them — corrected 2026-08-22, and the corresponding renderer now exists, so the figure a teacher authors actually reaches the student.)*
 - `solution:` optional worked explanation revealed post-check.
+- `options: keep-order` keeps the choices in the order written, on screen and in printed versions (they shuffle otherwise). Use it when the order carries meaning: the letters of figures above the question, or "all of the above". Per-choice feedback and `:: mis.*` bindings work as usual.
 - At least two choices and at least one `(x)` are required — a fence without a marked correct answer imports as plain text with a warning.
 
 ## Matching blocks (```match fence)
@@ -1123,7 +1152,9 @@ The blank: {{2}} is the smallest prime.
   ```⠀
   ```
 
-  The whole column is the figure: text goes in the other column, and blank lines inside it split nothing (only `---` ends it). It keeps its own `alt:`, its own "Not to scale" caption, `to scale` and `plane: on`, and every figure check. **v1 limits, each a figure problem** (a batch import skips the file; the paste dialog warns): the row has **exactly 2 columns** (narrower figures shrink their labels below reading size); `figure:` takes nothing after the colon; an `options:` line belongs in the **text** column, never the figure column. On a screen narrower than about 656px a row holding a figure stacks, so the figure keeps its full size.
+  The whole column is the figure: text goes in the other column, and blank lines inside it split nothing (only `---` ends it). It keeps its own `alt:`, its own "Not to scale" caption, `to scale` and `plane: on`, and every figure check. **Limits, each a figure problem** (a batch import skips the file; the paste dialog warns): a row with a figure column has **2, 3 or 4 columns**; two figures in one row may not share a caption; an `options:` line belongs in the **text** column, never the figure column.
+
+  **Figures as choices.** `figure: A` gives the figure a **caption** — the text after the colon, at most 12 characters, drawn in bold above the figure and read first by a screen reader ("Figure A: …"). It is authored, never derived from position, so it can be a letter or a word (`figure: Before`). Put 2–4 captioned figures in one row, then ask with a plain `mc` whose choices are the letters and `options: keep-order`. A standalone `figure` fence takes the same thing as a `caption: A` line. **In a choice figure, `alt:` describes what is drawn and never names the transformation or property the question asks about.** Small figures keep readable labels automatically: at three per row labels and marks are drawn 1.3× larger, at four per row 1.75×, and a `plane: on` figure at three or four per row shows its grid with no numbers on the axes. Below about 960px a four-figure row becomes two rows of two. On a screen narrower than about 656px a row holding a figure stacks, so the figure keeps its full size.
 - **Not here** — nested question fences (`mc`, `match`, `graph`, …) inside a column have no Markdown round-trip; author those in the editor after import. Column widths and reserved work space also default (adjust them in the editor's column toolbar).
 
 ## Callout blocks (```callout fence)
@@ -1507,6 +1538,7 @@ text (4,-1.5) "base"
 | line | draws |
 |---|---|
 | `alt: …` | the figure's accessible name: what a screen reader says. **Required** (see "Problems" below). |
+| `caption: A` | a short label (at most 12 characters) drawn in bold above the figure and read first by a screen reader. Optional. In a `columns` figure column the same thing is written `figure: A`. |
 | `point (x, y) "A"` | a named point. The name is what every other line refers to; its letter is drawn outside the shape. `point (x, y)` with no name draws a dot. |
 | `polygon A B C …` | the outline through the named points. `region A B C …` draws it shaded. |
 | `segment A C` | a line between two points; add `dashed` for a height, a hidden edge or a construction line. |

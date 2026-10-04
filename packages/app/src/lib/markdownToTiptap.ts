@@ -2093,6 +2093,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
     let prompt = '';
     let solution: InlineNode[] | null = null;
     let sawSquare = false;
+    let keepOrder = false;
     const choices: {
         id: string;
         content: InlineNode[];
@@ -2198,7 +2199,13 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                 for (const opt of value
                     .split(',')
                     .map((o) => o.trim().toLowerCase())) {
-                    if (opt) return fail(`unknown option "${opt}"`);
+                    // keep-order: the choices stay in the order written, on
+                    // screen and in printed versions (the block's existing
+                    // lockChoiceOrder). For choices whose ORDER carries
+                    // meaning: the letters of figures above the question,
+                    // "all of the above".
+                    if (opt === 'keep-order') keepOrder = true;
+                    else if (opt) return fail(`unknown option "${opt}"`);
                 }
                 break;
         }
@@ -2220,6 +2227,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             solution,
             skills: [],
             workSpace: null,
+            ...(keepOrder ? { lockChoiceOrder: true } : {}),
         },
         content: graphPromptContent(prompt, ctx),
     };
@@ -3099,16 +3107,18 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
         ctx.figureProblems.push(msg);
     };
     let figureColumns = 0;
+    const captions: string[] = [];
     const columns: JSONContent[] = segments.map((lines) => {
         const first = lines.findIndex((l) => l.trim() !== '');
         const marker = first === -1 ? null : /^figure:\s*(.*)$/i.exec(lines[first]!.trim());
         if (marker) {
             figureColumns++;
-            if ((marker[1] ?? '').trim() !== '') {
-                figureProblem(
-                    `Columns block figure: "${lines[first]!.trim()}" — write figure: with nothing after the colon; the text was ignored.`,
-                );
-            }
+            // `figure: A` — the text after the colon is the figure's CAPTION
+            // (side-by-side figures, 2026-10-04; confirmed by the curriculum
+            // side in C-50): the letter a "which diagram?" question names, or a
+            // word. It is handed to the figure parser as a `caption:` line, so
+            // a standalone ```figure and a figure column share one rule.
+            const captionText = (marker[1] ?? '').trim();
             // An `options:` line sets the WHOLE row, so inside a figure column
             // it would be ambiguous: refused there (C-36), valid in text columns.
             const body: string[] = [];
@@ -3121,8 +3131,10 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
                 }
                 body.push(line);
             }
+            if (captionText !== '') body.unshift(`caption: ${captionText}`);
             const fig = parseFigureFence(body.join('\n'), (line) => parseShowDrawable(line));
             for (const problem of fig.problems) figureProblem(problem);
+            if (fig.attrs?.caption) captions.push(fig.attrs.caption);
             // A column is `block+`: an undrawable figure leaves an empty
             // paragraph, never the fence source (ER-12b).
             return {
@@ -3170,14 +3182,27 @@ function parseColumnsFence(src: string, ctx: Ctx): JSONContent | null {
         return { type: 'column', content: blocks };
     });
 
-    // v1 LIMIT (author, C-36): a row holding a figure column has EXACTLY two
-    // columns. At a third or quarter width the labels shrink to ~5–6 px, and
-    // in a geometry item the marks are the answer, so a legal file must not
-    // render them illegibly. Wider rows wait for a small-figure label scale.
-    if (figureColumns > 0 && columns.length !== 2) {
+    // A row holding a figure column has 2, 3 OR 4 columns (was exactly 2 until
+    // the small-figure label scale landed, 2026-10-04: the viewer now enlarges
+    // a figure's labels to suit its share of the row). Five or more is still
+    // refused — a fifth of a row is narrower than the scale was built for.
+    if (figureColumns > 0 && columns.length > 4) {
         figureProblem(
-            `Columns block: a row with a figure: column must have exactly 2 columns (this one has ${columns.length}) — at narrower widths the figure's labels are too small to read.`,
+            `Columns block: a row with a figure: column takes at most 4 columns (this one has ${columns.length}) — at narrower widths the figure's labels are too small to read.`,
         );
+    }
+    // Two figures in one row with the same caption (C-50, condition 1): the
+    // question below would name both. Compared without case, so "a" and "A"
+    // collide too.
+    const seenCaptions = new Set<string>();
+    for (const caption of captions) {
+        const key = caption.toLowerCase();
+        if (seenCaptions.has(key)) {
+            figureProblem(
+                `Columns block: two figures in this row are both captioned "${caption}" — give each figure its own letter.`,
+            );
+        }
+        seenCaptions.add(key);
     }
 
     if (columns.length < 2) {

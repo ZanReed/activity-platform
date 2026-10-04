@@ -352,3 +352,107 @@ describe('cuboid (Q6, Q9)', () => {
     expect(g(cub()).querySelectorAll('text')).toHaveLength(0);
   });
 });
+
+// =============================================================================
+// Side-by-side figures (2026-10-04): the caption, and labels that stay readable
+// when a figure is drawn three or four to a row.
+// =============================================================================
+
+import { ColumnShareContext } from '../../src/container/layoutStyles.js';
+
+const TRIANGLE = [
+  { kind: 'point', at: [0, 0], label: 'A' },
+  { kind: 'point', at: [4, 0], label: 'B' },
+  { kind: 'point', at: [0, 3], label: 'C' },
+  { kind: 'polygon', vertices: [[0, 0], [4, 0], [0, 3]], filled: false },
+  { kind: 'side_label', from: [0, 0], to: [4, 0], text: '4 cm' },
+];
+
+function renderAtShare(share: number, extra: Record<string, unknown> = {}, drawables: readonly unknown[] = TRIANGLE) {
+  const { container } = render(
+    <ColumnShareContext.Provider value={share}>
+      <GraphFigure
+        block={{ id: 'fig-s', type: 'graph_figure', axis: AXIS, drawables, ...extra } as never}
+        mode="screen"
+      />
+    </ColumnShareContext.Provider>,
+  );
+  return container;
+}
+
+const fontSizes = (root: Element): number[] =>
+  Array.from(root.querySelectorAll('svg text')).map((t) => Number(t.getAttribute('font-size')));
+/** The plane's tick labels live in the one group drawn at font-size 11. */
+const tickLabelCount = (root: Element): number =>
+  root.querySelectorAll('svg g[font-size="11"] text').length;
+
+describe('caption', () => {
+  it('is drawn above the figure and leads its accessible name', () => {
+    const root = renderAtShare(1, { caption: 'B', alt: 'A triangle left of a dashed line' });
+    const caption = root.querySelector('[data-figure-caption]')!;
+    expect(caption.textContent).toBe('B');
+    // Above the picture: the caption precedes the role="img" element.
+    const img = root.querySelector('[role="img"]')!;
+    expect(caption.compareDocumentPosition(img) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(img.getAttribute('aria-label')).toBe('Figure B: A triangle left of a dashed line');
+  });
+
+  it('is absent when not authored, and the name is the alt alone', () => {
+    const root = renderAtShare(1, { alt: 'A triangle' });
+    expect(root.querySelector('[data-figure-caption]')).toBeNull();
+    expect(root.querySelector('[role="img"]')!.getAttribute('aria-label')).toBe('A triangle');
+  });
+});
+
+describe('labels at a narrow share of the row', () => {
+  it('full width and two per row are unchanged', () => {
+    const full = fontSizes(renderAtShare(1, { plane: false }));
+    const half = fontSizes(renderAtShare(0.5, { plane: false }));
+    expect(half).toEqual(full);
+    expect(Math.max(...full)).toBe(16);
+  });
+
+  it('three per row enlarges labels 1.3x, four per row 1.75x', () => {
+    const base = fontSizes(renderAtShare(1, { plane: false }));
+    const third = fontSizes(renderAtShare(1 / 3, { plane: false }));
+    const quarter = fontSizes(renderAtShare(0.25, { plane: false }));
+    expect(third).toEqual(base.map((n) => Math.round(n * 1.3 * 10) / 10));
+    expect(quarter).toEqual(base.map((n) => Math.round(n * 1.75 * 10) / 10));
+  });
+
+  it('the block\'s own width fraction narrows the share too', () => {
+    // Half a row, at half width: a quarter.
+    const quarter = fontSizes(renderAtShare(0.5, { plane: false, width: 0.5 }));
+    expect(Math.max(...quarter)).toBe(28); // 16 x 1.75
+  });
+
+  it('a plane-on figure keeps its grid and loses its tick labels at three and four per row', () => {
+    expect(tickLabelCount(renderAtShare(1))).toBeGreaterThan(0);
+    expect(tickLabelCount(renderAtShare(0.5))).toBeGreaterThan(0);
+    for (const share of [1 / 3, 0.25]) {
+      const root = renderAtShare(share);
+      expect(tickLabelCount(root), `share ${share}`).toBe(0);
+      // The grid itself is still there.
+      expect(root.querySelectorAll('svg line').length).toBeGreaterThan(10);
+    }
+  });
+
+  it('enlarged labels stay inside the drawing: the shape is inset, not clipped', () => {
+    const letters = (root: Element) =>
+      Array.from(root.querySelectorAll('svg text')).map((t) => ({
+        x: Number(t.getAttribute('x')),
+        y: Number(t.getAttribute('y')),
+      }));
+    const [, , w, h] = renderAtShare(0.25, { plane: false })
+      .querySelector('svg')!
+      .getAttribute('viewBox')!
+      .split(' ')
+      .map(Number);
+    for (const p of letters(renderAtShare(0.25, { plane: false }))) {
+      expect(p.x).toBeGreaterThan(0);
+      expect(p.x).toBeLessThan(w!);
+      expect(p.y).toBeGreaterThan(0);
+      expect(p.y).toBeLessThan(h!);
+    }
+  });
+});

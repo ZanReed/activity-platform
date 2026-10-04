@@ -389,7 +389,23 @@ annotation lines skip-with-warning, ER-12a, and count as figure problems);
 editor rows; both bundles + both deploys. Scoring is unchanged (labels never
 reach `plot_point`).
 
-## Side-by-side figures for "which one?" items (curriculum C-35 wish, 2026-10-03)
+## ✅ BUILT 2026-10-04 — Side-by-side figures for "which one?" items (curriculum C-35 wish)
+
+**As built** (the author's eleven rulings, "yes to all", decision 6 as amended; syntax confirmed by the curriculum side in C-50 with three conditions, all met):
+
+- **Syntax:** `figure: A` in a ```columns column: the text after the colon is the figure's `caption` (new field on `graph_figure`, at most 12 characters, authored not derived). A standalone ```figure takes `caption: A`. Rows with a figure column may have 2, 3 or 4 columns; 5+ is a figure problem; two figures in a row with the same caption (case-insensitive) is a figure problem.
+- **Legibility is DERIVED, not stored:** the container publishes each column's share of the row (`ColumnShareContext`, `layoutStyles.ts`); `GraphFigure` multiplies by its own width fraction and asks `figureLabelScale` (graph-kit): above 0.4 → 1×; above 0.29 → 1.3×; else 1.75×. Marks scale with the labels (figure-marks' `unit`), and a plane-less figure is inset so enlarged labels are not clipped. At three and four per row a `plane: on` figure draws the grid and axes with NO tick labels (C-50: these items are judged by shape and by counting squares).
+- **Measured in a browser:** four per row at 1280px, the smallest label is ≥ 9.5px (5.9px with the scale off).
+- **Narrow screens:** a four-figure row goes 2×2 below 60rem (screen only, so print keeps four across), then one per row below 41rem (the existing rule).
+- **`options: keep-order`** in the ```mc fence sets the existing `lockChoiceOrder`; choice feedback and `:: mis.*` bindings are untouched (pinned).
+- **Accessible name:** "Figure A: " + alt. The prompt teaches that a choice figure's `alt:` describes what is drawn and never names the property asked about (C-50, condition 2).
+- **Guards:** `viewer/tests/components/graph-figure.test.tsx` + `container.test.tsx` (six mutations, all red), `app/e2e/student/side-by-side-figures.e2e.ts` (red with the scale off), `app/src/__tests__/figureFence.test.ts`.
+
+**Known and accepted:** the scale follows the COLUMN COUNT, not the rendered width, so when a four-figure row re-flows to 2×2 or one per row its labels are larger than they need to be (never smaller). The editor's own figure preview is not scaled.
+
+**Left behind, with triggers:** charts as choices (`chart:` column) — `chain.stats.data-displays` is next to be drafted; per-choice figures INSIDE the mc — no Y7 stub needs it (C-35).
+
+*The entry as filed:*
 
 **SPLIT by the author 2026-10-03.** The SYNTAX half (a figure inside a
 ```columns segment, so a file-authored activity can put a figure beside its

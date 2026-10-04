@@ -61,9 +61,10 @@
 // it is enforced upstream rather than silently here.
 // =============================================================================
 
-import type { CSSProperties } from 'react';
+import { useContext, type CSSProperties } from 'react';
 import type { GraphFigureBlock } from '@activity/schema';
-import { figureGeometry, renderGraphSvg } from '@activity/graph-kit/static-svg';
+import { figureGeometry, figureLabelScale, renderGraphSvg } from '@activity/graph-kit/static-svg';
+import { ColumnShareContext } from '../container/layoutStyles.js';
 import type { BlockComponentProps } from '../registry/types.js';
 
 /** Why a figure could not be drawn (N2). Named in the DOM for diagnosis. */
@@ -80,8 +81,20 @@ export default function GraphFigure({ block }: BlockComponentProps<GraphFigureBl
   // existed has it filled by zod, and `!== false` keeps an unparsed one safe.
   const plane = block.plane !== false;
   const axis = block.axis as Args[0];
-  const svg = renderGraphSvg(axis, block.drawables as Args[1], block.id, undefined, { plane });
+  // SMALL FIGURES (side-by-side, 2026-10-04). The share of the row this figure
+  // is drawn at — its column's share times its own width fraction — decides
+  // how much its labels and marks are enlarged and whether tick labels are
+  // kept. Derived here, never stored; 1 outside a row (reference panel,
+  // definitions), where nothing changes.
+  const share = useContext(ColumnShareContext) * (block.width ?? 1);
+  const small = figureLabelScale(share);
+  const svg = renderGraphSvg(axis, block.drawables as Args[1], block.id, undefined, {
+    plane,
+    labelScale: small.labelScale,
+    tickLabels: small.tickLabels,
+  });
   const alt = block.alt?.trim();
+  const caption = block.caption?.trim();
 
   // A sized figure (N6) fills the footprint the author gave it; the 20rem
   // screen cap and the 3.25in paper cap stand only for an unsized one. Set as
@@ -120,6 +133,15 @@ export default function GraphFigure({ block }: BlockComponentProps<GraphFigureBl
 
   return (
     <figure className="viewer-figure-wrap" data-block-type="graph_figure" style={sized}>
+      {caption ? (
+        // The letter (or word) a question refers to this figure by. Above the
+        // picture, so it reads before it; inline-styled (ER-9: the shell
+        // stylesheet's headroom). Hidden from the accessibility tree because
+        // the figure's NAME below already begins with it.
+        <div data-figure-caption="" aria-hidden="true" style={{ fontWeight: 700, textAlign: 'center' }}>
+          {caption}
+        </div>
+      ) : null}
       <div
         className="viewer-figure"
         // The engine hardcodes aria-hidden on its <svg>, so the accessible
@@ -127,7 +149,9 @@ export default function GraphFigure({ block }: BlockComponentProps<GraphFigureBl
         // generic name — never one derived from the drawables, which would
         // invent meaning the teacher never wrote ("2 lines" is not "parallel").
         role="img"
-        aria-label={alt || 'Graph figure'}
+        // With a caption the name leads with it, so "which diagram?" works by
+        // ear: "Figure A: a triangle on the left of a dashed line".
+        aria-label={caption ? `Figure ${caption}: ${alt || 'Graph figure'}` : alt || 'Graph figure'}
         // The ONE dangerouslySetInnerHTML in this block. Input is always
         // renderGraphSvg output, which escapes every authored string.
         dangerouslySetInnerHTML={{ __html: svg }}

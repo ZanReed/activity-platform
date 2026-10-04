@@ -28,6 +28,7 @@ export {
   questionDrawables,
   stimulusDrawables,
   figureGeometry,
+  figureLabelScale,
   fitFigureWindow,
 } from './static-svg/graph-svg.js';
 export {

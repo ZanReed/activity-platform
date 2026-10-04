@@ -282,12 +282,22 @@ test('§A2 a figure: column (T7b) reaches a schema-valid document beside its que
     assert.ok(pipeline.ActivityDocument.safeParse(out.document).success);
 });
 
-test('§A2 a figure: column in a THREE-column row SKIPS the file (v1 limit, C-36)', () => {
+test('§A2 figure columns: three per row imports; FIVE columns SKIPS the file (side-by-side figures)', () => {
+    assert.ok(convertOne(pipeline, COLUMNS_MD(['figure: A', ...TRIANGLE], ['figure: B', ...TRIANGLE], ['Which one?']), null, 'geom/t.md'));
     assert.throws(
-        () => convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['Text.'], ['More.']), null, 'geom/t.md'),
-        /figure or chart problem[\s\S]*exactly 2 columns/,
+        () => convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['a'], ['b'], ['c'], ['d']), null, 'geom/t.md'),
+        /figure or chart problem[\s\S]*at most 4 columns/,
     );
 });
+
+test('§A2 two figures with the same caption in one row SKIPS the file (curriculum C-50)', () => {
+    assert.throws(
+        () => convertOne(pipeline, COLUMNS_MD(['figure: A', ...TRIANGLE], ['figure: A', ...TRIANGLE]), null, 'geom/t.md'),
+        /figure or chart problem[\s\S]*both captioned "A"/,
+    );
+});
+
+// (The row that stood here pinned T7b's "exactly 2 columns" limit, lifted 2026-10-04.)
 
 // =============================================================================
 // §A3 — "would this update change anything?" (author ruling (b) + the agreed

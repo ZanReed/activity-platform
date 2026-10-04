@@ -70,3 +70,15 @@ describe('GraphFigureBlock Y7 fields', () => {
     expect(parsed).toMatchObject({ alt: 'Triangle ABC', plane: false, toScale: true, width: 0.5, align: 'left' });
   });
 });
+
+describe('GraphFigureBlock.caption (side-by-side figures)', () => {
+  const base = { id: '11111111-1111-4111-8111-111111111111', type: 'graph_figure', axis: { xMin: 0, xMax: 4, yMin: 0, yMax: 4 }, drawables: [] };
+  it('is optional, short, and never empty', () => {
+    expect(GraphFigureBlock.parse(base).caption).toBeUndefined();
+    expect(GraphFigureBlock.parse({ ...base, caption: 'A' }).caption).toBe('A');
+    expect(GraphFigureBlock.parse({ ...base, caption: 'Before' }).caption).toBe('Before');
+    expect(GraphFigureBlock.safeParse({ ...base, caption: '' }).success).toBe(false);
+    expect(GraphFigureBlock.safeParse({ ...base, caption: 'x'.repeat(13) }).success).toBe(false);
+    expect(GraphFigureBlock.safeParse({ ...base, caption: 'x'.repeat(12) }).success).toBe(true);
+  });
+});

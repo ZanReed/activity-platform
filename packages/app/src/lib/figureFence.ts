@@ -40,7 +40,7 @@
 // =============================================================================
 
 import { fitFigureWindow } from '@activity/graph-kit/static-svg';
-import type { Drawable } from '@activity/schema';
+import { GRAPH_FIGURE_CAPTION_MAX, type Drawable } from '@activity/schema';
 
 type XY = [number, number];
 type Out = Record<string, unknown>;
@@ -64,6 +64,8 @@ export interface FigureParse {
         plane: boolean;
         toScale: boolean;
         alt?: string;
+        /** The figure's short label ("A", "Before"); see GraphFigureBlock.caption. */
+        caption?: string;
     } | null;
     /** Every skipped or refused line, a missing alt, an empty figure. */
     problems: string[];
@@ -200,6 +202,7 @@ export function parseFigureFence(
     };
 
     let alt: string | undefined;
+    let caption: string | undefined;
     let plane = false;
     let toScale = false;
     let hidden = true;
@@ -210,6 +213,15 @@ export function parseFigureFence(
         const altM = /^alt:\s*(.*)$/i.exec(line);
         if (altM) {
             alt = altM[1]!.trim() || undefined;
+            continue;
+        }
+        const captionM = /^caption:\s*(.*)$/i.exec(line);
+        if (captionM) {
+            const text = captionM[1]!.trim();
+            if (text === '') skip(line, 'caption: needs the label to show, as in caption: A');
+            else if (text.length > GRAPH_FIGURE_CAPTION_MAX)
+                skip(line, `a caption is a short label, at most ${GRAPH_FIGURE_CAPTION_MAX} characters (describe the figure in alt:)`);
+            else caption = text;
             continue;
         }
         const axesM = /^axes:\s*(.*)$/i.exec(line);
@@ -480,6 +492,7 @@ export function parseFigureFence(
             plane,
             toScale,
             ...(alt ? { alt } : {}),
+            ...(caption ? { caption } : {}),
         },
         problems,
     };

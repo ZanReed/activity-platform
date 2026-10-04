@@ -84,6 +84,7 @@ import {
     // The runtime union, aliased because `Block` is already imported as a type
     // above. LABELED_BLOCK_TYPES is computed from its options — see below.
     Block as BlockSchema,
+    GRAPH_FIGURE_CAPTION_MAX,
     CropRect,
     SIMPLE_MARK_TYPES,
     InlineNode as InlineNodeSchema,
@@ -1196,6 +1197,11 @@ function tiptapGraphFigureToActivity(node: JSONContent): GraphFigureBlock {
         toScale: attrs.toScale === true,
     };
     if (typeof attrs.alt === 'string' && attrs.alt.trim() !== '') block.alt = attrs.alt;
+    // Trimmed and capped here as well as at import: the schema refuses a
+    // caption over the limit, and a refused block takes the document's save.
+    if (typeof attrs.caption === 'string' && attrs.caption.trim() !== '') {
+        block.caption = attrs.caption.trim().slice(0, GRAPH_FIGURE_CAPTION_MAX);
+    }
     applySizingAttrs(block, node);
     return block;
 }
@@ -1633,6 +1639,7 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     plane: block.plane !== false,
                     toScale: block.toScale === true,
                     ...(block.alt ? { alt: block.alt } : {}),
+                    ...(block.caption ? { caption: block.caption } : {}),
                     ...sizingTiptapAttrs(block),
                 },
             };

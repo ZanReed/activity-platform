@@ -30,6 +30,7 @@ export interface FigureSourceAttrs {
     axis: { xMin: number; xMax: number; yMin: number; yMax: number; xGridStep?: number; yGridStep?: number; showGrid?: boolean; snapToGrid?: boolean };
     drawables: readonly DrawableAttr[];
     alt?: string | null;
+    caption?: string | null;
     plane?: boolean;
     toScale?: boolean;
 }
@@ -42,6 +43,7 @@ const DEGREE = /^-?\d+(\.\d+)?°$/;
 export function formatFigureSource(a: FigureSourceAttrs): { text: string; lossy: string[] } {
     const lossy = new Set<string>();
     const lines: string[] = [];
+    if (a.caption) lines.push(`caption: ${a.caption.replace(/\n/g, ' ')}`);
     if (a.alt) lines.push(`alt: ${a.alt.replace(/\n/g, ' ')}`);
     if (a.plane) lines.push('plane: on');
     if (a.toScale) lines.push('to scale');
