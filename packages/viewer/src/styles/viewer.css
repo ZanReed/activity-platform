@@ -743,7 +743,10 @@
      2026-10-04). */
   max-width: 100%;
   min-width: 4ch;
-  padding: 0 var(--space-1);
+  /* Half a space step each side (author, 2026-10-05: "it felt a little
+     large"). Print keeps --space-1 (see underline-blanks) so the paper
+     baselines do not move. */
+  padding: 0 calc(var(--space-1) / 2);
   text-align: center;
 }
 
@@ -2004,6 +2007,7 @@
     border-bottom: 1px solid var(--vw-color-ink) !important;
     border-radius: 0;
     min-width: 8ch;
+    padding: 0 var(--space-1);
   }
 
   /* MathLive renders its own controls inside a shadow root — a virtual-keyboard
