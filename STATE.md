@@ -24,15 +24,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **Y7 CHARTS — BUILT AND LIVE 2026-10-04.** Both functions were redeployed by the author and verified by hash (deployed `viewer-server.bundle.js` and `grading-server.bundle.js` byte-identical to the repo's at `0a8e052`; flags read live). The curriculum repo pinned `chart` at their `5d86e7c` (PR #32, graph v0.17.5); the boundary page's stamp row and prompt pointer are refreshed.
 
-**GRADED STIMULI BUILT 2026-10-04 — two redeploys owed for HYGIENE, not as a
-gate.** `stimulus` is a new field on `interactive_graph`, so both committed
-server bundles changed; redeploy `pnpm deploy:get-activity` then
-`pnpm deploy:check` so the deployed bundles equal the repo's again (prove by
-hash). ⚠ Read from code, not yet from the live function: the read path does
-not schema-parse a document — it strips a DECLARED list and passes everything
-else through — so the currently deployed function should already serve
-`stimulus` untouched, and grading never reads it. `SANITIZER_REV` did not
-move. No migration.
+**GRADED STIMULI — BUILT AND LIVE 2026-10-04.** Both functions were redeployed (by Claude, on the author's explicit instruction for this one deploy) and verified by hash: the deployed `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `5285c68`; flags read live (`get-activity` false, `check-activity` true). The standing rule is unchanged: the author runs deploys unless he says otherwise.
 
 **PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
