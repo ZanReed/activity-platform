@@ -17,7 +17,8 @@ import {
     type GraphAuthorHandle,
     type GraphDisplayHandle,
 } from '@activity/graph-kit';
-import DrawableListEditor from '../components/DrawableListEditor';
+import DrawableListEditor, { ALL_DRAWABLE_KINDS } from '../components/DrawableListEditor';
+import { stimulusDrawables } from '@activity/graph-kit/static-svg';
 import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';
 
 type FigureSizing = { width: number | null; align: 'left' | 'right' | null };
@@ -199,7 +200,10 @@ function GraphAuthorBoard({
     onDomainChange,
     formulaEpoch,
     sizing,
+    stimulus,
 }: {
+    /** Fixed drawables shown with the question; drawn under the handles. */
+    stimulus?: DrawableAttr[];
     axisConfig: GraphAxisConfig;
     interaction: GraphInteraction;
     onPointsChange: (points: [number, number][]) => void;
@@ -281,10 +285,13 @@ function GraphAuthorBoard({
     // The board self-detects its theme at mount, so a live light↔dark toggle
     // must remount it — fold the effective theme into the remount key.
     const themeKey = useEffectiveTheme();
+    const stimulusSig = JSON.stringify(stimulus ?? []);
     const key = useMemo(
-        () => JSON.stringify([axisConfig, typeKey, family, count, domainSig, formulaEpoch ?? 0, themeKey]),
+        // The stimulus is part of the key: the board draws it once at mount.
+        () => JSON.stringify([axisConfig, typeKey, family, count, domainSig, formulaEpoch ?? 0, themeKey, stimulus ?? []]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
+            stimulusSig,
             axisConfig.xMin, axisConfig.xMax, axisConfig.yMin, axisConfig.yMax,
             axisConfig.xGridStep, axisConfig.yGridStep, axisConfig.showGrid,
             axisConfig.snapToGrid, typeKey, family, count, domainSig, formulaEpoch,
@@ -318,6 +325,7 @@ function GraphAuthorBoard({
             {
                 interactionType: interaction.type,
                 axisConfig,
+                stimulus: stimulus ?? [],
                 correctPoints: startRef.current,
                 family,
                 linear,
@@ -449,6 +457,16 @@ export default function InteractiveGraphView({
     const isEditable = editor.isEditable;
 
     const isDisplay = interaction.type === 'display';
+    // Graded stimuli: fixed drawables shown WITH the question (a pre-image, a
+    // mirror line). Drawn slate where uncoloured, as the student sees them.
+    const stimulus = useMemo(
+        () => ((node.attrs.stimulus ?? []) as DrawableAttr[]),
+        [node.attrs.stimulus],
+    );
+    const shownStimulus = useMemo(
+        () => stimulusDrawables({ stimulus: stimulus as never }) as unknown as DrawableAttr[],
+        [stimulus],
+    );
 
     // Display-only "what's configured" readout, in place of the removed inline
     // settings bar (settings now live in the descriptor drawer — GraphSettings).
@@ -1122,13 +1140,14 @@ export default function InteractiveGraphView({
                             // transform_curve previews start (dashed) + target.
                             <DisplayPreviewBoard
                                 axisConfig={axisConfig}
-                                drawables={
-                                    isSystem
+                                drawables={[
+                                    ...shownStimulus,
+                                    ...(isSystem
                                         ? systemPreviewDrawables
                                         : isTransform
                                           ? transformPreviewDrawables
-                                          : functionPreviewDrawables
-                                }
+                                          : functionPreviewDrawables),
+                                ]}
                                 sizing={sizing}
                             />
                         ) : (
@@ -1140,7 +1159,34 @@ export default function InteractiveGraphView({
                                 onDomainChange={onDomainChange}
                                 formulaEpoch={formulaEpoch}
                                 sizing={sizing}
+                                stimulus={shownStimulus}
                             />
+                        )}
+
+                        {/* Shown with the question (graded stimuli). Listed
+                            only once there is something to list, or behind
+                            the add control, so a plain question stays plain. */}
+                        {!preview && (
+                            <details
+                                className="graph-stimulus-editor"
+                                open={stimulus.length > 0 ? true : undefined}
+                                style={{ marginTop: '0.4rem' }}
+                            >
+                                <summary style={{ fontSize: '0.78rem', color: 'var(--ed-text-muted)', cursor: 'pointer' }}>
+                                    Shown with the question
+                                    {stimulus.length > 0 ? ` (${stimulus.length})` : ' (nothing yet)'}
+                                </summary>
+                                <p style={{ margin: '0.25rem 0', fontSize: '0.75rem', color: 'var(--ed-text-muted)' }}>
+                                    Fixed shapes the student sees but cannot move — a shape to reflect, a
+                                    mirror line, points a line must pass through. Never marked.
+                                </p>
+                                <DrawableListEditor
+                                    drawables={stimulus}
+                                    disabled={!isEditable}
+                                    onChange={(next) => updateAttributes({ stimulus: next })}
+                                    kinds={ALL_DRAWABLE_KINDS.filter((k) => k !== 'expression')}
+                                />
+                            </details>
                         )}
 
                         {!preview && interaction.type === 'graph_inequality' ? (

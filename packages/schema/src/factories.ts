@@ -328,6 +328,7 @@ export function createInteractiveGraphBlock(): InteractiveGraphBlock {
     builtinFeedback: true,
     mistakeFeedback: [],
     skills: [],
+    stimulus: [],
   };
 }
 

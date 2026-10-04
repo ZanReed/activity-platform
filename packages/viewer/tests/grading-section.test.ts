@@ -962,6 +962,53 @@ describe('misconception ids reach the wire (the sensor guard)', () => {
     expect(result.items[systemId]?.misconceptionIds).toBeUndefined();
   });
 
+  // ---- graded stimuli (curriculum C-49, requirement d) -----------------------
+
+  it('a bound POINT-SET mistake fires beside a stimulus, in any order', () => {
+    // The transformations chain's misconceptions are carried by graph
+    // questions that SHOW a pre-image and mirror line. The stimulus is
+    // question material and never reaches the scorer, so the mistake matcher
+    // must behave exactly as it does without one: the wrong image, plotted in
+    // any order, records its misconception.
+    const id = crypto.randomUUID();
+    const block = {
+      id,
+      type: 'interactive_graph',
+      prompt: [t('Reflect triangle ABC in the mirror line.')],
+      axisConfig: { xMin: -6, xMax: 6, yMin: -6, yMax: 6 },
+      interaction: {
+        type: 'plot_point',
+        correctPoints: [[-1, 1], [-4, 1], [-2, 4]],
+        tolerance: 0.1,
+      },
+      stimulus: [
+        { kind: 'point', at: [1, 1], label: 'A' },
+        { kind: 'polygon', vertices: [[1, 1], [4, 1], [2, 4]], filled: false },
+        { kind: 'curve', model: { family: 'vertical', x: 0, xTolerance: 0.1 }, style: 'dashed' },
+      ],
+      mistakeFeedback: [
+        {
+          // The triangle slid across instead of flipped: a translation.
+          match: '(-5, 1), (-2, 1), (-4, 4)',
+          feedback: [t('That is a slide, not a flip.')],
+          misconceptionId: 'mis.reflect.translates',
+        },
+      ],
+    };
+    const wrong = gradeDoc(oneBlockDoc(block), {
+      // The same three points, in a different order from the mistake line.
+      graphs: { [id]: { interaction: 'plot_point', points: [[-4, 4], [-5, 1], [-2, 1]] } },
+    });
+    expect(wrong.items[id]?.verdict).toBe('incorrect');
+    expect(wrong.items[id]?.misconceptionIds).toEqual(['mis.reflect.translates']);
+
+    const right = gradeDoc(oneBlockDoc(block), {
+      graphs: { [id]: { interaction: 'plot_point', points: [[-2, 4], [-1, 1], [-4, 1]] } },
+    });
+    expect(right.items[id]?.verdict).toBe('correct');
+    expect(right.items[id]?.misconceptionIds).toBeUndefined();
+  });
+
   // ---- cross-family guard ---------------------------------------------------
 
   it('a number_line block never picks up a graph annotation', () => {

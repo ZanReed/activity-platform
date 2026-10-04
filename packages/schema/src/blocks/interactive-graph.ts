@@ -288,6 +288,24 @@ export const InteractiveGraphBlock = z.object({
   })).default([]),
   solution: z.array(InlineNode).optional(),
   skills: z.array(z.string()).default([]),
+  // STIMULUS (graded stimuli, 2026-10-04; y7-figures-and-charts.md D9 / Q10):
+  // fixed drawables shown WITH a graded question — the pre-image and mirror
+  // line of "plot the reflection", the points a line must pass through. It is
+  // QUESTION material, never answer material: sanitize keeps it, the student's
+  // board draws it under the handles, and the printed student sheet shows it.
+  // Never scored (labels never reach a scorer).
+  //
+  // On the BLOCK, not on each interaction: one field serves all seven graded
+  // interactions through one draw path. A `display` graph keeps its own
+  // `interaction.drawables` (that picture IS the block); the importer never
+  // sets both.
+  //
+  // Guarded against rendered output by viewer/tests/components/
+  // interactive-graph-stimulus.test.tsx and e2e/student/graph-stimulus.e2e.ts.
+  stimulus: z.array(Drawable).default([]),
+  // What the stimulus shows, for a screen reader (optional). Joined to the
+  // graph's accessible name; never holds an answer.
+  stimulusAlt: z.string().optional(),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).
   // Author-set display footprint for the figure; renderer honors it via the
   // shared .block-sized path. Additive/optional — no schemaVersion bump.

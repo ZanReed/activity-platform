@@ -226,6 +226,28 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     no-solution-correct   make "no solution" THE correct answer and any drawn answer a decoy (a trick question)
     no-builtin-feedback   turn OFF the automatic mistake hints (swapped coordinates, swapped slope/intercept, …), which are on by default
     type-equation         with start:, also require the typed target equation
+- A SHOWN SHAPE BESIDE THE QUESTION: show: lines written WITH an answer: are
+  fixed on the student's graph (and on the printed sheet) for them to work
+  from - the shape to reflect, the mirror line, points a line must pass
+  through. They are never marked. After show: use the figure lines (named
+  points, polygon, segment, side, angle, ticks, parallel, text) or a line:
+    axes: -6..6, -6..6
+    prompt: Reflect triangle ABC in the mirror line. Plot A', B' and C'.
+    alt: Triangle ABC and a vertical dashed mirror line
+    show: point (1,1) "A"
+    show: point (4,1) "B"
+    show: point (2,4) "C"
+    show: polygon A B C
+    show: line x = 0 dashed
+    answer: (-1,1), (-4,1), (-2,4)
+    mistake: (-5,1), (-2,1), (-4,4) :: That is a slide, not a flip. :: mis.reflect.translates
+  Write a MIRROR LINE as show: line ... dashed (x = 2, y = -1, y = x): it
+  runs across the whole graph. A centre of rotation is a named point. The
+  plotted points are marked as a set, in any order; letters are not marked.
+  Write each mistake: as the WHOLE wrong image (every point), so it only
+  matches that error. alt: (optional) says what is shown, for screen
+  readers; never put the answer in it. Never show the answer itself.
+  Not beside an answer: show: expression, cuboid.
 - For an ungraded figure, use show: lines instead of an answer:
     show: point (2, 3) closed "A"
     show: line y = x dashed      (dotted works too)
@@ -689,6 +711,13 @@ options: allow-no-solution
 - `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`; on a ray/segment question either figure matches (the classic ray mistake is its segment version).
 - `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
 - `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
+- **`show:` lines beside an `answer:` are the question's stimulus**: fixed shapes drawn on the student's graph under their own points, and on the printed student sheet, for them to work from. They are never marked. The lines after `show:` use the [figure grammar](#geometry-figures-figure-fence) (named points, `polygon`, `region`, `segment`, `side`, `angle`, `ticks`, `parallel`, `text`) as well as the forms above, and names resolve across all of the fence's `show:` lines in any order. Example: `show: point (1,1) "A"` · `show: point (4,1) "B"` · `show: point (2,4) "C"` · `show: polygon A B C` · `show: line x = 0 dashed` · `answer: (-1,1), (-4,1), (-2,4)`.
+  - **A mirror line** is `show: line … dashed` (`x = 2`, `y = -1`, `y = x`): an infinite line across the window. A centre of rotation is a named point.
+  - **Colour:** an uncoloured stimulus shape is drawn slate, so it cannot be mistaken for the student's own (blue) work.
+  - **Marking is unchanged.** A point-list answer is marked as a set, in any order; labels are never marked. A `mistake:` line matches the same way, so write it as the whole wrong image (every point), with its `:: mis.*` binding if it has one.
+  - **`alt:`** (optional) describes what is shown, for screen readers. It never holds the answer.
+  - **Not beside an answer:** `show: expression …` and `cuboid`. Each is refused with a warning.
+  - **Problems:** a `show:` line that cannot be read is skipped and reported, and the question still imports; the batch importer skips the whole file, exactly as for a `figure` problem.
 - `start:` a shown parent curve, making the block a TRANSFORM question (design #5): the student drags the dashed start curve onto the target given by `answer:` (which must then be an equation — not points, not a ray, not `none`). No verticals and no domain clauses on `start:`.
 - `options:` `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (turn off the automatic swapped-coordinate / swapped-slope mistake hints, which are on by default), `type-equation` (with `start:`, the student must ALSO type the target's equation — both channels must be correct).
 - On a transform question, `mistake:` also accepts two reserved tokens — `drawn-not-written` (the drag is right but the typed equation isn't) and `written-not-drawn` (the reverse) — alongside ordinary wrong-equation matches, which match against EITHER channel.

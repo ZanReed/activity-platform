@@ -1155,7 +1155,15 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
         skills: Array.isArray(attrs.skills)
             ? (attrs.skills as unknown[]).filter((s): s is string => typeof s === 'string')
             : [],
+        // Graded stimuli. The batch importer converts through THIS function,
+        // so a field not copied here never reaches a document.
+        stimulus: Array.isArray(attrs.stimulus)
+            ? (attrs.stimulus as InteractiveGraphBlock['stimulus'])
+            : [],
     };
+    if (typeof attrs.stimulusAlt === 'string' && attrs.stimulusAlt.trim() !== '') {
+        block.stimulusAlt = attrs.stimulusAlt;
+    }
     // Optional solution — carry only when non-empty so round-trip equality holds
     // for graphs without one (same pattern as fill-in-blank).
     const solution = sanitizeInlineNodes(attrs.solution);
@@ -1983,6 +1991,9 @@ function activityInteractiveGraphToTiptap(block: InteractiveGraphBlock): JSONCon
             mistakeFeedback: block.mistakeFeedback,
             solution: block.solution ?? null,
             skills: block.skills,
+            // The reverse of tiptapInteractiveGraphToActivity.
+            stimulus: block.stimulus ?? [],
+            ...(block.stimulusAlt ? { stimulusAlt: block.stimulusAlt } : {}),
             ...sizingTiptapAttrs(block),
         },
         content: activityInlineToTiptap(block.prompt),

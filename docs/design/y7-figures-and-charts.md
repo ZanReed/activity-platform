@@ -1,6 +1,6 @@
 # Y7 figures and charts — geometry figures in prompts, statistics charts
 
-**Status:** ✅ **GEOMETRY SLICE BUILT 2026-10-04** (T1–T8, T7b, T8b; T3's graded-stimulus half filed with a trigger — TODOS "Graded stimuli"). Charts (T9–T13) BUILT 2026-10-04 (see "Chart slice AS BUILT"). ✅ RULED 2026-09-30 — D1–D12 accepted by the author as proposed
+**Status:** ✅ **GEOMETRY SLICE BUILT 2026-10-04** (T1–T8, T7b, T8b; T3's graded-stimulus half BUILT 2026-10-04 — TODOS "Graded stimuli" has the as-built record). Charts (T9–T13) BUILT 2026-10-04 (see "Chart slice AS BUILT"). ✅ RULED 2026-09-30 — D1–D12 accepted by the author as proposed
 (all twelve recommendations, no amendments). ✅ **DESIGN-REVIEWED
 2026-09-30** (`/plan-design-review`, author-run): §2 re-derived against the
 code (P10; six corrections, none reopening a ruling), the ten §4 forks

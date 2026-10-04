@@ -26,6 +26,7 @@ export {
   renderGraphSvg,
   answerKeyDrawables,
   questionDrawables,
+  stimulusDrawables,
   figureGeometry,
   fitFigureWindow,
 } from './static-svg/graph-svg.js';

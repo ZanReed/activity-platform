@@ -339,7 +339,27 @@ unchanged writes `4fe728d`. The author's answers to the close-out queue:
   sighting is a pattern: capture the full output (run `pnpm -r test`
   directly) before calling it noise.
 
-## Graded stimuli — drawables shown BESIDE a graded graph's answer (Y7 D9; author ruled 2026-10-04: file with a trigger)
+## ✅ BUILT 2026-10-04 — Graded stimuli: drawables shown BESIDE a graded graph's answer (Y7 D9)
+
+**As built** (the author's ten rulings of 2026-10-04, "yes to all"; grammar confirmed by the curriculum side, C-49):
+
+- **Field:** `stimulus: Drawable[]` + optional `stimulusAlt` on the `interactive_graph` BLOCK, one draw path for all seven graded interactions. A `display` graph keeps `interaction.drawables`.
+- **Students receive it:** not in the sanitize strip list. `SANITIZER_REV` did not move.
+- **One function, two surfaces:** `stimulusDrawables` / `questionDrawables` (`graph-kit/static-svg/graph-svg.ts`) feed the live board and the print twin. Uncoloured shapes default to SLATE (blue is the student's ink).
+- **Board:** `drawStaticDrawables` was extracted from `createDisplayBoard`; both graded boards call it before creating handles.
+- **Importer:** `show:` lines in a ```graph fence try today's grammar first and fall back to the figure grammar over all the lines (names, marks). A bad line is skipped, reported, and rides the figure channel (batch skips the file). `expression` and `cuboid` are refused beside an answer. `alt:` is a new optional line.
+- **Editor:** a "Shown with the question" list on every graded graph; the author board and the preview draw it.
+- **Not built, by ruling:** letters on the image points after the check (trigger below); a check that the stimulus gives the answer away.
+- **P10 corrections:** vertical lines already imported (`show: line x = 2 dashed` stores a `vertical` curve), so nothing was needed there; and `mistake:` on a points answer already matched as a set with a `:: mis.*` binding (C-49's requirement d), now pinned by a grading test beside a stimulus.
+- **Capability facts unchanged** (no new fence), so no pin bump. The catalogue prompt was regenerated: refresh its pointer stamp on the boundary page.
+- **Guards:** `viewer/tests/components/interactive-graph-stimulus.test.tsx` (five mutations, all red), `app/e2e/student/graph-stimulus.e2e.ts` (the live board; red with the draw call removed), `graph-kit/tests/stimulus-drawables.test.ts`, `app/src/__tests__/graphStimulus.test.ts`.
+
+**Left behind, each with its trigger:**
+- **Letters on the image points after the check** (Q10's "letters appear post-check"). Needs labels in the answer key and through the check response: a second schema change. TRIGGER: an authored transformations activity where the unlabelled reveal confuses which vertex went where.
+- **An arrowhead on a segment** (a translation vector; curriculum C-49, nice to have; the arrowhead D4 deferred). TRIGGER: `chain.geom.transformations` is next to be drafted.
+- **Dev-only console error, pre-existing:** inserting any graded graph in the dev editor logs "JSXGraph: HTML container element 'gk-answer-N' not found" (a StrictMode double-mount: the first author board's host is removed before its async mount runs). Seen with and without a stimulus; production builds do not double-mount. Not fixed here.
+
+*The entry as filed:*
 
 **TRIGGER: `chain.geom.transformations` is next to be drafted** (the same
 trigger as the side-by-side figures entry below). Design pass may run early

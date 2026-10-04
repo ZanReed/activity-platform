@@ -66,6 +66,8 @@ export interface GraphSurfaceConfig {
    * the sanitizer deliberately leaves `interaction.start`; it is the
    * question). Raw model object, passed to the kit verbatim. */
   startModel?: unknown;
+  /** Fixed question drawables (graded stimuli); drawn under the handles. */
+  stimulus?: unknown;
   requireEquation?: boolean;
   /** transform_curve reload: the buffered work's typed equation + drag bit,
    * so a restored board keeps both channels answered. */
@@ -112,6 +114,7 @@ const kitSurface: GraphSurface = async (mount, config, hooks) => {
       questionShape: config.questionShape,
       allowNoSolution: config.allowNoSolution,
       startModel: config.startModel,
+      stimulus: config.stimulus,
       requireEquation: config.requireEquation,
       initialEquation: config.initialEquation,
       initialDragged: config.initialDragged,

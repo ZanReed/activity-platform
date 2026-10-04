@@ -591,6 +591,12 @@ const HANDLE_SIZE = 6;
 const HANDLE_SIZE_ACTIVE = 9;
 
 export interface PointAnswerConfig {
+  /**
+   * STIMULUS: fixed question material drawn UNDER the student's handles — the
+   * pre-image and mirror line of a reflection, the points a line must pass
+   * through. Never interactive, never scored. Drawn by drawStaticDrawables.
+   */
+  stimulus?: DisplayDrawable[];
   xMin: number;
   xMax: number;
   yMin: number;
@@ -739,6 +745,9 @@ export function createPointAnswerBoard(
   const theme = detectBoardTheme(container);
   const openFill = boardColors(theme).openFill;
   applyBoardTheme(board, theme);
+  // The stimulus goes down FIRST, so every handle and the student's own
+  // figure paint over it.
+  if (config.stimulus?.length) drawStaticDrawables(board, config, config.stimulus, theme);
 
   // Re-apply the focusable application semantics JSXGraph just overwrote. The
   // arrow keys reach our keydown handler because the container is tabbable; the
@@ -1290,6 +1299,12 @@ export interface SystemBoundarySpec {
 }
 
 export interface SystemAnswerConfig {
+  /**
+   * STIMULUS: fixed question material drawn UNDER the student's handles — the
+   * pre-image and mirror line of a reflection, the points a line must pass
+   * through. Never interactive, never scored. Drawn by drawStaticDrawables.
+   */
+  stimulus?: DisplayDrawable[];
   xMin: number;
   xMax: number;
   yMin: number;
@@ -1352,6 +1367,7 @@ export function createSystemAnswerBoard(
 
   const theme = detectBoardTheme(container);
   applyBoardTheme(board, theme);
+  if (config.stimulus?.length) drawStaticDrawables(board, config, config.stimulus, theme);
 
   container.setAttribute('role', 'application');
   container.setAttribute('tabindex', '0');
@@ -1847,7 +1863,6 @@ export function createDisplayBoard(
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
 
   const theme = detectBoardTheme(container);
-  const openFill = boardColors(theme).openFill;
   applyBoardTheme(board, theme);
 
   // A static figure: announce it as an image, not an application. (JSXGraph sets
@@ -1859,6 +1874,37 @@ export function createDisplayBoard(
     container.setAttribute('aria-label', 'Graph');
   }
 
+  drawStaticDrawables(board, config, config.drawables, theme);
+
+  board.update();
+
+  return {
+    destroy(): void {
+      JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
+    },
+  };
+}
+
+/**
+ * Draw fixed, non-interactive drawables on a board: every kind the display
+ * figure knows, marks included.
+ *
+ * ONE routine, two callers: createDisplayBoard (the whole picture) and the
+ * GRADED boards (a question's STIMULUS — the pre-image and mirror line a
+ * student reflects in, graded-stimuli slice 2026-10-04). Extracted rather than
+ * copied so a new drawable kind reaches both, which is the two-renderer lesson
+ * the convergence arc paid for. Everything created here is `fixed` and
+ * unhighlighted: a stimulus is something to look at, never a handle.
+ *
+ * Defensive per drawable, as before: a malformed one is skipped, not thrown.
+ */
+export function drawStaticDrawables(
+  board: JxgBoard,
+  config: { xMin: number; xMax: number; yMin: number; yMax: number },
+  drawables: DisplayDrawable[],
+  theme: BoardTheme,
+): void {
+  const openFill = boardColors(theme).openFill;
   // Continuation arrowhead: a short overlay segment whose lastArrow marker
   // sits at the window-exit point (display-arrows.ts computes where that is —
   // most curves leave through the top/bottom, not the sides).
@@ -1882,7 +1928,7 @@ export function createDisplayBoard(
   const toPx = (v: readonly number[]): Pt => [v[0]! * ux, -v[1]! * uy];
   const fromPx = (p: Pt): [number, number] => [p[0] / ux, -p[1] / uy];
   const unit = (board.canvasWidth || 400) / 400;
-  const marks = markContext(config.drawables as MarkSource[], toPx);
+  const marks = markContext(drawables as MarkSource[], toPx);
   const ink = boardColors(theme).ink;
   const drawPrims = (prims: readonly MarkPrim[], color: string): void => {
     for (const m of prims) {
@@ -1924,10 +1970,10 @@ export function createDisplayBoard(
         : (d.kind === 'tick_mark' || d.kind === 'parallel_mark') && isPair(d.from) && isPair(d.to)
           ? markOwner(marks, toPx(d.from), toPx(d.to))
           : undefined;
-    return resolveDrawableColor(owner === undefined ? undefined : config.drawables[owner]?.color);
+    return resolveDrawableColor(owner === undefined ? undefined : drawables[owner]?.color);
   };
 
-  for (const d of config.drawables) {
+  for (const d of drawables) {
     const color = resolveDrawableColor(d.color);
     switch (d.kind) {
       case 'point': {
@@ -2117,12 +2163,4 @@ export function createDisplayBoard(
         break;
     }
   }
-
-  board.update();
-
-  return {
-    destroy(): void {
-      JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
-    },
-  };
 }

@@ -660,12 +660,37 @@ export function answerKeyDrawables(block: InteractiveGraphBlock): Drawable[] {
 // exists for.
 export function questionDrawables(block: {
   interaction?: { type: string; start?: FunctionModel };
+  stimulus?: readonly Drawable[] | undefined;
 }): Drawable[] {
   const interaction = block.interaction;
+  // A display graph's picture is its own `interaction.drawables`; the stimulus
+  // field belongs to GRADED graphs (the importer never sets both).
+  const stimulus = interaction?.type === 'display' ? [] : stimulusDrawables(block);
   if (interaction?.type === 'transform_curve' && interaction.start) {
-    return [{ kind: 'curve', model: interaction.start, style: 'dashed' }];
+    return [...stimulus, { kind: 'curve', model: interaction.start, style: 'dashed' }];
   }
-  return [];
+  return stimulus;
+}
+
+/** Drawable kinds that carry their own stroke colour (marks and labels take
+ * the colour of the shape they annotate, so defaulting the shape is enough). */
+const STIMULUS_SHAPES: ReadonlySet<string> = new Set([
+  'point', 'curve', 'expression', 'segment', 'ray', 'polygon', 'cuboid',
+]);
+
+/**
+ * A graded graph's STIMULUS as it is drawn — on the student's board and on
+ * paper, from this one function so the two cannot disagree.
+ *
+ * An uncoloured shape defaults to SLATE here, not to the shared drawable
+ * default (blue): blue is the student's own ink on a graded board, so a blue
+ * pre-image would read as work the student had already done. An authored
+ * colour always wins.
+ */
+export function stimulusDrawables(block: { stimulus?: readonly Drawable[] | undefined }): Drawable[] {
+  return (block.stimulus ?? []).map((d) =>
+    STIMULUS_SHAPES.has(d.kind) && !('color' in d && d.color) ? ({ ...d, color: 'slate' } as Drawable) : d,
+  );
 }
 
 // ---- figure geometry (plane-less mode, Q4) -----------------------------------

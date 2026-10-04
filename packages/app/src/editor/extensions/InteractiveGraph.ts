@@ -439,6 +439,27 @@ export const InteractiveGraph = Node.create({
                         ? { 'data-graph-mistake-feedback': JSON.stringify(attrs.mistakeFeedback) }
                         : {},
             },
+            // STIMULUS (graded stimuli): fixed drawables shown with a graded
+            // question, plus its optional screen-reader description. They must
+            // ride the node — the batch importer converts through serialize.ts
+            // and opening + saving an activity round-trips through these attrs.
+            stimulus: {
+                default: [] as DrawableAttr[],
+                parseHTML: (el) =>
+                    parseJson<DrawableAttr[]>(el.getAttribute('data-graph-stimulus'), []),
+                renderHTML: (attrs) =>
+                    Array.isArray(attrs.stimulus) && attrs.stimulus.length > 0
+                        ? { 'data-graph-stimulus': JSON.stringify(attrs.stimulus) }
+                        : {},
+            },
+            stimulusAlt: {
+                default: null as string | null,
+                parseHTML: (el) => el.getAttribute('data-graph-stimulus-alt'),
+                renderHTML: (attrs) =>
+                    typeof attrs.stimulusAlt === 'string' && attrs.stimulusAlt !== ''
+                        ? { 'data-graph-stimulus-alt': attrs.stimulusAlt }
+                        : {},
+            },
             skills: {
                 default: [] as string[],
                 parseHTML: (el) =>

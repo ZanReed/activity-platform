@@ -468,6 +468,13 @@ export interface GraphQuestionConfig {
    * it draws muted+dashed under the student's own.
    */
   startModel?: unknown;
+  /**
+   * STIMULUS: raw Drawable[] shown WITH the question on every graded board
+   * (graded-stimuli slice). Question material, like startModel — the served
+   * block carries it and the viewer passes it through. Coerced defensively by
+   * readDrawables; never scored.
+   */
+  stimulus?: unknown;
   /** transform_curve: false = drag-only (no equation field). Default true. */
   requireEquation?: boolean;
   /** transform_curve reload: the previously typed equation (ascii-math). */
@@ -931,6 +938,7 @@ export async function mountGraphQuestion(
     mount,
     {
       ...axis,
+      stimulus: readDrawables(cfg.stimulus),
       count: recipe.count,
       starts: recipe.starts,
       deriveCurve: recipe.deriveCurve,
@@ -1297,7 +1305,7 @@ export async function mountGraphSystemQuestion(
 
   const board = createSystemAnswerBoard(
     mount,
-    { ...axis, boundaries: specs },
+    { ...axis, boundaries: specs, stimulus: readDrawables((cfg as { stimulus?: unknown }).stimulus) },
     {
       onMove: () => {
         if (board.hasMoved()) answered = true;
@@ -1548,7 +1556,7 @@ export async function mountGraphFunctionSystemQuestion(
 
   const board = createSystemAnswerBoard(
     mount,
-    { ...axis, boundaries: specs },
+    { ...axis, boundaries: specs, stimulus: readDrawables((cfg as { stimulus?: unknown }).stimulus) },
     {
       onMove: () => {
         if (board.hasMoved()) answered = true;
@@ -1727,6 +1735,7 @@ export async function mountGraphAuthor(
     mount,
     {
       ...axis,
+      stimulus: readDrawables((cfg as { stimulus?: unknown }).stimulus),
       count,
       starts: points.length === count ? points : undefined,
       deriveCurve,

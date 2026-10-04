@@ -4536,6 +4536,8 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     let startModel: Record<string, unknown> | null = null;
     let typeEquation = false;
     const mistakes: { match: string; feedback: { type: 'text'; text: string; marks: [] }[] }[] = [];
+    const showValues: string[] = [];
+    let stimulusAlt = '';
     const fail = (msg: string): null => {
         ctx.warnings.add('Graph block: ' + msg + ' — imported as plain text.');
         return null;
@@ -4545,7 +4547,7 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
         if (!line) continue;
-        const m = /^(axes|prompt|answer|show|options|mistake|start):\s*(.*)$/i.exec(line);
+        const m = /^(axes|prompt|answer|show|options|mistake|start|alt):\s*(.*)$/i.exec(line);
         if (!m) return fail(`unrecognized line "${line}"`);
         const value = (m[2] ?? '').trim();
         switch ((m[1] ?? '').toLowerCase()) {
@@ -4663,16 +4665,45 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                 startModel = parsed.model as unknown as Record<string, unknown>;
                 break;
             }
-            case 'show': {
-                // 'dotted' is an accepted synonym for 'dashed'; style/endpoint/
-                // label parsing lives in the shared parseShowDrawable (also used
-                // by MC/matching choice `graph:` figures). Same failure behaviour:
-                // a bad show line fails the whole block to plain text.
-                const r = parseShowDrawable(value);
-                if (!r.ok) return fail(r.message);
-                drawables.push(r.drawable);
+            case 'show':
+                // Collected, and read AFTER the loop: a show: line may name a
+                // point defined on a later line (the figure grammar below).
+                showValues.push(value);
                 break;
+            case 'alt':
+                // What the shown figure is, for a screen reader (graded
+                // stimuli). Only meaningful beside show: + answer:.
+                stimulusAlt = value;
+                break;
+        }
+    }
+
+    // ---- the show: lines (ER-11) ---------------------------------------------
+    // Two grammars, tried in this order so nothing that imported before changes:
+    //   1. TODAY'S: every line read by parseShowDrawable (point / line / curve
+    //      / expression / segment / ray / region). If ALL of them read, the
+    //      result is exactly what it was.
+    //   2. THE FIGURE GRAMMAR (figureFence.ts) over all the lines together:
+    //      named points, polygon, side, angle, ticks, parallel, text — the
+    //      labelled pre-image a transformation question shows. A line it cannot
+    //      read is SKIPPED with a problem (ER-12a), the block survives, and the
+    //      problem rides the figure channel, so a batch run skips the file: a
+    //      dropped mark on a graded question is a wrong question.
+    if (showValues.length > 0) {
+        const plain = showValues.map((v) => parseShowDrawable(v));
+        if (plain.every((r) => r.ok)) {
+            for (const r of plain) if (r.ok) drawables.push(r.drawable);
+        } else {
+            const fig = parseFigureFence(
+                showValues.join('\n'),
+                (line) => parseShowDrawable(line),
+                { linesOnly: true, who: 'Graph block show' },
+            );
+            for (const p of fig.problems) {
+                ctx.warnings.add(p);
+                ctx.figureProblems.push(p);
             }
+            drawables.push(...(fig.attrs?.drawables ?? []));
         }
     }
 
@@ -4696,11 +4727,22 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
         };
     }
     const finalInteraction = interaction ?? { type: 'display', drawables };
-    if (interaction && drawables.length > 0) {
-        // A graded answer + show lines: the shows aren't renderable inside a
-        // graded block yet (stimulus-with-drawables is a future addition), so
-        // surface that rather than silently dropping them.
-        ctx.warnings.add('Graph block: show lines alongside an answer aren’t drawn yet (coming with graded stimuli).');
+    // GRADED STIMULI: show: lines beside an answer are the question's fixed
+    // material (a pre-image, a mirror line), drawn under the student's handles
+    // and on the printed sheet. Two kinds cannot be one: `expression` (the
+    // print engine has no formula parser, so paper would lose it) and `cuboid`
+    // (a graded graph is a coordinate plane; a cuboid is a plane-less solid).
+    let stimulus: Record<string, unknown>[] = [];
+    if (interaction) {
+        stimulus = drawables.filter((d) => {
+            if (d.kind !== 'expression' && d.kind !== 'cuboid') return true;
+            const p = `Graph block show: a shown ${d.kind} can’t sit beside an answer — the line was refused.`;
+            ctx.warnings.add(p);
+            ctx.figureProblems.push(p);
+            return false;
+        });
+    } else if (stimulusAlt) {
+        ctx.warnings.add('Graph block: alt: describes what is shown beside an answer; this graph has no answer, so it was ignored.');
     }
     return {
         type: 'interactiveGraph',
@@ -4714,6 +4756,8 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             builtinFeedback,
             mistakeFeedback: mistakes,
             skills: [],
+            stimulus,
+            ...(interaction && stimulus.length > 0 && stimulusAlt ? { stimulusAlt } : {}),
         },
         content: graphPromptContent(prompt, ctx),
     };

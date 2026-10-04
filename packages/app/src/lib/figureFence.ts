@@ -146,13 +146,24 @@ const DEGREE_RE = new RegExp(String.raw`^(${NUM})°$`);
  * Parse a ```figure fence body. `fallback` handles the show-spec kinds the
  * figure grammar does not redefine (`line`, `curve`, `ray`).
  */
-export function parseFigureFence(src: string, fallback?: FigureFallback): FigureParse {
+export function parseFigureFence(
+    src: string,
+    fallback?: FigureFallback,
+    /**
+     * `linesOnly` is the ```graph fence's use (ER-11): its `show:` lines share
+     * this grammar, but the graph owns its own window, plane and accessible
+     * name — so a missing alt: and an empty result are not problems here, and
+     * `who` renames the reporter so a warning names the fence it came from.
+     */
+    opts: { linesOnly?: boolean; who?: string } = {},
+): FigureParse {
+    const who = opts.who ?? 'Figure';
     const problems: string[] = [];
     const skip = (line: string, why: string): void => {
-        problems.push(`Figure: "${line}" — ${why}; the line was skipped.`);
+        problems.push(`${who}: "${line}" — ${why}; the line was skipped.`);
     };
     const refuse = (line: string, why: string): void => {
-        problems.push(`Figure: "${line}" — ${why}; the line was refused.`);
+        problems.push(`${who}: "${line}" — ${why}; the line was refused.`);
     };
 
     const lines = src
@@ -449,10 +460,10 @@ export function parseFigureFence(src: string, fallback?: FigureFallback): Figure
     }
 
     if (drawables.length === 0) {
-        problems.push('Figure: it has no drawable lines, so it was not imported.');
+        if (!opts.linesOnly) problems.push('Figure: it has no drawable lines, so it was not imported.');
         return { attrs: null, problems };
     }
-    if (!alt) {
+    if (!alt && !opts.linesOnly) {
         problems.push('Figure: it needs an alt: line describing what it shows (for screen readers).');
     }
 

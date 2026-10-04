@@ -37,7 +37,11 @@ import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
 import { CANVAS_HOST_STYLE, VISUALLY_HIDDEN } from './canvasChrome.js';
-import { renderGraphSvg, questionDrawables } from '@activity/graph-kit/static-svg';
+import {
+  renderGraphSvg,
+  questionDrawables,
+  stimulusDrawables,
+} from '@activity/graph-kit/static-svg';
 import { PrintTwin } from './printTwin.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
 import { ANSWER_KEY_INK } from '../answer-key/types.js';
@@ -96,6 +100,12 @@ export default function InteractiveGraph({
         ...(block.questionShape ? { questionShape: block.questionShape } : {}),
         ...(block.allowNoSolution !== undefined
           ? { allowNoSolution: block.allowNoSolution }
+          : {}),
+        // The STIMULUS (graded stimuli): fixed drawables shown with the
+        // question. Question material, kept by sanitize; the same
+        // stimulusDrawables() the print twin uses, so screen and paper agree.
+        ...(!isDisplay && (block.stimulus?.length ?? 0) > 0
+          ? { stimulus: stimulusDrawables(block as Parameters<typeof stimulusDrawables>[0]) }
           : {}),
         // transform_curve: the SHOWN parent + the reload channels. `start`
         // survives sanitize by design — it is the question. The buffered
@@ -222,6 +232,15 @@ export default function InteractiveGraph({
         </p>
       ) : null}
 
+      {/* What the stimulus shows, for a screen reader: the board itself is a
+          canvas whose fixed drawables are not announced. In reading order
+          between the prompt and the graph; printed sheets show the picture. */}
+      {!isDisplay && block.stimulusAlt?.trim() ? (
+        <p style={VISUALLY_HIDDEN} data-stimulus-alt="">
+          The graph shows: {block.stimulusAlt.trim()}
+        </p>
+      ) : null}
+
       {/* What actually prints (S5-1/OV4): empty axes for a question the
           student plots onto, the authored drawables for a display figure —
           and, on a teacher answer key only, the answer drawn over the axes. */}
@@ -247,16 +266,18 @@ export default function InteractiveGraph({
             ? // A key still shows the QUESTION under the answer: for
               // transform_curve that is the dashed start curve (empty for
               // every other variant), so a teacher reads "from here, to here".
-              [...questionDrawables(block), ...answerOverlay]
+              [...questionDrawables(block as Parameters<typeof questionDrawables>[0]), ...answerOverlay]
             : block.interaction?.type === 'display'
               ? (block.interaction.drawables as Parameters<typeof renderGraphSvg>[1])
-              : // The empty-axes invariant's new spelling: questionDrawables
-                // returns [] for every variant EXCEPT transform_curve, whose
-                // start curve is the question itself (a student cannot
-                // transform a parent they cannot see). Centralized in
-                // graph-kit so the print twin and any future static surface
-                // agree on what a question shows.
-                questionDrawables(block),
+              : // The empty-axes invariant's current spelling: questionDrawables
+                // returns only QUESTION material — an authored stimulus (the
+                // pre-image and mirror line a student reflects in) and
+                // transform_curve's start curve — and [] for a question that
+                // has neither. A student cannot reflect a shape, or transform
+                // a parent, that is not on the sheet. Centralized in graph-kit
+                // so the print twin and the live board agree on what a
+                // question shows.
+                questionDrawables(block as Parameters<typeof questionDrawables>[0]),
           block.id,
           // A distinct neutral ink, so a teacher reads the overlay as "added
           // for the key" rather than as authored content.
