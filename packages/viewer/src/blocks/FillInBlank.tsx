@@ -111,7 +111,7 @@ export default function FillInBlank({
                   readOnly={mode === 'print' || keyAnswer !== undefined}
                   aria-label={ariaLabel}
                   {...(keyAnswer !== undefined ? { 'data-answer-key': 'filled' } : {})}
-                  size={blankInputSize(blank, mode)}
+                  size={blankInputSize(blank, mode, value)}
                   {...(result
                     ? { 'data-verdict': result.verdict, 'aria-invalid': result.verdict === 'incorrect' }
                     : {})}

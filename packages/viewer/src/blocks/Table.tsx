@@ -169,7 +169,7 @@ export default function Table({
                               {...(keyAnswer !== undefined
                                 ? { 'data-answer-key': 'filled' }
                                 : {})}
-                              size={blankInputSize(blank, mode)}
+                              size={blankInputSize(blank, mode, value)}
                               {...(result
                                 ? {
                                     'data-verdict': result.verdict,

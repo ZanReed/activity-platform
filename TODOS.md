@@ -25,7 +25,7 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 
 **Findings, 2026-10-05 (numeric-blank width hand-off; author screenshot):**
 
-- ◐ **The 8-character numeric blank still wraps in a third-width column.** The default IS applied (numeric blanks render ~8 characters, the text blank ~20), but after "The scale factor is" a third-width column has room for about 5, so the blank still drops to its own line, and "Each side is ___ cm long." breaks across three lines. The 8 was chosen without measuring a real column. OPEN: options put to the author (smaller fixed default; or a small start that grows as the student types).
+- ✅ **The 8-character numeric blank still wraps in a third-width column** (author screenshot 2026-10-05). The default IS applied, but a third-width column has about 5 characters left after "The scale factor is"; the 8 was chosen without measuring a real column. FIXED with the author's option 1: an unsized numeric blank STARTS at 4 characters and GROWS as the student types (one character of room past the value, cap 20; `blankSize.ts`). Measured in the real viewer CSS in a 205 px column: at 8 the blank wraps, at 4 all three of his sentences keep the blank on line 1, and "60 km/h" grows to fit. Known and accepted: words after a growing blank can reflow as the student types (their own keystrokes, not a page change).
 
 **Open questions raised by the build (not yet findings):**
 

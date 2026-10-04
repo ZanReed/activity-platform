@@ -3,15 +3,16 @@
 // -----------------------------------------------------------------------------
 // The author's finding (2026-10-04): an unsized blank in a third-width column
 // took a line of its own, because the browser default is 20 characters. Option
-// 2 (ruled 2026-10-05): an unsized NUMERIC blank defaults to 8 characters on
-// screen. Bound to the rendered `size` attribute of BOTH places a blank input
+// 2 (ruled 2026-10-05) made an unsized NUMERIC blank 8 characters, which still
+// wrapped in a third-width column; the author then chose option 1: it starts at
+// 4 characters and GROWS with what the student types (cap 20). Bound to the rendered `size` attribute of BOTH places a blank input
 // is rendered — prose (FillInBlank) and a table cell (Table) — because the
 // rule lives in one helper and a call site that bypasses it is the failure.
 // =============================================================================
 
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import {
   ViewerProvider,
   createMockCheckService,
@@ -60,7 +61,7 @@ const sizes = (container: HTMLElement) =>
   );
 
 describe('blank input size', () => {
-  it('an unsized numeric blank is 8 characters on screen; text and math keep the browser default', () => {
+  it('an unsized numeric blank starts at 4 characters on screen; text and math keep the browser default', () => {
     const { container } = harness(
       <FillInBlank
         block={prose({ answerType: 'numeric' }, { answerType: 'text' }, { answerType: 'math' }, {}) as never}
@@ -68,7 +69,22 @@ describe('blank input size', () => {
         label={LABEL}
       />,
     );
-    expect(sizes(container)).toEqual(['8', null, null, null]);
+    expect(sizes(container)).toEqual(['4', null, null, null]);
+  });
+
+  it('grows with what the student types, one character of room past the value, capped at 20', () => {
+    const { container } = harness(
+      <FillInBlank block={prose({ answerType: 'numeric' }) as never} mode="screen" label={LABEL} />,
+    );
+    const input = container.querySelector('input.viewer-blank__input')!;
+    fireEvent.change(input, { target: { value: '12' } });
+    expect(sizes(container)).toEqual(['4']);
+    fireEvent.change(input, { target: { value: '60 km/h' } });
+    expect(sizes(container)).toEqual(['8']);
+    fireEvent.change(input, { target: { value: '1'.repeat(40) } });
+    expect(sizes(container)).toEqual(['20']);
+    fireEvent.change(input, { target: { value: '' } });
+    expect(sizes(container)).toEqual(['4']);
   });
 
   it('an authored width always wins', () => {
@@ -112,6 +128,10 @@ describe('blank input size', () => {
       ],
     };
     const { container } = harness(<Table block={table as never} label={LABEL} mode="screen" />);
-    expect(sizes(container)).toEqual(['8', null]);
+    expect(sizes(container)).toEqual(['4', null]);
+    fireEvent.change(container.querySelector('input.viewer-blank__input')!, {
+      target: { value: '22.50' },
+    });
+    expect(sizes(container)).toEqual(['6', null]);
   });
 });
