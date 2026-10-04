@@ -28,9 +28,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **SIDE-BY-SIDE FIGURES — LIVE 2026-10-04.** The two hygiene redeploys ran (Claude, on the author's "run them"); the CLI reported "No change found" for both, and the downloaded `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `68b0ba0`; flags read live (`get-activity` false, `check-activity` true). Nothing owed.
 
-**PRACTICE BLOCKS (D43) — BUILDING. One live step owed:**
-1. ~~Apply migration 0044~~ — APPLIED by the author 2026-10-04; live range 44/`0044`, verify-0044 8/8 live, tables empty (no residue).
-2. **Mirror the registry**, dry run first: `pnpm import:batch ~/activity-catalogue-pilot --owner <email> --fact-registry ~/Project\ folder/curriculum-repo/fact-scope-registry.json --dry-run` should print `revision ac8f9fd2…`, `1124 in 13 families`, probes `Y7 … 40 · Y8 … 55 · Y9 … 65 · Y10 … 65 items` and `NEW revision`; then the same without `--dry-run`; a re-run prints `unchanged`. Pull the curriculum repo's `main` first.
+**PRACTICE BLOCKS (D43) — BUILDING. The fact-scope mirror is LIVE (2026-10-04):** 0044 applied (verify-0044 8/8 live); revision `ac8f9fd2…` mirrored by the author's import run, 13 families / 1124 facts, content fingerprint identical to the local mirror; a re-run reports `unchanged`. Nothing owed.
 
 Built so far: the mirror pass (T4) — [practice-blocks.md](docs/design/practice-blocks.md) → "The mirror pass, as built" (decisions 1–9, author yes 2026-10-04). Next: 0045 (probe tables, RPCs, re-created purge, compliance docs) and the runner. Mixed practice stays GATED: no ratified §17 bank exists on their `main` (`aeeab52`). **Owed by 1 November 2026:** the year-level placement, and the counsel packet's practice-data question (E5), not drafted yet.
 
