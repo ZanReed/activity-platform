@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**Y7 CHARTS — BUILT AND LIVE 2026-10-04.** Both functions were redeployed by the author and verified by hash (deployed `viewer-server.bundle.js` and `grading-server.bundle.js` byte-identical to the repo's at `0a8e052`; flags read live). The curriculum repo's pin-bump is their PR #32, released by letter B-56; refresh the boundary page's stamp row once it merges.
+**Y7 CHARTS — BUILT AND LIVE 2026-10-04.** Both functions were redeployed by the author and verified by hash (deployed `viewer-server.bundle.js` and `grading-server.bundle.js` byte-identical to the repo's at `0a8e052`; flags read live). The curriculum repo pinned `chart` at their `5d86e7c` (PR #32, graph v0.17.5); the boundary page's stamp row and prompt pointer are refreshed.
 
 **PRACTICE BLOCKS — design COMPLETE, registry LANDED 2026-10-03, nothing built**
 ([practice-blocks.md](docs/design/practice-blocks.md): scope-, eng- and
