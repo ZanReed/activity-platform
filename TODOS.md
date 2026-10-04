@@ -23,6 +23,10 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - ✅ **A blank in a narrow column takes a whole line and ran past the column edge** (student view, "The scale factor is ____ ." in a three-column row; 2026-10-04). Overflow FIXED that day (`max-width: 100%`). The width: the author chose option 2 (2026-10-05) — an UNSIZED NUMERIC blank is 8 characters on screen (`viewer/src/blocks/blankSize.ts`, both render sites; guard `blank-size.test.tsx`). An authored width wins; text and math blanks and print are unchanged. `answerType` was already served (an earlier note here that the viewer could not know a blank is numeric was WRONG — `InlineContent` was dropping it). No number keypad on phones: a unit-bearing numeric blank needs letters, and the unit is stripped.
 - ✅ The cut-off message: the author said to ignore it (2026-10-04). Item 5's test activity: "all seemed good", apart from the narrow-column blank above.
 
+**Findings, 2026-10-05 (numeric-blank width hand-off; author screenshot):**
+
+- ◐ **The 8-character numeric blank still wraps in a third-width column.** The default IS applied (numeric blanks render ~8 characters, the text blank ~20), but after "The scale factor is" a third-width column has room for about 5, so the blank still drops to its own line, and "Each side is ___ cm long." breaks across three lines. The 8 was chosen without measuring a real column. OPEN: options put to the author (smaller fixed default; or a small start that grows as the student types).
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
