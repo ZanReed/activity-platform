@@ -48,6 +48,9 @@ export interface StaleChunkRecoveryOptions {
    * location.reload, and stubbing window.location globally leaks between
    * tests. */
   reload?: () => void;
+  /** Is someone using this page? Injectable for tests; defaults to "a key or
+   * pointer press, or open past its first seconds" (pageIsInUse). */
+  inUse?: () => boolean;
 }
 
 /** Returns a detacher, matching `watchIdle`'s shape. Production calls this once
@@ -57,8 +60,18 @@ export function installStaleChunkRecovery(
   options: StaleChunkRecoveryOptions = {},
 ): { stop: () => void } {
   const reload = options.reload ?? (() => window.location.reload());
+  const tracker = options.inUse ? null : trackInteraction();
+  const inUse = options.inUse ?? (() => pageIsInUse(tracker!.interacted()));
 
   const onPreloadError = (event: Event) => {
+    // NEVER reload under someone using the page (author ruling 2026-10-04,
+    // extended to this path the same day). The control they opened stays dead
+    // until they refresh, so say so: raise the update notice and let the
+    // error surface as it would have.
+    if (inUse()) {
+      announceUpdateReady();
+      return;
+    }
     const store = safeSession();
     if (store?.getItem(RELOAD_GUARD_KEY)) {
       // Already tried. A second reload would loop; let the error surface so
@@ -83,6 +96,7 @@ export function installStaleChunkRecovery(
 
   return {
     stop: () => {
+      tracker?.stop();
       window.removeEventListener('vite:preloadError', onPreloadError);
       window.removeEventListener('load', onLoad);
     },
@@ -229,6 +243,12 @@ export function onUpdateReady(listener: () => void): () => void {
   return () => window.removeEventListener(UPDATE_READY_EVENT, listener);
 }
 
+/** Mark this page as outdated and tell the notice bar. */
+function announceUpdateReady(): void {
+  updateReady = true;
+  window.dispatchEvent(new Event(UPDATE_READY_EVENT));
+}
+
 /** Test seam: forget a previous announcement. */
 export function resetUpdateReadyForTests(): void {
   updateReady = false;
@@ -250,8 +270,7 @@ export function handleUpdateArrival(options: UpdateArrivalOptions): 'reloaded' |
     (options.reload ?? (() => window.location.reload()))();
     return 'reloaded';
   }
-  updateReady = true;
-  window.dispatchEvent(new Event(UPDATE_READY_EVENT));
+  announceUpdateReady();
   return 'announced';
 }
 

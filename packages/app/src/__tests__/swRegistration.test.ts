@@ -298,3 +298,26 @@ describe('when a page counts as in use', () => {
         expect(pageIsInUse(false, 30 * 60_000)).toBe(true);
     });
 });
+
+describe('a missing chunk under someone using the page', () => {
+    it('raises the notice and does NOT reload (author ruling 2026-10-04)', () => {
+        resetUpdateReadyForTests();
+        const reload = vi.fn();
+        const recovery = installStaleChunkRecovery({ reload, inUse: () => true });
+        window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+        expect(reload).not.toHaveBeenCalled();
+        expect(isUpdateReady()).toBe(true);
+        recovery.stop();
+    });
+
+    it('still reloads once on an untouched, freshly loaded page', () => {
+        sessionStorage.clear();
+        resetUpdateReadyForTests();
+        const reload = vi.fn();
+        const recovery = installStaleChunkRecovery({ reload, inUse: () => false });
+        window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(isUpdateReady()).toBe(false);
+        recovery.stop();
+    });
+});
