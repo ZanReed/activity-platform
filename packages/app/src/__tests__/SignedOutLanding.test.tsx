@@ -39,6 +39,7 @@ vi.mock('../lib/classActivities', () => ({
 import {
   SignedOutLanding,
   studentRedirectUrl,
+  returningRedirectUrl,
   teacherRedirectUrl,
 } from '../components/SignedOutLanding';
 import { LANDING_ANNOUNCEMENTS, LANDING_COPY } from '../lib/authMessages';
@@ -87,6 +88,21 @@ describe('SignedOutLanding — the pre-auth fork', () => {
       redirectTo: teacherRedirectUrl(window.location.origin),
     });
     expect(teacherRedirectUrl('https://x.test')).toBe('https://x.test/?intent=teacher');
+  });
+
+  it('the RETURNING door needs no code: it signs in and comes back to Home, with no intent (author finding 2026-10-06)', async () => {
+    render(<SignedOutLanding idleSignedOut={false} />);
+    expect(screen.getByText(LANDING_COPY.returningLabel)).toBeTruthy();
+    const door = screen.getByRole('button', { name: LANDING_COPY.returningAction }) as HTMLButtonElement;
+    expect(door.disabled).toBe(false);
+    fireEvent.click(door);
+    await waitFor(() => expect(h.signIn).toHaveBeenCalledTimes(1));
+    expect(h.signIn).toHaveBeenCalledWith({
+      redirectTo: returningRedirectUrl(window.location.origin),
+      includeDistrictHint: true,
+    });
+    expect(returningRedirectUrl('https://x.test')).toBe('https://x.test/');
+    expect(h.fetchMeta).not.toHaveBeenCalled();
   });
 
   it('the action stays disabled until the code is full length', () => {

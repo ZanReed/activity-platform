@@ -42,6 +42,10 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - ✅ **CONFIRMED by the author 2026-10-06**, after a new snapshot on the live site: "tested great result happy with how this new system works all looks good" — per-family grouping at 80% and the two-part check both accepted.
 - **Cleanup owed after 0046:** `fact_probe_stat` still returns the superseded per-student `group` and class `groups` (kept so the page live at apply time did not break). **Trigger: the next migration that touches `fact_probe_stat`** — remove both, and the `group`/`groups` fields from `lib/factProbe.ts`.
 
+**Findings, 2026-10-06 (the author, on the live home page):**
+
+- ✅ **A signed-out student had no way to sign in.** The home page offered only a class-code field and the teacher link, so a student who had already joined and opened the site without their code was stuck (his words: "a dumb but serious issue"). FIXED: a "Sign in with Google" button under "Already joined a class?" on the signed-out page. It goes to Google and back to Home; the account's role decides what they see, and it admits no one (an account nobody has admitted gets the same onboarding card as before). The teacher link now reads "I'm a teacher · sign in or get started" (`SignedOutLanding.tsx`, `LANDING_COPY`). Guard: `SignedOutLanding.test.tsx` (red when the door was pointed at the teacher route). NEEDS THE AUTHOR: the wording and the position are his to change.
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.

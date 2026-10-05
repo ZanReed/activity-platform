@@ -160,8 +160,13 @@ export const LANDING_COPY = {
   studentHeading: 'Students',
   codeLabel: 'Have a class code?',
   studentAction: 'Continue with Google',
-  teacherAction: "I'm a teacher · get started",
-  teacherBody: "Teachers sign in with Google and confirm they're an educator.",
+  /** The RETURNING door (author finding 2026-10-06): someone who already has
+   *  an account had no way in without a class code. Role decides where they
+   *  land; nothing here admits anyone. */
+  returningLabel: 'Already joined a class?',
+  returningAction: 'Sign in with Google',
+  teacherAction: "I'm a teacher · sign in or get started",
+  teacherBody: "Teachers sign in with Google. New teachers confirm they're an educator.",
   codeNotFound: "This code doesn't match a class — double-check it with your teacher.",
   /** Shown WITH codeNotFound: the anon meta endpoint can be stale, so the
    *  check warns and then gets out of the way — it never hard-blocks (DR-6). */

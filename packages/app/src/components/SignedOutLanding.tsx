@@ -13,6 +13,16 @@
 //     code door     → redirectTo = /join/<CODE>   → JoinClass auto-redeems
 //     teacher door  → redirectTo = /?intent=teacher → onboarding opens on attest
 //
+//     returning     → redirectTo = /             → Home, by the account's role
+//
+// THE RETURNING DOOR (author finding 2026-10-06). A student who had already
+// joined, opening the home page signed out, had NO way in: the only student
+// control wanted a class code they no longer had to hand. "Sign in with
+// Google" under the code form goes straight to Google and back to Home. It
+// carries no intent and admits no one: a student lands on their classes, a
+// teacher on theirs, and an account nobody has admitted gets the same
+// onboarding card as any intent-less arrival.
+//
 // Admission stays where 0033 put it: the trigger admits every unknown Google
 // sign-in as `pending`, and the two audited RPCs promote. Nothing on this
 // screen can grant a role — a forged ?intent=teacher gets a user the
@@ -48,6 +58,11 @@ export function studentRedirectUrl(code: string, origin: string): string {
 /** The teacher door's routing hint. Read back by Home (TEACHER_INTENT_PARAM). */
 export function teacherRedirectUrl(origin: string): string {
   return `${origin}/?intent=teacher`;
+}
+
+/** The returning door: plain Home, no hint. */
+export function returningRedirectUrl(origin: string): string {
+  return `${origin}/`;
 }
 
 export function SignedOutLanding({ idleSignedOut }: { idleSignedOut: boolean }) {
@@ -94,6 +109,21 @@ export function SignedOutLanding({ idleSignedOut }: { idleSignedOut: boolean }) 
     await signInWithGoogle({
       redirectTo: studentRedirectUrl(code, window.location.origin),
       includeDistrictHint: true,
+    });
+  }
+
+  function goReturning() {
+    if (busy) return;
+    setBusy(true);
+    setAnnouncement(LANDING_ANNOUNCEMENTS.continuing);
+    void signInWithGoogle({
+      redirectTo: returningRedirectUrl(window.location.origin),
+      includeDistrictHint: true,
+    }).then(({ error }) => {
+      if (error) {
+        console.error('Sign-in failed:', error);
+        setBusy(false);
+      }
     });
   }
 
@@ -166,6 +196,18 @@ export function SignedOutLanding({ idleSignedOut }: { idleSignedOut: boolean }) 
           {LANDING_COPY.studentAction}
         </button>
       </form>
+
+      {/* The returning door: visible as a real button, not a footnote — a
+          student without it is locked out of their own classes. */}
+      <p className="mt-5 text-sm font-semibold text-strong">{LANDING_COPY.returningLabel}</p>
+      <button
+        type="button"
+        onClick={goReturning}
+        disabled={busy}
+        className="mt-1.5 min-h-[44px] w-full rounded-md border border-line-strong bg-canvas px-4 py-2 text-sm font-semibold text-ink hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+      >
+        {LANDING_COPY.returningAction}
+      </button>
 
       <div className="my-5 flex items-center gap-3 text-xs text-muted">
         <span className="h-px flex-1 bg-line" />
