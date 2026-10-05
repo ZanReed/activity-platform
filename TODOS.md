@@ -44,7 +44,8 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 
 **Findings, 2026-10-06 (the author, on the live home page):**
 
-- ✅ **A signed-out student had no way to sign in.** The home page offered only a class-code field and the teacher link, so a student who had already joined and opened the site without their code was stuck (his words: "a dumb but serious issue"). FIXED: a "Sign in with Google" button under "Already joined a class?" on the signed-out page. It goes to Google and back to Home; the account's role decides what they see, and it admits no one (an account nobody has admitted gets the same onboarding card as before). The teacher link now reads "I'm a teacher · sign in or get started" (`SignedOutLanding.tsx`, `LANDING_COPY`). Guard: `SignedOutLanding.test.tsx` (red when the door was pointed at the teacher route). NEEDS THE AUTHOR: the wording and the position are his to change.
+- ✅ **A signed-out student had no way to sign in.** The home page offered only a class-code field and the teacher link, so a student who had already joined and opened the site without their code was stuck (his words: "a dumb but serious issue"). FIXED: a "Sign in with Google" button under "Already joined a class?" on the signed-out page. It goes to Google and back to Home; the account's role decides what they see, and it admits no one (an account nobody has admitted gets the same onboarding card as before). The teacher link now reads "I'm a teacher · sign in or get started" (`SignedOutLanding.tsx`, `LANDING_COPY`). Guard: `SignedOutLanding.test.tsx` (red when the door was pointed at the teacher route). ✅ CONFIRMED by the author 2026-10-06 ("tested the sign in button it works"). The wording and the position stay his to change.
+- ✅ **The daily facts practice — CONFIRMED by the author 2026-10-06** on the live site ("tested the daily fact activity and it worked too"). No finding reported against it.
 
 **Open questions raised by the build (not yet findings):**
 
@@ -249,7 +250,7 @@ All four build slices are live: 0049 (the mirror's settings), 0050 (the
 engine), the student's practice + Home link, 0051 + the teacher's panel;
 registry revision `2d20d8c9…` mirrored. Record: practice-blocks.md →
 "Slice 2, the sprint". Left behind, each with its trigger:
-- **The author's test** of both sides; findings go in the test queue above.
+- ✅ The author's test: done 2026-10-06, it worked; no finding (test queue above).
 - **⚠ B-89 (the mirror receipt) is UNSENT.** The curriculum session was not
   in ListAgents when it was due (2026-10-06). **Trigger: a curriculum-side
   session is reachable** (ListAgents; send the FULL name). Its content: revision
