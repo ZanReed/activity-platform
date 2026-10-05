@@ -242,8 +242,11 @@ mechanical holds it back except that no job calls it (verify-0048's
 ## IN PROGRESS — the sprint (D43 slice 2), design ruled 2026-10-06
 
 Rulings SP-1 to SP-14 and the build slices: practice-blocks.md → "Slice 2,
-the sprint: design pass". Waiting on the curriculum side for the graph-key
-NAMES (B-83); then slice 1 of 4 (importer + mirror migration + go-ahead).
+the sprint: design pass". **Slice 1 of 4 BUILT 2026-10-06** (importer +
+migration 0049, the mirror's `sprint` column). OWED: 0049 applied live, then
+the go-ahead letter to the curriculum side (their registry PR is held for
+it). ⚠ P1 debt: nothing reads `fact_scope_revision.sprint` until slice 2
+(the engine) lands. NEXT: slice 2, the engine.
 
 ## The sprint's bar is 9 of 10 (author ruling SB-1/SB-2, 2026-10-06)
 

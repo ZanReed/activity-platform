@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-15`. Mirrors migrations 0001–**0048**, verified
+> Version `2026-10-06-draft-16`. Mirrors migrations 0001–**0049**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,12 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-16` (2026-10-06) — 0049 adds NO personal data.** It adds one
+> column to `fact_scope_revision` (curriculum content: seven settings for the
+> daily number-facts practice, such as its length in minutes and its review
+> intervals) and re-creates the function that mirrors the registry. No table
+> of student data changes. The range moves to 0049 on that basis.
 >
 > **`draft-15` (2026-10-06) — 0048 adds NO personal-data column; it builds
 > the removal mechanism for timed number-facts data, DISARMED.** New columns:

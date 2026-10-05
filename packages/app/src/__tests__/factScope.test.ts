@@ -15,6 +15,7 @@ import {
     probePartsFor,
     rationalAnswer,
     FACT_ANSWER_RE,
+    SPRINT_KEYS,
     type FactScopeMirror,
 } from '../lib/factScope';
 
@@ -164,7 +165,7 @@ describe('expandFactScope — refuses what was never agreed (decision 8)', () =>
     });
     it('an unknown key on a family, the probe values or a strategy', () => {
         expect(errorsOf((r) => { fam(r, 'fact.mult.to-12').colour = 'red'; }).join()).toMatch(/unknown key/);
-        expect(errorsOf((r) => { r.body.fact_probe.sprint_minutes = 5; }).join()).toMatch(/unknown key/);
+        expect(errorsOf((r) => { r.body.fact_probe.sprint_seconds = 5; }).join()).toMatch(/unknown key/);
         expect(errorsOf((r) => { fam(r, 'fact.mult.to-12').strategy.video = 'x'; }).join()).toMatch(/unknown strategy key/);
     });
     it('a family with both generate and facts', () => {
@@ -264,5 +265,56 @@ describe('expandFactScope — two-part checks (revision d0144e8d)', () => {
     });
     it('refuses a two-part setting that is not a positive whole number', () => {
         expect(broken((r) => { r.body.fact_probe.two_part_items_per_family = 7.5; })).toMatch(/not a positive whole number/);
+    });
+});
+
+// The sprint's seven settings (D43 slice 2; names agreed in C-63 and C-66).
+// No generated registry carries them yet, so they are added to the d0144e8d
+// fixture here; replace this with their fixture when their PR merges.
+describe('expandFactScope — the sprint keys', () => {
+    const SPRINT = {
+        sprint_max_misses: 1, sprint_minutes: 5, sprint_step_intervals: [1, 2, 4, 8, 16],
+        sprint_mastered_step: 2, sprint_new_facts_per_session: 5, sprint_working_families: 2,
+        sprint_reask_gap: 3,
+    };
+    const withSprint = (mutate: (p: Loose) => void = () => {}) => {
+        const r = clone(twoPartRegistry) as Loose;
+        Object.assign(r.body.fact_probe, SPRINT);
+        mutate(r.body.fact_probe);
+        return expandFactScope(r);
+    };
+    const refusal = (mutate: (p: Loose) => void): string => {
+        const result = withSprint(mutate);
+        if (result.ok) throw new Error('expected the expander to refuse');
+        return result.errors.join(' | ');
+    };
+
+    it('carries all seven into the mirror, exactly as the registry has them', () => {
+        const result = withSprint();
+        if (!result.ok) throw new Error(result.errors.join(' | '));
+        expect(Object.keys(SPRINT).sort()).toEqual([...SPRINT_KEYS].sort());
+        for (const key of SPRINT_KEYS) expect(result.mirror.fact_probe[key]).toEqual(SPRINT[key]);
+    });
+
+    it('a registry without them mirrors none of them', () => {
+        const m = mirrorOf(twoPartRegistry);
+        for (const key of SPRINT_KEYS) expect(key in m.fact_probe).toBe(false);
+    });
+
+    it('refuses a partial set, naming what is missing', () => {
+        expect(refusal((p) => { delete p.sprint_reask_gap; })).toMatch(/all together or not at all \(missing sprint_reask_gap\)/);
+    });
+
+    it('refuses each value outside its agreed shape', () => {
+        expect(refusal((p) => { p.sprint_max_misses = -1; })).toMatch(/sprint_max_misses/);
+        expect(refusal((p) => { p.sprint_minutes = 0; })).toMatch(/sprint_minutes/);
+        expect(refusal((p) => { p.sprint_step_intervals = []; })).toMatch(/sprint_step_intervals/);
+        expect(refusal((p) => { p.sprint_step_intervals = [1, 2, 2]; })).toMatch(/strictly increasing/);
+        expect(refusal((p) => { p.sprint_step_intervals = [1, 2.5]; })).toMatch(/sprint_step_intervals/);
+        expect(refusal((p) => { p.sprint_mastered_step = 6; })).toMatch(/sprint_mastered_step/);
+        expect(refusal((p) => { p.sprint_mastered_step = 0; })).toMatch(/sprint_mastered_step/);
+        expect(refusal((p) => { p.sprint_new_facts_per_session = 1.5; })).toMatch(/sprint_new_facts_per_session/);
+        expect(refusal((p) => { p.sprint_working_families = 0; })).toMatch(/sprint_working_families/);
+        expect(refusal((p) => { p.sprint_reask_gap = 0; })).toMatch(/sprint_reask_gap/);
     });
 });

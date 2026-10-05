@@ -51,6 +51,15 @@ export interface FactProbeValues {
      *  present together, with family_groups and probe_parts, or not at all. */
     two_part_above?: number;
     two_part_items_per_family?: number;
+    /** The sprint's seven settings (D43 slice 2; their amendments of
+     *  2026-10-06): all present, or none. Migration 0049 stores them. */
+    sprint_max_misses?: number;
+    sprint_minutes?: number;
+    sprint_step_intervals?: number[];
+    sprint_mastered_step?: number;
+    sprint_new_facts_per_session?: number;
+    sprint_working_families?: number;
+    sprint_reask_gap?: number;
 }
 
 /** Related fact families that sit together in one part of a long check. */
@@ -206,17 +215,66 @@ const LISTED_KEYS = new Set([
     'strategy',
 ]);
 const LISTED_FACT_KEYS = new Set(['id', 'display', 'spoken', 'answer']);
-const PROBE_KEYS: (keyof FactProbeValues)[] = [
+const PROBE_KEYS: (
+    | 'floor_factor_k' | 'accuracy_threshold' | 'facts_met_threshold'
+    | 'response_ceiling_s' | 'min_items_per_family' | 'practice_window'
+)[] = [
     'floor_factor_k', 'accuracy_threshold', 'facts_met_threshold', 'response_ceiling_s',
     'min_items_per_family', 'practice_window',
 ];
 /** Optional, and all-or-none with the two lists below. */
 const TWO_PART_KEYS = ['two_part_above', 'two_part_items_per_family'] as const;
+/** Optional, and all-or-none among themselves (agreed in C-63 and C-66). */
+export const SPRINT_KEYS = [
+    'sprint_max_misses', 'sprint_minutes', 'sprint_step_intervals', 'sprint_mastered_step',
+    'sprint_new_facts_per_session', 'sprint_working_families', 'sprint_reask_gap',
+] as const;
 const BODY_KEYS = new Set([
     'fact_probe', 'families', 'year_scope', 'fraction_names', 'family_groups', 'probe_parts',
 ]);
 const GROUP_ID_RE = /^group\.[a-z0-9]+(-[a-z0-9]+)*$/;
 const HEADER_KEYS = new Set(['generated_from', 'revision', 'revision_rule', 'note']);
+
+// ---- the sprint's settings ----------------------------------------------------
+
+/** The seven sprint keys: all or none, each of the agreed type and range. The
+ *  database's `fact_scope_sprint_ok` (0049) is the same contract again. */
+function sprintValues(
+    probe: Record<string, unknown>,
+    out: FactProbeValues,
+    errors: string[],
+): void {
+    const present = SPRINT_KEYS.filter((k) => probe[k] !== undefined);
+    if (present.length === 0) return;
+    if (present.length !== SPRINT_KEYS.length) {
+        const missing = SPRINT_KEYS.filter((k) => probe[k] === undefined);
+        errors.push(`fact_probe: the sprint keys come all together or not at all (missing ${missing.join(', ')})`);
+        return;
+    }
+    const whole = (v: unknown, min: number): v is number =>
+        typeof v === 'number' && Number.isInteger(v) && v >= min;
+    const bad = (key: string, why: string) =>
+        errors.push(`fact_probe.${key}: ${JSON.stringify(probe[key])} ${why}`);
+
+    const intervals = probe.sprint_step_intervals;
+    const intervalsOk =
+        Array.isArray(intervals) && intervals.length > 0 &&
+        intervals.every((v, i) => whole(v, 1) && (i === 0 || v > (intervals[i - 1] as number)));
+    if (!intervalsOk) bad('sprint_step_intervals', 'is not a non-empty, strictly increasing list of whole numbers from 1');
+    const minutes = probe.sprint_minutes;
+    if (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes <= 0) {
+        bad('sprint_minutes', 'is not a number above 0');
+    }
+    if (!whole(probe.sprint_max_misses, 0)) bad('sprint_max_misses', 'is not a whole number from 0');
+    if (!whole(probe.sprint_new_facts_per_session, 0)) bad('sprint_new_facts_per_session', 'is not a whole number from 0');
+    if (!whole(probe.sprint_working_families, 1)) bad('sprint_working_families', 'is not a whole number from 1');
+    if (!whole(probe.sprint_reask_gap, 1)) bad('sprint_reask_gap', 'is not a whole number from 1');
+    const mastered = probe.sprint_mastered_step;
+    if (!whole(mastered, 1) || (intervalsOk && mastered > (intervals as number[]).length)) {
+        bad('sprint_mastered_step', 'is not a step from 1 to the number of intervals');
+    }
+    for (const key of SPRINT_KEYS) (out as unknown as Record<string, unknown>)[key] = probe[key];
+}
 
 // ---- numbers -----------------------------------------------------------------
 
@@ -434,8 +492,12 @@ export function expandFactScope(registry: unknown): FactScopeResult {
     if (!isObject(probe)) {
         errors.push('fact_probe: missing');
     } else {
-        const extra = unknownKeys(probe, new Set<string>([...PROBE_KEYS, ...TWO_PART_KEYS]));
+        const extra = unknownKeys(
+            probe,
+            new Set<string>([...PROBE_KEYS, ...TWO_PART_KEYS, ...SPRINT_KEYS]),
+        );
         if (extra.length) errors.push(`fact_probe: unknown key(s) ${extra.join(', ')}`);
+        sprintValues(probe, factProbe, errors);
         for (const key of TWO_PART_KEYS) {
             const v = probe[key];
             if (v === undefined) continue;

@@ -2988,6 +2988,19 @@ async function main() {
         process.exit(1);
     }
 
+    // The same rule for the sprint's seven keys and migration 0049 (`schema: 3`).
+    if (
+        factScope && factScopePlan &&
+        factScope.fact_probe.sprint_max_misses !== undefined && (factScopePlan.schema ?? 1) < 3
+    ) {
+        console.error(
+            '\nREFUSED — this registry has the sprint\'s settings, and the database\'s mirror\n' +
+                'function predates them. Nothing was written.\n\n' +
+                '  Apply migration 0049 and re-run:\n    supabase db push\n',
+        );
+        process.exit(1);
+    }
+
     let glossaryPlan = null;
     let glossaryMirrorFailed = null;
     if (glossaryFile) {

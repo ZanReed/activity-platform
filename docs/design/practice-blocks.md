@@ -2809,6 +2809,19 @@ compliance pack. (3) The student's sprint: runner changes (feedback, re-ask,
 time box, strategy card), entry, Home link. (4) The teacher's switch and
 progress view. Each slice: migration applied before the page that calls it.
 
+**Build slice 1, as built (2026-10-06, migration 0049).** Seven keys, named
+with the curriculum side (C-63, C-66): `sprint_max_misses`,
+`sprint_minutes`, `sprint_step_intervals`, `sprint_mastered_step`,
+`sprint_new_facts_per_session`, `sprint_working_families`,
+`sprint_reask_gap`; all or none, flat in `fact_probe`. `lib/factScope.ts`
+accepts and checks them (`SPRINT_KEYS`, `sprintValues`); the mirror stores
+them as one shape-checked jsonb column, `fact_scope_revision.sprint`, and
+`sync_fact_scope` compares it and answers `schema: 3`; the batch importer
+refuses a registry carrying the keys through an older function. Nothing
+reads the column yet (the engine is slice 2: a tracked debt under P1).
+Mutations, each red then restored: the insert dropping the keys (B1); the
+comparison ignoring them (B2).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
