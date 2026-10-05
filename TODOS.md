@@ -221,8 +221,8 @@ asked in the open-snapshot screen; each check carries `keep_until`.
 mechanical holds it back except that no job calls it (verify-0048's
 `prune_is_unscheduled` row). In order; the cron row comes LAST:
 
-1. **Counsel Q11(b) answered** (counsel-review-packet.md). The author still
-   owes confirming Q11 was sent.
+1. **Counsel Q11(b) answered** (counsel-review-packet.md). SENT: the author
+   confirmed on 2026-10-06 that Q11 went to counsel. No answer yet.
 2. ✅ DONE 2026-10-06 (250 rows green). **0048 applied on live and `verify:auth --target live` green**, including
    verify-0048 §B (the liveness proof at production values, P3).
 3. **Dry-run reports read on live**, at least twice a week apart:
