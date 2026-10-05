@@ -337,7 +337,8 @@ begin
   end if;
   n := n + 1;
 
-  -- C9 a member is ready: 30 items of {n, display, spoken, answer} and nothing
+  -- C9 a member is ready: 30 items of {n, display, spoken, answer, part} (part
+  --    since 0047) and nothing
   --    about the class (no verdict, no floor, no other student)
   perform set_config('request.jwt.claims', json_build_object('sub', v_s[1])::text, true);
   v_res := fact_probe_entry(lower(v_code));
@@ -345,7 +346,7 @@ begin
      or (v_res->>'ceiling_s')::numeric <> 15 or (v_res->>'next_n')::int <> 1
      or exists (select 1 from jsonb_array_elements(v_res->'items') e
                  where (select array_agg(k order by k) from jsonb_object_keys(e) k)
-                       <> array['answer', 'display', 'n', 'spoken'])
+                       <> array['answer', 'display', 'n', 'part', 'spoken'])
      or v_res ?| array['class', 'verdict', 'floor', 'students', 'snapshot'] then
     raise exception 'FAIL C9: entry %', v_res - 'items';
   end if;
@@ -679,7 +680,7 @@ begin
   v_res := fact_probe_overview(v_class);
   if not (v_res->>'mirrored')::boolean or jsonb_array_length(v_res->'probes') <> 1
      or v_res->'probes'->0->>'state' <> 'open'
-     or v_res->'years' <> '[{"year": 7, "description": "vfy", "adds": ["Fam A", "Fam B", "Fam C"], "families": 3, "items": 30}]'::jsonb then
+     or v_res->'years' <> '[{"year": 7, "description": "vfy", "adds": ["Fam A", "Fam B", "Fam C"], "families": 3, "items": 30, "parts": [30]}]'::jsonb then
     raise exception 'FAIL C26: overview %', v_res;
   end if;
   n := n + 1;

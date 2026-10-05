@@ -47,6 +47,17 @@ export interface FactProbeValues {
     response_ceiling_s: number;
     min_items_per_family: number;
     practice_window: number;
+    /** The two-part settings (their D43 amendment of 2026-10-05, second):
+     *  present together, with family_groups and probe_parts, or not at all. */
+    two_part_above?: number;
+    two_part_items_per_family?: number;
+}
+
+/** Related fact families that sit together in one part of a long check. */
+export interface FamilyGroup {
+    id: string;
+    label: string;
+    families: string[];
 }
 
 export interface FactStrategy {
@@ -99,6 +110,10 @@ export interface FactScopeMirror {
     fact_probe: FactProbeValues;
     year_scope: Record<string, YearScope>;
     fraction_names: Record<string, { one: string; many: string }>;
+    /** Null on a registry revision from before two-part checks. */
+    family_groups: FamilyGroup[] | null;
+    /** Exactly two lists of group ids — Part 1, Part 2 — or null. */
+    probe_parts: string[][] | null;
     families: MirroredFamily[];
     facts: MirroredFact[];
 }
@@ -195,7 +210,12 @@ const PROBE_KEYS: (keyof FactProbeValues)[] = [
     'floor_factor_k', 'accuracy_threshold', 'facts_met_threshold', 'response_ceiling_s',
     'min_items_per_family', 'practice_window',
 ];
-const BODY_KEYS = new Set(['fact_probe', 'families', 'year_scope', 'fraction_names']);
+/** Optional, and all-or-none with the two lists below. */
+const TWO_PART_KEYS = ['two_part_above', 'two_part_items_per_family'] as const;
+const BODY_KEYS = new Set([
+    'fact_probe', 'families', 'year_scope', 'fraction_names', 'family_groups', 'probe_parts',
+]);
+const GROUP_ID_RE = /^group\.[a-z0-9]+(-[a-z0-9]+)*$/;
 const HEADER_KEYS = new Set(['generated_from', 'revision', 'revision_rule', 'note']);
 
 // ---- numbers -----------------------------------------------------------------
@@ -414,8 +434,17 @@ export function expandFactScope(registry: unknown): FactScopeResult {
     if (!isObject(probe)) {
         errors.push('fact_probe: missing');
     } else {
-        const extra = unknownKeys(probe, new Set(PROBE_KEYS));
+        const extra = unknownKeys(probe, new Set<string>([...PROBE_KEYS, ...TWO_PART_KEYS]));
         if (extra.length) errors.push(`fact_probe: unknown key(s) ${extra.join(', ')}`);
+        for (const key of TWO_PART_KEYS) {
+            const v = probe[key];
+            if (v === undefined) continue;
+            if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
+                errors.push(`fact_probe.${key}: ${JSON.stringify(v)} is not a positive whole number`);
+            } else {
+                factProbe[key] = v;
+            }
+        }
         for (const key of PROBE_KEYS) {
             const v = probe[key];
             const isInt = key === 'min_items_per_family' || key === 'practice_window';
@@ -734,6 +763,80 @@ export function expandFactScope(registry: unknown): FactScopeResult {
         }
     }
 
+    // Two-part checks (their D43 amendment of 2026-10-05, second): the two
+    // settings and the two lists come TOGETHER or not at all. Every family is
+    // in exactly one group, and every group in exactly one of exactly two
+    // parts — their generator guarantees it; this is the cross-side check.
+    let familyGroups: FamilyGroup[] | null = null;
+    let probeParts: string[][] | null = null;
+    const present = [
+        factProbe.two_part_above !== undefined,
+        factProbe.two_part_items_per_family !== undefined,
+        body.family_groups !== undefined,
+        body.probe_parts !== undefined,
+    ];
+    if (present.some(Boolean) && !present.every(Boolean)) {
+        errors.push(
+            'two-part settings: two_part_above, two_part_items_per_family, family_groups and ' +
+                'probe_parts must all be present, or none',
+        );
+    } else if (present.every(Boolean)) {
+        const groups: FamilyGroup[] = [];
+        const inGroup = new Map<string, string>();
+        const groupIds = new Set<string>();
+        if (!Array.isArray(body.family_groups) || body.family_groups.length === 0) {
+            errors.push('family_groups: must be a non-empty list');
+        } else {
+            body.family_groups.forEach((g: unknown, i: number) => {
+                if (
+                    !isObject(g) || typeof g.id !== 'string' || !GROUP_ID_RE.test(g.id) ||
+                    typeof g.label !== 'string' || g.label.trim() === '' ||
+                    !Array.isArray(g.families) || g.families.length === 0 ||
+                    unknownKeys(g, new Set(['id', 'label', 'families'])).length > 0
+                ) {
+                    errors.push(`family_groups[${i}]: must be exactly {id: "group.…", label, families}`);
+                    return;
+                }
+                if (groupIds.has(g.id)) errors.push(`family_groups: duplicate group id ${g.id}`);
+                groupIds.add(g.id);
+                for (const fid of g.families as unknown[]) {
+                    if (typeof fid !== 'string' || !familyIds.has(fid)) {
+                        errors.push(`family_groups ${g.id}: unknown family ${String(fid)}`);
+                    } else if (inGroup.has(fid)) {
+                        errors.push(`family_groups: ${fid} is in both ${inGroup.get(fid)} and ${g.id}`);
+                    } else {
+                        inGroup.set(fid, g.id);
+                    }
+                }
+                groups.push({ id: g.id, label: g.label, families: g.families as string[] });
+            });
+            for (const fid of familyIds) {
+                if (!inGroup.has(fid)) errors.push(`family_groups: ${fid} is in no group`);
+            }
+        }
+        const parts = body.probe_parts;
+        if (
+            !Array.isArray(parts) || parts.length !== 2 ||
+            !parts.every((p) => Array.isArray(p) && p.length > 0 && p.every((id) => typeof id === 'string'))
+        ) {
+            errors.push('probe_parts: must be exactly two non-empty lists of group ids');
+        } else {
+            const inPart = new Map<string, number>();
+            (parts as string[][]).forEach((p, i) => {
+                for (const id of p) {
+                    if (!groupIds.has(id)) errors.push(`probe_parts: unknown group ${id}`);
+                    else if (inPart.has(id)) errors.push(`probe_parts: ${id} is in two parts`);
+                    else inPart.set(id, i + 1);
+                }
+            });
+            for (const id of groupIds) {
+                if (!inPart.has(id)) errors.push(`probe_parts: ${id} is in no part`);
+            }
+            probeParts = parts as string[][];
+        }
+        familyGroups = groups;
+    }
+
     if (errors.length) return { ok: false, errors };
     return {
         ok: true,
@@ -744,6 +847,8 @@ export function expandFactScope(registry: unknown): FactScopeResult {
             fact_probe: factProbe,
             year_scope: yearScope,
             fraction_names: fractionNames,
+            family_groups: familyGroups,
+            probe_parts: probeParts,
             families,
             facts,
         },
@@ -756,7 +861,39 @@ export function expandFactScope(registry: unknown): FactScopeResult {
  * probe's open RPC computes its own from the mirrored rows.
  */
 export function probeLengthFor(mirror: FactScopeMirror, year: string): number | null {
+    const parts = probePartsFor(mirror, year);
+    return parts === null ? null : parts.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Facts per part for a year: [40] for one part, [42, 40] for two. A check is
+ * two-part when the revision has the settings, its single-part length (their
+ * item 20) is over `two_part_above`, and both parts hold a family of the
+ * year; each family then gets min(two_part_items_per_family, its facts). For
+ * the dry-run report — fact_probe_allocate (0047) is what a real check uses,
+ * and verify-0047 holds the two to the same numbers.
+ */
+export function probePartsFor(mirror: FactScopeMirror, year: string): number[] | null {
     const scope = mirror.year_scope[year];
     if (!scope) return null;
-    return Math.max(30, mirror.fact_probe.min_items_per_family * scope.cumulative.length);
+    const single = Math.max(30, mirror.fact_probe.min_items_per_family * scope.cumulative.length);
+    const { two_part_above: above, two_part_items_per_family: each } = mirror.fact_probe;
+    if (above === undefined || each === undefined || !mirror.family_groups || !mirror.probe_parts) {
+        return [single];
+    }
+    if (single <= above) return [single];
+    const partOf = new Map<string, number>();
+    mirror.probe_parts.forEach((groupIds, i) => {
+        for (const g of mirror.family_groups!) {
+            if (groupIds.includes(g.id)) for (const fid of g.families) partOf.set(fid, i);
+        }
+    });
+    const sizes = [0, 0];
+    for (const fid of scope.cumulative) {
+        const fam = mirror.families.find((f) => f.family_id === fid);
+        const part = partOf.get(fid);
+        if (!fam || part === undefined) continue;
+        sizes[part] = (sizes[part] ?? 0) + Math.min(each, fam.fact_count);
+    }
+    return sizes.every((n) => n > 0) ? sizes : [single];
 }

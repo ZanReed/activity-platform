@@ -2601,3 +2601,19 @@ test('§FS the expander runs in the node bundle and reproduces the registry', ()
         [40, 55, 65, 65],
     );
 });
+
+test('§FS a two-part registry (their d0144e8d) passes the revision check and reports its parts', () => {
+    const twoPart = JSON.parse(
+        readFileSync(
+            join(repoRoot, 'packages/app/src/__tests__/fixtures/fact-scope-registry.d0144e8d.json'),
+            'utf8',
+        ),
+    );
+    assert.equal(checkFactRegistryRevision(twoPart).ok, true);
+    const out = pipeline.expandFactScope(twoPart);
+    assert.equal(out.ok, true, out.ok ? '' : out.errors.join('\n'));
+    assert.deepEqual(
+        ['7', '8', '9', '10'].map((y) => pipeline.probePartsFor(out.mirror, y)),
+        [[40], [42, 40], [42, 56], [42, 56]],
+    );
+});

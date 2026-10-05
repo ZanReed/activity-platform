@@ -78,6 +78,7 @@ export type { ImportMetaTarget, ImportMetaOutcome } from './applyImportedMeta';
 export {
     expandFactScope,
     probeLengthFor,
+    probePartsFor,
     FACT_GRAMMAR_REV,
 } from './factScope';
 export type { FactScopeMirror, FactScopeResult } from './factScope';

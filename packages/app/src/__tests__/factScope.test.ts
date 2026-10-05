@@ -7,10 +7,12 @@
 // expansion — not numbers this test chose.
 import { describe, expect, it } from 'vitest';
 import registry from './fixtures/fact-scope-registry.ac8f9fd2.json';
+import twoPartRegistry from './fixtures/fact-scope-registry.d0144e8d.json';
 import {
     expandFactScope,
     numberWords,
     probeLengthFor,
+    probePartsFor,
     rationalAnswer,
     FACT_ANSWER_RE,
     type FactScopeMirror,
@@ -200,5 +202,67 @@ describe('numbers', () => {
         expect(rationalAnswer({ num: 7, den: 10 })).toBe('0.7');
         expect(rationalAnswer({ num: -12, den: 4 })).toBe('-3');
         expect(rationalAnswer({ num: 1, den: 3 })).toBeNull();
+    });
+});
+
+// The two-part fixture is their generated registry at revision d0144e8d (their
+// PR #37, graph v0.17.9, file sha256 c904779f…): the same 1124 facts plus the
+// two-part settings. The part sizes asserted are THEIR generator's report.
+describe('expandFactScope — two-part checks (revision d0144e8d)', () => {
+    const m = mirrorOf(twoPartRegistry);
+    const broken = (mutate: (r: Loose) => void): string => {
+        const r = clone(twoPartRegistry) as Loose;
+        mutate(r);
+        const result = expandFactScope(r);
+        if (result.ok) throw new Error('expected the expander to refuse');
+        return result.errors.join(' | ');
+    };
+
+    it('mirrors the settings, the four groups and the two parts', () => {
+        expect(m.registry_rev).toBe(twoPartRegistry.header.revision);
+        expect(m.fact_probe.two_part_above).toBe(40);
+        expect(m.fact_probe.two_part_items_per_family).toBe(8);
+        expect(m.family_groups!.map((g) => g.id)).toEqual([
+            'group.times-tables', 'group.squares-roots', 'group.fdp-units', 'group.integers',
+        ]);
+        expect(m.probe_parts).toEqual([
+            ['group.times-tables', 'group.squares-roots'],
+            ['group.fdp-units', 'group.integers'],
+        ]);
+        expect(m.facts).toHaveLength(1124);
+    });
+
+    it('gives Year 7 one part of 40 and splits the long years: 42 + 40, 42 + 56, 42 + 56', () => {
+        expect(['7', '8', '9', '10'].map((y) => probePartsFor(m, y))).toEqual([[40], [42, 40], [42, 56], [42, 56]]);
+        expect(['7', '8', '9', '10'].map((y) => probeLengthFor(m, y))).toEqual([40, 82, 98, 98]);
+    });
+
+    it('a registry without the settings is single-part, as before', () => {
+        const old = mirrorOf();
+        expect(old.family_groups).toBeNull();
+        expect(old.probe_parts).toBeNull();
+        expect(['7', '8', '9', '10'].map((y) => probePartsFor(old, y))).toEqual([[40], [55], [65], [65]]);
+    });
+
+    it('refuses settings that are only partly there', () => {
+        expect(broken((r) => { delete r.body.probe_parts; })).toMatch(/must all be present, or none/);
+        expect(broken((r) => { delete r.body.fact_probe.two_part_above; })).toMatch(/must all be present, or none/);
+    });
+    it('refuses a family in two groups, in no group, or unknown', () => {
+        expect(broken((r) => { r.body.family_groups[1].families.push('fact.mult.to-12'); })).toMatch(/is in both/);
+        expect(broken((r) => { r.body.family_groups[3].families.pop(); })).toMatch(/fact\.int\.divide is in no group/);
+        expect(broken((r) => { r.body.family_groups[0].families.push('fact.made.up'); })).toMatch(/unknown family/);
+    });
+    it('refuses a group in no part, in two parts, or a third part', () => {
+        expect(broken((r) => { r.body.probe_parts[1].pop(); })).toMatch(/group\.integers is in no part/);
+        expect(broken((r) => { r.body.probe_parts[0].push('group.integers'); })).toMatch(/is in two parts/);
+        expect(broken((r) => { r.body.probe_parts.push(['group.integers']); })).toMatch(/exactly two/);
+    });
+    it('refuses a group with an extra key or a malformed id', () => {
+        expect(broken((r) => { r.body.family_groups[0].colour = 'red'; })).toMatch(/must be exactly/);
+        expect(broken((r) => { r.body.family_groups[0].id = 'Times Tables'; })).toMatch(/must be exactly/);
+    });
+    it('refuses a two-part setting that is not a positive whole number', () => {
+        expect(broken((r) => { r.body.fact_probe.two_part_items_per_family = 7.5; })).toMatch(/not a positive whole number/);
     });
 });

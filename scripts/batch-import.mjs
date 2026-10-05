@@ -1834,6 +1834,7 @@ export async function loadPipeline() {
         glossaryLoader: await mod.getGlossaryLoader(),
         expandFactScope: mod.expandFactScope,
         probeLengthFor: mod.probeLengthFor,
+        probePartsFor: mod.probePartsFor,
         buildGlossaryIndex: mod.buildGlossaryIndex,
         crossLinkTargets: mod.crossLinkTargets,
         GLOSSARY_MAX_ENTRIES: mod.GLOSSARY_MAX_ENTRIES,
@@ -2975,6 +2976,17 @@ async function main() {
                 'registry was expanded and checked, but not mirrored. Apply 0044 and re-run.';
         }
     }
+    // A registry with two-part settings needs migration 0047's mirror function:
+    // 0044's would accept the payload and silently DROP the settings. The new
+    // function says `schema: 2`; without it the run stops before any write.
+    if (factScope && factScopePlan && factScope.probe_parts && (factScopePlan.schema ?? 1) < 2) {
+        console.error(
+            '\nREFUSED — this registry has two-part settings, and the database\'s mirror\n' +
+                'function predates them. Nothing was written.\n\n' +
+                '  Apply migration 0047 and re-run:\n    supabase db push\n',
+        );
+        process.exit(1);
+    }
 
     let glossaryPlan = null;
     let glossaryMirrorFailed = null;
@@ -3249,11 +3261,14 @@ async function main() {
             '  probes   : ' +
                 Object.keys(factScope.year_scope)
                     .sort((a, b) => Number(a) - Number(b))
-                    .map(
-                        (y) =>
+                    .map((y) => {
+                        const parts = pipeline.probePartsFor(factScope, y);
+                        return (
                             `Y${y} ${factScope.year_scope[y].cumulative.length} families → ` +
-                            `${pipeline.probeLengthFor(factScope, y)} items`,
-                    )
+                            `${pipeline.probeLengthFor(factScope, y)} items` +
+                            (parts.length > 1 ? ` (${parts.join(' + ')})` : '')
+                        );
+                    })
                     .join(' · '),
         );
         if (factScopePlan) {
