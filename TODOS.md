@@ -152,6 +152,28 @@ design arc at a time.
   department is NOT wanted this term** — it stays a candidate arc with its own
   design pass owed, and nothing schedules it.
 
+## Number-facts data: the roll-up and PRUNE slice (filed with migration 0045, 2026-10-05)
+
+**Trigger: the first real `fact_attempts` row.** Owed before the end of the
+first school year in which real attempts exist (practice-blocks.md → "Roll-up
+and prune"; premise 5). Until it ships, retention-policy.md's "school year"
+window for this data is a commitment with no mechanism, and the data lasts
+until the account is purged.
+
+- A per-student per-fact summary table, then a prune of `fact_attempts` and
+  `practice_sessions` (sessions go WITH their attempts; the `class_probes`
+  snapshot stays, ER-18). **Dry-run by default, unscheduled, armed by its own
+  checklist** — it is the second function in the repo that deletes student
+  work, and inherits `prune_section_checks`'s discipline (CLAUDE.md → Things
+  NOT to do).
+- Its design pass answers E1 FIRST: what "the school year" means across
+  hemispheres. The eng review's recommendation is an explicit end date per
+  class, not an inference from the calendar or the teacher's timezone.
+- It also owns the practice data of SOFT-DELETED CLASSES, which nothing
+  removes today (no class purge exists).
+- Counsel question Q11(b) asks whether the prune must exist before a first
+  class; the answer may move this ahead of the sprint.
+
 ## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
 
 Source: the catalogue builder's direct answer to "what do you need to be

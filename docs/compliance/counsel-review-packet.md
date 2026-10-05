@@ -191,6 +191,34 @@ reader is the teacher who could already see the live data, and the roster
 relationship carries the consent — but that reasoning is only obviously true
 while the underlying work still exists.
 
+**Q11 — Timed practice data: is recording how fast a student answers, and a
+typing-speed baseline, covered by the same authorization as their answers?**
+(Added 2026-10-05. The tables exist in migration 0045; **the author's ruling
+is that this question reaches counsel before that migration is applied to the
+live database**, and nothing has been collected.) A teacher can open a short
+number-facts check for a class. For each fact the platform stores what the
+student typed, whether it was right, whether they skipped it, and the response
+time in milliseconds; and per student, a typing-speed baseline (milliseconds
+per keystroke) from a copy-typing warm-up. It is not a grade. Only the class's
+teacher sees per-student results; a student sees their own count and nothing
+about the class. Three things we ask:
+(a) **Is response-time data a different category** from the answers already
+covered — closer to a behavioural or processing-speed measure — and does the
+teacher attestation (Q2) and the per-class 13+ assertion (Q4) cover it without
+a separate notice to families?
+(b) **Retention.** The stated window is the school year the data was made in,
+but the prune that would enforce it is not built; until it is, the data lasts
+until the account is purged (30 days after an on-request deletion, 400 days of
+dormancy). Is stating the window with that caveat acceptable for a first
+class, or must the prune exist first?
+(c) **A public demo page** (`/facts/demo`) runs the same exercise with no
+sign-in and stores and transmits nothing (verified by an automated test that
+the page makes no request to the backend). It is reachable by anyone,
+including a child under 13. **Does a page that collects nothing raise any
+under-13 obligation simply by being usable by a child?**
+For an under-13 class the answer to (a) gates everything; for a 13+ class the
+author's position is that it gates nothing new (design ruling A2).
+
 ## 6. What this packet deliberately does not do
 
 - It does not ask counsel to review code, and no answer above depends on

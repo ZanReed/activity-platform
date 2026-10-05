@@ -1186,3 +1186,37 @@ sweep:
 - **`billable` is sticky once true**: a hosted inference already spent
   money, and a later local re-claim must not erase it from the quota
   aggregate (found red by verify-0042 §E, fixed same day).
+
+## Number-facts check: timing is the client's word, correctness is not (2026-10-05, migration 0045; full record in docs/design/practice-blocks.md)
+
+The first recorded EXCEPTION to server-authoritative grading, and a narrow one.
+
+- **What the server trusts from the browser:** the response time, the offset
+  from the session's start, and the input method (keyboard / on-screen keys),
+  plus the typing-speed baseline from the warm-up. None of it can be verified.
+  That is accepted because nothing here is a grade: a student who tampers
+  changes only their own diagnosis, and the class verdict is a MEDIAN.
+- **What it does not trust:** correctness. The item list, answers included, is
+  stored on the probe row when the check opens; the save RPC derives `correct`
+  by numeric equality and fills the fact id itself. A client sends an item
+  number and what was typed. A fact outside the list cannot be submitted.
+- **Why the answers still reach the browser:** a number fact holds no secret
+  (7 × 8 is not answer-key material), and the done screen counts right answers
+  without a round trip. This does NOT loosen the rule for activities: answers
+  to authored questions never reach a client before a check.
+- **Facts are stored, judgments are derived.** met / slow / wrong / skipped /
+  timeout / unjudged / interrupted are computed at read time by one SQL
+  function from parameters copied onto the probe row at open. A stored
+  judgment could not survive a criterion change; the curriculum side calls its
+  3-second target a working definition.
+- **No Edge Function, no scheduled job.** Postgres only (a cold start cannot
+  sit inside a 3-second criterion), and a check closes by RULE at `closes_at`,
+  its snapshot written by the teacher's next read. There is no executor to
+  fail.
+- **The second student-work deleter is NOT built.** Raw attempts are kept for
+  the school year (the timings are the evidence for re-tuning the criteria);
+  the prune that will remove them inherits `prune_section_checks`'s
+  discipline — dry-run by default, unscheduled until armed by its own
+  checklist. Until then the stated window is a commitment, not a mechanism,
+  and retention-policy.md says so.
+

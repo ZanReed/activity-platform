@@ -1,10 +1,16 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-09-27-draft-9`. Windows below are the author-ruled S1 defaults
+> Version `2026-10-05-draft-10`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-10` (2026-10-05) adds the **timed number-facts check** (migration
+> 0045): per-fact response times, typed answers and a typing-speed baseline.
+> Its stated window is the school year the data was made in, and **the
+> mechanism that would enforce that window is not built** — see the new row
+> and Mechanics. Counsel question Q11 covers it.
 >
 > `draft-2` adds `section_checks` (0020), which draft-1 predated, and corrects
 > the deletion mechanics: the "wrong order fails loudly" property is real but
@@ -84,6 +90,8 @@
 | `ip_hash` + `user_agent` on submissions | **CLOSED — the data no longer exists** | — | the anonymous wire and its data were deleted whole at the S9 cutover (migration 0029, 2026-08-14): every `submissions` row was wiped (17 rows, all the author's test artifacts — 6 carried an `ip_hash`), the ingest path was dropped, and nothing can write new rows. No scrub job is needed for a field with zero rows and no writer |
 | **De-identified daily aggregates** (`check_rollup_daily`, `check_item_rollup_daily` — per-day counts of checks, verdicts, and distinct students per question) | **the life of the activity** — they OUTLIVE the individual checks they summarize | first written the night after a student checks | `purge_soft_deleted` removes them via CASCADE when the activity is purged (30 days after the teacher soft-deletes it). ⚠ **Two properties counsel should read together, and they are the subject of question Q10:** these tables hold **no student identifiers** — no id, name, or email, only counts, asserted against `information_schema` by `scripts/verify-0036.sql` §B so the property cannot erode silently. But a count is not always anonymous: **a row reading `students = 1` describes one identifiable student's day**, and it is **not recomputed or removed when that student's account is purged** (a distinct-student count cannot be decremented without storing the identifiers these tables deliberately refuse to hold). Access is teacher-scoped to their own activity via `can_read_activity`, so the aggregate exposes nothing the teacher cannot already see live |
 | **AI grading drafts** (`check_grade_suggestions` — machine-drafted scores, feedback and misconception observations about a student's response, incl. an md5 of the response text; migration 0042) | **exactly the windows of the check they draft against** — 400 days via the account path, 30 days via activity deletion, whichever fires first | same clocks as `section_checks` above | FK `ON DELETE CASCADE` from `section_checks` (asserted by `verify-0042.sql` §F): both purge paths delete checks, and the drafts fall with them — `purge_soft_deleted` was not edited and never learns the table exists (the 0034 `check_grades` pattern). Drafts are never student-visible; a draft a teacher confirms becomes a `check_grades` row and is then governed by THAT row's line above |
+| **Timed number-facts data** (`fact_attempts` — per fact: what was typed, right or wrong, skipped, response time in ms; `practice_sessions` — a typing-speed baseline and start/finish times; migration 0045) | **the school year it was made in** (author ruling 2026-10-02: the raw timings are the evidence for re-tuning the time criteria, so they are kept for the year, then summarised and removed) | the attempt is saved | **mechanism not yet built** — a prune that is dry-run by default and unscheduled is owed before the end of the first school year in which real attempts exist, with its own design pass (which also decides what "the school year" means across hemispheres). **Until it is built and armed, this data is kept until the student's account is purged**, so actual retention EXCEEDS the stated window. What IS live: `purge_soft_deleted` deletes it, explicitly and counted, for an account deleted on request (30 days) and for a dormant student (400 days); it never blocks an account purge |
+| The class result of a number-facts check (`class_probes` — the item list, the parameters, and a verdict of counts and a median; **no student identity**) | life of the class | the check is opened | deleted with the class row — see the class row below (its purge is not built) |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
 | Course glossary (`glossary_entry` — a teacher's course vocabulary; curriculum content, no student data; migration 0043) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0043.sql` §E). Terms dropped from the source file are RETIRED (`retired_at`), never deleted, so a published worksheet's marks keep resolving; nothing else removes a row |
@@ -127,6 +135,16 @@ membership history, which is exactly what the dormancy derivation looks for.
   which cascades from `section_checks`, so deleting a student's checks deletes
   the grades on them with no separate step (and no purge-side knowledge of the
   grading feature at all). `submissions` is frozen and empty since 0029.
+- **Timed number-facts data (0045) has NO prune yet.** The purge job deletes
+  a student's fact attempts and practice sessions explicitly (counted in the
+  job's ledger row) when their account is purged — on-request deletion after
+  30 days, dormancy after 400 — and that is the only removal path today.
+  A student REMOVED from a class keeps their history, as section checks do. A
+  soft-deleted CLASS keeps its checks, sessions and attempts, because nothing
+  purges class rows (the "mechanism not yet built" row above); that data is
+  the prune slice's to remove. The stated "school year" window is therefore a
+  commitment the platform cannot yet enforce; it is stated as such, not as
+  shipped behaviour.
 - **A DISARMED prune mechanism exists (migration 0035, 2026-08-16) and deletes
   nothing.** `prune_section_checks` can remove a student's *superseded* check
   attempts (never the latest per section, never a teacher-graded one) as a

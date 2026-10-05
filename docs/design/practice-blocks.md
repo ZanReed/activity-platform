@@ -1828,15 +1828,15 @@ Conflict: A and C both touch scripts/, in different files.
 Synthesized from this review's findings. Nothing here starts before the build
 order allows it (after B14 and the Y7 geometry figures, subject to A3).
 
-- [ ] **T1 (P1, human: ~2 days / CC: ~1 h)** — database — the slice 1 migration: mirror, three tables, five RPCs, locks, audit values, the re-created purge
+- [x] **T1 (BUILT 2026-10-05, migration 0045) (P1, human: ~2 days / CC: ~1 h)** — database — the slice 1 migration: mirror, three tables, five RPCs, locks, audit values, the re-created purge
   - Surfaced by: ER-6 to ER-11, ER-13, ER-14, ER-16, ER-17, ER-22, ER-24
   - Files: `supabase/migrations/`
   - Verify: the verify script green on local and live
-- [ ] **T2 (P1, human: ~1 day / CC: ~30 min)** — database — the verify script, registered in `AUTH_VERIFY_SET`, with run-scoped cleanup and a purge liveness proof
+- [x] **T2 (BUILT 2026-10-05, verify-0045) (P1, human: ~1 day / CC: ~30 min)** — database — the verify script, registered in `AUTH_VERIFY_SET`, with run-scoped cleanup and a purge liveness proof
   - Surfaced by: the coverage map's SQL column
   - Files: `supabase/`, `scripts/verify-runner.mjs`
   - Verify: `verify:auth` green; each guard mutation-tested once
-- [ ] **T3 (P1, human: ~3 h / CC: ~15 min)** — compliance — data map and retention policy in the migration's commit
+- [x] **T3 (DONE 2026-10-05) (P1, human: ~3 h / CC: ~15 min)** — compliance — data map and retention policy in the migration's commit
   - Surfaced by: ER-16, ER-17, ER-18
   - Files: `docs/compliance/data-map.md`, `docs/compliance/retention-policy.md`
   - Verify: `data-map-coverage.test.mjs`
@@ -1860,11 +1860,11 @@ order allows it (after B14 and the Y7 geometry figures, subject to A3).
   - Surfaced by: X2, the preview "owner must prove" row
   - Files: `packages/app/src/routes/`, `packages/app/e2e/`
   - Verify: the e2e assertion
-- [ ] **T9 (P2, human: ~4 h / CC: ~20 min)** — database and app — the grouping (UNBLOCKED: ruled by the curriculum side's item 13; one per student, CR-6 to CR-8)
+- [ ] **T9 (database half BUILT in 0045; the results screen remains) (P2, human: ~4 h / CC: ~20 min)** — database and app — the grouping (UNBLOCKED: ruled by the curriculum side's item 13; one per student, CR-6 to CR-8)
   - Surfaced by: ER-4, ER-5
   - Files: `supabase/migrations/`, the results screen
   - Verify: verify-script fixtures for each group, including `unjudged`
-- [ ] **T10 (P2, human: ~2 h / CC: ~15 min)** — docs — DECISIONS.md entry (timing and modality are client-reported; correctness is not) and the ROADMAP amendment in premise 1, at build time
+- [x] **T10 (DONE 2026-10-05) (P2, human: ~2 h / CC: ~15 min)** — docs — DECISIONS.md entry (timing and modality are client-reported; correctness is not) and the ROADMAP amendment in premise 1, at build time
   - Surfaced by: premise 1, premise 3 as narrowed by ER-6
   - Files: `docs/DECISIONS.md`, `ROADMAP.md`
   - Verify: both read back
@@ -2413,6 +2413,54 @@ that is never awaited sends nothing), and two rows in the a11y lane (axe on
 the intro and a fact; the answer box's own 2 px ring — a "not none" check
 passed with the rule deleted because Chrome draws a default ring, so the row
 asserts the app's ring exactly).
+
+### Migration 0045, as built (S-1, 2026-10-05)
+
+`supabase/migrations/0045_fact_probe.sql` and `scripts/verify-0045.sql`
+(13 rows: 10 catalog, the allocation, a 35-step lifecycle, the purge). Built
+to the rulings; what a reader would not guess from them:
+
+- **Six client functions, not five.** `fact_probe_overview(class)` joins the
+  ruled five: the class card needs the list of years a check can be opened
+  for and the class's earlier checks, and neither belongs in a per-probe read.
+  It finalises a check past its `closes_at`, as the results read does.
+- **The allocation's minimum is applied last** (their item 22 read
+  literally): shares by weight with largest remainder, a small family capped
+  at its fact count, then any family below min(5, its facts) is lifted one
+  item at a time from the family furthest above its own minimum. With
+  today's equal weights that pass never fires; verify-0045 B4 exercises it
+  with weights 1, 1, 1, 27 → 5, 5, 5, 15.
+- **The entry reads "the latest probe" for the class.** Open → ready, resume
+  or finished. Closed (or past `closes_at`) → `closed` for a student who was
+  part-way, `finished` for one who finished, `none_open` for one who never
+  started. It returns the student's own counts and never the class's.
+- **A save with no attempts is malformed unless it is the finishing call.**
+  The runner sends the baselines with the first attempt, so a session never
+  exists with nothing in it.
+- **Baselines: the first write wins**, per modality. A resumed run does not
+  redo the warm-up; the entry returns the stored baselines.
+- **A skip over the ceiling is `skipped`, not `timeout`** (both are counted,
+  neither is correct, and the time is capped at the ceiling either way; the
+  label is the student's own action).
+- **`has_rate` also needs counted time above zero**, so a rate is never a
+  division by zero.
+- **The snapshot holds no identity**: counts, the median, the floor, the
+  group counts, the verdict and who closed it. Per-student rows are always
+  derived from the attempts.
+- **`purge_soft_deleted`** is 0036's text with a counted delete for
+  explicitly-deleted accounts (step 6b) and the same inside the dormancy
+  loop; the ledger row's notes and the NOTICE gain both counts.
+
+Mutations run against the local database, each red on the named row and
+green restored: a save ignoring the close (C29); a timeout counted as correct
+(C18); the purge's explicit delete matching nothing, and the dormancy path's
+removed (D3 — the cascade still deleted the rows, so only the COUNT caught
+it, which is the point of ER-16); removed members left in the class numbers
+(C24); a non-member's entry not refused (C8).
+
+Compliance in the same commit: data-map `draft-12`, retention-policy
+`draft-10`, and counsel question **Q11** (ruling A2: it reaches counsel
+before this migration is applied live).
 
 ## GSTACK REVIEW REPORT
 
