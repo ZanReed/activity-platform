@@ -2521,6 +2521,17 @@ floor). Mutations, each red then restored: a group count that disagrees with
 the rows; a median that is not the rows'; a class comparison on the demo's
 done screen. The demo, both steps, still makes zero requests to the backend.
 
+### Author findings on the demo, fixed 2026-10-05
+
+- **The expression now fits by measurement** (CR-21 said "shrinks to fit";
+  the first build only dropped long prompts to one smaller size, and "3/4 =
+  __ as a decimal" was cut off at desktop width). Font-size is scaled to the
+  box before paint and on resize.
+- **The intro gained one line** (amending DR-6's copy at the author's
+  request): "You can type on your keyboard or tap the number keys on the
+  screen, whichever you are more comfortable with. Stick with the one you
+  start with." It shows in the real run too; the demo is the real runner.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

@@ -115,6 +115,10 @@ export default function FactRunner(props: FactRunnerProps) {
                     Nothing tells you right or wrong as you go.
                 </p>
                 <p className="mt-2 text-base text-muted">
+                    You can type on your keyboard or tap the number keys on the screen, whichever
+                    you are more comfortable with. Stick with the one you start with.
+                </p>
+                <p className="mt-2 text-base text-muted">
                     Your teacher uses the class&apos;s results to plan warm-ups, and sees which
                     facts you know straight away and which take longer.
                 </p>
@@ -186,6 +190,7 @@ function RunnerScreen({ run, notice }: { run: FactRun; notice: string | null }) 
     const trial = run.currentTrial;
     const item = run.currentItem;
     const answerRef = useRef<HTMLDivElement>(null);
+    const exprRef = useRef<HTMLParagraphElement>(null);
     const key = warmup ? `w${run.trialIndex}` : `i${run.itemIndex}`;
 
     // The clock starts when the thing on screen is painted: the next frame
@@ -212,6 +217,27 @@ function RunnerScreen({ run, notice }: { run: FactRun; notice: string | null }) 
             window.clearTimeout(fallback);
         };
     }, [run, key]);
+
+    // The expression SHRINKS TO FIT and never wraps (CR-21): a prompt is an
+    // authored string and can be long ("3/4 = __ as a decimal" was cut off at
+    // desktop width — author finding 2026-10-05). Measured before paint, so
+    // the student never sees the oversized frame; re-measured on resize.
+    useLayoutEffect(() => {
+        const fit = () => {
+            const el = exprRef.current;
+            if (!el) return;
+            el.style.fontSize = '';
+            // Scale by the measured ratio with a 2% margin, and re-measure:
+            // widths are whole pixels, so one pass can land a pixel over.
+            for (let pass = 0; pass < 4 && el.scrollWidth > el.clientWidth; pass++) {
+                const px = parseFloat(getComputedStyle(el).fontSize);
+                el.style.fontSize = `${Math.floor(((px * el.clientWidth) / el.scrollWidth) * 98) / 100}px`;
+            }
+        };
+        fit();
+        window.addEventListener('resize', fit);
+        return () => window.removeEventListener('resize', fit);
+    }, [key]);
 
     // Hidden page or lost focus: the fact is interrupted (DR-10).
     useEffect(() => {
@@ -273,7 +299,7 @@ function RunnerScreen({ run, notice }: { run: FactRun; notice: string | null }) 
                         </p>
                     </>
                 )}
-                <p className="fx-expr" {...(shown.length > 9 ? { 'data-long': '' } : {})} aria-hidden="true">
+                <p ref={exprRef} className="fx-expr" aria-hidden="true">
                     {shown}
                 </p>
                 {/* Announced once per item, in its spoken form. */}

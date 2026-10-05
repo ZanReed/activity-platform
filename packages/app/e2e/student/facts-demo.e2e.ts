@@ -24,6 +24,7 @@ test('the demo runs to the done screen from the keyboard and calls Supabase zero
     await page.goto('/facts/demo');
     await expect(page.getByText('This is a demo. Nothing you type is saved.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Quick number facts' })).toBeVisible();
+    await expect(page.getByText('You can type on your keyboard or tap the number keys on the screen', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Start' }).click();
 
     // The warm-up: type whatever number is shown. The answer box has focus.
@@ -50,6 +51,10 @@ test('the demo runs to the done screen from the keyboard and calls Supabase zero
     };
     for (let i = 0; i < 10; i++) {
         const shown = (await expr.textContent())!;
+        // CR-21: every prompt fits its box — "3/4 = __ as a decimal" was cut
+        // off at desktop width (author finding 2026-10-05).
+        const [client, scroll] = await expr.evaluate((el) => [el.clientWidth, el.scrollWidth]);
+        expect(scroll, `"${shown}" overflows its box`).toBeLessThanOrEqual(client!);
         await expect(answer).toBeFocused();
         await page.waitForTimeout(320);
         if (i === 0) {
@@ -86,3 +91,30 @@ test('the demo runs to the done screen from the keyboard and calls Supabase zero
     // The whole demo, both steps, sent nothing.
     expect(supabaseCalls).toEqual([]);
 });
+
+for (const [width, height, name] of [[375, 812, 'a phone'], [1366, 600, 'a short, wide laptop']] as const) {
+    test(`every demo prompt fits its box on ${name}`, async ({ page }) => {
+        test.setTimeout(90_000);
+        await page.setViewportSize({ width, height });
+        await page.goto('/facts/demo');
+        await page.getByRole('button', { name: 'Start' }).click();
+        const expr = page.locator('.fx-expr');
+        for (let i = 0; i < 25; i++) {
+            if (await page.getByRole('heading', { name: 'Warm-up done' }).isVisible()) break;
+            const shown = (await expr.textContent())!.replace('−', '-');
+            await page.waitForTimeout(320);
+            await page.keyboard.type(shown);
+            await page.keyboard.press('Enter');
+            await page.waitForTimeout(150);
+        }
+        await page.getByRole('button', { name: 'Start' }).click();
+        for (let i = 0; i < 10; i++) {
+            const shown = (await expr.textContent())!;
+            const [client, scroll] = await expr.evaluate((el) => [el.clientWidth, el.scrollWidth]);
+            expect(scroll, `"${shown}" overflows its box`).toBeLessThanOrEqual(client!);
+            await page.waitForTimeout(320);
+            await page.getByRole('button', { name: 'Skip this one' }).click();
+        }
+        await expect(page.getByRole('heading', { name: 'All done' })).toBeVisible();
+    });
+}

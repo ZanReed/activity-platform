@@ -36,6 +36,8 @@ describe('FactRunner', () => {
         expect(aboutMinutes(3)).toBe('About 1 minute');
         runner();
         expect(screen.getByText('About 1 minute.')).toBeTruthy();
+        // Author finding 2026-10-05: the intro says either input is fine.
+        expect(screen.getByText(/type on your keyboard or tap the number keys on the screen/)).toBeTruthy();
     });
 
     it('a keypad key registers on pointer-down and never takes focus (DR-2)', () => {

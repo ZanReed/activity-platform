@@ -61,8 +61,8 @@
   width: 1px;
 }
 
-/* The expression: large, bold, tabular lining numerals; shrinks for long
-   prompts and never wraps (CR-21). */
+/* The expression: large, bold, tabular lining numerals. It never wraps, and
+   FactRunner shrinks its font-size to fit a long prompt (CR-21). */
 .fx-expr {
   font-size: clamp(3rem, 12vw, 5rem);
   font-variant-numeric: tabular-nums lining-nums;
@@ -72,10 +72,6 @@
   overflow: hidden;
   text-align: center;
   white-space: nowrap;
-}
-
-.fx-expr[data-long] {
-  font-size: clamp(2rem, 8vw, 3.25rem);
 }
 
 /* FIXED size, so it never hints at the answer's length (DR-7). */

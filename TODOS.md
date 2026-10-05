@@ -27,6 +27,12 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 
 - ✅ **The 8-character numeric blank still wraps in a third-width column** (author screenshot 2026-10-05). The default IS applied, but a third-width column has about 5 characters left after "The scale factor is"; the 8 was chosen without measuring a real column. FIXED with the author's option 1: an unsized numeric blank STARTS at 4 characters and GROWS as the student types (one character of room past the value, cap 20; `blankSize.ts`). Measured in the real viewer CSS in a 205 px column: at 8 the blank wraps, at 4 all three of his sentences keep the blank on line 1, and "60 km/h" grows to fit. Known and accepted: words after a growing blank can reflow as the student types (their own keystrokes, not a page change).
 
+**Findings, 2026-10-05 (number-facts demo hand-off):**
+
+- ✅ **A fact's text was cut off: "3/4 = __ as a decimal"** (the author named it). Cause: the expression never wraps, and long prompts only dropped to ONE smaller fixed size; at desktop width that prompt needed 505 px in a 384 px box. FIXED: the expression is measured before paint and its font-size scaled to fit, re-measured on resize (`FactRunner.tsx`, CR-21). Guard: `facts-demo.e2e.ts` asserts every demo prompt fits its box at desktop, phone and short-wide sizes (red before the fix, and red again at 1–2 px over until the fit re-measured).
+- ✅ **Tell the student they can type or use the keypad, whichever they are comfortable with.** It was said only as a hint under the first warm-up number. ADDED to the intro card: "You can type on your keyboard or tap the number keys on the screen, whichever you are more comfortable with. Stick with the one you start with." ⚠ This is the SAME intro a real class sees (the demo is the real runner), and it adds a line to the copy DR-6 ruled; the "stick with one" half stays because the typing baseline is per input method (DR-13).
+- The demo's teacher view: the author saw it and found it readable.
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
