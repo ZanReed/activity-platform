@@ -251,6 +251,12 @@
   text-align: right;
 }
 
+.ft-names {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
 .ft-fams {
   display: flex;
   flex-wrap: wrap;

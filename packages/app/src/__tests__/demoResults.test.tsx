@@ -25,10 +25,24 @@ describe('the demo results', () => {
         expect(c.finished).toBe(members.filter((s) => s.status === 'finished').length);
         expect(c.with_rate).toBe(rated.length);
         expect(c.left_out).toBe(c.started - c.with_rate);
-        for (const g of ['fluent', 'slow', 'needs_strategy'] as const) {
-            expect(c.groups[g], g).toBe(rated.filter((s) => s.group === g).length);
+        expect(students.filter((s) => !s.has_rate).every((s) => s.rate === null)).toBe(true);
+    });
+
+    it('each family label follows from its own counts (80% right, then 80% quick and right)', () => {
+        let labelled = 0;
+        for (const s of students) {
+            for (const f of s.families) {
+                const want =
+                    f.counted < 5 ? null : f.right! / f.counted < 0.8 ? 'needs_strategy' : f.met / f.counted >= 0.8 ? 'fluent' : 'slow';
+                expect(f.group, `${s.name} ${f.name}`).toBe(want);
+                expect(f.status).toBe(want === null ? 'not_judged' : want === 'fluent' ? 'met' : 'not_met');
+                if (want) labelled++;
+            }
         }
-        expect(students.filter((s) => !s.has_rate).every((s) => s.group === null && s.rate === null)).toBe(true);
+        // The demo shows every label, or it would not rehearse the screen.
+        const all = students.flatMap((s) => s.families.map((f) => f.group));
+        for (const g of ['fluent', 'slow', 'needs_strategy', null] as const) expect(all, String(g)).toContain(g);
+        expect(labelled).toBeGreaterThan(10);
     });
 
     it('the median is the median of the rates, and the verdict follows from the floor', () => {
@@ -61,7 +75,9 @@ describe('the demo results', () => {
         expect(container.textContent).not.toContain('Ben (demo)');
         expect(container.textContent).not.toMatch(/probe/i);
         fireEvent.click(screen.getByRole('button', { name: 'Show names' }));
-        expect(screen.getByRole('region', { name: 'Fluent' }).textContent).toContain('Ben (demo)');
+        const division = screen.getByRole('row', { name: /^Division to 144 ÷ 12/ });
+        expect(division.textContent).toContain('Ben (demo)');
+        expect(division.textContent).toContain('Aroha (demo) (4 of 5 right, 2 quick)');
         fireEvent.click(screen.getByRole('button', { name: '← Back to the demo' }));
         expect(back).toHaveBeenCalledTimes(1);
     });

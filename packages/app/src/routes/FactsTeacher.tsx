@@ -15,9 +15,10 @@
 //            link and the counts: this screen goes on a projector (DR-19).
 //            Close asks first and defaults to "Keep it open" (DR-20).
 //   RESULTS  the verdict as a sentence, the two numbers and who was left out,
-//            the stopgap line; then "Who needs what" and each student, both
-//            CLOSED on first view — a name is not in the DOM until its
-//            disclosure is opened (DR-21, DR-22).
+//            the stopgap line; then "Who needs what" — a table of fact
+//            families by label (per-family grouping, ruled 2026-10-05) — and
+//            each student, with names CLOSED on first view: a name is not in
+//            the DOM until its disclosure is opened (DR-21, DR-22).
 //
 // Every number is the server's (fact_probe_results); this file formats it.
 // =============================================================================
@@ -28,11 +29,12 @@ import { listClasses } from '../lib/classes';
 import {
     closeProbe,
     factsLink,
+    familyLabel,
     fetchOverview,
     fetchResults,
     openProbe,
     type ClassStat,
-    type Group,
+    type FamilyLabel,
     type ProbeOverview,
     type ProbeResults,
     type StudentRow,
@@ -43,28 +45,35 @@ import '../practice/factsTeacher.css';
 
 export const LIVE_POLL_MS = 5000;
 
-const GROUPS: { key: Group; label: string; action: string }[] = [
-    { key: 'fluent', label: 'Fluent', action: 'No action' },
+/** The per-family labels (the author's ruling of 2026-10-05; migration 0046).
+ *  Each fact family is judged on its own questions; there is no single label
+ *  for a student. */
+const LABELS: { key: FamilyLabel; label: string; action: string }[] = [
+    { key: 'needs_strategy', label: 'Needs strategy', action: 'Too many wrong: strategy first' },
     { key: 'slow', label: 'Slow', action: 'Right, but past the time: fluency practice' },
-    { key: 'needs_strategy', label: 'Needs strategy', action: 'Strategy first' },
+    { key: 'fluent', label: 'Fluent', action: 'No action' },
 ];
 
-const FAMILY_WORD = { met: 'Met', not_met: 'Not met', not_judged: 'Not judged' } as const;
+const LABEL_WORD: Record<FamilyLabel, string> = {
+    fluent: 'Fluent',
+    slow: 'Slow',
+    needs_strategy: 'Needs strategy',
+    not_met: 'Not met',
+    not_judged: 'Not judged',
+};
 
 /** Whole percent, rounded DOWN, so 58 of 65 reads 89% and never a flattering 90%. */
 const pct = (part: number, whole: number) => (whole > 0 ? Math.floor((part / whole) * 100) : 0);
 
-/**
- * Why a student is in their group, in their own numbers (author finding
- * 2026-10-05: a fast student shown as "Needs strategy" with no accuracy on the
- * page read as a bug). The grouping is accuracy FIRST (curriculum item 13), so
- * the accuracy leads; the thresholds themselves are the server's and are not
- * restated here.
- */
-export function groupReason(s: StudentRow): string {
-    const right = `${s.right} of ${s.counted} right (${pct(s.right, s.counted)}%)`;
-    const quick = `${s.met} quick and right (${pct(s.met, s.counted)}%)`;
-    return s.group === 'needs_strategy' ? right : `${right}, ${quick}`;
+/** "9 fluent · 2 slow · 1 needs strategy · 1 not judged", zero counts left out. */
+export function familySummary(s: StudentRow): string {
+    const counts = new Map<FamilyLabel, number>();
+    for (const f of s.families) counts.set(familyLabel(f), (counts.get(familyLabel(f)) ?? 0) + 1);
+    const order: FamilyLabel[] = ['fluent', 'slow', 'needs_strategy', 'not_met', 'not_judged'];
+    return order
+        .filter((k) => (counts.get(k) ?? 0) > 0)
+        .map((k) => `${counts.get(k)} ${LABEL_WORD[k].toLowerCase()}`)
+        .join(' · ');
 }
 
 function day(iso: string): string {
@@ -527,6 +536,14 @@ export function Results({
     const c = data.class;
     const total = data.probe.item_count;
     const [showGroups, setShowGroups] = useState(false);
+    // Students who started, per family and label (members only, like the class numbers).
+    const started = data.students.filter((s) => s.is_member && s.status !== 'not_started');
+    const familyNames = started[0]?.families.map((f) => ({ id: f.family_id, name: f.name })) ?? [];
+    const inCell = (familyId: string, label: FamilyLabel) =>
+        started.filter((s) => {
+            const f = s.families.find((x) => x.family_id === familyId);
+            return f !== undefined && familyLabel(f) === label;
+        });
     const [showStudents, setShowStudents] = useState(false);
     const [slowestFirst, setSlowestFirst] = useState(false);
     const [openRow, setOpenRow] = useState<string | null>(null);
@@ -590,44 +607,76 @@ export function Results({
             <div className="ft-panel">
                 <h2>Who needs what</h2>
                 <p className="ft-muted ft-small">
-                    Fluent {c.groups.fluent} · Slow {c.groups.slow} · Needs strategy {c.groups.needs_strategy}
+                    Each fact family is judged on its own questions. Accuracy comes first: too
+                    many wrong in a family is &quot;needs strategy&quot; however quick the
+                    student is. Otherwise it is how many they got quick and right.
                 </p>
-                <p className="ft-muted ft-small">
-                    Accuracy comes first: a student who gets too many wrong is &quot;needs
-                    strategy&quot; however quick they are. Otherwise it is how many they got quick
-                    and right.
-                </p>
-                <button type="button" className="ft-link" aria-expanded={showGroups} onClick={() => setShowGroups((v) => !v)}>
-                    {showGroups ? 'Hide names' : 'Show names'}
-                </button>
-                {showGroups ? (
-                    <div className="ft-groups">
-                        {GROUPS.map((g) => {
-                            const inGroup = data.students.filter((s) => s.is_member && s.group === g.key);
-                            return (
-                                <section key={g.key} className="ft-group" aria-label={g.label}>
-                                    <h3>
-                                        {g.label} ({inGroup.length})
-                                    </h3>
-                                    <p className="ft-muted ft-small">{g.action}</p>
-                                    <ul>
-                                        {inGroup.map((s) => (
-                                            <li key={s.student_id}>
-                                                {s.name}
-                                                <span className="ft-muted ft-small" style={{ display: 'block' }}>
-                                                    {groupReason(s)}
+                {familyNames.length === 0 ? (
+                    <p className="ft-small" style={{ marginTop: 8 }}>No one has answered yet.</p>
+                ) : (
+                    <>
+                        <button type="button" className="ft-link" aria-expanded={showGroups} onClick={() => setShowGroups((v) => !v)}>
+                            {showGroups ? 'Hide names' : 'Show names'}
+                        </button>
+                        <div className="ft-tablewrap">
+                            <table className="ft-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Fact family</th>
+                                        {LABELS.map((l) => (
+                                            <th scope="col" key={l.key}>
+                                                {l.label}
+                                                <span className="ft-muted ft-small" style={{ display: 'block', fontWeight: 400 }}>
+                                                    {l.action}
                                                 </span>
-                                                {s.typing_flag ? (
-                                                    <span className="ft-muted ft-small"> — typing speed could not be fully allowed for</span>
-                                                ) : null}
-                                            </li>
+                                            </th>
                                         ))}
-                                    </ul>
-                                </section>
-                            );
-                        })}
-                    </div>
-                ) : null}
+                                        <th scope="col">Not judged</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {familyNames.map((fam) => (
+                                        <tr key={fam.id}>
+                                            <th scope="row" style={{ fontWeight: 500 }}>{fam.name}</th>
+                                            {[...LABELS.map((l) => l.key), 'not_judged' as const].map((label) => {
+                                                // A database without 0046 cannot split "not met":
+                                                // those students are shown under Slow's column
+                                                // header as "not met" rather than guessed.
+                                                const here = [
+                                                    ...inCell(fam.id, label),
+                                                    ...(label === 'slow' ? inCell(fam.id, 'not_met') : []),
+                                                ];
+                                                return (
+                                                    <td key={label}>
+                                                        {here.length}
+                                                        {showGroups && here.length > 0 ? (
+                                                            <ul className="ft-names">
+                                                                {here.map((s) => {
+                                                                    const f = s.families.find((x) => x.family_id === fam.id)!;
+                                                                    return (
+                                                                        <li key={s.student_id}>
+                                                                            {s.name}
+                                                                            {f.right !== undefined ? (
+                                                                                <span className="ft-muted ft-small">
+                                                                                    {' '}
+                                                                                    ({f.right} of {f.counted} right, {f.met} quick)
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </li>
+                                                                    );
+                                                                })}
+                                                            </ul>
+                                                        ) : null}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className="ft-panel">
@@ -653,6 +702,7 @@ export function Results({
                                     <th scope="col" className="ft-num">Right</th>
                                     <th scope="col" className="ft-num">Quick and right</th>
                                     <th scope="col" className="ft-num">Skipped</th>
+                                    <th scope="col">Fact families</th>
                                     <th scope="col">Run</th>
                                 </tr>
                             </thead>
@@ -704,6 +754,7 @@ function StudentRows({
                 <td className="ft-num">{started ? s.right : '—'}</td>
                 <td className="ft-num">{started ? s.met : '—'}</td>
                 <td className="ft-num">{started ? s.skipped : '—'}</td>
+                <td>{started ? familySummary(s) : '—'}</td>
                 <td>
                     {runWord(s, total)}
                     {s.typing_flag ? (
@@ -715,14 +766,16 @@ function StudentRows({
             </tr>
             {open ? (
                 <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                         <ul className="ft-fams">
                             {s.families.map((f) => (
                                 <li key={f.family_id}>
-                                    <strong>{f.name}:</strong> {FAMILY_WORD[f.status]}
+                                    <strong>{f.name}:</strong> {LABEL_WORD[familyLabel(f)]}
                                     <span className="ft-muted">
                                         {' '}
-                                        ({f.met} of {f.counted} quick and right)
+                                        ({f.right !== undefined ? `${f.right} of ${f.counted} right, ` : ''}
+                                        {f.met}
+                                        {f.right !== undefined ? '' : ` of ${f.counted}`} quick and right)
                                     </span>
                                 </li>
                             ))}

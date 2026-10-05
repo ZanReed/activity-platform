@@ -2532,6 +2532,50 @@ done screen. The demo, both steps, still makes zero requests to the backend.
   screen, whichever you are more comfortable with. Stick with the one you
   start with." It shows in the real run too; the demo is the real runner.
 
+### Per-family grouping — ruled by the author 2026-10-05 (supersedes CR-7)
+
+The first real check (a throwaway class) showed one student at 61.6 correct a
+minute, 55 of 65 quick and right, labelled "needs strategy": 58 of 65 right is
+89.2%, under the 90% bar, and seven wrong answers in two or three families
+set the label for all thirteen. The author ruled, as four numbered choices;
+the curriculum side recorded it as "D43 amendment (2026-10-05). Grouping is
+per fact family, and the accuracy threshold is 80%." (quote their log, not
+this):
+
+| # | Ruling |
+|---|---|
+| F-1 | **Each fact family is grouped, per student** — not the student. Supersedes CR-7. |
+| F-2 | **Inside a family: 80% right, then 80% quick and right.** Accuracy first: below the accuracy threshold of the family's counted items is needs strategy; otherwise at the facts-met threshold quick and right is fluent; otherwise slow. With 5 items, 4 of 5. |
+| F-3 | **No whole-student label.** Each student gets a derived summary ("9 fluent · 2 slow · 1 needs strategy · 1 not judged"). |
+| F-4 | **One accuracy key for both uses**: the check, and leaving strategy mode in the sprint (8 of the last 10 at 80%), ruled knowingly. |
+
+Platform definitions under it (sent as B-68 a–d, accepted in their
+amendment): counted items are the attempts not interrupted; a skip and a
+timeout count against accuracy; a family with fewer counted items than its
+minimum is NOT JUDGED and has no label; a family's label needs only its own
+minimum, not an overall rate (relaxes CR-8 for the label); **met IS fluent**
+(their item 23 restated). The class verdict is untouched.
+
+**As built (migration 0046, `verify-0046.sql`).** `fact_probe_stat` is
+re-created from 0045's text, EXPANDED: each family reading gains `right` and
+`group`, each student `family_summary`; the old per-student `group` and the
+class `groups` are still returned, unread, so the page deployed before the
+apply keeps working (removal filed in TODOS). Thresholds are read from the
+probe row, so a check opened at 0.9 is judged at 0.9. The results screen:
+"Who needs what" is a table of fact families by label with names behind
+"Show names"; each student's row carries the family summary and, opened, each
+family's label with "4 of 5 right, 3 quick and right". The screen tolerates a
+database without 0046 (it words an undivided "not met" as "Not met", never
+guesses). Mutations, each red then restored: the not-judged floor removed;
+speed checked before accuracy; a timeout counted as right in a family; names
+in the family table shown unasked; a pre-0046 "not met" guessed as slow.
+
+**Open: a two-part check for the long years** (the author's ruling of the
+same day: families split across two parts, more questions per family, one
+check with a break between, only when long). The curriculum side's proposal
+(C-58) needs new registry fields; it goes to the author as numbered options
+before anything is built.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

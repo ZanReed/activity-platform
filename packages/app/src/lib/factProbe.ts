@@ -102,6 +102,20 @@ export interface FamilyReading {
     counted: number;
     met: number;
     status: 'met' | 'not_met' | 'not_judged';
+    /** Since migration 0046: how many of `counted` were right, and the
+     *  family's own label (null = not judged). Absent on a database that has
+     *  not had 0046 applied — read them through familyLabel(). */
+    right?: number;
+    group?: Group | null;
+}
+
+/** A family's label as the page words it. 'not_met' appears only for a
+ *  pre-0046 reading, which cannot say WHICH kind of not met it is. */
+export type FamilyLabel = Group | 'not_met' | 'not_judged';
+
+export function familyLabel(f: FamilyReading): FamilyLabel {
+    if (f.group !== undefined) return f.group ?? 'not_judged';
+    return f.status === 'met' ? 'fluent' : f.status;
 }
 
 export interface StudentRow {

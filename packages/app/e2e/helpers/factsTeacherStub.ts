@@ -8,8 +8,9 @@ export const FT_CLASS_ID = 'eeeeeeee-0000-4000-8000-00000000e2e1';
 export const FT_PROBE_ID = 'cccccccc-0000-4000-8000-00000000e2e2';
 export const FT_CODE = 'ABC234';
 
-const family = (id: string, name: string, met: number, status: string) => ({
-  family_id: id, name, counted: 5, met, status,
+const family = (id: string, name: string, right: number, met: number, group: string | null) => ({
+  family_id: id, name, counted: group === null ? 2 : 5, right, met, group,
+  status: group === null ? 'not_judged' : group === 'fluent' ? 'met' : 'not_met',
 });
 
 const row = (i: number, name: string, extra: Record<string, unknown>) => ({
@@ -17,9 +18,9 @@ const row = (i: number, name: string, extra: Record<string, unknown>) => ({
   name, is_member: true, status: 'finished', done: 40, has_rate: true, rate: 20, right: 36,
   met: 30, skipped: 1, not_counted: 0, counted: 40, group: 'fluent', typing_flag: false,
   families: [
-    family('fact.mult.to-12', 'Multiplication to 12 × 12', 5, 'met'),
-    family('fact.div.to-12', 'Division to 144 ÷ 12', 2, 'not_met'),
-    family('fact.square.to-144', 'Square numbers to 144', 0, 'not_judged'),
+    family('fact.mult.to-12', 'Multiplication to 12 × 12', 5, 5, 'fluent'),
+    family('fact.div.to-12', 'Division to 144 ÷ 12', 4, 2, 'slow'),
+    family('fact.square.to-144', 'Square numbers to 144', 2, 2, null),
   ],
   ...extra,
 });

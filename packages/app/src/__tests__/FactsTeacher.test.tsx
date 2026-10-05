@@ -22,7 +22,7 @@ vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
 
-import FactsTeacher, { groupReason, LIVE_POLL_MS, yearLine } from '../routes/FactsTeacher';
+import FactsTeacher, { familySummary, LIVE_POLL_MS, yearLine } from '../routes/FactsTeacher';
 
 const student = (i: number, extra: Partial<StudentRow> = {}): StudentRow => ({
     student_id: `s${i}`,
@@ -40,8 +40,8 @@ const student = (i: number, extra: Partial<StudentRow> = {}): StudentRow => ({
     group: 'fluent',
     typing_flag: false,
     families: [
-        { family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', counted: 5, met: 5, status: 'met' },
-        { family_id: 'fact.div.to-12', name: 'Division to 144 ÷ 12', counted: 5, met: 2, status: 'not_met' },
+        { family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', counted: 5, right: 5, met: 5, group: 'fluent', status: 'met' },
+        { family_id: 'fact.div.to-12', name: 'Division to 144 ÷ 12', counted: 5, right: 4, met: 2, group: 'slow', status: 'not_met' },
     ],
     ...extra,
 });
@@ -223,10 +223,16 @@ describe('the live view', () => {
 describe('the results', () => {
     const closed = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: '2027-02-09T02:00:00Z', auto_closed: false, state: 'closed', item_count: 40, verdict: 'below' }]);
     const roster = [
-        student(1, { name: 'Aroha', group: 'needs_strategy', rate: 9, typing_flag: true }),
+        student(1, {
+            name: 'Aroha', rate: 9, typing_flag: true,
+            families: [
+                { family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', counted: 5, right: 5, met: 4, group: 'fluent', status: 'met' },
+                { family_id: 'fact.div.to-12', name: 'Division to 144 ÷ 12', counted: 5, right: 3, met: 1, group: 'needs_strategy', status: 'not_met' },
+            ],
+        }),
         student(2, { name: 'Ben', group: 'fluent', rate: 31 }),
         student(3, { name: 'Caleb', status: 'in_progress', done: 14, group: 'slow', rate: 12 }),
-        student(4, { name: 'Dina', status: 'not_started', has_rate: false, rate: null, group: null, done: 0 }),
+        student(4, { name: 'Dina', status: 'not_started', has_rate: false, rate: null, group: null, done: 0, families: [] }),
     ];
 
     async function openClosed(cls: Partial<ProbeResults['class']> = {}, over: Partial<ProbeResults['probe']> = {}) {
@@ -255,34 +261,45 @@ describe('the results', () => {
         expect(api.fetchResults).toHaveBeenCalledTimes(1);
     });
 
-    it('no student name is in the page until a disclosure is opened (DR-22)', async () => {
+    it('who needs what is a table of fact families by label, with no name until asked (DR-22)', async () => {
         const { container } = await openClosed();
         for (const name of ['Aroha', 'Ben', 'Caleb', 'Dina']) expect(container.textContent).not.toContain(name);
+        // Counts per family: Aroha, Ben and Caleb started; Dina did not.
+        const division = screen.getByRole('row', { name: /^Division to 144 ÷ 12/ });
+        const cells = () => Array.from(division.querySelectorAll('td')).map((td) => td.textContent);
+        expect(screen.getAllByRole('columnheader').slice(0, 5).map((h) => h.textContent!.replace(/(Too many|Right, but|No action).*/, ''))).toEqual(
+            ['Fact family', 'Needs strategy', 'Slow', 'Fluent', 'Not judged'],
+        );
+        expect(cells()).toEqual(['1', '2', '0', '0']);
         fireEvent.click(screen.getByRole('button', { name: 'Show names' }));
-        const needs = screen.getByRole('region', { name: 'Needs strategy' });
-        expect(needs.textContent).toContain('Strategy first');
-        expect(needs.textContent).toContain('Aroha');
-        expect(needs.textContent).toContain('typing speed could not be fully allowed for');
-        expect(screen.getByRole('region', { name: 'Fluent' }).textContent).toContain('Ben');
+        expect(cells()[0]).toBe('1Aroha (3 of 5 right, 1 quick)');
+        expect(cells()[1]).toContain('Ben (4 of 5 right, 2 quick)');
+        expect(cells()[1]).toContain('Caleb');
+        expect(container.textContent).not.toContain('Dina');
         fireEvent.click(screen.getByRole('button', { name: 'Hide names' }));
         expect(container.textContent).not.toContain('Aroha');
+        expect(screen.getByText(/Each fact family is judged on its own questions/)).toBeTruthy();
     });
 
     it('lists each student with the run words, and a row opens to the fact families (their item 23)', async () => {
         await openClosed();
         fireEvent.click(screen.getByRole('button', { name: 'Show students' }));
         const rows = screen.getAllByRole('row').map((r) => r.textContent);
-        expect(rows[0]).toBe('StudentPer minuteRightQuick and rightSkippedRun');
+        expect(rows.find((r) => r!.startsWith('StudentPer minute'))).toBe('StudentPer minuteRightQuick and rightSkippedFact familiesRun');
+        expect(rows.find((r) => r!.startsWith('Aroha'))).toContain('1 fluent · 1 needs strategy');
+        expect(rows.find((r) => r!.startsWith('Ben'))).toContain('1 fluent · 1 slow');
         expect(rows.find((r) => r!.startsWith('Ben'))).toContain('Finished');
         expect(rows.find((r) => r!.startsWith('Caleb'))).toContain('Stopped at 14 of 40');
         expect(rows.find((r) => r!.startsWith('Dina'))).toContain('Did not start');
         expect(rows.find((r) => r!.startsWith('Aroha'))).toContain('Typing speed could not be fully allowed for');
         fireEvent.click(screen.getByRole('button', { name: 'Ben' }));
-        expect(screen.getByText(/Multiplication to 12 × 12:/).parentElement!.textContent).toContain('Met');
-        expect(screen.getByText(/Division to 144 ÷ 12:/).parentElement!.textContent).toContain('Not met');
+        expect(screen.getByText(/Multiplication to 12 × 12:/).parentElement!.textContent).toContain('Fluent (5 of 5 right, 5 quick and right)');
+        expect(screen.getByText(/Division to 144 ÷ 12:/).parentElement!.textContent).toContain('Slow (4 of 5 right, 2 quick and right)');
         // Slowest first
         fireEvent.click(screen.getByRole('checkbox', { name: 'Slowest first' }));
-        const order = screen.getAllByRole('rowheader').map((r) => r.textContent!.trim());
+        // (the students table is the second table on the page)
+        const studentsTable = screen.getAllByRole('table')[1]!;
+        const order = Array.from(studentsTable.querySelectorAll('tbody th[scope="row"]')).map((r) => r.textContent!.trim());
         expect(order.slice(0, 3)).toEqual(['Aroha', 'Caleb', 'Ben']);
     });
 
@@ -301,22 +318,23 @@ describe('the results', () => {
         expect(ok.container.querySelector('.ft-verdict')!.textContent).not.toContain('not in this app yet');
     });
 
-    it('says WHY a student is in their group, in their own numbers (author finding 2026-10-05)', async () => {
-        // The live case: 61 a minute, 55 quick and right, but 58 of 65 right —
-        // 89%, so "needs strategy". The page must show the 89%.
-        const fast = student(9, { name: 'Ashton', group: 'needs_strategy', rate: 61.63, right: 58, met: 55, skipped: 0, counted: 65 });
-        expect(groupReason(fast)).toBe('58 of 65 right (89%)');
-        expect(groupReason(student(1, { group: 'fluent', right: 36, met: 30, counted: 40 }))).toBe(
-            '36 of 40 right (90%), 30 quick and right (75%)',
-        );
+    it('summarises a student by family labels, and a row shows the whole-run accuracy (author finding 2026-10-05)', async () => {
+        expect(familySummary(roster[0]!)).toBe('1 fluent · 1 needs strategy');
         await openClosed();
-        fireEvent.click(screen.getByRole('button', { name: 'Show names' }));
-        const needs = screen.getByRole('region', { name: 'Needs strategy' });
-        expect(needs.textContent).toContain('36 of 40 right (90%)');
-        expect(screen.getByText(/Accuracy comes first/)).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Show students' }));
         fireEvent.click(screen.getByRole('button', { name: 'Ben' }));
         expect(screen.getByText(/36 of 40 right \(90%\); 3 wrong or too slow to count; 1 skipped\./)).toBeTruthy();
+    });
+
+    it('a database without migration 0046 still renders: not met is shown as not met, never guessed', async () => {
+        const old = student(7, {
+            name: 'Old shape',
+            families: [
+                { family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', counted: 5, met: 5, status: 'met' },
+                { family_id: 'fact.div.to-12', name: 'Division to 144 ÷ 12', counted: 5, met: 2, status: 'not_met' },
+            ],
+        });
+        expect(familySummary(old)).toBe('1 fluent · 1 not met');
     });
 
     it('never polls a closed snapshot', async () => {
