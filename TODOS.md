@@ -226,15 +226,28 @@ asked in the open-snapshot screen; each check carries `keep_until`.
 mechanical holds it back except that no job calls it (verify-0048's
 `prune_is_unscheduled` row). In order; the cron row comes LAST:
 
-1. **Counsel Q11(b) answered** (counsel-review-packet.md). SENT: the author
-   confirmed on 2026-10-06 that Q11 went to counsel. No answer yet.
+1. ✅ DONE 2026-10-06. **Counsel Q11(b) answered** (counsel-review-packet.md):
+   the author reported counsel's reply, "current measures are sufficient",
+   covering Q1 to Q11. So the stated window with its caveat is acceptable;
+   counsel did NOT require the prune to be armed. The author then ruled:
+   START this checklist.
 2. ✅ DONE 2026-10-06 (250 rows green). **0048 applied on live and `verify:auth --target live` green**, including
    verify-0048 §B (the liveness proof at production values, P3).
-3. **Dry-run reports read on live**, at least twice a week apart:
+3. ⏳ FIRST REPORT READ 2026-10-06 (22:09 UTC on the 5th): 0 checks, 0
+   sessions, 0 attempts, 0 practice sessions; no job names the prune. Live
+   then held 2 closed checks (keep_until 2027-11-09, the backstop), 1
+   practice session (keep_until 2027-01-17) and 1 class ending 2026-12-18:
+   nothing is past its date, so 0 is the right answer. **THE SECOND REPORT IS
+   DUE ON OR AFTER 2026-10-13.** **Dry-run reports read on live**, at least twice a week apart:
    `select prune_fact_practice();` — the candidates must be explainable check
    by check (`select id, class_id, keep_until, closed_at from class_probes
    where pruned_at is null and keep_until < current_date`).
-4. **Every class with checks has a real end date.** Checks opened before
+4. ⏳ READ 2026-10-06: the one class has a real end date (2026-12-18). ⚠ ITS
+   TWO CHECKS predate 0048 and carry the 400-day backstop (2027-11-09), ten
+   months later than the class's own date + 30 days (2027-01-17), which is
+   what its practice session carries. By RP-8 that is as ruled; whether to
+   bring those two rows in line is the author's call (asked 2026-10-06).
+   **Every class with checks has a real end date.** Checks opened before
    0048 carry the 400-day backstop, not a teacher's date; that is by ruling
    (RP-8), but read which ones before arming.
 5. **The author's explicit yes**, in words, for arming.
@@ -2163,8 +2176,10 @@ everything below the watermark; trivially empty at 0 checks) · 4. ⏭ watermark
 green nights, read off `analytics_job_runs` rows, not the cron registration (P3)**, with the
 **reconciliation pair not drifting between runs** (`checks_below_watermark` vs
 `rolled_checks_total` — movement is the signal, not the absolute) · 5. ⏭ verify-0035 + verify-0036
-re-run live · 6. ⏭ **counsel packet Q10 answered** (n=1 aggregates surviving a purge; asked
-2026-08-16) · 7. ⏭ `PRUNE_HORIZON` re-checked against real split-day lag · 8. ⏭ **cron flipped to
+re-run live · 6. ✅ **counsel packet Q10 answered** 2026-10-06 (the author reported counsel's
+reply to the whole packet: "current measures are sufficient"; n=1 aggregates surviving a purge
+were asked 2026-08-16). This arc is NOT started by that: the author started only the
+number-facts prune's checklist · 7. ⏭ `PRUNE_HORIZON` re-checked against real split-day lag · 8. ⏭ **cron flipped to
 `prune_section_checks(false)`** — the first genuinely destructive act in this whole arc.
 
 **✅ P5 debt — DISCHARGED by 0036**, where each retired guard said to discharge it: 0036's header

@@ -1,10 +1,17 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-12`. Windows below are the author-ruled S1 defaults
+> Version `2026-10-06-draft-13`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-13` (2026-10-06) records that **counsel answered the packet**
+> (reported by the author: the current measures are sufficient, Q1 to Q11),
+> so stating the number-facts window with its caveat is accepted for a first
+> class. Both removal mechanisms remain NOT ARMED; the number-facts one has
+> started its arming checklist (first dry-run report read 2026-10-06: nothing
+> to remove). No window changed.
 >
 > `draft-12` (2026-10-06) adds the **daily number-facts practice**
 > (migration 0050): the same kind of data as the timed check, collected in a

@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**OWED: the D24 counsel read, Gate 4, and the `display_name` one-row fix.** *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
+**OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 **Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06. The standing rule is unchanged: the author runs deploys unless he says otherwise.
 
@@ -45,7 +45,7 @@ checks (today 0, roster 1; §5.1's volume rule governs).
 
 **Glossary LIVE (2026-09-28)** — nothing owed; v2 asks 2–3 in TODOS.
 
-**⚠ D24 counsel read — OWED.** The packet is written: [counsel-review-packet.md](docs/compliance/counsel-review-packet.md) — ten numbered questions, each naming the platform's current position. The load-bearing three: **Q2** (does an *unverified* educator attestation carry the authorization it asserts), **Q4** (is the per-class 13+ assertion defensible when students are never asked their age), **Q5** (on what basis is a pending account's data held before any teacher vouched). **Q10** gates ARMING the check-prune and nothing sooner. ⚠ **The gate this was meant to hold is ALREADY OPEN and the author accepted that risk** — any Google account can self-serve to teacher, and a real second account's data now sits in the DB under a pack every file marks DRAFT (the author's own throwaway, so nothing is owed to a third party). The read is the author's; nothing repo-side is owed. *(How it got open: HISTORY.md → D24.)*
+**D24 counsel read — ANSWERED (reported by the author 2026-10-06): "current measures are sufficient", covering the whole packet, Q1 to Q11.** No written opinion is in the repo; the record is the note at the top of [counsel-review-packet.md](docs/compliance/counsel-review-packet.md). What it changes: the counsel step of BOTH arming checklists is answered (Q10 for `prune_section_checks`, Q11(b) for `prune_fact_practice`); neither is armed. The author ruled to START the number-facts prune's arming checklist: first dry-run report read 2026-10-06 (nothing to remove); **the second is due on or after 2026-10-13**; no schedule is created without his explicit yes ([TODOS.md](TODOS.md) → the ARMING checklist). ⚠ Not settled by "sufficient": whether a Year 7–8 (under-13) class may use the product before the under-13 arc; ask before assuming.
 
 **Gate 4 — seed `student_domain` + live-verify the trigger's student branch** (deliberately LAST; needs a real district domain). Prerequisite MET (0027 live). ⚠ Never seed a consumer domain — the rule now lives in CLAUDE.md → Things NOT to do.
 
@@ -248,7 +248,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-06 — THE DAILY FACTS PRACTICE (D43 slice 2) is LIVE end to end: migrations 0049 to 0051, the pages, and registry revision `2d20d8c9…` mirrored. The prune (0048) is live and disarmed. The author tested it and the new returning-student sign-in button (`f89fda76`) on live: both work. NEXT: nothing is in flight. Still his: the end-date test, device checks (T11/D6), counsel's answer to Q11 (a note about the daily practice was added under it). Fired and unranked: the integration-lane row; the verify runner's silent row drop (both in TODOS). Behind gates: arming the prune, mixed practice.
+**Last updated:** 2026-10-06 — THE DAILY FACTS PRACTICE (D43 slice 2) is LIVE end to end: migrations 0049 to 0051, the pages, and registry revision `2d20d8c9…` mirrored. The prune (0048) is live and disarmed. The author tested it and the new returning-student sign-in button (`f89fda76`) on live: both work. NEXT: nothing is in flight. Counsel answered the packet (sufficient, Q1–Q11); the number-facts prune's arming checklist is STARTED (second dry-run report due on or after 2026-10-13; no schedule without the author's yes). Still his: the end-date test, device checks (T11/D6). Fired and unranked: the integration-lane row; the verify runner's silent row drop (both in TODOS). Behind gates: arming the prune, mixed practice.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 

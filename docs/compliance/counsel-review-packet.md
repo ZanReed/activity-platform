@@ -5,6 +5,18 @@
 > reality (live migrations, live Edge Functions, live row counts), not against
 > the project's own status notes.
 
+> **COUNSEL'S ANSWER — as reported by the author, 2026-10-06.** The author
+> told the build session that counsel had replied: the **current measures are
+> sufficient** and the project may move forward. Asked which questions that
+> covered, the author answered **the whole packet, Q1 to Q11**. What this
+> file holds is that report, in the author's words; **no written opinion from
+> counsel is in this repository**, and nothing here records counsel's
+> reasoning question by question. The files in the pack keep their DRAFT
+> marking until the author says otherwise. What the answer changed on the
+> platform side is recorded in STATE.md and TODOS.md (the two arming
+> checklists each had a counsel step; both are marked answered there, and
+> neither removal mechanism is armed by this).
+
 This packet exists because the compliance pack has never had legal review and
 every file in it is marked DRAFT. It does two things: says exactly what changed
 since the last time the pack was stable, and asks the specific questions whose
