@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import registry from './fixtures/fact-scope-registry.ac8f9fd2.json';
 import twoPartRegistry from './fixtures/fact-scope-registry.d0144e8d.json';
+import sprintRegistry from './fixtures/fact-scope-registry.2d20d8c9.json';
 import {
     expandFactScope,
     numberWords,
@@ -269,8 +270,9 @@ describe('expandFactScope — two-part checks (revision d0144e8d)', () => {
 });
 
 // The sprint's seven settings (D43 slice 2; names agreed in C-63 and C-66).
-// No generated registry carries them yet, so they are added to the d0144e8d
-// fixture here; replace this with their fixture when their PR merges.
+// The refusal rows add them to the d0144e8d fixture; the last row reads THEIR
+// generated registry at revision 2d20d8c9 (their PR #40, graph v0.17.11, file
+// sha256 93f0ed44…).
 describe('expandFactScope — the sprint keys', () => {
     const SPRINT = {
         sprint_max_misses: 1, sprint_minutes: 5, sprint_step_intervals: [1, 2, 4, 8, 16],
@@ -299,6 +301,17 @@ describe('expandFactScope — the sprint keys', () => {
     it('a registry without them mirrors none of them', () => {
         const m = mirrorOf(twoPartRegistry);
         for (const key of SPRINT_KEYS) expect(key in m.fact_probe).toBe(false);
+    });
+
+    it('their generated registry (revision 2d20d8c9) carries the agreed values and nothing else moved', () => {
+        const m = mirrorOf(sprintRegistry);
+        expect(m.registry_rev).toBe(sprintRegistry.header.revision);
+        expect(m.registry_rev.startsWith('2d20d8c9')).toBe(true);
+        for (const key of SPRINT_KEYS) expect(m.fact_probe[key]).toEqual(SPRINT[key]);
+        const before = mirrorOf(twoPartRegistry);
+        expect(m.facts).toEqual(before.facts);
+        expect(m.families).toEqual(before.families);
+        expect(['7', '8', '9', '10'].map((y) => probePartsFor(m, y))).toEqual([[40], [42, 40], [42, 56], [42, 56]]);
     });
 
     it('refuses a partial set, naming what is missing', () => {

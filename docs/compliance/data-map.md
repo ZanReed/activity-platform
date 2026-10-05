@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-16`. Mirrors migrations 0001–**0049**, verified
+> Version `2026-10-06-draft-17`. Mirrors migrations 0001–**0050**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,23 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-17` (2026-10-06) — 0050 ADDS student-derived personal data: the
+> daily number-facts practice.** It is the same KIND of data as 0045's timed
+> check (per fact: what was typed, right or wrong, the response time in
+> milliseconds; per session: a typing-speed baseline), but collected in a
+> short session a student may do EVERY SCHOOL DAY while their teacher has the
+> practice switched on, instead of once. Two new tables, `sprint_sessions`
+> and `sprint_attempts`, both with a `student_id`; rows are in the table
+> below. Both are locked the same way as 0045's: no client role can read or
+> write them, and every access goes through functions that take the student
+> from the signed-in session. A student's progress (which facts are learned,
+> which fact families need a strategy) is NOT stored anywhere: it is worked
+> out from these rows each time, and disappears with them. Nothing is kept
+> past the school year (author ruling SP-3). `classes.fact_sprint_on_at`
+> (when the teacher switched the practice on) identifies no one. The purge
+> job deletes both tables' rows explicitly and counted; the DISARMED prune
+> (0048) now covers them too. The range moves to 0050 on that basis.
 >
 > **`draft-16` (2026-10-06) — 0049 adds NO personal data.** It adds one
 > column to `fact_scope_revision` (curriculum content: seven settings for the
@@ -260,6 +277,8 @@
 | `fact_attempts.typed` / `correct` / `skipped` / `interrupted` / `rt_ms` / `offset_ms` / `modality` (+ `student_id`, `fact_id`, `shown`) (0045) | **one row per number fact a student answered in a timed check: what they typed, whether it was right, whether they skipped it or left the page, the RESPONSE TIME in milliseconds, and whether they used the keyboard or the on-screen keys** | student | the student's browser (timing and input method are client-reported and unverifiable); `correct`, `fact_id` and `shown` are filled by the server from the check's own item list | the class teacher's reading of number-fact fluency (per student and per fact family) and the class-level verdict; not a grade | **the school year it was made in**: removable once the check's `keep_until` passes (the class's school-year end + 30 days; at most 400 days after the check opened), or 30 days after the class is deleted — ⚠ the prune (`prune_fact_practice`, 0048) is BUILT but NOT ARMED, so actual retention exceeds this until it is (retention-policy.md → Mechanics). Deleted explicitly and counted by `purge_soft_deleted` for an explicitly-deleted account (30 days) and a dormant student (400 days) |
 | `practice_sessions.student_id` / `baseline_keyboard_ms` / `baseline_keypad_ms` / `app_build` / `started_at` / `last_saved_at` / `finished_at` (0045) | one row per student per check: **a typing-speed baseline** (milliseconds per keystroke, from the copy-typing warm-up), when they started and finished, and the app build | student | the student's browser (baselines are client-reported); timestamps are the server's | removes typing time from response time so the reading is about recall; lets a student resume | pruned WITH its attempts, check by check (same window, same caveat); same explicit purge |
 | `class_probes.opened_by` (0045) | which teacher opened a check for a class | teacher | `open_fact_probe` | attribution; the audit trail | life of the class; SET NULL if that teacher's account is purged. The row's item list, parameters and class verdict (`snapshot`: counts and a median, **no student identity**) are kept for the life of the class, including after its students' rows are pruned (`pruned_at` records when) |
+| `sprint_attempts.typed` / `correct` / `skipped` / `interrupted` / `rt_ms` / `offset_ms` / `modality` / `reask` (+ `student_id`, `fact_id`, `family_id`, `shown`) (0050) | **one row per number fact a student answered in a DAILY practice session: what they typed, whether it was right, whether they skipped it or left the page, the RESPONSE TIME in milliseconds, the input method, and whether it was the one repeat of a missed fact** | student | the student's browser (timing and input method are client-reported and unverifiable); `correct`, `fact_id`, `family_id` and `shown` are filled by the server from the session's own list | choosing each day's facts for that student (what is learned, what is due, which fact families need a strategy first) and the class teacher's view of progress; not a grade | **the school year it was made in**: removable once the session's `keep_until` passes (the class's school-year end + 30 days; at most 400 days after the session), or 30 days after the class is deleted — ⚠ by the same prune as the check's data (`prune_fact_practice`), which is BUILT but NOT ARMED. Deleted explicitly and counted by `purge_soft_deleted` for an explicitly-deleted account (30 days) and a dormant student (400 days) |
+| `sprint_sessions.student_id` / `practice_day` / `baseline_keyboard_ms` / `baseline_keypad_ms` / `app_build` / `started_at` / `last_saved_at` / `finished_at` (+ the list of facts chosen and the settings in force) (0050) | one row per student per daily practice session: **the day, a typing-speed baseline** (reused from the student's latest one in the class, else from a warm-up), when they started and finished, and which facts the server chose | student | the server (the list, the day, the settings); the student's browser (a baseline, when a warm-up ran) | removes typing time from response time; lets a session resume; fixes the settings a session is judged under | removed WITH its attempts (same window, same caveat); same explicit purge |
 | `check_grade_suggestions.criteria` / `general_feedback_draft` / `misconception_notes` (0042) | **machine-drafted scores, feedback and misconception observations about a student's work** — a DRAFT, never a grade: it reaches a student only if a teacher replays it through `upsert_check_grade`, where it becomes a `check_grades` row governed above | student (about) | local model on the teacher's own device (pilot, D10 on-device posture), written via `submit_grade_suggestion` under the activity owner's session | pre-fills the teacher's grading queue for confirm/edit/reject; edit-rate telemetry per model/prompt rev | **CASCADES from `section_checks`** (asserted by `verify-0042.sql` §F) — the check's windows govern, no separate step, purge function untouched |
 | `check_grade_suggestions.source_text_hash` (0042) | md5 of the student's response text at claim time | student (derived) | claim RPC | supersession keying — a draft on unchanged text is re-keyed, not re-inferred | with the row |
 | `check_grade_suggestions.model_id` / `prompt_rev` / `schema_rev` / `tokens_in` / `tokens_out` / `machine_confidence` / `billable` (0042) | machine telemetry on the drafting run, **not personal per se** — listed because the rows they stamp are about a student | — | claim/submit RPCs | quality auditing per revision; spend metering for the (unreachable) hosted path | with the row |

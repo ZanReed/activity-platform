@@ -222,6 +222,15 @@ including a child under 13. **Does a page that collects nothing raise any
 under-13 obligation simply by being usable by a child?**
 For an under-13 class the answer to (a) gates everything; for a 13+ class the
 author's position is that it gates nothing new (design ruling A2).
+*(Added 2026-10-06, after Q11 was sent: a DAILY practice built on the same
+exercise now exists in the database design — migration 0050, not yet live.
+It records the same data as the check, but in a short session each school
+day while the teacher has it switched on, and it derives each student's
+progress from those records without storing it. It follows the same
+retention window. Questions (a) and (b) apply to it unchanged; the only new
+fact for counsel is the FREQUENCY. Please read (a) and (b) as covering both.
+The author also placed the first classes as Years 7–10, so Q4 and D7's
+under-13 questions are no longer hypothetical.)*
 
 ## 6. What this packet deliberately does not do
 

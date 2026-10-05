@@ -244,9 +244,27 @@ mechanical holds it back except that no job calls it (verify-0048's
 Rulings SP-1 to SP-14 and the build slices: practice-blocks.md → "Slice 2,
 the sprint: design pass". **Slice 1 of 4 BUILT 2026-10-06** (importer +
 migration 0049, the mirror's `sprint` column). OWED: 0049 applied live, then
-the go-ahead letter to the curriculum side (their registry PR is held for
-it). ⚠ P1 debt: nothing reads `fact_scope_revision.sprint` until slice 2
-(the engine) lands. NEXT: slice 2, the engine.
+the go-ahead letter (both DONE 2026-10-06; their PRs #39 and #40 merged at
+`5723b74`, revision `2d20d8c9…`). **Slice 2 of 4 BUILT 2026-10-06** (the
+engine, migration 0050 + verify-0050). OWED, the author's: (1) mirror the
+new revision (`pnpm import:batch … --fact-registry`, exact command in
+STATE); (2) apply 0050 live and run the live verify. NEXT: slice 3 (the
+student's sprint) and slice 4 (the teacher's switch and progress view);
+their pages are pushed only after 0050 is live.
+
+## The verify runner drops a row that ERRORS or returns NULL (found 2026-10-06)
+
+`scripts/verify-runner.mjs` runs psql with `ON_ERROR_STOP=0` and keeps only
+rows whose second column is `t` or `f`. So a check row whose SELECT errors
+(for example `cron.job` on the local stack, which has no pg_cron) or whose
+pass column is NULL is not reported as a failure: it is not reported at all.
+Locally, verify-0048's `prune_is_unscheduled` and verify-0050's
+`prune_still_unscheduled_and_service_only` vanish this way; on live they
+run. A guard that can disappear silently is the P9 class. **Fix:** count the
+`select '<id>',` rows in each expect-rows section and fail when fewer come
+back (with an explicit `-- @live-only` mark for rows that need pg_cron).
+**Trigger: the next change to the verify runner, or before the prune's
+arming checklist is started** (step 6 flips one of those rows).
 
 ## The sprint's bar is 9 of 10 (author ruling SB-1/SB-2, 2026-10-06)
 

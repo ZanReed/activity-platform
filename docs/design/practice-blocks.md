@@ -2822,6 +2822,67 @@ reads the column yet (the engine is slice 2: a tracked debt under P1).
 Mutations, each red then restored: the insert dropping the keys (B1); the
 comparison ignoring them (B2).
 
+**Build slice 2, the engine, as built (2026-10-06, migration 0050; NOT yet
+applied live).** `classes.fact_sprint_on_at` (the switch);
+`sprint_sessions` (the list the server chose, the settings fixed at start,
+baselines, `keep_until`) and `sprint_attempts` (keyed session, item number,
+re-ask), RLS forced with no policy. Functions: `fact_attempt_judgment` (one
+attempt, judged; bonded to `fact_probe_judged` by verify-0050 B2, which
+judges the same rows through both); `fact_sprint_log` (the checks' attempts,
+then the sprint's first asks, each judged under its own parent's settings);
+`fact_sprint_families` and `fact_sprint_state` (everything derived);
+`fact_sprint_build` (today's list); and the three client RPCs
+`set_fact_sprint`, `fact_sprint_entry(code, start)` and
+`save_sprint_attempts`. `prune_fact_practice` and `purge_soft_deleted` gain
+the two tables. There is no mastery table.
+
+*Readings the build had to make, each stated in the migration's header and
+relayed to the curriculum side (B-88):*
+- **A step** is the number of distinct days with a quick-and-right first ask
+  since the fact's last miss, not counting that miss's own day. This one
+  sentence gives "one step a day", "a miss goes to 0", "slow changes
+  nothing" and "the re-ask raises nothing that day".
+- **Re-asks derive nothing.** They are stored, and no step, bar or score
+  reads them.
+- **A bar needs a full window and, once met, stays met.** Otherwise a family
+  would drop back into strategy mode, or back into the working pair, on one
+  bad day.
+- **A FLUENT family's facts** that were never missed sit at the mastered
+  step; only the sprint's own quick-and-right days raise them. Those never
+  asked in the sprint are the spot-checks (SP-7), and what spreads them is
+  the new-fact cap (they take what the working families leave of it, in a
+  stable per-student order), not a date. One asked and not yet quick and
+  right is on the schedule from that day, so it comes back.
+- **A review answered right but slow stays due**, so it returns each session
+  until it is quick and right or missed.
+- **Learning** (step 0) is asked in working families and in review families
+  (a review that went wrong returns). A step-0 fact in a family still
+  waiting its turn waits with it.
+- **A session takes saves for one day** after it starts, then answers
+  `closed`. The list is capped at 200 facts (a safety cap, not a teaching
+  value).
+- **The year level** is that of the class's latest closed check; a student
+  who took no check has every family NOT JUDGED.
+
+*A finding for calibration, not a defect:* with 2 working families and 5 new
+facts a session, a student's first sessions are short. The fixture student
+(one family needing strategy, one slow, a 30-item check) has 22 facts on day
+one, about a minute and a half, not five. The lever is the curriculum side's
+`sprint_new_facts_per_session`; relayed in B-88.
+
+`verify-0050.sql` (registered): catalog posture and 18 behaviour checks at
+the agreed values. Mutations, each red then restored (nine): two
+quick-and-right answers on one day making two steps; the miss's own day
+raising a step; a re-ask kept for an item that was not missed; the new-fact
+cap; the accuracy bar's "at most"; a FLUENT family not starting at the
+mastered step; the strategy shown every time instead of once; the prune
+taking a session that may still be saving; correctness taken as given.
+⚠ **TWO of the nine were green on the first attempt**: the fixture never
+answered one fact quick and right twice in a day, and everything in one
+transaction shares a timestamp, so "after the miss" was a tie. Both tests
+were rebuilt and went red. Compliance in the same commit: data-map
+`draft-17`, retention-policy `draft-12`, and a note under counsel Q11.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

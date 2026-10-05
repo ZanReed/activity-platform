@@ -1,10 +1,17 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-11`. Windows below are the author-ruled S1 defaults
+> Version `2026-10-06-draft-12`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-12` (2026-10-06) adds the **daily number-facts practice**
+> (migration 0050): the same kind of data as the timed check, collected in a
+> short session each school day while a teacher has it switched on. It
+> follows the same window and the same switched-off removal mechanism. The
+> author ruled that nothing about a student's practice is kept past the
+> school year (no carried-over progress record).
 >
 > `draft-11` (2026-10-06) defines the **school year** for timed number-facts
 > data and records that its removal mechanism is **built but not armed**
@@ -99,6 +106,7 @@
 | **De-identified daily aggregates** (`check_rollup_daily`, `check_item_rollup_daily` — per-day counts of checks, verdicts, and distinct students per question) | **the life of the activity** — they OUTLIVE the individual checks they summarize | first written the night after a student checks | `purge_soft_deleted` removes them via CASCADE when the activity is purged (30 days after the teacher soft-deletes it). ⚠ **Two properties counsel should read together, and they are the subject of question Q10:** these tables hold **no student identifiers** — no id, name, or email, only counts, asserted against `information_schema` by `scripts/verify-0036.sql` §B so the property cannot erode silently. But a count is not always anonymous: **a row reading `students = 1` describes one identifiable student's day**, and it is **not recomputed or removed when that student's account is purged** (a distinct-student count cannot be decremented without storing the identifiers these tables deliberately refuse to hold). Access is teacher-scoped to their own activity via `can_read_activity`, so the aggregate exposes nothing the teacher cannot already see live |
 | **AI grading drafts** (`check_grade_suggestions` — machine-drafted scores, feedback and misconception observations about a student's response, incl. an md5 of the response text; migration 0042) | **exactly the windows of the check they draft against** — 400 days via the account path, 30 days via activity deletion, whichever fires first | same clocks as `section_checks` above | FK `ON DELETE CASCADE` from `section_checks` (asserted by `verify-0042.sql` §F): both purge paths delete checks, and the drafts fall with them — `purge_soft_deleted` was not edited and never learns the table exists (the 0034 `check_grades` pattern). Drafts are never student-visible; a draft a teacher confirms becomes a `check_grades` row and is then governed by THAT row's line above |
 | **Timed number-facts data** (`fact_attempts` — per fact: what was typed, right or wrong, skipped, response time in ms; `practice_sessions` — a typing-speed baseline and start/finish times; migration 0045) | **the school year it was made in, plus 30 days** (author rulings 2026-10-02 and 2026-10-06). "The school year" is an **end date the teacher gives for each class**; it is never inferred from a calendar or a timezone. Each check copies that date when it is opened, so changing the class's date later does not extend data already collected. **Backstop: never more than 400 days after the check was opened.** For a deleted class: 30 days after the deletion, if that comes first | the check is opened (the date is fixed then) | **built, NOT ARMED** (migration 0048): `prune_fact_practice` removes a check's sessions and attempts together and keeps the class result. It is dry-run by default and no job runs it. **Until it is armed, this data is kept until the student's account is purged**, so actual retention EXCEEDS the stated window. No per-student summary is kept after removal (the summary the 2026-10-02 ruling mentioned is deferred to the feature that would read it). What IS live: `purge_soft_deleted` deletes it, explicitly and counted, for an account deleted on request (30 days) and for a dormant student (400 days); it never blocks an account purge |
+| **Daily number-facts practice** (`sprint_attempts` — per fact: what was typed, right or wrong, skipped, response time in ms; `sprint_sessions` — the day, a typing-speed baseline, start/finish times, the facts chosen; migration 0050). A student's progress is derived from these rows and stored nowhere else | **the school year it was made in, plus 30 days**, by the class's end date as it stood when the session was started; never more than 400 days after the session; for a deleted class, 30 days after the deletion if that comes first (author ruling SP-3, 2026-10-06: nothing is carried into the next year) | the session is started | **built, NOT ARMED**: the same `prune_fact_practice` removes whole sessions with their attempts. **Until it is armed, this data is kept until the student's account is purged.** `purge_soft_deleted` deletes it, explicitly and counted, for an account deleted on request (30 days) and a dormant student (400 days) |
 | The class result of a number-facts check (`class_probes` — the item list, the parameters, and a verdict of counts and a median; **no student identity**) | life of the class | the check is opened | deleted with the class row — see the class row below (its purge is not built) |
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
@@ -143,6 +151,16 @@ membership history, which is exactly what the dormancy derivation looks for.
   which cascades from `section_checks`, so deleting a student's checks deletes
   the grades on them with no separate step (and no purge-side knowledge of the
   grading feature at all). `submissions` is frozen and empty since 0029.
+- **The daily number-facts practice (0050) rides the same prune and the same
+  purge.** `prune_fact_practice` removes a practice session and its attempts
+  together once the session's own keep-until date has passed (or its class
+  was deleted more than 30 days ago), never one that may still be taking
+  saves, and records the counts per class in the audit log. A student's
+  step-by-step progress is computed from the rows that exist, so removing a
+  year's rows removes the progress with them; the next year starts from a new
+  check. One consequence stated plainly: if a teacher moves a class's end
+  date later in the middle of a year, sessions started before the change
+  keep the earlier date.
 - **Timed number-facts data has a prune that is BUILT and NOT ARMED
   (migration 0048, 2026-10-06).** `prune_fact_practice` works check by check:
   once a check's keep-until date has passed, or its class was deleted more
