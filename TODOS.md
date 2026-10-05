@@ -154,10 +154,7 @@ design arc at a time.
 
 ## Number-facts check — what slice 1 left unbuilt (2026-10-05)
 
-- **The demo's second step (DR-4, task D5):** "See what your teacher sees
-  (demo data)" after the demo's done screen — the results screen on invented
-  data, so a teacher can rehearse the whole thing without a class. P2.
-  **Trigger: the first teacher other than the author is shown the feature.**
+- ✅ **The demo's second step (DR-4, task D5) — BUILT 2026-10-05:** "See what your teacher sees (demo data)" on the demo's done screen opens the real results screen on an invented class of eight (`practice/demoResults.ts`, held to its own arithmetic by `demoResults.test.tsx`).
 - **A real-backend row in the local integration lane:** teacher opens →
   student runs → teacher closes → the verdict equals the snapshot, against
   `supabase start` with a mirrored registry. The stub lanes and verify-0045

@@ -2105,7 +2105,7 @@ These refine the eng review's T5 to T8; they add no new build order.
   - Surfaced by: DR-17 to DR-22
   - Files: `packages/app/src/routes/Classes.tsx`, a new teacher route
   - Verify: e2e: names are absent from the DOM until a disclosure is opened; the verdict equals the snapshot
-- [ ] **D5 (P2, human: ~2 h / CC: ~10 min)** — app — the demo's two-step ending
+- [x] **D5 (BUILT 2026-10-05) (P2, human: ~2 h / CC: ~10 min)** — app — the demo's two-step ending
   - Surfaced by: DR-4
   - Files: `packages/app/src/routes/`
   - Verify: e2e: no rate or floor on the demo's done screen
@@ -2504,9 +2504,22 @@ protected from the role gate; group names shown without being asked; a closed
 snapshot still polling; the queue dropping what arrived during a save; a year
 picked by default.
 
-NOT built, each filed in TODOS: DR-4's second step ("See what your teacher
-sees (demo data)", task D5); a real-backend row in the local integration
+NOT built, each filed in TODOS: a real-backend row in the local integration
 lane; the device checks (T11, D6), which are the author's.
+
+**DR-4's second step, built the same day (task D5).** The demo still ends on
+the student's own done screen — a count, with no rate, floor or comparison
+(an e2e row asserts that). A text button there, "See what your teacher sees
+(demo data)", loads `routes/FactsDemoTeacher.tsx` on demand: the REAL
+`Results` component on an invented class of eight
+(`practice/demoResults.ts`), under a note that every name and number is
+invented and that nothing from the demo run is shown. "Back to the demo"
+returns to the same done screen (the runner stays mounted, hidden). The
+invented numbers are held to their own arithmetic by `demoResults.test.tsx`
+(counts from the rows, the median from the rates, the verdict from the
+floor). Mutations, each red then restored: a group count that disagrees with
+the rows; a median that is not the rows'; a class comparison on the demo's
+done screen. The demo, both steps, still makes zero requests to the backend.
 
 ## GSTACK REVIEW REPORT
 

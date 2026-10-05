@@ -497,7 +497,17 @@ function runWord(s: StudentRow, total: number): string {
     return `Stopped at ${s.done} of ${total}`;
 }
 
-function Results({ data, onBack }: { data: ProbeResults; onBack: (() => void) | null }) {
+/** The results screen. Exported so the public demo can show it on invented
+ *  data (DR-4): the SAME component a teacher sees, never a look-alike. */
+export function Results({
+    data,
+    onBack,
+    backLabel = '← All snapshots',
+}: {
+    data: ProbeResults;
+    onBack: (() => void) | null;
+    backLabel?: string;
+}) {
     const c = data.class;
     const total = data.probe.item_count;
     const [showGroups, setShowGroups] = useState(false);
@@ -513,7 +523,7 @@ function Results({ data, onBack }: { data: ProbeResults; onBack: (() => void) | 
         <>
             {onBack ? (
                 <button type="button" className="ft-link" onClick={onBack}>
-                    ← All snapshots
+                    {backLabel}
                 </button>
             ) : null}
             <p className="ft-muted ft-small" style={{ marginTop: 8 }}>

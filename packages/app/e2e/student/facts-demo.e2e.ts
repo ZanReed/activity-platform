@@ -64,5 +64,25 @@ test('the demo runs to the done screen from the keyboard and calls Supabase zero
     await expect(page.getByRole('heading', { name: 'All done' })).toBeVisible();
     await expect(page.getByText('You got 9 right. You skipped 1.')).toBeVisible();
     await expect(page.locator('body')).not.toContainText(/probe/i);
+
+    // DR-4: the done screen is the STUDENT's — a count, and no rate, floor or
+    // comparison for whoever opened this public link.
+    const done = page.locator('main.fx-stage');
+    await expect(done).not.toContainText(/a minute|floor|median|class/i);
+
+    // The teacher's view is a separate step, on invented data, and says so.
+    await page.getByRole('button', { name: 'See what your teacher sees (demo data)' }).click();
+    await expect(page.getByText('The class, the names and every number below are invented.', { exact: false })).toBeVisible();
+    await expect(page.locator('.ft-verdict')).toContainText('This class is below the fluency floor.');
+    await expect(page.locator('.ft-verdict')).toContainText('Class median: 16.05 correct a minute. Floor: 16.9. Based on 6 of 8 students; 1 had too little to measure.');
+    await expect(page.getByText('Ben (demo)')).toHaveCount(0); // names stay behind their disclosure
+    await page.getByRole('button', { name: 'Show students' }).click();
+    await expect(page.getByRole('row', { name: /Fetu \(demo\)/ })).toContainText('Stopped at 31 of 55');
+
+    // Back returns to the SAME done screen, not a fresh intro.
+    await page.getByRole('button', { name: '← Back to the demo' }).click();
+    await expect(page.getByText('You got 9 right. You skipped 1.')).toBeVisible();
+
+    // The whole demo, both steps, sent nothing.
     expect(supabaseCalls).toEqual([]);
 });

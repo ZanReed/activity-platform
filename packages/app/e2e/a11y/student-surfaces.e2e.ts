@@ -671,6 +671,20 @@ test.describe('the number-facts runner', () => {
     await expectNoAxeViolations(page);
   });
 
+  test('the demo teacher view (a public screen) has no axe violations', async ({ page }) => {
+    test.setTimeout(90_000);
+    await toFirstFact(page);
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(320);
+      await page.getByRole('button', { name: 'Skip this one' }).click();
+    }
+    await page.getByRole('button', { name: 'See what your teacher sees (demo data)' }).click();
+    await page.locator('.ft-verdict').waitFor();
+    await page.getByRole('button', { name: 'Show names' }).click();
+    await page.getByRole('button', { name: 'Show students' }).click();
+    await expectNoAxeViolations(page);
+  });
+
   test('a fact has no axe violations, and the answer box shows its focus ring', async ({ page }) => {
     test.setTimeout(90_000);
     await toFirstFact(page);
