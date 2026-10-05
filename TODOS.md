@@ -208,7 +208,7 @@ to catch.
 
 ## Number-facts data: the roll-up and PRUNE slice (filed with migration 0045, 2026-10-05)
 
-**Trigger: the first real `fact_attempts` row.** Owed before the end of the
+**Trigger: the first real `fact_attempts` row.** ⚠ **FIRED 2026-10-05** — the author's own throwaway-class checks wrote the first rows (his test accounts, so nothing is owed to a third party, but the entry is no longer waiting on anything). It is the next real piece of D43 work. Owed before the end of the
 first school year in which real attempts exist (practice-blocks.md → "Roll-up
 and prune"; premise 5). Until it ships, retention-policy.md's "school year"
 window for this data is a commitment with no mechanism, and the data lasts
