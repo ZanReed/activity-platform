@@ -2,10 +2,12 @@
 // =============================================================================
 // Classes.test.tsx — the 3.1C assertion gate in the create-class flow
 // -----------------------------------------------------------------------------
-// The compliance-critical behavior: a class cannot be created until the 13+
-// assertion checkbox is checked, the checkbox renders the exact ASSERTION_TEXT
-// wording, it is unchecked by default, and it RESETS after a successful create
-// (each class is its own assertion record — no sticky consent).
+// The compliance-critical behavior: a class cannot be created until the
+// teacher picks ONE of the two age statements (U-1, 2026-10-06; it was a
+// single 13+ checkbox before), both render in their exact AGE_STATEMENTS
+// wording, nothing is picked by default, and the choice RESETS after a
+// successful create (each class is its own record — no sticky consent). An
+// existing class's teacher can confirm the other statement (U-2).
 // =============================================================================
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,7 +51,7 @@ vi.mock('../lib/SessionContext', () => ({
 }));
 
 import Classes from '../routes/Classes';
-import { ASSERTION_TEXT, ASSERTION_TEXT_VERSION } from '../lib/classes';
+import { AGE_STATEMENT_PROMPT, AGE_STATEMENTS, ASSERTION_TEXT_VERSION } from '../lib/classes';
 
 function renderClasses() {
     return render(
@@ -68,6 +70,7 @@ function createdRpcResult() {
             expected_domain: null,
             age_assertion_at: '2026-07-28T00:00:00Z',
             assertion_text_version: ASSERTION_TEXT_VERSION,
+            includes_under_13: false,
             created_at: '2026-07-28T00:00:00Z',
         },
         error: null,
@@ -80,16 +83,21 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe('Classes create flow — assertion gate', () => {
-    it('renders the exact assertion wording, unchecked by default', async () => {
+describe('Classes create flow — the age statement (U-1)', () => {
+    const choices = () => screen.getAllByRole('radio') as HTMLInputElement[];
+
+    it('renders both statements in their exact wording, with NOTHING picked by default', async () => {
         renderClasses();
         fireEvent.click(await screen.findByRole('button', { name: 'New class' }));
-        const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
-        expect(checkbox.checked).toBe(false);
-        expect(screen.getByText(ASSERTION_TEXT)).toBeTruthy();
+        expect(screen.getByText(AGE_STATEMENT_PROMPT)).toBeTruthy();
+        expect(screen.getByLabelText(AGE_STATEMENTS.thirteenPlus)).toBeTruthy();
+        expect(screen.getByLabelText(AGE_STATEMENTS.under13)).toBeTruthy();
+        expect(choices()).toHaveLength(2);
+        expect(choices().some((r) => r.checked)).toBe(false);
+        expect(screen.queryByRole('checkbox')).toBeNull();
     });
 
-    it('create is disabled until name + assertion are both present', async () => {
+    it('create is disabled until a name AND one of the statements are present', async () => {
         renderClasses();
         fireEvent.click(await screen.findByRole('button', { name: 'New class' }));
         const create = screen.getByRole('button', {
@@ -101,41 +109,105 @@ describe('Classes create flow — assertion gate', () => {
             target: { value: 'Algebra I — Period 2' },
         });
         expect(create.disabled).toBe(true); // name alone is not enough
+        expect(screen.getByText('The age confirmation is required.')).toBeTruthy();
 
-        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.click(screen.getByLabelText(AGE_STATEMENTS.thirteenPlus));
         expect(create.disabled).toBe(false);
-
-        fireEvent.click(screen.getByRole('checkbox')); // uncheck again
-        expect(create.disabled).toBe(true);
     });
 
-    it('successful create stamps the assertion payload and RESETS the checkbox', async () => {
+    it('a 13-or-older create sends that choice, stamps the version and RESETS the choice', async () => {
         renderClasses();
         fireEvent.click(await screen.findByRole('button', { name: 'New class' }));
         fireEvent.change(screen.getByLabelText('Class name'), {
             target: { value: 'Algebra I — Period 2' },
         });
-        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.click(screen.getByLabelText(AGE_STATEMENTS.thirteenPlus));
         fireEvent.click(screen.getByRole('button', { name: 'Create class' }));
 
         await screen.findByText('ABC234');
-        // The audited door (E-2): the version rides the wire; identity is
-        // auth.uid() server-side, so no client-supplied teacher id exists to
-        // assert on anymore.
         expect(h.rpc).toHaveBeenCalledWith(
             'create_class',
             expect.objectContaining({
                 p_assertion_text_version: ASSERTION_TEXT_VERSION,
+                p_includes_under_13: false,
             }),
         );
 
-        // Re-open the form: the assertion must NOT be remembered.
+        // Re-open the form: the choice must NOT be remembered.
         fireEvent.click(screen.getByRole('button', { name: 'New class' }));
-        await waitFor(() =>
-            expect(
-                (screen.getByRole('checkbox') as HTMLInputElement).checked,
-            ).toBe(false),
+        await waitFor(() => {
+            const fresh = screen.getAllByRole('radio') as HTMLInputElement[];
+            expect(fresh.some((r) => r.checked)).toBe(false);
+        });
+    });
+
+    it('an under-13 create sends THAT choice, and the card says which statement the class carries', async () => {
+        h.rpc.mockImplementation(() =>
+            Promise.resolve({
+                data: {
+                    id: 'c-y7', name: 'Year 7 Maths', join_code: 'Y7Y7Y7', expected_domain: null,
+                    age_assertion_at: '2026-10-06T00:00:00Z', assertion_text_version: ASSERTION_TEXT_VERSION,
+                    includes_under_13: true, created_at: '2026-10-06T00:00:00Z',
+                },
+                error: null,
+            }),
         );
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: 'New class' }));
+        fireEvent.change(screen.getByLabelText('Class name'), { target: { value: 'Year 7 Maths' } });
+        fireEvent.click(screen.getByLabelText(AGE_STATEMENTS.under13));
+        fireEvent.click(screen.getByRole('button', { name: 'Create class' }));
+        await screen.findByText('Y7Y7Y7');
+        expect(h.rpc).toHaveBeenCalledWith('create_class', expect.objectContaining({ p_includes_under_13: true }));
+        expect(screen.getByTestId('class-age-statement').textContent).toMatch(
+            /^Includes students under 13, school authorized · confirmed /,
+        );
+    });
+});
+
+describe('an existing class — changing the age confirmation (U-2)', () => {
+    beforeEach(() => {
+        h.listResult.current = {
+            data: [{
+                id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
+                age_assertion_at: '2026-08-12T00:00:00Z', assertion_text_version: '2026-08-15-draft-3',
+                includes_under_13: false, created_at: '2026-08-12T00:00:00Z',
+            }],
+            error: null,
+        };
+    });
+
+    it('the card says which statement the class carries, and re-confirming asks the server and updates it', async () => {
+        h.rpc.mockImplementation(() =>
+            Promise.resolve({
+                data: { id: 'class-1', includes_under_13: true, age_assertion_at: '2026-10-06T01:00:00Z', assertion_text_version: ASSERTION_TEXT_VERSION },
+                error: null,
+            }),
+        );
+        renderClasses();
+        const statement = await screen.findByTestId('class-age-statement');
+        expect(statement.textContent).toMatch(/^All students 13 or older · confirmed /);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Change age confirmation' }));
+        const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+        // Nothing pre-picked, not even the statement the class carries now.
+        expect(radios.some((r) => r.checked)).toBe(false);
+        const confirm = screen.getByRole('button', { name: 'Confirm' }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+
+        fireEvent.click(screen.getByLabelText(AGE_STATEMENTS.under13));
+        fireEvent.click(confirm);
+        await waitFor(() =>
+            expect(screen.getByTestId('class-age-statement').textContent).toMatch(
+                /^Includes students under 13, school authorized · confirmed /,
+            ),
+        );
+        expect(h.rpc).toHaveBeenCalledWith('reconfirm_class_age', {
+            p_class_id: 'class-1',
+            p_includes_under_13: true,
+            p_assertion_text_version: ASSERTION_TEXT_VERSION,
+        });
+        expect(screen.queryByRole('radio')).toBeNull();
     });
 });
 

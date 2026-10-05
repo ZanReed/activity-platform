@@ -22,19 +22,20 @@ School's Google Workspace domain(s):
 
 ## 2. Age eligibility
 
-The Platform's student accounts are limited to students **13 or older** in
-v1. Teachers assert eligibility per class at class creation; the assertion is
-recorded (timestamp, teacher, policy version). The School confirms its
-teachers are authorized to make that assertion.
+Teachers confirm one of two statements for each class when they create it,
+and the choice is recorded (date, teacher, policy version): (a) every student
+in the class is 13 or older; or (b) the class includes students under 13 and
+the School has authorized their use. A class's teacher can later confirm the
+other statement; that change is recorded too, with the earlier one kept in
+the audit log.
 
-☐ *(Optional, later arc — not available in v1)* The School additionally
-authorizes under-13 use under COPPA's school-consent provision. **Leave
-unchecked; the platform will decline under-13 sign-ins regardless in v1** —
-and as of policy version `2026-08-15-draft-3` the in-product assertion text
-contains no authorization branch either (it reads: "I confirm that every
-student in this class is 13 or older."), so this checkbox is the ONLY place
-the future arc is even mentioned. Checking it changes nothing until that arc
-is built.
+☐ The School authorizes use of the Platform by its students under 13, for
+educational purposes only, under COPPA's school-consent provision, and
+confirms its teachers may make statement (b) on its behalf.
+
+*(As of policy version `2026-10-06-draft-4`. Until `2026-08-15-draft-3` the
+Platform was limited to students 13 or older and this checkbox was marked
+"not available".)*
 
 ## 3. Data handling
 

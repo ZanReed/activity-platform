@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-19`. Mirrors migrations 0001–**0052**, verified
+> Version `2026-10-06-draft-20`. Mirrors migrations 0001–**0053**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,18 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-20` (2026-10-06) — 0053 adds NO personal data.** One new column,
+> `classes.includes_under_13`: which of two age statements the class's
+> teacher confirmed (every student is 13 or older; or the class includes
+> students under 13 and the school has authorized their use). It is a
+> statement about a CLASS, made by its teacher. **No student's age or
+> birthdate is asked, stored or inferred**, and nothing in the product
+> behaves differently because of it (author ruling U-3). It does change who
+> the students in the other rows of this map may be: from this version a
+> class may include students under 13. The same data is collected for them,
+> for the same purposes and the same time. The range moves to 0053 on that
+> basis.
 >
 > **`draft-19` (2026-10-06) — 0052 adds NO personal data and no column.** A
 > one-off correction of a date on existing rows: number-facts checks opened

@@ -52,10 +52,19 @@ export default function Privacy() {
 
         <Section title="Who can use this">
           <p>
-            Student accounts are for students 13 or older whose school uses the
-            platform — with no exceptions in this version. Your teacher
-            confirms this when they create a class. If you're under 13, don't
-            sign in — ask your teacher for a paper copy.
+            Student accounts are for students whose school uses the platform
+            with them. Your teacher confirms one of two things when they
+            create a class: that everyone in the class is{' '}
+            <span className="font-medium">13 or older</span>, or that the class
+            includes students <span className="font-medium">under 13</span> and
+            the school has authorized them to use it. If you're under 13 and
+            your teacher hasn't told you your class is set up for this, don't
+            sign in — ask your teacher first.
+          </p>
+          <p>
+            For a student under 13, the school's authorization is the
+            permission we rely on, and we use their information only for
+            schoolwork.
           </p>
         </Section>
 

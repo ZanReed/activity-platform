@@ -31,7 +31,7 @@ answers change what gets built next.
 
 | File | What it is |
 |---|---|
-| `privacy-policy.md` | The student/parent-facing notice. Carries the in-product `POLICY_VERSION`, currently `2026-08-15-draft-3` |
+| `privacy-policy.md` | The student/parent-facing notice. Carries the in-product `POLICY_VERSION`, `2026-08-15-draft-3` when this packet was assembled (now `2026-10-06-draft-4`, the under-13 wording) |
 | `data-map.md` | Every personal-data column, its source, purpose, and retention |
 | `retention-policy.md` | The windows, what enforces them, and what is still intent rather than behavior |
 | `school-authorization-template.md` | What a school signs / a teacher confirms |

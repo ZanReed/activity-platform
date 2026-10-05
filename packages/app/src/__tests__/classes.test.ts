@@ -20,6 +20,7 @@ vi.mock('../lib/supabase', () => ({
 
 import {
     ASSERTION_TEXT_VERSION,
+    reconfirmClassAge,
     createClass,
     regenerateJoinCode,
     normalizeExpectedDomain,
@@ -49,7 +50,7 @@ describe('createClass assertion gate', () => {
             createClass({
                 name: 'Algebra I — Period 2',
                 expectedDomain: '',
-                ageAsserted: false,
+                includesUnder13: null,
             }),
         ).rejects.toThrow(/age assertion/);
         expect(rpcMock).not.toHaveBeenCalled();
@@ -60,7 +61,7 @@ describe('createClass assertion gate', () => {
             createClass({
                 name: '   ',
                 expectedDomain: '',
-                ageAsserted: true,
+                includesUnder13: false,
             }),
         ).rejects.toThrow(/name/i);
         expect(rpcMock).not.toHaveBeenCalled();
@@ -75,6 +76,7 @@ describe('createClass assertion gate', () => {
                 expected_domain: 'district.org',
                 age_assertion_at: '2026-07-28T00:00:00Z',
                 assertion_text_version: ASSERTION_TEXT_VERSION,
+                includes_under_13: false,
                 created_at: '2026-07-28T00:00:00Z',
             },
             error: null,
@@ -83,7 +85,7 @@ describe('createClass assertion gate', () => {
         const info = await createClass({
             name: '  Algebra I — Period 2  ',
             expectedDomain: 'Kid@District.org',
-            ageAsserted: true,
+            includesUnder13: false,
         });
 
         // The RPC wire shape (P2: the e2e stub derives from this same
@@ -93,8 +95,46 @@ describe('createClass assertion gate', () => {
             p_name: 'Algebra I — Period 2',
             p_expected_domain: 'district.org',
             p_assertion_text_version: ASSERTION_TEXT_VERSION,
+            p_includes_under_13: false,
         });
         expect(info.joinCode).toBe('ABC234');
+        expect(info.includesUnder13).toBe(false);
+    });
+
+    it('sends the under-13 statement when that is the one confirmed (U-1, migration 0053)', async () => {
+        rpcMock.mockResolvedValue({
+            data: {
+                id: 'c-2', name: 'Year 7 Maths', join_code: 'XYZ789', expected_domain: null,
+                age_assertion_at: '2026-10-06T00:00:00Z', assertion_text_version: ASSERTION_TEXT_VERSION,
+                includes_under_13: true, created_at: '2026-10-06T00:00:00Z',
+            },
+            error: null,
+        });
+        const info = await createClass({ name: 'Year 7 Maths', expectedDomain: '', includesUnder13: true });
+        expect(rpcMock).toHaveBeenCalledWith('create_class', expect.objectContaining({ p_includes_under_13: true }));
+        expect(info.includesUnder13).toBe(true);
+    });
+});
+
+describe('reconfirmClassAge (U-2)', () => {
+    beforeEach(() => rpcMock.mockReset());
+
+    it('is one audited RPC call carrying the choice and the policy version in force', async () => {
+        rpcMock.mockResolvedValue({
+            data: { id: 'class-1', includes_under_13: true, age_assertion_at: '2026-10-06T01:00:00Z', assertion_text_version: ASSERTION_TEXT_VERSION },
+            error: null,
+        });
+        const change = await reconfirmClassAge('class-1', true);
+        expect(rpcMock).toHaveBeenCalledWith('reconfirm_class_age', {
+            p_class_id: 'class-1',
+            p_includes_under_13: true,
+            p_assertion_text_version: ASSERTION_TEXT_VERSION,
+        });
+        expect(change).toEqual({
+            includesUnder13: true,
+            ageAssertionAt: '2026-10-06T01:00:00Z',
+            assertionTextVersion: ASSERTION_TEXT_VERSION,
+        });
     });
 });
 

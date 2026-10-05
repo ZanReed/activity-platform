@@ -6,12 +6,14 @@ import ClassActivitiesPanel, {
     type TeacherActivitiesData,
 } from '../components/ClassActivitiesPanel';
 import {
-    ASSERTION_TEXT,
+    AGE_STATEMENT_PROMPT,
+    AGE_STATEMENTS,
     createClass,
     listClasses,
     listClassMembers,
     regenerateJoinCode,
     removeClassMember,
+    reconfirmClassAge,
     softDeleteClass,
     updateClassDomain,
     type ClassInfo,
@@ -19,9 +21,11 @@ import {
 } from '../lib/classes';
 
 // Teacher-side class management (S1, identity lane). The one non-negotiable
-// piece of UX here is the 13+ assertion checkbox (ruling 3.1C): it is
-// unchecked by default, required, and its exact wording is ASSERTION_TEXT —
-// the class row records when/who/which-version. Everything else is roster
+// piece of UX here is the AGE STATEMENT (ruling 3.1C; two choices since U-1,
+// 2026-10-06): nothing is picked by default, a choice is required, and the
+// exact wording is AGE_STATEMENTS — the class row records which, when, who
+// and under which policy version. A card's "Change age confirmation" lets
+// the class's teacher confirm the other one (U-2). Everything else is roster
 // plumbing for the viewer arc (students join via code; codes are classroom-
 // public and regenerable).
 
@@ -404,11 +408,45 @@ function RemoveStudentDialog({
     );
 }
 
+/** The two age statements as a required choice with NOTHING picked by default
+ *  (U-1): the teacher's own selection is the confirmation. Used by the
+ *  create form and by a class card's "Change age confirmation". */
+function AgeStatementChoice({
+    name,
+    value,
+    onChange,
+}: {
+    name: string;
+    value: boolean | null;
+    onChange: (includesUnder13: boolean) => void;
+}) {
+    return (
+        <fieldset className="m-0 border-0 p-0">
+        <legend className="text-sm font-medium text-strong">{AGE_STATEMENT_PROMPT}</legend>
+        {([false, true] as const).map((under13) => (
+            <label key={String(under13)} className="mt-2 flex items-start gap-3">
+            <input
+            type="radio"
+            name={name}
+            checked={value === under13}
+            onChange={() => onChange(under13)}
+            className="mt-0.5 h-4 w-4 shrink-0 border-line"
+            />
+            <span className="text-sm text-strong">
+            {under13 ? AGE_STATEMENTS.under13 : AGE_STATEMENTS.thirteenPlus}
+            </span>
+            </label>
+        ))}
+        </fieldset>
+    );
+}
+
 function ClassCard({
     info,
     activities,
     onCodeChange,
     onDomainChange,
+    onAgeChange,
     onDeleted,
     onError,
 }: {
@@ -416,6 +454,7 @@ function ClassCard({
     activities: TeacherActivitiesData;
     onCodeChange: (id: string, code: string) => void;
     onDomainChange: (id: string, domain: string | null) => void;
+    onAgeChange: (id: string, change: Pick<ClassInfo, 'includesUnder13' | 'ageAssertionAt' | 'assertionTextVersion'>) => void;
     onDeleted: (id: string) => void;
     onError: (msg: string) => void;
 }) {
@@ -445,6 +484,24 @@ function ClassCard({
             onError(err instanceof Error ? err.message : 'Could not update domain.');
         } finally {
             setSavingDomain(false);
+        }
+    };
+    // The age statement (U-2): the teacher can confirm the other one. Nothing
+    // is pre-picked: a confirmation is a choice the teacher makes each time.
+    const [editingAge, setEditingAge] = useState(false);
+    const [ageDraft, setAgeDraft] = useState<boolean | null>(null);
+    const [savingAge, setSavingAge] = useState(false);
+    const saveAge = async () => {
+        if (ageDraft === null) return;
+        setSavingAge(true);
+        try {
+            onAgeChange(info.id, await reconfirmClassAge(info.id, ageDraft));
+            setEditingAge(false);
+            setAgeDraft(null);
+        } catch (err) {
+            onError(err instanceof Error ? err.message : 'Could not save the age confirmation.');
+        } finally {
+            setSavingAge(false);
         }
     };
     // Two-step delete (no restore RPC for classes yet, so no undo toast):
@@ -496,7 +553,24 @@ function ClassCard({
         <span className="block text-xs text-muted">
         Created {formatDate(info.createdAt)}
         {info.expectedDomain && <> · limited to @{info.expectedDomain}</>}
-        {' · '}13+ asserted {formatDate(info.ageAssertionAt)}
+        {' · '}
+        <span data-testid="class-age-statement">
+        {info.includesUnder13
+            ? 'Includes students under 13, school authorized'
+            : 'All students 13 or older'}
+        {' · '}confirmed {formatDate(info.ageAssertionAt)}
+        </span>
+        {' · '}
+        <button
+        type="button"
+        onClick={() => {
+            setAgeDraft(null);
+            setEditingAge((s) => !s);
+        }}
+        className="underline underline-offset-2 transition hover:text-strong"
+        >
+        Change age confirmation
+        </button>
         {' · '}
         <button
         type="button"
@@ -509,6 +583,37 @@ function ClassCard({
         {info.expectedDomain ? 'Edit domain' : 'Set domain'}
         </button>
         </span>
+        {editingAge && (
+            <form
+            className="mt-2 rounded-md border border-line bg-surface p-3"
+            onSubmit={(e) => {
+                e.preventDefault();
+                void saveAge();
+            }}
+            >
+            <AgeStatementChoice
+            name={`age-${info.id}`}
+            value={ageDraft}
+            onChange={setAgeDraft}
+            />
+            <div className="mt-2 flex items-center gap-3">
+            <button
+            type="submit"
+            disabled={savingAge || ageDraft === null}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
+            >
+            {savingAge ? 'Saving…' : 'Confirm'}
+            </button>
+            <button
+            type="button"
+            onClick={() => setEditingAge(false)}
+            className="text-sm text-muted underline underline-offset-2"
+            >
+            Cancel
+            </button>
+            </div>
+            </form>
+        )}
         {editingDomain && (
             <form
             className="mt-2 flex items-center gap-2"
@@ -607,7 +712,7 @@ export default function Classes() {
     const [showCreate, setShowCreate] = useState(false);
     const [name, setName] = useState('');
     const [domain, setDomain] = useState('');
-    const [asserted, setAsserted] = useState(false);
+    const [ageChoice, setAgeChoice] = useState<boolean | null>(null);
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
@@ -643,13 +748,13 @@ export default function Classes() {
             const info = await createClass({
                 name,
                 expectedDomain: domain,
-                ageAsserted: asserted,
+                includesUnder13: ageChoice,
             });
             setClasses((prev) => [info, ...prev]);
             setShowCreate(false);
             setName('');
             setDomain('');
-            setAsserted(false);
+            setAgeChoice(null);
         } catch (err) {
             setCreateError(
                 err instanceof Error ? err.message : 'Could not create class.',
@@ -718,24 +823,16 @@ export default function Classes() {
             code leaks beyond your classroom.
             </p>
             </div>
-            <label className="flex items-start gap-3">
-            <input
-            type="checkbox"
-            checked={asserted}
-            onChange={(e) => setAsserted(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 rounded border-line"
-            />
-            <span className="text-sm text-strong">{ASSERTION_TEXT}</span>
-            </label>
+            <AgeStatementChoice name="new-class-age" value={ageChoice} onChange={setAgeChoice} />
             <div className="flex items-center gap-3">
             <button
             type="submit"
-            disabled={creating || !asserted || name.trim().length === 0}
+            disabled={creating || ageChoice === null || name.trim().length === 0}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
             >
             {creating ? 'Creating…' : 'Create class'}
             </button>
-            {!asserted && (
+            {ageChoice === null && (
                 <span className="text-xs text-muted">
                 The age confirmation is required.
                 </span>
@@ -768,6 +865,9 @@ export default function Classes() {
                     setClasses((prev) =>
                         prev.map((x) => (x.id === id ? { ...x, joinCode: code } : x)),
                     )
+                }
+                onAgeChange={(id, change) =>
+                    setClasses((prev) => prev.map((x) => (x.id === id ? { ...x, ...change } : x)))
                 }
                 onDomainChange={(id, expectedDomain) =>
                     setClasses((prev) =>

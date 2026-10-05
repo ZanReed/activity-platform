@@ -1,8 +1,17 @@
 # Privacy Policy — Activity Platform
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Effective date: ⟨date⟩ · Policy version: `2026-08-15-draft-3`
+> Effective date: ⟨date⟩ · Policy version: `2026-10-06-draft-4`
 > Operator: ⟨legal name / contact email⟩
+>
+> `draft-4` (2026-10-06): **students under 13 may use the platform when their
+> school has authorized it.** The teacher now confirms one of two statements
+> per class (everyone is 13 or older; or the class includes students under 13
+> and the school has authorized their use), and the class records which. "Who
+> can use this" and "Why it works this way" below say so. Wording approved by
+> the author; the basis is counsel's answer to the review packet as the
+> author reported it (see `counsel-review-packet.md`). Nothing else changed:
+> the same information is collected, for the same purpose, for the same time.
 >
 > `draft-2` (2026-08-07): the class-creation assertion dropped its under-13
 > school-authorization clause (the platform declines under-13 sign-ins
@@ -29,10 +38,12 @@ language on purpose — students and parents are the audience.
 
 ## Who can use this
 
-Student accounts are for students **13 or older** whose school uses the
-platform — with no exceptions in this version. Your teacher confirms this when
-they create a class. If you're under 13, don't sign in — ask your teacher for
-a paper copy.
+Student accounts are for students whose school uses the platform with them.
+Your teacher confirms one of two things when they create a class: that
+everyone in the class is **13 or older**, or that the class includes students
+**under 13** and the school has authorized them to use it. If you're under 13
+and your teacher hasn't told you your class is set up for this, don't sign
+in — ask your teacher first.
 
 ### How you get an account (2026-08-15)
 
@@ -57,6 +68,9 @@ student's information at all, on the school's behalf, and only for schoolwork.
 We do not ask students to arrange that themselves. We also carry our own side
 of it rather than leaving it with the school: this notice, collecting as
 little as we can, and using it for nothing but the class.
+
+For a student under 13, the school's authorization is the permission we rely
+on, and we use their information only for schoolwork.
 
 **One thing worth being plain about.** A signed-in account with no class can
 open an activity if a teacher shares its link directly — activity content is

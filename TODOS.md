@@ -2662,12 +2662,17 @@ text below is the entry as it stood before counsel's answer.
 - **U-4** Claude drafts the reworded privacy notice and school-authorization
   template; NOTHING changes in the product until the author approves the
   text. POLICY_VERSION is bumped with it.
-**State:** drafts shown to the author 2026-10-06, awaiting his yes. Build
-after approval: a column recording the choice (a migration, with data-map
-and the guard bound to the rendered class card), `create_class` taking the
-choice, a re-confirm RPC with an audit row, the class form and card, the
-four documents, POLICY_VERSION `2026-10-06-draft-4`, and a DECISIONS entry
-superseding "The 13+ floor".
+**State: APPROVED AS WRITTEN and BUILT 2026-10-06** (the author: "approved
+as written, build it"). Migration 0053 (`classes.includes_under_13`,
+`create_class` with the choice, `reconfirm_class_age` with an audit row),
+verify-0053, the two-choice form and the card's "Change age confirmation",
+the privacy page + notice + template + README, POLICY_VERSION
+`2026-10-06-draft-4`, data-map draft-20, DECISIONS → "Under-13 use, by
+school authorization". ⏳ OWED, in order: 0053 applied live → live verify →
+the page commit pushed (it selects the new column: a push first breaks the
+teacher's Classes page) → the author's test. Guards mutation-tested: four on
+the functions, four on the form and card. NOT built, by ruling: a birthdate
+gate, parent consent, any different behaviour for an under-13 class.
 
 **What:** The arc that would let a class with students under 13 use the platform:
 a student-facing age gate (the Khan-style birthdate-before-anything pattern) plus

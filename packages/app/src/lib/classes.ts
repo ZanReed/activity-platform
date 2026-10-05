@@ -1,9 +1,11 @@
 // =============================================================================
 // classes.ts — teacher-side class/roster data layer (S1, identity lane)
 // -----------------------------------------------------------------------------
-// Classes are the 13+ assertion carrier (ruling 3.1C): a class row cannot
-// exist without age_assertion_at/by/text_version, and the UI checkbox that
-// feeds createClass is required. Students enter via join_class (RPC, not
+// Classes are the AGE-STATEMENT carrier (ruling 3.1C, widened by U-1 on
+// 2026-10-06): a class row cannot exist without age_assertion_at/by/
+// text_version, and since migration 0053 it records WHICH of two statements
+// its teacher confirmed (includes_under_13). The choice in the form that
+// feeds createClass is required, with nothing picked by default. Students enter via join_class (RPC, not
 // modeled here — student surfaces land with the viewer, S3); teachers read
 // rosters via list_class_members (RPC — users RLS is self-only, so a client
 // join can't fetch student names).
@@ -26,17 +28,21 @@ export const ATTESTATION_TEXT_VERSION = POLICY_VERSION;
 const REDEEM_JOIN_CODE_RPC = AUTH_CONTRACT.rpcNames.redeemJoinCode;
 const CLAIM_TEACHER_RPC = AUTH_CONTRACT.rpcNames.claimTeacher;
 
-// The exact text the teacher asserts to (rendered next to the checkbox).
-// The under-13 school-authorization clause was DROPPED 2026-08-07 (eng
-// review D2, POLICY_VERSION 2026-08-07-draft-2): the platform declines
-// under-13 sign-ins unconditionally, so the one sentence a teacher legally
-// attests to must not offer an escape hatch the rest of the pack disclaims.
-// v1's age floor is a recorded MARKET constraint (DECISIONS → "The 13+
-// floor"): under-13 use returns only with a real school-authorization arc.
-// Changing this wording = bump POLICY_VERSION (the stored assertion must be
-// reconstructable from the version string).
-export const ASSERTION_TEXT =
-    'I confirm that every student in this class is 13 or older.';
+// The two statements a teacher chooses between (U-1; the author approved
+// this wording 2026-10-06, POLICY_VERSION 2026-10-06-draft-4). History: the
+// single 13+ sentence stood from 2026-08-07, when an earlier under-13 clause
+// was dropped because nothing behind it existed (DECISIONS → "The 13+
+// floor"); counsel's answer to the D24 packet, as the author reported it,
+// is what brought the second statement back (DECISIONS → "Under-13 use, by
+// school authorization").
+// Changing either wording = bump POLICY_VERSION (the stored statement must
+// be reconstructable from the version string).
+export const AGE_STATEMENT_PROMPT = 'Confirm one of these for this class:';
+export const AGE_STATEMENTS = {
+    thirteenPlus: 'Every student in this class is 13 or older.',
+    under13:
+        'This class includes students under 13, and my school has authorized their use of this platform.',
+} as const;
 
 export interface ClassInfo {
     id: string;
@@ -45,6 +51,9 @@ export interface ClassInfo {
     expectedDomain: string | null;
     ageAssertionAt: string;
     assertionTextVersion: string;
+    /** Which statement the teacher confirmed (migration 0053): true = the
+     *  class includes students under 13, by school authorization. */
+    includesUnder13: boolean;
     createdAt: string;
 }
 
@@ -63,11 +72,12 @@ interface ClassRow {
     expected_domain: string | null;
     age_assertion_at: string;
     assertion_text_version: string;
+    includes_under_13: boolean;
     created_at: string;
 }
 
 const CLASS_COLUMNS =
-    'id, name, join_code, expected_domain, age_assertion_at, assertion_text_version, created_at';
+    'id, name, join_code, expected_domain, age_assertion_at, assertion_text_version, includes_under_13, created_at';
 
 function rowToClass(r: ClassRow): ClassInfo {
     return {
@@ -77,6 +87,7 @@ function rowToClass(r: ClassRow): ClassInfo {
         expectedDomain: r.expected_domain,
         ageAssertionAt: r.age_assertion_at,
         assertionTextVersion: r.assertion_text_version,
+        includesUnder13: r.includes_under_13 === true,
         createdAt: r.created_at,
     };
 }
@@ -110,9 +121,10 @@ interface CreateClassInput {
     name: string;
     /** Raw teacher input; normalized here. */
     expectedDomain: string;
-    /** Must be true — the required 3.1C checkbox. The type says boolean so the
-     *  call site reads honestly; the throw is the real gate. */
-    ageAsserted: boolean;
+    /** Which statement the teacher confirmed: false = every student is 13 or
+     *  older, true = includes under-13 by school authorization. NULL means
+     *  nothing was chosen, and the throw below is the real gate. */
+    includesUnder13: boolean | null;
 }
 
 /**
@@ -122,7 +134,7 @@ interface CreateClassInput {
  * The direct INSERT died with 0027 (grant revoked; the RPC is the only door).
  */
 export async function createClass(input: CreateClassInput): Promise<ClassInfo> {
-    if (!input.ageAsserted) {
+    if (input.includesUnder13 !== true && input.includesUnder13 !== false) {
         throw new Error('Cannot create a class without the age assertion');
     }
     const name = input.name.trim();
@@ -132,20 +144,32 @@ export async function createClass(input: CreateClassInput): Promise<ClassInfo> {
         p_name: name,
         p_expected_domain: normalizeExpectedDomain(input.expectedDomain),
         p_assertion_text_version: ASSERTION_TEXT_VERSION,
+        p_includes_under_13: input.includesUnder13,
     });
     if (error) throw new Error(error.message);
-    const r = data as {
-        id: string; name: string; join_code: string; expected_domain: string | null;
-        created_at: string; age_assertion_at: string; assertion_text_version: string;
-    };
+    return rowToClass(data as ClassRow);
+}
+
+/**
+ * Confirm the OTHER age statement for an existing class (U-2) — or the same
+ * one again, against the current wording. Audited server-side with the old
+ * values; the time, the teacher and the policy version are re-stamped.
+ */
+export async function reconfirmClassAge(
+    classId: string,
+    includesUnder13: boolean,
+): Promise<Pick<ClassInfo, 'includesUnder13' | 'ageAssertionAt' | 'assertionTextVersion'>> {
+    const { data, error } = await supabase.rpc('reconfirm_class_age', {
+        p_class_id: classId,
+        p_includes_under_13: includesUnder13,
+        p_assertion_text_version: ASSERTION_TEXT_VERSION,
+    });
+    if (error) throw new Error(error.message);
+    const r = data as { includes_under_13: boolean; age_assertion_at: string; assertion_text_version: string };
     return {
-        id: r.id,
-        name: r.name,
-        joinCode: r.join_code,
-        expectedDomain: r.expected_domain,
+        includesUnder13: r.includes_under_13 === true,
         ageAssertionAt: r.age_assertion_at,
         assertionTextVersion: r.assertion_text_version,
-        createdAt: r.created_at,
     };
 }
 

@@ -15,9 +15,13 @@
 
 Ground rules baked into all four (from the ruled design):
 
-- **13+ in v1.** The teacher asserts age eligibility at class creation (ruling
-  3.1C); the assertion is recorded on the class row (`age_assertion_at/by/
-  text_version`). Under-13 via school authorization is a later compliance arc.
+- **An age statement per class.** The teacher confirms one of two statements
+  at class creation (ruling 3.1C, widened 2026-10-06, U-1): every student is
+  13 or older, or the class includes students under 13 and the school has
+  authorized their use. The class row records which, when, by whom and under
+  which policy version (`includes_under_13`, `age_assertion_at/by`,
+  `assertion_text_version`); a later re-confirmation is audited. No student
+  is ever asked their age.
 - **Answers never reach clients** (ruling Q2B) — graded server-side.
 - **No behavioral telemetry.** Analytics are census-based aggregates (P3A).
 - **Data minimization:** a student account is district email + Google display

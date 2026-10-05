@@ -1034,6 +1034,18 @@ Two amendments made at ratification: P2 carries an "or documents why it diverges
 
 **The three md↔SQL gaps the A11 pin found were reconciled PROSE-side** — the rewrite's charter was truth, and mechanisms are migrations this package didn't carry: (1) the 30-day activity-deletion path is now DISCLOSED as its own table row (a teacher deleting a worksheet deletes its student work at 30 days — shorter than the 400-day account path, and previously unstated); (2) the class-row purge and (3) the ip_hash scrub are flagged "mechanism not yet built" in place, with their bounds (the scrub rides the anonymous wire S9 deletes whole). The pin's todo cases were promoted to assertions on the corrected prose, so un-flagging either without building it goes red. Building either mechanism later means updating the row and its pin together.
 
+## Under-13 use, by school authorization: the 13+ floor is lifted (2026-10-06, migration 0053; supersedes the entry above where they conflict)
+
+**What changed.** A class's teacher now confirms ONE of two statements at class creation, and the class records which (`classes.includes_under_13`): "Every student in this class is 13 or older." or "This class includes students under 13, and my school has authorized their use of this platform." The teacher can later confirm the other one for an existing class (`reconfirm_class_age`); the choice, the time, the teacher and the policy version are re-stamped and the old values go to the audit log. POLICY_VERSION `2026-08-15-draft-3` → `2026-10-06-draft-4`; the privacy notice, the in-product privacy page and the school-authorization template say the same thing.
+
+**Why now.** The author placed the first classes (about February 2027) as Years 7 to 10, so the floor recorded above as a market constraint became the thing between the product and its first students. He then reported counsel's answer to the D24 packet ("current measures are sufficient", covering Q1 to Q11) and, asked directly, that counsel cleared under-13 use. **The repo holds his report, not a written opinion** (`counsel-review-packet.md`, top). Rulings U-1 to U-4 are his (TODOS → "Under-13 support").
+
+**What was NOT built, on purpose.** No birthdate gate and no parent-consent branch: the earlier plan for this arc assumed counsel would require a consent mechanism, and warned against half-building one. Counsel's answer removed the premise. No student is asked their age, and nothing behaves differently for an under-13 class (U-3): the mark is a record, kept so that a later rule could tell the two kinds of class apart.
+
+**The contradiction the earlier entry removed is not back.** That entry dropped an under-13 clause because the assertion offered a branch the rest of the pack disclaimed. This time the pack, the page and the template all carry the branch, and the choice is recorded per class instead of folded into one sentence.
+
+**Existing classes keep "13 or older"** until their teacher re-confirms. A page deployed before 0053 that calls `create_class` with three arguments still creates a 13-or-older class.
+
 ## The admission boundary hardens before it opens: the identity slice (2026-08-09, migration 0027 + student shell)
 
 **The record lives in the plan doc** — [docs/design/s9-prep-identity-slice.md](design/s9-prep-identity-slice.md) carries the full ruling set (eng E-1…E-11 + tensions T1–T5, DX D4/F1–F5/G1/X1–X3, design P1–P4 + a 12-frame wireframe board) from three reviews and three outside-voice passes. This entry is the distillation a future session should not have to re-derive.
