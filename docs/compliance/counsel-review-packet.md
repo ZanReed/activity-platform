@@ -15,7 +15,10 @@
 > marking until the author says otherwise. What the answer changed on the
 > platform side is recorded in STATE.md and TODOS.md (the two arming
 > checklists each had a counsel step; both are marked answered there, and
-> neither removal mechanism is armed by this).
+> neither removal mechanism is armed by this). **Asked directly the same day
+> whether that answer covers students under 13, the author said yes: counsel
+> cleared under-13 use.** The product and the pack still state a 13+ floor;
+> changing that wording is a separate, author-ruled change, not done here.
 
 This packet exists because the compliance pack has never had legal review and
 every file in it is marked DRAFT. It does two things: says exactly what changed

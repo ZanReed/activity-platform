@@ -242,11 +242,10 @@ mechanical holds it back except that no job calls it (verify-0048's
    `select prune_fact_practice();` — the candidates must be explainable check
    by check (`select id, class_id, keep_until, closed_at from class_probes
    where pruned_at is null and keep_until < current_date`).
-4. ⏳ READ 2026-10-06: the one class has a real end date (2026-12-18). ⚠ ITS
-   TWO CHECKS predate 0048 and carry the 400-day backstop (2027-11-09), ten
-   months later than the class's own date + 30 days (2027-01-17), which is
-   what its practice session carries. By RP-8 that is as ruled; whether to
-   bring those two rows in line is the author's call (asked 2026-10-06).
+4. ✅ DONE 2026-10-06: the one class has a real end date (2026-12-18), and
+   its two pre-0048 checks were ALIGNED by migration 0052 on the author's
+   ruling ("align them"): keep_until 2027-11-09 → 2027-01-17, read back on
+   live; nothing deleted; live verify green (267 rows).
    **Every class with checks has a real end date.** Checks opened before
    0048 carry the 400-day backstop, not a teacher's date; that is by ruling
    (RP-8), but read which ones before arming.
@@ -2639,6 +2638,17 @@ action with an audit row, not a self-service button.
 **Context:** docs/design/admission-model.md §5b R3 + §7; eng review OV-9.
 
 ## Under-13 support — the age gate and school-consent enrollment (D7)
+
+⚠ **TRIGGER FIRED 2026-10-06, and the premise below has moved.** The author
+reported that counsel answered the whole packet ("current measures are
+sufficient") AND, asked directly, that **counsel cleared under-13 use**. No
+written opinion is in the repo. So the question is no longer whether a
+consent mechanism must be built, but what in the product and the pack still
+says "13 or older": the class-creation assertion (`ASSERTION_TEXT`), the
+privacy policy's "Who can use this", the school-authorization template's §2,
+and DECISIONS → "The 13+ floor". The design pass for that is in progress in
+the session that recorded this (numbered questions to the author). The
+text below is the entry as it stood before counsel's answer.
 
 **What:** The arc that would let a class with students under 13 use the platform:
 a student-facing age gate (the Khan-style birthdate-before-anything pattern) plus
