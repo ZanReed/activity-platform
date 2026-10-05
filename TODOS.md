@@ -32,6 +32,7 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - ✅ **A fact's text was cut off: "3/4 = __ as a decimal"** (the author named it). Cause: the expression never wraps, and long prompts only dropped to ONE smaller fixed size; at desktop width that prompt needed 505 px in a 384 px box. FIXED: the expression is measured before paint and its font-size scaled to fit, re-measured on resize (`FactRunner.tsx`, CR-21). Guard: `facts-demo.e2e.ts` asserts every demo prompt fits its box at desktop, phone and short-wide sizes (red before the fix, and red again at 1–2 px over until the fit re-measured).
 - ✅ **Tell the student they can type or use the keypad, whichever they are comfortable with.** It was said only as a hint under the first warm-up number. ADDED to the intro card: "You can type on your keyboard or tap the number keys on the screen, whichever you are more comfortable with. Stick with the one you start with." ⚠ This is the SAME intro a real class sees (the demo is the real runner), and it adds a line to the copy DR-6 ruled; the "stick with one" half stays because the typing baseline is per input method (DR-13).
 - The demo's teacher view: the author saw it and found it readable.
+- ✅ **CONFIRMED by the author 2026-10-05** ("it all looks great now retest successful"): the long fact fits and the intro line reads well, on the live demo.
 
 **Open questions raised by the build (not yet findings):**
 
