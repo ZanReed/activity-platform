@@ -2650,6 +2650,25 @@ and DECISIONS → "The 13+ floor". The design pass for that is in progress in
 the session that recorded this (numbered questions to the author). The
 text below is the entry as it stood before counsel's answer.
 
+**RULED by the author 2026-10-06 (four numbered questions):**
+- **U-1** At class creation the teacher confirms ONE of two statements, and
+  the choice is recorded with the date and policy version: "Every student in
+  this class is 13 or older." or "This class includes students under 13, and
+  my school has authorized their use of this platform."
+- **U-2** An existing class's teacher can re-confirm with the other
+  statement; the new choice is recorded and the change is audited.
+- **U-3** Nothing behaves differently for an under-13 class now. The mark is
+  recorded only; any later difference gets its own ruling.
+- **U-4** Claude drafts the reworded privacy notice and school-authorization
+  template; NOTHING changes in the product until the author approves the
+  text. POLICY_VERSION is bumped with it.
+**State:** drafts shown to the author 2026-10-06, awaiting his yes. Build
+after approval: a column recording the choice (a migration, with data-map
+and the guard bound to the rendered class card), `create_class` taking the
+choice, a re-confirm RPC with an audit row, the class form and card, the
+four documents, POLICY_VERSION `2026-10-06-draft-4`, and a DECISIONS entry
+superseding "The 13+ floor".
+
 **What:** The arc that would let a class with students under 13 use the platform:
 a student-facing age gate (the Khan-style birthdate-before-anything pattern) plus
 a school-consent enrollment mechanism that actually carries COPPA's school-consent
