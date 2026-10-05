@@ -239,6 +239,13 @@ mechanical holds it back except that no job calls it (verify-0048's
 7. After the first armed night: read the `fact_practice.prune` audit rows
    against the dry-run report of the day before.
 
+## The sprint's bar is 9 of 10 (author ruling SB-1/SB-2, 2026-10-06)
+
+The check stays at 80%; the sprint uses 85% on its window of 10, both bars
+(practice-blocks.md → "The sprint's bar"). **Trigger: the slice 2 design
+pass.** Needs a sprint-specific threshold key from the curriculum side
+(asked in B-79) and their reconciliation with item 17's 90%.
+
 ## Number-facts: a per-student summary and calibration data after the prune (RP-4, 2026-10-06)
 
 Not built, by ruling. Two separate things:

@@ -2696,6 +2696,27 @@ read by the open screen (the "opens without asking again" test);
 **Not built, by ruling:** the per-student summary (RP-4, slice 2); a class
 purge (RP-5); any schedule (RP-7).
 
+### The sprint's bar: one miss in ten — ruled by the author 2026-10-06
+
+The author asked for the accuracy bar to move from 80% to 85% so that a
+student "can only miss one problem" on the practice sprints and on the
+check. Read against the live registry (revision `d0144e8d…`): a family has 5
+or 8 questions in the check, and 80% already allows exactly one miss at both
+sizes (4 of 5, 7 of 8); 85% would allow none on a 5-question family, which
+is every family in Year 7. Only the sprint's practice window of 10 changes
+in his direction (80% allows two misses, 85% one).
+
+| # | Ruling |
+|---|---|
+| SB-1 | The CHECK is unchanged: both thresholds stay 0.8. |
+| SB-2 | The SPRINT (slice 2) uses 85% on its window of 10, that is 9 of 10, for BOTH bars (right answers, and quick and right). The intent is "at most one miss"; if the window's size changes, the intent wins over the number. |
+
+Not built: slice 2 is behind its gate. The thresholds are curriculum-owned
+graph keys, and today one pair serves the check and the sprint, so SB-2
+needs a sprint-specific key on their side; relayed as B-79. It also meets
+their item 17 (a family stays in strategy mode until 90% accuracy in
+practice), which is theirs to reconcile.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
