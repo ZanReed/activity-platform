@@ -251,19 +251,7 @@ engine), the student's practice + Home link, 0051 + the teacher's panel;
 registry revision `2d20d8c9…` mirrored. Record: practice-blocks.md →
 "Slice 2, the sprint". Left behind, each with its trigger:
 - ✅ The author's test: done 2026-10-06, it worked; no finding (test queue above).
-- **⚠ B-89 (the mirror receipt) is UNSENT.** The curriculum session was not
-  in ListAgents when it was due (2026-10-06). **Trigger: a curriculum-side
-  session is reachable** (ListAgents; send the FULL name). Its content: revision
-  `2d20d8c9` mirrored live by the author and read back (13 families, 1124
-  facts, 13 strategies; `sprint_max_misses` 1, `sprint_minutes` 5,
-  `sprint_step_intervals` [1, 2, 4, 8, 16], `sprint_mastered_step` 2,
-  `sprint_new_facts_per_session` 5, `sprint_working_families` 2,
-  `sprint_reask_gap` 3; `practice_window` 10 and the two-part settings
-  unchanged; `d0144e8d` untouched; 4 activities unchanged, 101 misconception
-  ids); migrations 0049–0051 live and verified (267 rows); pages on our main
-  at `9de13b38`; the product never shows "sprint" (students: "Number facts
-  practice"; teachers: "Daily facts practice"); nothing open; their next is
-  C-72. Last received from them: C-71.
+- ✅ B-89 (the mirror receipt) SENT 2026-10-06, in answer to their C-72; their main `66a3f36` (PR #41, decision log only) verified and stamped. Next: C-73 / B-90.
 - **Short early sessions** (about 1.5 to 2 minutes with 5 new facts a
   session). The lever is the curriculum side's `sprint_new_facts_per_session`.
   **Trigger: the author's test, or the first real class's first week.**
