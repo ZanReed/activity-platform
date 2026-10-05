@@ -292,3 +292,26 @@
   margin-top: 12px;
   padding: 10px 12px;
 }
+
+/* The class's school-year end (0048, RP-2): asked in the open screen. */
+.ft-yearend {
+  border-top: 1px solid var(--color-line);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.ft-date {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  color: var(--color-ink);
+  color-scheme: light dark;
+  font: inherit;
+  margin-top: 6px;
+  min-height: 44px;
+  padding: 6px 10px;
+}
+
+.ft-date[aria-invalid='true'] {
+  border-color: var(--color-strong);
+}

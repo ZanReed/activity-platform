@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-05-draft-14`. Mirrors migrations 0001–**0047**, verified
+> Version `2026-10-06-draft-15`. Mirrors migrations 0001–**0048**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,19 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-15` (2026-10-06) — 0048 adds NO personal-data column; it builds
+> the removal mechanism for timed number-facts data, DISARMED.** New columns:
+> `classes.school_year_ends_on` (a date the teacher gives for the class),
+> `class_probes.keep_until` and `class_probes.pruned_at` (dates on a check).
+> None identifies a person. New function `prune_fact_practice`: it removes a
+> check's `practice_sessions` and `fact_attempts` once the check's
+> `keep_until` has passed (the class's school-year end + 30 days, at most 400
+> days after the check opened) or 30 days after its class was deleted. It is
+> dry-run by default, service-role only and **not scheduled**, so today it
+> deletes nothing; retention-policy.md → Mechanics says what arming needs.
+> The retention cells of the three practice rows below changed. The range
+> moves to 0048 on that basis.
 >
 > **`draft-14` (2026-10-05) — 0047 adds NO personal data.** It lets a long
 > number-facts check run in two parts with a break between. It adds four
@@ -238,9 +251,9 @@
 | `check_grades.general_feedback` / `criteria` (0034) | **teacher's written feedback and per-criterion scores about a student's work** | student (about), teacher (author) | teacher, via `upsert_check_grade` | manual grading of free-text answers | **CASCADES from `section_checks`** — deleting the check deletes its grades, so the windows in the row above govern with no separate step |
 | `check_grades.graded_by` (0034) | teacher identity of the grader | teacher | RPC | attribution, audit | **SET NULL on teacher purge** (0024's pattern) — the student keeps their feedback, attributed to "a former teacher" |
 | `check_grades.released_at` (0034) | whether/when feedback was shown to the student | student (about) | `release_check_grades` | the most FERPA-significant event in grading; audited as `grade.release` | with the row |
-| `fact_attempts.typed` / `correct` / `skipped` / `interrupted` / `rt_ms` / `offset_ms` / `modality` (+ `student_id`, `fact_id`, `shown`) (0045) | **one row per number fact a student answered in a timed check: what they typed, whether it was right, whether they skipped it or left the page, the RESPONSE TIME in milliseconds, and whether they used the keyboard or the on-screen keys** | student | the student's browser (timing and input method are client-reported and unverifiable); `correct`, `fact_id` and `shown` are filled by the server from the check's own item list | the class teacher's reading of number-fact fluency (per student and per fact family) and the class-level verdict; not a grade | **the school year it was made in**, then pruned — ⚠ the prune is NOT BUILT, so actual retention exceeds this until it is (retention-policy.md → Mechanics). Deleted explicitly and counted by `purge_soft_deleted` for an explicitly-deleted account (30 days) and a dormant student (400 days) |
-| `practice_sessions.student_id` / `baseline_keyboard_ms` / `baseline_keypad_ms` / `app_build` / `started_at` / `last_saved_at` / `finished_at` (0045) | one row per student per check: **a typing-speed baseline** (milliseconds per keystroke, from the copy-typing warm-up), when they started and finished, and the app build | student | the student's browser (baselines are client-reported); timestamps are the server's | removes typing time from response time so the reading is about recall; lets a student resume | pruned WITH its attempts (same window, same caveat); same explicit purge |
-| `class_probes.opened_by` (0045) | which teacher opened a check for a class | teacher | `open_fact_probe` | attribution; the audit trail | life of the class; SET NULL if that teacher's account is purged. The row's item list, parameters and class verdict (`snapshot`: counts and a median, **no student identity**) are kept for the life of the class |
+| `fact_attempts.typed` / `correct` / `skipped` / `interrupted` / `rt_ms` / `offset_ms` / `modality` (+ `student_id`, `fact_id`, `shown`) (0045) | **one row per number fact a student answered in a timed check: what they typed, whether it was right, whether they skipped it or left the page, the RESPONSE TIME in milliseconds, and whether they used the keyboard or the on-screen keys** | student | the student's browser (timing and input method are client-reported and unverifiable); `correct`, `fact_id` and `shown` are filled by the server from the check's own item list | the class teacher's reading of number-fact fluency (per student and per fact family) and the class-level verdict; not a grade | **the school year it was made in**: removable once the check's `keep_until` passes (the class's school-year end + 30 days; at most 400 days after the check opened), or 30 days after the class is deleted — ⚠ the prune (`prune_fact_practice`, 0048) is BUILT but NOT ARMED, so actual retention exceeds this until it is (retention-policy.md → Mechanics). Deleted explicitly and counted by `purge_soft_deleted` for an explicitly-deleted account (30 days) and a dormant student (400 days) |
+| `practice_sessions.student_id` / `baseline_keyboard_ms` / `baseline_keypad_ms` / `app_build` / `started_at` / `last_saved_at` / `finished_at` (0045) | one row per student per check: **a typing-speed baseline** (milliseconds per keystroke, from the copy-typing warm-up), when they started and finished, and the app build | student | the student's browser (baselines are client-reported); timestamps are the server's | removes typing time from response time so the reading is about recall; lets a student resume | pruned WITH its attempts, check by check (same window, same caveat); same explicit purge |
+| `class_probes.opened_by` (0045) | which teacher opened a check for a class | teacher | `open_fact_probe` | attribution; the audit trail | life of the class; SET NULL if that teacher's account is purged. The row's item list, parameters and class verdict (`snapshot`: counts and a median, **no student identity**) are kept for the life of the class, including after its students' rows are pruned (`pruned_at` records when) |
 | `check_grade_suggestions.criteria` / `general_feedback_draft` / `misconception_notes` (0042) | **machine-drafted scores, feedback and misconception observations about a student's work** — a DRAFT, never a grade: it reaches a student only if a teacher replays it through `upsert_check_grade`, where it becomes a `check_grades` row governed above | student (about) | local model on the teacher's own device (pilot, D10 on-device posture), written via `submit_grade_suggestion` under the activity owner's session | pre-fills the teacher's grading queue for confirm/edit/reject; edit-rate telemetry per model/prompt rev | **CASCADES from `section_checks`** (asserted by `verify-0042.sql` §F) — the check's windows govern, no separate step, purge function untouched |
 | `check_grade_suggestions.source_text_hash` (0042) | md5 of the student's response text at claim time | student (derived) | claim RPC | supersession keying — a draft on unchanged text is re-keyed, not re-inferred | with the row |
 | `check_grade_suggestions.model_id` / `prompt_rev` / `schema_rev` / `tokens_in` / `tokens_out` / `machine_confidence` / `billable` (0042) | machine telemetry on the drafting run, **not personal per se** — listed because the rows they stamp are about a student | — | claim/submit RPCs | quality auditing per revision; spend metering for the (unreachable) hosted path | with the row |

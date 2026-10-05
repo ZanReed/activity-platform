@@ -730,4 +730,14 @@ test.describe('the teacher number-facts page', () => {
     await page.getByRole('button', { name: 'Show students' }).click();
     await expectNoAxeViolations(page);
   });
+
+  test('a snapshot whose student results were removed has no axe violations (0048)', async ({ page }) => {
+    await stubIdentityApi(page, { role: 'teacher' });
+    await signInAs(page);
+    await stubFactsTeacherApi(page, 'closed', { prunedAt: '2028-01-17T03:00:00Z' });
+    await page.goto(`/classes/${FT_CLASS_ID}/facts`);
+    await page.getByRole('button', { name: /student results removed/ }).click();
+    await page.getByTestId('ft-pruned').waitFor();
+    await expectNoAxeViolations(page);
+  });
 });

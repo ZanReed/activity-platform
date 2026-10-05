@@ -206,11 +206,15 @@ about the class. Three things we ask:
 covered — closer to a behavioural or processing-speed measure — and does the
 teacher attestation (Q2) and the per-class 13+ assertion (Q4) cover it without
 a separate notice to families?
-(b) **Retention.** The stated window is the school year the data was made in,
-but the prune that would enforce it is not built; until it is, the data lasts
+(b) **Retention.** *(Updated 2026-10-06: the mechanism now exists but is
+switched off — migration 0048. "The school year" is an end date the teacher
+gives per class; the data becomes removable 30 days after it, at most 400 days
+after the check, and 30 days after a class is deleted. Nothing runs it until
+this question is answered.)* The stated window is the school year the data was made in,
+but the prune that would enforce it is not armed; until it is, the data lasts
 until the account is purged (30 days after an on-request deletion, 400 days of
 dormancy). Is stating the window with that caveat acceptable for a first
-class, or must the prune exist first?
+class, or must the prune be switched on first?
 (c) **A public demo page** (`/facts/demo`) runs the same exercise with no
 sign-in and stores and transmits nothing (verified by an automated test that
 the page makes no request to the backend). It is reachable by anyone,

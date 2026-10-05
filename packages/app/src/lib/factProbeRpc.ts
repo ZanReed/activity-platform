@@ -8,4 +8,5 @@ export const FACT_PROBE_RPC = {
     close: 'close_fact_probe',
     results: 'fact_probe_results',
     overview: 'fact_probe_overview',
+    yearEnd: 'set_class_year_end',
 } as const;

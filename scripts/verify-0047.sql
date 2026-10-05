@@ -72,8 +72,9 @@ begin
          (v_student, 'vfy0047-s@vfy0047.example', '{}'::jsonb);
   update users set role = 'teacher' where id = v_teacher;
   update users set role = 'student' where id = v_student;
-  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version)
-  values (v_teacher, 'vfy 0047 class', v_teacher, 'vfy') returning id, join_code into v_class, v_code;
+  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version,
+                       school_year_ends_on)  -- 0048: a check needs one
+  values (v_teacher, 'vfy 0047 class', v_teacher, 'vfy', current_date + 100) returning id, join_code into v_class, v_code;
   insert into class_members (class_id, student_id) values (v_class, v_student);
 
   -- A synthetic revision through the REAL mirror function. Ten families of 20

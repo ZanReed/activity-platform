@@ -69,6 +69,8 @@ export const DEMO_RESULTS: ProbeResults = {
         auto_closed: false,
         state: 'closed',
         item_count: 55,
+        keep_until: '2028-01-16',
+        pruned_at: null,
     },
     class: {
         in_class: 8,

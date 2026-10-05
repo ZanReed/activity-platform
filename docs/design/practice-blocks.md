@@ -147,7 +147,10 @@ spec review and was RATIFIED with A1 the same day.
    D43 calls the 3-second target a working definition to revisit against
    classroom data, and the raw timings are that data. Mastery can be recomputed
    from attempts WITHIN the current school year; mastery from a pruned year is
-   kept as its last value and is not recomputed.
+   kept as its last value and is not recomputed. AMENDED 2026-10-06 (RP-4):
+   no summary table ships with the prune, because nothing reads one before the
+   sprint; "kept as its last value" is designed in slice 2's pass. What the
+   prune keeps is the check's class result.
 6. **Bank items use the existing markdown format** in a new practice file kind
    keyed by `skill:`, with a per-session seed. ACCEPTED by the curriculum side
    (answer 6) with two format asks, recorded under the deferred pass.
@@ -733,6 +736,10 @@ WHICH facts are in scope, with which criteria and values. The platform's id gram
 
 ### Roll-up and prune (its own slice)
 
+**RULED AND BUILT 2026-10-06: see "Roll-up and prune: as ruled and as built"
+near the end of this document.** The paragraph below is the plan as it stood
+before that pass.
+
 Not in slice 1 or 2. It ships before the end of the first school year in which
 real attempts exist: a per-student per-fact summary table, and a prune function
 that is dry-run by default and unscheduled, armed by its own checklist. It is
@@ -923,8 +930,8 @@ two grouping thresholds and the ceiling (their item 15) block
 slice 1's build until they exist as artifacts (subject to A4). None of this blocks the eng review.
 
 **Platform-side (E1–E9): each closed or assigned by the eng review.**
-- E1. School year for the prune date: ASSIGNED to the roll-up and prune slice
-  (recommendation there).
+- E1. School year for the prune date: CLOSED 2026-10-06 (RP-1): an explicit
+  end date per class, copied onto each check at open.
 - E2. CLOSED (ER-6): the server derives correctness from the probe's stored
   item list; the fact grammar runs once, in the importer.
 - E3. CONFIRMED against answer 3: a fixed count, timing measured and never
@@ -2621,6 +2628,73 @@ Mutations, each red then restored: the threshold ignored; the short family
 not capped; parts not ordered; a changed part cut ignored by the mirror's
 comparison; no break between the parts; the break lost after an interruption;
 the bar counting the whole check.
+
+### Roll-up and prune: as ruled and as built (2026-10-06)
+
+The design pass was re-derived against 0045 to 0047 and the live database
+(two closed checks, two sessions, 163 attempts, one class, none deleted; no
+job other than the purge and the analytics run). Two things the earlier plan
+did not say came out of that reading:
+
+- `fact_probe_stat` lists EVERY class member, so a check whose sessions were
+  removed would have shown each student as "Did not start". The results read
+  now returns no student rows for a pruned check and the screen says why.
+- Removal has to be by CHECK. A check's sessions are read together (the
+  per-family table, the live class numbers), so removing some of them would
+  leave a check that reads as a smaller class. The date therefore lives on
+  the check.
+
+**The author's rulings (eight numbered questions, each answered with the
+recommended option).**
+
+| # | Ruling |
+|---|---|
+| RP-1 | **E1: "the school year" is an explicit end date per class** (`classes.school_year_ends_on`), given by the teacher. Each check copies it at open as `keep_until`, like its other parameters, so moving the class's date later never extends a past year's data. Nothing is inferred from a calendar or a timezone. |
+| RP-2 | The date is asked in the open-snapshot screen the first time a class opens a check, prefilled with a guess the teacher confirms (18 December for New Zealand and Australian timezones, 30 June otherwise), and changeable there afterwards. No check opens without one, or after it has passed. |
+| RP-3 | 30 days of grace: `keep_until` = the end date + 30 days. |
+| RP-4 | **No roll-up table ships now.** The per-student per-fact summary has no reader until the sprint; it is designed in slice 2's pass, with mastery. Premise 5 is amended. A de-identified calibration summary is filed with a trigger (TODOS). |
+| RP-5 | A soft-deleted class: its checks' sessions and attempts are removable 30 days after the deletion, or at `keep_until` if that comes first. The check rows and class results stay with the class row (no class purge exists; building one is not in this slice). |
+| RP-6 | The teacher sees the date ahead ("Students' answers and timings are kept until …") and, after removal, a notice with the date, the class result, and no student panels. `class_probes.pruned_at` records it. |
+| RP-7 | 0035's discipline and a checklist: dry-run by default, service-role only, unscheduled, check by check. No extra mechanical switch. Arming needs counsel Q11(b), a liveness proof at production values, dry-run reports read on live, and the author's explicit yes. |
+| RP-8 | Backstop: `keep_until` is never more than 400 days after the check opened (the dormant-student figure). Checks opened before 0048 were backfilled at exactly that. An end date more than 400 days ahead is refused. |
+
+**As built (migration 0048).** `set_class_year_end` (the teacher's one
+write; today to 400 days ahead). `open_fact_probe` raises
+`school_year_end_missing` or `school_year_ended` and stamps `keep_until`.
+`fact_probe_overview` returns the class's date and each check's `keep_until`
+and `pruned_at`; `fact_probe_results` returns the two dates and, for a pruned
+check, an empty student list. `prune_fact_practice(p_dry_run default true)`:
+a check is a candidate when it is not already pruned, is closed or due to
+close, and either `keep_until` has passed or its class was deleted more than
+30 days ago. An armed run locks each candidate, finalises a due one first
+(so the class result is written from the data before the data goes), deletes
+its attempts and sessions, stamps `pruned_at`, and writes one
+`fact_practice.prune` audit row with the counts and the reason. The student
+entry needed no change: a closed check with no session already reads as
+"none open".
+
+`verify-0048.sql` (registered): the catalog posture, including a row that
+fails if any cron job names the prune; then, at production values, the end
+date's refusals, `keep_until` at open with the grace and the backstop, and
+the prune's matrix (a dry run deletes nothing; an open check is never a
+candidate; 29 days after a class deletion is not enough and 31 is; the armed
+run removes exactly the candidates' rows and keeps a control check's; the
+audit counts; a second run finds nothing; the teacher's and the student's
+reads afterwards). The prune's report is global, so the block measures the
+difference its own fixtures make against a baseline.
+
+Compliance in the same commit: data-map `draft-15`, retention-policy
+`draft-11`, and counsel Q11(b) reworded to say the mechanism exists and is
+switched off.
+
+Mutations, each red then restored: the prune's "closed or due" clause
+removed (B5: an open check became a candidate); `pruned_at` not read by the
+results screen (the removed-notice test); the class's stored end date not
+read by the open screen (the "opens without asking again" test);
+`keep_until` not rendered (the kept-until test).
+
+**Not built, by ruling:** the per-student summary (RP-4, slice 2); a class
+purge (RP-5); any schedule (RP-7).
 
 ## GSTACK REVIEW REPORT
 

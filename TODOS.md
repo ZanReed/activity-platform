@@ -196,8 +196,10 @@ to catch.
   `supabase start` with a mirrored registry. The stub lanes and verify-0045
   cover both halves separately; this is the join. **Trigger: the first
   change to a `fact_probe_*` function's return shape** (it is the row that
-  would catch a client/server shape drift). Until then the live proof is the
-  author's throwaway-class run.
+  would catch a client/server shape drift). ⚠ **FIRED 2026-10-06:** 0048 adds
+  fields to `fact_probe_overview` and `fact_probe_results` (additive;
+  verify-0048 B10 asserts the server's half). Not built yet: the author
+  ranks it. The row should also walk the new end-date step.
 - **Device checks (T11, D6) — the author's:** on the school's real devices,
   that no on-screen keyboard appears, that physical keys register, and one
   pass with a screen reader and with switch access. Record the result in
@@ -206,27 +208,59 @@ to catch.
   student whose timing is not a fair reading. **Trigger: the first class
   with a screen-reader or switch user.**
 
-## Number-facts data: the roll-up and PRUNE slice (filed with migration 0045, 2026-10-05)
+## ✅ BUILT 2026-10-06, DISARMED — the number-facts PRUNE (migration 0048)
 
-**Trigger: the first real `fact_attempts` row.** ⚠ **FIRED 2026-10-05** — the author's own throwaway-class checks wrote the first rows (his test accounts, so nothing is owed to a third party, but the entry is no longer waiting on anything). It is the next real piece of D43 work. Owed before the end of the
-first school year in which real attempts exist (practice-blocks.md → "Roll-up
-and prune"; premise 5). Until it ships, retention-policy.md's "school year"
-window for this data is a commitment with no mechanism, and the data lasts
-until the account is purged.
+Rulings RP-1 to RP-8 and the as-built record: practice-blocks.md → "Roll-up
+and prune: as ruled and as built". `prune_fact_practice` is dry-run by
+default, service-role only and unscheduled. The class's school-year end is
+asked in the open-snapshot screen; each check carries `keep_until`.
 
-- A per-student per-fact summary table, then a prune of `fact_attempts` and
-  `practice_sessions` (sessions go WITH their attempts; the `class_probes`
-  snapshot stays, ER-18). **Dry-run by default, unscheduled, armed by its own
-  checklist** — it is the second function in the repo that deletes student
-  work, and inherits `prune_section_checks`'s discipline (CLAUDE.md → Things
-  NOT to do).
-- Its design pass answers E1 FIRST: what "the school year" means across
-  hemispheres. The eng review's recommendation is an explicit end date per
-  class, not an inference from the calendar or the teacher's timezone.
-- It also owns the practice data of SOFT-DELETED CLASSES, which nothing
-  removes today (no class purge exists).
-- Counsel question Q11(b) asks whether the prune must exist before a first
-  class; the answer may move this ahead of the sprint.
+## ⚠ Number-facts prune: the ARMING checklist (do NOT start without the author's yes)
+
+`prune_fact_practice(false)` deletes students' answers and timings. Nothing
+mechanical holds it back except that no job calls it (verify-0048's
+`prune_is_unscheduled` row). In order; the cron row comes LAST:
+
+1. **Counsel Q11(b) answered** (counsel-review-packet.md). The author still
+   owes confirming Q11 was sent.
+2. **0048 applied on live and `verify:auth --target live` green**, including
+   verify-0048 §B (the liveness proof at production values, P3).
+3. **Dry-run reports read on live**, at least twice a week apart:
+   `select prune_fact_practice();` — the candidates must be explainable check
+   by check (`select id, class_id, keep_until, closed_at from class_probes
+   where pruned_at is null and keep_until < current_date`).
+4. **Every class with checks has a real end date.** Checks opened before
+   0048 carry the 400-day backstop, not a teacher's date; that is by ruling
+   (RP-8), but read which ones before arming.
+5. **The author's explicit yes**, in words, for arming.
+6. Only then: a migration adding the cron job, which FLIPS verify-0048's
+   `prune_is_unscheduled` row to expect it (P5: flip, don't delete), and
+   updates retention-policy.md's Mechanics and data-map.md in the same commit.
+7. After the first armed night: read the `fact_practice.prune` audit rows
+   against the dry-run report of the day before.
+
+## Number-facts: a per-student summary and calibration data after the prune (RP-4, 2026-10-06)
+
+Not built, by ruling. Two separate things:
+
+- **A per-student per-fact summary ("mastery kept as its last value").**
+  Designed in the sprint's own pass (slice 2), with mastery. **Trigger: the
+  slice 2 design pass.** It keeps student-derived data past the year, so it
+  rides the compliance pack and probably a counsel question.
+- **De-identified calibration data** (per fact and year level: counts and
+  timing percentiles, no student id), so the time criteria can be re-tuned
+  after raw timings are gone. **Trigger: the curriculum side asks to re-tune a
+  criterion, or the first armed prune is one school term away** — whichever
+  comes first. A small class can still be identifying (counsel Q10's question).
+
+## A class purge does not exist (RP-5, 2026-10-06)
+
+A soft-deleted class keeps its row, its memberships, its check rows and
+their class results (no student identity) for ever; only its students'
+practice sessions and attempts become removable (30 days). **Trigger: the
+first real class deleted by a teacher other than the author**, or counsel
+asking. `classes` is referenced by memberships, checks, sessions and audit
+rows, so it needs its own design pass.
 
 ## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
 

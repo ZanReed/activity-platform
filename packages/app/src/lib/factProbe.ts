@@ -147,6 +147,11 @@ export interface ProbeInfo {
     auto_closed: boolean;
     state: 'open' | 'closed';
     item_count: number;
+    /** Students' answers and timings are removable after this day (0048):
+     *  the class's school-year end + 30 days, at most 400 days after opening. */
+    keep_until: string;
+    /** When they were removed; the class result is kept. */
+    pruned_at: string | null;
 }
 
 export interface ProbeResults {
@@ -174,11 +179,15 @@ export interface ProbeSummary {
     state: 'open' | 'closed';
     item_count: number;
     verdict: Verdict | null;
+    keep_until: string;
+    pruned_at: string | null;
 }
 
 export interface ProbeOverview {
     join_code: string;
     mirrored: boolean;
+    /** The class's school-year end (0048, RP-1); null until the teacher gives it. */
+    school_year_ends_on: string | null;
     years: YearOption[];
     probes: ProbeSummary[];
 }
@@ -197,6 +206,9 @@ export const fetchResults = (probeId: string) =>
 
 export const openProbe = (classId: string, yearLevel: number) =>
     call<{ probe_id: string }>(FACT_PROBE_RPC.open, { p_class_id: classId, p_year_level: yearLevel });
+
+export const setClassYearEnd = (classId: string, endsOn: string) =>
+    call<string>(FACT_PROBE_RPC.yearEnd, { p_class_id: classId, p_ends_on: endsOn });
 
 export const closeProbe = (probeId: string) =>
     call<ClassStat>(FACT_PROBE_RPC.close, { p_probe_id: probeId });

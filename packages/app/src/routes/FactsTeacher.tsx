@@ -14,11 +14,16 @@
 //            "Show who has not started". The full-screen view shows ONLY the
 //            link and the counts: this screen goes on a projector (DR-19).
 //            Close asks first and defaults to "Keep it open" (DR-20).
+//            The class's school-year end is asked here the first time
+//            (0048, RP-1/RP-2): prefilled from a guess, confirmed by the teacher.
 //   RESULTS  the verdict as a sentence, the two numbers and who was left out,
 //            the stopgap line; then "Who needs what" — a table of fact
 //            families by label (per-family grouping, ruled 2026-10-05) — and
 //            each student, with names CLOSED on first view: a name is not in
-//            the DOM until its disclosure is opened (DR-21, DR-22).
+//            the DOM until its disclosure is opened (DR-21, DR-22). Under the
+//            verdict: until when students' answers are kept, or, once the
+//            prune has run, that they were removed, and NO student panels
+//            (0048, RP-6).
 //
 // Every number is the server's (fact_probe_results); this file formats it.
 // =============================================================================
@@ -33,6 +38,7 @@ import {
     fetchOverview,
     fetchResults,
     openProbe,
+    setClassYearEnd,
     type ClassStat,
     type FamilyLabel,
     type ProbeOverview,
@@ -78,6 +84,44 @@ export function familySummary(s: StudentRow): string {
 
 function day(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+}
+
+/** A DATE (yyyy-mm-dd) as a local calendar day. `new Date('2027-12-17')` is
+ *  UTC midnight, which reads as the 16th west of Greenwich. */
+function localDay(date: string): Date {
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+/** "17 December 2027": a date the year matters for. A timestamp is read as
+ *  the local day it falls on. */
+export function longDay(dateOrIso: string): string {
+    const when = dateOrIso.length > 10 ? new Date(dateOrIso) : localDay(dateOrIso);
+    return when.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function isoDate(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The furthest end date the server accepts (set_class_year_end, RP-8). */
+export const YEAR_END_MAX_DAYS = 400;
+
+/** A FIRST GUESS at the school-year end, for the teacher to confirm (RP-2):
+ *  NZ and Australia end in mid-December, most northern-hemisphere schools in
+ *  late June. Only ever a prefill; the stored date is the teacher's. */
+export function guessYearEnd(today: Date, timeZone: string): string {
+    const south = /^(Pacific\/(Auckland|Chatham)|Australia\/|Antarctica\/McMurdo)/.test(timeZone);
+    const [month, dayOfMonth] = south ? [11, 18] : [5, 30];
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const guess = new Date(today.getFullYear(), month, dayOfMonth);
+    return isoDate(guess < start ? new Date(today.getFullYear() + 1, month, dayOfMonth) : guess);
+}
+
+/** Today and today + 400 days, the date input's bounds. */
+function yearEndBounds(today: Date): { min: string; max: string } {
+    const max = new Date(today.getFullYear(), today.getMonth(), today.getDate() + YEAR_END_MAX_DAYS);
+    return { min: isoDate(today), max: isoDate(max) };
 }
 
 /** One line saying what a year adds (DR-18); composed when the registry has none. */
@@ -208,12 +252,23 @@ function OpenScreen({
     const [busy, setBusy] = useState(false);
     const [failed, setFailed] = useState<string | null>(null);
     const picked = overview.years.find((y) => y.year === year) ?? null;
+    const bounds = yearEndBounds(new Date());
+    const stored = overview.school_year_ends_on;
+    const storedUsable = stored !== null && stored >= bounds.min;
+    // The field shows when there is no usable date or the teacher asks to
+    // change it; it starts at the stored date or a guess (RP-2).
+    const [editingEnd, setEditingEnd] = useState(!storedUsable);
+    const [endsOn, setEndsOn] = useState(() =>
+        storedUsable ? stored : guessYearEnd(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
+    );
+    const endValid = endsOn >= bounds.min && endsOn <= bounds.max;
 
     const start = async () => {
-        if (year === null) return;
+        if (year === null || (editingEnd && !endValid)) return;
         setBusy(true);
         setFailed(null);
         try {
+            if (editingEnd) await setClassYearEnd(classId, endsOn);
             await openProbe(classId, year);
             onOpened();
         } catch (e) {
@@ -221,8 +276,13 @@ function OpenScreen({
             setFailed(
                 message.includes('probe_already_open')
                     ? 'A snapshot is already open for this class.'
-                    : 'That did not start. Check your connection, then try again.',
+                    : message.includes('year_end_out_of_range')
+                      ? `Pick an end date between today and ${longDay(bounds.max)}.`
+                      : message.includes('school_year_end')
+                        ? 'Give the date this class’s school year ends, then open the snapshot.'
+                        : 'That did not start. Check your connection, then try again.',
             );
+            if (message.includes('school_year_end')) setEditingEnd(true);
             setBusy(false);
         }
     };
@@ -266,9 +326,37 @@ function OpenScreen({
                         The year cannot be changed once the snapshot is open. It stays open for 7
                         days unless you close it.
                     </p>
+                    <div className="ft-yearend" data-testid="ft-year-end">
+                        {editingEnd ? (
+                            <label>
+                                <strong style={{ display: 'block' }}>When does this class’s school year end?</strong>
+                                <input
+                                    type="date"
+                                    className="ft-date"
+                                    value={endsOn}
+                                    min={bounds.min}
+                                    max={bounds.max}
+                                    required
+                                    aria-invalid={!endValid}
+                                    onChange={(e) => setEndsOn(e.target.value)}
+                                />
+                            </label>
+                        ) : (
+                            <p>
+                                This class’s school year ends on <strong>{longDay(endsOn)}</strong>.{' '}
+                                <button type="button" className="ft-link" onClick={() => setEditingEnd(true)}>
+                                    Change
+                                </button>
+                            </p>
+                        )}
+                        <p className="ft-muted ft-small">
+                            Students’ answers and timings are removed 30 days after the school year
+                            ends. The class result is kept.
+                        </p>
+                    </div>
                     {failed ? <p role="alert" style={{ marginTop: 8 }}>{failed}</p> : null}
                     <div className="ft-row" style={{ marginTop: 16 }}>
-                        <button type="button" className="ft-btn-primary" disabled={picked === null || busy} onClick={() => void start()}>
+                        <button type="button" className="ft-btn-primary" disabled={picked === null || busy || (editingEnd && !endValid)} onClick={() => void start()}>
                             {busy ? 'Opening…' : 'Open the snapshot'}
                         </button>
                         <Link to="/facts/demo" className="ft-btn" target="_blank" rel="noreferrer">
@@ -299,6 +387,7 @@ function Earlier({ overview, onPick }: { overview: ProbeOverview; onPick: (id: s
                                     : p.verdict === 'at_or_above'
                                       ? 'At or above the floor'
                                       : 'Not enough results'}
+                                {p.pruned_at ? ' · student results removed' : ''}
                             </button>
                         </li>
                     ))}
@@ -560,6 +649,7 @@ export function Results({
     const [slowestFirst, setSlowestFirst] = useState(false);
     const [openRow, setOpenRow] = useState<string | null>(null);
     const members = data.students.filter((s) => s.is_member || s.status !== 'not_started');
+    const pruned = data.probe.pruned_at ?? null;
     const rows = slowestFirst
         ? [...members].sort((a, b) => (a.rate ?? Infinity) - (b.rate ?? Infinity))
         : members;
@@ -614,125 +704,144 @@ export function Results({
                     Timing is not a fair reading for a student who uses a screen reader or switch
                     access: the clock starts before speech finishes.
                 </p>
-            </div>
-
-            <div className="ft-panel">
-                <h2>Who needs what</h2>
-                <p className="ft-muted ft-small">
-                    Each fact family is judged on its own questions. Accuracy comes first: too
-                    many wrong in a family is &quot;needs strategy&quot; however quick the
-                    student is. Otherwise it is how many they got quick and right.
-                </p>
-                {familyNames.length === 0 ? (
-                    <p className="ft-small" style={{ marginTop: 8 }}>No one has answered yet.</p>
-                ) : (
-                    <>
-                        <button type="button" className="ft-link" aria-expanded={showGroups} onClick={() => setShowGroups((v) => !v)}>
-                            {showGroups ? 'Hide names' : 'Show names'}
-                        </button>
-                        <div className="ft-tablewrap">
-                            <table className="ft-table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Fact family</th>
-                                        {LABELS.map((l) => (
-                                            <th scope="col" key={l.key}>
-                                                {l.label}
-                                                <span className="ft-muted ft-small" style={{ display: 'block', fontWeight: 400 }}>
-                                                    {l.action}
-                                                </span>
-                                            </th>
-                                        ))}
-                                        <th scope="col">Not judged</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {familyNames.map((fam) => (
-                                        <tr key={fam.id}>
-                                            <th scope="row" style={{ fontWeight: 500 }}>{fam.name}</th>
-                                            {[...LABELS.map((l) => l.key), 'not_judged' as const].map((label) => {
-                                                // A database without 0046 cannot split "not met":
-                                                // those students are shown under Slow's column
-                                                // header as "not met" rather than guessed.
-                                                const here = [
-                                                    ...inCell(fam.id, label),
-                                                    ...(label === 'slow' ? inCell(fam.id, 'not_met') : []),
-                                                ];
-                                                return (
-                                                    <td key={label}>
-                                                        {here.length}
-                                                        {showGroups && here.length > 0 ? (
-                                                            <ul className="ft-names">
-                                                                {here.map((s) => {
-                                                                    const f = s.families.find((x) => x.family_id === fam.id)!;
-                                                                    return (
-                                                                        <li key={s.student_id}>
-                                                                            {s.name}
-                                                                            {f.right !== undefined ? (
-                                                                                <span className="ft-muted ft-small">
-                                                                                    {' '}
-                                                                                    ({f.right} of {f.counted} right, {f.met} quick)
-                                                                                </span>
-                                                                            ) : null}
-                                                                        </li>
-                                                                    );
-                                                                })}
-                                                            </ul>
-                                                        ) : null}
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </>
-                )}
-            </div>
-
-            <div className="ft-panel">
-                <h2>Each student</h2>
-                <div className="ft-row">
-                    <button type="button" className="ft-link" aria-expanded={showStudents} onClick={() => setShowStudents((v) => !v)}>
-                        {showStudents ? 'Hide students' : 'Show students'}
-                    </button>
-                    {showStudents ? (
-                        <label className="ft-small">
-                            <input type="checkbox" checked={slowestFirst} onChange={(e) => setSlowestFirst(e.target.checked)} />{' '}
-                            Slowest first
-                        </label>
-                    ) : null}
-                </div>
-                {showStudents ? (
-                    <div className="ft-tablewrap">
-                        <table className="ft-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Student</th>
-                                    <th scope="col" className="ft-num">Per minute</th>
-                                    <th scope="col" className="ft-num">Right</th>
-                                    <th scope="col" className="ft-num">Quick and right</th>
-                                    <th scope="col" className="ft-num">Skipped</th>
-                                    <th scope="col">Fact families</th>
-                                    <th scope="col">Run</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {rows.map((s) => (
-                                    <StudentRows
-                                        key={s.student_id}
-                                        s={s}
-                                        total={total}
-                                        open={openRow === s.student_id}
-                                        onToggle={() => setOpenRow((id) => (id === s.student_id ? null : s.student_id))}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                {data.probe.state === 'closed' && !pruned && data.probe.keep_until ? (
+                    <p className="ft-muted ft-small" style={{ marginTop: 6 }} data-testid="ft-keep-until">
+                        Students’ answers and timings are kept until {longDay(data.probe.keep_until)},
+                        then removed. This class result is kept.
+                    </p>
                 ) : null}
             </div>
+
+            {pruned ? (
+                <div className="ft-panel" data-testid="ft-pruned">
+                    <h2>Student results removed</h2>
+                    <p>
+                        Students’ answers and timings from this snapshot were removed on{' '}
+                        {longDay(pruned)}, when the time for keeping them ended. The class result
+                        above is kept.
+                    </p>
+                </div>
+            ) : (
+                <>
+                    <div className="ft-panel">
+                        <h2>Who needs what</h2>
+                        <p className="ft-muted ft-small">
+                            Each fact family is judged on its own questions. Accuracy comes first: too
+                            many wrong in a family is &quot;needs strategy&quot; however quick the
+                            student is. Otherwise it is how many they got quick and right.
+                        </p>
+                        {familyNames.length === 0 ? (
+                            <p className="ft-small" style={{ marginTop: 8 }}>No one has answered yet.</p>
+                        ) : (
+                            <>
+                                <button type="button" className="ft-link" aria-expanded={showGroups} onClick={() => setShowGroups((v) => !v)}>
+                                    {showGroups ? 'Hide names' : 'Show names'}
+                                </button>
+                                <div className="ft-tablewrap">
+                                    <table className="ft-table">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Fact family</th>
+                                                {LABELS.map((l) => (
+                                                    <th scope="col" key={l.key}>
+                                                        {l.label}
+                                                        <span className="ft-muted ft-small" style={{ display: 'block', fontWeight: 400 }}>
+                                                            {l.action}
+                                                        </span>
+                                                    </th>
+                                                ))}
+                                                <th scope="col">Not judged</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {familyNames.map((fam) => (
+                                                <tr key={fam.id}>
+                                                    <th scope="row" style={{ fontWeight: 500 }}>{fam.name}</th>
+                                                    {[...LABELS.map((l) => l.key), 'not_judged' as const].map((label) => {
+                                                        // A database without 0046 cannot split "not met":
+                                                        // those students are shown under Slow's column
+                                                        // header as "not met" rather than guessed.
+                                                        const here = [
+                                                            ...inCell(fam.id, label),
+                                                            ...(label === 'slow' ? inCell(fam.id, 'not_met') : []),
+                                                        ];
+                                                        return (
+                                                            <td key={label}>
+                                                                {here.length}
+                                                                {showGroups && here.length > 0 ? (
+                                                                    <ul className="ft-names">
+                                                                        {here.map((s) => {
+                                                                            const f = s.families.find((x) => x.family_id === fam.id)!;
+                                                                            return (
+                                                                                <li key={s.student_id}>
+                                                                                    {s.name}
+                                                                                    {f.right !== undefined ? (
+                                                                                        <span className="ft-muted ft-small">
+                                                                                            {' '}
+                                                                                            ({f.right} of {f.counted} right, {f.met} quick)
+                                                                                        </span>
+                                                                                    ) : null}
+                                                                                </li>
+                                                                            );
+                                                                        })}
+                                                                    </ul>
+                                                                ) : null}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="ft-panel">
+                        <h2>Each student</h2>
+                        <div className="ft-row">
+                            <button type="button" className="ft-link" aria-expanded={showStudents} onClick={() => setShowStudents((v) => !v)}>
+                                {showStudents ? 'Hide students' : 'Show students'}
+                            </button>
+                            {showStudents ? (
+                                <label className="ft-small">
+                                    <input type="checkbox" checked={slowestFirst} onChange={(e) => setSlowestFirst(e.target.checked)} />{' '}
+                                    Slowest first
+                                </label>
+                            ) : null}
+                        </div>
+                        {showStudents ? (
+                            <div className="ft-tablewrap">
+                                <table className="ft-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Student</th>
+                                            <th scope="col" className="ft-num">Per minute</th>
+                                            <th scope="col" className="ft-num">Right</th>
+                                            <th scope="col" className="ft-num">Quick and right</th>
+                                            <th scope="col" className="ft-num">Skipped</th>
+                                            <th scope="col">Fact families</th>
+                                            <th scope="col">Run</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((s) => (
+                                            <StudentRows
+                                                key={s.student_id}
+                                                s={s}
+                                                total={total}
+                                                open={openRow === s.student_id}
+                                                onToggle={() => setOpenRow((id) => (id === s.student_id ? null : s.student_id))}
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : null}
+                    </div>
+                </>
+            )}
         </>
     );
 }

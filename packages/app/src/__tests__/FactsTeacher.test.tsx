@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
     fetchResults: vi.fn(),
     openProbe: vi.fn(),
     closeProbe: vi.fn(),
+    setClassYearEnd: vi.fn(),
 }));
 vi.mock('../lib/factProbe', async (orig) => ({
     ...(await orig<typeof import('../lib/factProbe')>()),
@@ -22,7 +23,7 @@ vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
 
-import FactsTeacher, { familySummary, LIVE_POLL_MS, yearLength, yearLine } from '../routes/FactsTeacher';
+import FactsTeacher, { familySummary, guessYearEnd, LIVE_POLL_MS, yearLength, yearLine } from '../routes/FactsTeacher';
 
 const student = (i: number, extra: Partial<StudentRow> = {}): StudentRow => ({
     student_id: `s${i}`,
@@ -46,9 +47,10 @@ const student = (i: number, extra: Partial<StudentRow> = {}): StudentRow => ({
     ...extra,
 });
 
-const overview = (probes: ProbeOverview['probes'] = []): ProbeOverview => ({
+const overview = (probes: ProbeOverview['probes'] = [], school_year_ends_on: string | null = '2099-12-17'): ProbeOverview => ({
     join_code: 'ABC234',
     mirrored: true,
+    school_year_ends_on,
     years: [
         { year: 7, description: 'Times tables, squares and cubes', adds: ['Multiplication'], families: 8, items: 40 },
         { year: 8, description: 'adds cube roots', adds: ['Cube roots'], families: 11, items: 55 },
@@ -61,7 +63,7 @@ const results = (over: Partial<ProbeResults['probe']>, cls: Partial<ProbeResults
     probe: {
         id: 'probe-1', class_id: 'class-1', join_code: 'ABC234', year_level: 7,
         opened_at: '2027-02-08T21:00:00Z', closes_at: '2027-02-15T21:00:00Z', closed_at: null,
-        auto_closed: false, state: 'open', item_count: 40, ...over,
+        auto_closed: false, state: 'open', item_count: 40, keep_until: '2028-01-16', pruned_at: null, ...over,
     },
     class: {
         in_class: 28, started: 23, finished: 17, with_rate: 20, left_out: 3, median_rate: 14,
@@ -113,6 +115,60 @@ describe('opening a snapshot', () => {
         expect(container.textContent).not.toMatch(/probe/i);
     });
 
+    it('asks for the school-year end when the class has none, prefilled with a guess, and saves it before opening (RP-1, RP-2)', async () => {
+        api.fetchOverview.mockResolvedValue(overview([], null));
+        api.setClassYearEnd.mockResolvedValue('x');
+        api.openProbe.mockResolvedValue({ probe_id: 'probe-1' });
+        page();
+        const field = (await screen.findByLabelText(/When does this class’s school year end\?/)) as HTMLInputElement;
+        const guess = guessYearEnd(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+        expect(field.value).toBe(guess);
+        expect(screen.getByText(/removed 30 days after the school year ends\. The class result is kept\./)).toBeTruthy();
+        fireEvent.change(field, { target: { value: '2099-12-01' } });
+        const openButton = screen.getByRole('button', { name: 'Open the snapshot' }) as HTMLButtonElement;
+        fireEvent.click(screen.getAllByRole('radio')[0]!);
+        expect(openButton.disabled).toBe(true); // 2099 is past the 400-day limit
+        const inRange = new Date();
+        inRange.setDate(inRange.getDate() + 60);
+        const iso = `${inRange.getFullYear()}-${String(inRange.getMonth() + 1).padStart(2, '0')}-${String(inRange.getDate()).padStart(2, '0')}`;
+        fireEvent.change(field, { target: { value: iso } });
+        expect(openButton.disabled).toBe(false);
+        await act(async () => {
+            fireEvent.click(openButton);
+        });
+        expect(api.setClassYearEnd).toHaveBeenCalledWith('class-1', iso);
+        expect(api.openProbe).toHaveBeenCalledWith('class-1', 7);
+        expect(api.setClassYearEnd.mock.invocationCallOrder[0]!).toBeLessThan(api.openProbe.mock.invocationCallOrder[0]!);
+    });
+
+    it('a class with an end date shows it and opens without asking again; Change asks', async () => {
+        const soon = new Date();
+        soon.setDate(soon.getDate() + 30);
+        const iso = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, '0')}-${String(soon.getDate()).padStart(2, '0')}`;
+        api.fetchOverview.mockResolvedValue(overview([], iso));
+        api.openProbe.mockResolvedValue({ probe_id: 'probe-1' });
+        page();
+        const shown = await screen.findByTestId('ft-year-end');
+        expect(shown.textContent).toContain(`school year ends on ${soon.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`);
+        expect(screen.queryByLabelText(/When does this class’s school year end\?/)).toBeNull();
+        fireEvent.click(screen.getAllByRole('radio')[0]!);
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Open the snapshot' }));
+        });
+        expect(api.setClassYearEnd).not.toHaveBeenCalled();
+        expect(api.openProbe).toHaveBeenCalledWith('class-1', 7);
+        fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+        expect((screen.getByLabelText(/When does this class’s school year end\?/) as HTMLInputElement).value).toBe(iso);
+    });
+
+    it('guesses mid-December in New Zealand and late June in the north, never a past day', () => {
+        expect(guessYearEnd(new Date(2026, 9, 6), 'Pacific/Auckland')).toBe('2026-12-18');
+        expect(guessYearEnd(new Date(2026, 11, 20), 'Pacific/Auckland')).toBe('2027-12-18');
+        expect(guessYearEnd(new Date(2026, 9, 6), 'Australia/Sydney')).toBe('2026-12-18');
+        expect(guessYearEnd(new Date(2026, 9, 6), 'America/New_York')).toBe('2027-06-30');
+        expect(guessYearEnd(new Date(2026, 2, 1), 'Europe/London')).toBe('2026-06-30');
+    });
+
     it('composes a year line when the registry gives none', () => {
         expect(yearLine({ year: 9, description: null, adds: ['Multiplying integers', 'Dividing integers'], families: 13, items: 65 }))
             .toBe('adds Multiplying integers, Dividing integers');
@@ -136,7 +192,7 @@ describe('opening a snapshot', () => {
 });
 
 describe('the live view', () => {
-    const open = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: null, auto_closed: false, state: 'open', item_count: 40, verdict: null }]);
+    const open = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: null, auto_closed: false, state: 'open', item_count: 40, verdict: null, keep_until: '2028-01-16', pruned_at: null }]);
     const roster = [student(1), student(2, { status: 'not_started', has_rate: false, rate: null, group: null, done: 0 })];
 
     it('shows the typeable link and the three counts, with names hidden until asked (DR-19)', async () => {
@@ -230,7 +286,7 @@ describe('the live view', () => {
 });
 
 describe('the results', () => {
-    const closed = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: '2027-02-09T02:00:00Z', auto_closed: false, state: 'closed', item_count: 40, verdict: 'below' }]);
+    const closed = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: '2027-02-09T02:00:00Z', auto_closed: false, state: 'closed', item_count: 40, verdict: 'below', keep_until: '2028-01-16', pruned_at: null }]);
     const roster = [
         student(1, {
             name: 'Aroha', rate: 9, typing_flag: true,
@@ -344,6 +400,43 @@ describe('the results', () => {
             ],
         });
         expect(familySummary(old)).toBe('1 fluent · 1 not met');
+    });
+
+    it('a closed snapshot says until when the students\' answers are kept (RP-6)', async () => {
+        await openClosed();
+        expect(screen.getByTestId('ft-keep-until').textContent).toMatch(
+            /Students’ answers and timings are kept until (16 January 2028|January 16, 2028), then removed\. This class result is kept\./,
+        );
+    });
+
+    it('after the prune: the class result, a removed notice, and NO student panel or name (RP-6, 0048)', async () => {
+        api.fetchOverview.mockResolvedValue(
+            overview([{ ...closed.probes[0]!, pruned_at: '2028-01-17T03:00:00Z' }]),
+        );
+        // The server sends no student rows for a pruned check.
+        api.fetchResults.mockResolvedValue(
+            results({ state: 'closed', closed_at: '2027-02-09T02:00:00Z', pruned_at: '2028-01-17T03:00:00Z' }, {}, []),
+        );
+        const { container } = render(
+            <MemoryRouter initialEntries={['/classes/class-1/facts?snapshot=probe-1']}>
+                <Routes>
+                    <Route path="/classes/:classId/facts" element={<FactsTeacher />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        const notice = await screen.findByTestId('ft-pruned');
+        expect(notice.textContent).toMatch(/removed on (17 January 2028|January 17, 2028)/);
+        expect(screen.getByText('This class is below the fluency floor.')).toBeTruthy();
+        expect(screen.queryByText('Who needs what')).toBeNull();
+        expect(screen.queryByText('Each student')).toBeNull();
+        expect(screen.queryByTestId('ft-keep-until')).toBeNull();
+        expect(container.textContent).not.toMatch(/No one has answered yet|Did not start/);
+    });
+
+    it('the earlier list marks a snapshot whose student results were removed', async () => {
+        api.fetchOverview.mockResolvedValue(overview([{ ...closed.probes[0]!, pruned_at: '2028-01-17T03:00:00Z' }]));
+        page();
+        expect(await screen.findByText(/Below the floor · student results removed/)).toBeTruthy();
     });
 
     it('never polls a closed snapshot', async () => {

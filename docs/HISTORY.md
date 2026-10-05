@@ -1936,3 +1936,11 @@ defect lived in the half of the contract the other owns.
   semantic property.** The shadow is derivable; the property is not. Three
   independent arrivals at the same posture: a check can narrow the question a
   human answers and can never answer it.
+
+## Moved out of STATE 2026-10-06 — three 2026-10-04 deploy records
+
+**Y7 CHARTS — BUILT AND LIVE 2026-10-04.** Both functions were redeployed by the author and verified by hash (deployed `viewer-server.bundle.js` and `grading-server.bundle.js` byte-identical to the repo's at `0a8e052`; flags read live). The curriculum repo pinned `chart` at their `5d86e7c` (PR #32, graph v0.17.5); the boundary page's stamp row and prompt pointer are refreshed.
+
+**GRADED STIMULI — BUILT AND LIVE 2026-10-04.** Both functions were redeployed (by Claude, on the author's explicit instruction for this one deploy) and verified by hash: the deployed `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `5285c68`; flags read live (`get-activity` false, `check-activity` true). The standing rule is unchanged: the author runs deploys unless he says otherwise.
+
+**SIDE-BY-SIDE FIGURES — LIVE 2026-10-04.** The two hygiene redeploys ran (Claude, on the author's "run them"); the CLI reported "No change found" for both, and the downloaded `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `68b0ba0`; flags read live (`get-activity` false, `check-activity` true). Nothing owed.

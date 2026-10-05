@@ -46,8 +46,9 @@ begin
     from unnest(array[v_teacher] || v_s) u;
   update users set role = 'teacher' where id = v_teacher;
   update users set role = 'student' where id = any (v_s);
-  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version)
-  values (v_teacher, 'vfy 0046 class', v_teacher, 'vfy') returning id into v_class;
+  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version,
+                       school_year_ends_on)  -- 0048: a check needs one
+  values (v_teacher, 'vfy 0046 class', v_teacher, 'vfy', current_date + 100) returning id into v_class;
   insert into class_members (class_id, student_id) select v_class, u from unnest(v_s) u;
 
   -- Three families: A and B have 5 facts (5 items each), C has 3 (its minimum

@@ -200,8 +200,9 @@ begin
   update users set role = 'student' where id = any (v_s) or id = v_out;
   update users set display_name = 'Vfy Student ' || array_position(v_s, id) where id = any (v_s);
 
-  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version)
-  values (v_teacher, 'vfy 0045 class', v_teacher, 'vfy')
+  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version,
+                       school_year_ends_on)  -- 0048: a check needs one
+  values (v_teacher, 'vfy 0045 class', v_teacher, 'vfy', current_date + 100)
   returning id, join_code into v_class, v_code;
   insert into class_members (class_id, student_id) select v_class, u from unnest(v_s) u;
 
@@ -795,8 +796,9 @@ begin
 
   -- C35 with nothing mirrored, an open says so by name
   perform set_config('request.jwt.claims', json_build_object('sub', v_other)::text, true);
-  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version)
-  values (v_other, 'vfy 0045 other', v_other, 'vfy') returning id into v_class;
+  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version,
+                       school_year_ends_on)  -- 0048: a check needs one
+  values (v_other, 'vfy 0045 other', v_other, 'vfy', current_date + 100) returning id into v_class;
   -- (the mirror tables are insert-only, so "nothing mirrored" is proven on the
   --  function's source instead of by emptying them)
   if (select prosrc not ilike '%fact_scope_not_mirrored%' from pg_proc where proname = 'open_fact_probe') then
@@ -830,8 +832,9 @@ begin
          (v_keeps,   'vfy0045d-z@vfy0045.example', '{}'::jsonb);
   update users set role = 'teacher' where id = v_teacher;
   update users set role = 'student' where id in (v_deleted, v_dormant, v_keeps);
-  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version)
-  values (v_teacher, 'vfy 0045 purge', v_teacher, 'vfy') returning id into v_class;
+  insert into classes (teacher_id, name, age_assertion_by, assertion_text_version,
+                       school_year_ends_on)  -- 0048: a check needs one
+  values (v_teacher, 'vfy 0045 purge', v_teacher, 'vfy', current_date + 100) returning id into v_class;
   insert into class_members (class_id, student_id)
   values (v_class, v_deleted), (v_class, v_dormant), (v_class, v_keeps);
 

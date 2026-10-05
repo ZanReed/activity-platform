@@ -1,4 +1,4 @@
-// A stateful stand-in for the teacher's number-facts RPCs (migration 0045), for
+// A stateful stand-in for the teacher's number-facts RPCs (migrations 0045, 0048), for
 // the stub lanes. RPC names are the production constants (P2); payload shapes
 // are the ones verify-0045 asserts the real functions return.
 import type { Page } from '@playwright/test';
@@ -34,13 +34,27 @@ export const FT_STUDENTS = [
 
 export interface TeacherStub {
   state: 'none' | 'open' | 'closed';
+  /** The class's school-year end (0048); null until set_class_year_end. */
+  schoolYearEndsOn: string | null;
+  /** Set when the prune has removed the check's student rows (0048). */
+  prunedAt: string | null;
+  yearEnds: { p_class_id: string; p_ends_on: string }[];
+  /** Every RPC in call order, to prove the end date is saved BEFORE the open. */
+  calls: string[];
   opens: { p_class_id: string; p_year_level: number }[];
   closes: number;
   resultReads: number;
 }
 
-export async function stubFactsTeacherApi(page: Page, initial: TeacherStub['state'] = 'none'): Promise<TeacherStub> {
-  const stub: TeacherStub = { state: initial, opens: [], closes: 0, resultReads: 0 };
+export async function stubFactsTeacherApi(
+  page: Page,
+  initial: TeacherStub['state'] = 'none',
+  options: { prunedAt?: string } = {},
+): Promise<TeacherStub> {
+  const stub: TeacherStub = {
+    state: initial, schoolYearEndsOn: null, prunedAt: options.prunedAt ?? null,
+    yearEnds: [], calls: [], opens: [], closes: 0, resultReads: 0,
+  };
   const classStat = () => ({
     in_class: 28, started: 23, finished: 17, with_rate: 20, left_out: 3, median_rate: 14.2,
     floor: 19.6, min_students: 5, verdict: 'below',
@@ -52,6 +66,7 @@ export async function stubFactsTeacherApi(page: Page, initial: TeacherStub['stat
     opened_at: '2027-02-08T21:00:00Z', closes_at: '2027-02-15T21:00:00Z',
     closed_at: stub.state === 'closed' ? '2027-02-08T22:10:00Z' : null,
     auto_closed: false, state: stub.state === 'closed' ? 'closed' : 'open', item_count: 55,
+    keep_until: '2028-01-16', pruned_at: stub.prunedAt,
   });
 
   await page.route('**/rest/v1/classes**', async (route) => {
@@ -68,6 +83,7 @@ export async function stubFactsTeacherApi(page: Page, initial: TeacherStub['stat
       json: {
         join_code: FT_CODE,
         mirrored: true,
+        school_year_ends_on: stub.schoolYearEndsOn,
         years: [
           { year: 7, description: 'Times tables, squares, cubes, fraction equivalents, unit relationships and square roots', adds: [], families: 8, items: 40 },
           { year: 8, description: 'adds cube roots and adding and subtracting negatives', adds: [], families: 11, items: 55 },
@@ -78,18 +94,28 @@ export async function stubFactsTeacherApi(page: Page, initial: TeacherStub['stat
           id: FT_PROBE_ID, year_level: 8, opened_at: probe().opened_at, closed_at: probe().closed_at,
           auto_closed: false, state: probe().state, item_count: 55,
           verdict: stub.state === 'closed' ? 'below' : null,
+          keep_until: probe().keep_until, pruned_at: probe().pruned_at,
         }],
       },
     });
   });
+  await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.yearEnd}`, async (route) => {
+    const body = route.request().postDataJSON();
+    stub.calls.push('yearEnd');
+    stub.yearEnds.push(body);
+    stub.schoolYearEndsOn = body.p_ends_on;
+    await route.fulfill({ json: body.p_ends_on });
+  });
   await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.open}`, async (route) => {
+    stub.calls.push('open');
     stub.opens.push(route.request().postDataJSON());
     stub.state = 'open';
     await route.fulfill({ json: { probe_id: FT_PROBE_ID } });
   });
   await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.results}`, async (route) => {
     stub.resultReads += 1;
-    await route.fulfill({ json: { probe: probe(), class: classStat(), students: FT_STUDENTS } });
+    // A pruned check returns no student rows (0048's fact_probe_results).
+    await route.fulfill({ json: { probe: probe(), class: classStat(), students: stub.prunedAt ? [] : FT_STUDENTS } });
   });
   await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.close}`, async (route) => {
     stub.closes += 1;
