@@ -98,7 +98,7 @@ design arc at a time.
 **Dates and dependencies that came out of the review:**
 - **First classes: ~early February 2027** (author, 2026-10-02: "4 months").
   Year levels not yet stated.
-- **Y7 CLASSROOM USE depends on under-13 support** (entry below) — Y7–Y8
+- ✅ **MET 2026-10-06 (migration 0053; "Under-13 support" below):** a class can be created for students under 13 by school authorization, so this no longer holds Y7 use back. *As it stood:* **Y7 CLASSROOM USE depends on under-13 support** (entry below) — Y7–Y8
   students are under 13 and v1 excludes them by teacher assertion. Y7 DRAFTING
   does not. No build until the author states year levels or counsel answers Q4.
 - **Figures block 23 of the 61 proposed Y7 activities** (geometry 14 in 5
