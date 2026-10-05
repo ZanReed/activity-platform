@@ -152,6 +152,27 @@ design arc at a time.
   department is NOT wanted this term** — it stays a candidate arc with its own
   design pass owed, and nothing schedules it.
 
+## Number-facts check — what slice 1 left unbuilt (2026-10-05)
+
+- **The demo's second step (DR-4, task D5):** "See what your teacher sees
+  (demo data)" after the demo's done screen — the results screen on invented
+  data, so a teacher can rehearse the whole thing without a class. P2.
+  **Trigger: the first teacher other than the author is shown the feature.**
+- **A real-backend row in the local integration lane:** teacher opens →
+  student runs → teacher closes → the verdict equals the snapshot, against
+  `supabase start` with a mirrored registry. The stub lanes and verify-0045
+  cover both halves separately; this is the join. **Trigger: the first
+  change to a `fact_probe_*` function's return shape** (it is the row that
+  would catch a client/server shape drift). Until then the live proof is the
+  author's throwaway-class run.
+- **Device checks (T11, D6) — the author's:** on the school's real devices,
+  that no on-screen keyboard appears, that physical keys register, and one
+  pass with a screen reader and with switch access. Record the result in
+  STATE.
+- **A per-student "leave out of the class result" control (DR-23)** for a
+  student whose timing is not a fair reading. **Trigger: the first class
+  with a screen-reader or switch user.**
+
 ## Number-facts data: the roll-up and PRUNE slice (filed with migration 0045, 2026-10-05)
 
 **Trigger: the first real `fact_attempts` row.** Owed before the end of the

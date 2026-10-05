@@ -53,6 +53,9 @@ const ActivityResponses = lazy(() => import('./routes/ActivityResponses'));
 const Privacy = lazy(() => import('./routes/Privacy'));
 // The number-facts demo (D43 slice 1): public, lazy, saves nothing.
 const FactsDemo = lazy(() => import('./routes/FactsDemo'));
+// The student's class link and the teacher's number-facts page (D43 slice 1).
+const FactsEntry = lazy(() => import('./routes/FactsEntry'));
+const FactsTeacher = lazy(() => import('./routes/FactsTeacher'));
 
 const Playground = lazy(() => import('./routes/Playground'));
 const DevFoldableColumns = lazy(() => import('./routes/DevFoldableColumns'));
@@ -107,6 +110,10 @@ export default function App() {
         {/* The number-facts demo: public, saves nothing (D43 slice 1, S-7).
             /facts/:CODE joins it after migration 0045 is live. */}
         <Route path="/facts/demo" element={<FactsDemo />} />
+        {/* The student's ONE link, keyed by the class join code (DR-1). Not
+            RequireAuth: the route runs its own gate, like /join/:code. A join
+            code never contains the letter O, so "demo" above is never a code. */}
+        <Route path="/facts/:code" element={<FactsEntry />} />
         <Route
         path="/activities"
         element={
@@ -120,6 +127,15 @@ export default function App() {
         element={
             <RequireAuth>
             <Classes />
+            </RequireAuth>
+        }
+        />
+        {/* The teacher's number-facts page for one class (D43 slice 1, S-4). */}
+        <Route
+        path="/classes/:classId/facts"
+        element={
+            <RequireAuth>
+            <FactsTeacher />
             </RequireAuth>
         }
         />

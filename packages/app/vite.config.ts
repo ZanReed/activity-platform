@@ -143,6 +143,13 @@ function authJsDeadModules(): Plugin {
 // @activity/renderer) resolve via pnpm's symlinks — no Vite config needed
 // for those, just package.json dependencies entries with workspace:*.
 export default defineConfig({
+  // The build's commit, stamped onto each number-facts session (ER-24) so a
+  // "it didn't save" report can be tied to the code that ran. Cloudflare Pages
+  // sets CF_PAGES_COMMIT_SHA at build time; anything else is a dev build. Only
+  // the lazy facts chunk reads it.
+  define: {
+    __APP_BUILD__: JSON.stringify((process.env.CF_PAGES_COMMIT_SHA ?? 'dev').slice(0, 12)),
+  },
   plugins: [
     react(),
     tailwindcss(),

@@ -26,42 +26,84 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { BTN_PRIMARY } from '../components/AuthScreens';
 import { answerKeyFromKeyboard, displayAnswer, type AnswerKey } from './answerInput';
-import type { Modality } from './baseline';
+import type { Baselines, Modality } from './baseline';
 import { FactRun, type AttemptRecord, type ProbeItem } from './factRun';
+import { aboutMinutes } from './minutes';
 import './practice.css';
 
 const CARD = 'mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm';
 
-/** "About N minutes", at about ten seconds an item, rounded up (their item 24). */
-export function aboutMinutes(itemCount: number): string {
-    const minutes = Math.max(1, Math.ceil((itemCount * 10) / 60));
-    return `About ${minutes} minute${minutes === 1 ? '' : 's'}`;
-}
+export { aboutMinutes } from './minutes';
 
 export interface FactRunnerProps {
     items: ProbeItem[];
     ceilingS: number;
-    /** Every finished attempt, in order. The demo passes none: nothing saved. */
-    onAttempt?: (attempt: AttemptRecord) => void;
-    /** The line under the count on the done screen. */
+    /** Every finished attempt, in order, with the session's typing baselines.
+     *  The demo passes none: nothing saved. */
+    onAttempt?: (attempt: AttemptRecord, baselines: Baselines) => void;
+    /** The run reached the done screen. */
+    onDone?: () => void;
+    /** Continue a part-saved run (the entry's `resume` state). */
+    resume?: { saved: number; nextN: number; baselines: Baselines; counts: { right: number; skipped: number; not_counted: number } };
+    /** The line under the count on the done screen… */
     savedLine: string;
+    /** …or, when saving is still settling, what replaces it (DR-14). */
+    doneSlot?: ReactNode;
+    /** One quiet line under the keypad (DR-14: "Not connected. Keep going…"). */
+    notice?: string | null;
     /** The done screen's one button. */
     doneAction: { label: string; onClick: () => void };
     rng?: () => number;
 }
 
 export default function FactRunner(props: FactRunnerProps) {
-    const [run] = useState(
-        () =>
-            new FactRun({
-                items: props.items,
-                ceilingS: props.ceilingS,
-                ...(props.rng ? { rng: props.rng } : {}),
-                ...(props.onAttempt ? { onAttempt: props.onAttempt } : {}),
-            }),
-    );
+    // The callbacks are read through a ref so a parent re-render never rebuilds
+    // the run (and with it the student's progress).
+    const callbacks = useRef(props);
+    callbacks.current = props;
+    const [run] = useState(() => {
+        const holder: { run?: FactRun } = {};
+        holder.run = new FactRun({
+            items: props.items,
+            ceilingS: props.ceilingS,
+            ...(props.rng ? { rng: props.rng } : {}),
+            onAttempt: (attempt) =>
+                callbacks.current.onAttempt?.(attempt, holder.run!.baselines),
+            ...(props.resume
+                ? {
+                      resume: {
+                          index: props.resume.nextN - 1,
+                          baselines: props.resume.baselines,
+                          prior: {
+                              right: props.resume.counts.right,
+                              skipped: props.resume.counts.skipped,
+                              notCounted: props.resume.counts.not_counted,
+                          },
+                      },
+                  }
+                : {}),
+        });
+        return holder.run;
+    });
     useSyncExternalStore(run.subscribe, () => run.version);
     const phase = run.phase.kind;
+    useEffect(() => {
+        if (phase === 'done') callbacks.current.onDone?.();
+    }, [phase]);
+
+    if (phase === 'resume') {
+        return (
+            <Card title="Welcome back">
+                <p className="mt-2 text-base text-muted">
+                    You have done {props.resume?.saved ?? 0} of {run.items.length}. Your answers so
+                    far are saved.
+                </p>
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => run.proceed()} autoFocus>
+                    Keep going
+                </button>
+            </Card>
+        );
+    }
 
     if (phase === 'intro') {
         return (
@@ -118,14 +160,14 @@ export default function FactRunner(props: FactRunnerProps) {
                         left the page.
                     </p>
                 ) : null}
-                <p className="mt-2 text-base text-muted">{props.savedLine}</p>
+                {props.doneSlot ?? <p className="mt-2 text-base text-muted">{props.savedLine}</p>}
                 <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={props.doneAction.onClick} autoFocus>
                     {props.doneAction.label}
                 </button>
             </Card>
         );
     }
-    return <RunnerScreen run={run} />;
+    return <RunnerScreen run={run} notice={props.notice ?? null} />;
 }
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
@@ -139,7 +181,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 
 // ---- the warm-up and the facts --------------------------------------------------
 
-function RunnerScreen({ run }: { run: FactRun }) {
+function RunnerScreen({ run, notice }: { run: FactRun; notice: string | null }) {
     const warmup = run.phase.kind === 'warmup';
     const trial = run.currentTrial;
     const item = run.currentItem;
@@ -157,6 +199,12 @@ function RunnerScreen({ run }: { run: FactRun }) {
     // ignored with nothing on screen saying why.
     useLayoutEffect(() => {
         answerRef.current?.focus({ preventScroll: true });
+        // Mounted while the page is already hidden: nothing was seen, so no
+        // clock starts (factRun shows the Paused card and keeps this fact).
+        if (document.visibilityState === 'hidden') {
+            run.interrupt(performance.now());
+            return;
+        }
         const frame = requestAnimationFrame((t) => run.painted(t));
         const fallback = window.setTimeout(() => run.painted(performance.now()), 100);
         return () => {
@@ -258,6 +306,9 @@ function RunnerScreen({ run }: { run: FactRun }) {
                         </button>
                     </div>
                 )}
+                <p className="fx-savenote" aria-live="polite">
+                    {notice ?? ''}
+                </p>
             </div>
         </div>
     );

@@ -67,6 +67,7 @@ export interface AttemptRecord {
 
 export type Phase =
     | { kind: 'intro' }
+    | { kind: 'resume' }
     | { kind: 'warmup' }
     | { kind: 'warmupDone' }
     | { kind: 'item' }
@@ -81,6 +82,16 @@ export interface RunOptions {
     rng?: () => number;
     /** Called once per finished attempt, in order. The demo passes none. */
     onAttempt?: (attempt: AttemptRecord) => void;
+    /**
+     * Continue a run the server already holds part of (the entry's `resume`
+     * state): skip the intro and the warm-up, start at `index`, and use the
+     * baselines stored with the first save. A resume is not a restart (ER-21).
+     */
+    resume?: {
+        index: number;
+        baselines: Baselines;
+        prior: { right: number; skipped: number; notCounted: number };
+    };
 }
 
 export class FactRun {
@@ -95,6 +106,8 @@ export class FactRun {
     hint: Hint = null;
     baselines: Baselines = { keyboard: null, keypad: null };
     readonly attempts: AttemptRecord[] = [];
+
+    private prior = { right: 0, skipped: 0, notCounted: 0 };
 
     // warm-up
     private trials: WarmupTrial[] = [];
@@ -120,6 +133,14 @@ export class FactRun {
         if (this.items.some((i) => i.answer.startsWith('-'))) specials.push('minus');
         if (this.items.some((i) => i.answer.includes('.'))) specials.push('point');
         this.specials = specials;
+        if (options.resume) {
+            this.itemIndex = Math.min(Math.max(0, options.resume.index), this.items.length);
+            this.baselines = options.resume.baselines;
+            this.prior = options.resume.prior;
+            // The card comes first: an item is painted only by a student
+            // action (DR-10).
+            this.phase = { kind: 'resume' };
+        }
     }
 
     // ---- subscription (for useSyncExternalStore) -----------------------------
@@ -160,9 +181,15 @@ export class FactRun {
         this.changed();
     }
 
-    /** "Warm-up done" card → first fact; Paused card → next fact. */
+    /** "Warm-up done" card → first fact; Paused or Welcome-back card → next fact. */
     proceed(): void {
-        if (this.phase.kind !== 'warmupDone' && this.phase.kind !== 'paused') return;
+        if (
+            this.phase.kind !== 'warmupDone' &&
+            this.phase.kind !== 'paused' &&
+            this.phase.kind !== 'resume'
+        ) {
+            return;
+        }
         this.resetEntry();
         this.phase = this.itemIndex >= this.items.length ? { kind: 'done' } : { kind: 'item' };
         this.changed();
@@ -215,7 +242,17 @@ export class FactRun {
             this.trialInvalid = true;
             return;
         }
-        if (this.phase.kind !== 'item' || this.paintedAt === null) return;
+        if (this.phase.kind !== 'item') return;
+        if (this.paintedAt === null) {
+            // Hidden BEFORE this fact's clock started: the student never saw
+            // it. It is not consumed and not timed — the Paused card shows,
+            // and the same fact is painted after "Keep going". (Without this
+            // a hide in the gap after an answer was ignored, and the next
+            // fact was then timed while the student was away.)
+            this.phase = { kind: 'paused' };
+            this.changed();
+            return;
+        }
         this.finishAttempt(t, { skipped: false, interrupted: true });
         if (this.phase.kind === 'item') this.phase = { kind: 'paused' };
         this.changed();
@@ -242,9 +279,8 @@ export class FactRun {
 
     // ---- the done screen ------------------------------------------------------
     summary(): { right: number; skipped: number; notCounted: number } {
-        let right = 0;
-        let skipped = 0;
-        let notCounted = 0;
+        // A resumed run adds what the server already counted for the earlier part.
+        let { right, skipped, notCounted } = this.prior;
         for (const a of this.attempts) {
             if (a.interrupted) {
                 notCounted++;

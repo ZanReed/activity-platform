@@ -201,6 +201,26 @@ describe('the facts (the measurement, DR-10, DR-11, ER-12, ER-23)', () => {
         expect(run.currentItem!.n).toBe(2);
     });
 
+    it('a page hidden BEFORE a fact is painted pauses without consuming or timing it', () => {
+        const run = ready();
+        run.painted(0);
+        typeAll(run, '56', 'keyboard', 100);
+        run.enter('keyboard', 500);
+        // Item 2 is committed but its clock has not started when the page hides.
+        run.interrupt(520);
+        expect(run.phase.kind).toBe('paused');
+        expect(run.attempts).toHaveLength(1);
+        // A late paint callback while paused starts nothing.
+        run.painted(600);
+        expect(run.isPainted).toBe(false);
+        run.proceed();
+        expect(run.currentItem!.n).toBe(2);
+        run.painted(9000);
+        typeAll(run, '2', 'keyboard', 9100);
+        run.enter('keyboard', 9800);
+        expect(run.attempts[1]).toMatchObject({ n: 2, interrupted: false, rtMs: 800 });
+    });
+
     it('"Stuck? Skip is fine." at the ceiling on NET time (CR-11)', () => {
         const run = ready();
         // keyboard baseline: 200 ms a keystroke; nothing typed = 1 keystroke (Enter)

@@ -1844,23 +1844,23 @@ order allows it (after B14 and the Y7 geometry figures, subject to A3).
   - Surfaced by: ER-13
   - Files: `scripts/batch-import.mjs`
   - Verify: a dry run prints the revision and the fact count; a second run of one revision changes nothing
-- [ ] **T5 (P1, human: ~3 days / CC: ~1.5 h)** — app — the runner: clock, guard, skip, interruption, modality, baseline, save queue, resume
+- [x] **T5 (BUILT 2026-10-05) (P1, human: ~3 days / CC: ~1.5 h)** — app — the runner: clock, guard, skip, interruption, modality, baseline, save queue, resume
   - Surfaced by: ER-12, ER-19, ER-20, ER-23
   - Files: `packages/app/src/` (a practice folder, lazy)
   - Verify: unit tests on a fake clock
-- [ ] **T6 (P1, human: ~1 day / CC: ~30 min)** — app — the probe route and its entry states
+- [x] **T6 (BUILT 2026-10-05) (P1, human: ~1 day / CC: ~30 min)** — app — the probe route and its entry states
   - Surfaced by: ER-15
   - Files: `packages/app/src/App.tsx`, `packages/app/src/routes/`
   - Verify: student e2e lane; perf budget with no cap raised
-- [ ] **T7 (P1, human: ~2 days / CC: ~1 h)** — app — the teacher panel: open with a year, results by polling, close
+- [x] **T7 (BUILT 2026-10-05) (P1, human: ~2 days / CC: ~1 h)** — app — the teacher panel: open with a year, results by polling, close
   - Surfaced by: ER-9, ER-14
   - Files: `packages/app/src/routes/Classes.tsx` and beside it
   - Verify: e2e open, poll, close, verdict equals the snapshot
-- [ ] **T8 (P2, human: ~4 h / CC: ~20 min)** — app — the preview route and its zero-request assertion
+- [x] **T8 (BUILT 2026-10-05) (P2, human: ~4 h / CC: ~20 min)** — app — the preview route and its zero-request assertion
   - Surfaced by: X2, the preview "owner must prove" row
   - Files: `packages/app/src/routes/`, `packages/app/e2e/`
   - Verify: the e2e assertion
-- [ ] **T9 (database half BUILT in 0045; the results screen remains) (P2, human: ~4 h / CC: ~20 min)** — database and app — the grouping (UNBLOCKED: ruled by the curriculum side's item 13; one per student, CR-6 to CR-8)
+- [x] **T9 (BUILT 2026-10-05) (P2, human: ~4 h / CC: ~20 min)** — database and app — the grouping (UNBLOCKED: ruled by the curriculum side's item 13; one per student, CR-6 to CR-8)
   - Surfaced by: ER-4, ER-5
   - Files: `supabase/migrations/`, the results screen
   - Verify: verify-script fixtures for each group, including `unjudged`
@@ -2461,6 +2461,52 @@ it, which is the point of ER-16); removed members left in the class numbers
 Compliance in the same commit: data-map `draft-12`, retention-policy
 `draft-10`, and counsel question **Q11** (ruling A2: it reaches counsel
 before this migration is applied live).
+
+### The student link and the teacher's page, as built (S-7 step 3, 2026-10-05)
+
+Pushed only after 0045 was applied live (OV-7). `routes/FactsEntry.tsx`
+(`/facts/:code`), `routes/FactsTeacher.tsx` (`/classes/:classId/facts`),
+`practice/saveQueue.ts`, `lib/factProbe.ts`; all lazy, with the teacher's
+styles in their own chunk. Shell JS 153.4 → 153.9 KiB (route registration
+only; none of this code is in the entry chunk), shell CSS unchanged.
+
+Choices made while building, inside the rulings:
+- **A run on screen is never torn down** by anything but the student's own
+  sign-out: not a role re-read (which really happens after a pending account
+  joins), not a second entry read. The entry is re-read only from a card or
+  the waiting room. (`FactsEntry.test.tsx` forces a role re-read mid-run.)
+- **A page hidden BEFORE a fact is painted** pauses without consuming or
+  timing that fact; the same fact is shown after "Keep going". Found by an
+  e2e row: a hide in the gap after an answer was ignored, and the next fact
+  was then timed while the student was away.
+- **Nothing stays on the device once a run is saved.** The queue used to
+  leave a "finished" marker in sessionStorage; the e2e row that reads storage
+  caught it.
+- **After a close, the page shows that snapshot's results** (it used to drop
+  back to the open screen, because the refreshed overview no longer had an
+  open snapshot).
+- **"Number facts" on the class card is a link**, not a disclosure that
+  loads inside the card (DR-17 said disclosure): the page it opens is where
+  the year list, the live view and the history live, and a disclosure would
+  have made the Classes page fetch an overview per class.
+- **The app build** stamped on each session (ER-24) is the deploy's commit
+  (`CF_PAGES_COMMIT_SHA`, first 12 characters), or `dev`.
+- **The verdict's variant** is carried by the whole border's style (solid,
+  double, dashed) with an icon and words — the repo's callout convention.
+
+Guards: `saveQueue.test.ts` (7), `FactsEntry.test.tsx` (3),
+`FactsTeacher.test.tsx` (13), `e2e/student/facts-entry.e2e.ts` (9 rows: each
+entry state, join-then-start from one link, save after every item with the
+server's field names, reload and resume, closed under the student, failing
+saves, tab return), `e2e/student/facts-teacher.e2e.ts` (the teacher's whole
+walk), and three axe rows. Mutations, each red then restored: the run not
+protected from the role gate; group names shown without being asked; a closed
+snapshot still polling; the queue dropping what arrived during a save; a year
+picked by default.
+
+NOT built, each filed in TODOS: DR-4's second step ("See what your teacher
+sees (demo data)", task D5); a real-backend row in the local integration
+lane; the device checks (T11, D6), which are the author's.
 
 ## GSTACK REVIEW REPORT
 

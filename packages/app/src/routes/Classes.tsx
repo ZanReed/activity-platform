@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Link } from 'react-router';
 import { useSession } from '../lib/SessionContext';
 import ClassActivitiesPanel, {
     useTeacherClassActivities,
@@ -561,6 +562,14 @@ function ClassCard({
         >
         Activities ({activityCount})
         </button>
+        {/* The number-facts snapshot lives on its own lazy page (D43 slice 1,
+            DR-17 / S-4): its live view goes on a projector. */}
+        <Link
+        to={`/classes/${info.id}/facts`}
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+        >
+        Number facts
+        </Link>
         <button
         type="button"
         onClick={handleDelete}

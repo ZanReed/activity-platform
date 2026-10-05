@@ -1,0 +1,288 @@
+/* =============================================================================
+   factsTeacher.css — the teacher's number-facts page (D43 slice 1; DR-17–DR-22)
+   -----------------------------------------------------------------------------
+   Imported by the LAZY teacher route only, so none of it is shell CSS (about
+   200 bytes of shell CSS remain; CLAUDE.md constraint). `ft-` classes, the
+   app's colour tokens. The verdict uses an icon and words, never colour alone
+   (DR-21).
+   ========================================================================== */
+
+.ft-page {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  min-height: 100vh;
+}
+
+.ft-wrap {
+  margin: 0 auto;
+  max-width: 56rem;
+  padding: 24px 16px 64px;
+}
+
+.ft-crumb {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.ft-crumb a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ft-h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 4px 0 0;
+}
+
+.ft-panel {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  margin-top: 16px;
+  padding: 20px;
+}
+
+.ft-panel h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.ft-muted {
+  color: var(--color-muted);
+}
+
+.ft-small {
+  font-size: 14px;
+}
+
+.ft-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ft-btn,
+.ft-btn-primary {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 6px;
+  color: var(--color-strong);
+  cursor: pointer;
+  display: inline-block;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  min-height: 44px;
+  padding: 10px 16px;
+  text-decoration: none;
+}
+
+.ft-btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.ft-btn:disabled,
+.ft-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ft-btn:focus-visible,
+.ft-btn-primary:focus-visible,
+.ft-link:focus-visible,
+.ft-year:focus-within {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.ft-link {
+  background: none;
+  border: 0;
+  color: var(--color-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 8px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The year list: one line per year, nothing picked by default (DR-18). */
+.ft-year {
+  align-items: flex-start;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+
+.ft-year[data-picked] {
+  border-color: var(--color-ink);
+}
+
+.ft-year input {
+  margin-top: 4px;
+}
+
+/* The link, large: it is typed from the board (DR-19). */
+.ft-linkbig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.ft-counts {
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The projector view: only the link and the counts (DR-19). */
+.ft-projector {
+  align-items: center;
+  background: var(--color-canvas);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  inset: 0;
+  justify-content: center;
+  padding: 32px;
+  position: fixed;
+  text-align: center;
+  z-index: 50;
+}
+
+.ft-projector .ft-linkbig {
+  font-size: clamp(2rem, 8vw, 5rem);
+}
+
+.ft-projector .ft-counts {
+  font-size: clamp(1.25rem, 3vw, 2rem);
+}
+
+/* The verdict's variant is carried by the WHOLE border's style — the repo's
+   callout convention (solid / double / dashed survive greyscale and print) —
+   plus an icon and words. No colour-only signal, no side accent. */
+.ft-verdict {
+  border: 2px solid var(--color-line-strong);
+  border-radius: 8px;
+  margin-top: 16px;
+  padding: 20px;
+}
+
+.ft-verdict[data-verdict='below'] {
+  border-style: double;
+  border-width: 4px;
+}
+
+.ft-verdict[data-verdict='not_enough'] {
+  border-style: dashed;
+}
+
+.ft-verdict-head {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ft-groups {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.ft-group {
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.ft-group h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ft-group ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.ft-tablewrap {
+  overflow-x: auto;
+}
+
+.ft-table {
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.ft-table th,
+.ft-table td {
+  border-bottom: 1px solid var(--color-line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ft-table th {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.ft-table .ft-num {
+  text-align: right;
+}
+
+.ft-fams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ft-dialog-backdrop {
+  align-items: center;
+  background: rgb(0 0 0 / 0.4);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 16px;
+  position: fixed;
+  z-index: 60;
+}
+
+.ft-dialog {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 8px;
+  max-width: 26rem;
+  padding: 20px;
+  width: 100%;
+}
+
+.ft-note {
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+}

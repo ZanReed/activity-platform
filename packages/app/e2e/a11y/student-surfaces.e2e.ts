@@ -32,6 +32,7 @@ import {
   stubIdentityApi,
 } from '../helpers/studentSession';
 import { LANDING_COPY } from '../../src/lib/authMessages';
+import { FT_CLASS_ID, stubFactsTeacherApi } from '../helpers/factsTeacherStub';
 
 // The lazy tier renders NOTHING — not even its own markers — until the chunk
 // resolves, so a wait that counts those markers first is a no-op that scans the
@@ -685,5 +686,34 @@ test.describe('the number-facts runner', () => {
       return `${s.outlineStyle} ${s.outlineWidth}`;
     });
     expect(ring).toBe('solid 2px');
+  });
+});
+
+// ---- the teacher's number-facts page (D43 slice 1) ---------------------------
+// Not a student surface, but it shares this lane's account-free server, and it
+// carries a dialog, a disclosure pattern and a data table — the three things
+// most likely to fail an audit. Open, live (with the close dialog up) and
+// results (every disclosure open) are each scanned.
+test.describe('the teacher number-facts page', () => {
+  test('open, live with the close dialog, and results have no axe violations', async ({ page }) => {
+    await stubIdentityApi(page, { role: 'teacher' });
+    await signInAs(page);
+    await stubFactsTeacherApi(page);
+    await page.goto(`/classes/${FT_CLASS_ID}/facts`);
+    await page.locator('.ft-year').first().waitFor();
+    await expectNoAxeViolations(page);
+
+    await page.getByRole('radio', { name: /Facts up to Year 8/ }).check();
+    await page.getByRole('button', { name: 'Open the snapshot' }).click();
+    await page.locator('.ft-linkbig').waitFor();
+    await page.getByRole('button', { name: 'Close the snapshot…' }).click();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await page.getByRole('button', { name: 'Close it' }).click();
+    await page.locator('.ft-verdict').waitFor();
+    await page.getByRole('button', { name: 'Show names' }).click();
+    await page.getByRole('button', { name: 'Show students' }).click();
+    await expectNoAxeViolations(page);
   });
 });
