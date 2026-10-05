@@ -239,6 +239,12 @@ mechanical holds it back except that no job calls it (verify-0048's
 7. After the first armed night: read the `fact_practice.prune` audit rows
    against the dry-run report of the day before.
 
+## IN PROGRESS — the sprint (D43 slice 2), design ruled 2026-10-06
+
+Rulings SP-1 to SP-14 and the build slices: practice-blocks.md → "Slice 2,
+the sprint: design pass". Waiting on the curriculum side for the graph-key
+NAMES (B-83); then slice 1 of 4 (importer + mirror migration + go-ahead).
+
 ## The sprint's bar is 9 of 10 (author ruling SB-1/SB-2, 2026-10-06)
 
 The check stays at 80%; the sprint uses 85% on its window of 10, both bars

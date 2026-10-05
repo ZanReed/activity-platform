@@ -2729,6 +2729,86 @@ our go-ahead. The importer refuses an unknown key, and the mirror stores and
 compares every field, so a revision mirrored before the mirror can hold the
 key could never gain it: the importer and a mirror migration come first.
 
+### Slice 2, the sprint: design pass — ruled by the author 2026-10-06
+
+**The gate.** The author placed the first classes as MIXED, Years 7–10, and
+lifted the gate's legal conditions (the under-13 arc shipped, counsel Q4
+answered) for this design and build. Read narrowly: it lifts the hold on
+this work; it changes nothing about who can sign in or the per-class 13+
+assertion. The SKETCH above ("Slice 2: the fluency sprint") is superseded by
+this section wherever they differ; its "students are grouped as a whole" and
+its 90% died with F-1 and SB-2.
+
+**Re-derived against the shipped code and their main (`c6f2fbd`), P10.**
+- A `practice_sessions` row must belong to a check today (`probe_id NOT
+  NULL`, one per check and student), and `save_fact_attempts` takes
+  `fact_id`, `shown` and `correct` from the check's item list. A sprint
+  session needs its own shape, with ER-6 kept: the server picks the facts
+  and derives correctness.
+- The runner (`factRun.ts`, `FactRunner.tsx`) takes an item list and a save
+  port and imports nothing of the check. Its copy, its always-on warm-up,
+  its one pass and its no-feedback rule are the check's.
+- `practice_window` and each family's `strategy` are mirrored and read by
+  nothing. `sprint_max_misses` is agreed and not yet in their graph.
+- Home is in the shell; the facts routes are lazy and no budget pins them.
+
+**Platform rulings (the author, four numbered questions).**
+
+| # | Ruling |
+|---|---|
+| SP-1 | A student reaches practice at the class link `/facts/:CODE` (an open check first, otherwise today's practice), plus one text link under the class on Home. The Home link is measured; stop and ask before shell JS passes 156.5 KiB. |
+| SP-2 | The teacher switches the sprint on or off for a class at any time once the class has one closed check. The results screen recommends it below the floor; the teacher decides. The sprint's year level is that of the class's latest closed check. |
+| SP-3 | The practice record is removed with the year: sprint attempts and anything derived from them follow RP-1/RP-3 (removable 30 days after the class's end date). Nothing about a student is kept past the year; next year starts from a new check. This closes premise 5's "kept as its last value" and RP-4's deferred summary: there is none. |
+| SP-4 | The teacher sees, on the class's number-facts page: how many practised today and this week; per fact family, how many students are in strategy, practising or fluent in practice; then each student (names behind "Show students") with days practised and families by state. No ranking, no times. |
+
+**Pedagogy rulings (the author, on the curriculum side's C-65 to B-82;
+quote THEIR decision log once it lands, not this table).**
+
+| # | Ruling |
+|---|---|
+| SP-5 | **Steps.** Each fact has a step 0–5 derived from its attempt log, never stored as a judgment. `met` moves it up one, at most one step per practice day. Wrong, skipped or timed out sends it to 0. `slow` leaves it. Interrupted and unjudged change nothing. Step 0 is asked every session; steps 1–5 return after 1, 2, 4, 8, 16 practice days. Mastered = step 2 or higher. The drop to 0 is a value to recalibrate against classroom data. |
+| SP-6 | **The check seeds the log.** A fact `met` on the check starts at step 1, any other counted outcome at 0; a fact the check did not ask is unseen. |
+| SP-7 | **Unseen facts.** At most 5 new facts a session across all families, in the registry's fact order. In a family the student was FLUENT in on the check, unseen facts enter at step 2 with first due dates spread across that step's interval, still under the cap. |
+| SP-8 | **Strategy, per family and student.** NEEDS STRATEGY: strategy mode, the strategy shown before the family's facts each session, until the accuracy bar is met (at most `sprint_max_misses` not correct in the last `practice_window` attempts). SLOW: the strategy shown once, then practice. FLUENT: reviews only. NOT JUDGED: as SLOW, and if its first full window fails the accuracy bar it enters strategy mode then. |
+| SP-9 | **Strategy mode changes no timing or scoring.** The card can be reopened from any fact of that family, and from the miss screen; time with it open is not counted (the attempt is interrupted). |
+| SP-10 | **The fluency bar** (at most one not quick and right in the window) names a family "fluent in practice" on the teacher's screen and moves it out of the working pair. It does not touch per-fact steps; the family's facts keep their own schedule. |
+| SP-11 | **Feedback.** After a wrong or skipped answer the fact stays up with the correct answer until Enter (not counted). After a right answer, straight on. A missed fact returns once, at least three facts later; the repeat is recorded and raises nothing that day. |
+| SP-12 | **Sessions.** 5 minutes of facts, no visible clock: when they have passed, the fact on screen is the last. Ends early when nothing is due. One session a practice day counts; later ones are recorded and raise no step. |
+| SP-13 | **Order.** Due reviews first. Then at most 2 working families: NEEDS STRATEGY before SLOW, and within each in `family_groups` order then the group's family order. |
+| SP-14 | **Personal best.** The done screen shows "Quick and right today: N" and, when it is the highest, "Your best so far." No times, no rates, no comparison. |
+
+Every number above (intervals, mastered step, new-fact cap, working
+families, minutes, re-ask gap) becomes a curriculum graph key, named with
+them before their PR; no platform constant (their item 15).
+
+**Architecture (the platform's, no ruling needed).**
+- *The server chooses and judges.* `start_fact_sprint(code)` derives the
+  student's fact states from the log, builds today's list (reviews, then
+  working families, the new-fact cap) and stores it on a session row; the
+  save derives correctness from that row, as the check's does. A re-ask is a
+  second slot the client requests by item number; the server refuses one for
+  an item that was not missed.
+- *Stored facts, derived state (ER-7).* Steps, family states, the two bars
+  and the personal best are computed by one SQL function from attempts. No
+  `fact_mastery` table: SP-3 removed the reason for one.
+- *Parameters fixed per session.* The registry revision and the sprint's
+  values are copied onto the session at start, as a check copies its own.
+- *The practice day* is the class teacher's `users.timezone` (0036), else
+  the platform default.
+- *Baselines.* A sprint session reuses the student's most recent baseline
+  per input method in that class; the warm-up runs only when there is none.
+- *Retention.* Sprint sessions carry `keep_until` from the class's end date
+  at the time of the session, with RP-8's backstop; `prune_fact_practice`
+  gains them. `purge_soft_deleted` already deletes by student.
+- *Shell.* Everything is in the lazy facts chunks except SP-1's Home link.
+
+**Build slices, in order.** (1) The registry's sprint keys: importer and a
+mirror migration, then the go-ahead letter to the curriculum side. (2) The
+engine: tables, the state function, start and save, verify script,
+compliance pack. (3) The student's sprint: runner changes (feedback, re-ask,
+time box, strategy card), entry, Home link. (4) The teacher's switch and
+progress view. Each slice: migration applied before the page that calls it.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

@@ -247,7 +247,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-06 — the number-facts prune is BUILT, LIVE and DISARMED (migration 0048 applied and read back; the teacher's page asks for the class's school-year end). The full live verify is green (250 rows). NEXT: the author tests the end-date step on the live page. Still his: device checks (T11/D6), counsel's answer to Q11 (sent 2026-10-06; Q11(b) gates arming), the year-level placement by 1 November 2026. Fired and unranked: the integration-lane row for the check (TODOS). Behind gates: arming the prune, the sprint (slice 2), mixed practice.
+**Last updated:** 2026-10-06 — (1) The number-facts prune is BUILT, LIVE and DISARMED (0048; full live verify green, 250 rows). (2) THE SPRINT (D43 slice 2) is IN DESIGN-RULED state: the author placed the first classes as mixed Years 7–10, lifted the gate's legal conditions for this work, and ruled SP-1 to SP-14 ([practice-blocks.md](docs/design/practice-blocks.md) → "Slice 2, the sprint: design pass"). NEXT: the curriculum side names the sprint's graph keys (B-83), then build slice 1 of 4 (importer + mirror migration + the go-ahead letter). Still the author's: the end-date test on the live page, device checks (T11/D6), counsel's answer to Q11. Fired and unranked: the integration-lane row (TODOS). Behind gates: arming the prune, mixed practice.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
