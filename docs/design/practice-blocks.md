@@ -2713,9 +2713,21 @@ in his direction (80% allows two misses, 85% one).
 
 Not built: slice 2 is behind its gate. The thresholds are curriculum-owned
 graph keys, and today one pair serves the check and the sprint, so SB-2
-needs a sprint-specific key on their side; relayed as B-79. It also meets
-their item 17 (a family stays in strategy mode until 90% accuracy in
-practice), which is theirs to reconcile.
+needs a sprint-specific key on their side; relayed as B-79.
+
+**Agreed with the curriculum side (C-63 / B-80, 2026-10-06).** The key
+encodes the intent, not a ratio: `fact_probe.sprint_max_misses` (an integer
+≥ 0, value 1), emitted at `body.fact_probe` in the registry. Over the last
+`practice_window` attempts on a family, the accuracy bar is met when at most
+that many answers are not correct (wrong, skipped or past the ceiling), and
+the fluency bar when at most that many are not quick and right. One key
+serves both bars. CORRECTION to B-79: their item 17's 90% was already
+superseded on their main by item 4 of "D43 amendment (2026-10-05)" (the
+practice exit shared `accuracy_threshold`, 0.8); they record SB-1 and SB-2
+as a new dated amendment over that item. ORDER: their registry PR waits for
+our go-ahead. The importer refuses an unknown key, and the mirror stores and
+compares every field, so a revision mirrored before the mirror can hold the
+key could never gain it: the importer and a mirror migration come first.
 
 ## GSTACK REVIEW REPORT
 

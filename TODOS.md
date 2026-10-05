@@ -243,8 +243,13 @@ mechanical holds it back except that no job calls it (verify-0048's
 
 The check stays at 80%; the sprint uses 85% on its window of 10, both bars
 (practice-blocks.md → "The sprint's bar"). **Trigger: the slice 2 design
-pass.** Needs a sprint-specific threshold key from the curriculum side
-(asked in B-79) and their reconciliation with item 17's 90%.
+pass.** The key is AGREED (C-63 / B-80): `fact_probe.sprint_max_misses`,
+integer, value 1. **Before their registry PR can merge, this side teaches it:**
+`lib/factScope.ts` accepts the key, and a migration adds a nullable
+`fact_scope_revision.sprint_max_misses`, stored and compared by
+`sync_fact_scope` (0047's pattern, its `schema` number bumped so an old
+function cannot drop it silently). Then send the go-ahead letter. They hold
+the PR until then; their decision-log amendment may land sooner.
 
 ## Number-facts: a per-student summary and calibration data after the prune (RP-4, 2026-10-06)
 
