@@ -279,3 +279,34 @@ test('returning to the tab pauses the fact but never re-reads the entry or rebui
   // The interrupted fact (item 2) is not asked again: item 3 is next.
   await expect(page.locator('.fx-expr')).toHaveText('12² = __');
 });
+
+test('a two-part check stops for a break after Part 1 and starts Part 2 only when asked', async ({ page }) => {
+  test.setTimeout(90_000);
+  await stubIdentityApi(page, { role: 'student' });
+  await signInAs(page);
+  const items = [
+    { ...ITEMS[0]!, part: 1 },
+    { ...ITEMS[1]!, part: 1 },
+    { ...ITEMS[2]!, part: 2 },
+  ];
+  const api = await backend(page, { ...ready, items });
+  await page.goto(`/facts/${CODE}`);
+  await expect(page.getByText('Two parts, with a break between them. Part 1 is about 1 minute.')).toBeVisible();
+  await warmUp(page);
+  await answer(page, '56');
+  await answer(page, '54');
+  // The break: no fact, no keypad, and Part 1's answers are already saved.
+  await expect(page.getByRole('heading', { name: 'Part 1 done' })).toBeVisible();
+  await expect(page.getByText(/come back to this page another day/)).toBeVisible();
+  await expect(page.locator('.fx-pad')).toHaveCount(0);
+  await expect.poll(() => api.saves.flatMap((s) => s.p_attempts.map((a) => a.n)).sort()).toEqual([1, 2]);
+  expect(api.saves.some((s) => s.p_finished)).toBe(false);
+  // It waits: nothing starts by itself.
+  await page.waitForTimeout(800);
+  await expect(page.getByRole('heading', { name: 'Part 1 done' })).toBeVisible();
+  await page.getByRole('button', { name: 'Start Part 2' }).click();
+  await expect(page.locator('.fx-expr')).toHaveText('12² = __');
+  await answer(page, '144');
+  await expect(page.getByRole('heading', { name: 'All done' })).toBeVisible();
+  await expect(page.getByText('You got 3 right.')).toBeVisible();
+});

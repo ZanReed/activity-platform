@@ -245,3 +245,78 @@ describe('the facts (the measurement, DR-10, DR-11, ER-12, ER-23)', () => {
         expect(run.summary()).toEqual({ right: 1, skipped: 1, notCounted: 0 });
     });
 });
+
+describe('a two-part check (migration 0047)', () => {
+    const TWO: ProbeItem[] = [
+        { n: 1, display: '7 × 8 = __', spoken: 'seven times eight', answer: '56', part: 1 },
+        { n: 2, display: '9 × 6 = __', spoken: 'nine times six', answer: '54', part: 1 },
+        { n: 3, display: '3/4 = __ %', spoken: 'three quarters as a percentage', answer: '75', part: 2 },
+        { n: 4, display: '−3 − 8 = __', spoken: 'negative three minus eight', answer: '-11', part: 2 },
+        { n: 5, display: '1 cm = __ mm', spoken: 'one centimetre is how many millimetres', answer: '10', part: 2 },
+    ];
+    function ready() {
+        const run = new FactRun({ items: TWO, ceilingS: 15, rng: seeded() });
+        warmUp(run, 'keyboard', 200);
+        run.proceed();
+        return run;
+    }
+    const answer = (run: FactRun, text: string, t: number) => {
+        run.painted(t);
+        typeAll(run, text, 'keyboard', t + 100);
+        run.enter('keyboard', t + 500);
+    };
+
+    it('knows its parts, and one-part lists are unchanged', () => {
+        const run = ready();
+        expect(run.partCount).toBe(2);
+        expect([run.partSize(1), run.partSize(2)]).toEqual([2, 3]);
+        expect(new FactRun({ items: ITEMS, ceilingS: 15 }).partCount).toBe(1);
+    });
+
+    it('stops for a break after the last fact of Part 1 and starts Part 2 only on request', () => {
+        const run = ready();
+        expect(run.progress).toEqual({ done: 0, total: 2 });
+        answer(run, '56', 0);
+        expect(run.phase.kind).toBe('item');
+        expect(run.progress).toEqual({ done: 1, total: 2 });
+        answer(run, '54', 1000);
+        expect(run.phase.kind).toBe('partBreak');
+        expect(run.currentPart).toBe(2);
+        // Nothing is painted or timed during the break.
+        run.painted(50_000);
+        expect(run.isPainted).toBe(false);
+        expect(run.attempts).toHaveLength(2);
+        run.proceed();
+        expect(run.phase.kind).toBe('item');
+        expect(run.currentItem!.n).toBe(3);
+        // The bar starts again for Part 2.
+        expect(run.progress).toEqual({ done: 0, total: 3 });
+        // The break is not counted in the next fact's time.
+        answer(run, '75', 900_000);
+        expect(run.attempts[2]).toMatchObject({ n: 3, rtMs: 500 });
+    });
+
+    it('an interruption on the last fact of Part 1 shows Paused, then the break', () => {
+        const run = ready();
+        answer(run, '56', 0);
+        run.painted(1000);
+        run.interrupt(2000);
+        expect(run.phase.kind).toBe('paused');
+        run.proceed();
+        expect(run.phase.kind).toBe('partBreak');
+        run.proceed();
+        expect(run.currentItem!.n).toBe(3);
+    });
+
+    it('runs through Part 2 to the done screen, counting both parts', () => {
+        const run = ready();
+        answer(run, '56', 0);
+        answer(run, '54', 1000);
+        run.proceed();
+        answer(run, '75', 5000);
+        answer(run, '-11', 6000);
+        answer(run, '10', 7000);
+        expect(run.phase.kind).toBe('done');
+        expect(run.summary()).toEqual({ right: 5, skipped: 0, notCounted: 0 });
+    });
+});

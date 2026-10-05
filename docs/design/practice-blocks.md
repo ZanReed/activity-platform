@@ -2570,11 +2570,57 @@ guesses). Mutations, each red then restored: the not-judged floor removed;
 speed checked before accuracy; a timeout counted as right in a family; names
 in the family table shown unasked; a pre-0046 "not met" guessed as slow.
 
-**Open: a two-part check for the long years** (the author's ruling of the
-same day: families split across two parts, more questions per family, one
-check with a break between, only when long). The curriculum side's proposal
-(C-58) needs new registry fields; it goes to the author as numbered options
-before anything is built.
+### A two-part check for the long years — ruled by the author 2026-10-05
+
+After running the Year 10 check (65 facts in one sitting) the author said:
+"for grade 10 the test becomes very lengthy and overwhelming I think it might
+be good to have a part 1 and a part 2 ... allowing students to have a break in
+between or break it apart in separate days". Ruled as numbered choices, then
+"yes to all 4" on the curriculum side's proposal (their C-58; recorded there
+as "D43 amendment (2026-10-05, second)" — quote their log, not this):
+
+| # | Ruling |
+|---|---|
+| T-1 | **The families are split across two parts, with more questions per family.** |
+| T-2 | **One check, a break between parts**: opened once; after Part 1 the student takes a break and does Part 2 then or on another day. One class verdict, one floor. |
+| T-3 | **Only the long years**: a check whose single-part length would exceed 40 facts. |
+| T-4 | **The cut is by related families**: Part 1 = times tables + squares, cubes and roots; Part 2 = fractions, decimals, percentages and units + integers. |
+| T-5 | **8 questions a family** in a two-part check; a family with fewer facts stays at its fact count. Year 7: 40 (one part). Year 8: 82 (42 + 40). Years 9–10: 98 (42 + 56). |
+| T-6 | **That length is accepted with the break**; no more than 8 a family. |
+
+Platform definitions under it (B-73 a–g, accepted in their amendment): the
+split is decided at open from the single-part length; weights are ignored in
+a two-part check; a family's part is the part whose groups contain it, and
+facts are interleaved within a part; the "not judged" minimum stays 5 (or the
+fact count); one verdict against a floor from all the items; a year whose
+scope leaves a part empty stays single-part; the typing warm-up runs once and
+Part 2 reuses the stored baseline, also on another day or device.
+
+**As built.** Migration 0047 (`verify-0047.sql`): four nullable columns on
+`fact_scope_revision` (the two settings, `family_groups`, `probe_parts`; all
+or none); `sync_fact_scope` stores and compares them and answers `schema: 2`;
+`fact_probe_allocate` returns each family's part and count; `open_fact_probe`
+orders Part 1 before Part 2 and stamps each item's `part`; the entry and the
+overview return the parts. A revision without the settings, and a check
+opened before 0047, behave as before. The importer learns the fields
+(`factScope.ts`: every family in exactly one group, every group in exactly
+one of exactly two parts), reports parts in its dry run, and REFUSES to mirror
+a two-part registry through a mirror function that predates 0047 — the old
+function would have dropped the settings silently. The runner: the intro says
+"Two parts, with a break between them. Part 1 is about N minutes."; after the
+last fact of Part 1 a card ("Part 1 done. Take a break. … come back to this
+page another day.") waits for "Start Part 2"; nothing is painted or timed
+during the break; the progress bar fills per part; an interruption on Part
+1's last fact shows Paused, then the break. The teacher's year list says "98
+facts in two parts (42 + 56), each about 10 minutes or less, with a break
+between". Their branch file (PR #37, revision `d0144e8d…`) was verified
+through the importer AND through the database's allocation on the local
+stack before the no-hold (B-74).
+
+Mutations, each red then restored: the threshold ignored; the short family
+not capped; parts not ordered; a changed part cut ignored by the mirror's
+comparison; no break between the parts; the break lost after an interruption;
+the bar counting the whole check.
 
 ## GSTACK REVIEW REPORT
 

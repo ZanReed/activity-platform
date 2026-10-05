@@ -87,6 +87,18 @@ export function yearLine(y: YearOption): string {
     return `adds ${y.adds.join(', ')}`;
 }
 
+/** "40 facts, about 7 minutes" or "82 facts in two parts (42 + 40), each
+ *  about 7 minutes, with a break between" (a long check, migration 0047). */
+export function yearLength(y: YearOption): string {
+    const parts = y.parts ?? [];
+    if (parts.length < 2) return `${y.items} facts, ${aboutMinutes(y.items).toLowerCase()}`;
+    const longest = Math.max(...parts);
+    return (
+        `${y.items} facts in two parts (${parts.join(' + ')}), each ` +
+        `${aboutMinutes(longest).toLowerCase()} or less, with a break between`
+    );
+}
+
 export function verdictHead(c: ClassStat): string {
     if (c.verdict === 'not_enough') return 'Not enough results to judge the class.';
     if (c.verdict === 'below') return 'This class is below the fluency floor.';
@@ -244,7 +256,7 @@ function OpenScreen({
                                 <span>
                                     <strong>Facts up to Year {y.year}</strong>
                                     <span className="ft-muted ft-small" style={{ display: 'block' }}>
-                                        {yearLine(y)}. {y.items} facts, {aboutMinutes(y.items).toLowerCase()}.
+                                        {yearLine(y)}. {yearLength(y)}.
                                     </span>
                                 </span>
                             </label>

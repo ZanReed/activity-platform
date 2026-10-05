@@ -161,6 +161,8 @@ export interface YearOption {
     adds: string[];
     families: number;
     items: number;
+    /** Facts per part since migration 0047: [40], or [42, 40] for two parts. */
+    parts?: number[];
 }
 
 export interface ProbeSummary {

@@ -22,7 +22,7 @@ vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
 
-import FactsTeacher, { familySummary, LIVE_POLL_MS, yearLine } from '../routes/FactsTeacher';
+import FactsTeacher, { familySummary, LIVE_POLL_MS, yearLength, yearLine } from '../routes/FactsTeacher';
 
 const student = (i: number, extra: Partial<StudentRow> = {}): StudentRow => ({
     student_id: `s${i}`,
@@ -116,6 +116,15 @@ describe('opening a snapshot', () => {
     it('composes a year line when the registry gives none', () => {
         expect(yearLine({ year: 9, description: null, adds: ['Multiplying integers', 'Dividing integers'], families: 13, items: 65 }))
             .toBe('adds Multiplying integers, Dividing integers');
+    });
+
+    it('a long year says it runs in two parts, with each part\'s size (migration 0047)', () => {
+        expect(yearLength({ year: 7, description: null, adds: [], families: 8, items: 40, parts: [40] })).toBe('40 facts, about 7 minutes');
+        expect(yearLength({ year: 10, description: null, adds: [], families: 13, items: 98, parts: [42, 56] })).toBe(
+            '98 facts in two parts (42 + 56), each about 10 minutes or less, with a break between',
+        );
+        // A database without 0047 sends no `parts`.
+        expect(yearLength({ year: 8, description: null, adds: [], families: 11, items: 55 })).toBe('55 facts, about 10 minutes');
     });
 
     it('says what to do when the fact lists are not loaded', async () => {

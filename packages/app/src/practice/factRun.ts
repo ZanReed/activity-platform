@@ -51,6 +51,8 @@ export interface ProbeItem {
     display: string;
     spoken: string;
     answer: string;
+    /** 1 or 2 in a two-part check (migration 0047); absent means one part. */
+    part?: number;
 }
 
 /** What the runner hands the save port: the client's FACTS about an attempt.
@@ -72,6 +74,9 @@ export type Phase =
     | { kind: 'warmupDone' }
     | { kind: 'item' }
     | { kind: 'paused' }
+    /** Between the parts of a two-part check: a break, then Part 2 on the
+     *  student's own action — now, or on another day (the run resumes). */
+    | { kind: 'partBreak' }
     | { kind: 'done' };
 
 export type Hint = null | 'empty' | 'stuck' | { retype: string };
@@ -108,6 +113,7 @@ export class FactRun {
     readonly attempts: AttemptRecord[] = [];
 
     private prior = { right: 0, skipped: 0, notCounted: 0 };
+    private breakPending = false;
 
     // warm-up
     private trials: WarmupTrial[] = [];
@@ -161,9 +167,25 @@ export class FactRun {
     get currentItem(): ProbeItem | null {
         return this.phase.kind === 'item' ? this.items[this.itemIndex] ?? null : null;
     }
-    /** Items left to ask, for the progress bar (interrupted ones are not re-asked). */
+    /** How many parts this check has (1 or 2). */
+    get partCount(): number {
+        return new Set(this.items.map((i) => i.part ?? 1)).size;
+    }
+    /** The part the next item belongs to (or the last item's, at the end). */
+    get currentPart(): number {
+        const item = this.items[Math.min(this.itemIndex, this.items.length - 1)];
+        return item?.part ?? 1;
+    }
+    /** How many items a part has. */
+    partSize(part: number): number {
+        return this.items.filter((i) => (i.part ?? 1) === part).length;
+    }
+    /** Progress WITHIN the current part, for the bar: it fills at the break
+     *  (interrupted items are not re-asked, so they count as done). */
     get progress(): { done: number; total: number } {
-        return { done: this.itemIndex, total: this.items.length };
+        const part = this.currentPart;
+        const before = this.items.slice(0, this.itemIndex).filter((i) => (i.part ?? 1) === part).length;
+        return { done: before, total: this.partSize(part) };
     }
     /** True once the clock for the thing on screen has started. */
     get isPainted(): boolean {
@@ -186,8 +208,17 @@ export class FactRun {
         if (
             this.phase.kind !== 'warmupDone' &&
             this.phase.kind !== 'paused' &&
-            this.phase.kind !== 'resume'
+            this.phase.kind !== 'resume' &&
+            this.phase.kind !== 'partBreak'
         ) {
+            return;
+        }
+        // An interruption on the LAST fact of Part 1: the Paused card came
+        // first; the break between the parts still follows it.
+        if (this.phase.kind === 'paused' && this.breakPending) {
+            this.breakPending = false;
+            this.phase = { kind: 'partBreak' };
+            this.changed();
             return;
         }
         this.resetEntry();
@@ -364,6 +395,10 @@ export class FactRun {
         this.onAttempt?.(attempt);
         this.itemIndex++;
         this.resetEntry();
+        const next = this.items[this.itemIndex];
+        const atBoundary = next !== undefined && (next.part ?? 1) !== (item.part ?? 1);
         if (this.itemIndex >= this.items.length && !flags.interrupted) this.phase = { kind: 'done' };
+        else if (atBoundary && flags.interrupted) this.breakPending = true;
+        else if (atBoundary) this.phase = { kind: 'partBreak' };
     }
 }

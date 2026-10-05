@@ -108,7 +108,11 @@ export default function FactRunner(props: FactRunnerProps) {
     if (phase === 'intro') {
         return (
             <Card title="Quick number facts">
-                <p className="mt-2 text-base text-strong">{aboutMinutes(run.items.length)}.</p>
+                <p className="mt-2 text-base text-strong">
+                    {run.partCount > 1
+                        ? `Two parts, with a break between them. Part 1 is ${aboutMinutes(run.partSize(1)).toLowerCase()}.`
+                        : `${aboutMinutes(run.items.length)}.`}
+                </p>
                 <p className="mt-2 text-base text-muted">
                     It is not marked, and nobody else in the class sees your answers. Answer each
                     one as quickly as you comfortably can. If you do not know one, press Skip.
@@ -134,6 +138,23 @@ export default function FactRunner(props: FactRunnerProps) {
                 <p className="mt-2 text-base text-muted">Now the number facts.</p>
                 <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => run.proceed()} autoFocus>
                     Start
+                </button>
+            </Card>
+        );
+    }
+    if (phase === 'partBreak') {
+        const nextPart = run.currentPart;
+        return (
+            <Card title={`Part ${nextPart - 1} done`}>
+                <p className="mt-2 text-base text-muted">
+                    Take a break. Your answers so far are saved. You can do Part {nextPart} now, or
+                    come back to this page another day.
+                </p>
+                <p className="mt-2 text-base text-muted">
+                    Part {nextPart} is {aboutMinutes(run.partSize(nextPart)).toLowerCase()}.
+                </p>
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => run.proceed()}>
+                    Start Part {nextPart}
                 </button>
             </Card>
         );

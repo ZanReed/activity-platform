@@ -40,6 +40,15 @@ describe('FactRunner', () => {
         expect(screen.getByText(/type on your keyboard or tap the number keys on the screen/)).toBeTruthy();
     });
 
+    it('a two-part check says so on the intro, with Part 1\'s time', () => {
+        const two: ProbeItem[] = [
+            ...Array.from({ length: 42 }, (_, i) => ({ n: i + 1, display: `${i} = __`, spoken: 's', answer: '1', part: 1 })),
+            ...Array.from({ length: 56 }, (_, i) => ({ n: i + 43, display: `${i} = __`, spoken: 's', answer: '1', part: 2 })),
+        ];
+        runner(two);
+        expect(screen.getByText('Two parts, with a break between them. Part 1 is about 7 minutes.')).toBeTruthy();
+    });
+
     it('a keypad key registers on pointer-down and never takes focus (DR-2)', () => {
         runner();
         fireEvent.click(screen.getByRole('button', { name: 'Start' }));
