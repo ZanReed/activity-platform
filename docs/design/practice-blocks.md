@@ -2883,6 +2883,53 @@ transaction shares a timestamp, so "after the miss" was a tie. Both tests
 were rebuilt and went red. Compliance in the same commit: data-map
 `draft-17`, retention-policy `draft-12`, and a note under counsel Q11.
 
+**Build slices 3 and 4, as built (2026-10-06; committed locally, NOT pushed:
+the pages call 0050 and 0051, which are not applied live).**
+
+*Slice 3, the student's practice.* `factRun.ts` runs a sprint as the same
+state machine with `sprint` options: no intro card (the entry screen is the
+student's Start), the warm-up only when the session has no typing baseline,
+a strategy card per family the server marked, the missed-fact card ("Not
+this time", the fact with its answer, Next) and one repeat at least
+`reaskGap` facts later, "Show the strategy" in a strategy-mode family (the
+attempt in progress is stored as interrupted), and a time box on ANSWERING
+time (paused, feedback and strategy time are outside it). No progress bar in
+a sprint: a bar that fills with the time box would be a clock. A miss on the
+last fact has no repeat (it would only be copying). `FactsEntry` asks about
+the practice only when no check is open for the student (none open, finished
+or closed), with one more RPC; a failure reads as "off". Its cards:
+"Number facts practice" (asking never starts; Start does), "Welcome back",
+"Nothing to practise right now", "That session has ended". The done screen
+shows the SERVER's "Quick and right today: N" and "Your best so far."
+(SP-14). The save queue keys on item number AND re-ask. Home shows one text
+link, "Number facts practice", under a class whose practice is on (SP-1).
+**Shell: JS 153.9 → 154.1 KiB (stop line 156.5), CSS 14.8 unchanged.**
+
+*Slice 4, the teacher's panel (migration 0051).* `fact_sprint_overview`
+(one read: the switch's state and why it cannot be switched on, who
+practised today and in seven days, each family and each student by state).
+`practice/SprintPanel.tsx` on the class's number-facts page: the switch;
+the reason in words when it is blocked; the school-year end asked IN the
+panel for a class that has snapshots and no date (the author's own test
+class is one); the families table; students behind "Show students".
+
+*A naming decision made in the build, the author's to reverse:* the product
+no longer says "sprint" to anyone. Students see "Number facts practice";
+teachers see "Daily facts practice". The results screen's two lines changed
+with it ("Daily 5-minute facts practice is recommended."; the stopgap line
+now points at the switch). "Sprint" stays the design's and the schema's
+word, as "probe" does (DR-5).
+
+Guards and mutations, each red then restored. Runner (5): a repeat of a
+repeat; the gap ignored; the time box ignored; no missed-fact card; the
+strategy reopenable in any mode. Home link (1): shown for every class.
+Overview function (4): the teacher gate; an empty session counted; a removed
+student listed; strategy read as practising. Panel (5): the block ignored;
+family cells swapped; names without the disclosure; the two counts swapped;
+days practised. Browser: `facts-sprint.e2e.ts` (the whole student walk, and
+the Home link), the teacher walk in `facts-teacher.e2e.ts`, and axe scans of
+the practice card, the strategy, a fact, the missed-fact card and the panel.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

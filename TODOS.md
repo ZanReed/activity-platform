@@ -248,9 +248,12 @@ the go-ahead letter (both DONE 2026-10-06; their PRs #39 and #40 merged at
 `5723b74`, revision `2d20d8c9…`). **Slice 2 of 4 BUILT 2026-10-06** (the
 engine, migration 0050 + verify-0050). OWED, the author's: (1) mirror the
 new revision (`pnpm import:batch … --fact-registry`, exact command in
-STATE); (2) apply 0050 live and run the live verify. NEXT: slice 3 (the
-student's sprint) and slice 4 (the teacher's switch and progress view);
-their pages are pushed only after 0050 is live.
+STATE); (2) apply 0050 AND 0051 live and run the live verify. **Slices 3
+and 4 BUILT 2026-10-06** (the student's practice, the Home link, the
+teacher's panel + migration 0051): committed LOCALLY and NOT pushed, because
+the pages call 0050/0051 and Home selects a column 0050 adds (pushing first
+would break every student's Home). After the apply: push, read CI, hand the
+author the test.
 
 ## The verify runner drops a row that ERRORS or returns NULL (found 2026-10-06)
 

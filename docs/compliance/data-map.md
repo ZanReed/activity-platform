@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-17`. Mirrors migrations 0001–**0050**, verified
+> Version `2026-10-06-draft-18`. Mirrors migrations 0001–**0051**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,17 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-18` (2026-10-06) — 0051 adds NO personal data and no column.** It
+> adds one read function for the class's own teacher: how many students
+> practised, and each student's days practised and how many fact families
+> are in each state (strategy first, practising, fluent). Everything in it is
+> worked out from the rows 0050 stores; nothing new is stored. No times, no
+> rates and no ranking are returned. The range moves to 0051 on that basis.
+> One new READER of existing data, stated for completeness: a student's own
+> Home page now reads whether their class has the practice switched on
+> (`classes.fact_sprint_on_at`) and the class's join code, both of which a
+> member could already read.
 >
 > **`draft-17` (2026-10-06) — 0050 ADDS student-derived personal data: the
 > daily number-facts practice.** It is the same KIND of data as 0045's timed

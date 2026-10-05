@@ -22,6 +22,20 @@
 //   - The done screen's count uses the one meaning of "correct": right AND
 //     within the ceiling on net time (CR-6). The server derives the stored
 //     `correct` (ER-6); this count is the browser's own, for the screen only.
+//
+// THE SPRINT (D43 slice 2; SP-8, SP-9, SP-11, SP-12) is the same machine with
+// `sprint` options. What they change, and nothing else:
+//   - no intro card (the entry screen is the student's Start); the warm-up
+//     runs only when the session has no typing baseline;
+//   - a STRATEGY card for each family the server marked, before the facts;
+//   - after a wrong or skipped answer the fact stays up with the correct
+//     answer until the student goes on (FEEDBACK; untimed), and it is asked
+//     ONCE more, at least `reaskGap` facts later (never a second time);
+//   - in a strategy-mode family the card can be reopened from a fact: the
+//     attempt in progress is stored as interrupted, so that time is not
+//     counted;
+//   - a TIME BOX on the time spent answering: once it has passed, the fact
+//     just answered was the last. No clock is ever shown.
 // =============================================================================
 
 import {
@@ -53,6 +67,34 @@ export interface ProbeItem {
     answer: string;
     /** 1 or 2 in a two-part check (migration 0047); absent means one part. */
     part?: number;
+    /** The fact family (sprint sessions only). */
+    family_id?: string;
+}
+
+/** A family's strategy text, as the registry carries it: no markup. */
+export interface StrategyText {
+    intro: string | null;
+    lines: { label: string; text: string }[];
+    example: string | null;
+}
+
+/** One family in a sprint session, as fact_sprint_payload returns it. */
+export interface SprintFamily {
+    family_id: string;
+    name: string;
+    mode: 'review' | 'practice' | 'strategy';
+    show_strategy: boolean;
+    strategy: StrategyText | null;
+}
+
+export interface SprintOptions {
+    /** The time box, on time spent answering (sprint_minutes). */
+    boxMs: number;
+    /** A missed fact returns at least this many facts later (sprint_reask_gap). */
+    reaskGap: number;
+    families: SprintFamily[];
+    /** What the server already holds of this session (a resume). */
+    saved?: { n: number; reask: boolean; missed: boolean }[];
 }
 
 /** What the runner hands the save port: the client's FACTS about an attempt.
@@ -65,6 +107,8 @@ export interface AttemptRecord {
     rtMs: number;
     offsetMs: number;
     modality: Modality | 'mixed' | null;
+    /** The one repeat of a missed fact (sprint only). */
+    reask?: boolean;
 }
 
 export type Phase =
@@ -77,6 +121,10 @@ export type Phase =
     /** Between the parts of a two-part check: a break, then Part 2 on the
      *  student's own action — now, or on another day (the run resumes). */
     | { kind: 'partBreak' }
+    /** Sprint: a family's strategy, before the facts or reopened from one. */
+    | { kind: 'strategy'; familyId: string }
+    /** Sprint: the fact just missed, with its answer, until the student goes on. */
+    | { kind: 'feedback'; item: ProbeItem }
     | { kind: 'done' };
 
 export type Hint = null | 'empty' | 'stuck' | { retype: string };
@@ -97,6 +145,13 @@ export interface RunOptions {
         baselines: Baselines;
         prior: { right: number; skipped: number; notCounted: number };
     };
+    /** Run as a sprint session (see the header). */
+    sprint?: SprintOptions;
+}
+
+interface Slot {
+    item: ProbeItem;
+    reask: boolean;
 }
 
 export class FactRun {
@@ -114,6 +169,13 @@ export class FactRun {
 
     private prior = { right: 0, skipped: 0, notCounted: 0 };
     private breakPending = false;
+
+    // The order facts are asked in. For the check it is `items`, one each; a
+    // sprint adds a slot when a fact is missed.
+    private queue: Slot[];
+    readonly sprint: SprintOptions | null;
+    private strategiesDue: string[] = [];
+    private answeringMs = 0;
 
     // warm-up
     private trials: WarmupTrial[] = [];
@@ -139,6 +201,13 @@ export class FactRun {
         if (this.items.some((i) => i.answer.startsWith('-'))) specials.push('minus');
         if (this.items.some((i) => i.answer.includes('.'))) specials.push('point');
         this.specials = specials;
+        this.queue = this.items.map((item) => ({ item, reask: false }));
+        this.sprint = options.sprint ?? null;
+        if (this.sprint) {
+            this.baselines = options.resume?.baselines ?? this.baselines;
+            this.startSprint(this.sprint);
+            return;
+        }
         if (options.resume) {
             this.itemIndex = Math.min(Math.max(0, options.resume.index), this.items.length);
             this.baselines = options.resume.baselines;
@@ -165,7 +234,21 @@ export class FactRun {
         return this.phase.kind === 'warmup' ? this.trials[this.trialIndex] ?? null : null;
     }
     get currentItem(): ProbeItem | null {
-        return this.phase.kind === 'item' ? this.items[this.itemIndex] ?? null : null;
+        return this.phase.kind === 'item' ? this.queue[this.itemIndex]?.item ?? null : null;
+    }
+    /** Sprint: the family of the fact on screen, when its strategy can be reopened. */
+    get reopenableStrategy(): SprintFamily | null {
+        const item = this.currentItem;
+        if (!item || !this.sprint) return null;
+        return this.strategyFamily(item.family_id, true);
+    }
+    /** Sprint: the family a strategy card is showing. */
+    get shownStrategy(): SprintFamily | null {
+        return this.phase.kind === 'strategy' ? this.strategyFamily(this.phase.familyId, false) : null;
+    }
+    /** Sprint: on the feedback card, the family whose strategy can be opened. */
+    get feedbackStrategy(): SprintFamily | null {
+        return this.phase.kind === 'feedback' ? this.strategyFamily(this.phase.item.family_id, true) : null;
     }
     /** How many parts this check has (1 or 2). */
     get partCount(): number {
@@ -209,8 +292,14 @@ export class FactRun {
             this.phase.kind !== 'warmupDone' &&
             this.phase.kind !== 'paused' &&
             this.phase.kind !== 'resume' &&
-            this.phase.kind !== 'partBreak'
+            this.phase.kind !== 'partBreak' &&
+            this.phase.kind !== 'strategy' &&
+            this.phase.kind !== 'feedback'
         ) {
+            return;
+        }
+        if (this.sprint) {
+            this.advanceSprint();
             return;
         }
         // An interruption on the LAST fact of Part 1: the Paused card came
@@ -289,6 +378,25 @@ export class FactRun {
         this.changed();
     }
 
+    /** Sprint: open the strategy from the fact on screen or from the feedback
+     *  card. From a fact, the attempt in progress is stored as interrupted
+     *  (SP-9): time with the card open is never counted. */
+    openStrategy(t: number): void {
+        if (!this.sprint) return;
+        if (this.phase.kind === 'feedback') {
+            const family = this.feedbackStrategy;
+            if (!family) return;
+            this.phase = { kind: 'strategy', familyId: family.family_id };
+            this.changed();
+            return;
+        }
+        const family = this.reopenableStrategy;
+        if (!family) return;
+        if (this.paintedAt !== null) this.finishAttempt(t, { skipped: false, interrupted: true });
+        this.phase = { kind: 'strategy', familyId: family.family_id };
+        this.changed();
+    }
+
     /** Whether "Stuck? Skip is fine." should show at `t` (CR-11). */
     stuckAt(t: number): boolean {
         if (this.phase.kind !== 'item' || this.paintedAt === null) return false;
@@ -341,6 +449,49 @@ export class FactRun {
         return [...this.sources][0]!;
     }
 
+    // ---- the sprint ---------------------------------------------------------------
+    private strategyFamily(familyId: string | undefined, strategyModeOnly: boolean): SprintFamily | null {
+        const family = this.sprint?.families.find((f) => f.family_id === familyId) ?? null;
+        if (!family || !family.strategy) return null;
+        return strategyModeOnly && family.mode !== 'strategy' ? null : family;
+    }
+
+    private startSprint(sprint: SprintOptions): void {
+        // A resume: what the server holds is done; a miss whose repeat has not
+        // been asked gets its repeat, after the gap.
+        const saved = sprint.saved ?? [];
+        const done = new Set(saved.filter((a) => !a.reask).map((a) => a.n));
+        const repeated = new Set(saved.filter((a) => a.reask).map((a) => a.n));
+        this.queue = this.queue.filter((slot) => !done.has(slot.item.n));
+        for (const a of saved) {
+            if (a.reask || !a.missed || repeated.has(a.n)) continue;
+            const item = this.items.find((i) => i.n === a.n);
+            if (item) this.queue.splice(Math.min(this.queue.length, sprint.reaskGap), 0, { item, reask: true });
+        }
+        this.strategiesDue =
+            saved.length > 0
+                ? []
+                : sprint.families.filter((f) => f.show_strategy && f.strategy).map((f) => f.family_id);
+        const hasBaseline = this.baselines.keyboard !== null || this.baselines.keypad !== null;
+        if (!hasBaseline && this.queue.length > 0) {
+            this.trials = warmupPlan(this.rng, this.specials);
+            this.phase = { kind: 'warmup' };
+            return;
+        }
+        this.advanceSprint(false);
+    }
+
+    /** The next thing a sprint shows: a strategy still due, the next fact, or done. */
+    private advanceSprint(notify = true): void {
+        this.resetEntry();
+        const next = this.strategiesDue.shift();
+        if (next !== undefined) this.phase = { kind: 'strategy', familyId: next };
+        else if (this.itemIndex >= this.queue.length || this.answeringMs >= (this.sprint?.boxMs ?? Infinity)) {
+            this.phase = { kind: 'done' };
+        } else this.phase = { kind: 'item' };
+        if (notify) this.changed();
+    }
+
     private resetEntry(): void {
         this.answer = '';
         this.hint = null;
@@ -376,13 +527,16 @@ export class FactRun {
         this.resetEntry();
         if (this.trialIndex >= this.trials.length) {
             this.baselines = baselinesFrom(this.trialResults);
-            this.phase = { kind: 'warmupDone' };
+            if (this.sprint) this.advanceSprint(false);
+            else this.phase = { kind: 'warmupDone' };
         }
     }
 
     private finishAttempt(t: number, flags: { skipped: boolean; interrupted: boolean }): void {
-        const item = this.items[this.itemIndex]!;
+        const slot = this.queue[this.itemIndex]!;
+        const item = slot.item;
         const attempt: AttemptRecord = {
+            ...(this.sprint ? { reask: slot.reask } : {}),
             n: item.n,
             typed: this.answer,
             skipped: flags.skipped,
@@ -394,6 +548,22 @@ export class FactRun {
         this.attempts.push(attempt);
         this.onAttempt?.(attempt);
         this.itemIndex++;
+        if (this.sprint) {
+            this.answeringMs += attempt.rtMs;
+            const missed = !flags.interrupted && (flags.skipped || !answersMatch(attempt.typed, item.answer));
+            // SP-11: a missed FIRST ask returns once, at least reaskGap facts later.
+            // With nothing left to ask in between, a repeat would only be
+            // copying the answer just shown, so there is none.
+            if (missed && !slot.reask && this.itemIndex < this.queue.length) {
+                const at = Math.min(this.queue.length, this.itemIndex + this.sprint.reaskGap);
+                this.queue.splice(at, 0, { item, reask: true });
+            }
+            this.resetEntry();
+            if (missed) this.phase = { kind: 'feedback', item };
+            else if (flags.interrupted) this.phase = { kind: 'paused' };
+            else this.advanceSprint(false);
+            return;
+        }
         this.resetEntry();
         const next = this.items[this.itemIndex];
         const atBoundary = next !== undefined && (next.part ?? 1) !== (item.part ?? 1);

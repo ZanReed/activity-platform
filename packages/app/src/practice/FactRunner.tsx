@@ -18,6 +18,11 @@
 //   DR-10       an item paints only after a student action; Paused card.
 //   DR-3        done: "You got 24 right. You skipped 2." — never "out of N".
 //
+// THE SPRINT (D43 slice 2) uses the same screens with `sprint` set: no intro
+// (the entry screen is the Start), no progress bar (a bar that fills with the
+// time box would be a clock), a strategy card, the feedback card after a miss
+// (SP-11), and "Show the strategy" in a strategy-mode family (SP-9).
+//
 // Lazy: imported only by the /facts routes, so none of this (or practice.css)
 // is in the shell.
 // =============================================================================
@@ -27,7 +32,7 @@ import type { KeyboardEvent, PointerEvent as ReactPointerEvent, MouseEvent as Re
 import { BTN_PRIMARY } from '../components/AuthScreens';
 import { answerKeyFromKeyboard, displayAnswer, type AnswerKey } from './answerInput';
 import type { Baselines, Modality } from './baseline';
-import { FactRun, type AttemptRecord, type ProbeItem } from './factRun';
+import { FactRun, type AttemptRecord, type ProbeItem, type SprintFamily, type SprintOptions } from './factRun';
 import { aboutMinutes } from './minutes';
 import './practice.css';
 
@@ -45,6 +50,10 @@ export interface FactRunnerProps {
     onDone?: () => void;
     /** Continue a part-saved run (the entry's `resume` state). */
     resume?: { saved: number; nextN: number; baselines: Baselines; counts: { right: number; skipped: number; not_counted: number } };
+    /** Run as a daily practice session; `baselines` are the session's own. */
+    sprint?: SprintOptions & { baselines: Baselines };
+    /** Replaces the done screen's count lines (the sprint's are the server's). */
+    doneHeadline?: ReactNode;
     /** The line under the count on the done screen… */
     savedLine: string;
     /** …or, when saving is still settling, what replaces it (DR-14). */
@@ -69,7 +78,16 @@ export default function FactRunner(props: FactRunnerProps) {
             ...(props.rng ? { rng: props.rng } : {}),
             onAttempt: (attempt) =>
                 callbacks.current.onAttempt?.(attempt, holder.run!.baselines),
-            ...(props.resume
+            ...(props.sprint
+                ? {
+                      sprint: props.sprint,
+                      resume: {
+                          index: 0,
+                          baselines: props.sprint.baselines,
+                          prior: { right: 0, skipped: 0, notCounted: 0 },
+                      },
+                  }
+                : props.resume
                 ? {
                       resume: {
                           index: props.resume.nextN - 1,
@@ -159,6 +177,30 @@ export default function FactRunner(props: FactRunnerProps) {
             </Card>
         );
     }
+    if (phase === 'strategy') {
+        const family = run.shownStrategy;
+        return family ? <StrategyCard family={family} onDone={() => run.proceed()} /> : null;
+    }
+    if (run.phase.kind === 'feedback') {
+        const item = run.phase.item;
+        return (
+            <Card title="Not this time">
+                <p className="fx-feedback" data-testid="fx-feedback">
+                    {item.display.replace('__', displayAnswer(item.answer))}
+                </p>
+                <p className="fx-sr">The answer is {displayAnswer(item.answer)}.</p>
+                <p className="mt-2 text-base text-muted">Have a look, then carry on. It will come up again.</p>
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => run.proceed()} autoFocus>
+                    Next
+                </button>
+                {run.feedbackStrategy ? (
+                    <button type="button" className="fx-skip mt-2" onClick={(e) => run.openStrategy(e.timeStamp)}>
+                        Show the strategy
+                    </button>
+                ) : null}
+            </Card>
+        );
+    }
     if (phase === 'paused') {
         return (
             <Card title="Paused">
@@ -176,15 +218,19 @@ export default function FactRunner(props: FactRunnerProps) {
         const { right, skipped, notCounted } = run.summary();
         return (
             <Card title="All done">
-                <p className="mt-2 text-base text-strong">
-                    You got {right} right.{skipped > 0 ? ` You skipped ${skipped}.` : ''}
-                </p>
-                {notCounted > 0 ? (
-                    <p className="mt-2 text-base text-muted">
-                        {notCounted} {notCounted === 1 ? 'was' : 'were'} not counted because you
-                        left the page.
-                    </p>
-                ) : null}
+                {props.doneHeadline ?? (
+                    <>
+                        <p className="mt-2 text-base text-strong">
+                            You got {right} right.{skipped > 0 ? ` You skipped ${skipped}.` : ''}
+                        </p>
+                        {notCounted > 0 ? (
+                            <p className="mt-2 text-base text-muted">
+                                {notCounted} {notCounted === 1 ? 'was' : 'were'} not counted because
+                                you left the page.
+                            </p>
+                        ) : null}
+                    </>
+                )}
                 {props.doneSlot ?? <p className="mt-2 text-base text-muted">{props.savedLine}</p>}
                 <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={props.doneAction.onClick} autoFocus>
                     {props.doneAction.label}
@@ -193,6 +239,38 @@ export default function FactRunner(props: FactRunnerProps) {
         );
     }
     return <RunnerScreen run={run} notice={props.notice ?? null} />;
+}
+
+/** A fact family's strategy, laid out from the registry's plain fields
+ *  (intro, labelled lines, an example): no markup comes from the registry. */
+function StrategyCard({ family, onDone }: { family: SprintFamily; onDone: () => void }) {
+    const strategy = family.strategy!;
+    return (
+        <div className={`${CARD} fx-strategy`} data-testid="fx-strategy">
+            <p className="text-sm font-semibold text-muted">A strategy for</p>
+            <h1 className="text-2xl font-bold text-ink">{family.name}</h1>
+            {strategy.intro ? <p className="mt-3 text-base text-strong">{strategy.intro}</p> : null}
+            {strategy.lines.length > 0 ? (
+                <ul className="fx-strategy-lines">
+                    {strategy.lines.map((line, i) => (
+                        <li key={i}>
+                            {line.label ? <strong>{line.label}: </strong> : null}
+                            {line.text}
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
+            {strategy.example ? (
+                <p className="mt-3 text-base text-strong">
+                    <span className="text-muted">For example: </span>
+                    {strategy.example}
+                </p>
+            ) : null}
+            <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={onDone} autoFocus>
+                Got it
+            </button>
+        </div>
+    );
 }
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
@@ -310,7 +388,7 @@ function RunnerScreen({ run, notice }: { run: FactRun; notice: string | null }) 
     return (
         <div className="fx-runner" onKeyDown={onKeyDown} onPointerDown={onPointerDown}>
             <div>
-                {warmup ? null : (
+                {warmup || run.sprint ? null : (
                     <>
                         <div className="fx-bar" aria-hidden="true">
                             <span style={{ width: `${(progress.done / progress.total) * 100}%` }} />
@@ -351,6 +429,11 @@ function RunnerScreen({ run, notice }: { run: FactRun; notice: string | null }) 
                         <button type="button" className="fx-skip" onClick={(e) => run.skip(e.timeStamp)}>
                             Skip this one
                         </button>
+                        {run.reopenableStrategy ? (
+                            <button type="button" className="fx-skip" onClick={(e) => run.openStrategy(e.timeStamp)}>
+                                Show the strategy
+                            </button>
+                        ) : null}
                     </div>
                 )}
                 <p className="fx-savenote" aria-live="polite">

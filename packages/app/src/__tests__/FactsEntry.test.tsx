@@ -24,6 +24,8 @@ vi.mock('../lib/factProbe', async (orig) => ({
     ...(await orig<typeof import('../lib/factProbe')>()),
     ...api,
 }));
+const sprintApi = vi.hoisted(() => ({ fetchSprintEntry: vi.fn(), saveSprintAttempts: vi.fn() }));
+vi.mock('../lib/factSprint', () => sprintApi);
 vi.mock('../lib/classes', () => ({ joinClass: vi.fn(), redeemJoinCode: vi.fn() }));
 vi.mock('../lib/auth', () => ({ signInWithGoogle: vi.fn() }));
 vi.mock('../lib/studentAuth', () => ({ signOutEverything: vi.fn(async () => {}) }));
@@ -53,6 +55,8 @@ function page() {
 beforeEach(() => {
     api.fetchEntry.mockReset().mockResolvedValue(READY);
     api.saveAttempts.mockReset().mockResolvedValue({ state: 'saved', saved: 1, finished: false });
+    sprintApi.fetchSprintEntry.mockReset().mockResolvedValue({ state: 'off' });
+    sprintApi.saveSprintAttempts.mockReset().mockResolvedValue({ state: 'saved', saved: 1, finished: false, quick_right: 1, best_before: null });
     session.value = { ...session.value, role: 'student', roleStatus: 'ready', loading: false };
 });
 afterEach(cleanup);
@@ -136,5 +140,75 @@ describe('FactsEntry', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
         });
         await screen.findByRole('heading', { name: 'Nothing to do yet' });
+    });
+
+    // ---- the daily practice at the same link (D43 slice 2, SP-1) ----------------
+    const SESSION = {
+        session_id: 'sess-1', minutes: 5, reask_gap: 3, ceiling_s: 15, total: 3,
+        baselines: { keyboard: 200, keypad: null },
+        families: [{
+            family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', mode: 'strategy', show_strategy: true,
+            strategy: { intro: 'Start from a fact you know.', lines: [{ label: '×5', text: 'Half of ×10.' }], example: null },
+        }],
+        items: [
+            { n: 1, family_id: 'fact.mult.to-12', display: '7 × 8 = __', spoken: 'seven times eight', answer: '56' },
+            { n: 2, family_id: 'fact.mult.to-12', display: '9 × 6 = __', spoken: 'nine times six', answer: '54' },
+            { n: 3, family_id: 'fact.mult.to-12', display: '6 × 6 = __', spoken: 'six times six', answer: '36' },
+        ],
+        saved: [], best_before: null,
+    };
+    const COMMON = { done_today: 0, best: null, class_name: '9 Maths B' };
+
+    it('an open check comes first: the practice is not even asked about', async () => {
+        page();
+        await screen.findByRole('heading', { name: 'Quick number facts' });
+        expect(sprintApi.fetchSprintEntry).not.toHaveBeenCalled();
+    });
+
+    it('with no check open and the practice on: the practice card; asking does not start, Start does', async () => {
+        api.fetchEntry.mockResolvedValue({ state: 'none_open' });
+        sprintApi.fetchSprintEntry.mockImplementation(async (_code: string, start = false) =>
+            start ? { ...COMMON, state: 'ready', due: 3, session: SESSION } : { ...COMMON, state: 'ready', due: 3, minutes: 5 });
+        const { container } = page();
+        await screen.findByRole('heading', { name: 'Number facts practice' });
+        expect(container.textContent).toContain('About 5 minutes');
+        expect(sprintApi.fetchSprintEntry).toHaveBeenCalledTimes(1);
+        expect(sprintApi.fetchSprintEntry).toHaveBeenCalledWith('ABC234');
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+        });
+        expect(sprintApi.fetchSprintEntry).toHaveBeenLastCalledWith('ABC234', true);
+        // The family is in strategy mode: its strategy comes before the facts.
+        const card = await screen.findByTestId('fx-strategy');
+        expect(card.textContent).toContain('Multiplication to 12 × 12');
+        expect(card.textContent).toContain('Start from a fact you know.');
+        expect(card.textContent).toContain('×5: Half of ×10.');
+        expect(container.textContent).not.toMatch(/probe|sprint/i);
+    });
+
+    it('the practice off (or a database without it) leaves the check\'s own screens', async () => {
+        api.fetchEntry.mockResolvedValue({ state: 'none_open' });
+        sprintApi.fetchSprintEntry.mockRejectedValue(new Error('function fact_sprint_entry does not exist'));
+        page();
+        await screen.findByRole('heading', { name: 'Nothing to do yet' });
+    });
+
+    it('nothing due, and a session to resume, each have their own card', async () => {
+        api.fetchEntry.mockResolvedValue({ state: 'finished', saved: 30, total: 30, counts: { right: 24, skipped: 2, not_counted: 0 } });
+        sprintApi.fetchSprintEntry.mockResolvedValue({ ...COMMON, done_today: 1, state: 'nothing_due' });
+        const first = page();
+        await screen.findByRole('heading', { name: 'Nothing to practise right now' });
+        expect(first.container.textContent).toContain('Come back tomorrow.');
+        cleanup();
+        sprintApi.fetchSprintEntry.mockResolvedValue({
+            ...COMMON, state: 'resume',
+            session: { ...SESSION, families: [], saved: [{ n: 1, reask: false, missed: false }] },
+        });
+        page();
+        await screen.findByRole('heading', { name: 'Welcome back' });
+        fireEvent.click(screen.getByRole('button', { name: 'Keep going' }));
+        // Item 1 is saved: the session picks up at item 2, with no strategy card.
+        await screen.findByTestId('fx-answer');
+        expect(screen.getByText('9 × 6 = __')).toBeTruthy();
     });
 });

@@ -166,6 +166,19 @@ describe('FactSaveQueue', () => {
         expect(calls).toHaveLength(2);
     });
 
+    it('a repeat of a missed fact shares its item number and is not dropped with the first ask', async () => {
+        const { port, calls } = manualPort();
+        const queue = new FactSaveQueue({ port, storage: null, storageKey: 'k' });
+        queue.enqueue(attempt(4), null);
+        // The repeat arrives while the first ask is still in flight.
+        queue.enqueue({ ...attempt(4), reask: true }, null);
+        calls[0]!.resolve({ state: 'saved', saved: 1, finished: false });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(calls).toHaveLength(2);
+        expect(calls[1]!.attempts).toEqual([expect.objectContaining({ n: 4, reask: true })]);
+    });
+
     it('keeps held attempts under the viewer prefix, per student and per check', () => {
         expect(heldKey('activity-viewer:', 'student-1', 'probe-9')).toBe('activity-viewer:facts:student-1:probe-9');
     });

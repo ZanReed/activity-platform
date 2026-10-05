@@ -59,7 +59,8 @@ interface Held {
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000];
 
 /** Errors the server will give again however often we ask. */
-const isPermanent = (message: string) => /malformed|not_member|not_signed_in/i.test(message);
+const isPermanent = (message: string) =>
+    /malformed|not_member|not_signed_in|not_your_session/i.test(message);
 
 export class FactSaveQueue {
     status: QueueStatus = 'idle';
@@ -131,8 +132,10 @@ export class FactSaveQueue {
                 return;
             }
             // Drop what was sent; keep anything that arrived meanwhile.
-            const sent = new Set(batch.map((a) => a.n));
-            this.held.attempts = this.held.attempts.filter((a) => !sent.has(a.n));
+            // (A sprint's repeat of a missed fact shares its item number.)
+            const slot = (a: AttemptRecord) => `${a.n}:${a.reask ? 1 : 0}`;
+            const sent = new Set(batch.map(slot));
+            this.held.attempts = this.held.attempts.filter((a) => !sent.has(slot(a)));
             if (wantsFinish) this.finishSent = true;
             this.persist();
             this.setStatus('idle');

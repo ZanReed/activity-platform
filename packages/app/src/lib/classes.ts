@@ -234,6 +234,9 @@ export interface JoinedClass {
     classId: string;
     name: string;
     joinedAt: string;
+    /** The class's join code when its daily number-facts practice is switched
+     *  on (migration 0050, SP-1) — the student's link is /facts/CODE. */
+    factsCode?: string | null;
 }
 
 /**
@@ -291,17 +294,27 @@ export async function claimTeacher(): Promise<void> {
 export async function listMyClasses(): Promise<JoinedClass[]> {
     const { data, error } = await supabase
         .from('class_members')
-        .select('class_id, joined_at, classes(name)')
+        .select('class_id, joined_at, classes(name, join_code, fact_sprint_on_at)')
         .is('removed_at', null)
         .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);
     interface MembershipRow {
         class_id: string;
         joined_at: string;
-        classes: { name: string } | { name: string }[] | null;
+        classes: ClassBits | ClassBits[] | null;
+    }
+    interface ClassBits {
+        name: string;
+        join_code?: string | null;
+        fact_sprint_on_at?: string | null;
     }
     return ((data ?? []) as MembershipRow[]).map((r) => {
         const cls = Array.isArray(r.classes) ? r.classes[0] : r.classes;
-        return { classId: r.class_id, name: cls?.name ?? '(class)', joinedAt: r.joined_at };
+        return {
+            classId: r.class_id,
+            name: cls?.name ?? '(class)',
+            joinedAt: r.joined_at,
+            factsCode: cls?.fact_sprint_on_at ? cls.join_code ?? null : null,
+        };
     });
 }

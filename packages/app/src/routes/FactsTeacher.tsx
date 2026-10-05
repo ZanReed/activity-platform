@@ -16,6 +16,8 @@
 //            Close asks first and defaults to "Keep it open" (DR-20).
 //            The class's school-year end is asked here the first time
 //            (0048, RP-1/RP-2): prefilled from a guess, confirmed by the teacher.
+//            Under it, the class's DAILY PRACTICE panel (practice/SprintPanel:
+//            the switch and the progress view; D43 slice 2, SP-2 and SP-4).
 //   RESULTS  the verdict as a sentence, the two numbers and who was left out,
 //            the stopgap line; then "Who needs what" — a table of fact
 //            families by label (per-family grouping, ruled 2026-10-05) — and
@@ -47,6 +49,10 @@ import {
     type YearOption,
 } from '../lib/factProbe';
 import { aboutMinutes } from '../practice/minutes';
+import SprintPanel from '../practice/SprintPanel';
+import { guessYearEnd, longDay, yearEndBounds } from '../practice/yearEnd';
+
+export { guessYearEnd, longDay, YEAR_END_MAX_DAYS } from '../practice/yearEnd';
 import '../practice/factsTeacher.css';
 
 export const LIVE_POLL_MS = 5000;
@@ -84,44 +90,6 @@ export function familySummary(s: StudentRow): string {
 
 function day(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
-}
-
-/** A DATE (yyyy-mm-dd) as a local calendar day. `new Date('2027-12-17')` is
- *  UTC midnight, which reads as the 16th west of Greenwich. */
-function localDay(date: string): Date {
-    const [y, m, d] = date.split('-').map(Number);
-    return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
-}
-
-/** "17 December 2027": a date the year matters for. A timestamp is read as
- *  the local day it falls on. */
-export function longDay(dateOrIso: string): string {
-    const when = dateOrIso.length > 10 ? new Date(dateOrIso) : localDay(dateOrIso);
-    return when.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-function isoDate(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** The furthest end date the server accepts (set_class_year_end, RP-8). */
-export const YEAR_END_MAX_DAYS = 400;
-
-/** A FIRST GUESS at the school-year end, for the teacher to confirm (RP-2):
- *  NZ and Australia end in mid-December, most northern-hemisphere schools in
- *  late June. Only ever a prefill; the stored date is the teacher's. */
-export function guessYearEnd(today: Date, timeZone: string): string {
-    const south = /^(Pacific\/(Auckland|Chatham)|Australia\/|Antarctica\/McMurdo)/.test(timeZone);
-    const [month, dayOfMonth] = south ? [11, 18] : [5, 30];
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const guess = new Date(today.getFullYear(), month, dayOfMonth);
-    return isoDate(guess < start ? new Date(today.getFullYear() + 1, month, dayOfMonth) : guess);
-}
-
-/** Today and today + 400 days, the date input's bounds. */
-function yearEndBounds(today: Date): { min: string; max: string } {
-    const max = new Date(today.getFullYear(), today.getMonth(), today.getDate() + YEAR_END_MAX_DAYS);
-    return { min: isoDate(today), max: isoDate(max) };
 }
 
 /** One line saying what a year adds (DR-18); composed when the registry has none. */
@@ -211,12 +179,20 @@ export default function FactsTeacher() {
         body = (
             <>
                 <OpenScreen
+                    // Remounted when the class's end date changes (it can be
+                    // saved from the practice panel below).
+                    key={overview.school_year_ends_on ?? 'no-end'}
                     classId={classId}
                     overview={overview}
                     onOpened={() => {
                         setParams({});
                         void load();
                     }}
+                />
+                <SprintPanel
+                    classId={classId}
+                    latestVerdict={overview.probes.find((p) => p.state === 'closed')?.verdict ?? null}
+                    onYearEndSaved={() => void load()}
                 />
                 <Earlier overview={overview} onPick={(id) => setParams({ snapshot: id })} />
             </>
@@ -684,8 +660,8 @@ export function Results({
                     <>
                         <p style={{ marginTop: 6 }}>
                             {c.verdict === 'below'
-                                ? 'A daily 5-minute facts sprint is recommended.'
-                                : 'No daily sprint is needed.'}
+                                ? 'Daily 5-minute facts practice is recommended.'
+                                : 'No daily facts practice is needed.'}
                         </p>
                         <p style={{ marginTop: 6 }}>
                             Class median: {c.median_rate} correct a minute. Floor: {c.floor}. Based on{' '}
@@ -694,8 +670,8 @@ export function Results({
                         </p>
                         {c.verdict === 'below' ? (
                             <p className="ft-note">
-                                The fluency sprint is not in this app yet. Until it is, use paper or
-                                another fact-fluency tool for about 5 minutes a day.
+                                You can switch daily facts practice on for this class from its
+                                Number facts page (under All snapshots).
                             </p>
                         ) : null}
                     </>

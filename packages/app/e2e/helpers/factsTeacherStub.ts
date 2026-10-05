@@ -41,6 +41,9 @@ export interface TeacherStub {
   yearEnds: { p_class_id: string; p_ends_on: string }[];
   /** Every RPC in call order, to prove the end date is saved BEFORE the open. */
   calls: string[];
+  /** The class's daily practice (migrations 0050, 0051). */
+  sprintOn: boolean;
+  sprintSwitches: { p_class_id: string; p_on: boolean }[];
   opens: { p_class_id: string; p_year_level: number }[];
   closes: number;
   resultReads: number;
@@ -53,7 +56,7 @@ export async function stubFactsTeacherApi(
 ): Promise<TeacherStub> {
   const stub: TeacherStub = {
     state: initial, schoolYearEndsOn: null, prunedAt: options.prunedAt ?? null,
-    yearEnds: [], calls: [], opens: [], closes: 0, resultReads: 0,
+    yearEnds: [], calls: [], sprintOn: false, sprintSwitches: [], opens: [], closes: 0, resultReads: 0,
   };
   const classStat = () => ({
     in_class: 28, started: 23, finished: 17, with_rate: 20, left_out: 3, median_rate: 14.2,
@@ -116,6 +119,32 @@ export async function stubFactsTeacherApi(
     stub.resultReads += 1;
     // A pruned check returns no student rows (0048's fact_probe_results).
     await route.fulfill({ json: { probe: probe(), class: classStat(), students: stub.prunedAt ? [] : FT_STUDENTS } });
+  });
+  // The daily practice panel: the shape fact_sprint_overview returns
+  // (verify-0051 asserts it against the real function).
+  await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.sprintOverview}`, async (route) => {
+    const blocked = stub.state !== 'closed' ? 'no_closed_check' : stub.schoolYearEndsOn ? null : 'school_year_end_missing';
+    await route.fulfill({
+      json: {
+        on: stub.sprintOn, on_at: stub.sprintOn ? '2027-02-10T00:00:00Z' : null,
+        blocked_by: blocked, year_level: 8, join_code: FT_CODE,
+        in_class: 28, practised_today: stub.sprintOn ? 12 : 0, practised_week: stub.sprintOn ? 20 : 0,
+        families: stub.sprintOn ? [
+          { family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', strategy: 5, practising: 14, fluent: 9 },
+          { family_id: 'fact.div.to-12', name: 'Division to 144 ÷ 12', strategy: 9, practising: 12, fluent: 7 },
+        ] : [],
+        students: stub.sprintOn ? [
+          { student_id: 'dddddddd-0000-4000-8000-000000000001', name: 'Aroha Ngata', days_practised: 4, last_day: '2027-02-15', strategy: 1, practising: 1, fluent: 0 },
+          { student_id: 'dddddddd-0000-4000-8000-000000000002', name: 'Ben Carter', days_practised: 0, last_day: null, strategy: 0, practising: 2, fluent: 0 },
+        ] : [],
+      },
+    });
+  });
+  await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.sprintSwitch}`, async (route) => {
+    const body = route.request().postDataJSON();
+    stub.sprintSwitches.push(body);
+    stub.sprintOn = body.p_on;
+    await route.fulfill({ json: { on: body.p_on, on_at: body.p_on ? '2027-02-10T00:00:00Z' : null } });
   });
   await page.route(`**/rest/v1/rpc/${FACT_PROBE_RPC.close}`, async (route) => {
     stub.closes += 1;

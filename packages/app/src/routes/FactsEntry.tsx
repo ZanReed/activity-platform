@@ -19,6 +19,16 @@
 //   finished     the done screen, from the server's own counts
 //   closed       "Your teacher has finished this. Your 15 answers were saved."
 //
+// THE DAILY PRACTICE (D43 slice 2, SP-1) lives at the same link. A check comes
+// first: only when no check is open for this student (none_open, finished or
+// closed) is the practice asked about, with ONE more RPC. If the class has it
+// switched on, its screens replace the check's resting ones:
+//
+//   practice ready     what it is, about how long, and Start (which is what
+//                      creates the session — asking never does)
+//   practice resume    "Welcome back" for today's unfinished session
+//   nothing to do      "Nothing to practise right now"
+//
 // SAVING (G1, ER-19, DR-14) is silent: one queue (practice/saveQueue.ts) saves
 // after every item and when the page is hidden. One quiet line appears under
 // the keypad after 10 s of failure; a retry state appears only on the done
@@ -45,6 +55,13 @@ import { signInWithGoogle } from '../lib/auth';
 import { classifyRedeemError, REDEEM_ERROR_COPY } from '../lib/authMessages';
 import { joinClass, redeemJoinCode } from '../lib/classes';
 import { fetchEntry, saveAttempts, type EntryState } from '../lib/factProbe';
+import {
+    fetchSprintEntry,
+    saveSprintAttempts,
+    type SprintEntry,
+    type SprintSaveResult,
+    type SprintSession,
+} from '../lib/factSprint';
 import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
 import { signOutEverything } from '../lib/studentAuth';
@@ -57,11 +74,15 @@ export const WAIT_LIMIT_MS = 10 * 60_000;
 export const OFFLINE_NOTICE_MS = 10_000;
 
 type Runnable = Extract<EntryState, { state: 'ready' | 'resume' }>;
+/** The practice states that have a screen of their own. */
+type SprintPractice = Extract<SprintEntry, { state: 'ready' | 'resume' | 'nothing_due' }>;
 
 type View =
     | { kind: 'loading' }
     | { kind: 'failed' }
-    | { kind: 'entry'; entry: EntryState }
+    /** `sprint` is set when no check is open and the class's practice is on. */
+    | { kind: 'entry'; entry: EntryState; sprint?: SprintPractice }
+    | { kind: 'sprintClosed'; saved: number }
     | { kind: 'joining' }
     | { kind: 'joinFailed'; copy: string }
     | { kind: 'closed'; saved: number };
@@ -92,15 +113,30 @@ export default function FactsEntry() {
         view.kind === 'entry' && (view.entry.state === 'ready' || view.entry.state === 'resume')
             ? view.entry
             : null;
+    // The practice session on screen, if any: the same rule.
+    const [sprintRun, setSprintRun] = useState<SprintSession | null>(null);
+    const [starting, setStarting] = useState(false);
     const activeRef = useRef(false);
-    activeRef.current = active !== null;
+    activeRef.current = active !== null || sprintRun !== null;
 
     // ---- the entry read ---------------------------------------------------------
     const enter = useCallback(async () => {
         if (activeRef.current) return null;
         try {
             const entry = await fetchEntry(code);
-            if (!activeRef.current) setView({ kind: 'entry', entry });
+            // No check to do: is the class's daily practice on? (A database
+            // without it, or any failure, reads as "off": the check's own
+            // screens are still right.)
+            let sprint: SprintPractice | undefined;
+            if (entry.state === 'none_open' || entry.state === 'finished' || entry.state === 'closed') {
+                try {
+                    const s = await fetchSprintEntry(code);
+                    if (s.state === 'ready' || s.state === 'resume' || s.state === 'nothing_due') sprint = s;
+                } catch {
+                    sprint = undefined;
+                }
+            }
+            if (!activeRef.current) setView({ kind: 'entry', entry, ...(sprint ? { sprint } : {}) });
             return entry;
         } catch {
             if (!activeRef.current) setView({ kind: 'failed' });
@@ -117,7 +153,7 @@ export default function FactsEntry() {
     }, [userId, roleReady, enter]);
 
     // ---- the waiting room (DR-15) -----------------------------------------------
-    const waiting = view.kind === 'entry' && view.entry.state === 'none_open';
+    const waiting = view.kind === 'entry' && view.entry.state === 'none_open' && !view.sprint;
     const [waitExpired, setWaitExpired] = useState(false);
     useEffect(() => {
         if (!waiting) return;
@@ -148,9 +184,35 @@ export default function FactsEntry() {
         }
     };
 
+    // ---- starting the practice (the student's Start) ------------------------------
+    const startSprint = async () => {
+        setStarting(true);
+        try {
+            const s = await fetchSprintEntry(code, true);
+            if ((s.state === 'ready' || s.state === 'resume') && s.session) setSprintRun(s.session);
+            else await enter();
+        } catch {
+            setView({ kind: 'failed' });
+        } finally {
+            setStarting(false);
+        }
+    };
+
     // ---- screens ---------------------------------------------------------------
     let body: ReactNode;
-    if (active && userId) {
+    if (sprintRun && userId) {
+        body = (
+            <SprintRun
+                key={sprintRun.session_id}
+                session={sprintRun}
+                userId={userId}
+                onClosed={(saved) => {
+                    setSprintRun(null);
+                    setView({ kind: 'sprintClosed', saved });
+                }}
+            />
+        );
+    } else if (active && userId) {
         // Before every gate below: see `active`.
         body = (
             <Run
@@ -233,6 +295,65 @@ export default function FactsEntry() {
         );
     } else if (view.kind === 'closed') {
         body = <ClosedCard saved={view.saved} />;
+    } else if (view.kind === 'sprintClosed') {
+        body = (
+            <Card title="That session has ended">
+                <p className="mt-2 text-base text-muted">
+                    Your {view.saved} answer{view.saved === 1 ? ' was' : 's were'} saved.
+                </p>
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => { setView({ kind: 'loading' }); void enter(); }}>
+                    See what is next
+                </button>
+            </Card>
+        );
+    } else if (view.sprint) {
+        const sprint = view.sprint;
+        if (sprint.state === 'nothing_due') {
+            body = (
+                <Card title="Nothing to practise right now">
+                    <p className="mt-2 text-base text-muted">
+                        {sprint.done_today > 0
+                            ? 'You have done today’s number facts practice. Come back tomorrow.'
+                            : 'There are no number facts for you to practise today.'}
+                    </p>
+                    <Link to="/" className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}>
+                        Go to your classes
+                    </Link>
+                </Card>
+            );
+        } else if (sprint.state === 'resume') {
+            body = (
+                <Card title="Welcome back">
+                    <p className="mt-2 text-base text-muted">
+                        You started today’s number facts practice. Your answers so far are saved.
+                    </p>
+                    <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => setSprintRun(sprint.session)} autoFocus>
+                        Keep going
+                    </button>
+                </Card>
+            );
+        } else {
+            body = (
+                <Card title="Number facts practice">
+                    <p className="mt-2 text-base text-strong">
+                        {sprint.done_today > 0 ? 'You can practise again. ' : ''}
+                        About {sprint.minutes ?? 5} minutes, or less if you finish first.
+                    </p>
+                    <p className="mt-2 text-base text-muted">
+                        These are the facts you are still learning, and a few to keep fresh. It is
+                        not marked. If you miss one you will see the answer, and it will come up
+                        again.
+                    </p>
+                    <p className="mt-2 text-base text-muted">
+                        You can type on your keyboard or tap the number keys on the screen. Stick
+                        with the one you start with.
+                    </p>
+                    <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} disabled={starting} onClick={() => void startSprint()}>
+                        {starting ? 'Starting…' : 'Start'}
+                    </button>
+                </Card>
+            );
+        }
     } else {
         const entry = view.entry;
         if (entry.state === 'teacher') {
@@ -319,6 +440,112 @@ function ClosedCard({ saved }: { saved: number }) {
                 Go to your classes
             </Link>
         </Card>
+    );
+}
+
+// ---- a practice session, with its save queue --------------------------------------
+
+function SprintRun({
+    session,
+    userId,
+    onClosed,
+}: {
+    session: SprintSession;
+    userId: string;
+    onClosed: (saved: number) => void;
+}) {
+    const navigate = useNavigate();
+    const [, rerender] = useState(0);
+    const last = useRef<SprintSaveResult | null>(null);
+    const closedRef = useRef(onClosed);
+    closedRef.current = onClosed;
+
+    const queue = useMemo(() => {
+        let storage: Storage | null = null;
+        try {
+            storage = window.sessionStorage;
+        } catch {
+            storage = null;
+        }
+        return new FactSaveQueue({
+            storage,
+            storageKey: heldKey(VIEWER_STORAGE_PREFIX, userId, session.session_id),
+            port: async (attempts, options) => {
+                const outcome = await saveSprintAttempts(session.session_id, attempts, options);
+                last.current = outcome;
+                return outcome;
+            },
+            onClosed: () => closedRef.current(last.current?.saved ?? session.saved.length),
+            onChange: () => rerender((n) => n + 1),
+        });
+    }, [session, userId]);
+
+    useEffect(() => {
+        void queue.flush();
+        const onHidden = () => {
+            if (document.visibilityState === 'hidden') void queue.flush();
+        };
+        document.addEventListener('visibilitychange', onHidden);
+        return () => document.removeEventListener('visibilitychange', onHidden);
+    }, [queue]);
+
+    const [offline, setOffline] = useState(false);
+    useEffect(() => {
+        const timer = window.setInterval(() => {
+            const since = queue.failingSince;
+            setOffline(since !== null && Date.now() - since >= OFFLINE_NOTICE_MS);
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [queue]);
+
+    // SP-14: the count and the best are the SERVER's, from the finishing save.
+    const result = queue.settled ? last.current : null;
+    const quick = result?.quick_right ?? null;
+    const isBest = quick !== null && quick > 0 && quick > (result?.best_before ?? -1);
+    const pending = queue.pending;
+    const doneHeadline =
+        quick !== null ? (
+            <>
+                <p className="mt-2 text-base text-strong" data-testid="fx-quick-right">
+                    Quick and right today: {quick}
+                </p>
+                {isBest ? <p className="mt-1 text-base text-strong">Your best so far.</p> : null}
+            </>
+        ) : queue.status === 'failing' || queue.status === 'refused' ? (
+            <div className="mt-2">
+                <p role="alert" className="text-base text-strong">
+                    We could not save your last {pending === 1 ? 'answer' : `${pending} answers`}. Keep
+                    this page open and we will keep trying.
+                </p>
+                <button type="button" className="mt-2 text-sm font-medium text-strong underline" onClick={() => void queue.flush()}>
+                    Try now
+                </button>
+            </div>
+        ) : (
+            <p className="mt-2 text-base text-muted" role="status">
+                Saving your last answers…
+            </p>
+        );
+
+    return (
+        <FactRunner
+            items={session.items}
+            ceilingS={session.ceiling_s}
+            sprint={{
+                boxMs: session.minutes * 60_000,
+                reaskGap: session.reask_gap,
+                families: session.families,
+                saved: session.saved,
+                baselines: session.baselines,
+            }}
+            onAttempt={(attempt, baselines) => queue.enqueue(attempt, baselines)}
+            onDone={() => queue.finish()}
+            notice={offline ? 'Not connected. Keep going; your answers are kept on this device.' : null}
+            savedLine=""
+            doneHeadline={doneHeadline}
+            doneSlot={<p className="mt-2 text-base text-muted">This is not marked.</p>}
+            doneAction={{ label: 'Go to your classes', onClick: () => navigate('/') }}
+        />
     );
 }
 

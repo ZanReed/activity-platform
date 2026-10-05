@@ -88,3 +88,35 @@ test('a snapshot whose student results were removed shows the class result and n
   await expect(page.getByRole('heading', { name: 'Each student' })).toHaveCount(0);
   for (const s of FT_STUDENTS) await expect(page.getByText(s.name)).toHaveCount(0);
 });
+
+test('daily practice: asks for the school-year end, switches on, and shows families and (only on request) students', async ({ page }) => {
+  await stubIdentityApi(page, { role: 'teacher' });
+  await signInAs(page);
+  const api = await stubFactsTeacherApi(page, 'closed');
+  await page.goto(`/classes/${FT_CLASS_ID}/facts`);
+
+  const panel = page.getByTestId('ft-sprint');
+  await expect(panel.getByRole('heading', { name: 'Daily facts practice' })).toBeVisible();
+  // This class has snapshots but no school-year end: asked for here (SP-3).
+  await expect(panel).toContainText('Give the date this class’s school year ends');
+  const on = panel.getByRole('button', { name: 'Switch daily practice on' });
+  await expect(on).toBeDisabled();
+  await panel.getByRole('button', { name: 'Save the date' }).click();
+  await expect.poll(() => api.yearEnds.length).toBe(1);
+  await expect(on).toBeEnabled();
+  await expect(page.getByTestId('ft-sprint-state')).toContainText('The last snapshot recommends switching it on.');
+
+  await on.click();
+  await expect.poll(() => api.sprintSwitches).toEqual([{ p_class_id: FT_CLASS_ID, p_on: true }]);
+  await expect(page.getByTestId('ft-sprint-state')).toContainText('On since');
+  await expect(page.getByTestId('ft-sprint-counts')).toHaveText('Practised today 12 of 28 · In the last 7 days 20');
+  await expect(panel).toContainText(`/facts/${FT_CODE}`);
+  await expect(panel.getByRole('row', { name: /Division to 144 ÷ 12/ })).toContainText('9');
+
+  // Names only behind the disclosure; no ranking, no times.
+  await expect(panel.getByText('Aroha Ngata')).toHaveCount(0);
+  await panel.getByRole('button', { name: 'Show students' }).click();
+  await expect(panel.getByRole('row', { name: /Aroha Ngata/ })).toContainText('4');
+  await expect(panel.getByRole('row', { name: /Ben Carter/ })).toContainText('Not yet');
+  await expect(page.locator('body')).not.toContainText(/probe|sprint|per minute/i);
+});

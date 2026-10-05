@@ -320,3 +320,126 @@ describe('a two-part check (migration 0047)', () => {
         expect(run.summary()).toEqual({ right: 5, skipped: 0, notCounted: 0 });
     });
 });
+
+// ---- the sprint (D43 slice 2; SP-8, SP-9, SP-11, SP-12) -------------------------
+describe('a sprint session', () => {
+    const FAMILY = {
+        family_id: 'fam.a', name: 'Fam A', mode: 'strategy' as const, show_strategy: true,
+        strategy: { intro: 'Think.', lines: [], example: null },
+    };
+    const items = (count: number): ProbeItem[] =>
+        Array.from({ length: count }, (_, i) => ({
+            n: i + 1, display: `${i + 1} + 0 = __`, spoken: `fact ${i + 1}`, answer: String(i + 1), family_id: 'fam.a',
+        }));
+    function sprint(count: number, extra: Partial<NonNullable<ConstructorParameters<typeof FactRun>[0]['sprint']>> = {}, baselines: { keyboard: number | null; keypad: number | null } = { keyboard: 200, keypad: null }) {
+        const saved: AttemptRecord[] = [];
+        const run = new FactRun({
+            items: items(count), ceilingS: 15, rng: seeded(),
+            onAttempt: (a) => saved.push(a),
+            resume: { index: 0, baselines, prior: { right: 0, skipped: 0, notCounted: 0 } },
+            sprint: { boxMs: 300_000, reaskGap: 3, families: [FAMILY], ...extra },
+        });
+        return { run, saved };
+    }
+    /** Answers the fact on screen; returns the clock after it. */
+    function answer(run: FactRun, typed: string | null, t: number, rt = 1000): number {
+        run.painted(t);
+        if (typed === null) run.skip(t + rt);
+        else {
+            typeAll(run, typed, 'keyboard', t + 100);
+            run.enter('keyboard', t + rt);
+        }
+        return t + rt + 10;
+    }
+
+    it('shows the marked strategy before the first fact, and no intro or warm-up when a baseline exists', () => {
+        const { run } = sprint(3);
+        expect(run.phase).toEqual({ kind: 'strategy', familyId: 'fam.a' });
+        expect(run.shownStrategy?.name).toBe('Fam A');
+        run.proceed();
+        expect(run.phase.kind).toBe('item');
+        expect(run.currentItem?.n).toBe(1);
+    });
+
+    it('runs the warm-up first when the session has no baseline at all', () => {
+        const { run } = sprint(3, { families: [] }, { keyboard: null, keypad: null });
+        expect(run.phase.kind).toBe('warmup');
+    });
+
+    it('a miss shows the answer until the student goes on, and the fact returns ONCE, three facts later (SP-11)', () => {
+        const { run, saved } = sprint(6, { families: [] });
+        let t = answer(run, '99', 0); // fact 1: wrong
+        expect(run.phase).toMatchObject({ kind: 'feedback', item: { n: 1 } });
+        run.proceed();
+        const order: string[] = [];
+        while (run.phase.kind !== 'done') {
+            if (run.phase.kind === 'feedback') { run.proceed(); continue; }
+            const item = run.currentItem!;
+            order.push(String(item.n));
+            // the repeat of fact 1 is missed AGAIN: it must not come back a third time
+            t = answer(run, item.n === 1 ? '98' : item.answer, t);
+        }
+        expect(order.join(',')).toBe('2,3,4,1,5,6');
+        expect(saved.filter((a) => a.n === 1).map((a) => a.reask)).toEqual([false, true]);
+        expect(saved.filter((a) => a.n !== 1).every((a) => a.reask === false)).toBe(true);
+    });
+
+    it('a skip is a miss; a miss on the last fact has no repeat (it would only be copying)', () => {
+        const { run, saved } = sprint(2, { families: [] });
+        const t = answer(run, '1', 0);
+        answer(run, null, t); // skip the last fact
+        expect(run.phase).toMatchObject({ kind: 'feedback', item: { n: 2 } });
+        run.proceed();
+        expect(run.phase.kind).toBe('done');
+        expect(saved).toHaveLength(2);
+    });
+
+    it('the time box: once the answering time has passed, the fact just answered was the last (SP-12)', () => {
+        const { run, saved } = sprint(10, { families: [], boxMs: 2500 });
+        let t = 0;
+        while (run.phase.kind === 'item') t = answer(run, run.currentItem!.answer, t, 1000);
+        // 1000 + 1000 + 1000 >= 2500 → three facts, then done
+        expect(run.phase.kind).toBe('done');
+        expect(saved).toHaveLength(3);
+    });
+
+    it('reopening the strategy from a fact stores the attempt as interrupted and returns to the next fact (SP-9)', () => {
+        const { run, saved } = sprint(3);
+        run.proceed();
+        run.painted(0);
+        expect(run.reopenableStrategy?.family_id).toBe('fam.a');
+        run.openStrategy(4000);
+        expect(run.phase).toEqual({ kind: 'strategy', familyId: 'fam.a' });
+        expect(saved).toEqual([expect.objectContaining({ n: 1, interrupted: true, reask: false })]);
+        run.proceed();
+        expect(run.currentItem?.n).toBe(2);
+    });
+
+    it('a family in practice mode cannot reopen its strategy from a fact', () => {
+        const { run } = sprint(2, { families: [{ ...FAMILY, mode: 'practice' }] });
+        run.proceed();
+        expect(run.reopenableStrategy).toBeNull();
+    });
+
+    it('a resume skips what is saved, shows no strategy again, and still owes a missed fact its repeat', () => {
+        const { run } = sprint(6, { saved: [{ n: 1, reask: false, missed: true }, { n: 2, reask: false, missed: false }] });
+        const order: number[] = [];
+        let t = 0;
+        while (run.phase.kind !== 'done') {
+            order.push(run.currentItem!.n);
+            t = answer(run, run.currentItem!.answer, t);
+        }
+        expect(order).toEqual([3, 4, 5, 1, 6]);
+    });
+
+    it('the check is unchanged: no feedback, no repeat, attempts carry no reask', () => {
+        const saved: AttemptRecord[] = [];
+        const run = new FactRun({ items: ITEMS, ceilingS: 15, rng: seeded(), onAttempt: (a) => saved.push(a) });
+        const t = warmUp(run, 'keyboard', 200);
+        run.proceed();
+        answer(run, '99', t);
+        expect(run.phase.kind).toBe('item');
+        expect(run.currentItem?.n).toBe(2);
+        expect('reask' in saved[0]!).toBe(false);
+    });
+});

@@ -9,4 +9,9 @@ export const FACT_PROBE_RPC = {
     results: 'fact_probe_results',
     overview: 'fact_probe_overview',
     yearEnd: 'set_class_year_end',
+    // The daily practice (migration 0050).
+    sprintEntry: 'fact_sprint_entry',
+    sprintSave: 'save_sprint_attempts',
+    sprintSwitch: 'set_fact_sprint',
+    sprintOverview: 'fact_sprint_overview',
 } as const;

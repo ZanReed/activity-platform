@@ -283,6 +283,16 @@ function StudentHome({ email }: { email: string }) {
                 <p className="text-xs text-muted">
                   Joined {formatListDate(c.joinedAt)}
                 </p>
+                {/* The class's daily number-facts practice, when its teacher
+                    has it on (SP-1). The page itself is a lazy route. */}
+                {c.factsCode ? (
+                  <Link
+                    to={`/facts/${c.factsCode}`}
+                    className="ml-3 flex min-h-[44px] items-center border-l-2 border-line py-1.5 pl-3 text-sm font-medium text-ink underline underline-offset-2 hover:bg-surface"
+                  >
+                    Number facts practice
+                  </Link>
+                ) : null}
                 {activities.phase === 'ready' &&
                   (rows.length === 0 ? (
                     <p className="ml-5 py-1.5 text-sm text-muted">

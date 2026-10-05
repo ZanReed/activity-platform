@@ -33,6 +33,7 @@ import {
 } from '../helpers/studentSession';
 import { LANDING_COPY } from '../../src/lib/authMessages';
 import { FT_CLASS_ID, stubFactsTeacherApi } from '../helpers/factsTeacherStub';
+import { SPRINT_CODE, stubFactsSprintApi } from '../helpers/factsSprintStub';
 
 // The lazy tier renders NOTHING — not even its own markers — until the chunk
 // resolves, so a wait that counts those markers first is a no-op that scans the
@@ -703,6 +704,34 @@ test.describe('the number-facts runner', () => {
   });
 });
 
+// ---- the daily number-facts practice (D43 slice 2) ---------------------------------
+// The practice card, a strategy, a fact with "Show the strategy", and the
+// card that shows a missed fact's answer: each scanned.
+test.describe('the daily number-facts practice', () => {
+  test('the practice card, the strategy, a fact and the missed-fact card have no axe violations', async ({ page }) => {
+    await stubIdentityApi(page, { role: 'student' });
+    await signInAs(page);
+    await stubFactsSprintApi(page);
+    await page.goto(`/facts/${SPRINT_CODE}`);
+    await expect(page.getByRole('heading', { name: 'Number facts practice' })).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await page.getByRole('button', { name: 'Start' }).click();
+    await page.getByTestId('fx-strategy').waitFor();
+    await expectNoAxeViolations(page);
+
+    await page.getByRole('button', { name: 'Got it' }).click();
+    await expect(page.getByRole('button', { name: 'Show the strategy' })).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await page.waitForTimeout(320);
+    await page.keyboard.type('1');
+    await page.keyboard.press('Enter');
+    await page.getByTestId('fx-feedback').waitFor();
+    await expectNoAxeViolations(page);
+  });
+});
+
 // ---- the teacher's number-facts page (D43 slice 1) ---------------------------
 // Not a student surface, but it shares this lane's account-free server, and it
 // carries a dialog, a disclosure pattern and a data table — the three things
@@ -728,6 +757,19 @@ test.describe('the teacher number-facts page', () => {
     await page.locator('.ft-verdict').waitFor();
     await page.getByRole('button', { name: 'Show names' }).click();
     await page.getByRole('button', { name: 'Show students' }).click();
+    await expectNoAxeViolations(page);
+  });
+
+  test('the daily practice panel, switched on with students shown, has no axe violations (0051)', async ({ page }) => {
+    await stubIdentityApi(page, { role: 'teacher' });
+    await signInAs(page);
+    const api = await stubFactsTeacherApi(page, 'closed');
+    api.schoolYearEndsOn = '2027-12-17';
+    api.sprintOn = true;
+    await page.goto(`/classes/${FT_CLASS_ID}/facts`);
+    const panel = page.getByTestId('ft-sprint');
+    await panel.getByRole('button', { name: 'Show students' }).click();
+    await panel.getByRole('row', { name: /Aroha Ngata/ }).waitFor();
     await expectNoAxeViolations(page);
   });
 

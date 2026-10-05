@@ -19,6 +19,8 @@ vi.mock('../lib/factProbe', async (orig) => ({
     ...(await orig<typeof import('../lib/factProbe')>()),
     ...api,
 }));
+const sprintApi = vi.hoisted(() => ({ fetchSprintOverview: vi.fn(), setFactSprint: vi.fn() }));
+vi.mock('../lib/factSprint', () => sprintApi);
 vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
@@ -83,8 +85,15 @@ function page() {
     );
 }
 
+const sprintOverview = (extra: Record<string, unknown> = {}) => ({
+    on: false, on_at: null, blocked_by: null, year_level: 7, join_code: 'ABC234',
+    in_class: 28, practised_today: 0, practised_week: 0, families: [], students: [], ...extra,
+});
+
 beforeEach(() => {
     Object.values(api).forEach((f) => f.mockReset());
+    sprintApi.fetchSprintOverview.mockReset().mockResolvedValue(sprintOverview({ blocked_by: 'no_closed_check' }));
+    sprintApi.setFactSprint.mockReset().mockResolvedValue({ on: true, on_at: '2027-02-10T00:00:00Z' });
 });
 afterEach(() => {
     cleanup();
@@ -319,9 +328,10 @@ describe('the results', () => {
         const verdict = container.querySelector('.ft-verdict')!;
         expect(verdict.getAttribute('data-verdict')).toBe('below');
         expect(verdict.textContent).toContain('This class is below the fluency floor.');
-        expect(verdict.textContent).toContain('A daily 5-minute facts sprint is recommended.');
+        expect(verdict.textContent).toContain('Daily 5-minute facts practice is recommended.');
         expect(verdict.textContent).toContain('Class median: 14 correct a minute. Floor: 20. Based on 20 of 28 students; 3 had too little to measure.');
-        expect(verdict.textContent).toContain('The fluency sprint is not in this app yet.');
+        expect(verdict.textContent).toContain('You can switch daily facts practice on for this class');
+        expect(verdict.textContent).not.toMatch(/sprint/i);
         expect(verdict.textContent).toContain('screen reader or switch');
         expect(api.fetchResults).toHaveBeenCalledTimes(1);
     });
@@ -379,7 +389,7 @@ describe('the results', () => {
         expect(none.container.textContent).toMatch(/closed automatically on/);
         cleanup();
         const ok = await openClosed({ verdict: 'at_or_above', median_rate: 24 });
-        expect(ok.container.querySelector('.ft-verdict')!.textContent).toContain('No daily sprint is needed.');
+        expect(ok.container.querySelector('.ft-verdict')!.textContent).toContain('No daily facts practice is needed.');
         expect(ok.container.querySelector('.ft-verdict')!.textContent).not.toContain('not in this app yet');
     });
 
@@ -446,5 +456,79 @@ describe('the results', () => {
             await vi.advanceTimersByTimeAsync(LIVE_POLL_MS * 3);
         });
         await waitFor(() => expect(api.fetchResults).toHaveBeenCalledTimes(1));
+    });
+});
+
+// ---- the daily practice panel (D43 slice 2; SP-2, SP-4) -----------------------------
+describe('the daily facts practice panel', () => {
+    const closedOverview = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: '2027-02-09T02:00:00Z', auto_closed: false, state: 'closed', item_count: 40, verdict: 'below', keep_until: '2028-01-16', pruned_at: null }]);
+    const ON = sprintOverview({
+        on: true, on_at: '2027-02-10T00:00:00Z', practised_today: 12, practised_week: 20,
+        families: [
+            { family_id: 'fact.mult.to-12', name: 'Multiplication to 12 × 12', strategy: 5, practising: 14, fluent: 9 },
+            { family_id: 'fact.div.to-12', name: 'Division to 144 ÷ 12', strategy: 9, practising: 12, fluent: 7 },
+        ],
+        students: [
+            { student_id: 's1', name: 'Aroha Ngata', days_practised: 4, last_day: '2027-02-15', strategy: 1, practising: 1, fluent: 0 },
+            { student_id: 's2', name: 'Ben Carter', days_practised: 0, last_day: null, strategy: 0, practising: 2, fluent: 0 },
+        ],
+    });
+
+    it('before a snapshot: it says to run one, and cannot be switched on (SP-2)', async () => {
+        api.fetchOverview.mockResolvedValue(overview());
+        page();
+        const panel = await screen.findByTestId('ft-sprint');
+        expect(panel.textContent).toContain('Run a snapshot with this class first.');
+        expect((screen.getByRole('button', { name: 'Switch daily practice on' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('off and allowed: says when the last snapshot recommends it; switching on asks the server and re-reads', async () => {
+        api.fetchOverview.mockResolvedValue(closedOverview);
+        sprintApi.fetchSprintOverview.mockResolvedValueOnce(sprintOverview()).mockResolvedValue(ON);
+        page();
+        const state = await screen.findByTestId('ft-sprint-state');
+        expect(state.textContent).toBe('Off. The last snapshot recommends switching it on.');
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Switch daily practice on' }));
+        });
+        expect(sprintApi.setFactSprint).toHaveBeenCalledWith('class-1', true);
+        await waitFor(() => expect(screen.getByTestId('ft-sprint-state').textContent).toMatch(/^On since /));
+        expect(screen.getByTestId('ft-sprint-counts').textContent).toBe('Practised today 12 of 28 · In the last 7 days 20');
+    });
+
+    it('on: each fact family by state, and students only behind the disclosure, with no ranking or times (SP-4)', async () => {
+        api.fetchOverview.mockResolvedValue(closedOverview);
+        sprintApi.fetchSprintOverview.mockResolvedValue(ON);
+        const { container } = page();
+        const panel = await screen.findByTestId('ft-sprint');
+        const row = screen.getByRole('row', { name: /Division to 144 ÷ 12/ });
+        expect([...row.querySelectorAll('td')].map((td) => td.textContent)).toEqual(['9', '12', '7']);
+        expect(panel.textContent).toContain('/facts/ABC234');
+        expect(panel.textContent).not.toContain('Aroha Ngata');
+        fireEvent.click(screen.getByRole('button', { name: 'Show students' }));
+        const student = screen.getByRole('row', { name: /Aroha Ngata/ });
+        expect([...student.querySelectorAll('td')].map((td) => td.textContent)).toEqual(['4', expect.stringMatching(/15/), '1', '1', '0']);
+        expect(screen.getByRole('row', { name: /Ben Carter/ }).textContent).toContain('Not yet');
+        expect(container.textContent).not.toMatch(/sprint|probe|per minute.*Aroha/i);
+        fireEvent.click(screen.getByRole('button', { name: 'Switch daily practice off' }));
+        await waitFor(() => expect(sprintApi.setFactSprint).toHaveBeenCalledWith('class-1', false));
+    });
+
+    it('a class with snapshots but no school-year end is asked for the date in the panel', async () => {
+        api.fetchOverview.mockResolvedValue(closedOverview);
+        api.setClassYearEnd.mockResolvedValue('x');
+        sprintApi.fetchSprintOverview
+            .mockResolvedValueOnce(sprintOverview({ blocked_by: 'school_year_end_missing' }))
+            .mockResolvedValue(sprintOverview());
+        page();
+        const panel = await screen.findByTestId('ft-sprint');
+        expect(panel.textContent).toContain('Give the date this class’s school year ends');
+        expect((screen.getByRole('button', { name: 'Switch daily practice on' }) as HTMLButtonElement).disabled).toBe(true);
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Save the date' }));
+        });
+        expect(api.setClassYearEnd).toHaveBeenCalledWith('class-1', expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+        await waitFor(() =>
+            expect((screen.getByRole('button', { name: 'Switch daily practice on' }) as HTMLButtonElement).disabled).toBe(false));
     });
 });
