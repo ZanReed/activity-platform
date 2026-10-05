@@ -249,7 +249,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-05 — D43: the author ran a real check and ruled twice from it; both are LIVE. Per-family grouping at 80% (0046) and two-part checks for the long years (0047; registry revision `d0144e8d…` mirrored). NEXT: his re-test with a new snapshot; then the device checks, counsel Q11 and the year-level placement.
+**Last updated:** 2026-10-06 — session closed. Build run item 7 (D43) is done as far as it can go: slice 1 of the practice blocks, per-family grouping at 80% and two-part checks for the long years are LIVE and the author confirmed them on the live site. NEXT SESSION: nothing is in flight. The author owes the device checks (T11/D6), confirming counsel Q11 was sent, and the year-level placement by 1 November 2026. Slice 2 (the sprint) needs its own design pass behind its gate; mixed practice waits on two chains with ratified banks.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
