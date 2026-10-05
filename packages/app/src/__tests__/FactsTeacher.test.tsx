@@ -22,7 +22,7 @@ vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
 
-import FactsTeacher, { LIVE_POLL_MS, yearLine } from '../routes/FactsTeacher';
+import FactsTeacher, { groupReason, LIVE_POLL_MS, yearLine } from '../routes/FactsTeacher';
 
 const student = (i: number, extra: Partial<StudentRow> = {}): StudentRow => ({
     student_id: `s${i}`,
@@ -299,6 +299,24 @@ describe('the results', () => {
         const ok = await openClosed({ verdict: 'at_or_above', median_rate: 24 });
         expect(ok.container.querySelector('.ft-verdict')!.textContent).toContain('No daily sprint is needed.');
         expect(ok.container.querySelector('.ft-verdict')!.textContent).not.toContain('not in this app yet');
+    });
+
+    it('says WHY a student is in their group, in their own numbers (author finding 2026-10-05)', async () => {
+        // The live case: 61 a minute, 55 quick and right, but 58 of 65 right —
+        // 89%, so "needs strategy". The page must show the 89%.
+        const fast = student(9, { name: 'Ashton', group: 'needs_strategy', rate: 61.63, right: 58, met: 55, skipped: 0, counted: 65 });
+        expect(groupReason(fast)).toBe('58 of 65 right (89%)');
+        expect(groupReason(student(1, { group: 'fluent', right: 36, met: 30, counted: 40 }))).toBe(
+            '36 of 40 right (90%), 30 quick and right (75%)',
+        );
+        await openClosed();
+        fireEvent.click(screen.getByRole('button', { name: 'Show names' }));
+        const needs = screen.getByRole('region', { name: 'Needs strategy' });
+        expect(needs.textContent).toContain('36 of 40 right (90%)');
+        expect(screen.getByText(/Accuracy comes first/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Show students' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Ben' }));
+        expect(screen.getByText(/36 of 40 right \(90%\); 3 wrong or too slow to count; 1 skipped\./)).toBeTruthy();
     });
 
     it('never polls a closed snapshot', async () => {

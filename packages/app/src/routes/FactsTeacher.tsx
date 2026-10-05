@@ -51,6 +51,22 @@ const GROUPS: { key: Group; label: string; action: string }[] = [
 
 const FAMILY_WORD = { met: 'Met', not_met: 'Not met', not_judged: 'Not judged' } as const;
 
+/** Whole percent, rounded DOWN, so 58 of 65 reads 89% and never a flattering 90%. */
+const pct = (part: number, whole: number) => (whole > 0 ? Math.floor((part / whole) * 100) : 0);
+
+/**
+ * Why a student is in their group, in their own numbers (author finding
+ * 2026-10-05: a fast student shown as "Needs strategy" with no accuracy on the
+ * page read as a bug). The grouping is accuracy FIRST (curriculum item 13), so
+ * the accuracy leads; the thresholds themselves are the server's and are not
+ * restated here.
+ */
+export function groupReason(s: StudentRow): string {
+    const right = `${s.right} of ${s.counted} right (${pct(s.right, s.counted)}%)`;
+    const quick = `${s.met} quick and right (${pct(s.met, s.counted)}%)`;
+    return s.group === 'needs_strategy' ? right : `${right}, ${quick}`;
+}
+
 function day(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
 }
@@ -576,6 +592,11 @@ export function Results({
                 <p className="ft-muted ft-small">
                     Fluent {c.groups.fluent} · Slow {c.groups.slow} · Needs strategy {c.groups.needs_strategy}
                 </p>
+                <p className="ft-muted ft-small">
+                    Accuracy comes first: a student who gets too many wrong is &quot;needs
+                    strategy&quot; however quick they are. Otherwise it is how many they got quick
+                    and right.
+                </p>
                 <button type="button" className="ft-link" aria-expanded={showGroups} onClick={() => setShowGroups((v) => !v)}>
                     {showGroups ? 'Hide names' : 'Show names'}
                 </button>
@@ -593,6 +614,9 @@ export function Results({
                                         {inGroup.map((s) => (
                                             <li key={s.student_id}>
                                                 {s.name}
+                                                <span className="ft-muted ft-small" style={{ display: 'block' }}>
+                                                    {groupReason(s)}
+                                                </span>
                                                 {s.typing_flag ? (
                                                     <span className="ft-muted ft-small"> — typing speed could not be fully allowed for</span>
                                                 ) : null}
@@ -703,11 +727,12 @@ function StudentRows({
                                 </li>
                             ))}
                         </ul>
-                        {s.not_counted > 0 ? (
-                            <p className="ft-muted ft-small" style={{ marginTop: 6 }}>
-                                {s.not_counted} not counted (left the page).
-                            </p>
-                        ) : null}
+                        <p className="ft-muted ft-small" style={{ marginTop: 6 }}>
+                            {s.right} of {s.counted} right ({pct(s.right, s.counted)}%);{' '}
+                            {s.counted - s.right - s.skipped} wrong or too slow to count; {s.skipped}{' '}
+                            skipped.
+                            {s.not_counted > 0 ? ` ${s.not_counted} not counted (left the page).` : ''}
+                        </p>
                     </td>
                 </tr>
             ) : null}

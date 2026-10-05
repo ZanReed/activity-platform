@@ -34,6 +34,11 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - The demo's teacher view: the author saw it and found it readable.
 - ✅ **CONFIRMED by the author 2026-10-05** ("it all looks great now retest successful"): the long fact fits and the intro line reads well, on the live demo.
 
+**Findings, 2026-10-05 (throwaway-class run on the live site):**
+
+- ✅ **"This result should be recorded as fluent"** (a student at 61.63 a minute, 55 of 65 quick and right, shown as "Needs strategy"). NOT a calculation bug — read from the live attempts: 58 of 65 right is 89.2% accuracy, and the curriculum side's item 13 puts accuracy FIRST (below 90% is "needs strategy" however quick). The DEFECT was the screen: it showed the label and the speed but never the accuracy, so the label could not be explained. FIXED: each name in "Who needs what" carries its own numbers ("58 of 65 right (89%)"), the panel says accuracy comes first, and a student's row detail gives right / wrong-or-too-slow / skipped. Percentages round DOWN, so 89.2% never reads as 90%.
+- ◐ **OPEN, the author's to rule on the CURRICULUM side:** whether a quick student with a few slips should be "needs strategy" at all. Four of that run's seven wrong answers were format slips, not recall (0.75 for "3/4 = __ %", 0.4 for "2/5 = __ %", 0.1 for "1 cm = __ mm"). Options that would change the outcome: a lower accuracy threshold (a graph key, theirs), or a different rule for the group. The platform mirrors whatever they rule; a new threshold arrives as a new registry revision and applies to probes opened after it.
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
