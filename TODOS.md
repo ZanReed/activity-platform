@@ -47,6 +47,10 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - ✅ **A signed-out student had no way to sign in.** The home page offered only a class-code field and the teacher link, so a student who had already joined and opened the site without their code was stuck (his words: "a dumb but serious issue"). FIXED: a "Sign in with Google" button under "Already joined a class?" on the signed-out page. It goes to Google and back to Home; the account's role decides what they see, and it admits no one (an account nobody has admitted gets the same onboarding card as before). The teacher link now reads "I'm a teacher · sign in or get started" (`SignedOutLanding.tsx`, `LANDING_COPY`). Guard: `SignedOutLanding.test.tsx` (red when the door was pointed at the teacher route). ✅ CONFIRMED by the author 2026-10-06 ("tested the sign in button it works"). The wording and the position stay his to change.
 - ✅ **The daily facts practice — CONFIRMED by the author 2026-10-06** on the live site ("tested the daily fact activity and it worked too"). No finding reported against it.
 
+**Findings, 2026-10-06 (the class age statement hand-off):**
+
+- ✅ **CONFIRMED by the author** ("1-5 all good"): the two age statements on New class, the statement on each class card, "Change age confirmation", the reworded /privacy page at `2026-10-06-draft-4`, and dark mode. No finding.
+
 **Open questions raised by the build (not yet findings):**
 
 - **Charts — thousands separator.** Built as a thin space from five digits up (`1500`, `12 000`); the design said only "thousands separator". Change if the NZ convention he teaches differs.
@@ -2669,7 +2673,9 @@ verify-0053, the two-choice form and the card's "Change age confirmation",
 the privacy page + notice + template + README, POLICY_VERSION
 `2026-10-06-draft-4`, data-map draft-20, DECISIONS → "Under-13 use, by
 school authorization". ✅ 0053 applied by the author 2026-10-06, live verify
-green (273 rows), the page pushed. OWED: the author's test. Guards mutation-tested: four on
+green (273 rows), the page pushed. ✅ CONFIRMED by the author 2026-10-06 on
+the live site ("1-5 all good": the two-choice form, an under-13 class's
+card, re-confirming Algebra 1, the /privacy wording and version, dark mode). Guards mutation-tested: four on
 the functions, four on the form and card. NOT built, by ruling: a birthdate
 gate, parent consent, any different behaviour for an under-13 class.
 
