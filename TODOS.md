@@ -167,6 +167,27 @@ design arc at a time.
   department is NOT wanted this term** — it stays a candidate arc with its own
   design pass owed, and nothing schedules it.
 
+## ⚠ One CI flake in `FactsEntry.test.tsx` — diagnosed, NOT reproduced (2026-10-06)
+
+The run for `a864945` (a docs-only commit) failed on "a role re-read while a
+run is on screen does not tear it down": after the test clicked Start, the
+intro was still in the DOM. It passed on the commits before and after, and 25
+local runs under CPU load did not reproduce it.
+
+**Hypothesis (unproven):** the intro arrives from an async load, outside
+`act`, so React had committed the intro but not yet run the passive effect
+that subscribes `FactRunner` to its `FactRun` store (`useSyncExternalStore`).
+The click landed in that gap; React re-renders a tick later (it re-checks the
+snapshot when it subscribes), but the test read the DOM in the same tick.
+**Change made:** the test now waits (`findByTestId`) instead of reading
+synchronously. No product change: in a browser the catch-up render follows
+within a frame, so a click is not lost.
+
+**If it is seen again** with the wait in place, the hypothesis is wrong —
+then look at whether `Run`/`FactRunner` can remount (a new `FactRun` starts at
+the intro), which WOULD be a product bug of exactly the kind this test exists
+to catch.
+
 ## Number-facts check — what slice 1 left unbuilt (2026-10-05)
 
 - ✅ **The demo's second step (DR-4, task D5) — BUILT 2026-10-05:** "See what your teacher sees (demo data)" on the demo's done screen opens the real results screen on an invented class of eight (`practice/demoResults.ts`, held to its own arithmetic by `demoResults.test.tsx`).

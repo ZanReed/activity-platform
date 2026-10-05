@@ -66,7 +66,12 @@ describe('FactsEntry', () => {
 
         // The student starts: the warm-up is on screen and they have typed.
         fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-        const answer = screen.getByTestId('fx-answer');
+        // WAIT for the warm-up, do not assume it is there synchronously. The
+        // intro arrives from an async load (outside act), so React may not yet
+        // have subscribed the runner to its store when the click lands; it
+        // re-renders a tick later. Reading the DOM in the same tick failed
+        // once on CI (run for a864945, 2026-10-05) and never locally.
+        const answer = await screen.findByTestId('fx-answer');
         fireEvent.keyDown(answer, { key: '4' });
         expect(answer.textContent).toBe('4');
 
