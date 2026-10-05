@@ -247,6 +247,10 @@ Not built, by ruling. Two separate things:
   Designed in the sprint's own pass (slice 2), with mastery. **Trigger: the
   slice 2 design pass.** It keeps student-derived data past the year, so it
   rides the compliance pack and probably a counsel question.
+  Curriculum-side pointer (C-62, 2026-10-06): their §17 sets fluency "per
+  class and per student … by diagnostics, not by year level", so a summary
+  that keeps per-family labels and rates across years would serve a later
+  term's diagnostic. Read D43 items 11–17 and §17 on their main in that pass.
 - **De-identified calibration data** (per fact and year level: counts and
   timing percentiles, no student id), so the time criteria can be re-tuned
   after raw timings are gone. **Trigger: the curriculum side asks to re-tune a
