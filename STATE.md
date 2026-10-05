@@ -28,12 +28,9 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **SIDE-BY-SIDE FIGURES — LIVE 2026-10-04.** The two hygiene redeploys ran (Claude, on the author's "run them"); the CLI reported "No change found" for both, and the downloaded `viewer-server.bundle.js` and `grading-server.bundle.js` are byte-identical to the repo's at `68b0ba0`; flags read live (`get-activity` false, `check-activity` true). Nothing owed.
 
-**PRACTICE BLOCKS (D43) — BUILDING. Owed by the author, IN THIS ORDER:**
-1. **Counsel question Q11 goes out** ([counsel-review-packet.md](docs/compliance/counsel-review-packet.md)) — ruling A2: it reaches counsel BEFORE 0045 is applied live. Sending it is the gate, not the answer (for a 13+ class).
-2. **Apply migration 0045** (`supabase db push`), then `pnpm verify:auth --target live --only verify-0045` (13 rows) and the full `pnpm verify:auth --target live` (it re-creates `purge_soft_deleted`; verify-0029 and verify-0036 read it).
-3. Only after 2: the student `/facts/:CODE` route and the teacher route are built and pushed (S-7).
+**PRACTICE BLOCKS (D43) — BUILDING. 0045 is LIVE (applied by the author 2026-10-05):** range 45/`0045`; the full `verify:auth --target live` set is green (232 rows, 19 scripts; one first-run failure was a dropped connection and did not repeat); the three practice tables are empty and no verify residue remains. ⚠ Ruling A2 put counsel question Q11 ahead of this apply — whether it was SENT is the author's to confirm ([counsel-review-packet.md](docs/compliance/counsel-review-packet.md)). Next: the student `/facts/:CODE` route and the teacher route (S-7 step 3), now unblocked.
 
-Built: the mirror (0044, LIVE, revision `ac8f9fd2…`, 1124 facts), the runner and `/facts/demo` (live), and 0045 with verify-0045 (local 13/13) — [practice-blocks.md](docs/design/practice-blocks.md) → the "as built" sections. 0045 ADDS student-derived personal data (response times); data-map `draft-12` and retention-policy `draft-10` ride it, and the PRUNE for that data is not built (TODOS, trigger: the first real attempt). Mixed practice stays GATED (no ratified bank). **Owed by 1 November 2026:** the year-level placement.
+Built: the mirror (0044, LIVE, revision `ac8f9fd2…`, 1124 facts), the runner and `/facts/demo` (live), and 0045 with verify-0045 — [practice-blocks.md](docs/design/practice-blocks.md) → the "as built" sections. 0045 ADDS student-derived personal data (response times); data-map `draft-12` and retention-policy `draft-10` ride it, and the PRUNE for that data is not built (TODOS, trigger: the first real attempt). Mixed practice stays GATED (no ratified bank). **Owed by 1 November 2026:** the year-level placement.
 
 **Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, ~~Y7 charts~~, ~~graded stimuli~~, ~~side-by-side figures~~, ~~SW stale-shell recovery~~, D43 builds (in progress, above). His test findings queue in TODOS.
 
@@ -254,7 +251,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-05 — build run item 7 (D43): the mirror is live, the runner and `/facts/demo` are live, and migration 0045 (the probe's tables and functions, the counted purge) is built and verified locally, NOT applied live. NEXT: the author sends Q11 and applies 0045; then the student route and the teacher screens.
+**Last updated:** 2026-10-05 — build run item 7 (D43): the mirror, the runner with `/facts/demo`, and migration 0045 are all LIVE. NEXT: the student `/facts/:CODE` route (save port, sessionStorage mirror) and the teacher route `/classes/:classId/facts`. Open with the author: whether counsel Q11 was sent.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
