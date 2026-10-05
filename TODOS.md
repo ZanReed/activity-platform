@@ -2668,9 +2668,8 @@ as written, build it"). Migration 0053 (`classes.includes_under_13`,
 verify-0053, the two-choice form and the card's "Change age confirmation",
 the privacy page + notice + template + README, POLICY_VERSION
 `2026-10-06-draft-4`, data-map draft-20, DECISIONS → "Under-13 use, by
-school authorization". ⏳ OWED, in order: 0053 applied live → live verify →
-the page commit pushed (it selects the new column: a push first breaks the
-teacher's Classes page) → the author's test. Guards mutation-tested: four on
+school authorization". ✅ 0053 applied by the author 2026-10-06, live verify
+green (273 rows), the page pushed. OWED: the author's test. Guards mutation-tested: four on
 the functions, four on the form and card. NOT built, by ruling: a birthdate
 gate, parent consent, any different behaviour for an under-13 class.
 
