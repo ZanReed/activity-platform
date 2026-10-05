@@ -239,20 +239,22 @@ mechanical holds it back except that no job calls it (verify-0048's
 7. After the first armed night: read the `fact_practice.prune` audit rows
    against the dry-run report of the day before.
 
-## IN PROGRESS — the sprint (D43 slice 2), design ruled 2026-10-06
+## ✅ LIVE 2026-10-06 — the daily facts practice (D43 slice 2, "the sprint")
 
-Rulings SP-1 to SP-14 and the build slices: practice-blocks.md → "Slice 2,
-the sprint: design pass". **Slice 1 of 4 BUILT 2026-10-06** (importer +
-migration 0049, the mirror's `sprint` column). OWED: 0049 applied live, then
-the go-ahead letter (both DONE 2026-10-06; their PRs #39 and #40 merged at
-`5723b74`, revision `2d20d8c9…`). **Slice 2 of 4 BUILT 2026-10-06** (the
-engine, migration 0050 + verify-0050). OWED, the author's: (1) mirror the
-new revision (`pnpm import:batch … --fact-registry`, exact command in
-STATE). (2) ✅ DONE 2026-10-06: 0050 and 0051 applied by the author, live
-verify green (267 rows), the page commit pushed. **Slices 3 and 4 BUILT
-2026-10-06** (the student's practice, the Home link, the teacher's panel).
-Left: the mirror import, its receipt to the curriculum side, and the
-author's test.
+All four build slices are live: 0049 (the mirror's settings), 0050 (the
+engine), the student's practice + Home link, 0051 + the teacher's panel;
+registry revision `2d20d8c9…` mirrored. Record: practice-blocks.md →
+"Slice 2, the sprint". Left behind, each with its trigger:
+- **The author's test** of both sides; findings go in the test queue above.
+- **Short early sessions** (about 1.5 to 2 minutes with 5 new facts a
+  session). The lever is the curriculum side's `sprint_new_facts_per_session`.
+  **Trigger: the author's test, or the first real class's first week.**
+- **The import report does not print the seven practice settings**, so a dry
+  run cannot show they were read. **Trigger: the next change to the fact-scope
+  report in `scripts/batch-import.mjs`.**
+- **Spot-checks spread by dates** instead of by the new-fact cap (their
+  original wording; they recorded the cap reading as in force, C-71).
+  **Trigger: the author asks for it.**
 
 ## The verify runner drops a row that ERRORS or returns NULL (found 2026-10-06)
 
