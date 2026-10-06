@@ -212,7 +212,9 @@ to catch.
 - **Device checks (T11, D6) — the author's:** on the school's real devices,
   that no on-screen keyboard appears, that physical keys register, and one
   pass with a screen reader and with switch access. Record the result in
-  STATE.
+  STATE. **WAITING (author, 2026-10-06): he has no school devices to test on.**
+  **Trigger: the first school whose devices he can reach** — before the first
+  classes (about February 2027) at the latest.
 - **A per-student "leave out of the class result" control (DR-23)** for a
   student whose timing is not a fair reading. **Trigger: the first class
   with a screen-reader or switch user.**
