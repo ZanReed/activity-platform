@@ -1948,3 +1948,16 @@ defect lived in the half of the contract the other owns.
 ## Moved out of STATE 2026-10-06 — the Y7 geometry slice's closing record
 
 **Y7 geometry figures — slice CLOSED 2026-10-04** ([y7-figures-and-charts.md](docs/design/y7-figures-and-charts.md)): built, pushed, CI green, both functions redeployed and hash-verified. The renamed pilot folder was imported 2026-10-04: 4 path-only moves, read back live (no drafts, `updated_at` untouched). What the slice left behind is in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED". Next: the author's build run of 2026-10-04, in his order — ~~shell rung~~, ~~`--chain-registry`~~, ~~Y7 charts~~, ~~graded stimuli~~, ~~side-by-side figures~~, ~~SW stale-shell recovery~~, D43 builds (in progress, above). His test findings queue in TODOS.
+
+## Moved out of STATE 2026-10-06 — the flow-modes closing record
+
+## The flow modes — SHIPPED AND LIVE (2026-08-24); arc closed
+
+[activity-flow-modes.md](docs/design/activity-flow-modes.md) — **read its
+AS BUILT section, not just the plan; five things changed shape at build
+time.** Check groups, the server-enforced `locked` mode (0040 +
+`check-activity` v20), `activityType` as a printed label; `revisionMode`
+and `gradingMode` deleted. **`answerFeedback: immediate` is still
+deferred** — it needs a commit seam that does not exist, and
+`scripts/tests/flow-field-readers.test.mjs` fails if that deferral ever
+ends silently. Full narrative: HISTORY.md.

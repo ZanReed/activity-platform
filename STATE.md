@@ -122,14 +122,7 @@ it was written for.** That is what mutation finds and reading does not.
 
 ## The flow modes — SHIPPED AND LIVE (2026-08-24); arc closed
 
-[activity-flow-modes.md](docs/design/activity-flow-modes.md) — **read its
-AS BUILT section, not just the plan; five things changed shape at build
-time.** Check groups, the server-enforced `locked` mode (0040 +
-`check-activity` v20), `activityType` as a printed label; `revisionMode`
-and `gradingMode` deleted. **`answerFeedback: immediate` is still
-deferred** — it needs a commit seam that does not exist, and
-`scripts/tests/flow-field-readers.test.mjs` fails if that deferral ever
-ends silently. Full narrative: HISTORY.md.
+[activity-flow-modes.md](docs/design/activity-flow-modes.md) → read its AS BUILT section. `answerFeedback: immediate` stays deferred, guarded by `scripts/tests/flow-field-readers.test.mjs`. The rest of this section moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06.
 
 ## The S9 orphan arc — closed; narrative in HISTORY
 
