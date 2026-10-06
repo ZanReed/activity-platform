@@ -3027,6 +3027,14 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Effort:** 2 M/M (blocked on the toggle design) · 3 S/M · **Priority:** P3 · **Depends on:** a real authoring case that the workaround cannot absorb.
 
+## Period kinds (their D49, `activity_defaults.year_plan`) — five wishes, FILED WITH TRIGGERS (C-77, 2026-10-06)
+
+**What:** the curriculum side plans the year in six period kinds (activity, review, corrective, assessment, transfer, buffer; their §18: the teacher places every period, the platform may suggest, never schedule). Wishes they will point at from the boundary page after PR #46 merges: (1) a full-period mixed "review period" (D43's scheduler run longer and further back); (2) bank items retrievable by misconception id, and a corrective session routing each student to the corrective for their flagged ids, or the chain's discrimination items if none; (3) a termly cumulative-test session from a separate item pool; (4) a way to mark a transfer task; (5) most optional, a teacher year view reading `year_plan`. Read the key from their graph, not this row.
+
+**Cost reading given to them (B-95), not a ruling:** marking a transfer task is cheaper as a third `chain_role` value than as a new activity kind. `chain_role` is an importer-validated meta value read only for coverage (no column), so the change is the importer enum, the coverage rule (a transfer task is never a part), and the authoring prompt. A new kind would be the `pedagogical_role` enum (0037): a migration and a Bank-visible label.
+
+**Trigger:** (1)–(3) need §17 banks, which no chain has, and they sit behind mixed practice's gate (two chains with ratified banks). They enter the BUILD ORDER only when an authored draft is capped by one. (4) fires when the first transfer task is drafted. (5) waits for the author to ask. Ranking is the author's.
+
 ## AI grading: consume misconception-attachments.txt (curriculum PR #5; platform slice after their merge)
 
 **⚠ Mapping moved 2026-10-06 (their C-76, main `85b19ca`):** read `misconception-attachments.txt` at `85b19ca` or later (sha256 `9d0b6ba1…0622`), not an older copy. Four skills moved, and the rows for the three skills retired into their `skill-ids-retired.txt` are gone. The "79 pairs" count below predates it.
