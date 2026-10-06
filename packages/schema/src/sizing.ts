@@ -2,9 +2,10 @@
 // sizing.ts — Shared per-block sizing fragment (variable block sizing, Drop 1)
 // -----------------------------------------------------------------------------
 // One unified mechanism for "this block renders narrower than its container":
-// an optional width FRACTION plus an optional alignment. Applied today to
-// ImageBlock and MathBlock (the sizable set with a real authoring surface);
-// extends to other blocks additively when their editing UI lands. Design:
+// an optional width FRACTION plus an optional alignment. Grep `sizingFields`
+// for which blocks carry it (this comment named two until the 2026-10-07 drift
+// audit, when far more did). ⚠ The definition-local image/math shapes in
+// inline.ts carry it but no renderer honours it there — TODOS → "Image crop". Design:
 // docs/design/variable-block-sizing.md.
 //
 // Reflow-safe by construction: width is relative (a fraction of whatever

@@ -1669,6 +1669,17 @@ Roughly priority-ordered; none gates anything.
    hazard rather than a user bug. **Papercut:** the gutter "+" can overlap the
    drag grip's lower half on a short block.
 
+## Image crop — the viewer does not honour it in the body OR in definitions (drift audit 2026-10-07)
+
+**Two findings, one mechanism; FILED, not fixed** (each needs a browser lane to guard against rendered output, which the audit could not run).
+
+1. **Definition images (§9 orphan, print-affecting).** `DefinitionImageBlock` (and `DefinitionMathBlock`) in `packages/schema/src/inline.ts` carry `crop`, `srcAspect` and `width`/`align`; the definition dialog mounts the full Image extension, so teachers can set them and `serialize.ts` stores them. The ONE renderer for definition content, `GlossaryBlock` in `packages/viewer/src/print/DefinitionGlossary.tsx`, emits a bare `<img src alt>` and passes only `latex` for math — so the on-screen popover, the glossary dialog and the printed appendix all show the UNCROPPED figure at full width. `docs/design/definition-rich-content.md` (lines ~30, 92, 271) still promises otherwise (not edited; annotate when fixed).
+2. **Body images, suspected.** `blocks/Image.tsx` implements a crop as an inline `width: (100/crop.w)%` plus negative margins inside an `overflow:hidden` window, but `.viewer-image__img { max-width: 100% }` (screen, `viewer.css` ~602, and the print rule ~2200) caps that width. Reduced model in Chromium 2026-10-07: a `width:200%` image inside a 400px window under `max-width:100%` renders at **400px**, not 800, so the window shows a shifted, uncropped image. Not yet confirmed on a real cropped activity — do that first (`/a/:id` with a cropped image, screen and print preview).
+
+**Likely fix:** one shared crop helper used by both renderers, plus `max-width: none` on the cropped `<img>` inside the window. **Guard:** an e2e row asserting the cropped image's computed width exceeds its window (screen and print), mutation-tested by removing the `max-width` override. Also: `blocks/Image.tsx` emits `data-align` that no CSS selects (alignment comes from `data-block-align`), and `FreeResponseAnswerKey.tsx` tells the teacher to "mark it against the rubric" on a printed key that never prints the rubric.
+
+**Trigger:** now for (2) if confirmed (student-visible); (1) the first catalogue definition carrying a cropped figure.
+
 ## A general walk-descent guard for nested-content blocks
 
 **What:** A fixture-driven guard asserting that every registered block type's authored in-band ids

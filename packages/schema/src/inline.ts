@@ -231,8 +231,10 @@ const DefinitionMathBlock = z.object({
 });
 
 // Illustrative image. Definition-local for the optional-id reason above, but it
-// reuses the shared sizing + crop vocabulary verbatim, so reframing a textbook
-// figure down to the relevant corner works exactly as it does in the body.
+// reuses the shared sizing + crop vocabulary verbatim. ⚠ The editor writes
+// crop and width here, but the one definition renderer
+// (viewer/src/print/DefinitionGlossary.tsx) ignores both (drift audit
+// 2026-10-07; TODOS → "Image crop").
 // `caption` is deliberately absent (YAGNI — alt covers accessibility, and a
 // captioned figure in a popover is the reference panel's job); additive later.
 const DefinitionImageBlock = z.object({

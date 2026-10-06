@@ -20,9 +20,10 @@
 // editor treat `undefined` and `{mode:'auto'}` identically.
 //
 // The per-block manual integer `number` override is orthogonal and still lives
-// on the individual blocks: it relabels the shown integer while STAYING in
-// sequence, and it applies only when the label mode is auto (custom/none win).
-// See docs/design + block-predicates.ts.
+// on the individual blocks — but NOTHING writes or reads it (ruling D5; see
+// packages/viewer/src/numbering/numbering.ts and TODOS → "The `number`
+// override is an ORPHAN FIELD"). Its intended relabel-vs-restart semantics are
+// unresolved there; this comment used to state them as behaviour.
 // =============================================================================
 
 import { z } from 'zod';
