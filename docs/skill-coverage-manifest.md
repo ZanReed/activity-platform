@@ -12,9 +12,9 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**3 of 97 skills covered** (3 published, 0 draft only) · 0 partly covered · 4 activities
+**3 of 96 skills covered** (3 published, 0 draft only) · 0 partly covered · 4 activities
 
-**3 of 108 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+**3 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
 ## Covered
 
@@ -86,8 +86,9 @@ reason for existing — a count alone cannot be acted on.
 - `number.factors.hcf-lcm`
 - `number.fractions.equivalent`
 - `number.fractions.to-decimal`
-- `number.integers.additive-inverse`
+- `number.integers.add`
 - `number.integers.number-line`
+- `number.integers.subtract`
 - `number.operations.order`
 - `number.percent.hundredths`
 - `number.place-value.decimals`
@@ -97,7 +98,6 @@ reason for existing — a count alone cannot be acted on.
 - `number.round.cash`
 - `pattern.linear.graph`
 - `pattern.linear.rule`
-- `prob.complement`
 - `prob.experimental.large-numbers`
 - `prob.experimental.relative-frequency`
 - `prob.sample-space.list`
@@ -113,7 +113,6 @@ reason for existing — a count alone cannot be acted on.
 - `stats.summary.mean`
 - `stats.summary.median-mode`
 - `stats.summary.outlier-effect`
-- `stats.summary.range`
 - `stats.variables.classify`
 - `transform.compose-order`
 - `transform.horizontal.stretch`

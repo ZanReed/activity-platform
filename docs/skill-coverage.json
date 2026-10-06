@@ -1,25 +1,20 @@
 {
   "schema": "activity-platform/skill-coverage@1",
-  "registrySize": 97,
+  "registrySize": 96,
   "counts": {
     "activities": 4,
     "covered": 3,
     "coveredPublished": 3,
     "partial": 0,
-    "uncovered": 94,
+    "uncovered": 93,
     "partsAuthored": 3,
-    "partsDeclared": 108
+    "partsDeclared": 102
   },
   "multiPartSkills": {
-    "algebra.equations.two-step": 2,
     "function.repr.correspondence": 3,
     "linear.model.contextual": 3,
     "linear.slope.two-points": 2,
-    "number.factors.hcf-lcm": 2,
-    "number.integers.additive-inverse": 2,
-    "number.operations.order": 2,
-    "pattern.linear.rule": 2,
-    "prob.sample-space.list": 2
+    "number.divisibility.rules": 2
   },
   "skills": [
     {
@@ -120,8 +115,9 @@
     "number.factors.hcf-lcm",
     "number.fractions.equivalent",
     "number.fractions.to-decimal",
-    "number.integers.additive-inverse",
+    "number.integers.add",
     "number.integers.number-line",
+    "number.integers.subtract",
     "number.operations.order",
     "number.percent.hundredths",
     "number.place-value.decimals",
@@ -131,7 +127,6 @@
     "number.round.cash",
     "pattern.linear.graph",
     "pattern.linear.rule",
-    "prob.complement",
     "prob.experimental.large-numbers",
     "prob.experimental.relative-frequency",
     "prob.sample-space.list",
@@ -147,7 +142,6 @@
     "stats.summary.mean",
     "stats.summary.median-mode",
     "stats.summary.outlier-effect",
-    "stats.summary.range",
     "stats.variables.classify",
     "transform.compose-order",
     "transform.horizontal.stretch",

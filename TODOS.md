@@ -3033,6 +3033,15 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Cost reading given to them (B-95), not a ruling:** marking a transfer task is cheaper as a third `chain_role` value than as a new activity kind. `chain_role` is an importer-validated meta value read only for coverage (no column), so the change is the importer enum, the coverage rule (a transfer task is never a part), and the authoring prompt. A new kind would be the `pedagogical_role` enum (0037): a migration and a Bank-visible label.
 
+**Claude's recommendations (the author asked, 2026-10-06; his to overrule).** Build as little new machinery as possible; four of the five reuse something that exists.
+1. **Review period = mixed practice with two parameters, not a new engine.** Same scheduler, a session length (a full period) and a look-back (whole year, not the current chain). Built INSIDE the mixed-practice slice, so it rides that gate.
+2. **Corrective routing = derive, don't capture.** Every stored check already keeps the misconception ids that fired (`section_checks.verdicts.misconceptionIds`, written by the grader). A corrective session reads a student's flagged ids for the chain from those rows, picks bank items tagged with those ids, and falls back to the chain's discrimination items. Needs: bank items carrying `mis.*` tags (their §17 contract), the attachments mirror (TODOS → "AI grading: consume misconception-attachments.txt", which then gets a second consumer), and one read RPC. ⚠ When `prune_section_checks` is armed, flags older than its horizon disappear; the corrective must read inside that window or keep a rolled-up flag.
+3. **Cumulative test = an ordinary authored activity, no new session type.** `submissionMode: locked` already gives one attempt (0040); the separate item pool is curriculum-side authoring. Platform cost: none beyond a way to label it an assessment (see 4). Build nothing until one is drafted.
+4. **Transfer marking (and the test label) = new `chain_role` values, not a new activity kind.** `chain_role: transfer` (and, if the test needs marking, `assessment`): the importer enum, the coverage rule (neither counts as a part) and the authoring prompt. No migration. Keep `pedagogical_role` (0037, the Bank's label) unchanged.
+5. **Year view = not now.** §18 says the teacher places every period; the platform may only suggest. When asked for, a read-only view of a class's activities grouped by period kind, with the suggestion as text, never a schedule.
+
+**Order, if the gate opens:** 1 with mixed practice → 2 (needs banks + attachments) → 4 when the first transfer task or test is drafted → 3 needs nothing → 5 on request.
+
 **Trigger:** (1)–(3) need §17 banks, which no chain has, and they sit behind mixed practice's gate (two chains with ratified banks). They enter the BUILD ORDER only when an authored draft is capped by one. (4) fires when the first transfer task is drafted. (5) waits for the author to ask. Ranking is the author's.
 
 ## AI grading: consume misconception-attachments.txt (curriculum PR #5; platform slice after their merge)
