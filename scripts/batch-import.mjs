@@ -111,7 +111,7 @@
 //     the run and written to docs/misconception-manifest.md. Singleton ids and
 //     near-duplicate ids are flagged there, because a typo's signature is
 //     "used once, and it looks like its neighbour".
-//   * the REGISTRY (--registry <file>) — ids the author's own taxonomy does not
+//   * the REGISTRY (--misconception-registry <file>) — ids the author's own taxonomy does not
 //     list. A folder that carries bindings and supplies NO registry warns for
 //     that too: a check that only runs when a flag is present must say so when
 //     the flag is absent, or its absence reads as a pass (policy P3).
@@ -485,7 +485,7 @@ export function parseChainRegistry(text) {
  * Where a run reads its chain registry from, and the text it found there.
  *
  * `--chain-registry <path>` reads the curriculum repo's own file, like
- * `--registry` and `--skills-registry` do — it exists to retire the copy the
+ * `--misconception-registry` and `--skills-registry` do — it exists to retire the copy the
  * catalogue folder had to carry (B-42 / C-40). Without the flag the catalogue
  * ROOT is still looked in, and finding nothing there stays legal: a catalogue
  * that does not use chains states `unit:` per file.
@@ -2206,6 +2206,7 @@ export function parseArgs(argv) {
     let force = false;
     let strict = false;
     let registry = null;
+    let warnedRegistryAlias = false;
     let skillsRegistry = null;
     let chainRegistry = null;
     let glossary = null;
@@ -2227,8 +2228,18 @@ export function parseArgs(argv) {
         else if (arg === '--strict') strict = true;
         else if (arg === '--owner') owner = argv[++i] ?? null;
         else if (arg.startsWith('--owner=')) owner = arg.slice('--owner='.length);
-        else if (arg === '--registry') registry = argv[++i] ?? null;
-        else if (arg.startsWith('--registry=')) registry = arg.slice('--registry='.length);
+        else if (arg === '--misconception-registry') registry = argv[++i] ?? null;
+        else if (arg.startsWith('--misconception-registry='))
+            registry = arg.slice('--misconception-registry='.length);
+        // DEPRECATED alias (renamed beside --skills-registry / --glossary, where
+        // the bare name stopped saying which registry). One warning per run.
+        else if (arg === '--registry' || arg.startsWith('--registry=')) {
+            if (!warnedRegistryAlias) {
+                warnedRegistryAlias = true;
+                console.warn('warning: --registry is deprecated; use --misconception-registry.');
+            }
+            registry = arg === '--registry' ? (argv[++i] ?? null) : arg.slice('--registry='.length);
+        }
         else if (arg === '--skills-registry') skillsRegistry = argv[++i] ?? null;
         else if (arg.startsWith('--skills-registry='))
             skillsRegistry = arg.slice('--skills-registry='.length);
@@ -2265,7 +2276,8 @@ export function parseArgs(argv) {
 export function usageText() {
     return `
   pnpm import:batch <folder> --owner <email|uuid> [--dry-run] [--force]
-                             [--registry <file>] [--skills-registry <file>]
+                             [--misconception-registry <file>]
+                             [--skills-registry <file>]
                              [--chain-registry <file>] [--glossary <file>]
                              [--fact-registry <file>]
                              [--allow-mass-retire] [--strict]
@@ -2288,9 +2300,11 @@ export function usageText() {
                Without it the run reads chain-registry.txt from the catalogue
                root, if there is one. With it, a copy left in the root is NOT
                read, and the run says so
-  --registry   a file of valid mis.* ids, one per line (# comments, blank lines
+  --misconception-registry
+               a file of valid mis.* ids, one per line (# comments, blank lines
                ignored). Bindings outside it warn, by name. A folder that
-               carries bindings and supplies no registry warns for that too
+               carries bindings and supplies no registry warns for that too.
+               (--registry is a deprecated alias: it works and warns once.)
   --glossary   the course glossary file (\`\`\`definitions entries, each with a
                required id: line — docs/markdown-import-format.md). Every
                [[term]] resolves against it, and the run MIRRORS it into the
@@ -2380,7 +2394,7 @@ async function main() {
     if (args.registry) {
         const path = resolve(args.registry);
         const text = await readFile(path, 'utf8').catch(() => null);
-        if (text === null) usage(`--registry ${path} could not be read.`);
+        if (text === null) usage(`--misconception-registry ${path} could not be read.`);
         registry = {
             path: args.registry,
             ids: parseRegistry(text),
@@ -2388,7 +2402,7 @@ async function main() {
         };
         if (registry.ids.size === 0) {
             usage(
-                `--registry ${path} lists no ids.\n\n` +
+                `--misconception-registry ${path} lists no ids.\n\n` +
                     '  An empty registry would make EVERY binding unknown, which reads as a\n' +
                     '  catalogue full of typos rather than as a mis-pointed flag.',
             );
@@ -2822,8 +2836,8 @@ async function main() {
         bindingWarnings.push(
             `${summary.total} binding${summary.total === 1 ? '' : 's'} across ` +
                 `${summary.ids.length} id${summary.ids.length === 1 ? '' : 's'}, and NO ` +
-                '--registry was supplied — nothing checked those ids against your ' +
-                'taxonomy. Pass --registry <file> to validate them.',
+                '--misconception-registry was supplied — nothing checked those ids against your ' +
+                'taxonomy. Pass --misconception-registry <file> to validate them.',
         );
     }
     // ---- catalogue warnings -------------------------------------------------

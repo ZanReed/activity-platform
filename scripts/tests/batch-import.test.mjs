@@ -1634,9 +1634,9 @@ test('§I an empty catalogue still produces a manifest, not a stale one', () => 
 
 // ---- the flags --------------------------------------------------------------
 
-test('§I --strict and --registry parse, in either form', () => {
+test('§I --strict and --misconception-registry parse, in either form', () => {
     assert.deepEqual(
-        parseArgs(['~/cat', '--strict', '--registry', 'tax.txt', '--owner=me']),
+        parseArgs(['~/cat', '--strict', '--misconception-registry', 'tax.txt', '--owner=me']),
         {
             folder: '~/cat',
             owner: 'me',
@@ -1651,9 +1651,47 @@ test('§I --strict and --registry parse, in either form', () => {
             allowMassRetire: false,
         },
     );
-    assert.equal(parseArgs(['~/cat', '--registry=tax.txt']).registry, 'tax.txt');
+    assert.equal(parseArgs(['~/cat', '--misconception-registry=tax.txt']).registry, 'tax.txt');
     assert.equal(parseArgs(['~/cat']).strict, false);
     assert.equal(parseArgs(['~/cat']).registry, null);
+});
+
+/** Run fn with console.warn captured; returns [result, warnings]. */
+function captureWarnings(fn) {
+    const warnings = [];
+    const orig = console.warn;
+    console.warn = (...a) => warnings.push(a.join(' '));
+    try {
+        return [fn(), warnings];
+    } finally {
+        console.warn = orig;
+    }
+}
+
+test('§I --registry is a deprecated alias: same value, both forms', () => {
+    const [spaced] = captureWarnings(() => parseArgs(['~/cat', '--registry', 'tax.txt']));
+    const [equals] = captureWarnings(() => parseArgs(['~/cat', '--registry=tax.txt']));
+    const [fresh] = captureWarnings(() =>
+        parseArgs(['~/cat', '--misconception-registry', 'tax.txt']),
+    );
+    assert.deepEqual(spaced, fresh);
+    assert.deepEqual(equals, fresh);
+    assert.equal(fresh.registry, 'tax.txt');
+});
+
+test('§I the alias warns exactly once, naming the new flag; the new flag is silent', () => {
+    const [, once] = captureWarnings(() => parseArgs(['~/cat', '--registry', 'a.txt']));
+    assert.equal(once.length, 1);
+    assert.match(once[0], /--registry is deprecated/);
+    assert.match(once[0], /--misconception-registry/);
+    const [, twice] = captureWarnings(() =>
+        parseArgs(['~/cat', '--registry', 'a.txt', '--registry=b.txt']),
+    );
+    assert.equal(twice.length, 1, 'repeating the alias still warns once per run');
+    const [, none] = captureWarnings(() =>
+        parseArgs(['~/cat', '--misconception-registry', 'a.txt', '--skills-registry', 's.txt']),
+    );
+    assert.deepEqual(none, []);
 });
 
 // §I.22 — the ported numeric parser must agree with the one that MARKS.
@@ -2265,11 +2303,20 @@ test('§L every flag parseArgs accepts is documented in usage() (W-11)', () => {
         [...body.matchAll(/arg === '(--[a-z-]+)'/g)].map((m) => m[1]).filter((f) => f !== '--'),
     );
     assert.ok(flags.size >= 8, `expected every flag, found ${[...flags]}`);
+    // Both spellings of the renamed flag are accepted, so both must be seen.
+    assert.ok(flags.has('--misconception-registry'), 'new spelling not found in parseArgs');
+    assert.ok(flags.has('--registry'), 'deprecated alias not found in parseArgs');
     const text = usageText();
     const synopsis = text.slice(0, text.indexOf('<folder>     '));
+    // Whole-flag match: a bare includes() let `--registry` be satisfied by
+    // `--skills-registry`, which made the alias row vacuous.
+    const mentions = (hay, flag) =>
+        new RegExp(`(^|[\\s\\[(])${flag}(?![a-z-])`).test(hay);
     for (const flag of flags) {
-        assert.ok(text.includes(flag), `${flag} is accepted but not documented`);
-        if (flag !== '--owner') assert.ok(synopsis.includes(flag), `${flag} is missing from the synopsis`);
+        assert.ok(mentions(text, flag), `${flag} is accepted but not documented`);
+        // The alias is documented in prose, not the synopsis.
+        if (flag !== '--owner' && flag !== '--registry')
+            assert.ok(mentions(synopsis, flag), `${flag} is missing from the synopsis`);
     }
 });
 

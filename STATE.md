@@ -99,7 +99,7 @@ answer leak** in the SHARED parser. Plus a generated catalogue-authoring prompt
 that retires the one hand-carried sync in the curriculum side's system.
 
 **The live numbers are commands, not facts here:** `pnpm import:batch
-~/activity-catalogue-pilot --owner <email> --dry-run --strict --registry
+~/activity-catalogue-pilot --owner <email> --dry-run --strict --misconception-registry
 …/misconception-registry.txt --skills-registry …/skill-registry.txt
 --chain-registry …/chain-registry.txt`. It exits
 0. At the last run: 3/47 skills covered, 3/51 parts authored, 44 uncovered by
