@@ -17,6 +17,7 @@
 // test:e2e:integration`.
 // =============================================================================
 
+import { readFileSync } from 'node:fs';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -31,7 +32,11 @@ import {
 // product does not speak.
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { supabaseStorageKey } from '../helpers/studentSession';
+import { FACT_PROBE_RPC } from '../../src/lib/factProbeRpc';
+import { expandFactScope } from '../../src/lib/factScope';
+import { answer, warmUp } from '../helpers/factsRun';
 import {
+  INT_FACT_STUDENTS,
   INT_OUTSIDER,
   INT_PENDING_STUDENT,
   INT_PENDING_TEACHER,
@@ -50,6 +55,8 @@ let student: { client: SupabaseClient; session: Session };
 let joinCode: string;
 let className: string;
 let activityId: string;
+let classId: string;
+let serviceRoleKey: string;
 
 function anonClient(): SupabaseClient {
   return createClient(LOCAL_SUPABASE_URL, LOCAL_ANON_KEY, {
@@ -114,10 +121,11 @@ function checkableDoc(): unknown {
 test.beforeAll(async () => {
   test.setTimeout(360_000); // db reset downloads nothing but replays 30 migrations
 
-  // Called for its effects (preflight with named fixes, then a full db reset);
-  // the returned handle is no longer needed now that seeding goes through the
-  // CLI as postgres rather than PostgREST as the service role.
-  preflightAndReset();
+  // Preflight with named fixes, then a full db reset. Admission seeding goes
+  // through the CLI as postgres; the service-role key is kept for the one
+  // service-only write a row needs (the fact-scope mirror, as the importer
+  // makes it).
+  serviceRoleKey = preflightAndReset().serviceRoleKey;
   await seedAdmission();
 
   // Edge Functions must be served for the check round trip. Recent CLIs serve
@@ -238,6 +246,7 @@ test('a teacher makes a class + publishes + shares; a student joins through the 
   const classRow = cls as { id: string; name: string; join_code: string };
   joinCode = classRow.join_code;
   className = classRow.name;
+  classId = classRow.id;
 
   const { data: inserted, error: insertError } = await teacher.client
     .from('activities')
@@ -706,4 +715,198 @@ test('a `locked` activity refuses a second check, writes no row, and still repla
     freeAgain.status,
     `a \`free\` activity was refused a re-check — the lock is not reading submissionMode; body: ${await freeAgain.clone().text()}`,
   ).toBe(200);
+});
+
+// =============================================================================
+// Number facts (D43, 0045–0048) — the join the stub lanes cannot make
+// -----------------------------------------------------------------------------
+// facts-teacher.e2e.ts drives the teacher's page against a stub; facts-entry
+// drives the student's run against a stub; verify-0045/0048 prove the server's
+// half in SQL. Nothing proved the two meet: that what the server COMPUTES is
+// what the page SHOWS. This row is that join (TODOS → "A real-backend row in
+// the local integration lane", fired by 0048's additive fields).
+//
+// Teacher opens in the browser (through the end-date step) → one student runs
+// it in the browser → four more save through the same RPC with set timings (a
+// verdict needs five students with a rate) → the teacher closes in the browser
+// → the page is held to the fields fact_probe_results returns, read here BY
+// NAME. If a server field is renamed the page goes blank while this row reads
+// the real field, and the row goes red. Registry: the committed copy of the
+// revision live runs on, through the importer's own expander (P2).
+// =============================================================================
+
+interface ProbeResults {
+  probe: { id: string; state: string; keep_until: string; item_count: number };
+  class: {
+    verdict: string;
+    in_class: number;
+    started: number;
+    finished: number;
+    with_rate: number;
+    left_out: number;
+    median_rate: number | null;
+    floor: number;
+  };
+}
+
+/** yyyy-mm-dd plus whole days, in calendar terms (no time zone in play). */
+function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const t = new Date(Date.UTC(y!, m! - 1, d! + days));
+  return t.toISOString().slice(0, 10);
+}
+
+test('number facts: what the server computes is what the teacher sees (open → run → close)', async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.setTimeout(240_000);
+
+  // -- the registry, mirrored the way the importer mirrors it ---------------
+  // The committed copy of the revision live runs on (read as a file: the
+  // runner's ESM loader will not import JSON without an attribute).
+  const liveRegistry: unknown = JSON.parse(
+    readFileSync(new URL('../../src/__tests__/fixtures/fact-scope-registry.2d20d8c9.json', import.meta.url), 'utf8'),
+  );
+  const expanded = expandFactScope(liveRegistry);
+  if (!expanded.ok) throw new Error(`the fixture registry does not expand: ${expanded.errors.join('; ')}`);
+  const service = createClient(LOCAL_SUPABASE_URL, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error: mirrorError } = await service.rpc('sync_fact_scope', {
+    p_mirror: expanded.mirror,
+    p_apply: true,
+  });
+  if (mirrorError) throw new Error(`sync_fact_scope: ${mirrorError.message}`);
+
+  // -- the teacher opens it, through the end-date step ----------------------
+  await useSession(page, teacher.session);
+  await page.goto(`/classes/${classId}/facts`);
+  await expect(page.getByRole('heading', { name: 'Number facts snapshot' })).toBeVisible({
+    timeout: 20_000,
+  });
+  const yearEnd = page.getByLabel('When does this class’s school year end?');
+  await expect(yearEnd).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  const endsOn = await yearEnd.inputValue();
+  await page.getByRole('radio', { name: /Facts up to Year 7/ }).check();
+  await page.getByRole('button', { name: 'Open the snapshot' }).click();
+  await expect(page.locator('.ft-linkbig')).toHaveText(new RegExp(`/facts/${joinCode}$`), {
+    timeout: 15_000,
+  });
+
+  const { data: overview, error: overviewError } = await teacher.client.rpc(FACT_PROBE_RPC.overview, {
+    p_class_id: classId,
+  });
+  if (overviewError) throw new Error(overviewError.message);
+  const probeId = (overview as { probes: Array<{ id: string; state: string }> }).probes.find(
+    (p) => p.state === 'open',
+  )?.id;
+  expect(probeId, 'the page said it opened, but the overview has no open snapshot').toBeTruthy();
+
+  // -- one student runs it in the browser ------------------------------------
+  // The answers come from the student's OWN entry read (the payload the run is
+  // built from), matched to what the page shows: the test types what a student
+  // who knows their facts would type.
+  const { data: entry, error: entryError } = await student.client.rpc(FACT_PROBE_RPC.entry, {
+    p_code: joinCode,
+  });
+  if (entryError) throw new Error(entryError.message);
+  const ready = entry as { state: string; total: number; items: Array<{ display: string; answer: string }> };
+  expect(ready.state).toBe('ready');
+  const norm = (t: string) => t.replace(/−/g, '-').replace(/\s+/g, ' ').trim();
+  const answers = new Map(ready.items.map((i) => [norm(i.display), i.answer]));
+
+  // Its OWN browser context: a second tab in the teacher's context shares
+  // localStorage, so the student's session would replace the teacher's under
+  // the teacher page's polling.
+  const studentContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  const studentPage = await studentContext.newPage();
+  await useSession(studentPage, student.session);
+  await studentPage.goto(`/facts/${joinCode}`);
+  await expect(studentPage.getByRole('heading', { name: 'Quick number facts' })).toBeVisible({
+    timeout: 15_000,
+  });
+  await warmUp(studentPage);
+  const expr = studentPage.locator('.fx-expr');
+  for (let n = 1; n <= ready.total; n++) {
+    const shown = norm((await expr.textContent()) ?? '');
+    const typed = answers.get(shown);
+    expect(typed, `no item in the entry payload is displayed as "${shown}"`).toBeDefined();
+    await answer(studentPage, typed!);
+    if (n < ready.total) await expect(expr).not.toHaveText(shown);
+  }
+  await expect(studentPage.getByRole('heading', { name: 'All done' })).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByText(`You got ${ready.total} right.`)).toBeVisible();
+  await studentContext.close();
+
+  // -- four more students, through the same join and save RPCs ---------------
+  // All right, and slow: 9–12 s a fact (under the 15 s ceiling; the server
+  // counts less than the raw time, so 4–7 s still read as fluent), so the
+  // class median sits below the floor and the page has to render the full 'below' verdict (median, floor,
+  // counts), not the 'not enough' sentence that carries no numbers.
+  for (const [i, creds] of INT_FACT_STUDENTS.entries()) {
+    const other = await signUpAndIn(creds);
+    const { error: joinError } = await other.client.rpc('join_class', { p_join_code: joinCode });
+    if (joinError) throw new Error(`join_class (${creds.email}): ${joinError.message}`);
+    const { data: theirEntry, error: theirEntryError } = await other.client.rpc(FACT_PROBE_RPC.entry, {
+      p_code: joinCode,
+    });
+    if (theirEntryError) throw new Error(theirEntryError.message);
+    const items = (theirEntry as { items: Array<{ n: number; answer: string }> }).items;
+    const rt = 9000 + i * 1000;
+    const { data: saved, error: saveError } = await other.client.rpc(FACT_PROBE_RPC.save, {
+      p_probe_id: probeId,
+      p_attempts: items.map((it, k) => ({
+        n: it.n, typed: it.answer, rt_ms: rt, offset_ms: k * (rt + 300),
+        skipped: false, interrupted: false, modality: 'keyboard',
+      })),
+      p_baselines: { keyboard: 300, keypad: null },
+      p_finished: true,
+    });
+    if (saveError) throw new Error(`save_fact_attempts (${creds.email}): ${saveError.message}`);
+    expect((saved as { state: string; finished: boolean })).toMatchObject({ state: 'saved', finished: true });
+  }
+
+  // -- the live view counts what the server counts ----------------------------
+  const readResults = async (): Promise<ProbeResults> => {
+    const { data, error } = await teacher.client.rpc(FACT_PROBE_RPC.results, { p_probe_id: probeId });
+    if (error) throw new Error(error.message);
+    return data as ProbeResults;
+  };
+  const live = await readResults();
+  expect(live.class.started, 'five students saved; the server should count five').toBe(5);
+  await expect(page.locator('.ft-counts')).toHaveText(
+    `In class ${live.class.in_class} · Started ${live.class.started} · Finished ${live.class.finished}`,
+    { timeout: 15_000 }, // the page polls every 5 seconds
+  );
+
+  // -- the teacher closes it in the browser ------------------------------------
+  await page.getByRole('button', { name: 'Close the snapshot…' }).click();
+  await page.getByRole('button', { name: 'Close it' }).click();
+  const verdict = page.locator('.ft-verdict');
+  await expect(verdict).toBeVisible({ timeout: 15_000 });
+
+  // -- the join: the page against the stored snapshot, field by field ---------
+  const closed = await readResults();
+  const c = closed.class;
+  expect(closed.probe.state).toBe('closed');
+  expect(c.verdict, `the fixture is built to land below the floor; the server said ${JSON.stringify(c)}`).toBe('below');
+  expect(c.with_rate).toBe(5);
+  await expect(verdict).toHaveAttribute('data-verdict', c.verdict);
+  await expect(verdict).toContainText('This class is below the fluency floor.');
+  await expect(verdict).toContainText(
+    `Class median: ${c.median_rate} correct a minute. Floor: ${c.floor}. Based on ${c.with_rate} of ${c.in_class} students` +
+      (c.left_out > 0 ? `; ${c.left_out} had too little to measure.` : '.'),
+  );
+
+  // The end date the teacher confirmed sets how long answers are kept: its
+  // date + 30 days (RP-3), and the page says that date.
+  expect(closed.probe.keep_until).toBe(addDays(endsOn, 30));
+  const keepText = await page.evaluate((d) => {
+    const [y, m, day] = d.split('-').map(Number);
+    return new Date(y!, m! - 1, day!).toLocaleDateString(undefined, {
+      day: 'numeric', month: 'long', year: 'numeric',
+    });
+  }, closed.probe.keep_until);
+  await expect(page.getByTestId('ft-keep-until')).toContainText(keepText);
 });

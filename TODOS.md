@@ -200,15 +200,17 @@ to catch.
 ## Number-facts check — what slice 1 left unbuilt (2026-10-05)
 
 - ✅ **The demo's second step (DR-4, task D5) — BUILT 2026-10-05:** "See what your teacher sees (demo data)" on the demo's done screen opens the real results screen on an invented class of eight (`practice/demoResults.ts`, held to its own arithmetic by `demoResults.test.tsx`).
-- **A real-backend row in the local integration lane:** teacher opens →
-  student runs → teacher closes → the verdict equals the snapshot, against
-  `supabase start` with a mirrored registry. The stub lanes and verify-0045
-  cover both halves separately; this is the join. **Trigger: the first
-  change to a `fact_probe_*` function's return shape** (it is the row that
-  would catch a client/server shape drift). ⚠ **FIRED 2026-10-06:** 0048 adds
-  fields to `fact_probe_overview` and `fact_probe_results` (additive;
-  verify-0048 B10 asserts the server's half). Not built yet: the author
-  ranks it. The row should also walk the new end-date step.
+- ✅ **A real-backend row in the local integration lane — BUILT 2026-10-06**
+  (author ranked it; rulings: one browser student + four through the save RPC,
+  page held to the raw `fact_probe_results` fields by name, registry = the
+  committed 2d20d8c9 fixture through `expandFactScope` + `sync_fact_scope`).
+  `integration.e2e.ts` → "number facts: what the server computes is what the
+  teacher sees": the teacher opens in the browser through the end-date step,
+  a student runs all 40 Year 7 facts in the browser, the live counts match the
+  server's, the teacher closes, and the verdict sentence (verdict, median,
+  floor, with_rate, in_class, left_out) and `keep_until` = end date + 30 match
+  the stored snapshot. Mutation-tested: the page reading `median` instead of
+  `median_rate` went red. Not in CI (the lane is local-only, as before).
 - **Device checks (T11, D6) — the author's:** on the school's real devices,
   that no on-screen keyboard appears, that physical keys register, and one
   pass with a screen reader and with switch access. Record the result in

@@ -18,6 +18,7 @@
 
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { FACT_PROBE_RPC } from '../../src/lib/factProbeRpc';
+import { answer, warmUp } from '../helpers/factsRun';
 import { signInAs, stubIdentityApi } from '../helpers/studentSession';
 
 const CODE = 'ABC234';
@@ -62,27 +63,6 @@ async function backend(page: Page, entry: unknown): Promise<Backend> {
     await state.save(route, body);
   });
   return state;
-}
-
-/** Type the warm-up through to the "Warm-up done" card, then Start. */
-async function warmUp(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Start' }).click();
-  const expr = page.locator('.fx-expr');
-  for (let i = 0; i < 25; i++) {
-    if (await page.getByRole('heading', { name: 'Warm-up done' }).isVisible()) break;
-    const shown = (await expr.textContent())!.replace('−', '-');
-    await page.waitForTimeout(320);
-    await page.keyboard.type(shown);
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(150);
-  }
-  await page.getByRole('button', { name: 'Start' }).click();
-}
-
-async function answer(page: Page, text: string): Promise<void> {
-  await page.waitForTimeout(320);
-  await page.keyboard.type(text);
-  await page.keyboard.press('Enter');
 }
 
 test('signed out: the link asks for a school sign-in and calls nothing', async ({ page }) => {
