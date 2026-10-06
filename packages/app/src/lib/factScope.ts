@@ -215,7 +215,7 @@ const LISTED_KEYS = new Set([
     'strategy',
 ]);
 const LISTED_FACT_KEYS = new Set(['id', 'display', 'spoken', 'answer']);
-const PROBE_KEYS: (
+export const PROBE_KEYS: (
     | 'floor_factor_k' | 'accuracy_threshold' | 'facts_met_threshold'
     | 'response_ceiling_s' | 'min_items_per_family' | 'practice_window'
 )[] = [
@@ -223,7 +223,7 @@ const PROBE_KEYS: (
     'min_items_per_family', 'practice_window',
 ];
 /** Optional, and all-or-none with the two lists below. */
-const TWO_PART_KEYS = ['two_part_above', 'two_part_items_per_family'] as const;
+export const TWO_PART_KEYS = ['two_part_above', 'two_part_items_per_family'] as const;
 /** Optional, and all-or-none among themselves (agreed in C-63 and C-66). */
 export const SPRINT_KEYS = [
     'sprint_max_misses', 'sprint_minutes', 'sprint_step_intervals', 'sprint_mastered_step',
@@ -958,4 +958,24 @@ export function probePartsFor(mirror: FactScopeMirror, year: string): number[] |
         sizes[part] = (sizes[part] ?? 0) + Math.min(each, fam.fact_count);
     }
     return sizes.every((n) => n > 0) ? sizes : [single];
+}
+
+/**
+ * The registry's settings as the import report prints them: three labelled
+ * lines, by REGISTRY KEY NAME (the curriculum side writes and searches by
+ * those), so a dry run shows every value the mirror will store. An absent
+ * optional group is said out loud, not left off: a revision without the
+ * practice keys is one where daily practice cannot be switched on.
+ */
+export function factSettingsReport(mirror: FactScopeMirror): string[] {
+    const probe = mirror.fact_probe as unknown as Record<string, unknown>;
+    const show = (v: unknown) => (Array.isArray(v) ? v.join(',') : String(v));
+    const line = (keys: readonly string[]) =>
+        keys.map((k) => `${k} ${show(probe[k])}`).join(' · ');
+    const has = (keys: readonly string[]) => keys.every((k) => probe[k] !== undefined);
+    return [
+        `  check    : ${line(PROBE_KEYS)}`,
+        `  two-part : ${has(TWO_PART_KEYS) ? line(TWO_PART_KEYS) : 'none in this revision — every check is one part'}`,
+        `  practice : ${has(SPRINT_KEYS) ? line(SPRINT_KEYS) : 'none in this revision — daily practice cannot be switched on'}`,
+    ];
 }

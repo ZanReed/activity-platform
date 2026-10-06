@@ -2617,3 +2617,42 @@ test('§FS a two-part registry (their d0144e8d) passes the revision check and re
         [[40], [42, 40], [42, 56], [42, 56]],
     );
 });
+
+// The settings report (TODOS → "The import report does not print the seven
+// practice settings", built 2026-10-06). Bound to OUTPUT: a real dry run of the
+// importer, through the node bundle, against a stub that answers the plan. A
+// dry run must show every value the mirror would store, by registry key name,
+// and must SAY when an optional group is absent.
+const factPlanStub = () =>
+    stubSupabase({
+        'POST /rest/v1/rpc/sync_fact_scope': (req, res, body, send) =>
+            // schema 3 = a database with 0049's sprint mirror, as live has; an
+            // older one is refused before any report (the rows above that).
+            send(res, 200, { status: body.p_apply ? 'mirrored' : 'new', schema: 3, latest_before: null, families: 0, facts: 0 }),
+    });
+
+test('§FS a dry run prints the check, two-part and practice settings by key name', async () => {
+    const fixture = join(repoRoot, 'packages/app/src/__tests__/fixtures/fact-scope-registry.2d20d8c9.json');
+    const stub = factPlanStub();
+    const run = await runImport(stub, ['--fact-registry', fixture, '--dry-run']);
+    assert.equal(run.code, 0, run.output);
+    assert.match(
+        run.output,
+        /\n {2}check {4}: floor_factor_k 0\.8 · accuracy_threshold 0\.8 · facts_met_threshold 0\.8 · response_ceiling_s 15 · min_items_per_family 5 · practice_window 10\n/,
+    );
+    assert.match(run.output, /\n {2}two-part : two_part_above 40 · two_part_items_per_family 8\n/);
+    assert.match(
+        run.output,
+        /\n {2}practice : sprint_max_misses 1 · sprint_minutes 5 · sprint_step_intervals 1,2,4,8,16 · sprint_mastered_step 2 · sprint_new_facts_per_session 5 · sprint_working_families 2 · sprint_reask_gap 3\n/,
+    );
+    const applied = stub.calls.filter((c) => c.url.includes('sync_fact_scope') && c.body?.p_apply === true);
+    assert.equal(applied.length, 0, 'a dry run writes nothing');
+});
+
+test('§FS a revision without the optional groups says so (their ac8f9fd2)', async () => {
+    const fixture = join(repoRoot, 'packages/app/src/__tests__/fixtures/fact-scope-registry.ac8f9fd2.json');
+    const run = await runImport(factPlanStub(), ['--fact-registry', fixture, '--dry-run']);
+    assert.equal(run.code, 0, run.output);
+    assert.match(run.output, /\n {2}two-part : none in this revision — every check is one part\n/);
+    assert.match(run.output, /\n {2}practice : none in this revision — daily practice cannot be switched on\n/);
+});

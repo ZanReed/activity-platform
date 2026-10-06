@@ -275,9 +275,14 @@ registry revision `2d20d8c9…` mirrored. Record: practice-blocks.md →
 - **Short early sessions** (about 1.5 to 2 minutes with 5 new facts a
   session). The lever is the curriculum side's `sprint_new_facts_per_session`.
   **Trigger: the author's test, or the first real class's first week.**
-- **The import report does not print the seven practice settings**, so a dry
-  run cannot show they were read. **Trigger: the next change to the fact-scope
-  report in `scripts/batch-import.mjs`.**
+- ✅ **The import report prints the registry's settings — BUILT 2026-10-06**
+  (author ranked it; rulings: all three groups, by registry key name). Under
+  `fact scope:` a dry run now prints `check :` (the six probe keys),
+  `two-part :` and `practice :` (the seven sprint keys), or says "none in this
+  revision" for an absent optional group (`factSettingsReport` in
+  `lib/factScope.ts`). Guard: two `§FS` dry-run rows in
+  `batch-import.test.mjs` read the real output; removing the report line
+  turned both red.
 - **Spot-checks spread by dates** instead of by the new-fact cap (their
   original wording; they recorded the cap reading as in force, C-71).
   **Trigger: the author asks for it.**

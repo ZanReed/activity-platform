@@ -1833,6 +1833,7 @@ export async function loadPipeline() {
         importer: await mod.getMarkdownImporter(),
         glossaryLoader: await mod.getGlossaryLoader(),
         expandFactScope: mod.expandFactScope,
+        factSettingsReport: mod.factSettingsReport,
         probeLengthFor: mod.probeLengthFor,
         probePartsFor: mod.probePartsFor,
         buildGlossaryIndex: mod.buildGlossaryIndex,
@@ -3284,6 +3285,7 @@ async function main() {
                     })
                     .join(' · '),
         );
+        for (const settingsLine of pipeline.factSettingsReport(factScope)) console.log(settingsLine);
         if (factScopePlan) {
             const latest = factScopePlan.latest_before;
             console.log(

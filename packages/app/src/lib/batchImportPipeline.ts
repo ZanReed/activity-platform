@@ -77,6 +77,7 @@ export type { ImportMetaTarget, ImportMetaOutcome } from './applyImportedMeta';
 // grammar runs. The importer mirrors its output into 0044's tables.
 export {
     expandFactScope,
+    factSettingsReport,
     probeLengthFor,
     probePartsFor,
     FACT_GRAMMAR_REV,
