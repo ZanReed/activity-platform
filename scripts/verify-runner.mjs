@@ -21,6 +21,20 @@
  *   -- @expect-log <text>       PASS iff stderr contains <text> (RAISE LOG
  *                               can't be SELECTed; sections set
  *                               client_min_messages = log so psql forwards it)
+ *   -- @live-only               (inside an expect-rows section) the NEXT
+ *                               statement needs something the local stack
+ *                               lacks (pg_cron's cron.job). --target local
+ *                               leaves it out and prints SKIP; live runs it.
+ *
+ * An expect-rows section is judged STRICTLY (TODOS → "The verify runner drops
+ * a row that ERRORS or returns NULL", 2026-10-06). psql runs with
+ * ON_ERROR_STOP=0 so one bad row cannot hide the rest, which means psql exits
+ * 0 over a failed statement: the runner, not the exit code, has to notice.
+ * The section fails on any ERROR on stderr, on a row whose pass column is
+ * NULL, on an output line that is not a check row, and on a literally named
+ * row (`select '<id>',` at the start of a line) that never came back. Before
+ * this, all four simply vanished — verify-0030's client_grant_is_select_only
+ * errored on every run from 2026-08-14 to 2026-10-06 and was never reported.
  *
  * Targets are EXPLICIT — running verify SQL against the wrong database is the
  * hazard (OV-DX #5), so there is no default:
@@ -74,15 +88,26 @@ export const AUTH_VERIFY_SET = [
   'verify-0020.sql',
 ];
 
+/** A check row named literally at the start of a line: `select '<id>',`. */
+const LITERAL_ROW = /^\s*select\s+'([^']+)'\s*,/i;
+
 /** Parse a verify script into runner sections. Exported for unit tests. */
 export function parseSections(sql, file) {
   const sections = [];
   let current = null;
+  let liveOnly = null; // the @live-only statement being collected, if any
+  const close = () => {
+    if (liveOnly) throw new Error(`${file} section ${current.id}: @live-only statement never ends with ';'`);
+    if (current) sections.push(current);
+  };
   for (const line of sql.split('\n')) {
     const sect = line.match(/^--\s*@section\s+(\S+)/);
     if (sect) {
-      if (current) sections.push(current);
-      current = { id: sect[1], file, mode: 'expect-rows', expectText: null, sql: [] };
+      close();
+      current = {
+        id: sect[1], file, mode: 'expect-rows', expectText: null, sql: [],
+        expectedIds: [], liveOnly: [], liveOnlyLines: new Set(),
+      };
       continue;
     }
     if (!current) continue; // preamble prose stays runner-invisible
@@ -91,14 +116,38 @@ export function parseSections(sql, file) {
     if (err) { current.mode = 'expect-error'; current.expectText = err[1].trim(); continue; }
     if (log) { current.mode = 'expect-log'; current.expectText = log[1].trim(); continue; }
     if (/^--\s*@expect-rows\b/.test(line)) { current.mode = 'expect-rows'; continue; }
+    if (/^--\s*@live-only\b/.test(line)) { liveOnly = { id: null }; continue; }
+    const named = line.match(LITERAL_ROW);
+    if (named) {
+      current.expectedIds.push(named[1]);
+      if (liveOnly && liveOnly.id === null) liveOnly.id = named[1];
+    }
+    if (liveOnly) {
+      current.liveOnlyLines.add(current.sql.length);
+      if (/;\s*(--.*)?$/.test(line)) {
+        if (!liveOnly.id) throw new Error(`${file} section ${current.id}: @live-only must mark a literally named row (select '<id>', …)`);
+        current.liveOnly.push(liveOnly.id);
+        liveOnly = null;
+      }
+    }
     current.sql.push(line);
   }
-  if (current) sections.push(current);
+  close();
+  for (const s of sections) {
+    if (s.mode !== 'expect-rows' && s.liveOnly.length > 0) {
+      throw new Error(`${file} section ${s.id}: @live-only is for expect-rows sections only`);
+    }
+  }
   return sections;
 }
 
+/** The SQL a section runs against a target: local leaves out @live-only rows. */
+export function sectionSql(section, target) {
+  return section.sql.filter((_, i) => target !== 'local' || !section.liveOnlyLines.has(i)).join('\n');
+}
+
 /** Classify one executed section. Exported for unit tests. */
-export function judgeSection(section, { status, stdout, stderr }) {
+export function judgeSection(section, { status, stdout, stderr }, { target = 'live' } = {}) {
   if (section.mode === 'expect-error') {
     const pass = stderr.includes(section.expectText);
     return [{
@@ -115,21 +164,44 @@ export function judgeSection(section, { status, stdout, stderr }) {
       detail: pass ? 'log line observed' : `expected LOG "${section.expectText}" on stderr; got: ${stderr.slice(0, 400)}`,
     }];
   }
-  // expect-rows: any psql error fails the section; otherwise parse CSV rows.
+  // expect-rows: judged strictly (see the header) — nothing may vanish.
   if (status !== 0) {
     return [{ checkId: section.id, pass: false, detail: `psql exited ${status}: ${stderr.slice(0, 400)}` }];
   }
-  const rows = stdout.split('\n').map((l) => l.trim()).filter(Boolean)
-    .map((l) => l.split(','))
-    .filter((cols) => cols.length >= 2 && (cols[1] === 't' || cols[1] === 'f'));
-  if (rows.length === 0) {
+  const results = [];
+  for (const e of stderr.split('\n').filter((l) => /\bERROR:/.test(l))) {
+    results.push({ checkId: `${section.id}:(error)`, pass: false, detail: `a statement errored, so its row never came back: ${e.trim().slice(0, 400)}` });
+  }
+  const seen = new Set();
+  for (const line of stdout.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    // id and pass never hold commas or quotes; the detail may (csv-quoted).
+    const m = line.match(/^([^,"]+),([^,]*)(?:,(.*))?$/);
+    if (!m) {
+      results.push({ checkId: `${section.id}:(stray)`, pass: false, detail: `not a check row (check_id,pass[,detail]): ${line.slice(0, 200)}` });
+      continue;
+    }
+    const [, id, passCol, detail = ''] = m;
+    seen.add(id);
+    if (passCol === 't' || passCol === 'f') {
+      results.push({ checkId: `${section.id}:${id}`, pass: passCol === 't', detail });
+    } else if (passCol === '') {
+      results.push({ checkId: `${section.id}:${id}`, pass: false, detail: `pass column is NULL — the check could not decide. ${detail}`.trim() });
+    } else {
+      results.push({ checkId: `${section.id}:(stray)`, pass: false, detail: `not a check row (pass must be t/f): ${line.slice(0, 200)}` });
+    }
+  }
+  const skipped = new Set(target === 'local' ? (section.liveOnly ?? []) : []);
+  for (const id of section.expectedIds ?? []) {
+    if (skipped.has(id)) {
+      results.push({ checkId: `${section.id}:${id}`, skip: true, detail: 'live-only (needs pg_cron); runs on --target live' });
+    } else if (!seen.has(id)) {
+      results.push({ checkId: `${section.id}:${id}`, pass: false, detail: 'named in the script but never came back' });
+    }
+  }
+  if (!results.some((r) => r.pass !== undefined)) {
     return [{ checkId: section.id, pass: false, detail: 'section emitted no check rows (check_id,pass[,detail]) — vacuous (P9)' }];
   }
-  return rows.map((cols) => ({
-    checkId: `${section.id}:${cols[0]}`,
-    pass: cols[1] === 't',
-    detail: cols.slice(2).join(','),
-  }));
+  return results;
 }
 
 /**
@@ -200,7 +272,7 @@ function main() {
 
   const dbUrl = loadDbUrl(target);
   const files = AUTH_VERIFY_SET.filter((f) => !only || f.startsWith(only));
-  let pass = 0, fail = 0;
+  let pass = 0, fail = 0, skip = 0;
   const failures = [];
 
   for (const file of files) {
@@ -218,15 +290,16 @@ function main() {
     }
     console.log(`\n${basename(file)} — ${sections.length} sections (target: ${target})`);
     for (const section of sections) {
-      const sql = section.sql.join('\n');
+      const sql = sectionSql(section, target);
       const res = spawnSync('psql', [dbUrl, '--csv', '-t', '-q', '-X', '-v', 'ON_ERROR_STOP=0', ...contractVars()], {
         input: sql, encoding: 'utf8', timeout: 120_000,
       });
       const results = judgeSection(section, {
         status: res.status ?? 1, stdout: res.stdout ?? '', stderr: res.stderr ?? '',
-      });
+      }, { target });
       for (const r of results) {
-        if (r.pass) { pass += 1; console.log(`  PASS  ${r.checkId}`); }
+        if (r.skip) { skip += 1; console.log(`  SKIP  ${r.checkId} (${r.detail})`); }
+        else if (r.pass) { pass += 1; console.log(`  PASS  ${r.checkId}`); }
         else {
           fail += 1;
           console.log(`  FAIL  ${r.checkId}\n        ${r.detail}`);
@@ -236,7 +309,7 @@ function main() {
     }
   }
 
-  console.log(`\n${pass} passed, ${fail} failed across ${files.length} scripts.`);
+  console.log(`\n${pass} passed, ${fail} failed${skip ? `, ${skip} skipped (live-only)` : ''} across ${files.length} scripts.`);
   if (fail > 0) {
     console.log('\nFailing section SQL (paste into a session or the SQL editor to investigate):');
     for (const f of failures.slice(0, 3)) {

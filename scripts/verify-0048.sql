@@ -53,6 +53,7 @@ select 'prune_dry_run_by_default',
        (select pg_get_function_arguments(oid) from pg_proc where proname = 'prune_fact_practice')
          = 'p_dry_run boolean DEFAULT true',
        'calling it with no argument deletes nothing';
+-- @live-only (cron.job is pg_cron's; the local stack has no pg_cron)
 select 'prune_is_unscheduled',
        not exists (select 1 from cron.job where command ilike '%prune_fact_practice%'),
        'DISARMED: no cron job runs the prune. Arming flips this row, with the author''s yes';

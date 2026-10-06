@@ -60,6 +60,7 @@ select 'sprint_definers_pinned',
                            'fact_sprint_log', 'fact_sprint_families', 'fact_sprint_state',
                            'fact_sprint_build')),
        'definer, with a pinned search path';
+-- @live-only (cron.job is pg_cron's; the local stack has no pg_cron)
 select 'prune_still_unscheduled_and_service_only',
        not exists (select 1 from cron.job where command ilike '%prune_fact_practice%')
        and not has_function_privilege('authenticated', 'prune_fact_practice(boolean)', 'execute')

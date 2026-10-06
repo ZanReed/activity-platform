@@ -278,19 +278,22 @@ registry revision `2d20d8c9…` mirrored. Record: practice-blocks.md →
   original wording; they recorded the cap reading as in force, C-71).
   **Trigger: the author asks for it.**
 
-## The verify runner drops a row that ERRORS or returns NULL (found 2026-10-06)
+## ✅ The verify runner drops a row that ERRORS or returns NULL — FIXED 2026-10-06
 
-`scripts/verify-runner.mjs` runs psql with `ON_ERROR_STOP=0` and keeps only
-rows whose second column is `t` or `f`. So a check row whose SELECT errors
-(for example `cron.job` on the local stack, which has no pg_cron) or whose
-pass column is NULL is not reported as a failure: it is not reported at all.
-Locally, verify-0048's `prune_is_unscheduled` and verify-0050's
-`prune_still_unscheduled_and_service_only` vanish this way; on live they
-run. A guard that can disappear silently is the P9 class. **Fix:** count the
-`select '<id>',` rows in each expect-rows section and fail when fewer come
-back (with an explicit `-- @live-only` mark for rows that need pg_cron).
-**Trigger: the next change to the verify runner, or before the prune's
-arming checklist is started** (step 6 flips one of those rows).
+Found 2026-10-06; the author ranked it first of the three unranked items and
+ruled all four decisions as recommended. `scripts/verify-runner.mjs` now judges
+an expect-rows section STRICTLY: any ERROR on stderr, a NULL pass column, a
+line that is not a check row, or a literally named row (`select '<id>',`) that
+never came back is a FAIL (psql's `ON_ERROR_STOP=0` exits 0 over a failed
+statement, so the exit code could never catch it). Rows needing pg_cron carry
+a `-- @live-only` line: `--target local` leaves them out and prints SKIP; live
+runs them (verify-0048 `prune_is_unscheduled`, verify-0050
+`prune_still_unscheduled_and_service_only`; a unit test fails if any other
+`cron.job` statement goes unmarked). **What it found on the first run:**
+verify-0030's `client_grant_is_select_only` had errored on EVERY run since
+2026-08-14 (`privilege_type` compared to `text[]` without a cast) and was never
+reported; cast fixed, green locally and on live (live verify 274 rows, 0 fail).
+Guards: `scripts/tests/verify-runner.test.mjs`, each rule mutation-tested red.
 
 ## The sprint's bar is 9 of 10 (author ruling SB-1/SB-2, 2026-10-06)
 

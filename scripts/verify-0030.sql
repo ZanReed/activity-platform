@@ -31,7 +31,7 @@ select 'exactly_one_select_policy',
              where schemaname = 'public' and tablename = 'class_activities') = 'SELECT',
        'reads via policy; writes have no policy at all';
 select 'client_grant_is_select_only',
-       (select coalesce(array_agg(distinct privilege_type order by privilege_type), '{}')
+       (select coalesce(array_agg(distinct privilege_type::text order by privilege_type::text), '{}')
           from information_schema.table_privileges
          where table_schema = 'public' and table_name = 'class_activities'
            and grantee = 'authenticated')

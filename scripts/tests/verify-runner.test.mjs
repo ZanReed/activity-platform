@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseSections, judgeSection, AUTH_VERIFY_SET } from '../verify-runner.mjs';
+import { parseSections, judgeSection, sectionSql, AUTH_VERIFY_SET } from '../verify-runner.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -87,4 +87,112 @@ test('verify-0027 carries the ruled proof sections', () => {
   for (const required of ['A-schema', 'B-grants', 'C-prosrc-contract', 'D-trigger-branches', 'E-join-branches', 'F-raise-log', 'G-audit-doors']) {
     assert.ok(ids.includes(required), `verify-0027 missing section ${required}`);
   }
+});
+
+// ---- Strict expect-rows judging (TODOS → "The verify runner drops a row that
+// ERRORS or returns NULL", fixed 2026-10-06). Each of these vanished silently
+// before: a row whose statement errored, a NULL pass, a stray line, and a
+// named row that never came back.
+
+const strictFixture = [
+  '-- @section A',
+  '-- @expect-rows',
+  "select 'one', true, '';",
+  "select 'two',",
+  '       1 = 1, \'\';',
+  "select 'generated_' || x, true, '' from unnest(array['a']) x;",
+].join('\n');
+
+test('strict: a clean section passes every named row', () => {
+  const [section] = parseSections(strictFixture, 'f.sql');
+  assert.deepEqual(section.expectedIds, ['one', 'two']);
+  const r = judgeSection(section, { status: 0, stdout: 'one,t,\ntwo,t,\ngenerated_a,t,\n', stderr: '' });
+  assert.deepEqual(r.map((x) => [x.checkId, x.pass]), [['A:one', true], ['A:two', true], ['A:generated_a', true]]);
+});
+
+test('strict: a statement ERROR fails the section and names the missing row', () => {
+  const [section] = parseSections(strictFixture, 'f.sql');
+  // psql with ON_ERROR_STOP=0 exits 0 over a failed statement.
+  const r = judgeSection(section, {
+    status: 0, stdout: 'one,t,\ngenerated_a,t,\n',
+    stderr: 'psql:<stdin>:4: ERROR:  operator does not exist: information_schema.character_data[] = text[]',
+  });
+  const failed = r.filter((x) => x.pass === false).map((x) => x.checkId);
+  assert.deepEqual(failed, ['A:(error)', 'A:two']);
+});
+
+test('strict: a NULL pass column is a FAIL, not a dropped row', () => {
+  const [section] = parseSections(strictFixture, 'f.sql');
+  const r = judgeSection(section, { status: 0, stdout: 'one,t,\ntwo,,why\ngenerated_a,t,\n', stderr: '' });
+  const two = r.find((x) => x.checkId === 'A:two');
+  assert.equal(two.pass, false);
+  assert.match(two.detail, /NULL/);
+});
+
+test('strict: a line that is not a check row is a FAIL', () => {
+  const [section] = parseSections(strictFixture, 'f.sql');
+  const r = judgeSection(section, { status: 0, stdout: 'one,t,\ntwo,t,\ngenerated_a,t,\nsomething else\n', stderr: '' });
+  assert.deepEqual(r.filter((x) => !x.pass).map((x) => x.checkId), ['A:(stray)']);
+});
+
+test('strict: a csv-quoted detail holding commas still parses', () => {
+  const [section] = parseSections(strictFixture, 'f.sql');
+  const r = judgeSection(section, { status: 0, stdout: 'one,t,"a, b, c"\ntwo,f,\ngenerated_a,t,\n', stderr: '' });
+  assert.deepEqual(r.map((x) => x.pass), [true, false, true]);
+});
+
+const liveOnlyFixture = [
+  '-- @section A',
+  '-- @expect-rows',
+  "select 'always', true, '';",
+  '-- @live-only (pg_cron)',
+  "select 'cron_row',",
+  '       not exists (select 1 from cron.job),',
+  "       'needs pg_cron';",
+  "select 'after', true, '';",
+].join('\n');
+
+test('@live-only: local leaves the statement out and reports SKIP; live runs it', () => {
+  const [section] = parseSections(liveOnlyFixture, 'f.sql');
+  assert.deepEqual(section.liveOnly, ['cron_row']);
+  const local = sectionSql(section, 'local');
+  assert.doesNotMatch(local, /cron/);
+  assert.match(local, /'always'/);
+  assert.match(local, /'after'/);
+  assert.match(sectionSql(section, 'live'), /cron\.job/);
+
+  const r = judgeSection(section, { status: 0, stdout: 'always,t,\nafter,t,\n', stderr: '' }, { target: 'local' });
+  assert.deepEqual(r.map((x) => [x.checkId, x.pass, x.skip]), [
+    ['A:always', true, undefined], ['A:after', true, undefined], ['A:cron_row', undefined, true],
+  ]);
+  // On live the same missing row is a FAIL — the mark never excuses live.
+  const live = judgeSection(section, { status: 0, stdout: 'always,t,\nafter,t,\n', stderr: '' }, { target: 'live' });
+  assert.equal(live.find((x) => x.checkId === 'A:cron_row').pass, false);
+});
+
+test('@live-only must mark a named row and must end', () => {
+  assert.throws(() => parseSections("-- @section A\n-- @live-only\nselect x, true, '' from t;", 'f.sql'), /literally named row/);
+  assert.throws(() => parseSections("-- @section A\n-- @live-only\nselect 'x', true", 'f.sql'), /never ends/);
+});
+
+test('the cron rows in the real set are the live-only ones, and only they', () => {
+  const marked = [];
+  for (const file of AUTH_VERIFY_SET) {
+    const sql = readFileSync(resolve(ROOT, 'scripts', file), 'utf8');
+    for (const s of parseSections(sql, file)) {
+      for (const id of s.liveOnly) marked.push(`${file}:${id}`);
+      // Every statement naming cron.job must be marked, or it vanishes locally.
+      if (s.mode === 'expect-rows') {
+        s.sql.forEach((line, i) => {
+          if (/\bcron\.job\b/.test(line) && !line.trim().startsWith('--')) {
+            assert.ok(s.liveOnlyLines.has(i), `${file} section ${s.id}: cron.job outside an @live-only statement`);
+          }
+        });
+      }
+    }
+  }
+  assert.deepEqual(marked.sort(), [
+    'verify-0048.sql:prune_is_unscheduled',
+    'verify-0050.sql:prune_still_unscheduled_and_service_only',
+  ]);
 });
