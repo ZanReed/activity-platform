@@ -3029,6 +3029,8 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 ## AI grading: consume misconception-attachments.txt (curriculum PR #5; platform slice after their merge)
 
+**⚠ Mapping moved 2026-10-06 (their C-76, main `85b19ca`):** read `misconception-attachments.txt` at `85b19ca` or later (sha256 `9d0b6ba1…0622`), not an older copy. Four skills moved, and the rows for the three skills retired into their `skill-ids-retired.txt` are gone. The "79 pairs" count below predates it.
+
 **What:** Three pieces, in order: (1) a small migration replacing `misconception_registry.skill` (nullable text, NULL on all 35 live rows, zero code readers — verified 2026-10-01) with `skills text[] not null default '{}'` + verify rows; (2) an importer pass mirroring `misconception-attachments.txt` pairs (`skill.id   mis.id`, comment-and-line grammar, 79 pairs at review) into that column on every `import:batch` run, fail-soft like the registry mirror; (3) the grading worker's prompt builder filters registry entries to the item's skill — which first needs the claim payload to EXPOSE the item's skill (activity-level `skill:` meta → claim item), a small 0042-family RPC addition.
 
 **Why:** Completes EH-7's skill-attachment half (docs/design/ai-grading-assist.md §3b): today the prompt carries ALL registry entries; skill-filtered entries are the D5 quality lever. Format review passed 2026-10-01 (record on the boundary page): every pair resolves against both registries; many-to-many confirmed (26 of 35 multi-skill), which is why the single `skill` column dies.
