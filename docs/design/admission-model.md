@@ -1,5 +1,16 @@
 # Admission model — Google-only self-serve with a pending role (ENG-REVIEWED 2026-08-15)
 
+> ⚠ **ANNOTATION (drift audit 2026-10-07).** Two things below have moved.
+> (1) **The D24 counsel read was ANSWERED 2026-10-06** ("current measures are
+> sufficient", Q1–Q11, as reported by the author —
+> [counsel-review-packet.md](../compliance/counsel-review-packet.md), top).
+> (2) **The 13+ floor is lifted:** migration 0053 lets a teacher confirm either
+> "every student is 13 or older" or "includes students under 13, and my school
+> has authorized their use" (DECISIONS → "Under-13 use, by school
+> authorization"). Where this doc says the 13+ assertion is the only basis
+> (§5a, the list near "The 13+ assertion stays load-bearing"), read it as the
+> design as it stood before 0053. Text left intact.
+
 **Status:** ✅ **SHIPPED AND LIVE** (T1–T7; migration 0033 applied 2026-08-15). The ruled
 architecture is §5b (R1–R11); it SUPERSEDES the morning's A1/A2/D-list where they conflict.
 **The join-code half was driven end to end by a human on 2026-08-16** — a second, distinct Google

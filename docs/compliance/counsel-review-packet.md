@@ -19,6 +19,14 @@
 > whether that answer covers students under 13, the author said yes: counsel
 > cleared under-13 use.** The product and the pack still state a 13+ floor;
 > changing that wording is a separate, author-ruled change, not done here.
+>
+> ⚠ **Update (drift audit 2026-10-07): that change has since been made.** The
+> author ruled U-1 to U-4 the same day and it is BUILT and live (migration
+> 0053): a teacher confirms either "every student is 13 or older" or "this
+> class includes students under 13, and my school has authorized their use";
+> `POLICY_VERSION` is `2026-10-06-draft-4`, and the privacy policy and the
+> school-authorization template carry the new wording. The sentence above is
+> left as it was written.
 
 This packet exists because the compliance pack has never had legal review and
 every file in it is marked DRAFT. It does two things: says exactly what changed

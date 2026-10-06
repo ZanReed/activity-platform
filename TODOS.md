@@ -79,13 +79,14 @@ the queue. An entry's own Priority line below does not outrank it.**
    forced into a fallback it does not need. The curriculum side will not
    hand-edit the statuses (regeneration is platform-owned).
 2. ~~**Y7 geometry figures**~~ DONE 2026-10-04 (T1–T8, T7b, T8b; graded stimuli filed with a trigger — entry "Graded stimuli").
-3. **D43 practice blocks — DESIGN PASS ONLY**, alongside 1–2. No D43 build
-   before geometry ships.
-4. **Service worker stale-shell recovery** (entry below, P2) — before any real
-   student.
-5. **Y7 charts (T9–T13)** — PULLED when a statistics chain is next to be
-   drafted, not built straight after geometry.
-6. **D43 builds**, subject to the design pass: fluency + diagnostics first;
+3. ~~**D43 practice blocks — DESIGN PASS ONLY**~~ design APPROVED 2026-10-02.
+4. ✅ **BUILT 2026-10-04 — Service worker stale-shell recovery** (entry
+   "Service worker: recover from a stale shell"; marked here by the drift
+   audit 2026-10-07 — the entry said BUILT while this queue still listed it open).
+5. ✅ **BUILT 2026-10-04 — Y7 charts (T9–T13)**, pulled into the author's
+   2026-10-04 build run rather than waiting for a statistics chain.
+6. **D43 builds — IN PROGRESS**: fluency + diagnostics LIVE (slice 1, the
+   check, 2026-10-05; slice 2, the daily practice, 2026-10-06);
    mixed practice + scheduler gated on TWO chains with ratified §17 banks;
    period assembly last.
 
@@ -228,7 +229,7 @@ and prune: as ruled and as built". `prune_fact_practice` is dry-run by
 default, service-role only and unscheduled. The class's school-year end is
 asked in the open-snapshot screen; each check carries `keep_until`.
 
-## ⚠ Number-facts prune: the ARMING checklist (do NOT start without the author's yes)
+## ⚠ Number-facts prune: the ARMING checklist — STARTED 2026-10-06 on the author's ruling; do NOT arm without his explicit yes (step 5)
 
 `prune_fact_practice(false)` deletes students' answers and timings. Nothing
 mechanical holds it back except that no job calls it (verify-0048's
@@ -499,9 +500,10 @@ five yes; N8 "Not to scale" auto-caption ruled on their question; build
 order triangles-polygons first). **ENG-REVIEWED 2026-10-03** (doc §8): ER-1 to
 ER-15 APPROVED by the author the same day ("yes to all"); this slice DOES change
 `docs/capability-facts.json` (a `figure` capability), so the task list gained
-T8b, the pin-bump PR. **Now BUILDING** the geometry slice
-T1–T8 + T8b in the doc's task list;
-the chart slice T9–T13 is PULLED when a statistics chain is next to be drafted. Y7 is the first part of the builder's order, so this
+T8b, the pin-bump PR. ~~Now BUILDING the geometry slice T1–T8 + T8b; the chart slice T9–T13 is
+PULLED when a statistics chain is next to be drafted.~~ *(Drift audit
+2026-10-07: geometry CLOSED 2026-10-04 and charts BUILT 2026-10-04 — entry
+"Y7 geometry slice — CLOSED" and STATE.)* Y7 is the first part of the builder's order, so this
 is on the critical path for Y7 drafting. The degenerate-axis `refine`
 entry below rides this arc (N2).
 
@@ -2653,7 +2655,7 @@ action with an audit row, not a self-service button.
 
 **Context:** docs/design/admission-model.md §5b R3 + §7; eng review OV-9.
 
-## Under-13 support — the age gate and school-consent enrollment (D7)
+## ✅ BUILT 2026-10-06 (0053) — Under-13 use by school authorization; the age gate and school-consent enrollment (D7) NOT built, by ruling
 
 ⚠ **TRIGGER FIRED 2026-10-06, and the premise below has moved.** The author
 reported that counsel answered the whole packet ("current measures are
@@ -2662,8 +2664,7 @@ written opinion is in the repo. So the question is no longer whether a
 consent mechanism must be built, but what in the product and the pack still
 says "13 or older": the class-creation assertion (`ASSERTION_TEXT`), the
 privacy policy's "Who can use this", the school-authorization template's §2,
-and DECISIONS → "The 13+ floor". The design pass for that is in progress in
-the session that recorded this (numbered questions to the author). The
+and DECISIONS → "The 13+ floor". That design pass ran and was ruled (U-1 to U-4, below). The
 text below is the entry as it stood before counsel's answer.
 
 **RULED by the author 2026-10-06 (four numbered questions):**
@@ -2893,7 +2894,7 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Context:** Boundary item B14 on the Curriculum → Platform Notion page (their freeze + verification-gap write-up); the curriculum repo's README records the exclusion. Once rebuilt, it JOINS github.com/ZanReed/curriculum under CI — the curriculum side has already agreed. Remove the B14 gate only as part of this rebuild.
 
-**Effort:** M · **Priority:** ~~P3~~ **NEXT — item 1 of the BUILD ORDER (author, 2026-10-02)**; reasons at the top of this file · **Depends on:** nothing.
+**Effort:** M · **Priority:** ~~P3~~ ~~NEXT — item 1 of the BUILD ORDER (author, 2026-10-02)~~ DONE 2026-10-03; reasons at the top of this file · **Depends on:** nothing.
 
 **DESIGN PASS 2026-10-03 — all seven items approved by the author; ASK-BACK B-30 sent, awaiting C-30. Build nothing until they answer Q1–Q4.**
 1. Split: this repo generates + commits `docs/capability-facts.json` (per id: `status`, `grading.{scoring, captures_response, score_shape}`, plus prose-check facts such as graded families) under a drift test; the curriculum repo gets a Python checker that fetches it from our `main` and fails CI on any derived-field disagreement. (Their CI cannot import our TS; the old generator could not join as written.)
@@ -3076,7 +3077,7 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Design:** [practice-blocks.md](docs/design/practice-blocks.md) — APPROVED 2026-10-02 (slices 1–2; mixed practice, the diagnostic's skill half and period assembly get their own pass). The curriculum side answered the eight joint questions in their decision log (`de97186`, D43 amendment); the "still open" list in **Context** above is superseded by that entry and by the doc's Open Questions.
 
-**Effort:** XL (an arc, several slices) · **Priority:** RANKED 2026-10-02 — design pass now (BUILD ORDER item 3), builds after Y7 geometry in the order fluency + diagnostics → mixed practice (gated on two chains with ratified banks) → period assembly (item 6) · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.
+**Effort:** XL (an arc, several slices) · **Priority:** RANKED 2026-10-02 — design APPROVED (BUILD ORDER item 3); slices 1–2 LIVE 2026-10-05/06; remaining builds in the order fluency + diagnostics → mixed practice (gated on two chains with ratified banks) → period assembly (item 6) · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.
 
 ## Practice blocks: an individual probe for a late joiner (scope review, 2026-10-02 — DEFERRED by the author)
 
