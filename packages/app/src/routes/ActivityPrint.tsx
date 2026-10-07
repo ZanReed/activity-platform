@@ -419,6 +419,10 @@ export default function ActivityPrint() {
             store={store}
             mode="print"
             {...(version > 1 ? { printVersion: version } : {})}
+            // The teacher guide (D50, TG-5) is AUTHORED-doc data: the served
+            // doc never carries it. Page one of the answer-key copy only —
+            // never the student copy, never the foldable.
+            {...(authoredDoc?.teacherGuide ? { teacherGuide: authoredDoc.teacherGuide } : {})}
             />
             </AnswerKeyProvider>
         ) : servedDoc ? (
@@ -543,6 +547,11 @@ export default function ActivityPrint() {
         />
         <span>Show answers (answer key)</span>
         </label>
+        {authoredDoc?.teacherGuide && (
+            <p className="-mt-1 text-xs text-muted">
+            The answer key starts with the teacher guide on its own page.
+            </p>
+        )}
 
         <div className="border-t border-line pt-3">
         <div className="flex items-center justify-between">

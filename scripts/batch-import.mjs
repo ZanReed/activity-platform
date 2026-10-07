@@ -614,6 +614,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
     if (
         result.blocks.length === 0 &&
         !result.referencePanel &&
+        !result.teacherGuide &&
         result.meta === undefined
     ) {
         throw new Error(
@@ -783,7 +784,14 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         )
         : undefined;
 
-    const doc = pipeline.tiptapToActivity(tiptap, meta, referencePanel, calculator);
+    // The ```teacher-guide fence (D50, teacher-guides.md): the FILE is the
+    // source, so a file without the fence writes no guide — deleting the fence
+    // deletes the guide on the next run, exactly as for the body.
+    const teacherGuide = result.teacherGuide
+        ? pipeline.tiptapToTeacherGuide({ type: 'doc', content: result.teacherGuide.blocks })
+        : undefined;
+
+    const doc = pipeline.tiptapToActivity(tiptap, meta, referencePanel, calculator, teacherGuide);
 
     // THE GATE. draft_content is what the editor loads on next open, so a
     // document that fails validation must never reach the column. This is also
@@ -1848,6 +1856,7 @@ export async function loadPipeline() {
         applyImportedMeta: mod.applyImportedMeta,
         ActivityDocument: mod.ActivityDocument,
         tiptapToReferencePanel: mod.tiptapToReferencePanel,
+        tiptapToTeacherGuide: mod.tiptapToTeacherGuide,
         createEmptyDocument: mod.createEmptyDocument,
         normalizeTags: mod.normalizeTags,
         // The SERVER's numeric parser, for the parity test below `canNeverFire`.

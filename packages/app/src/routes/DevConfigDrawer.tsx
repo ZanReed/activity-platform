@@ -129,6 +129,12 @@ export default function DevConfigDrawer() {
                     onPanelEditorUpdate={setPanelJson}
                     calculator={calculator}
                     onCalculatorChange={setCalculator}
+                    guideEditorKey="dev-guide"
+                    guideInitialContent={{
+                        type: 'doc',
+                        content: [{ type: 'paragraph' }],
+                    }}
+                    onGuideEditorUpdate={() => {}}
                     taxonomy={{
                         tags,
                         onTagsChange: setTags,

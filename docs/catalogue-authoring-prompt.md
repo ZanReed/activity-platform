@@ -545,6 +545,19 @@ REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Use at most one reference fence per activity; a second one adds onto the
   same sheet.
 
+TEACHER GUIDE (optional — a `teacher-guide` fence; TEACHERS ONLY)
+- A short note for the colleague teaching the activity: what the example
+  sequence is for, what to watch for, what to cut if time runs short. It is
+  NEVER shown to students; teachers see it in the editor and on the printed
+  answer key. Put it LAST in your reply.
+- Ordinary markdown inside: ## headings, paragraphs, - bullet lists,
+  **bold**, `code`, $inline$ math. Nothing else (no blanks, tables, images or
+  figures — they are dropped). One teacher-guide fence per activity:
+    ```teacher-guide
+    ## Watch for
+    - Dividing the wrong way round. Ask, "What do we want one of?"
+    ```
+
 SEEDED VARIABLES (optional — numbers that differ per student)
 - A ```seed fence declares named variables; each student is served their own
   values, and grading uses that student’s values. Flat `name: spec` lines:
@@ -624,7 +637,7 @@ OTHER
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, ```reference, and ```teacher-guide — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
@@ -702,6 +715,12 @@ COURSE GLOSSARY WORDS
   something different by it. The activity's own definition always wins,
   and the import reports every one that differs from the glossary.
 - For literal double brackets in text, write \[[like this]].
+
+THE TEACHER GUIDE GOES IN THE FILE
+- A catalogue activity carries its teacher guide in the ```teacher-guide
+  fence taught above, placed LAST in the file, so the guide and the activity
+  cannot drift apart. Its sections and length are set by the curriculum's
+  own rules; follow those. It is never shown to students.
 
 KEYS BEGINNING x_ ARE YOURS
 - Any meta key starting `x_` is ignored by the importer: not stored, not

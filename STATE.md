@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
+**TEACHER GUIDES slice 1 (curriculum D50) — BUILT 2026-10-07, owed in this order:** (1) push; (2) `pnpm deploy:get-activity` AND `pnpm deploy:check` (both bundles carry the sanitizer; `SANITIZER_REV` → `3-14401abc` orphans the read cache), each proven by bundle hash (CLAUDE.md), and the live `get-activity` must hold `delete clone.teacherGuide` BEFORE any file with a ```teacher-guide fence is imported; (3) then the session opens the EXEMPT_FENCES pin-bump PR on the curriculum repo (`docs/capability-facts.json` changed) and sends the "live" letter; only after that do they move `.guides/` into the files. Design + as-built: [teacher-guides.md](docs/design/teacher-guides.md).
+
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 **Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06. The standing rule is unchanged: the author runs deploys unless he says otherwise.

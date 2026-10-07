@@ -23,6 +23,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Block,
   DataPlotInteraction,
+  GUIDE_BLOCK_TYPES,
   GraphInteraction,
   MultipleChoiceOption,
   NumberLineInteraction,
@@ -112,6 +113,20 @@ describe('wire-level leak tests (TV4-A)', () => {
     expect(panelBlocks, 'the fixture has no reference panel').toBeDefined();
     const covered = [...new Set(panelBlocks!.map((b) => b.type))].sort();
     expect(covered).toEqual([...registeredBlockTypes].sort());
+  });
+
+  it('carries a TEACHER GUIDE with every guide block type, and deletes it whole', () => {
+    // The guide is the secret as a whole (teacher-guides.md TG-3). Coverage is
+    // asserted for the same reason the panel's is: an absent guide would make
+    // the sentinel scans above pass while proving nothing about it.
+    const guide = (doc as unknown as {
+      teacherGuide?: { blocks?: { type: string }[] };
+    }).teacherGuide?.blocks;
+    expect(guide, 'the fixture has no teacher guide').toBeDefined();
+    expect([...new Set(guide!.map((b) => b.type))].sort()).toEqual(
+      [...GUIDE_BLOCK_TYPES].sort(),
+    );
+    expect(wire).not.toContain('teacherGuide');
   });
 
   it('covers every interaction variant of the three variant blocks', () => {

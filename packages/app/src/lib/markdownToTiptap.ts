@@ -126,6 +126,14 @@ export interface ImportResult {
     // the paste had no reference fence. Multiple fences accumulate; the first
     // authored title wins (the caller only applies it to an untitled panel).
     referencePanel?: { title?: string; blocks: JSONContent[] };
+    // The activity's TEACHER GUIDE, from a ```teacher-guide fence (curriculum
+    // D50, docs/design/teacher-guides.md). A side channel like ```reference:
+    // the fence contributes no body blocks. Prose only — headings, paragraphs,
+    // lists, display maths; anything else in the fence is dropped with a
+    // warning, and `{{…}}` stays literal. Teacher-only: the read API deletes
+    // the field. Absent when the paste had no guide fence (or nothing in it
+    // survived).
+    teacherGuide?: { blocks: JSONContent[] };
     // Activity-level metadata authored via a ```meta fence — the taxonomy arc's
     // Drop 2. A THIRD kind of side channel: like ```definitions it contributes
     // no blocks anywhere, and unlike ```reference it does not even carry
@@ -363,7 +371,13 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
                 const { text, spans } = extractMath(stripMarkdownFence(markdown));
                 const tokens = md.parse(protectEscapedBrackets(text), {}) as unknown as MdToken[];
                 return restoreEscapedBrackets(
-                    tokensToBlocks(tokens, spans, inlineParser(md), options),
+                    tokensToBlocks(
+                        tokens,
+                        spans,
+                        inlineParser(md),
+                        (text) => md.parse(text, {}) as unknown as MdToken[],
+                        options,
+                    ),
                 );
             };
         });
@@ -452,6 +466,7 @@ export function getGlossaryFileParser(): Promise<GlossaryFileParser> {
                         definitions: new Map(),
                         definitionTerms: new Map(),
                         inline: inlineParser(md),
+                        parseBlock: (text) => md.parse(text, {}) as unknown as MdToken[],
                     };
                     const { blocks } = parseContentLines(
                         protectEscapedBrackets(bodySource),
@@ -824,6 +839,16 @@ interface Ctx {
     // fences; the first authored title sticks.
     refPanelBlocks: JSONContent[];
     refPanelTitle?: string;
+    // The ```teacher-guide fence's blocks (pre-pass), undefined until a fence
+    // supplies some. The FIRST fence wins; a second warns.
+    teacherGuideBlocks?: JSONContent[];
+    // True while mapping a teacher guide: blanks stay literal text (a guide is
+    // never gradeable), so a `{{…}}` neither becomes a fillInBlank nor turns a
+    // list into problems.
+    proseOnly?: boolean;
+    // markdown-it's BLOCK parse, for the one fence whose body is ordinary
+    // markdown rather than a line grammar (```teacher-guide).
+    parseBlock: (text: string) => MdToken[];
     // Vocabulary definitions collected from ```definitions fences, keyed by the
     // lower-cased term. Filled in a PRE-PASS over the token list so a [[term]]
     // reference in the body resolves regardless of whether the fence sits above
@@ -967,6 +992,7 @@ function tokensToBlocks(
     tokens: MdToken[],
     spans: MathSpan[],
     inline: (text: string) => MdToken[],
+    parseBlock: (text: string) => MdToken[],
     options?: ImportOptions,
 ): ImportResult {
     const ctx: Ctx = {
@@ -977,6 +1003,7 @@ function tokensToBlocks(
         definitions: new Map(),
         definitionTerms: new Map(),
         inline,
+        parseBlock,
     };
     // Pre-pass: collect every ```definitions fence before mapping any body
     // block, so [[term]] resolves in either direction. Scanning markdown-it's
@@ -994,6 +1021,9 @@ function tokensToBlocks(
         // and for one more: the dataplot fence resolves `data: {name}` against
         // the declarations, so they must exist before any body block maps.
         else if (info === 'seed') parseSeedFence(token.content, ctx);
+        // ```teacher-guide: activity-level like ```meta, so position in the
+        // file does not matter (convention: last).
+        else if (info === 'teacher-guide') parseTeacherGuideFence(token.content, ctx);
     }
     if (options?.glossary) glossaryPrePass(tokens, ctx, options.glossary);
     const blocks = mapBlocks(nest(tokens), ctx);
@@ -1005,6 +1035,7 @@ function tokensToBlocks(
             ? { title: ctx.refPanelTitle, blocks: ctx.refPanelBlocks }
             : { blocks: ctx.refPanelBlocks };
     }
+    if (ctx.teacherGuideBlocks) result.teacherGuide = { blocks: ctx.teacherGuideBlocks };
     if (ctx.meta) result.meta = ctx.meta;
     if (ctx.glossary) result.glossary = glossaryReport(ctx.glossary);
     return result;
@@ -1182,6 +1213,11 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (!parsed.attrs) return [];
                 return [{ type: 'chart', attrs: { id: crypto.randomUUID(), data: parsed.attrs } }];
             }
+            if ((node.token.info ?? '').trim() === 'teacher-guide') {
+                // Side channel, consumed in the pre-pass: zero body blocks,
+                // and NEVER a degraded paragraph — this text is teacher-only.
+                return [];
+            }
             if ((node.token.info ?? '').trim() === 'reference') {
                 // Side channel: the fence's blocks land in ctx.refPanelBlocks
                 // (the activity's reference panel), NOT the body — so a
@@ -1300,7 +1336,7 @@ function mapParagraphBlocks(node: TokNode, ctx: Ctx): JSONContent[] {
     let buffer: MdToken[] = [];
     const flush = () => {
         if (buffer.length === 0) return;
-        const content = mapInline(buffer, ctx, true);
+        const content = mapInline(buffer, ctx, !ctx.proseOnly);
         if (content.length > 0) out.push(blockFromInline(content));
         buffer = [];
     };
@@ -1374,7 +1410,7 @@ function mapList(
     listType: 'bulletList' | 'orderedList',
     ctx: Ctx,
 ): JSONContent[] {
-    if (subtreeHasBlank(node)) return flattenListToProblems(node, ctx);
+    if (!ctx.proseOnly && subtreeHasBlank(node)) return flattenListToProblems(node, ctx);
     return [
         {
             type: listType,
@@ -3392,6 +3428,67 @@ function parseContentLines(
     flushList();
     flushFigure();
     return { blocks, title };
+}
+
+// The ```teacher-guide fence (curriculum D50; docs/design/teacher-guides.md
+// TG-2). Its body is ORDINARY markdown — the guides are written as plain
+// `## heading` / paragraph / `- bullet` text, wrapped lines and all — so it
+// goes through the real block parser, not the reference fence's one-line-
+// per-block grammar (which would split every wrapped line into its own
+// paragraph). Then it is narrowed to prose: anything else is dropped with a
+// warning naming it. Section names, order and the word cap are the
+// curriculum's to check (check_guides.py), deliberately not restated here.
+const GUIDE_TIPTAP_TYPES = new Set([
+    'paragraph',
+    'heading',
+    'mathBlock',
+    'bulletList',
+    'orderedList',
+]);
+
+function parseTeacherGuideFence(src: string, ctx: Ctx): void {
+    if (ctx.teacherGuideBlocks) {
+        ctx.warnings.add(
+            'Teacher guide: only one ```teacher-guide fence per activity — the later one was ignored.',
+        );
+        return;
+    }
+    // Lift the fence's maths into the SHARED span table (the fenceInline
+    // pattern): the outer extractMath skipped this text as a code fence.
+    const base = ctx.spans.length;
+    const { text, spans } = extractMath(src);
+    ctx.spans.push(...spans);
+    const remapped = text.replace(
+        new RegExp(`${MATH_OPEN}(\\d+)${MATH_CLOSE}`, 'g'),
+        (_, i: string) => `${MATH_OPEN}${base + Number(i)}${MATH_CLOSE}`,
+    );
+    // A child context: its own warnings (prefixed below) and no side channels
+    // of its own — a fence nested in a guide is not a reference sheet.
+    const child: Ctx = {
+        ...ctx,
+        warnings: new Set(),
+        refPanelBlocks: [],
+        figureProblems: [],
+        proseOnly: true,
+    };
+    const mapped = mapBlocks(nest(ctx.parseBlock(remapped)), child);
+    for (const w of child.warnings) ctx.warnings.add(`Teacher guide: ${w}`);
+    const kept: JSONContent[] = [];
+    const dropped = new Set<string>();
+    for (const block of mapped) {
+        if (GUIDE_TIPTAP_TYPES.has(block.type ?? '')) kept.push(block);
+        else dropped.add(block.type ?? 'unknown');
+    }
+    if (dropped.size > 0) {
+        ctx.warnings.add(
+            `Teacher guide: only headings, paragraphs, lists and maths are kept — dropped: ${[...dropped].sort().join(', ')}.`,
+        );
+    }
+    if (kept.length === 0) {
+        ctx.warnings.add('Teacher guide: the fence had no text to keep.');
+        return;
+    }
+    ctx.teacherGuideBlocks = kept;
 }
 
 function parseReferenceFence(src: string, ctx: Ctx): boolean {

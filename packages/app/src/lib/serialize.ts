@@ -79,8 +79,11 @@ import type {
     EssayBlock,
     GraphFigureBlock,
     ChartBlock,
+    GuideBlock,
+    TeacherGuide,
 } from '@activity/schema';
 import {
+    GUIDE_BLOCK_TYPES,
     // The runtime union, aliased because `Block` is already imported as a type
     // above. LABELED_BLOCK_TYPES is computed from its options — see below.
     Block as BlockSchema,
@@ -256,6 +259,7 @@ export function tiptapToActivity(
     meta: ActivityMeta,
     referencePanel?: ReferencePanel,
     calculator?: CalculatorTool,
+    teacherGuide?: TeacherGuide,
 ): ActivityDocument {
     if (tiptap.type !== 'doc') {
         throw new Error(
@@ -281,6 +285,10 @@ export function tiptapToActivity(
     // doc. Pass through verbatim when present; omit when absent so documents
     // without a calculator stay structurally identical.
     if (calculator) doc.calculator = calculator;
+    // The teacher guide (D50, teacher-guides.md) is the same kind of carried
+    // state: authored in its own drawer editor, never in the main Tiptap doc.
+    // Dropping this argument on any save path deletes the guide silently.
+    if (teacherGuide) doc.teacherGuide = teacherGuide;
     return doc;
 }
 
@@ -2322,6 +2330,33 @@ export function referencePanelToTiptap(panel: ReferencePanel): JSONContent {
         .map(activityBlockToTiptap)
         .filter((n): n is JSONContent => n !== null),
     };
+}
+
+export function teacherGuideToTiptap(guide: TeacherGuide): JSONContent {
+    return {
+        type: 'doc',
+        content: guide.blocks
+        .map((b) => activityBlockToTiptap(b))
+        .filter((n): n is JSONContent => n !== null),
+    };
+}
+
+/**
+ * The guide's Tiptap doc (the drawer editor, or the importer's fence output)
+ * → the schema field, or `undefined` when there is nothing to keep.
+ *
+ * Prose only (TG-1): any block outside GUIDE_BLOCK_TYPES is dropped here, so
+ * the stored field can never hold what the schema forbids. Empty paragraphs
+ * are dropped too — an editor holding one blank line is "no guide", and the
+ * field stays ABSENT (R11), never `{ blocks: [] }`.
+ */
+export function tiptapToTeacherGuide(tiptap: JSONContent): TeacherGuide | undefined {
+    const blocks = (tiptap.content ?? [])
+    .map(tiptapBlockToActivity)
+    .filter((b): b is Block => b !== null)
+    .filter((b): b is GuideBlock => GUIDE_BLOCK_TYPES.has(b.type))
+    .filter((b) => !(b.type === 'paragraph' && b.content.length === 0));
+    return blocks.length > 0 ? { blocks } : undefined;
 }
 
 export function tiptapToReferencePanel(

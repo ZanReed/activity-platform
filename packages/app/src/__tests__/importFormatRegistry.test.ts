@@ -82,7 +82,8 @@ const fence = (tag: string, body: string): string =>
 // What the parser ACTUALLY recognizes, scraped from its source. Fence dispatch
 // is `(node.token.info ?? '').trim() === '<tag>'`; each option is `opt === '<x>'`.
 const parserFenceTags = [
-    ...PARSER_SRC.matchAll(/node\.token\.info.*?=== '(\w+)'/g),
+    // [\w-]: tags may be hyphenated (```teacher-guide).
+    ...PARSER_SRC.matchAll(/node\.token\.info.*?=== '([\w-]+)'/g),
 ].map((m) => m[1]!);
 const parserOptionLiterals = [
     ...PARSER_SRC.matchAll(/\bopt === '([a-z-]+)'/g),
@@ -161,6 +162,18 @@ describe('registry ↔ converter (behavioral)', () => {
                     `${f.tag} example produced no ImportResult.meta`,
                 ).toBeDefined();
                 expect(Object.keys(result.meta ?? {}).length).toBeGreaterThan(0);
+                expect(result.warnings).toEqual([]);
+                return;
+            }
+            // The teacher-guide fence routes to ImportResult.teacherGuide and
+            // contributes nothing to the body.
+            if (f.guide) {
+                const result = convert(fence(f.tag, f.example));
+                expect(result.blocks).toEqual([]);
+                expect(
+                    hasType(result.teacherGuide?.blocks ?? [], f.blockType),
+                    `${f.tag} example did not produce ${f.blockType} in teacherGuide`,
+                ).toBe(true);
                 expect(result.warnings).toEqual([]);
                 return;
             }

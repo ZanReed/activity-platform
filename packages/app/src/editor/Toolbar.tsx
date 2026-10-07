@@ -32,7 +32,10 @@ interface ToolbarProps {
     // formatting + an Insert dropdown limited to the definitionSafe items
     // (block math, image, graph figure). No Define button — definitions do not
     // nest — and no column controls.
-    variant?: 'activity' | 'reference' | 'definition';
+    // 'guide' is the teacher guide's prose-only set (teacher-guides.md TG-4):
+    // block styles + marks + inline math, nothing to insert, no Define (the
+    // guide editor registers no definition mark).
+    variant?: 'activity' | 'reference' | 'definition' | 'guide';
 }
 
 // Three tiers (editor toolbar reorganization, 2026-07-08):
@@ -129,7 +132,7 @@ export default function Toolbar({
               never clobbers the existing definition text. Main-document only —
               nested fields have no definition mark.
             */}
-            {variant !== 'definition' && (
+            {variant !== 'definition' && variant !== 'guide' && (
             <ToolbarButton
                 onClick={() => {
                     if (editor.isActive('definition')) return;

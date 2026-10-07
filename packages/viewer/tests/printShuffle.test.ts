@@ -365,7 +365,16 @@ describe('the declaration is where it is for a reason', () => {
     // are regenerated in the same commit; the get-activity and check-activity
     // redeploys are queued as pending author actions, and no chart may be
     // published before they are live.
-    expect(SANITIZER_REV).toBe('2-0a3d4bc7');
+    //
+    // MOVED 2026-10-07: '2-0a3d4bc7' → '3-14401abc'. A HAND bump, the
+    // 2026-08-23 kind: the document-level transform began deleting
+    // `teacherGuide` (curriculum D50, teacher-guides.md TG-3) while every block
+    // declaration stayed identical. (The hash half moves too only because the
+    // algo number is part of the hashed material, not because a spec did.) Both
+    // server bundles regenerate in the same commit; the get-activity and
+    // check-activity redeploys are pending author actions, and no file carrying
+    // a ```teacher-guide fence may be imported before they are live.
+    expect(SANITIZER_REV).toBe('3-14401abc');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

@@ -38,6 +38,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type { ComponentType, ReactNode } from 'react';
+import type { TeacherGuide } from '@activity/schema';
 import { blockRegistry, familyOf } from '../registry/registry.js';
 import { buildNumbering, type ResolvedLabel } from '../numbering/numbering.js';
 import { resolveBlockComponent } from '../registry/resolveComponent.js';
@@ -125,6 +126,14 @@ export interface ViewerContainerProps {
    * activity's own definitions and the baked bodies of keyed marks.
    */
   glossary?: GlossarySource;
+  /**
+   * The activity's TEACHER GUIDE (curriculum D50, teacher-guides.md TG-5),
+   * printed as the first page of the answer-key copy. NEVER part of `document`:
+   * the sanitizer deletes it from every served payload, so the only caller is
+   * the teacher print route, which takes it from the AUTHORED document and
+   * passes it only when the answer key is on. Rendered in print mode only.
+   */
+  teacherGuide?: TeacherGuide;
 }
 
 /** Registry-driven resolution honoring the D16 eager/lazy split — the SHARED
@@ -224,6 +233,7 @@ export function ViewerContainer({
   readOnly = false,
   onTakeOver,
   glossary,
+  teacherGuide,
 }: ViewerContainerProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const index = useMemo(() => indexDocument(doc), [doc]);
@@ -362,6 +372,29 @@ export function ViewerContainer({
           invisible one, since none of it is a block and the per-block fixture
           roster could not have noticed. */}
       <PrintPageRule print={print} />
+      {/* The teacher guide, page one of the answer-key copy (TG-5). Ahead of
+          the name/date header on purpose: it is the teacher's page, and the
+          worksheet starts clean on the next one. Scaffold — outside every
+          section, so the check path never sees it. */}
+      {mode === 'print' && teacherGuide ? (
+        <aside
+          className="viewer-teacher-guide-print"
+          data-block-category="scaffold"
+          data-teacher-guide
+        >
+          <h2 className="viewer-teacher-guide-print__title">Teacher guide</h2>
+          {teacherGuide.blocks.map((block) => (
+            <BlockSlot
+              key={block.id}
+              block={block as SanitizedBlock}
+              mode={mode}
+              {...(versionId === undefined ? {} : { resetKey: versionId })}
+              resolveComponent={resolveComponent}
+              onCrash={handleCrash}
+            />
+          ))}
+        </aside>
+      ) : null}
       <PrintHeaderRow header={print.header} />
       {/* Below the fill-in lines and above the work, matching the published
           page's order. On screen the top bar carries this; on paper the top

@@ -20,7 +20,14 @@
 
 import { z } from 'zod';
 import { SeedVars } from './seed-vars.js';
-import { Block } from './blocks/index.js';
+import {
+  Block,
+  BulletListBlock,
+  HeadingBlock,
+  MathBlock,
+  OrderedListBlock,
+  ParagraphBlock,
+} from './blocks/index.js';
 import { Row } from './layout.js';
 
 // Section: a collection of ROWS with an optional title. Sections are the
@@ -355,6 +362,39 @@ export const CalculatorTool = z.object({
 });
 export type CalculatorTool = z.infer<typeof CalculatorTool>;
 
+// TeacherGuide: a short note for the colleague teaching the activity (curriculum
+// D50; docs/design/teacher-guides.md). TEACHER-ONLY: the read API deletes the
+// whole field (sanitize.ts) and the sanitized type omits it, so no student
+// payload can carry it. Readers: the editor's "Teacher guide" drawer section
+// and the first page of the answer-key print.
+//
+// PROSE ONLY, by schema (TG-1). The reference panel takes the full Block union,
+// and that is how a key-bearing block once reached students through a surface
+// the sanitizer did not walk (2026-08-23). A guide cannot hold a blank, a choice
+// or a figure, so there is no nested answer key to reason about: the field is
+// the secret and is deleted whole.
+//
+// Section names, order and the word cap are the curriculum's rules (their graph
+// key + check_guides.py), deliberately NOT restated here. Optional with no
+// default (R11): a default would materialize on every parse→save and trip the
+// batch importer's hand-edit fingerprint on every file.
+export const GuideBlock = z.discriminatedUnion('type', [
+  ParagraphBlock,
+  HeadingBlock,
+  MathBlock,
+  BulletListBlock,
+  OrderedListBlock,
+]);
+export type GuideBlock = z.infer<typeof GuideBlock>;
+export const GUIDE_BLOCK_TYPES: ReadonlySet<string> = new Set(
+  GuideBlock.options.map((o) => o.shape.type.value),
+);
+
+export const TeacherGuide = z.object({
+  blocks: z.array(GuideBlock).min(1),
+});
+export type TeacherGuide = z.infer<typeof TeacherGuide>;
+
 // The explicit type + z.ZodType annotation (instead of z.infer) exists because
 // the fully inferred document type outgrew tsc's declaration-serialization
 // limit (TS7056) when the Block union reached 14 members. Structurally
@@ -366,6 +406,7 @@ export interface ActivityDocument {
   sections: Section[];
   referencePanel?: ReferencePanel;
   calculator?: CalculatorTool;
+  teacherGuide?: TeacherGuide;
 }
 export const ActivityDocument: z.ZodType<ActivityDocument, z.ZodTypeDef, unknown> =
   z.object({
@@ -374,4 +415,5 @@ export const ActivityDocument: z.ZodType<ActivityDocument, z.ZodTypeDef, unknown
     sections: z.array(Section),
     referencePanel: ReferencePanel.optional(),
     calculator: CalculatorTool.optional(),
+    teacherGuide: TeacherGuide.optional(),
   });

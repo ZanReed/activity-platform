@@ -14,7 +14,7 @@
 // living as a comment on a useMemo.
 //
 // Returns null while the document has not fully loaded — the autosave stays
-// idle until BOTH editors (body + reference panel) have reported, so the
+// idle until EVERY editor (body, reference panel, teacher guide) has reported, so the
 // baseline settles once rather than firing a spurious load-time save.
 // =============================================================================
 
@@ -28,6 +28,8 @@ export interface ActivityChangeKeyInputs {
     panelTitle: string;
     panelJson: JSONContent | null;
     calculator: CalculatorTool | undefined;
+    /** The teacher guide's editor JSON (D50) — written by save(). */
+    guideJson: JSONContent | null;
     /** Row-native (0037) — written by save(), so it belongs in the key. */
     tags: string[];
     /** Row-native (0037) — written by save(), so it belongs in the key. */
@@ -40,16 +42,18 @@ export function activityChangeKey({
     panelTitle,
     panelJson,
     calculator,
+    guideJson,
     tags,
     pedagogicalRole,
 }: ActivityChangeKeyInputs): string | null {
-    if (!tiptapJson || !meta || !panelJson) return null;
+    if (!tiptapJson || !meta || !panelJson || !guideJson) return null;
     return JSON.stringify({
         t: tiptapJson,
         m: meta,
         rt: panelTitle,
         rj: panelJson,
         c: calculator ?? null,
+        g: guideJson,
         tg: tags,
         pr: pedagogicalRole,
     });

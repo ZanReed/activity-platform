@@ -1,8 +1,9 @@
 # Teacher guides — slice 1: the teacher-only field
 
-**Status:** ✅ RULED 2026-10-07 — TG-1…TG-9 all as recommended (author).
-Next: the fence format (TG-2) goes to the curriculum side as a proposal (B-100);
-code waits for their answer.
+**Status:** ✅ RULED 2026-10-07 (TG-1…TG-9 all as recommended) and ✅ BUILT
+2026-10-07. Owed before it is live: push, both redeploys, the curriculum pin
+bump, then the "live" letter — STATE → "Pending author actions". As-built
+notes at the end of this doc.
 
 **Origin.** Curriculum D50 (ruled by the author 2026-10-07; their PR #47): every
 activity gets a short authored teacher guide — sections "the sequence", "watch
@@ -225,3 +226,38 @@ when the first catalogue activity is taught by a teacher other than the author.
    hash proof (author);
    pin-bump PR on the curriculum repo; THEN the curriculum side moves the
    guides in-file (TG-6).
+
+---
+
+## As built (2026-10-07)
+
+- **Schema:** `TeacherGuide` / `GuideBlock` / `GUIDE_BLOCK_TYPES` in
+  `packages/schema/src/document.ts`; `blocks` is `.min(1)`, so an empty guide
+  can never be stored (absent instead).
+- **Sanitizer:** `delete clone.teacherGuide` in `sanitizeActivityDocument`;
+  `SanitizedActivityDocument` omits it; `SANITIZER_ALGO_REV` 2 → 3, so
+  `SANITIZER_REV` is `3-14401abc` (the hash half moves too, because the algo
+  number is hashed material). Leak fixture plants every guide block type with
+  the sentinel; mutation-tested (removing the delete turns two leak tests red).
+- **Importer:** the fence body goes through markdown-it's BLOCK parse (not the
+  reference fence's one-line-per-block grammar, which would split every wrapped
+  line into its own paragraph), with a child context in `proseOnly` mode so a
+  `{{…}}` stays literal. Non-prose blocks are dropped with a warning naming
+  them. The import-format registry's source scan needed `[\w-]+` to see a
+  hyphenated tag.
+- **Paste import (not in the original TG list, forced by the registry guard):**
+  every fence the parser accepts must be taught in the paste prompt, so the
+  paste path takes a guide too — appended to the editor's guide, never
+  replacing it, like the reference panel.
+- **Editor:** `TeacherGuideEditor.tsx` registers exactly the guide alphabet;
+  toolbar `variant="guide"` (formatting only). `activityChangeKey` gained
+  `guideJson` (and waits for it), so a guide-only edit autosaves.
+- **Print:** an optional `teacherGuide` prop on `ViewerContainer`, rendered only
+  in print mode, ahead of the name/date header, `break-after: page`; the print
+  route passes it from the AUTHORED doc only when the answer key is on.
+  Mutation-tested.
+- **Batch importer:** `convertOne` passes the guide; a file without the fence
+  writes no guide. Round trip and a guide-only "CHANGED" pinned; mutation-tested.
+- **Capability facts:** `teacher-guide` in `EXEMPT_FENCES`;
+  `docs/capability-facts.json` regenerated → pin bump owed.
+

@@ -45,6 +45,7 @@ interface ImportMarkdownDialogProps {
         blocks: JSONContent[],
         referencePanel?: ImportResult['referencePanel'],
         meta?: ImportResult['meta'],
+        teacherGuide?: ImportResult['teacherGuide'],
     ) => void;
 }
 
@@ -103,11 +104,12 @@ export default function ImportMarkdownDialog({
     // whether course/unit/tags/role landed at the one moment they could still
     // fix a typo.
     const metaSummary = importMetaSummary(result?.meta);
-    const canImport = blockCount > 0 || referenceCount > 0 || hasMeta;
+    const hasGuide = result?.teacherGuide !== undefined;
+    const canImport = blockCount > 0 || referenceCount > 0 || hasMeta || hasGuide;
 
     const handleImport = () => {
         if (!result || !canImport) return;
-        onImport(result.blocks, result.referencePanel, result.meta);
+        onImport(result.blocks, result.referencePanel, result.meta, result.teacherGuide);
         onClose();
     };
 
@@ -223,6 +225,9 @@ export default function ImportMarkdownDialog({
                                           : '') +
                                       (metaSummary !== ''
                                           ? `${blockCount > 0 || referenceCount > 0 ? ' · ' : ' '}${metaSummary}`
+                                          : '') +
+                                      (hasGuide
+                                          ? `${blockCount > 0 || referenceCount > 0 || metaSummary !== '' ? ' · ' : ' '}a teacher guide`
                                           : '')}
                         </span>
                         <div className="flex items-center gap-2">

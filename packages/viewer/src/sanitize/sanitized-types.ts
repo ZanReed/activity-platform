@@ -204,7 +204,9 @@ export type SanitizedSection = Omit<Section, 'rows'> & {
 
 /** The full wire document: everything the viewer receives from get-activity.
  * meta and referencePanel pass through untouched at the type level (they
- * declare no answer keys; the runtime deep walk still covers them). */
-export type SanitizedActivityDocument = Omit<ActivityDocument, 'sections'> & {
+ * declare no answer keys; the runtime deep walk still covers them).
+ * `teacherGuide` is OMITTED: the sanitizer deletes it, and omitting it here
+ * means no viewer code can even type-check a read of it (TG-3). */
+export type SanitizedActivityDocument = Omit<ActivityDocument, 'sections' | 'teacherGuide'> & {
   sections: SanitizedSection[];
 };

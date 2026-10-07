@@ -64,6 +64,9 @@ export {
     // second one, or an imported reference sheet and an authored one would be
     // two different shapes in the same column.
     tiptapToReferencePanel,
+    // The ```teacher-guide fence, same reasoning: the editor drawer's own
+    // converter, so an imported guide and an authored one are one shape.
+    tiptapToTeacherGuide,
 } from './serialize';
 
 export {

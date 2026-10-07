@@ -65,6 +65,7 @@ type ScoreShape = (typeof SCORE_SHAPES)[number];
 /** Fences that back no capability, each with the reason. */
 export const EXEMPT_FENCES: Record<string, string> = {
     meta: 'activity settings, not a capability',
+    'teacher-guide': 'teacher-only activity annotation, not a student capability (D50)',
 };
 
 // ---- the join ----------------------------------------------------------------

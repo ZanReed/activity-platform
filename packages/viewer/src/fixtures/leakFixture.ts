@@ -549,6 +549,26 @@ export function fullyLoadedDocument() {
       // present before sanitizing" check pass for the wrong reason.
       blocks: JSON.parse(JSON.stringify(blocks)) as unknown[],
     },
+    // TEACHER-ONLY, whole (curriculum D50, teacher-guides.md TG-3): every
+    // guide block type, each carrying the string sentinel, so the wire scan
+    // proves the field is deleted rather than assuming it.
+    teacherGuide: {
+      blocks: [
+        { id: uuid(), type: 'heading', level: 2, content: [{ type: 'text', text: `${STR} heading` }] },
+        { id: uuid(), type: 'paragraph', content: [{ type: 'text', text: `${STR} paragraph` }] },
+        { id: uuid(), type: 'math_block', latex: `\\text{${STR}}` },
+        {
+          id: uuid(),
+          type: 'bullet_list',
+          items: [{ id: uuid(), content: [{ type: 'text', text: `${STR} bullet` }] }],
+        },
+        {
+          id: uuid(),
+          type: 'ordered_list',
+          items: [{ id: uuid(), content: [{ type: 'text', text: `${STR} ordered` }] }],
+        },
+      ],
+    },
   };
   // Parse so the fixtures are REAL (defaults filled, shapes verified) — a
   // fixture that drifted from the schema fails here, loudly, not downstream.

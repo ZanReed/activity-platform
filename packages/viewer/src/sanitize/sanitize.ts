@@ -56,7 +56,11 @@ import type {
 // bump for — the transform changed while every sanitize DECLARATION stayed
 // identical, so the computed rev would not have moved and every cached row
 // would have kept serving the leak it was written with.
-export const SANITIZER_ALGO_REV = 2;
+// 2 -> 3 (2026-10-07): the document-level transform began DELETING
+// `teacherGuide` (curriculum D50, docs/design/teacher-guides.md TG-3). No block
+// declaration changed, so the computed rev would not have moved; without this
+// bump a cached row written before the strip would keep serving the guide.
+export const SANITIZER_ALGO_REV = 3;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */
@@ -392,6 +396,9 @@ export function sanitizeActivityDocument(
       }
     }
   }
+  // The teacher guide is TEACHER-ONLY, whole (TG-3). It is prose by schema, so
+  // there is nothing inside it to strip selectively: the field is the secret.
+  delete clone.teacherGuide;
   // Everything else (meta, and any inline node anywhere) — in-band secrets.
   stripInBandSecrets(clone);
   return clone as unknown as SanitizedActivityDocument;

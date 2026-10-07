@@ -317,3 +317,46 @@ describe('the worksheet says what it is on paper', () => {
         ).toBeTruthy();
     });
 });
+
+describe('the teacher guide page (D50, teacher-guides.md TG-5)', () => {
+  const guide = {
+    blocks: [
+      {
+        id: 'cccccccc-0000-4000-8000-000000000001',
+        type: 'paragraph' as const,
+        content: [{ type: 'text' as const, text: 'GUIDE_SENTINEL', marks: [] }],
+      },
+    ],
+  };
+  const renderWith = (mode: 'screen' | 'print') => {
+    const store = createViewerStore({
+      userId: TEST_USER_ID,
+      activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
+      versionId: 'bbbbbbbb-0000-4000-8000-000000000001',
+      checkService: createMockCheckService({}),
+    });
+    return render(
+      <ViewerContainer
+        document={sanitizedFixtureDocument()}
+        store={store}
+        mode={mode}
+        teacherGuide={guide}
+      />,
+    );
+  };
+
+  it('prints as a scaffold page ahead of the name/date header', () => {
+    const { container } = renderWith('print');
+    const page = container.querySelector('[data-teacher-guide]');
+    expect(page?.textContent).toContain('GUIDE_SENTINEL');
+    expect(page?.getAttribute('data-block-category')).toBe('scaffold');
+  });
+
+  it('NEVER renders on screen, even if a caller passes it', () => {
+    // The student route never has a guide (the sanitizer deletes it), but the
+    // gate is in the container too, so a future screen caller cannot show one.
+    const { container } = renderWith('screen');
+    expect(container.querySelector('[data-teacher-guide]')).toBeNull();
+    expect(container.textContent).not.toContain('GUIDE_SENTINEL');
+  });
+});

@@ -312,7 +312,8 @@
     }
   },
   "exempt_fences": {
-    "meta": "activity settings, not a capability"
+    "meta": "activity settings, not a capability",
+    "teacher-guide": "teacher-only activity annotation, not a student capability (D50)"
   },
   "prose_facts": {
     "graded_curve_families": [

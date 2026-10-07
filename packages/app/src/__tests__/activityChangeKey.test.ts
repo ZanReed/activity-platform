@@ -17,6 +17,7 @@ const base: ActivityChangeKeyInputs = {
     panelTitle: '',
     panelJson: { type: 'doc', content: [{ type: 'paragraph' }] },
     calculator: undefined,
+    guideJson: { type: 'doc', content: [{ type: 'paragraph' }] },
     tags: [],
     pedagogicalRole: null,
 };
@@ -30,14 +31,16 @@ const MUTATIONS: [string, Partial<ActivityChangeKeyInputs>][] = [
     ['reference panel title', { panelTitle: 'Formulas' }],
     ['reference panel body', { panelJson: { type: 'doc', content: [] } }],
     ['calculator', { calculator: { enabled: true } as never }],
+    ['teacher guide', { guideJson: { type: 'doc', content: [{ type: 'heading' }] } }],
     ['tags', { tags: ['factoring'] }],
     ['pedagogicalRole', { pedagogicalRole: 'review' }],
 ];
 
 describe('activityChangeKey', () => {
-    it('is null until both editors have reported', () => {
+    it('is null until every editor has reported', () => {
         expect(activityChangeKey({ ...base, tiptapJson: null })).toBeNull();
         expect(activityChangeKey({ ...base, panelJson: null })).toBeNull();
+        expect(activityChangeKey({ ...base, guideJson: null })).toBeNull();
         expect(activityChangeKey({ ...base, meta: null })).toBeNull();
     });
 

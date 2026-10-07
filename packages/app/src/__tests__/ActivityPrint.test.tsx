@@ -332,6 +332,56 @@ describe('the answer key, both directions', () => {
     });
 });
 
+describe('the teacher guide (D50, teacher-guides.md TG-5)', () => {
+    const GUIDE_TEXT = 'GUIDE_SENTINEL watch for the inverted ratio';
+    function guidedDoc() {
+        const doc = authored();
+        (doc as unknown as Record<string, unknown>).teacherGuide = {
+            blocks: [
+                {
+                    id: '55555555-5555-4555-8555-555555555554',
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: GUIDE_TEXT }],
+                },
+            ],
+        };
+        return ActivityDocument.parse(doc);
+    }
+
+    it('is page one of the ANSWER KEY only, and never in the served document', async () => {
+        h.row.current = { id: ACTIVITY_ID, title: 'T', draft_content: guidedDoc(), current_version_id: null };
+        const { container } = renderRoute();
+        await waitFor(() =>
+            expect(document.querySelector('.viewer')).not.toBeNull(),
+        );
+        // Student copy: no guide on the page, none in the document handed over.
+        expect(container.querySelector('[data-teacher-guide]')).toBeNull();
+        expect(container.textContent).not.toContain('GUIDE_SENTINEL');
+        expect(JSON.stringify(h.servedDoc.current)).not.toContain('GUIDE_SENTINEL');
+
+        screen.getByLabelText(/show answers/i).click();
+        await waitFor(() =>
+            expect(container.querySelector('[data-teacher-guide]')).not.toBeNull(),
+        );
+        const guide = container.querySelector('[data-teacher-guide]')!;
+        expect(guide.textContent).toContain(GUIDE_TEXT);
+        // Before the worksheet's own content, i.e. page one.
+        const firstSection = container.querySelector('.viewer-section, section');
+        if (firstSection) {
+            expect(
+                guide.compareDocumentPosition(firstSection) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        }
+        // Still never in the SERVED document: it rides a separate prop.
+        expect(JSON.stringify(h.servedDoc.current)).not.toContain('GUIDE_SENTINEL');
+
+        screen.getByLabelText(/show answers/i).click();
+        await waitFor(() =>
+            expect(container.querySelector('[data-teacher-guide]')).toBeNull(),
+        );
+    });
+});
+
 describe('seeded values on the print surface (wishlist #6, R9/D6)', () => {
     function seededDoc() {
         const doc = authored();

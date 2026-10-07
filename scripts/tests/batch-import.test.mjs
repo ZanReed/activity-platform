@@ -152,6 +152,31 @@ test('§A the produced document survives a reload → resave round trip', () => 
     );
 });
 
+const GUIDED = SAMPLE + '\n\n```teacher-guide\n## Watch for\n- **Origin test (M):** a wrapped\n  line.\n```\n';
+
+test('§A a ```teacher-guide fence lands on the document, survives reload → resave, and leaves the body alone', () => {
+    // D50 / teacher-guides.md TG-8: the field dies silently if any leg of the
+    // round trip forgets the extra argument — so go the whole way round.
+    const out = convertOne(pipeline, GUIDED, null, 'unit-3/factoring.md');
+    const guide = out.document.teacherGuide;
+    assert.ok(guide, 'the guide did not reach the document');
+    assert.deepEqual(guide.blocks.map((b) => b.type), ['heading', 'bullet_list']);
+    assert.match(JSON.stringify(guide), /a wrapped line\./);
+    const plain = convertOne(pipeline, SAMPLE, null, 'unit-3/factoring.md').document;
+    assert.equal(out.document.sections.length, plain.sections.length);
+    assert.ok(!('teacherGuide' in plain), 'a file with no fence must write no guide');
+
+    const reloaded = pipeline.tiptapToActivity(
+        pipeline.activityToTiptap(out.document),
+        out.document.meta,
+        out.document.referencePanel,
+        out.document.calculator,
+        out.document.teacherGuide,
+    );
+    assert.deepEqual(reloaded.teacherGuide, guide);
+    assert.ok(pipeline.ActivityDocument.safeParse(reloaded).success);
+});
+
 test('§A a file with no importable content is rejected, not written', () => {
     // D3's raw material: this must THROW so the caller can skip and report it,
     // rather than quietly writing an empty activity over a real one.
@@ -370,6 +395,13 @@ test('§A3 a SETTING-ONLY edit (calculator:) is CHANGED — never silently dropp
     const out = convertOne(pipeline, edited, row, PATH);
     const { full } = classifyUpdates([{ file: fileAt(PATH), row, converted: out, moved: false, adoptsKey: false }], () => null, SCHEMA);
     assert.equal(full.length, 1, 'a calculator-only edit must take the full update');
+});
+
+test('§A3 a GUIDE-only edit is CHANGED (the fence is file content like any other)', () => {
+    const row = storedRowFor(GUIDED);
+    const out = convertOne(pipeline, GUIDED.replace('wrapped', 'rewrapped'), row, PATH);
+    const { full } = classifyUpdates([{ file: fileAt(PATH), row, converted: out, moved: false, adoptsKey: false }], () => null, SCHEMA);
+    assert.equal(full.length, 1, 'a guide-only edit must take the full update');
 });
 
 test('§A3 a TITLE-only edit is CHANGED (a column outside the document)', () => {

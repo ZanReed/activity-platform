@@ -45,6 +45,8 @@ import {
     tiptapToActivity,
     referencePanelToTiptap,
     tiptapToReferencePanel,
+    teacherGuideToTiptap,
+    tiptapToTeacherGuide,
 } from '../lib/serialize';
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { useAutosave } from '../lib/useAutosave';
@@ -87,7 +89,12 @@ type LoadState =
 | { status: 'loading' }
 | { status: 'not_found' }
 | { status: 'error'; message: string }
-| { status: 'ready'; tiptap: JSONContent; referenceTiptap: JSONContent };
+| {
+    status: 'ready';
+    tiptap: JSONContent;
+    referenceTiptap: JSONContent;
+    guideTiptap: JSONContent;
+};
 
 const UUID_RE =
 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,6 +184,15 @@ export default function ActivityEditor() {
         version: number;
     } | null>(null);
     const [tiptapJson, setTiptapJson] = useState<JSONContent | null>(null);
+    // Teacher guide (D50, teacher-guides.md TG-4): the same carried-state
+    // pattern as the reference panel — the drawer editor's Tiptap JSON feeds
+    // changeKey, tiptapToTeacherGuide rebuilds the field at save. `guideImport`
+    // re-seeds the editor after a paste that carried a ```teacher-guide fence.
+    const [guideJson, setGuideJson] = useState<JSONContent | null>(null);
+    const [guideImport, setGuideImport] = useState<{
+        content: JSONContent;
+        version: number;
+    } | null>(null);
 
     // Row-native taxonomy state (0037 / taxonomy R4+R7). Kept OUT of `meta` on
     // purpose: tags and role are listing metadata on the activities row, so the
@@ -366,14 +382,23 @@ export default function ActivityEditor() {
             ? refTiptap
             : { type: 'doc', content: [{ type: 'paragraph' }] };
 
+            const guideTiptap: JSONContent = doc.teacherGuide
+                ? teacherGuideToTiptap(doc.teacherGuide)
+                : { type: 'doc', content: [{ type: 'paragraph' }] };
+
             setMeta(doc.meta);
             setCalculator(doc.calculator);
             setPanelTitle(loadedPanel?.title ?? '');
             setPanelImport(null);
+            setGuideImport(null);
             setLoadState({
                 status: 'ready',
                 tiptap: safeTiptap,
                 referenceTiptap: safeRefTiptap,
+                guideTiptap:
+                    (guideTiptap.content?.length ?? 0) > 0
+                        ? guideTiptap
+                        : { type: 'doc', content: [{ type: 'paragraph' }] },
             });
         })();
 
@@ -417,6 +442,10 @@ export default function ActivityEditor() {
         setPanelJson(json);
     }, []);
 
+    const handleGuideUpdate = useCallback((json: JSONContent) => {
+        setGuideJson(json);
+    }, []);
+
     // Insert markdown-imported blocks. A fresh activity (just the default empty
     // paragraph) is replaced outright so there's no leading blank; an activity
     // with existing content gets the blocks appended at the end. The resulting
@@ -429,6 +458,7 @@ export default function ActivityEditor() {
             importedBlocks: JSONContent[],
             referencePanel?: { title?: string; blocks: JSONContent[] },
             importedMeta?: ImportedMeta,
+            teacherGuide?: { blocks: JSONContent[] },
         ) => {
             if (editorInstance && importedBlocks.length > 0) {
                 if (editorInstance.isEmpty) {
@@ -478,6 +508,25 @@ export default function ActivityEditor() {
                     setPanelTitle(referencePanel.title);
                 }
             }
+            // ```teacher-guide fence: APPENDED to the live guide, the same
+            // never-replace rule as the reference panel.
+            if (teacherGuide && teacherGuide.blocks.length > 0) {
+                const existing = guideJson?.content ?? [];
+                const isPlaceholder =
+                    existing.length === 1 &&
+                    existing[0]?.type === 'paragraph' &&
+                    !existing[0]?.content?.length;
+                setGuideImport((prev) => ({
+                    content: {
+                        type: 'doc',
+                        content: [
+                            ...(isPlaceholder ? [] : existing),
+                            ...teacherGuide.blocks,
+                        ],
+                    },
+                    version: (prev?.version ?? 0) + 1,
+                }));
+            }
             // ```meta fence (Drop 2). NEVER-CLOBBER per ruling D16: applied
             // only where the activity has no value yet, with tags unioning.
             // The merge rule itself lives in lib/applyImportedMeta.ts so it is
@@ -504,6 +553,7 @@ export default function ActivityEditor() {
             editorInstance,
             panelJson,
             panelTitle,
+            guideJson,
             meta,
             tags,
             pedagogicalRole,
@@ -524,6 +574,7 @@ export default function ActivityEditor() {
             panelTitle,
             panelJson,
             calculator,
+            guideJson,
             tags,
             pedagogicalRole,
         }),
@@ -533,6 +584,7 @@ export default function ActivityEditor() {
             panelTitle,
             panelJson,
             calculator,
+            guideJson,
             tags,
             pedagogicalRole,
         ],
@@ -559,6 +611,7 @@ export default function ActivityEditor() {
             safeMeta,
             panelFromEditor(panelJson, panelTitle),
             calculator,
+            guideJson ? tiptapToTeacherGuide(guideJson) : undefined,
         );
         const parsed = ActivityDocument.safeParse(doc);
         if (!parsed.success) {
@@ -712,6 +765,9 @@ export default function ActivityEditor() {
             }
             calculatorEnabled={calculator?.enabled ?? false}
             referenceHasContent={referenceHasContent}
+            guideHasContent={(guideJson?.content ?? []).some(
+                (n) => n.type !== 'paragraph' || (n.content?.length ?? 0) > 0,
+            )}
             settingsWarning={lockedMode}
             />
             <span
@@ -855,6 +911,9 @@ export default function ActivityEditor() {
             onPanelEditorUpdate={handlePanelUpdate}
             calculator={calculator}
             onCalculatorChange={setCalculator}
+            guideEditorKey={guideImport ? `${id}:guide-import-${guideImport.version}` : `${id}:guide`}
+            guideInitialContent={guideImport?.content ?? loadState.guideTiptap}
+            onGuideEditorUpdate={handleGuideUpdate}
             activityId={id}
             taxonomy={{
                 tags,

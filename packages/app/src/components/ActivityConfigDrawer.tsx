@@ -21,7 +21,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Settings, BookOpen, Calculator as CalculatorIcon } from 'lucide-react';
+import { Settings, BookOpen, Calculator as CalculatorIcon, NotebookPen } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
 import {
     createCalculatorTool,
@@ -35,6 +35,7 @@ import {
 import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/schema';
 import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
+import TeacherGuideEditor from '../editor/TeacherGuideEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
 import { describeWorkSpace } from '../lib/workSpaceUnits';
 import TagChipInput from './TagChipInput';
@@ -59,12 +60,13 @@ export interface RowTaxonomy {
     tagVocabulary: readonly string[];
 }
 
-export type ConfigKey = 'settings' | 'reference' | 'calculator';
+export type ConfigKey = 'settings' | 'reference' | 'calculator' | 'guide';
 
 const DRAWER_TITLES: Record<ConfigKey, string> = {
     settings: 'Activity settings',
     reference: 'Reference panel',
     calculator: 'Calculator',
+    guide: 'Teacher guide',
 };
 
 const SELECT_CLASS =
@@ -189,6 +191,7 @@ export function ConfigButtons({
     onToggle,
     calculatorEnabled,
     referenceHasContent,
+    guideHasContent = false,
     settingsWarning,
 }: {
     active: ConfigKey | null;
@@ -196,6 +199,8 @@ export function ConfigButtons({
     onToggle: (key: ConfigKey) => void;
     calculatorEnabled: boolean;
     referenceHasContent: boolean;
+    /** The teacher guide holds text (drives the Guide button's dot). */
+    guideHasContent?: boolean;
     /** This activity is in `locked` submission mode. A standing cue rather
      * than a defect warning: locked is irreversible for the student — there is
      * no unlock, and a re-publish resets the whole class — so it is worth
@@ -244,12 +249,25 @@ export function ConfigButtons({
                 onClick={() => onToggle('calculator')}
                 dataConfigButton="calculator"
             />
+            <HeaderButton
+                icon={<NotebookPen size={ICON} />}
+                label="Guide"
+                active={active === 'guide'}
+                dot={guideHasContent ? 'emerald' : undefined}
+                title={
+                    guideHasContent
+                        ? 'Teacher guide (has notes) — teachers only, never shown to students'
+                        : 'Notes for the teacher running this activity — never shown to students'
+                }
+                onClick={() => onToggle('guide')}
+                dataConfigButton="guide"
+            />
         </>
     );
 }
 
 // =============================================================================
-// ConfigDrawer — the right-side panel hosting all four section bodies.
+// ConfigDrawer — the right-side panel hosting every section body.
 // =============================================================================
 
 export function ConfigDrawer({
@@ -264,6 +282,9 @@ export function ConfigDrawer({
     onPanelEditorUpdate,
     calculator,
     onCalculatorChange,
+    guideEditorKey,
+    guideInitialContent,
+    onGuideEditorUpdate,
     activityId,
     taxonomy,
 }: {
@@ -278,6 +299,9 @@ export function ConfigDrawer({
     onPanelEditorUpdate: (json: JSONContent) => void;
     calculator: CalculatorTool | undefined;
     onCalculatorChange: (c: CalculatorTool | undefined) => void;
+    guideEditorKey: string;
+    guideInitialContent: JSONContent;
+    onGuideEditorUpdate: (json: JSONContent) => void;
     activityId?: string;
     taxonomy: RowTaxonomy;
 }) {
@@ -356,6 +380,20 @@ export function ConfigDrawer({
                     <CalculatorBody
                         calculator={calculator}
                         onChange={onCalculatorChange}
+                    />
+                </div>
+                <div className={active === 'guide' ? '' : 'hidden'}>
+                    <p className={`${SETTINGS_HELP_CLASS} mb-3`}>
+                        Notes for the teacher running this activity: what the
+                        examples are for, what to watch for, what to cut if
+                        time runs short. <strong>Only teachers see this —
+                        students never do.</strong> It prints as the first page
+                        of the answer key.
+                    </p>
+                    <TeacherGuideEditor
+                        key={guideEditorKey}
+                        initialContent={guideInitialContent}
+                        onUpdate={onGuideEditorUpdate}
                     />
                 </div>
             </div>

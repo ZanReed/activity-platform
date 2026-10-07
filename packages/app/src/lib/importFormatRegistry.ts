@@ -51,6 +51,10 @@ export interface FenceSpec {
     // it describes the activity rather than filling it, landing in
     // ImportResult.meta. The guard probes that object instead of the document.
     meta?: boolean;
+    // True for the ```teacher-guide fence, a FIFTH side channel: its blocks
+    // land in ImportResult.teacherGuide (teacher-only), never the body. The
+    // guard probes that field for blockType.
+    guide?: boolean;
 }
 
 // An inline fill-in-the-blank modifier — the `{{…}}` grammar.
@@ -223,6 +227,14 @@ export const FENCES: FenceSpec[] = [
             'the reference panel (a summonable formula sheet, optionally with static graph figures) — content routes to the panel, not the body',
         example: 'title: Formulas\nSlope-intercept form: $y = mx + b$\ngraph: line y = 2x + 1',
         panel: true,
+    },
+    {
+        tag: 'teacher-guide',
+        blockType: 'heading',
+        summary:
+            'the activity\'s TEACHER GUIDE (curriculum D50) — ordinary markdown, prose only (headings, paragraphs, lists, maths); teacher-only, never served to students; shown in the editor and on the printed answer key',
+        example: '## Watch for\n- Dividing the wrong way round.',
+        guide: true,
     },
     {
         tag: 'definitions',

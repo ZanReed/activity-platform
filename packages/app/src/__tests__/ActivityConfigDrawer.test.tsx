@@ -12,9 +12,10 @@
 // =============================================================================
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { createEmptyDocument, type ActivityMeta } from '@activity/schema';
+import type { JSONContent } from '@tiptap/react';
 import {
     ConfigButtons,
     ConfigDrawer,
@@ -38,8 +39,12 @@ const inertTaxonomy = {
 };
 
 function renderDrawer(
-    active: 'settings' | 'reference' | 'calculator' | null,
+    active: 'settings' | 'reference' | 'calculator' | 'guide' | null,
     onMetaChange: (next: ActivityMeta) => void = () => {},
+    guide: {
+        content?: JSONContent;
+        onUpdate?: (json: JSONContent) => void;
+    } = {},
 ) {
     return render(
         <MemoryRouter>
@@ -58,6 +63,11 @@ function renderDrawer(
                 onPanelEditorUpdate={() => {}}
                 calculator={undefined}
                 onCalculatorChange={() => {}}
+                guideEditorKey="test-guide"
+                guideInitialContent={
+                    guide.content ?? { type: 'doc', content: [{ type: 'paragraph' }] }
+                }
+                onGuideEditorUpdate={guide.onUpdate ?? (() => {})}
                 taxonomy={inertTaxonomy}
             />
         </MemoryRouter>,
@@ -92,6 +102,61 @@ describe('ConfigDrawer', () => {
         expect(
             container.querySelector('[role="dialog"]')?.getAttribute('aria-label'),
         ).toBe('Calculator');
+    });
+});
+
+describe('Teacher guide section (D50, teacher-guides.md TG-4)', () => {
+    it('mounts the guide editor with a loaded guide and reports it (the save path\'s input)', async () => {
+        const reported: JSONContent[] = [];
+        const { container } = renderDrawer('guide', () => {}, {
+            content: {
+                type: 'doc',
+                content: [
+                    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Watch for' }] },
+                    { type: 'paragraph', content: [{ type: 'text', text: 'GUIDE_SENTINEL' }] },
+                ],
+            },
+            onUpdate: (json) => reported.push(json),
+        });
+        const editor = container.querySelector('[data-teacher-guide-editor]');
+        expect(editor?.textContent).toContain('GUIDE_SENTINEL');
+        expect(editor?.closest('.hidden')).toBeNull();
+        // onCreate reported the loaded guide, so changeKey settles on it and
+        // the save rebuilds the field from it.
+        await waitFor(() =>
+            expect(JSON.stringify(reported.at(-1) ?? null)).toContain('GUIDE_SENTINEL'),
+        );
+        expect(
+            container.querySelector('[role="dialog"]')?.getAttribute('aria-label'),
+        ).toBe('Teacher guide');
+    });
+
+    it('says plainly that students never see it', () => {
+        renderDrawer('guide');
+        expect(screen.getByText(/students never do/i)).not.toBeNull();
+    });
+
+    it('offers formatting only — no Insert menu, no Define', () => {
+        const { container } = renderDrawer('guide');
+        const editor = container.querySelector('[data-teacher-guide-editor]')!;
+        expect(editor.querySelector('button[title="Insert a block"]')).toBeNull();
+        expect(editor.textContent).not.toContain('Define');
+    });
+
+    it('shows a dot on the Guide button when the guide has notes', () => {
+        const { container } = render(
+            <ConfigButtons
+                active={null}
+                onToggle={() => {}}
+                calculatorEnabled={false}
+                referenceHasContent={false}
+                guideHasContent={true}
+                settingsWarning={false}
+            />,
+        );
+        expect(
+            container.querySelector('[data-config-button="guide"] .bg-success-accent'),
+        ).not.toBeNull();
     });
 });
 
@@ -138,6 +203,9 @@ describe('Settings — typography (meta.typography)', () => {
                     onPanelEditorUpdate={() => {}}
                     calculator={undefined}
                     onCalculatorChange={() => {}}
+                    guideEditorKey="test-guide-x"
+                    guideInitialContent={{ type: 'doc', content: [{ type: 'paragraph' }] }}
+                    onGuideEditorUpdate={() => {}}
                     taxonomy={inertTaxonomy}
                 />
             </MemoryRouter>,
@@ -214,6 +282,9 @@ describe('activity taxonomy controls', () => {
                     onPanelEditorUpdate={() => {}}
                     calculator={undefined}
                     onCalculatorChange={() => {}}
+                    guideEditorKey="test-guide-x"
+                    guideInitialContent={{ type: 'doc', content: [{ type: 'paragraph' }] }}
+                    onGuideEditorUpdate={() => {}}
                     taxonomy={{
                         tags: overrides.tags ?? [],
                         onTagsChange: overrides.onTagsChange ?? (() => {}),

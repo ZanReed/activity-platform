@@ -50,6 +50,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission mode, feedback, calculator — not a body block (see below) |
 | a ` ```seed ` fenced block | **seeded per-student variables** — each student is served (and graded on) their own numbers; reference as `{name}` in prose, expressions in blank answers — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
+| a ` ```teacher-guide ` fenced block | the activity's **teacher guide** — teacher-only notes, **never shown to students**; shown in the editor and on the printed answer key — not a body block (see below) |
 | `$x^2$` | inline math |
 | `$$ … $$` on its own paragraph | a display math block |
 | `![alt](https://url)` | an image block |
@@ -632,6 +633,19 @@ REFERENCE SHEET (a `reference` fence fills the activity's reference panel)
 - Use at most one reference fence per activity; a second one adds onto the
   same sheet.
 
+TEACHER GUIDE (optional — a `teacher-guide` fence; TEACHERS ONLY)
+- A short note for the colleague teaching the activity: what the example
+  sequence is for, what to watch for, what to cut if time runs short. It is
+  NEVER shown to students; teachers see it in the editor and on the printed
+  answer key. Put it LAST in your reply.
+- Ordinary markdown inside: ## headings, paragraphs, - bullet lists,
+  **bold**, `code`, $inline$ math. Nothing else (no blanks, tables, images or
+  figures — they are dropped). One teacher-guide fence per activity:
+    ```teacher-guide
+    ## Watch for
+    - Dividing the wrong way round. Ask, "What do we want one of?"
+    ```
+
 SEEDED VARIABLES (optional — numbers that differ per student)
 - A ```seed fence declares named variables; each student is served their own
   values, and grading uses that student’s values. Flat `name: spec` lines:
@@ -711,7 +725,7 @@ OTHER
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
-  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, and ```reference — only the
+  ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, ```reference, and ```teacher-guide — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
@@ -1635,3 +1649,29 @@ graph: line y = 2x - 3
 - **Axes** — an `axes: -5..5, -5..5` line sets the window for the **next** figure (default −10..10, grid step 1). Fine-tune grid steps in the editor.
 - **Append semantics** — importing adds to the end of whatever the panel already holds; it never replaces hand-authored panel content. A second `reference` fence in the same paste continues the same sheet.
 - **Not here** — columns inside the panel and per-figure grid steps are editor-only after import. **Vocabulary definitions are not** in that list: `[[term :: text]]` and `[[term]]` (against a [```definitions fence](#rich-definitions-definitions-fence)) both resolve inside panel lines, so a formula sheet can carry tappable terms.
+
+## Teacher guide (```teacher-guide fence)
+
+A fenced block with the `teacher-guide` tag is the activity's **teacher guide**: a short note for the colleague teaching it — what the example sequence is for, what to watch for in the room, what to cut when time runs short, how to mark a rubric (curriculum D50; [teacher-guides.md](design/teacher-guides.md)). It is **teacher-only**: the read API deletes it from everything a student receives. Teachers see it in the editor (⚙ → Teacher guide) and as the **first page of the printed answer-key copy**.
+
+````
+```teacher-guide
+## The sequence
+One idea: a unit rate is the amount for exactly one, found by dividing the
+total by how many.
+
+## Watch for
+- Dividing the wrong way round (`mis.rate.ratio-inverted`). Ask, "What do we
+  want one of?"
+- **Origin test (M):** says y = 8x gives \$0 at 0 GB.
+
+## If time runs short
+Cut practice item 3, then item 4.
+```
+````
+
+- **Ordinary markdown** — unlike the `reference` fence's one-block-per-line grammar, the body is parsed as normal markdown, so wrapped lines join into one paragraph and a list item may continue on an indented line. Kept: `#`/`##`/`###` headings, paragraphs, bullet and numbered lists, `**bold**`, `*italic*`, `` `code` ``, `$inline$` and `$$display$$` maths.
+- **Prose only** — anything else (a table, an image, a figure, a nested fence) is **dropped** with a warning naming it. A `{{…}}` stays literal text: a guide is never gradeable. Currency follows the body's rule: `\$` is always safe.
+- **Placement** — anywhere in the file (it is read before the body, like `meta`); by convention, **last**. **One per activity**: a second fence is ignored with a warning.
+- **Not checked here** — section names, their order, and the word cap are the curriculum's rules (their `check_guides.py`); this importer checks only what it alone can see.
+
