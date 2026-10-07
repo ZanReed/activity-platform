@@ -31,6 +31,7 @@ export default function DevConfigDrawer() {
     );
     const [panelTitle, setPanelTitle] = useState('');
     const [panelJson, setPanelJson] = useState<JSONContent | null>(null);
+    const [guideJson, setGuideJson] = useState<JSONContent | null>(null);
     const [calculator, setCalculator] = useState<CalculatorTool | undefined>(
         undefined,
     );
@@ -73,6 +74,9 @@ export default function DevConfigDrawer() {
                         }
                         calculatorEnabled={calculator?.enabled ?? false}
                         referenceHasContent={referenceHasContent}
+                        guideHasContent={(guideJson?.content ?? []).some(
+                            (n) => n.type !== 'paragraph' || (n.content?.length ?? 0) > 0,
+                        )}
                         settingsWarning={meta.submissionMode === 'locked'}
                     />
                     <span
@@ -134,7 +138,7 @@ export default function DevConfigDrawer() {
                         type: 'doc',
                         content: [{ type: 'paragraph' }],
                     }}
-                    onGuideEditorUpdate={() => {}}
+                    onGuideEditorUpdate={setGuideJson}
                     taxonomy={{
                         tags,
                         onTagsChange: setTags,
