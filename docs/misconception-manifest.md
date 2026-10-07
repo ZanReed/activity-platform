@@ -13,13 +13,17 @@
   not a build failure.
 -->
 
-25 bindings · 6 distinct ids · 6 files
+41 bindings · 10 distinct ids · 8 files
 
 ## By id
 
 | id | uses | files |
 | --- | ---: | --- |
+| `mis.angles.complement-supplement-swapped` | 6 | `713-chain.geom.parallel-lines/01-angle-relationships.md` |
 | `mis.angles.sum-depends-on-size` | 1 | `712-chain.geom.triangles-polygons/02-angle-sums.md` |
+| `mis.angles.vertical-as-supplementary` | 4 | `713-chain.geom.parallel-lines/01-angle-relationships.md`, `713-chain.geom.parallel-lines/02-parallel-lines.md` |
+| `mis.parallel.all-equal` | 5 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
+| `mis.parallel.assumed` | 1 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
 | `mis.proportional.line-misses-origin` | 7 | `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.proportional.one-pair-assumed-constant` | 4 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.rate.compares-totals` | 2 | `801-chain.rate.proportional/01-unit-rate.md` |
@@ -32,6 +36,13 @@
     - `mis.triangle.orientation-matters` ×5
 - `712-chain.geom.triangles-polygons/02-angle-sums.md` — 1 binding
     - `mis.angles.sum-depends-on-size` ×1
+- `713-chain.geom.parallel-lines/01-angle-relationships.md` — 9 bindings
+    - `mis.angles.complement-supplement-swapped` ×6
+    - `mis.angles.vertical-as-supplementary` ×3
+- `713-chain.geom.parallel-lines/02-parallel-lines.md` — 7 bindings
+    - `mis.angles.vertical-as-supplementary` ×1
+    - `mis.parallel.all-equal` ×5
+    - `mis.parallel.assumed` ×1
 - `801-chain.rate.proportional/01-unit-rate.md` — 4 bindings
     - `mis.rate.compares-totals` ×2
     - `mis.rate.ratio-inverted` ×2
@@ -51,3 +62,4 @@
 **Used once.** Legitimate for a misconception sensed in one place; also the shape every typo has.
 
 - `mis.angles.sum-depends-on-size`
+- `mis.parallel.assumed`

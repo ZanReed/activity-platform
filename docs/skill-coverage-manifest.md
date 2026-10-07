@@ -12,14 +12,16 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**5 of 96 skills covered** (5 published, 0 draft only) · 0 partly covered · 6 activities
+**7 of 96 skills covered** (5 published, 2 draft only) · 0 partly covered · 8 activities
 
-**5 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+**7 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
 ## Covered
 
 | skill | state | parts | consolidated in | supporting |
 | --- | --- | --- | --- | --- |
+| `geom.angles.parallel-transversal` | draft only | `713-chain.geom.parallel-lines/02-parallel-lines.md` | — | — |
+| `geom.angles.relationships` | draft only | `713-chain.geom.parallel-lines/01-angle-relationships.md` | — | — |
 | `geom.angles.triangle-quad-sum` | published | `712-chain.geom.triangles-polygons/02-angle-sums.md` | — | — |
 | `geom.triangles.classify` | published | `712-chain.geom.triangles-polygons/01-triangles-classify.md` | — | — |
 | `rate.constant-of-proportionality` | published | `801-chain.rate.proportional/02-constant-of-proportionality.md` | — | — |
@@ -54,8 +56,6 @@ reason for existing — a count alone cannot be acted on.
 - `function.notation.evaluate`
 - `function.notation.solve`
 - `function.repr.correspondence`
-- `geom.angles.parallel-transversal`
-- `geom.angles.relationships`
 - `geom.nets.identify`
 - `geom.transform.reflect`
 - `geom.transform.rotate`
