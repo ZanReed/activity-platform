@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**BANK TEACHING-ORDER FIX (0056) — BUILT 2026-10-08, owed:** `supabase db push` (applies 0056), then `pnpm verify:auth --target live --only verify-0056`. SQL only: no app change, so push order does not matter. Units then list 712 → 713 within Year 7.
+**BANK TEACHING-ORDER FIX (0056) is LIVE (2026-10-08):** applied, `verify-0056`/`0055`/`0054` live green; the Bank lists Year 7 as 712 → 713, then Year 8. Nothing owed.
 
 **Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
 
