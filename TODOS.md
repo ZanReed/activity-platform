@@ -344,6 +344,41 @@ first real class deleted by a teacher other than the author**, or counsel
 asking. `classes` is referenced by memberships, checks, sessions and audit
 rows, so it needs its own design pass.
 
+## Teacher guides: a teacher-only field and generated teacher views (curriculum D50, C-79 / B-98, 2026-10-07)
+
+Curriculum D50 (ruled by the author 2026-10-07): every activity gets a short
+authored teacher guide (sections "the sequence", "watch for", "if time runs
+short", plus "marking" only when the DoL has a rubric; cap 200 words; graph key
+`activity_defaults.teacher_guide`). Until this side ships a home, guides live in
+the catalogue at `.guides/<chain folder>/<activity key>.md`, which
+`findMarkdownFiles` skips (`scripts/batch-import.mjs:562`, test
+`batch-import.test.mjs:799`). Nothing is imported, so nothing is capped and no
+draft waits on it.
+
+Their three asks:
+1. A teacher-only ACTIVITY-level field, written in the activity file and never
+   served to students (the `answer:`/`solution:` rule at activity level). Shape
+   to settle in the design pass: a fence the importer knows (today an unknown
+   fence degrades to VISIBLE text, `docs/markdown-import-format.md:84`, so no
+   guide may go into an activity file before this ships), stored on the
+   document, stripped by the read path the way block secrets are
+   (`packages/viewer/src/sanitize/sanitize.ts`), shown in the editor and on the
+   printed teacher copy (the answer-key print route). It is a new schema field,
+   so the orphan rule applies: its readers are the teacher view and print, and
+   the guard binds to their rendered output.
+2. A generated teacher view per activity, from data already imported
+   (objectives, skill, review skills, misconception bindings and feedback,
+   hook, rubric), with the guide beside it.
+3. The same for a chain (hook pool with notes, activities in order, D49
+   correctives once they exist).
+
+**Trigger for the DESIGN pass:** the author schedules it. It is a joint contract
+(the curriculum side writes 55+ guides into its format), so it may be designed
+early under the one-design-arc rule. **Trigger for the BUILD:** the first
+catalogue activity taught by a teacher other than the author (the guides exist
+for a colleague who did not write the activity), or the author asking. (3) also
+waits for D49's correctives to exist.
+
 ## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
 
 Source: the catalogue builder's direct answer to "what do you need to be
