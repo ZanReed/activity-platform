@@ -287,6 +287,9 @@ describe('the worksheet says what it is on paper', () => {
         expect(activityTypeLabel('exit_ticket')).toBe('Exit ticket');
         expect(activityTypeLabel('warm_up')).toBe('Warm-up');
         expect(activityTypeLabel('review')).toBe('Review');
+        // D51 (2026-10-07): printed assessments carry their kind on the sheet.
+        expect(activityTypeLabel('quiz')).toBe('Quiz');
+        expect(activityTypeLabel('exam')).toBe('Exam');
         expect(activityTypeLabel('worksheet')).toBeUndefined();
         expect(activityTypeLabel(undefined)).toBeUndefined();
     });

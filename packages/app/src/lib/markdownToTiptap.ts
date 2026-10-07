@@ -64,6 +64,7 @@ import { parseFigureFence } from './figureFence';
 import { parseChartFence } from './chartFence';
 import { freeVariables } from '@activity/graph-kit/scorers';
 import {
+    ACTIVITY_TYPES,
     RESERVED_SEED_NAMES,
     resolveTerm,
     suggestTerm,
@@ -3848,7 +3849,7 @@ function parseMetaFence(src: string, ctx: Ctx): void {
             case 'activitytype': {
                 const v = metaEnum(
                     'activity type', value,
-                    ['worksheet', 'exit_ticket', 'warm_up', 'review'] as const,
+                    ACTIVITY_TYPES,
                     ctx,
                 );
                 if (v) meta.activityType = v;

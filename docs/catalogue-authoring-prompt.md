@@ -607,7 +607,7 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
 ACTIVITY SETTINGS (optional, same ```meta fence)
 - These decide how the activity BEHAVES for the student. Set them when the
   kind of activity implies them; omit them to take the defaults.
-- type: worksheet | exit_ticket | warm_up | review   (default worksheet)
+- type: worksheet | exit_ticket | warm_up | review | quiz | exam   (default worksheet)
     This is the activity's FORMAT. It is separate from role, which is where
     the activity sits in your sequence — both offer a "review".
 - submission: single | locked | free   (default free)

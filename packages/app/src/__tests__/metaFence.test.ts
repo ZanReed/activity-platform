@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { ACTIVITY_TYPES } from '@activity/schema';
 import {
     getMarkdownImporter,
     type MarkdownImporter,
@@ -168,6 +169,18 @@ describe('```meta fence', () => {
         expect(convert(fence('feedback: On Check')).meta?.answerFeedback).toBe(
             'on_check',
         );
+    });
+
+    // D51 (2026-10-07, author-ruled C-86): the printed-assessment types import
+    // from the SCHEMA's list, so the importer cannot lag a new value.
+    it('accepts type quiz and exam, and every schema activity type', () => {
+        expect(convert(fence('type: quiz')).meta?.activityType).toBe('quiz');
+        expect(convert(fence('type: Exam')).meta?.activityType).toBe('exam');
+        for (const t of ACTIVITY_TYPES) {
+            const r = convert(fence(`type: ${t}`));
+            expect(r.meta?.activityType).toBe(t);
+            expect(r.warnings).toEqual([]);
+        }
     });
 
     it('accepts the long-form key spellings too', () => {

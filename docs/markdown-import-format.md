@@ -695,7 +695,7 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
 ACTIVITY SETTINGS (optional, same ```meta fence)
 - These decide how the activity BEHAVES for the student. Set them when the
   kind of activity implies them; omit them to take the defaults.
-- type: worksheet | exit_ticket | warm_up | review   (default worksheet)
+- type: worksheet | exit_ticket | warm_up | review | quiz | exam   (default worksheet)
     This is the activity's FORMAT. It is separate from role, which is where
     the activity sits in your sequence — both offer a "review".
 - submission: single | locked | free   (default free)
@@ -1435,7 +1435,7 @@ case-insensitively with spaces and hyphens folded to underscores, so
 
 | Key | Values (default first) | What it decides |
 |---|---|---|
-| `type` | `worksheet`, `exit_ticket`, `warm_up`, `review` | The activity's **format**. Separate from `role`, which is where it sits in your sequence — both vocabularies offer a "review". |
+| `type` | `worksheet`, `exit_ticket`, `warm_up`, `review`, `quiz`, `exam` | The activity's **format**. `quiz` and `exam` mark a printed, supervised assessment (print it from the draft; never publish or share it). Separate from `role`, which is where it sits in your sequence — both vocabularies offer a "review". |
 | `submission` | `free`, `locked`, `single` | Where the **Check** buttons go and what each one covers. A Check appears at every `{checkpoint}` section and covers **everything since the previous checkpoint** — and the end of the activity is always a checkpoint, so no section is ever left unchecked. `free` = students may re-check as often as they like. `locked` = the same buttons, but answers **freeze** when a group is checked, and there is **no undo** — not for the student, not for you; re-publishing is the only reset and it resets the whole class. `single` = ignore every `{checkpoint}`; one Check at the very end. (`single` is exactly `free` with no markers — it is kept because it states the intent plainly.) |
 | `feedback` | `on_check` | `on_check` hides correctness until the student presses Check. **`immediate` is reserved and not active yet** — the importer accepts it with a warning and the activity behaves as `on_check`. It cannot be combined with `submission: locked` at all: automatic checking would lock each section the moment it was answered. |
 | `calculator` | `off`, `scientific`, `graphing` | Whether the calculator tool is available, and which kind. Finer restrictions (trig, logs, regression models, expression caps) stay in ⚙ → Calculator. |
@@ -1485,7 +1485,7 @@ costing more than it saves.
 - **`role` and `type` are different settings, and BOTH are importable.**
   `role` is how the activity is used in your sequence (the Bank role: lesson /
   review / practice); `type` is the activity's *format* (worksheet /
-  exit_ticket / warm_up / review) — see the settings table above. Both
+  exit_ticket / warm_up / review / quiz / exam) — see the settings table above. Both
   vocabularies offer a "review" and they mean different things, which is the
   whole reason they are named apart. *(This bullet said `type` was "not
   importable" until 2026-08-20 — true before the settings slice, false after

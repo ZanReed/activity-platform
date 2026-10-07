@@ -73,8 +73,11 @@ export type Section = z.infer<typeof Section>;
 //              because it says the intent plainly at authoring time.
 //
 // activityType is a LABEL (R5): it renders as text beside course/unit, on
-// screen and on paper — "Exit ticket" / "Warm-up" / "Review"; 'worksheet' is
-// the unmarked default and renders nothing. It drives no layout. It used to
+// screen and on paper — "Exit ticket" / "Warm-up" / "Review" / "Quiz" /
+// "Exam"; 'worksheet' is the unmarked default and renders nothing. 'quiz' and
+// 'exam' joined 2026-10-07 (curriculum D51, author-ruled C-86): printed,
+// supervised assessments, printed from the draft and never published or shared
+// (D51 ruling 12), so like every other value they change only the label. It drives no layout. It used to
 // claim it did ("an exit_ticket renders as a single-page focused layout; a
 // worksheet renders with full section navigation") and that was never built in
 // the viewer, which has ONE layout and no section navigation. It is also NOT
@@ -250,6 +253,17 @@ export const Typography = z.object({
 });
 export type Typography = z.infer<typeof Typography>;
 
+// The one list of activity types. The importer's `type:` key reads it rather
+// than keeping its own copy, so a new value cannot ship half-accepted.
+export const ACTIVITY_TYPES = [
+  'worksheet',
+  'exit_ticket',
+  'warm_up',
+  'review',
+  'quiz',
+  'exam',
+] as const;
+
 export const ActivityMeta = z.object({
   title: z.string().min(1),
                                      // .min(1): course is stamped into the
@@ -263,7 +277,7 @@ export const ActivityMeta = z.object({
                                      course: z.string().min(1).default('Algebra II'),
                                      unit: z.string().optional(),
                                      submissionMode: z.enum(['single', 'locked', 'free']).default('free'),
-                                     activityType: z.enum(['worksheet', 'exit_ticket', 'warm_up', 'review']).default('worksheet'),
+                                     activityType: z.enum(ACTIVITY_TYPES).default('worksheet'),
                                      answerFeedback: z.enum(['immediate', 'on_check']).default('on_check'),
                                      skills: z.array(z.string()).default([]),
                                      print: PrintConfig.default({}),

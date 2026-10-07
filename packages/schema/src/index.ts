@@ -145,6 +145,7 @@ export { Row, Column, ColumnGridLines } from './layout.js';
 export {
   Section,
   ActivityMeta,
+  ACTIVITY_TYPES,
   ActivityDocument,
   ReferencePanel,
   RegressionModel,

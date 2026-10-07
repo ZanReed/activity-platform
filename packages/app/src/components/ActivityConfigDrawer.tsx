@@ -95,6 +95,8 @@ const ACTIVITY_TYPE_LABELS: Record<ActivityMeta['activityType'], string> = {
     exit_ticket: 'Exit ticket',
     warm_up: 'Warm-up',
     review: 'Review',
+    quiz: 'Quiz',
+    exam: 'Exam',
 };
 
 // =============================================================================

@@ -148,6 +148,10 @@ export function activityTypeLabel(
       return 'Warm-up';
     case 'review':
       return 'Review';
+    case 'quiz':
+      return 'Quiz';
+    case 'exam':
+      return 'Exam';
     default:
       return undefined;
   }
