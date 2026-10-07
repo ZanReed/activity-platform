@@ -20,13 +20,9 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**BANK FILTERS + AUTHORS (BK-11…BK-13) are LIVE (2026-10-07):** 0055 applied, `verify-0055` and `verify-0054` live green, pushed at `6dc2a324` (CI green); the author opted in ("Zan Reed" on all six listed activities). Nothing owed.
+**BANK TEACHING-ORDER FIX (0056) — BUILT 2026-10-08, owed:** `supabase db push` (applies 0056), then `pnpm verify:auth --target live --only verify-0056`. SQL only: no app change, so push order does not matter. Units then list 712 → 713 within Year 7.
 
-**ACTIVITY BANK (copy-on-use, BK-1…BK-10) is LIVE (2026-10-07):** 0054 applied, `verify-0054` live 5/5 (no residue), app pushed at `6b36b351`. ⚠ The push landed BEFORE the apply, so for that window the live Activities list failed (it selects the new columns) — OV-7's order exists for exactly this. Click-through DONE 2026-10-07: the triangles unit is listed; a second (allowlisted) teacher copied Naming Triangles — owned by them, published v1, content byte-identical to the source version, guide present, no catalogue identity, glossary fallback serving all 84 entries. Not yet seen on screen: a SELF-ATTESTED stranger's path (covered by verify-0054 B3–B11). Design + as-built: [activity-bank.md](docs/design/activity-bank.md).
-
-**QUIZ/EXAM activity types (curriculum D51) are LIVE (2026-10-07):** built at `ead5c005`, pushed (main `faf6792c`, CI green), get-activity + check-activity redeployed and verified by bundle hash; "shipped" letter B-112. Nothing owed.
-
-**TEACHER GUIDES slice 1 (curriculum D50) is LIVE (2026-10-07):** pushed at `1cb7f0a3`, CI green; get-activity + check-activity redeployed and verified by bundle hash; live letter B-102 sent. Nothing owed by the author except the next ordinary batch import once the curriculum side has moved `.guides/` into the files. The curriculum side owes a no-op pin bump (only `exempt_fences` changed). Record: [teacher-guides.md](docs/design/teacher-guides.md).
+**Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
 
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 

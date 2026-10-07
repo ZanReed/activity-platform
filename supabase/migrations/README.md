@@ -62,6 +62,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0053_class_age_statement.sql` | Under-13 use by school authorization (author rulings U-1 to U-4, 2026-10-06; DECISIONS → "Under-13 use, by school authorization"): `classes.includes_under_13`, `create_class` takes the choice, `reconfirm_class_age` re-stamps it with an audit row. Verify: `scripts/verify-0053.sql`. |
 | `0054_activity_bank.sql` | The Activity Bank (docs/design/activity-bank.md, rulings BK-1…BK-10, 2026-10-07): copy-on-use catalogue. Provenance columns on `activities`, `is_bank_lister`, `set_activity_listing`, `list_bank`, `get_bank_teacher_guide`, `copy_bank_activity` (copies the PUBLISHED version into an activity the caller owns, published on arrival), and `glossary_for_activity`'s per-term fallback for copies. Assessments (quiz/exam) are never listed or copied. Verify: `scripts/verify-0054.sql`. |
 | `0055_bank_authors.sql` | Activity Bank authors (activity-bank.md BK-12/BK-13, 2026-10-07): opt-in author names (`users.name_opt_in_at`, `set_public_name`), `list_bank` returns `author_name` for opted-in owners only and never returns a copy, `set_activity_listing` refuses a Bank copy. Verify: `scripts/verify-0055.sql`. |
+| `0056_bank_teaching_order.sql` | `list_bank` orders by course → source path → unit → title, so units appear in teaching (chain-folder) order rather than alphabetically (found live 2026-10-08 when Year 7 gained a second unit). Body otherwise 0055's. Verify: `scripts/verify-0056.sql`. |
 
 ## Regression re-runs (the DB has no CI harness)
 

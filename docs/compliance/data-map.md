@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-07-draft-22`. Mirrors migrations 0001–**0055**, verified
+> Version `2026-10-08-draft-23`. Mirrors migrations 0001–**0056**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-23` (2026-10-08) — 0056 adds NO personal data.** It changes only the ORDER in which `list_bank` returns rows (teaching order). The range moves to 0056 on that basis.
 >
 > **`draft-22` (2026-10-07) — 0055 adds a NEW RECIPIENT for a teacher's
 > name, opt-in only.** `users.name_opt_in_at` (when the teacher chose to be

@@ -1,5 +1,16 @@
 # HISTORY.md
 
+**▶ Moved out of STATE 2026-10-08 (closed records, nothing owed).** Kept verbatim:
+
+**BANK FILTERS + AUTHORS (BK-11…BK-13) are LIVE (2026-10-07):** 0055 applied, `verify-0055` and `verify-0054` live green, pushed at `6dc2a324` (CI green); the author opted in ("Zan Reed" on all six listed activities). Nothing owed.
+
+**ACTIVITY BANK (copy-on-use, BK-1…BK-10) is LIVE (2026-10-07):** 0054 applied, `verify-0054` live 5/5 (no residue), app pushed at `6b36b351`. ⚠ The push landed BEFORE the apply, so for that window the live Activities list failed (it selects the new columns) — OV-7's order exists for exactly this. Click-through DONE 2026-10-07: the triangles unit is listed; a second (allowlisted) teacher copied Naming Triangles — owned by them, published v1, content byte-identical to the source version, guide present, no catalogue identity, glossary fallback serving all 84 entries. Not yet seen on screen: a SELF-ATTESTED stranger's path (covered by verify-0054 B3–B11). Design + as-built: [activity-bank.md](docs/design/activity-bank.md).
+
+**QUIZ/EXAM activity types (curriculum D51) are LIVE (2026-10-07):** built at `ead5c005`, pushed (main `faf6792c`, CI green), get-activity + check-activity redeployed and verified by bundle hash; "shipped" letter B-112. Nothing owed.
+
+**TEACHER GUIDES slice 1 (curriculum D50) is LIVE (2026-10-07):** pushed at `1cb7f0a3`, CI green; get-activity + check-activity redeployed and verified by bundle hash; live letter B-102 sent. Nothing owed by the author except the next ordinary batch import once the curriculum side has moved `.guides/` into the files. The curriculum side owes a no-op pin bump (only `exempt_fences` changed). Record: [teacher-guides.md](docs/design/teacher-guides.md).
+
+
 **▶ Moved out of STATE 2026-10-07 by the drift audit (closed records, nothing owed; and two Status-by-area rows that pinned values which had rotted).** Kept verbatim:
 
 **THE DAILY FACTS PRACTICE (D43 slice 2, "the sprint") IS LIVE (2026-10-06).** Migrations 0049 to 0051 applied (0050/0051 by the author) and verified (267 rows, 25 scripts); pages on `main` at `9de13b38`, CI green; registry revision `2d20d8c9…` mirrored by the author and read back (the seven settings stored exactly). Receipt sent as B-89 (their main `66a3f36` verified and stamped). The author tested it on the live site the same day and it worked (no finding). Design, rulings SP-1 to SP-14 and four "as built" blocks: [practice-blocks.md](docs/design/practice-blocks.md) → "Slice 2, the sprint".

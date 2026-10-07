@@ -243,4 +243,9 @@ applied (OV-7).
   2026-08-04 ruling: default to nothing, opt in). Migration 0055;
   `verify-0055` mutation-tested by dropping the opt-in check (B3 went red with
   the Google name showing).
+- **0056 (2026-10-08), a fix:** `list_bank` sorted course → unit NAME → path,
+  which is teaching order within a unit but alphabetical across units ("Angles
+  and Parallel Lines" before "Triangles and Angle Sums" once Year 7 had two).
+  Now course → source path → unit → title, matching the Activities list.
+  `verify-0056` mutation-tested by restoring the old sort.
 
