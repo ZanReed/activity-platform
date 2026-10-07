@@ -3010,9 +3010,9 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 
 **Effort:** decision M / S · **Priority:** P3 · **Depends on:** the co-ownership arc's design pass.
 
-## `--registry` is ambiguous beside `--skills-registry` and `--glossary` (glossary DX review, 2026-09-27)
+## ✅ DONE 2026-10-07 — `--registry` is ambiguous beside `--skills-registry` and `--glossary` (glossary DX review, 2026-09-27)
 
-**What:** Rename `pnpm import:batch --registry` to `--misconception-registry`, keeping `--registry` as a deprecated alias that prints one warning.
+**What:** Rename `pnpm import:batch --registry` to `--misconception-registry`, keeping `--registry` as a deprecated alias that prints one warning. DONE: parseArgs, `usageText()`, the header comment and every message now say the new name; the alias works and warns once per run on stderr. The W-11 parity row now asserts both spellings and matches whole flags (a bare `includes` let `--registry` be satisfied by `--skills-registry`).
 
 **Why:** With three input files the bare `--registry` no longer says which registry. Renaming a shipped flag was out of the DX-polish scope of the glossary review.
 
