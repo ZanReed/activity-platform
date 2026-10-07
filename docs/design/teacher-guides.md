@@ -1,8 +1,8 @@
 # Teacher guides — slice 1: the teacher-only field
 
-**Status:** DESIGN PASS, awaiting the author's rulings on TG-1…TG-9 (2026-10-07).
-Nothing is built. When ruled, the fence format (TG-2) goes to the curriculum
-side as a proposal before code.
+**Status:** ✅ RULED 2026-10-07 — TG-1…TG-9 all as recommended (author).
+Next: the fence format (TG-2) goes to the curriculum side as a proposal (B-100);
+code waits for their answer.
 
 **Origin.** Curriculum D50 (ruled by the author 2026-10-07; their PR #47): every
 activity gets a short authored teacher guide — sections "the sequence", "watch
