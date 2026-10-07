@@ -1,9 +1,8 @@
 # Activity Bank — copy-on-use catalogue for every teacher
 
-**Status:** ✅ RULED 2026-10-07 (BK-1…BK-10 all as recommended) and ✅ BUILT
-2026-10-07 (migration 0054 + the `/bank` page). Owed before it is live: apply
-0054 live and run `verify-0054` live, THEN push (OV-7) — STATE → "Pending
-author actions". As-built notes at the end.
+**Status:** ✅ RULED, ✅ BUILT and ✅ LIVE 2026-10-07 (migration 0054 applied,
+`verify-0054` live 5/5, app at `6b36b351`). First real click-through owed by
+the author (STATE). As-built notes at the end.
 
 **Supersedes** the RUN-IN-PLACE model of [free-activity-catalog.md](free-activity-catalog.md)
 (2026-06-16, reconciled 2026-07-13) and the "scoped catalog" Drop 1′ of the
