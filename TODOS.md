@@ -625,6 +625,12 @@ annotation lines skip-with-warning, ER-12a, and count as figure problems);
 editor rows; both bundles + both deploys. Scoring is unchanged (labels never
 reach `plot_point`).
 
+## Choice figures that differ only in SIZE are not answerable by screen reader (curriculum C-89 note, 2026-10-07)
+
+**What:** act.geom.angle-sums' DoL angle-estimate item has three choice figures whose alt texts must be identical (the choice-figure alt rule forbids naming the size, or the alt gives the answer away). A screen-reader user therefore cannot answer it. Not a defect in the rule; a real gap in what an estimate-by-eye item can offer non-visually. Options for the design: an accessible alternative item per such question (authored), or a per-choice non-revealing description (hard to make non-revealing).
+
+**Trigger:** the next accessibility pass on choice figures, or the first student who needs it. No action asked by the curriculum side.
+
 ## ✅ BUILT 2026-10-04 — Side-by-side figures for "which one?" items (curriculum C-35 wish)
 
 **As built** (the author's eleven rulings, "yes to all", decision 6 as amended; syntax confirmed by the curriculum side in C-50 with three conditions, all met):
