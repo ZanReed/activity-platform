@@ -11,13 +11,16 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 
 const h = vi.hoisted(() => ({
     listBank: vi.fn(),
     copyBankActivity: vi.fn(),
     getBankTeacherGuide: vi.fn(),
+    lister: { current: false },
+    publicName: { current: { name: null as string | null, optedIn: false } },
+    setPublicName: vi.fn(),
 }));
 
 vi.mock('../lib/bank', () => ({
@@ -25,6 +28,12 @@ vi.mock('../lib/bank', () => ({
     listBank: h.listBank,
     copyBankActivity: h.copyBankActivity,
     getBankTeacherGuide: h.getBankTeacherGuide,
+    isBankLister: () => Promise.resolve(h.lister.current),
+    getMyPublicName: () => Promise.resolve(h.publicName.current),
+    setPublicName: h.setPublicName,
+}));
+vi.mock('../lib/SessionContext', () => ({
+    useSession: () => ({ session: { user: { id: 'teacher-1' } }, loading: false }),
 }));
 // The preview pulls in the whole viewer; it has its own reason to exist (print
 // mode) documented in its header. Here it only has to be reachable.
@@ -47,6 +56,7 @@ const entry = (over: Record<string, unknown>) => ({
     has_guide: true,
     version_num: 1,
     published_at: '2026-10-07T00:00:00Z',
+    author_name: null,
     ...over,
 });
 
@@ -73,6 +83,9 @@ function renderBank() {
 }
 
 beforeEach(() => {
+    h.lister.current = false;
+    h.publicName.current = { name: null, optedIn: false };
+    h.setPublicName.mockReset();
     h.listBank.mockResolvedValue(ROWS);
     h.copyBankActivity.mockReset();
     h.getBankTeacherGuide.mockReset();
@@ -166,3 +179,63 @@ describe('Activity Bank page', () => {
         expect(await screen.findByText('Nothing is in the Activity Bank yet.')).toBeInTheDocument();
     });
 });
+
+describe('Activity Bank filters and authors (0055)', () => {
+    const MIXED = [
+        entry({ id: 'm1', title: 'Lesson A', course: 'Year 7 Mathematics', unit: 'U1', tags: ['triangles', 'angles'], pedagogical_role: 'lesson', author_name: 'Ms Rivera' }),
+        entry({ id: 'm2', title: 'Review B', course: 'Year 7 Mathematics', unit: 'U1', tags: ['angles'], pedagogical_role: 'review', has_guide: false }),
+        entry({ id: 'm3', title: 'Practice C', course: 'Year 8 Mathematics', unit: 'U2', tags: ['rates'], pedagogical_role: 'practice', author_name: 'Mr Okafor' }),
+    ];
+    const shown = () =>
+        [...document.querySelectorAll('[data-bank-entry]')].map((li) => li.getAttribute('data-bank-entry'));
+
+    beforeEach(() => {
+        h.listBank.mockResolvedValue(MIXED);
+    });
+
+    it('filters by subject, role, tag (any of), guide and author; AND across filters', async () => {
+        renderBank();
+        await screen.findByText('Lesson A');
+        fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Year 7 Mathematics' } });
+        expect(shown()).toEqual(['m1', 'm2']);
+        fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+        expect(shown()).toEqual(['m2']);
+        fireEvent.click(screen.getByText('Clear filters'));
+        expect(shown()).toEqual(['m1', 'm2', 'm3']);
+
+        const tagGroup = screen.getByRole('group', { name: 'Topic tags' });
+        fireEvent.click(within(tagGroup).getByRole('button', { name: 'triangles' }));
+        fireEvent.click(within(tagGroup).getByRole('button', { name: 'rates' }));
+        expect(shown()).toEqual(['m1', 'm3']); // any of the chosen tags
+        fireEvent.click(screen.getByLabelText('Has a teacher guide'));
+        expect(shown()).toEqual(['m1', 'm3']);
+        fireEvent.change(screen.getByLabelText('Author'), { target: { value: 'Mr Okafor' } });
+        expect(shown()).toEqual(['m3']);
+        expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 3.');
+    });
+
+    it('shows "by" only for opted-in authors, and an Unnamed author option', async () => {
+        renderBank();
+        await screen.findByText('Lesson A');
+        expect(screen.getByText('by Ms Rivera')).toBeInTheDocument();
+        expect(screen.queryByText(/^by $/)).toBeNull();
+        fireEvent.change(screen.getByLabelText('Author'), { target: { value: '\u0000no-author' } });
+        expect(shown()).toEqual(['m2']);
+    });
+
+    it('the name control appears only for listers, and saves an opt-in', async () => {
+        renderBank();
+        await screen.findByText('Lesson A');
+        expect(document.querySelector('[data-bank-name]')).toBeNull();
+        cleanup();
+        h.lister.current = true;
+        h.setPublicName.mockResolvedValue({ name: 'Ms Rivera', optedIn: true });
+        renderBank();
+        fireEvent.click(await screen.findByRole('button', { name: 'Add your name' }));
+        fireEvent.change(screen.getByLabelText('Your name on activities you list'), { target: { value: 'Ms Rivera' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        expect(await screen.findByText('by Ms Rivera', { selector: 'strong' })).toBeInTheDocument();
+        expect(h.setPublicName).toHaveBeenCalledWith('Ms Rivera');
+    });
+});
+

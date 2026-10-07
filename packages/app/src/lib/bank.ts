@@ -16,6 +16,7 @@ import {
     IS_BANK_LISTER_RPC,
     LIST_BANK_RPC,
     SET_ACTIVITY_LISTING_RPC,
+    SET_PUBLIC_NAME_RPC,
 } from './edgeFunctions';
 
 /** One listed activity, as list_bank returns it (catalogue-safe columns). */
@@ -32,6 +33,8 @@ export interface BankEntry {
     has_guide: boolean;
     version_num: number;
     published_at: string;
+    /** The author's name, ONLY if they opted in (0055, BK-13); else null. */
+    author_name: string | null;
 }
 
 export async function listBank(): Promise<BankEntry[]> {
@@ -73,6 +76,31 @@ export async function isBankLister(): Promise<boolean> {
     const { data, error } = await supabase.rpc(IS_BANK_LISTER_RPC);
     if (error) return false;
     return data === true;
+}
+
+/** The signed-in teacher's Bank name, and whether it is shown (opted in). */
+export interface PublicName {
+    name: string | null;
+    optedIn: boolean;
+}
+
+export async function getMyPublicName(userId: string): Promise<PublicName> {
+    const { data, error } = await supabase
+        .from('users')
+        .select('display_name, name_opt_in_at')
+        .eq('id', userId)
+        .maybeSingle();
+    if (error) throw new Error(error.message);
+    const row = data as { display_name: string | null; name_opt_in_at: string | null } | null;
+    return { name: row?.display_name ?? null, optedIn: Boolean(row?.name_opt_in_at) };
+}
+
+/** Opt in with a name, or opt out with an empty string (0055, BK-13). */
+export async function setPublicName(name: string): Promise<PublicName> {
+    const { data, error } = await supabase.rpc(SET_PUBLIC_NAME_RPC, { p_name: name });
+    if (error) throw new Error(error.message);
+    const out = data as { display_name: string | null; opted_in: boolean };
+    return { name: out.display_name, optedIn: out.opted_in };
 }
 
 /** The licence the Bank names on its header (BK-10; the July red-team's A6). */

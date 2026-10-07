@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-07-draft-21`. Mirrors migrations 0001–**0054**, verified
+> Version `2026-10-07-draft-22`. Mirrors migrations 0001–**0055**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,16 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-22` (2026-10-07) — 0055 adds a NEW RECIPIENT for a teacher's
+> name, opt-in only.** `users.name_opt_in_at` (when the teacher chose to be
+> named) is added. A teacher who opts in via `set_public_name` has their
+> `users.display_name` shown to OTHER SIGNED-IN TEACHERS on the activities they
+> list in the Activity Bank (`list_bank.author_name`). Without the opt-in,
+> nothing is shown — even when `display_name` holds a Google-supplied name.
+> Email-shaped names are refused (0021's rule). Opting out (an empty name)
+> clears the opt-in; the next `list_bank` read shows no name. Students: no
+> change. The range moves to 0055 on that basis.
 >
 > **`draft-21` (2026-10-07) — 0054 adds NO personal data.** The Activity
 > Bank (docs/design/activity-bank.md): two provenance columns on
@@ -303,7 +313,8 @@
 | `auth.users` | email, Google name/avatar ref, provider metadata | teacher, student | Google OAuth | authentication | account lifetime |
 | `users.email` | school email | teacher, student | Google OAuth | identity, domain gate | account lifetime |
 | `users.display_name` (student) | name, **may be NULL** | student | Google `full_name` when supplied, else NULL (0021 — never the email) | teacher recognizes student work | account lifetime |
-| `users.display_name` (teacher) | name, **may be NULL** | teacher | same | student-facing attribution on the activity page — **⚠ disclosed to unauthenticated visitors, see Disclosures** | account lifetime |
+| `users.display_name` (teacher) | name, **may be NULL** | teacher | same | student-facing attribution on the activity page — **⚠ disclosed to unauthenticated visitors, see Disclosures**; and, **only after the teacher opts in (`name_opt_in_at`, 0055)**, author attribution shown to other signed-in teachers in the Activity Bank | account lifetime |
+| `users.name_opt_in_at` (teacher) | timestamp of a choice | teacher | written only by `set_public_name` (0055) | whether the teacher's name appears on their Activity Bank listings | account lifetime |
 | `users.role` / `account_tier` | role/tier | both | system | authorization (**`pending` = admitted, holds nothing**, 0033) | account lifetime |
 | `users.educator_attested_at` / `_version` | date + policy version of the educator confirmation | teacher (self-serve only) | the teacher, at setup | recording who confirmed school authorization, and against which wording | account lifetime |
 | `users.teacher_caps_exempt` | flag | teacher | system | exempts directly-added teachers from the self-serve class/roster caps | account lifetime |

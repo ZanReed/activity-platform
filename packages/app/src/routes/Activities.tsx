@@ -114,7 +114,13 @@ export default function Activities() {
         // Only rows not already in the wanted state: a unit action never
         // re-writes (or re-audits) a row it would leave unchanged.
         const wanted = listed ? 'public' : 'private';
-        const targets = rows.filter((r) => r.status === 'published' && r.visibility !== wanted);
+        // A Bank copy is never listed (0055, BK-12); the server refuses it too.
+        const targets = rows.filter(
+            (r) =>
+                r.status === 'published' &&
+                r.visibility !== wanted &&
+                !(listed && r.copied_from_activity_id),
+        );
         if (targets.length === 0) return;
         setListingError(null);
         setListingBusy(busyKey);
@@ -641,8 +647,10 @@ export default function Activities() {
                     {group.rows.length === 1 ? ' activity' : ' activities'}
                     {drafts > 0 && ` · ${drafts} draft${drafts === 1 ? '' : 's'}`}
                     </span>
-                    {bankLister && group.rows.some((r) => r.status === 'published') && (() => {
-                        const published = group.rows.filter((r) => r.status === 'published');
+                    {bankLister && group.rows.some((r) => r.status === 'published' && !r.copied_from_activity_id) && (() => {
+                        const published = group.rows.filter(
+                            (r) => r.status === 'published' && !r.copied_from_activity_id,
+                        );
                         const allListed = published.every((r) => r.visibility === 'public');
                         return (
                             <button
@@ -692,7 +700,7 @@ export default function Activities() {
                         )}
                         <RoleBadge role={a.pedagogical_role} />
                         <StatusBadge status={a.status} />
-                        {bankLister && a.status === 'published' && (
+                        {bankLister && a.status === 'published' && !a.copied_from_activity_id && (
                             <button
                             type="button"
                             disabled={listingBusy !== null}

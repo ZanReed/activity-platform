@@ -689,11 +689,10 @@ describe('Activities — Activity Bank markers and curator controls (0054)', () 
         fireEvent.click(listOne);
         await waitFor(() => expect(bank.setActivityListing).toHaveBeenCalledWith('p2', true));
         bank.setActivityListing.mockClear();
-        // p1 and p2 are listed now; the unit action lists only what is not:
-        // the published copy c1 — never the draft, never a re-write.
-        fireEvent.click(await screen.findByText('List unit in the Bank'));
-        await waitFor(() => expect(bank.setActivityListing).toHaveBeenCalledTimes(1));
-        expect(bank.setActivityListing).toHaveBeenCalledWith('c1', true);
+        // A Bank copy never gets a List control (0055, BK-12)…
+        expect(screen.queryByRole('button', { name: 'List A Copy in the Activity Bank' })).toBeNull();
+        // …and with p1 and p2 listed, the unit counts as listed: the copy and
+        // the draft are not part of it.
         expect(await screen.findByText('Remove unit from the Bank')).toBeTruthy();
     });
 });

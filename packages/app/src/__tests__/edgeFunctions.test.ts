@@ -11,6 +11,7 @@ import {
   LIST_BANK_RPC,
   LIST_CLASS_ACTIVITIES_RPC,
   SET_ACTIVITY_LISTING_RPC,
+  SET_PUBLIC_NAME_RPC,
   PUBLISH_ACTIVITY_RPC,
   SHARE_ACTIVITY_RPC,
   UNSHARE_ACTIVITY_RPC,
@@ -59,6 +60,7 @@ describe('rpc name constants', () => {
     COPY_BANK_ACTIVITY_RPC,
     SET_ACTIVITY_LISTING_RPC,
     IS_BANK_LISTER_RPC,
+    SET_PUBLIC_NAME_RPC,
   ];
   it.each(rpcs)('%s is defined by a migration', (rpc) => {
     const definition = new RegExp(`create or replace function ${rpc}\\(`);

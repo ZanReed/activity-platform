@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
+**BANK FILTERS + AUTHORS (BK-11…BK-13) — BUILT 2026-10-07, owed IN THIS ORDER (OV-7):** (1) `supabase db push` (applies 0055); (2) `pnpm verify:auth --target live --only verify-0055` green; (3) ONLY THEN push — the Bank page reads `author_name` and calls `set_public_name`, which do not exist before 0055. No Edge Function redeploy.
+
 **ACTIVITY BANK (copy-on-use, BK-1…BK-10) is LIVE (2026-10-07):** 0054 applied, `verify-0054` live 5/5 (no residue), app pushed at `6b36b351`. ⚠ The push landed BEFORE the apply, so for that window the live Activities list failed (it selects the new columns) — OV-7's order exists for exactly this. Click-through DONE 2026-10-07: the triangles unit is listed; a second (allowlisted) teacher copied Naming Triangles — owned by them, published v1, content byte-identical to the source version, guide present, no catalogue identity, glossary fallback serving all 84 entries. Not yet seen on screen: a SELF-ATTESTED stranger's path (covered by verify-0054 B3–B11). Design + as-built: [activity-bank.md](docs/design/activity-bank.md).
 
 **QUIZ/EXAM activity types (curriculum D51) are LIVE (2026-10-07):** built at `ead5c005`, pushed (main `faf6792c`, CI green), get-activity + check-activity redeployed and verified by bundle hash; "shipped" letter B-112. Nothing owed.

@@ -222,3 +222,25 @@ applied (OV-7).
   database is proven by `verify-0054` (local), the UI by component tests
   (`Bank.test.tsx`, `Activities.test.tsx`).
 
+---
+
+## Second round (author, 2026-10-07, after go-live) — BK-11…BK-13
+
+- **BK-11 Filters.** Search (titles, units, tags, authors) plus: subject
+  (`course`), lesson / review / practice, topic-tag chips (most-used first,
+  any-of within tags), "has a teacher guide", and author. AND across filters;
+  filters remove rows, never reorder them. Not chosen: a "question types
+  inside" filter (derivable from block types; offered, not picked).
+- **BK-12 Who lists.** Allowlisted (caps-exempt) colleagues list THEIR OWN
+  activities, as 0054 already allowed; **a Bank copy can never be listed**
+  (the July "branches are never listable" rule, which 0054 had not carried
+  over). Found because the second test account (allowlisted) listed its own
+  activity at 08:38.
+- **BK-13 Author names, opt-in.** A name appears on a teacher's cards only
+  after they set it in the Bank's name control (`set_public_name`, recorded as
+  `users.name_opt_in_at`). Not `display_name` alone: self-serve signups carry
+  Google's full name there, which would publish names nobody chose (the
+  2026-08-04 ruling: default to nothing, opt in). Migration 0055;
+  `verify-0055` mutation-tested by dropping the opt-in check (B3 went red with
+  the Google name showing).
+

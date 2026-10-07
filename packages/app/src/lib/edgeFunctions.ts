@@ -37,3 +37,5 @@ export const BANK_TEACHER_GUIDE_RPC = 'get_bank_teacher_guide';
 export const COPY_BANK_ACTIVITY_RPC = 'copy_bank_activity';
 export const SET_ACTIVITY_LISTING_RPC = 'set_activity_listing';
 export const IS_BANK_LISTER_RPC = 'is_bank_lister';
+/** 0055 (BK-13): a teacher opts in to (or out of) a name on their Bank cards. */
+export const SET_PUBLIC_NAME_RPC = 'set_public_name';
