@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**TEACHER GUIDES slice 1 (curriculum D50) — BUILT 2026-10-07, owed in this order:** (1) push; (2) `pnpm deploy:get-activity` AND `pnpm deploy:check` (both bundles carry the sanitizer; `SANITIZER_REV` → `3-14401abc` orphans the read cache), each proven by bundle hash (CLAUDE.md), and the live `get-activity` must hold `delete clone.teacherGuide` BEFORE any file with a ```teacher-guide fence is imported; (3) then the session opens the EXEMPT_FENCES pin-bump PR on the curriculum repo (`docs/capability-facts.json` changed) and sends the "live" letter; only after that do they move `.guides/` into the files. Design + as-built: [teacher-guides.md](docs/design/teacher-guides.md).
+**TEACHER GUIDES slice 1 (curriculum D50) is LIVE (2026-10-07):** pushed at `1cb7f0a3`, CI green; get-activity + check-activity redeployed and verified by bundle hash; live letter B-102 sent. Nothing owed by the author except the next ordinary batch import once the curriculum side has moved `.guides/` into the files. The curriculum side owes a no-op pin bump (only `exempt_fences` changed). Record: [teacher-guides.md](docs/design/teacher-guides.md).
 
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 

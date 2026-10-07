@@ -1,9 +1,9 @@
 # Teacher guides — slice 1: the teacher-only field
 
-**Status:** ✅ RULED 2026-10-07 (TG-1…TG-9 all as recommended) and ✅ BUILT
-2026-10-07. Owed before it is live: push, both redeploys, the curriculum pin
-bump, then the "live" letter — STATE → "Pending author actions". As-built
-notes at the end of this doc.
+**Status:** ✅ RULED, ✅ BUILT and ✅ LIVE 2026-10-07 (main `1cb7f0a3`; both
+redeploys verified by bundle hash; live letter B-102). The pin bump turned out
+to be a no-op on the curriculum side's derived fields (only `exempt_fences`
+changed), so it did not gate the live letter. As-built notes at the end.
 
 **Origin.** Curriculum D50 (ruled by the author 2026-10-07; their PR #47): every
 activity gets a short authored teacher guide — sections "the sequence", "watch

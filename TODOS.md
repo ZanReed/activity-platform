@@ -372,7 +372,7 @@ Their three asks:
 3. The same for a chain (hook pool with notes, activities in order, D49
    correctives once they exist).
 
-**Slice 1 (ask 1) DESIGN PASS WRITTEN 2026-10-07: [teacher-guides.md](docs/design/teacher-guides.md), RULED 2026-10-07 and BUILT 2026-10-07 (format agreed with curriculum C-82/B-101); owed: push, both redeploys, the curriculum pin bump, the "live" letter (STATE → Pending author actions).** Asks (2)–(3): **Trigger for the DESIGN pass:** the author schedules it. It is a joint contract
+**Slice 1 (ask 1) DESIGN PASS WRITTEN 2026-10-07: [teacher-guides.md](docs/design/teacher-guides.md), RULED, BUILT and LIVE 2026-10-07 (format agreed C-82/B-101; redeploys hash-verified; live letter B-102). Left: the curriculum side moves `.guides/` in and bumps its pin; Zan's next import picks the guides up.** Asks (2)–(3): **Trigger for the DESIGN pass:** the author schedules it. It is a joint contract
 (the curriculum side writes 55+ guides into its format), so it may be designed
 early under the one-design-arc rule. **Trigger for the BUILD:** the first
 catalogue activity taught by a teacher other than the author (the guides exist
