@@ -13,19 +13,25 @@
   not a build failure.
 -->
 
-19 bindings · 4 distinct ids · 4 files
+25 bindings · 6 distinct ids · 6 files
 
 ## By id
 
 | id | uses | files |
 | --- | ---: | --- |
+| `mis.angles.sum-depends-on-size` | 1 | `712-chain.geom.triangles-polygons/02-angle-sums.md` |
 | `mis.proportional.line-misses-origin` | 7 | `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.proportional.one-pair-assumed-constant` | 4 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.rate.compares-totals` | 2 | `801-chain.rate.proportional/01-unit-rate.md` |
 | `mis.rate.ratio-inverted` | 6 | `801-chain.rate.proportional/01-unit-rate.md`, `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.triangle.orientation-matters` | 5 | `712-chain.geom.triangles-polygons/01-triangles-classify.md` |
 
 ## By file
 
+- `712-chain.geom.triangles-polygons/01-triangles-classify.md` — 5 bindings
+    - `mis.triangle.orientation-matters` ×5
+- `712-chain.geom.triangles-polygons/02-angle-sums.md` — 1 binding
+    - `mis.angles.sum-depends-on-size` ×1
 - `801-chain.rate.proportional/01-unit-rate.md` — 4 bindings
     - `mis.rate.compares-totals` ×2
     - `mis.rate.ratio-inverted` ×2
@@ -39,3 +45,9 @@
     - `mis.proportional.line-misses-origin` ×3
     - `mis.proportional.one-pair-assumed-constant` ×1
     - `mis.rate.ratio-inverted` ×1
+
+## Worth a look
+
+**Used once.** Legitimate for a misconception sensed in one place; also the shape every typo has.
+
+- `mis.angles.sum-depends-on-size`

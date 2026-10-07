@@ -2,12 +2,12 @@
   "schema": "activity-platform/skill-coverage@1",
   "registrySize": 96,
   "counts": {
-    "activities": 4,
-    "covered": 3,
+    "activities": 6,
+    "covered": 5,
     "coveredPublished": 3,
     "partial": 0,
-    "uncovered": 93,
-    "partsAuthored": 3,
+    "uncovered": 91,
+    "partsAuthored": 5,
     "partsDeclared": 102
   },
   "multiPartSkills": {
@@ -17,6 +17,30 @@
     "number.divisibility.rules": 2
   },
   "skills": [
+    {
+      "id": "geom.angles.triangle-quad-sum",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "712-chain.geom.triangles-polygons/02-angle-sums.md"
+      ],
+      "consolidations": [],
+      "supporting": []
+    },
+    {
+      "id": "geom.triangles.classify",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "712-chain.geom.triangles-polygons/01-triangles-classify.md"
+      ],
+      "consolidations": [],
+      "supporting": []
+    },
     {
       "id": "rate.constant-of-proportionality",
       "registered": true,
@@ -83,12 +107,10 @@
     "function.repr.correspondence",
     "geom.angles.parallel-transversal",
     "geom.angles.relationships",
-    "geom.angles.triangle-quad-sum",
     "geom.nets.identify",
     "geom.transform.reflect",
     "geom.transform.rotate",
     "geom.transform.translate",
-    "geom.triangles.classify",
     "limit.difference-quotient.setup",
     "limit.difference-quotient.simplify",
     "limit.graphical.estimate",
@@ -156,6 +178,8 @@
   "unregistered": [],
   "activitiesWithoutPrimarySkill": [],
   "files": [
+    "712-chain.geom.triangles-polygons/01-triangles-classify.md",
+    "712-chain.geom.triangles-polygons/02-angle-sums.md",
     "801-chain.rate.proportional/01-unit-rate.md",
     "801-chain.rate.proportional/02-constant-of-proportionality.md",
     "801-chain.rate.proportional/03-proportional-graph.md",
