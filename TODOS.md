@@ -3099,6 +3099,13 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Trigger:** (1)–(3) need §17 banks, which no chain has, and they sit behind mixed practice's gate (two chains with ratified banks). They enter the BUILD ORDER only when an authored draft is capped by one. (4) fires when the first transfer task is drafted. (5) waits for the author to ask. Ranking is the author's.
 
+## Activity Bank follow-ons (0054, 2026-10-07)
+
+- **A teacher pressing Check on someone else's published activity is recorded against it.** `check-activity` takes the caller's id with no role or ownership check (`packages/viewer/src/server/check-activity-handler.ts:387`), so any signed-in teacher who opens `/a/:id` and checks adds rows to the OWNER's Responses (unnamed, non-roster). Predates the Bank; the Bank's preview avoids it by rendering in print mode. Fix options: refuse non-student callers in check-activity (grading bundle + redeploy), or record but exclude teacher-role rows from the owner's views. **Trigger: the first stray teacher row seen in a Responses page, or before the Bank link goes to teachers at scale.**
+- **"Newer version in the Bank" notice (BK-9).** Provenance is stored (`copied_from_version_id`); nothing reads it yet. **Trigger: the author republishes a fix that teachers' copies need.**
+- **Listing by other teachers (BK-3).** v1 lists only caps-exempt teachers. Opening it needs curation, reporting and attribution design. **Trigger: a teacher other than the author asks to share their own activity.**
+- **Attribution (BK-10).** Cards say "Activity Bank"; a personal name waits for the "how your name appears" control (STATE backlog). **Trigger: that control ships.**
+
 ## Printed exams and quizzes (their D51, pre-merge notice C-85, answered B-107, 2026-10-07)
 
 **What:** a printed, supervised exam per term and a short quiz about every two weeks, authored as seeded templates, printed in a fixed number of forms with a key per form, own item pools, one skill per item (`x_item_skills`, an `x_` key, so dropped today), marked by hand. Graph key `activity_defaults.assessment` (the platform reads no `activity_defaults` key). Read the key from their graph, not this row.
@@ -3112,6 +3119,7 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 - **Scan grading** (ask 5): `docs/design/photo-grading.md` (design only, 2026-06-16; its pipeline references are stale since S9, re-derive per P10). **Trigger: the author asks.**
 - **Per-student practice record by skill** (ask 6): nothing built (number-facts has its own, RP-4). Needs skill-tagged practice, i.e. §17 banks + mixed practice. **Trigger: mixed practice's gate.**
 - **Corrective completion per student and misconception** (ask 7): nothing built; depends on D49 wish (2) (corrective routing). **Trigger: the first corrective drafted.**
+- **Teacher-chosen random form seeds** (author idea, 2026-10-07): today a form's seed is `print:<activityId>:v<k>` — fixed, derivable by anyone who knows the activity id. For a fully seeded quiz, let the teacher draw fresh random seeds per class sitting (stored server-side, never in the document) so a copied template plus the public seeding code cannot reproduce that class's numbers or key; the scan code then names the form AND its seed, so ask 5 grades against the right key. Note: it protects NUMERIC items; a multiple-choice or worded item still leaks its key to anyone holding the template. **Trigger: the first fully seeded quiz drafted (same design pass as the print layout).**
 - **`x_item_skills` imported** (for 5/6): **Trigger: whichever of 5/6 is built first.**
 
 ## AI grading: consume misconception-attachments.txt (curriculum PR #5; platform slice after their merge)

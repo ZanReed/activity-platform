@@ -4,8 +4,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CHECK_ACTIVITY_FUNCTION,
+  BANK_TEACHER_GUIDE_RPC,
+  COPY_BANK_ACTIVITY_RPC,
   GLOSSARY_FOR_ACTIVITY_RPC,
+  IS_BANK_LISTER_RPC,
+  LIST_BANK_RPC,
   LIST_CLASS_ACTIVITIES_RPC,
+  SET_ACTIVITY_LISTING_RPC,
   PUBLISH_ACTIVITY_RPC,
   SHARE_ACTIVITY_RPC,
   UNSHARE_ACTIVITY_RPC,
@@ -49,6 +54,11 @@ describe('rpc name constants', () => {
     UNSHARE_ACTIVITY_RPC,
     LIST_CLASS_ACTIVITIES_RPC,
     GLOSSARY_FOR_ACTIVITY_RPC,
+    LIST_BANK_RPC,
+    BANK_TEACHER_GUIDE_RPC,
+    COPY_BANK_ACTIVITY_RPC,
+    SET_ACTIVITY_LISTING_RPC,
+    IS_BANK_LISTER_RPC,
   ];
   it.each(rpcs)('%s is defined by a migration', (rpc) => {
     const definition = new RegExp(`create or replace function ${rpc}\\(`);

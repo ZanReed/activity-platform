@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-20`. Mirrors migrations 0001–**0053**, verified
+> Version `2026-10-07-draft-21`. Mirrors migrations 0001–**0054**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,15 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-21` (2026-10-07) — 0054 adds NO personal data.** The Activity
+> Bank (docs/design/activity-bank.md): two provenance columns on
+> `activities` (`copied_from_activity_id`, `copied_from_version_id`) that
+> point at activities and versions, never at people, and three new audit
+> actions (`activity.bank_list` / `bank_unlist` / `bank_copy`) carrying the
+> actor exactly as every other audit row does. A copy is a TEACHER's activity
+> (authored content, no student data); no student-derived row is copied,
+> shared or newly readable. The range moves to 0054 on that basis.
 >
 > **`draft-20` (2026-10-06) — 0053 adds NO personal data.** One new column,
 > `classes.includes_under_13`: which of two age statements the class's

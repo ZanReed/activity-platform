@@ -15,6 +15,7 @@ import {
     asPedagogicalRole,
 } from '../lib/pedagogicalRole';
 import { useScrollMemory } from '../lib/useScrollMemory';
+import { isBankLister, setActivityListing } from '../lib/bank';
 
 interface ActivityRow {
     id: string;
@@ -38,6 +39,10 @@ interface ActivityRow {
     // hand-made activity. This is the outline's ORDERING key — see
     // lib/activityGrouping.ts. It is never rendered.
     source_path: string | null;
+    // The Activity Bank (0054): 'public' = listed; a non-null
+    // copied_from_activity_id = this row is a copy added FROM the Bank.
+    visibility: string;
+    copied_from_activity_id: string | null;
 }
 
 // How many activities the "Recently edited" strip carries (D4). Five keeps it
@@ -87,6 +92,49 @@ export default function Activities() {
     const [activities, setActivities] = useState<ActivityRow[]>([]);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
+
+    // The Activity Bank curator controls (BK-3/BK-4): shown only to a lister
+    // (caps-exempt teacher or admin). The server refuses anyone else anyway.
+    const [bankLister, setBankLister] = useState(false);
+    const [listingBusy, setListingBusy] = useState<string | null>(null);
+    const [listingError, setListingError] = useState<string | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        void isBankLister().then((ok) => {
+            if (!cancelled) setBankLister(ok);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // List or unlist one or more PUBLISHED rows; drafts are skipped (listing
+    // requires a published version). One busy key covers a whole unit.
+    const applyListing = async (rows: ActivityRow[], listed: boolean, busyKey: string) => {
+        // Only rows not already in the wanted state: a unit action never
+        // re-writes (or re-audits) a row it would leave unchanged.
+        const wanted = listed ? 'public' : 'private';
+        const targets = rows.filter((r) => r.status === 'published' && r.visibility !== wanted);
+        if (targets.length === 0) return;
+        setListingError(null);
+        setListingBusy(busyKey);
+        const done: string[] = [];
+        try {
+            for (const r of targets) {
+                await setActivityListing(r.id, listed);
+                done.push(r.id);
+            }
+        } catch (err) {
+            setListingError(err instanceof Error ? err.message : 'Could not change the listing.');
+        } finally {
+            setActivities((cur) =>
+                cur.map((a) =>
+                    done.includes(a.id) ? { ...a, visibility: listed ? 'public' : 'private' } : a,
+                ),
+            );
+            setListingBusy(null);
+        }
+    };
 
     // Scroll restoration on return from the editor (D7). Gated on the list
     // having loaded — before that the page has no height to scroll to.
@@ -171,7 +219,7 @@ export default function Activities() {
             .from('activities')
             .select(
                 'id, title, status, updated_at, tags, pedagogical_role, course, unit,' +
-                'source_path,' +
+                'source_path, visibility, copied_from_activity_id,' +
                 'draft_course:draft_content->meta->>course,' +
                 'draft_unit:draft_content->meta->>unit',
             )
@@ -406,6 +454,13 @@ export default function Activities() {
         <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-ink">My activities</h1>
+        <div className="flex items-center gap-3">
+        <Link
+        to="/bank"
+        className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
+        >
+        Activity Bank
+        </Link>
         <button
         type="button"
         onClick={handleCreate}
@@ -414,6 +469,7 @@ export default function Activities() {
         >
         {creating ? 'Creating…' : 'New activity'}
         </button>
+        </div>
         </div>
 
         {createError && (
@@ -585,6 +641,24 @@ export default function Activities() {
                     {group.rows.length === 1 ? ' activity' : ' activities'}
                     {drafts > 0 && ` · ${drafts} draft${drafts === 1 ? '' : 's'}`}
                     </span>
+                    {bankLister && group.rows.some((r) => r.status === 'published') && (() => {
+                        const published = group.rows.filter((r) => r.status === 'published');
+                        const allListed = published.every((r) => r.visibility === 'public');
+                        return (
+                            <button
+                            type="button"
+                            disabled={listingBusy !== null}
+                            onClick={() => void applyListing(published, !allListed, `unit:${group.key}`)}
+                            className="ml-auto text-xs font-medium text-muted underline underline-offset-2 hover:text-strong disabled:opacity-50"
+                            >
+                            {listingBusy === `unit:${group.key}`
+                                ? 'Updating…'
+                                : allListed
+                                  ? 'Remove unit from the Bank'
+                                  : 'List unit in the Bank'}
+                            </button>
+                        );
+                    })()}
                     </div>
 
                     {/* Flat rows, hairline separators (D8). The card-per-row
@@ -606,8 +680,29 @@ export default function Activities() {
                         {a.title}
                         </Link>
                         <span className="flex shrink-0 items-center gap-2.5">
+                        {a.copied_from_activity_id && (
+                            <span className="text-xs text-muted" title="Added from the Activity Bank — this copy is yours">
+                            From the Bank
+                            </span>
+                        )}
+                        {a.visibility === 'public' && (
+                            <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success-strong">
+                            In the Bank
+                            </span>
+                        )}
                         <RoleBadge role={a.pedagogical_role} />
                         <StatusBadge status={a.status} />
+                        {bankLister && a.status === 'published' && (
+                            <button
+                            type="button"
+                            disabled={listingBusy !== null}
+                            onClick={() => void applyListing([a], a.visibility !== 'public', a.id)}
+                            aria-label={a.visibility === 'public' ? `Remove ${a.title} from the Activity Bank` : `List ${a.title} in the Activity Bank`}
+                            className="hidden text-xs font-medium text-muted underline underline-offset-2 hover:text-strong disabled:opacity-50 sm:inline"
+                            >
+                            {listingBusy === a.id ? '…' : a.visibility === 'public' ? 'Unlist' : 'List'}
+                            </button>
+                        )}
                         <span className="hidden text-xs text-muted sm:inline">
                         {formatEdited(a.updated_at)}
                         </span>
@@ -637,6 +732,9 @@ export default function Activities() {
         )}
         {actionError && (
             <p className="mt-3 text-sm text-danger">{actionError}</p>
+        )}
+        {listingError && (
+            <p className="mt-3 text-sm text-danger" role="alert">{listingError}</p>
         )}
         </div>
         </div>

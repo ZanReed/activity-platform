@@ -1,5 +1,7 @@
 # Free activity catalog — design
 
+> ⚠ **SUPERSEDED 2026-10-07 by [activity-bank.md](activity-bank.md).** The author ruled COPY-ON-USE ("like the importer does": a teacher adds a copy they own) in place of this doc's run-in-place model, and the Bank was built as migration 0054. Kept as the record of the earlier reasoning; the carried-over rulings (the `visibility` listing flag, listing ≠ publishing, definer RPCs, never widen `can_read_activity`) are restated there.
+
 > **Reconciled 2026-07-13** — see "Design reconciliation" at the end before implementing. The original capture below is intact; the reconciliation section corrects two security-relevant claims and records what shipped in the meantime.
 
 > ⚠ **INFRASTRUCTURE ANNOTATION (drift audit 2026-08-22).** This doc names an index over public R2 URLs and client-side grading with answers baked into published HTML as live. Published HTML pages, their R2 hosting, and client-side grading all died at S9 (2026-08-14). The discovery surface is now a viewer route (students open `/a/:id`), publish is the `publish_activity` RPC, and grading is server-authoritative in `check-activity` — answer keys never reach clients pre-check. The text below is left intact as the record of how the feature shipped.

@@ -42,6 +42,7 @@ import JoinClass from './routes/JoinClass';
 
 const Activities = lazy(() => import('./routes/Activities'));
 const Classes = lazy(() => import('./routes/Classes'));
+const Bank = lazy(() => import('./routes/Bank'));
 const ActivityEditor = lazy(() => import('./routes/ActivityEditor'));
 const ActivityPrint = lazy(() => import('./routes/ActivityPrint'));
 // The Submissions dashboard died at S9 Drop 3 — Phase 2.6 manual grading is
@@ -127,6 +128,16 @@ export default function App() {
         element={
             <RequireAuth>
             <Classes />
+            </RequireAuth>
+        }
+        />
+        {/* The Activity Bank (0054): teachers only — list_bank refuses anyone
+            else server-side, and the page shows that refusal as its message. */}
+        <Route
+        path="/bank"
+        element={
+            <RequireAuth>
+            <Bank />
             </RequireAuth>
         }
         />

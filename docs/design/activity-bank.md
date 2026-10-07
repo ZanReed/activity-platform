@@ -1,7 +1,9 @@
 # Activity Bank — copy-on-use catalogue for every teacher
 
-**Status:** DESIGN PASS 2026-10-07, awaiting the author's rulings on BK-1…BK-10.
-Nothing is built.
+**Status:** ✅ RULED 2026-10-07 (BK-1…BK-10 all as recommended) and ✅ BUILT
+2026-10-07 (migration 0054 + the `/bank` page). Owed before it is live: apply
+0054 live and run `verify-0054` live, THEN push (OV-7) — STATE → "Pending
+author actions". As-built notes at the end.
 
 **Supersedes** the RUN-IN-PLACE model of [free-activity-catalog.md](free-activity-catalog.md)
 (2026-06-16, reconciled 2026-07-13) and the "scoped catalog" Drop 1′ of the
@@ -187,3 +189,37 @@ activity through any new RPC). App: `/bank` route, toggle + bulk listing,
 "From the Bank" marker, preview wiring. Compliance pack: no personal data added
 (provenance points at activities, not people). Push after the migration is
 applied (OV-7).
+
+---
+
+## As built (2026-10-07)
+
+- **Migration `0054_activity_bank.sql`**: provenance columns, three audit
+  actions (`activity.bank_list` / `bank_unlist` / `bank_copy`; `audit_action`
+  is an enum), `is_bank_lister`, `set_activity_listing`, `list_bank`,
+  `get_bank_teacher_guide`, `copy_bank_activity` (inserts with the published
+  content as draft, then calls `publish_activity`, so a copy is stamped like
+  any publish), and the per-term glossary fallback. Assessments are refused at
+  all three doors (list, browse, copy). `scripts/verify-0054.sql`: 4 posture
+  rows + a 12-step behaviour block (the RLS attack list); mutation-tested by
+  making the copy read the DRAFT (B8 went red).
+- **Deviation, BK-4:** the listing toggle lives on the **Activities list**
+  (per row, "List"/"Unlist", and per unit, "List unit in the Bank"), not beside
+  Publish in the editor header — the unit action is the one the catalogue
+  needs, and one place for both is simpler. A unit action touches only rows
+  not already in the wanted state.
+- **Deviation, BK-6:** the student-view preview renders in **print mode** inside
+  the Bank page (`components/BankPreview.tsx`), not by opening `/a/:id`. Found
+  while building: `check-activity` records a check under ANY signed-in caller
+  (`check-activity-handler.ts:387`), so a teacher pressing Check on the
+  author's activity would add rows to the author's Responses. Print mode has
+  nothing to press, costs the student shell nothing (it lives in the teacher
+  chunk), and uses the same sanitized document students get. The underlying
+  gap is filed in TODOS.
+- **The editor** shows a one-time note after "Add to my library": the copy is
+  yours, already published, share it from My classes.
+- **Not browser-verified before apply**: the dev server reads the live
+  database, where 0054 is not applied, and local sign-in is Google-only. The
+  database is proven by `verify-0054` (local), the UI by component tests
+  (`Bank.test.tsx`, `Activities.test.tsx`).
+

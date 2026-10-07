@@ -239,6 +239,10 @@ export default function ActivityEditor() {
     const location = useLocation();
     const fresh =
         (location.state as { fresh?: boolean } | null)?.fresh === true;
+    // Landing from the Activity Bank's "Add to my library" (0054): say once
+    // that the copy is theirs and already published, and where to share it.
+    const fromBank = (location.state as { fromBank?: string } | null)?.fromBank;
+    const [bankNoteOpen, setBankNoteOpen] = useState(true);
     // Mirror of the server's draft_content, as this client last knew it:
     // seeded from the loaded draft, advanced by every successful save. This is
     // the exact payload pre-publish validation runs on (E-1) — never a
@@ -829,6 +833,25 @@ export default function ActivityEditor() {
                         : null
                 }
                 />
+
+                {fromBank && bankNoteOpen && (
+                    <div
+                    role="status"
+                    data-bank-added
+                    className="mt-2 rounded-md border border-line bg-success-bg px-3 py-2 text-xs text-success-strong"
+                    >
+                    Added from the Activity Bank. This copy is yours and already published:
+                    share it from <Link to="/classes" className="font-medium underline underline-offset-2">My classes</Link>,
+                    or change anything first.
+                    <button
+                    type="button"
+                    onClick={() => setBankNoteOpen(false)}
+                    className="ml-2 font-medium underline underline-offset-2"
+                    >
+                    Dismiss
+                    </button>
+                    </div>
+                )}
 
                 {/* What a ```meta import declined to overwrite (D16). Without
                     this the never-clobber rule would read as "the paste didn't

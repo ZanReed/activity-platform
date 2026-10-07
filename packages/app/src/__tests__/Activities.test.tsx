@@ -46,6 +46,17 @@ const h = vi.hoisted(() => {
 vi.mock('../lib/supabase', () => ({
     supabase: { from: h.from, rpc: h.rpc },
 }));
+// The Activity Bank curator controls (0054) are mocked at lib/bank so the
+// delete tests' rpc call counts stay about deleting; the curator case below
+// flips the lister flag.
+const bank = vi.hoisted(() => ({
+    lister: { current: false },
+    setActivityListing: vi.fn((...args: [string, boolean]) => Promise.resolve(void args)),
+}));
+vi.mock('../lib/bank', () => ({
+    isBankLister: () => Promise.resolve(bank.lister.current),
+    setActivityListing: bank.setActivityListing,
+}));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({
         session: { user: { id: 'owner-1' } },
@@ -69,6 +80,8 @@ function renderList() {
 }
 
 beforeEach(() => {
+    bank.lister.current = false;
+    bank.setActivityListing.mockClear();
     h.listResult.current = { data: ROWS, error: null };
     h.rpc.mockClear();
     h.rpc.mockImplementation(() => Promise.resolve({ error: null }));
@@ -647,3 +660,41 @@ describe('Activities outline — the group header names a course only when there
         expect(headings).toEqual(['Rates', 'Year 9 Mathematics — Graphs']);
     });
 });
+
+describe('Activities — Activity Bank markers and curator controls (0054)', () => {
+    const BANK_ROWS = [
+        { id: 'p1', title: 'Listed One', status: 'published', updated_at: '2026-07-10T00:00:00Z', unit: 'U', visibility: 'public', copied_from_activity_id: null },
+        { id: 'p2', title: 'Unlisted One', status: 'published', updated_at: '2026-07-09T00:00:00Z', unit: 'U', visibility: 'private', copied_from_activity_id: null },
+        { id: 'c1', title: 'A Copy', status: 'published', updated_at: '2026-07-08T00:00:00Z', unit: 'U', visibility: 'private', copied_from_activity_id: 'src' },
+        { id: 'd1', title: 'A Draft', status: 'draft', updated_at: '2026-07-07T00:00:00Z', unit: 'U', visibility: 'private', copied_from_activity_id: null },
+    ];
+
+    it('marks listed rows and copies; a non-curator gets no listing controls', async () => {
+        h.listResult.current = { data: BANK_ROWS, error: null };
+        renderList();
+        await screen.findAllByText('Listed One');
+        expect(screen.getAllByText('In the Bank')).toHaveLength(1);
+        expect(screen.getAllByText('From the Bank')).toHaveLength(1);
+        expect(screen.queryByRole('button', { name: /in the Activity Bank/ })).toBeNull();
+        expect(screen.queryByText('List unit in the Bank')).toBeNull();
+    });
+
+    it('a curator lists one row, or the whole unit (published rows only)', async () => {
+        bank.lister.current = true;
+        h.listResult.current = { data: BANK_ROWS, error: null };
+        renderList();
+        const listOne = await screen.findByRole('button', { name: 'List Unlisted One in the Activity Bank' });
+        // drafts have no listing control
+        expect(screen.queryByRole('button', { name: 'List A Draft in the Activity Bank' })).toBeNull();
+        fireEvent.click(listOne);
+        await waitFor(() => expect(bank.setActivityListing).toHaveBeenCalledWith('p2', true));
+        bank.setActivityListing.mockClear();
+        // p1 and p2 are listed now; the unit action lists only what is not:
+        // the published copy c1 — never the draft, never a re-write.
+        fireEvent.click(await screen.findByText('List unit in the Bank'));
+        await waitFor(() => expect(bank.setActivityListing).toHaveBeenCalledTimes(1));
+        expect(bank.setActivityListing).toHaveBeenCalledWith('c1', true);
+        expect(await screen.findByText('Remove unit from the Bank')).toBeTruthy();
+    });
+});
+

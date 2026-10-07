@@ -25,12 +25,16 @@ import './editor.css';
 
 interface TeacherGuideEditorProps {
     initialContent: JSONContent;
-    onUpdate: (json: JSONContent) => void;
+    onUpdate?: (json: JSONContent) => void;
+    /** false = the Activity Bank's read-only guide panel: no toolbar, no
+     *  caret, same rendering (maths included). */
+    editable?: boolean;
 }
 
 export default function TeacherGuideEditor({
     initialContent,
     onUpdate,
+    editable = true,
 }: TeacherGuideEditorProps) {
     // Re-render on every transaction so toolbar active-states keep up (same
     // reason as the other editors).
@@ -48,11 +52,12 @@ export default function TeacherGuideEditor({
             Superscript,
         ],
         content: initialContent,
+        editable,
         onCreate: ({ editor }) => {
-            onUpdate(editor.getJSON());
+            onUpdate?.(editor.getJSON());
         },
         onUpdate: ({ editor }) => {
-            onUpdate(editor.getJSON());
+            onUpdate?.(editor.getJSON());
         },
         onTransaction: () => {
             forceTick((t) => t + 1);
@@ -61,8 +66,8 @@ export default function TeacherGuideEditor({
 
     return (
         <div className="rounded-lg border border-line bg-canvas shadow-sm" data-teacher-guide-editor>
-            <Toolbar editor={editor} variant="guide" />
-            <div className="p-6">
+            {editable && <Toolbar editor={editor} variant="guide" />}
+            <div className={editable ? 'p-6' : 'p-4'}>
                 <EditorContent editor={editor} />
             </div>
         </div>

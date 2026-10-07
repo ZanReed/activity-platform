@@ -31,3 +31,9 @@ export const LIST_CLASS_ACTIVITIES_RPC = 'list_class_activities';
 /** The course glossary's student read (0043, docs/design/glossary.md R1/EN-1):
  * one jsonb per published activity, deferred past first paint. */
 export const GLOSSARY_FOR_ACTIVITY_RPC = 'glossary_for_activity';
+/** The Activity Bank (0054, docs/design/activity-bank.md): copy-on-use. */
+export const LIST_BANK_RPC = 'list_bank';
+export const BANK_TEACHER_GUIDE_RPC = 'get_bank_teacher_guide';
+export const COPY_BANK_ACTIVITY_RPC = 'copy_bank_activity';
+export const SET_ACTIVITY_LISTING_RPC = 'set_activity_listing';
+export const IS_BANK_LISTER_RPC = 'is_bank_lister';

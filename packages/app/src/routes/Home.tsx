@@ -158,6 +158,9 @@ function TeacherHome({ email }: { email: string }) {
           <Link to="/classes" className={BTN_SECONDARY}>
             My classes
           </Link>
+          <Link to="/bank" className={BTN_SECONDARY}>
+            Activity Bank
+          </Link>
           <button type="button" onClick={() => void signOut()} className={BTN_SECONDARY}>
             Sign out
           </button>

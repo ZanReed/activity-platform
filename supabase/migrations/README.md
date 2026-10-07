@@ -60,6 +60,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0051_fact_sprint_overview.sql` | The teacher's read of the daily practice (one function; every number derived from 0050's rows). No table change, no new personal data. Verify: `scripts/verify-0051.sql`. |
 | `0052_align_backfilled_keep_until.sql` | Data-only, one-off, only ever shorter: checks opened before 0048 take their class's school-year end + 30 days instead of the 400-day backstop (author ruling 2026-10-06, step 4 of the prune's arming checklist). Deletes nothing. No verify script — the migration asserts its own post-condition. |
 | `0053_class_age_statement.sql` | Under-13 use by school authorization (author rulings U-1 to U-4, 2026-10-06; DECISIONS → "Under-13 use, by school authorization"): `classes.includes_under_13`, `create_class` takes the choice, `reconfirm_class_age` re-stamps it with an audit row. Verify: `scripts/verify-0053.sql`. |
+| `0054_activity_bank.sql` | The Activity Bank (docs/design/activity-bank.md, rulings BK-1…BK-10, 2026-10-07): copy-on-use catalogue. Provenance columns on `activities`, `is_bank_lister`, `set_activity_listing`, `list_bank`, `get_bank_teacher_guide`, `copy_bank_activity` (copies the PUBLISHED version into an activity the caller owns, published on arrival), and `glossary_for_activity`'s per-term fallback for copies. Assessments (quiz/exam) are never listed or copied. Verify: `scripts/verify-0054.sql`. |
 
 ## Regression re-runs (the DB has no CI harness)
 
