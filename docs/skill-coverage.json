@@ -4,7 +4,7 @@
   "counts": {
     "activities": 6,
     "covered": 5,
-    "coveredPublished": 3,
+    "coveredPublished": 5,
     "partial": 0,
     "uncovered": 91,
     "partsAuthored": 5,
@@ -22,7 +22,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "712-chain.geom.triangles-polygons/02-angle-sums.md"
       ],
@@ -34,7 +34,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "712-chain.geom.triangles-polygons/01-triangles-classify.md"
       ],

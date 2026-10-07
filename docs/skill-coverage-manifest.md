@@ -12,7 +12,7 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**5 of 96 skills covered** (3 published, 2 draft only) · 0 partly covered · 6 activities
+**5 of 96 skills covered** (5 published, 0 draft only) · 0 partly covered · 6 activities
 
 **5 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
@@ -20,8 +20,8 @@
 
 | skill | state | parts | consolidated in | supporting |
 | --- | --- | --- | --- | --- |
-| `geom.angles.triangle-quad-sum` | draft only | `712-chain.geom.triangles-polygons/02-angle-sums.md` | — | — |
-| `geom.triangles.classify` | draft only | `712-chain.geom.triangles-polygons/01-triangles-classify.md` | — | — |
+| `geom.angles.triangle-quad-sum` | published | `712-chain.geom.triangles-polygons/02-angle-sums.md` | — | — |
+| `geom.triangles.classify` | published | `712-chain.geom.triangles-polygons/01-triangles-classify.md` | — | — |
 | `rate.constant-of-proportionality` | published | `801-chain.rate.proportional/02-constant-of-proportionality.md` | — | — |
 | `rate.proportional-graph` | published | `801-chain.rate.proportional/03-proportional-graph.md` | `801-chain.rate.proportional/04-proportional-consolidation.md` | — |
 | `rate.unit-rate` | published | `801-chain.rate.proportional/01-unit-rate.md` | — | — |
