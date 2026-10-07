@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**QUIZ/EXAM activity types (curriculum D51) — BUILT 2026-10-07 at `ead5c005`, owed:** push (Cloudflare deploys the app, which must parse a `type: quiz|exam` draft before one is imported), then `pnpm deploy:get-activity` + `pnpm deploy:check` (the enum is in both bundles' parse), each proven by bundle hash. Low risk either way: D51 assessments are never published, so the read path should not meet one. Then the session sends the curriculum side the "shipped" letter.
+**QUIZ/EXAM activity types (curriculum D51) are LIVE (2026-10-07):** built at `ead5c005`, pushed (main `faf6792c`, CI green), get-activity + check-activity redeployed and verified by bundle hash; "shipped" letter B-112. Nothing owed.
 
 **TEACHER GUIDES slice 1 (curriculum D50) is LIVE (2026-10-07):** pushed at `1cb7f0a3`, CI green; get-activity + check-activity redeployed and verified by bundle hash; live letter B-102 sent. Nothing owed by the author except the next ordinary batch import once the curriculum side has moved `.guides/` into the files. The curriculum side owes a no-op pin bump (only `exempt_fences` changed). Record: [teacher-guides.md](docs/design/teacher-guides.md).
 
