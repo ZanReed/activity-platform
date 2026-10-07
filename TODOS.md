@@ -379,6 +379,8 @@ catalogue activity taught by a teacher other than the author (the guides exist
 for a colleague who did not write the activity), or the author asking. (3) also
 waits for D49's correctives to exist.
 
+**Locale-bearing Marking section (C-82, noted, no hold).** D50 makes "marking" swap with the DoL per locale. The platform has NO per-locale DoL mechanism today (the only locale concept is the glossary's closed `GLOSSARY_LOCALES = ['us']`, `packages/schema/src/glossary.ts:53`). If a locale variant is a separate activity file, the fence follows for free. If variants live in one file, the guide needs a variant marker, which is a format change. **Trigger: the first non-NZ locale variant of a catalogue activity.**
+
 ## THE AUTHOR'S CAPABILITY WISHLIST — ranked by blocked-activity count (2026-08-24)
 
 Source: the catalogue builder's direct answer to "what do you need to be

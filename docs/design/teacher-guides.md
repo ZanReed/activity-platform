@@ -85,7 +85,7 @@ Cut practice item 3, then item 4. …
   position does not matter. Convention (taught in the prompt): last in the
   file, so the student content reads top to bottom first.
 - **One per file.** A second fence → warning, and the first wins.
-- **Content:** headings, paragraphs, lists, inline maths. Anything else inside
+- **Content:** headings, paragraphs, lists, inline maths, and the inline marks the body importer already maps (`**bold**`, `*italic*`, `` `code` `` — `markdownToTiptap.ts:1463-1476`; confirmed for their rubric-line names and backticked misconception ids, C-82/B-101). Anything else inside
   (a blank, a choice, a figure) → a warning naming it, and it is DROPPED, not
   degraded to text (a degraded `{{…}}` in a teacher field is harmless, but
   there is no reason to keep a construct the field cannot hold).
