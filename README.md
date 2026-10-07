@@ -100,7 +100,7 @@ activity-platform/
 ├── supabase/
 │   ├── migrations/    — numbered SQL migrations (applied set = `supabase migration list`)
 │   └── functions/     — get-activity, check-activity, _shared/ (cors.ts + the generated viewer-server/grading-server bundles)
-├── scripts/           — bundlers (viewer-server/grading-server/graph-kit), verify-* SQL/JS + the verify runner
+├── scripts/           — the two Edge Function bundlers (viewer-server/grading-server), verify-* SQL/JS + the verify runner, the batch importer, scripts/tests/ drift guards
 └── ...root configs
 ```
 

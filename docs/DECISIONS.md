@@ -1024,6 +1024,8 @@ Two amendments made at ratification: P2 carries an "or documents why it diverges
 
 ## The 13+ floor is a market constraint, and the first POLICY_VERSION bump made the paper trail match it (2026-08-07, eng review D2/D3/D24)
 
+> ⚠ **Superseded in part 2026-10-06** by "Under-13 use, by school authorization" (below; migration 0053). The single-sentence assertion described here is now one of two statements a teacher can confirm. Kept as the reasoning of its day.
+
 **The bump: `2026-07-28-draft-1` → `2026-08-07-draft-2`**, the version contract's first real exercise. Two substantive changes ride it, plus a reconciliation pass.
 
 **The assertion dropped its under-13 clause (D2).** The class-creation checkbox read "…or that my school has authorized younger students to use this platform" while `school-authorization-template.md` marked that branch *not available in v1* and the signup trigger declines under-13 sign-ins unconditionally — a contradiction inside the slice's own artifacts, stamped onto every future class row (s1-retro audit finding 13). The clause is gone; the assertion now reads exactly what the platform enforces: "I confirm that every student in this class is 13 or older."

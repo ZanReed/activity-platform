@@ -24,9 +24,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06. The standing rule is unchanged: the author runs deploys unless he says otherwise.
 
-**THE DAILY FACTS PRACTICE (D43 slice 2, "the sprint") IS LIVE (2026-10-06).** Migrations 0049 to 0051 applied (0050/0051 by the author) and verified (267 rows, 25 scripts); pages on `main` at `9de13b38`, CI green; registry revision `2d20d8c9…` mirrored by the author and read back (the seven settings stored exactly). Receipt sent as B-89 (their main `66a3f36` verified and stamped). The author tested it on the live site the same day and it worked (no finding). Design, rulings SP-1 to SP-14 and four "as built" blocks: [practice-blocks.md](docs/design/practice-blocks.md) → "Slice 2, the sprint".
-
-**NUMBER-FACTS PRUNE — 0048 APPLIED LIVE 2026-10-06 (by Claude, on the author's explicit instruction for this one apply), DISARMED.** Read back live: 48 migrations through 0048; both existing checks backfilled to the 400-day backstop; sessions and attempts untouched; the dry run finds 0 candidates; no cron job names the prune; signed-in users cannot call it. `pnpm verify:auth --target live` ran green afterwards (250 rows, 22 scripts, verify-0048 included). End-date test DONE (author's live data keeps until 18 Dec + 30). Rulings RP-1 to RP-8: [practice-blocks.md](docs/design/practice-blocks.md) → "Roll-up and prune: as ruled and as built".
+**The daily facts practice (D43 slice 2, LIVE 2026-10-06) and the 0048 apply (prune DISARMED)** are closed records, moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-07; what is still owed on the prune is the D24 paragraph below and TODOS → the ARMING checklist.
 
 **PRACTICE BLOCKS (D43) — slice 1, per-family grouping and two-part checks are LIVE (2026-10-05)** and author-confirmed: migrations 0044 to 0047, registry revision `d0144e8d…`. Device checks T11/D6 WAIT for school devices (author has none; TODOS). Owed by the author: counsel's ANSWER to Q11 (sent, the author confirmed 2026-10-06; Q11(b) is step 1 of the prune's arming); the year-level placement by 1 November 2026. [practice-blocks.md](docs/design/practice-blocks.md) has every ruling and "as built" section.
 
@@ -102,8 +100,10 @@ that retires the one hand-carried sync in the curriculum side's system.
 ~/activity-catalogue-pilot --owner <email> --dry-run --strict --registry
 …/misconception-registry.txt --skills-registry …/skill-registry.txt
 --chain-registry …/chain-registry.txt`. It exits
-0. At the last run: 3/47 skills covered, 3/51 parts authored, 44 uncovered by
-name, 13 bindings across 4 ids.
+0. Coverage is read from the run (or the generated
+[docs/skill-coverage-manifest.md](docs/skill-coverage-manifest.md)), never
+pinned here — this line carried a coverage figure two registry generations
+behind the one in "Last updated" (drift audit 2026-10-07).
 
 ✅ **Lane B is BUILT (2026-08-31)** — the activities list orders by catalogue
 path, keeping chain ordinals out of student-visible titles. App-only. The
@@ -176,7 +176,7 @@ HISTORY, not re-argued here.)*
 **`SHELL_JS_GZ_KIB` 172 → 158 and `SHELL_CSS_GZ_KIB` 14 → 15 (2026-08-23).**
 P1A's target is met for the first time. **Passed again since (glossary arc,
 measured 2026-09-30), and rung 2 ran 2026-10-04 (auth-js's never-executed
-modules stubbed): about 4.7 KiB is free under the 156.5 stop line.** **Read the real numbers from
+modules stubbed); the stop line for eager additions stays 156.5.** (This line pinned "about 4.7 KiB free" — the shell has grown since, and the 2026-10-07 audit read about half that.) **Read the real numbers from
 `node scripts/check-perf-budget.mjs`, never from here** — this line has carried
 a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
 DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,
@@ -185,14 +185,14 @@ preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
 ## Build order — RULED by the author 2026-10-02
 
 1. ~~**B14**~~ DONE 2026-10-03 (their PR #26 at `279a5a4`; pin-bump duty in CLAUDE.md). 2. ~~**Y7 geometry figures**~~
-DONE 2026-10-04. 3. **D43 practice blocks — DESIGN ONLY**, alongside 1–2
-(design APPROVED; scope-, eng- and design-reviewed 2026-10-02); no D43 build before
-geometry ships. 4. SW stale-shell recovery, before any real
-student. 5. **Y7 charts**, pulled when a statistics chain is next to be drafted.
-6. D43 builds: fluency + diagnostics → mixed practice (gated on two chains with
-ratified banks) → period assembly. **First classes: ~early Feb 2027** (author,
-"4 months"; year levels not yet stated — Y7–8 would pull under-13 support onto
-the path). The intake rule that goes with this is in [CLAUDE.md](CLAUDE.md) →
+DONE 2026-10-04. 3. ~~**D43 practice blocks — DESIGN ONLY**~~ design APPROVED
+2026-10-02. 4. ~~SW stale-shell recovery~~ BUILT 2026-10-04 (TODOS → "Service
+worker: recover from a stale shell"). 5. ~~**Y7 charts**~~ BUILT and live
+2026-10-04 (pulled into the author's 2026-10-04 build run). 6. **D43 builds:**
+fluency + diagnostics LIVE (slice 1, the check, 2026-10-05; slice 2, the daily
+practice, 2026-10-06) → mixed practice (gated on two chains with ratified
+banks) → period assembly. **First classes: ~early Feb 2027** (author,
+"4 months"). The intake rule that goes with this is in [CLAUDE.md](CLAUDE.md) →
 Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ## Backlog / candidate arcs
@@ -210,7 +210,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 | Area | Status |
 |---|---|
 | Stages 9–16 (schema, renderer, runtime, editor, publish flow, submissions dashboard) | Historical — Phase 1 shipped and served its era; the renderer/runtime/publish-HTML/dashboard halves were deliberately DELETED at S9. Schema + editor live on |
-| Database migrations 0001–0040 | ✅ **0040 applied + verified live 2026-08-24** (the check lock; verify-0040 = 7/0, and verify-0020's D1–D3 re-run — see Pending for what was NOT re-run). ✅ **0039 applied 2026-08-21** (the importer's fingerprint drift guard; **no `verify-0039.sql` exists** — its proof is the live refusal path the importer exercised on 2026-08-22; tool-read at the 08-22 audit: `schema_migrations` = 39, max `0039`). **0038 applied + verified live 2026-08-20** (batch importer's `source_path`; verify-0038 = 8/0, column + both index predicate clauses tool-read). 0001–0037: **applied + verified live via `verify:auth --target live`** (the registered set is `AUTH_VERIFY_SET` in `scripts/verify-runner.mjs` — this row pinned "12 scripts" against a 14-entry roster until the 2026-08-22 audit, and the roster is **15** since verify-0040 joined — which is exactly why no count is asserted here any more: read the array; 0036 applied 2026-08-17). 0031+0032 were REPRODUCIBILITY migrations; **0033 is the admission slice**; **0034 is checks-native grading**; **0035 is the disarmed check-prune + arming gate**; **0036 writes the watermark that gate reads**. Re-run `verify-0013-0014.sql` + `verify-0017.sql` after any auth/RLS/grant migration |
+| Database migrations | ✅ **Read the range live, never from here** — `select count(*), max(version) from supabase_migrations.schema_migrations` (Pending → Baseline facts). This row pinned "0001–0040" and a verify-roster count through thirteen more migrations (drift audit 2026-10-07; the old row is in HISTORY). What each migration does: [supabase/migrations/README.md](supabase/migrations/README.md), whose index `scripts/tests/migrations-index.test.mjs` holds complete. The verify roster is `AUTH_VERIFY_SET` in `scripts/verify-runner.mjs` — read the array. Re-run `verify-0013-0014.sql` + `verify-0017.sql` after any auth/RLS/grant migration |
 | Scheduled jobs (pg_cron) | ✅ Installed 2026-08-05; both jobs active; first fire observed + verified 2026-08-06. **Verify the run, not the registration** |
 | Components-as-data slices S0–S9 | ✅ Complete — see the slice ledger; only author stations remain |
 | Print (baseline CSS → authored feature → viewer print + gate) | ✅ Complete through S5.5; print gates run in CI; sign-off evidence durable at tag `s5.5-print-signoff` |
@@ -219,7 +219,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 | Edge Functions (**2**) + deploy flags | ✅ **exactly two**, `get-activity` (`verify_jwt:false`, the only one) + `check-activity` (`true`). **Versions are NOT pinned here** — they moved three times in six days and this row carried a different pair from the Pending section (drift audit 2026-08-21). Read them with `list_edge_functions`, from the **`version`** field and never the `entrypoint_path` suffix beside it; `supabase/config.toml` is the authoritative flag record |
 | Cloudflare R2 hosting | ⚰️ **DEAD.** Code-side at S9 Drop 4; the D-13 teardown ran 2026-08-15 (upload scripts + `.env.r2` deleted). Only the dashboard steps remain — see the standing constraints |
 | Auth (Google OAuth teacher allowlist + student SSO) / React app / editor stack | ✅ In place |
-| CI (typecheck/lint/test/build + **2** bundle-drift guards + perf budgets + script guards + print gates + perf/sw/student/**a11y** lane job) | ✅ **GREEN — all four jobs, verified on run `32676932651` (2026-08-24), which is the first run to include the regenerated graph_figure print baseline.** **Run counts are NOT pinned here** — they rot every push (drift audit 2026-08-21); `gh run list` is the source, checked at session start because `main` once sat red for days unnoticed. ⚠ **AND A SHARPER VARIANT, 2026-08-24:** the Pending section used to assert "CI is green again" and CITE A RUN NUMBER — and that run had **failed** on the graph-figure baseline. It also predated the commit that fixed it (`e6b8f7f`, 11 minutes later), which was never pushed, so CI had not run on the fix at all. **A claim with a run id attached is still a claim; open the run.** |
+| CI (typecheck/lint/test/build + **2** bundle-drift guards + perf budgets + script guards + print gates + perf/sw/student/**a11y** lane job) | **Status is NOT recorded here — open the latest run on `main`** (Actions tab / `gh run list`), checked at session start because `main` once sat red for days unnoticed. This row cited a 2026-08-24 run id as "GREEN" for six weeks (drift audit 2026-10-07); **a claim with a run id attached is still a claim; open the run.** `pnpm verify` is CI's whole `check` job locally |
 | Student bundle (S8) | ✅ Entry chunk = the student shell; heavy libs lazy and content-pinned out of the shell. **Size is NOT pinned here — run `node scripts/check-perf-budget.mjs`** (caps + reasoning in `scripts/perf-budgets.mjs`). **Slimming slice 1 ran 2026-08-18: −21.2 KiB gz (the Supabase sub-client stubs), and the cap TIGHTENED 185 → 172 in the same commit.** Headroom is honest again; the remaining ladder is in TODOS |
 
 ## Key constants

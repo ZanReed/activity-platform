@@ -173,6 +173,13 @@ Lane A (Model B core, sequential — shared graph-kit + runtime blank path): T1 
 
 ## Model A — eng review resolution (2026-07-19, `/plan-eng-review`)
 
+> ⚠ **ANNOTATION (drift audit 2026-10-07).** Model A **SHIPPED 2026-07-20** and
+> is live in the viewer (`packages/viewer/src/blocks/MathBlock.tsx`; the
+> `\gap{…}` import syntax followed 2026-07-22). The "No code yet" below and the
+> "separate deferred arc" in the first status line are pre-build text. Build
+> record: [HISTORY.md](../HISTORY.md) (the 2026-07-20 numbering slice and the
+> 2026-07-29 `ingest-submission` gap-key fix). Text left intact.
+
 Status: **DESIGN → ENG-CLEARED (Model A v1), buildable.** Ran `/plan-eng-review` + web research on the math-input tool landscape + a Claude outside-voice pass. Model B's `mathEquivalent` sampling engine is shipped and reused wholesale; this arc adds *rendering + input plumbing only*. The outside voice corrected two real holes (folded below). No code yet.
 
 ### Tool research verdict — MathLive is optimal AND already vendored

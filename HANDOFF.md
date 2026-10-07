@@ -1,5 +1,13 @@
 # Handoff — 2026-09-01 (second of the day)
 
+> ⚠ **STALE — DO NOT PASTE (drift audit 2026-10-07).** This baton is from
+> 2026-09-01 and everything it calls pending has since happened: both
+> functions were deployed and hash-verified, the push landed, and CI went green
+> (docs/HISTORY.md → "The 2026-09-01 deploy record"). Its "UNPUSHED past
+> `b1092b8`" and "THE REDEPLOY ORDER IS BINDING NOW" would mislead a session
+> that trusted them. Start from CLAUDE.md → STATE.md instead. Left in place,
+> not deleted, for the author to retire.
+
 Paste the block below `PASTE FROM HERE` into a new chat. Everything above it is
 context for a human deciding whether the handoff is accurate.
 

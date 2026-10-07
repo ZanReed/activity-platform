@@ -115,7 +115,7 @@ Work through each item; skip none silently — say "clean" per section in the re
 - Older "Current focus" narratives instructing something a newer line or Status-by-area row says was retired.
 - **The same fact stated twice with different numbers** (three entry-chunk figures, 2026-08-17). Prefer deleting both and pointing at the tool.
 - **Standing rules parked in "Pending author actions" belong in CLAUDE.md** — STATE sections get *replaced* every session, so a prohibition living there is a prohibition with an expiry date. The prune-arming rule was found this way.
-- Check STATE stays near its ~150-line rule.
+- Check STATE against its WORD budget (`scripts/tests/state-budget.test.mjs` — read its header; the ~150-line rule is dead, and this bullet still cited it until the 2026-10-07 §0 pass).
 
 **6. Deploy-state and migration sync.**
 - `supabase/config.toml` is the authoritative per-function `verify_jwt` record; confirm it lists exactly the functions in `supabase/functions/` and that its prose header does not contradict its own entries (its opener claimed "three anonymous functions" against two entries until 2026-08-17).
@@ -129,6 +129,7 @@ Work through each item; skip none silently — say "clean" per section in the re
   **To verify CODE, `get_edge_function` and grep for a marker unique to the
   change** — a bumped constant, a new identifier, plus the ABSENCE of a string
   the old version carried. Treat an unmoved version as no information at all.
+- `supabase/migrations/README.md`'s index is GUARDED since 2026-10-07 (`scripts/tests/migrations-index.test.mjs` — it had stopped at 0043 while 0044–0053 landed). The guard checks a row EXISTS, not what it says: read the newest rows against their migration headers.
 - Migrations named in docs vs `supabase/migrations/`; migration *ranges* claimed by the compliance pack (see §7).
 - ⚰ **Dead:** kit-manifest sync, R2 upload ordering, ingest-before-republish. Nothing uploads anywhere.
 

@@ -280,11 +280,12 @@ export type ActivityMeta = z.infer<typeof ActivityMeta>;
 // same Block schema as section content; no new block types are needed
 // for the panel.
 //
-// Phase 1: the schema accepts the field as forward-compat; the editor
-// doesn't surface it, and the renderer ignores it. Phase 2 wires up the
-// authoring UI and the sidebar layout in published HTML. Field is
-// optional with no default on ActivityDocument, so existing stored
-// documents parse cleanly.
+// Authored in the editor's reference-panel editor and rendered by the viewer:
+// on screen as the summoned panel (container/ReferencePanelTool.tsx), on paper
+// as a box gated by `meta.print.printReferencePanel`. (This comment said "the
+// editor doesn't surface it, and the renderer ignores it" — Phase 1 text — until
+// the 2026-10-07 drift audit.) Field is optional with no default on
+// ActivityDocument, so existing stored documents parse cleanly.
 //
 // Renderer will treat reference content as data-block-category="scaffold"
 // (Phase 2+) — doesn't contribute to scoring or checkpoint behavior.

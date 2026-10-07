@@ -2,6 +2,14 @@
 ## Implementation plan
 # Glossary — the popover, the search, and the store
 
+> ⚠ **STATUS ANNOTATION (drift audit 2026-10-07).** This arc **SHIPPED and is
+> LIVE since 2026-09-28** (commits `8899bdd`..`92a0c3a`, migration 0043; the
+> curriculum side's glossary imported). The status line below is the pre-build
+> ruling state, left intact. The build record is in
+> [HISTORY.md](../HISTORY.md) → "Glossary LIVE"; one shipped detail recorded
+> there and not in this doc: students' reads key on the activity OWNER, not
+> the version. No as-built-deltas section was written at ship time.
+
 **Status:** ✅ RULED — D1, D3–D8 accepted as proposed; **D2 RE-RULED by the
 author**; **D9 added by the author** (locale-variant capacity; both
 2026-09-27, below). **/autoplan review APPROVED at the final gate
