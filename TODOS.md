@@ -372,7 +372,7 @@ Their three asks:
 3. The same for a chain (hook pool with notes, activities in order, D49
    correctives once they exist).
 
-**Trigger for the DESIGN pass:** the author schedules it. It is a joint contract
+**Slice 1 (ask 1) DESIGN PASS WRITTEN 2026-10-07: [teacher-guides.md](docs/design/teacher-guides.md), awaiting the author's rulings on TG-1…TG-9.** Asks (2)–(3): **Trigger for the DESIGN pass:** the author schedules it. It is a joint contract
 (the curriculum side writes 55+ guides into its format), so it may be designed
 early under the one-design-arc rule. **Trigger for the BUILD:** the first
 catalogue activity taught by a teacher other than the author (the guides exist
