@@ -2,12 +2,12 @@
   "schema": "activity-platform/skill-coverage@1",
   "registrySize": 96,
   "counts": {
-    "activities": 8,
-    "covered": 7,
-    "coveredPublished": 5,
+    "activities": 13,
+    "covered": 11,
+    "coveredPublished": 7,
     "partial": 0,
-    "uncovered": 89,
-    "partsAuthored": 7,
+    "uncovered": 85,
+    "partsAuthored": 11,
     "partsDeclared": 102
   },
   "multiPartSkills": {
@@ -22,7 +22,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "713-chain.geom.parallel-lines/02-parallel-lines.md"
       ],
@@ -34,7 +34,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "713-chain.geom.parallel-lines/01-angle-relationships.md"
       ],
@@ -63,6 +63,62 @@
         "712-chain.geom.triangles-polygons/01-triangles-classify.md"
       ],
       "consolidations": [],
+      "supporting": []
+    },
+    {
+      "id": "measure.area.composite",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "710-chain.measure.area-volume/03-area-composite.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "710-chain.measure.area-volume/05-perimeter-area-volume.md"
+      ]
+    },
+    {
+      "id": "measure.area.rect-triangle",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "710-chain.measure.area-volume/02-area-rect-triangle.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "710-chain.measure.area-volume/05-perimeter-area-volume.md"
+      ]
+    },
+    {
+      "id": "measure.perimeter.polygons",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "710-chain.measure.area-volume/01-perimeter.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "710-chain.measure.area-volume/05-perimeter-area-volume.md"
+      ]
+    },
+    {
+      "id": "measure.volume.cuboid",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "710-chain.measure.area-volume/04-volume-cuboid.md"
+      ],
+      "consolidations": [
+        "710-chain.measure.area-volume/05-perimeter-area-volume.md"
+      ],
       "supporting": []
     },
     {
@@ -148,12 +204,8 @@
     "linear.slope.from-graph",
     "linear.slope.interpret-context",
     "linear.slope.two-points",
-    "measure.area.composite",
-    "measure.area.rect-triangle",
-    "measure.perimeter.polygons",
     "measure.time.duration",
     "measure.time.timetables",
-    "measure.volume.cuboid",
     "number.divisibility.rules",
     "number.exponents.evaluate",
     "number.factors.hcf-lcm",
@@ -200,6 +252,11 @@
   "unregistered": [],
   "activitiesWithoutPrimarySkill": [],
   "files": [
+    "710-chain.measure.area-volume/01-perimeter.md",
+    "710-chain.measure.area-volume/02-area-rect-triangle.md",
+    "710-chain.measure.area-volume/03-area-composite.md",
+    "710-chain.measure.area-volume/04-volume-cuboid.md",
+    "710-chain.measure.area-volume/05-perimeter-area-volume.md",
     "712-chain.geom.triangles-polygons/01-triangles-classify.md",
     "712-chain.geom.triangles-polygons/02-angle-sums.md",
     "713-chain.geom.parallel-lines/01-angle-relationships.md",

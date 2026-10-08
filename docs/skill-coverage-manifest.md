@@ -12,18 +12,22 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**7 of 96 skills covered** (5 published, 2 draft only) · 0 partly covered · 8 activities
+**11 of 96 skills covered** (7 published, 4 draft only) · 0 partly covered · 13 activities
 
-**7 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+**11 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
 ## Covered
 
 | skill | state | parts | consolidated in | supporting |
 | --- | --- | --- | --- | --- |
-| `geom.angles.parallel-transversal` | draft only | `713-chain.geom.parallel-lines/02-parallel-lines.md` | — | — |
-| `geom.angles.relationships` | draft only | `713-chain.geom.parallel-lines/01-angle-relationships.md` | — | — |
+| `geom.angles.parallel-transversal` | published | `713-chain.geom.parallel-lines/02-parallel-lines.md` | — | — |
+| `geom.angles.relationships` | published | `713-chain.geom.parallel-lines/01-angle-relationships.md` | — | — |
 | `geom.angles.triangle-quad-sum` | published | `712-chain.geom.triangles-polygons/02-angle-sums.md` | — | — |
 | `geom.triangles.classify` | published | `712-chain.geom.triangles-polygons/01-triangles-classify.md` | — | — |
+| `measure.area.composite` | draft only | `710-chain.measure.area-volume/03-area-composite.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `measure.area.rect-triangle` | draft only | `710-chain.measure.area-volume/02-area-rect-triangle.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `measure.perimeter.polygons` | draft only | `710-chain.measure.area-volume/01-perimeter.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `measure.volume.cuboid` | draft only | `710-chain.measure.area-volume/04-volume-cuboid.md` | `710-chain.measure.area-volume/05-perimeter-area-volume.md` | — |
 | `rate.constant-of-proportionality` | published | `801-chain.rate.proportional/02-constant-of-proportionality.md` | — | — |
 | `rate.proportional-graph` | published | `801-chain.rate.proportional/03-proportional-graph.md` | `801-chain.rate.proportional/04-proportional-consolidation.md` | — |
 | `rate.unit-rate` | published | `801-chain.rate.proportional/01-unit-rate.md` | — | — |
@@ -75,12 +79,8 @@ reason for existing — a count alone cannot be acted on.
 - `linear.slope.from-graph`
 - `linear.slope.interpret-context`
 - `linear.slope.two-points`
-- `measure.area.composite`
-- `measure.area.rect-triangle`
-- `measure.perimeter.polygons`
 - `measure.time.duration`
 - `measure.time.timetables`
-- `measure.volume.cuboid`
 - `number.divisibility.rules`
 - `number.exponents.evaluate`
 - `number.factors.hcf-lcm`

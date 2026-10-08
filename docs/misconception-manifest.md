@@ -13,7 +13,7 @@
   not a build failure.
 -->
 
-41 bindings · 10 distinct ids · 8 files
+113 bindings · 18 distinct ids · 13 files
 
 ## By id
 
@@ -22,16 +22,45 @@
 | `mis.angles.complement-supplement-swapped` | 6 | `713-chain.geom.parallel-lines/01-angle-relationships.md` |
 | `mis.angles.sum-depends-on-size` | 1 | `712-chain.geom.triangles-polygons/02-angle-sums.md` |
 | `mis.angles.vertical-as-supplementary` | 4 | `713-chain.geom.parallel-lines/01-angle-relationships.md`, `713-chain.geom.parallel-lines/02-parallel-lines.md` |
+| `mis.area.composite-overlap` | 8 | `710-chain.measure.area-volume/03-area-composite.md`, `710-chain.measure.area-volume/04-volume-cuboid.md`, `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `mis.area.same-perimeter-same-area` | 1 | `710-chain.measure.area-volume/02-area-rect-triangle.md` |
+| `mis.area.slant-as-height` | 9 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md` |
+| `mis.area.triangle-no-half` | 12 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md` |
 | `mis.parallel.all-equal` | 5 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
 | `mis.parallel.assumed` | 1 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
+| `mis.perimeter.counts-squares` | 4 | `710-chain.measure.area-volume/01-perimeter.md` |
 | `mis.proportional.line-misses-origin` | 7 | `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.proportional.one-pair-assumed-constant` | 4 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.rate.compares-totals` | 2 | `801-chain.rate.proportional/01-unit-rate.md` |
 | `mis.rate.ratio-inverted` | 6 | `801-chain.rate.proportional/01-unit-rate.md`, `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.triangle.orientation-matters` | 5 | `712-chain.geom.triangles-polygons/01-triangles-classify.md` |
+| `mis.units.area-as-linear` | 10 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md`, `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `mis.units.volume-as-square` | 16 | `710-chain.measure.area-volume/04-volume-cuboid.md`, `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `mis.volume.adds-dimensions` | 12 | `710-chain.measure.area-volume/04-volume-cuboid.md`, `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
 
 ## By file
 
+- `710-chain.measure.area-volume/01-perimeter.md` — 4 bindings
+    - `mis.perimeter.counts-squares` ×4
+- `710-chain.measure.area-volume/02-area-rect-triangle.md` — 16 bindings
+    - `mis.area.same-perimeter-same-area` ×1
+    - `mis.area.slant-as-height` ×4
+    - `mis.area.triangle-no-half` ×7
+    - `mis.units.area-as-linear` ×4
+- `710-chain.measure.area-volume/03-area-composite.md` — 19 bindings
+    - `mis.area.composite-overlap` ×6
+    - `mis.area.slant-as-height` ×5
+    - `mis.area.triangle-no-half` ×5
+    - `mis.units.area-as-linear` ×3
+- `710-chain.measure.area-volume/04-volume-cuboid.md` — 18 bindings
+    - `mis.area.composite-overlap` ×1
+    - `mis.units.volume-as-square` ×9
+    - `mis.volume.adds-dimensions` ×8
+- `710-chain.measure.area-volume/05-perimeter-area-volume.md` — 15 bindings
+    - `mis.area.composite-overlap` ×1
+    - `mis.units.area-as-linear` ×3
+    - `mis.units.volume-as-square` ×7
+    - `mis.volume.adds-dimensions` ×4
 - `712-chain.geom.triangles-polygons/01-triangles-classify.md` — 5 bindings
     - `mis.triangle.orientation-matters` ×5
 - `712-chain.geom.triangles-polygons/02-angle-sums.md` — 1 binding
@@ -62,4 +91,5 @@
 **Used once.** Legitimate for a misconception sensed in one place; also the shape every typo has.
 
 - `mis.angles.sum-depends-on-size`
+- `mis.area.same-perimeter-same-area`
 - `mis.parallel.assumed`
