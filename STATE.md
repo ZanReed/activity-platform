@@ -22,6 +22,8 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **BANK TEACHING-ORDER FIX (0056) is LIVE (2026-10-08):** applied, `verify-0056`/`0055`/`0054` live green; the Bank lists Year 7 as 712 → 713, then Year 8. Nothing owed.
 
+**NEXT (author-ruled 2026-10-08): the segment ARROWHEAD for translation vectors, built before the curriculum's 714 transformations drafts return. Design pass first, in a new session — TODOS → "An arrowhead on a segment" has the starting facts.**
+
 **CHAIN HOOK VIEW is LIVE (2026-10-08):** 0057 applied (verify-0057 12/12 live; 0054/0055/0056/0043 still green), pushed at `c9f9eedc` (CI green), 13 hooks mirrored from the curriculum `71dd581` file and read back live (5 chains; Zan's account sees rate, triangles, parallel-lines). Nothing owed. Re-mirror with `--hook-registry` on any import; from an EMPTY folder it also rewrites the docs manifests — restore them with `git checkout -- docs/*manifest* docs/skill-coverage.json` ([chain-hooks-view.md](docs/design/chain-hooks-view.md)).
 
 **Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
