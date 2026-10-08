@@ -1,6 +1,6 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: RULED, ENG-REVIEWED, DESIGN-REVIEWED and ENG-RE-REVIEWED (2026-10-08).** Re-run: RT1–RT5 (plain mark buttons, Change date disabled while a write is in flight, an e2e spec for print + axe). Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
+**Status: BUILT 2026-10-08 (local; §As built) — apply 0057 live, then push.** RULED, ENG-REVIEWED, DESIGN-REVIEWED and ENG-RE-REVIEWED the same day. Re-run: RT1–RT5 (plain mark buttons, Change date disabled while a write is in flight, an e2e spec for print + axe). Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
 
 ## What a hook is (re-derived from curriculum `main` b74e02a, graph v0.17.19)
 
@@ -1501,6 +1501,68 @@ These amend DT2, DT3 and DT4 and are built with them.
 - Outside voice: codex not installed, native fallback unavailable (no TaskOutput/TaskStop), so unavailable
 - Parallelization: sequential implementation, no parallelization opportunity (RT1–RT5 share ChainHooks.tsx except RT3/RT5)
 - Lake Score: 1/2 (D2-rerun and D3-rerun were scored for completeness; D3-rerun picked the 10/10 option, and D2-rerun picked A at 9/10, the recommended one. D1-rerun was a kind choice, excluded)
+
+# As built (2026-10-08)
+
+Built in one session on `main`, unpushed. Commits: `dd1a353a` (T1, T2),
+`01dd94ea` (T3), `347b1d73` (T4–T6, DT1–DT5, RT1–RT5).
+
+- **Migration `0057_chain_hooks.sql`:**
+  - the `chain_hook` table, with no client privilege;
+  - `sync_chain_hooks`;
+  - `my_chain_hooks()`;
+  - the `class_hook_use` table, under four `is_class_teacher` policies;
+  - `activities_provenance_guard`, the D4 trigger.
+
+  Applied to the LOCAL stack only.
+- **`scripts/verify-0057.sql`, 12 rows, local green.** Mutation-tested five
+  ways. Two rows were vacuous on the first pass and fixed before the commit:
+  - C2 used a NULL jsonb comparison that never raised;
+  - C5b was a student with no planted row.
+
+  The Bank (0054–0056) and glossary (0043) verify scripts are still green
+  under the new trigger.
+- **Importer `--hook-registry` (§HK, 10 tests).** Mutation-tested four ways.
+  The first draft's strict rows were vacuous: the demo catalogue's own
+  warnings failed `--strict` regardless. Each strict row now has a clean
+  control run.
+- **Their real `hook-registry.json` at `71dd581`** passes `--dry-run --strict`
+  against the local stack: 5 chains, 13 hooks, exit 0. This is the D5 check;
+  the LIVE dry run (T7) waits for the apply.
+- **App:**
+  - `lib/chainHooks.ts`;
+  - `routes/ChainHooks.tsx` + `chainHooks.css` (lazy);
+  - the Activities-list link;
+  - the drawer line.
+
+  Unit tests: 16 page + 3 drawer + 2 list (one CRITICAL) + 5 helper rows,
+  mutation-tested seven ways. `e2e/a11y/chain-hooks.e2e.ts` proves axe-clean
+  and the print sheet in Chromium, mutation-tested twice. The full a11y lane
+  passes (23 rows).
+- **`pnpm verify`:** all 8 check-job gates pass. Shell JS 154.6 → 154.8 KiB gz
+  (stop line 156.5); shell CSS unchanged at 14.9.
+
+**Deviations and findings at build:**
+1. **The drawer's first fetch guard was a StrictMode bug.** A per-run
+   `cancelled` plus a `started` ref discarded the only fetch. It now uses a
+   mounted ref. Found in review, before any test.
+2. **The eng re-run's "the a11y lane is student-only" was wrong** (corrected
+   in §Re-run Section 3). It already scanned the teacher facts page. The
+   ruling was unaffected.
+3. **Known limit: a Bank copier's chain page orders their activities by
+   recency, not teaching order.** A copy has no `source_path`, and the
+   original's is not returned to the client. Fix if wanted: have
+   `my_chain_hooks` also return each copy's original path. Trigger: a
+   colleague with more than one copied activity in a unit.
+4. **Not built:** the optional importer read of `hook-ids-retired.txt`. Their
+   generator already gates it (C-97).
+
+**Pending author actions, in order:**
+1. Apply 0057 live.
+2. Run `pnpm verify:auth --target live --only verify-0057`.
+3. Push `main` (OV-7: the UI calls the new RPC, so apply first).
+4. Next import: add `--hook-registry <curriculum>/hook-registry.json`, with
+   `--dry-run --strict` first.
 
 ## GSTACK REVIEW REPORT
 
