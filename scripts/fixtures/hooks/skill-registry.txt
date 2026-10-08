@@ -1,0 +1,5 @@
+# fixture skills registry
+vfy.angles.relationships
+vfy.angles.parallel
+vfy.rate.unit-rate
+demo.glossary.read-a-line

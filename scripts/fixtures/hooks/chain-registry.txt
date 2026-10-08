@@ -1,0 +1,3 @@
+# fixture chain registry for the --hook-registry tests
+713-chain.vfy.angles = VFY Angles
+801-chain.vfy.rate = VFY Rate

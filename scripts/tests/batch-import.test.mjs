@@ -68,6 +68,7 @@ import {
     MISCONCEPTION_ID,
     nearDuplicateIds,
     parseArgs,
+    planHookRegistry,
     parseChainRegistry,
     readChainRegistry,
     parseNumericValue,
@@ -1680,6 +1681,7 @@ test('§I --strict and --misconception-registry parse, in either form', () => {
             chainRegistry: null,
             glossary: null,
             factRegistry: null,
+            hookRegistry: null,
             allowMassRetire: false,
         },
     );
@@ -2734,4 +2736,175 @@ test('§FS a revision without the optional groups says so (their ac8f9fd2)', asy
     assert.equal(run.code, 0, run.output);
     assert.match(run.output, /\n {2}two-part : none in this revision — every check is one part\n/);
     assert.match(run.output, /\n {2}practice : none in this revision — daily practice cannot be switched on\n/);
+});
+
+// =============================================================================
+// §HK — the hook registry (C-97; docs/design/chain-hooks-view.md CH-2/CH-3)
+// =============================================================================
+const HOOK_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'hooks');
+const HOOK_FIXTURE = join(HOOK_DIR, 'hook-registry.json');
+const HOOK_CHAINS = join(HOOK_DIR, 'chain-registry.txt');
+const HOOK_SKILLS = join(HOOK_DIR, 'skill-registry.txt');
+const hookJson = () => JSON.parse(readFileSync(HOOK_FIXTURE, 'utf8'));
+
+test('§HK the fixture is in the agreed shape: revision holds, rows in pool order', () => {
+    const json = hookJson();
+    assert.equal(checkFactRegistryRevision(json).ok, true, 'the generic revision rule covers the hook file');
+    const plan = planHookRegistry(json, {
+        chainIds: new Set(['chain.vfy.angles', 'chain.vfy.rate']),
+        skillIds: new Set(['vfy.angles.relationships', 'vfy.angles.parallel', 'vfy.rate.unit-rate']),
+    });
+    assert.equal(plan.ok, true, plan.errors.join('\n'));
+    assert.deepEqual(plan.warnings, []);
+    assert.deepEqual(
+        plan.hooks.map((h) => [h.chain_id, h.position, h.hook_id]),
+        [
+            ['chain.vfy.angles', 0, 'hook.vfy.squashed-x'],
+            ['chain.vfy.angles', 1, 'hook.vfy.exercise-book'],
+            ['chain.vfy.rate', 0, 'hook.vfy.better-value'],
+        ],
+    );
+    // Plain text passes through untouched: a "$" is money, never math (C-97 (d)).
+    assert.match(plan.hooks[2].prompt, /\$4 or a bag of 12 for \$10/);
+});
+
+test('§HK a hook outside the shape REFUSES the file, each problem named', () => {
+    const bad = hookJson();
+    bad.body.chains['chain.vfy.angles'][0].extra = 'x';                 // unknown field
+    bad.body.chains['chain.vfy.angles'][1].id = 'Hook.Bad';              // id shape
+    bad.body.chains['chain.vfy.rate'][0].note = '   ';                   // empty note
+    bad.body.chains['chain.vfy.empty'] = [];                             // empty pool
+    bad.body.chains['chain.vfy.dup'] = [{ ...hookJson().body.chains['chain.vfy.rate'][0] }]; // duplicate id
+    const plan = planHookRegistry(bad);
+    assert.equal(plan.ok, false);
+    const text = plan.errors.join('\n');
+    assert.match(text, /exactly \{id, connects_to, prompt, note\}/);
+    assert.match(text, /“Hook\.Bad” is not a hook id/);
+    assert.match(text, /has an empty note/);
+    assert.match(text, /chain\.vfy\.empty has no hooks/);
+    assert.match(text, /hook\.vfy\.better-value appears twice/);
+    assert.equal(planHookRegistry({ body: {} }).ok, false, 'no body.chains at all');
+});
+
+test('§HK a chain with no folder and a skill outside the registry WARN (strict fails on them)', () => {
+    const plan = planHookRegistry(hookJson(), {
+        chainIds: new Set(['chain.vfy.angles']),
+        skillIds: new Set(['vfy.angles.relationships']),
+    });
+    assert.equal(plan.ok, true);
+    const text = plan.warnings.join('\n');
+    assert.match(text, /chain\.vfy\.rate has no folder in the chain registry/);
+    assert.match(text, /“vfy\.angles\.parallel”, which is not in the skills registry/);
+    assert.match(text, /“vfy\.rate\.unit-rate”, which is not in the skills registry/);
+    // Without the registries there is nothing to check against: no warnings.
+    assert.deepEqual(planHookRegistry(hookJson()).warnings, []);
+});
+
+test('§HK --hook-registry parses both spellings and is documented', () => {
+    assert.equal(parseArgs(['cat', '--owner=a', '--hook-registry', 'h.json']).hookRegistry, 'h.json');
+    assert.equal(parseArgs(['cat', '--owner=a', '--hook-registry=h.json']).hookRegistry, 'h.json');
+    assert.equal(parseArgs(['cat', '--owner=a']).hookRegistry, null);
+    assert.match(usageText(), /--hook-registry/);
+});
+
+const hookStub = (over = {}) =>
+    stubSupabase({
+        'POST /rest/v1/rpc/sync_chain_hooks': (req, res, body, send, plan) =>
+            send(res, 200, plan({ applied: body.p_apply, new: body.p_hooks.map((h) => h.hook_id), ...over })),
+    });
+// --glossary makes the demo catalogue itself strict-clean (its [[terms]]
+// resolve), so every --strict failure below is the HOOK problem alone, never the
+// demo's (the first draft of these tests was vacuous exactly that way).
+const hookArgs = ['--glossary', GLOSSARY_FIXTURE, '--hook-registry', HOOK_FIXTURE, '--chain-registry', HOOK_CHAINS, '--skills-registry', HOOK_SKILLS];
+const noWrites = (calls) =>
+    calls.filter((c) => c.method !== 'GET' && c.body?.p_apply !== false);
+
+test('§HK a dry run reports the plan from the database and writes nothing', async () => {
+    const stub = hookStub();
+    const run = await runImport(stub, [...hookArgs, '--dry-run', '--strict']);
+    assert.equal(run.code, 0, run.output);
+    assert.match(run.output, /\nhooks {5}: .*hook-registry\.json \(2 chains, 3 hooks, revision bc268fe8…\)\n/);
+    assert.match(run.output, /\n {2}store {4}: 3 new · 0 changed · 0 retired · 0 un-retired \(would be written; 0 active before\)\n/);
+    const calls = stub.calls.filter((c) => c.url.includes('sync_chain_hooks'));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.p_apply, false);
+    assert.equal(calls[0].body.p_owner, 'owner-1');
+    assert.deepEqual(calls[0].body.p_hooks.map((h) => h.position), [0, 1, 0]);
+});
+
+test('§HK a live run mirrors the hooks BEFORE any activity write', async () => {
+    const stub = hookStub();
+    const run = await runImport(stub, [...hookArgs, '--strict']);
+    assert.equal(run.code, 0, run.output);
+    const order = stub.calls
+        .filter((c) => c.method !== 'GET' && !(c.url.includes('sync_chain_hooks') && c.body?.p_apply === false))
+        .map((c) => c.url.split('?')[0]);
+    assert.ok(order.indexOf('/rest/v1/rpc/sync_chain_hooks') > -1, 'the apply call was made');
+    assert.ok(
+        order.indexOf('/rest/v1/rpc/sync_chain_hooks') < order.indexOf('/rest/v1/activities'),
+        `hooks mirror first: ${order.join(' → ')}`,
+    );
+    assert.match(run.output, /hooks {5}: mirrored — 3 new/);
+});
+
+test('§HK --strict FAILS a run whose hook chain has no folder (exit measured without a pipe)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'hook-chains-'));
+    const partial = join(dir, 'chain-registry.txt');
+    await writeFile(partial, '713-chain.vfy.angles = VFY Angles\n');
+    try {
+        const stub = hookStub();
+        const args = (chains) => ['--glossary', GLOSSARY_FIXTURE, '--hook-registry', HOOK_FIXTURE,
+            '--chain-registry', chains, '--skills-registry', HOOK_SKILLS, '--dry-run'];
+        // The control: the same strict run with every chain registered exits 0.
+        const clean = await runImport(hookStub(), [...args(HOOK_CHAINS), '--strict']);
+        assert.equal(clean.code, 0, clean.output);
+        const run = await runImport(stub, [...args(partial), '--strict']);
+        assert.equal(run.code, 1, run.output);
+        assert.match(run.output, /chain\.vfy\.rate has no folder in the chain registry/);
+        const plain = await runImport(hookStub(), args(partial));
+        assert.equal(plain.code, 0, 'without --strict the warning prints and the exit is unchanged');
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+test('§HK a tampered file is REFUSED before the run starts', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'hook-tamper-'));
+    const tampered = join(dir, 'hook-registry.json');
+    const json = hookJson();
+    json.body.chains['chain.vfy.rate'][0].note = '80c vs 83c.';
+    await writeFile(tampered, JSON.stringify(json));
+    try {
+        const stub = hookStub();
+        const run = await runImport(stub, ['--hook-registry', tampered, '--dry-run']);
+        assert.notEqual(run.code, 0);
+        assert.match(run.output, /the stated revision does not match its body/);
+        assert.equal(stub.calls.filter((c) => c.url.includes('sync_chain_hooks')).length, 0);
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
+});
+
+test('§HK a database without 0057 fails SOFT and names the fix; --strict fails the run', async () => {
+    const missing = () =>
+        stubSupabase({
+            'POST /rest/v1/rpc/sync_chain_hooks': (req, res, body, send) =>
+                send(res, 404, { code: 'PGRST202', message: 'Could not find the function public.sync_chain_hooks' }),
+        });
+    const run = await runImport(missing(), [...hookArgs, '--dry-run']);
+    assert.equal(run.code, 0, run.output);
+    assert.match(run.output, /sync_chain_hooks is missing \(migration 0057 not applied\)/);
+    const strict = await runImport(missing(), [...hookArgs, '--dry-run', '--strict']);
+    assert.equal(strict.code, 1, strict.output);
+});
+
+test('§HK a MASS retire is refused before any write without --allow-mass-retire', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => `hook.vfy.old-${i}`);
+    const stub = hookStub({ retired: many, active_before: 33 });
+    const run = await runImport(stub, hookArgs);
+    assert.equal(run.code, 1, run.output);
+    assert.match(run.output, /REFUSED — this run would retire 30 of 33 active hooks/);
+    assert.deepEqual(noWrites(stub.calls).map((c) => c.url), [], 'nothing written');
+    const allowed = await runImport(hookStub({ retired: many, active_before: 33 }), [...hookArgs, '--allow-mass-retire']);
+    assert.equal(allowed.code, 0, allowed.output);
 });

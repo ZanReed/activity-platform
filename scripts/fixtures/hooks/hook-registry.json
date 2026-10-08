@@ -1,0 +1,49 @@
+{
+  "header": {
+    "generated_from": "fixture (hand-made, C-97 shape)",
+    "revision": "bc268fe81067bcba26f20d2697e396011bc17da9d94ddf91e8c1711233d48db1",
+    "revision_rule": "sha256 of the canonical JSON body (sort_keys, no whitespace, UTF-8), header excluded",
+    "note": "Test fixture for --hook-registry. Not generated."
+  },
+  "body": {
+    "chains": {
+      "chain.vfy.angles": [
+        {
+          "id": "hook.vfy.squashed-x",
+          "connects_to": [
+            {
+              "id": "vfy.angles.relationships",
+              "label": "Use angle relationships"
+            }
+          ],
+          "prompt": "Draw two lines that cross like a squashed X. Is the opposite angle the widest?",
+          "note": "Sets up the vertical-angles error. Costs nothing: no $ amounts here."
+        },
+        {
+          "id": "hook.vfy.exercise-book",
+          "connects_to": [
+            {
+              "id": "vfy.angles.parallel",
+              "label": "Angles on parallel lines"
+            }
+          ],
+          "prompt": "Ben rules a slanted line across two book lines and measures 50°. Which of the eight angles are 50°?",
+          "note": "Four are 50°, four are 130°."
+        }
+      ],
+      "chain.vfy.rate": [
+        {
+          "id": "hook.vfy.better-value",
+          "connects_to": [
+            {
+              "id": "vfy.rate.unit-rate",
+              "label": "Compute a unit rate"
+            }
+          ],
+          "prompt": "A bag of 5 for $4 or a bag of 12 for $10: which is better value?",
+          "note": "80c vs about 83c."
+        }
+      ]
+    }
+  }
+}

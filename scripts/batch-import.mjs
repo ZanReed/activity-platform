@@ -192,6 +192,83 @@ export function checkFactRegistryRevision(registry) {
     return { ok: stated !== null && stated === derived, stated, derived };
 }
 
+/** A hook id and a chain id, as the C-97 contract writes them (and 0057's CHECKs). */
+export const HOOK_ID_RE = /^hook\.[a-z0-9][a-z0-9.-]*$/;
+export const CHAIN_ID_RE = /^chain\.[a-z0-9][a-z0-9.-]*$/;
+
+/**
+ * The curriculum side's hook-registry.json (C-97; docs/design/chain-hooks-view.md
+ * CH-2/CH-3), turned into the rows `sync_chain_hooks` takes.
+ *
+ * ERRORS refuse the run before any write: a file that is not the agreed shape
+ * (body.chains of non-empty arrays; every hook exactly {id, connects_to,
+ * prompt, note}; connects_to of {id, label}; plain-text prompt and note) is a
+ * generator bug or the wrong file, and mirroring half of it would be worse than
+ * mirroring none. WARNINGS go into the catalogue-warnings list, so --strict
+ * fails on them: a chain with no folder in the chain registry (the folder =
+ * <ordinal>-<chain_id> rule, C-97 (e)) and a skill outside the skills registry.
+ * Either check runs only when its registry was supplied.
+ *
+ * `position` is the array index: pool order IS display order (C-97 (a)).
+ */
+export function planHookRegistry(json, { chainIds = null, skillIds = null, path = 'hook registry' } = {}) {
+    const errors = [];
+    const warnings = [];
+    const hooks = [];
+    const chainsObj = json?.body?.chains;
+    if (!chainsObj || typeof chainsObj !== 'object' || Array.isArray(chainsObj)) {
+        return { ok: false, errors: [`${path}: body.chains must be an object of chain_id → hook array`], warnings, hooks, chains: 0 };
+    }
+    const seen = new Set();
+    const chainNames = Object.keys(chainsObj);
+    for (const chainId of chainNames) {
+        const pool = chainsObj[chainId];
+        if (!CHAIN_ID_RE.test(chainId)) errors.push(`${path}: “${chainId}” is not a chain id`);
+        if (!Array.isArray(pool) || pool.length === 0) {
+            errors.push(`${path}: ${chainId} has no hooks (a chain with no pool is omitted, C-97 (b))`);
+            continue;
+        }
+        if (chainIds && !chainIds.has(chainId)) {
+            warnings.push(`${path}: ${chainId} has no folder in the chain registry — its hooks would show on no unit.`);
+        }
+        pool.forEach((hook, position) => {
+            const where = `${path}: ${chainId}[${position}]`;
+            const keys = hook && typeof hook === 'object' ? Object.keys(hook).sort().join(',') : '';
+            if (keys !== 'connects_to,id,note,prompt') {
+                errors.push(`${where}: a hook is exactly {id, connects_to, prompt, note} (got {${keys}})`);
+                return;
+            }
+            const { id, connects_to: connectsTo, prompt, note } = hook;
+            if (typeof id !== 'string' || !HOOK_ID_RE.test(id) || id.length > 120) {
+                errors.push(`${where}: “${id}” is not a hook id`);
+                return;
+            }
+            if (seen.has(id)) errors.push(`${where}: ${id} appears twice`);
+            seen.add(id);
+            for (const [field, value] of [['prompt', prompt], ['note', note]]) {
+                if (typeof value !== 'string' || value.trim() === '') {
+                    errors.push(`${where}: ${id} has an empty ${field}`);
+                }
+            }
+            if (!Array.isArray(connectsTo) ||
+                !connectsTo.every((c) => c && typeof c.id === 'string' && typeof c.label === 'string' &&
+                    Object.keys(c).sort().join(',') === 'id,label')) {
+                errors.push(`${where}: ${id} connects_to must be [{id, label}]`);
+                return;
+            }
+            if (skillIds) {
+                for (const c of connectsTo) {
+                    if (!skillIds.has(c.id)) {
+                        warnings.push(`${path}: ${id} opens “${c.id}”, which is not in the skills registry.`);
+                    }
+                }
+            }
+            hooks.push({ hook_id: id, chain_id: chainId, position, connects_to: connectsTo, prompt, note });
+        });
+    }
+    return { ok: errors.length === 0, errors, warnings, hooks, chains: chainNames.length };
+}
+
 /**
  * Every field a full update writes. ONE builder for both the write and the
  * "unchanged" comparison below, so a field added to the payload later joins
@@ -2184,6 +2261,17 @@ export function makeDb(url, key) {
             });
         },
 
+        /**
+         * The hook mirror (0057 CH-3/CH-5): ONE atomic service RPC, the glossary's
+         * shape. apply=false computes the identical report and writes nothing.
+         */
+        syncChainHooks(ownerId, hooks, apply) {
+            return call('/rpc/sync_chain_hooks', {
+                method: 'POST',
+                body: JSON.stringify({ p_owner: ownerId, p_hooks: hooks, p_apply: apply }),
+            });
+        },
+
         syncMisconceptionRegistry(ids, descriptions = new Map()) {
             // return=representation is LOAD-BEARING, not verbosity: a bare
             // upsert answers 201 with an EMPTY body, and call() JSON-parses
@@ -2220,6 +2308,7 @@ export function parseArgs(argv) {
     let chainRegistry = null;
     let glossary = null;
     let factRegistry = null;
+    let hookRegistry = null;
     let allowMassRetire = false;
 
     for (let i = 0; i < argv.length; i++) {
@@ -2260,6 +2349,9 @@ export function parseArgs(argv) {
         else if (arg === '--fact-registry') factRegistry = argv[++i] ?? null;
         else if (arg.startsWith('--fact-registry='))
             factRegistry = arg.slice('--fact-registry='.length);
+        else if (arg === '--hook-registry') hookRegistry = argv[++i] ?? null;
+        else if (arg.startsWith('--hook-registry='))
+            hookRegistry = arg.slice('--hook-registry='.length);
         else if (arg === '--allow-mass-retire') allowMassRetire = true;
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
         else positional.push(arg);
@@ -2276,6 +2368,7 @@ export function parseArgs(argv) {
         chainRegistry,
         glossary,
         factRegistry,
+        hookRegistry,
         allowMassRetire,
     };
 }
@@ -2288,7 +2381,7 @@ export function usageText() {
                              [--misconception-registry <file>]
                              [--skills-registry <file>]
                              [--chain-registry <file>] [--glossary <file>]
-                             [--fact-registry <file>]
+                             [--fact-registry <file>] [--hook-registry <file>]
                              [--allow-mass-retire] [--strict]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
@@ -2329,15 +2422,24 @@ export function usageText() {
                run before any write. The run MIRRORS the expansion into the fact
                scope tables, insert-only: an identical revision writes nothing.
                --dry-run --fact-registry expands and reports, writes nothing
+  --hook-registry
+               the curriculum side's hook-registry.json (C-97). Its revision is
+               re-derived and must match; a hook not in the agreed shape stops
+               the run before any write. A chain with no chain-registry folder,
+               or a skill outside --skills-registry, is a catalogue warning. The
+               run MIRRORS the pools into the hook store: new and changed hooks
+               are written, hooks no longer in the file are RETIRED (never
+               deleted). --dry-run --hook-registry checks and reports, writes nothing
   --allow-mass-retire
-               let a live --glossary run retire more than 25 entries, or more
-               than 20% of the active ones (and more than 5). Without it such a
-               run is refused before any write and the retire set is printed
+               let a live --glossary or --hook-registry run retire more than 25
+               entries, or more than 20% of the active ones (and more than 5).
+               Without it such a run is refused before any write and the retire
+               set is printed
   --strict     make every binding, catalogue and glossary warning — a suspect
                id, an id outside the registry, a mistake that can never fire, a
                missing registry, an unresolved [[term]], a glossary file
                problem — and a FAILED mirror (the misconception registry's, the
-               glossary's or the fact scope's) exit 1. Without it they are printed and the exit
+               glossary's, the fact scope's or the hook store's) exit 1. Without it they are printed and the exit
                code is unchanged
 
   Every run rewrites ${MANIFEST_PATH} — every binding, per file and
@@ -2496,6 +2598,47 @@ async function main() {
         );
     }
 
+    // The hook registry (C-97), read, REVISION-CHECKED and shape-checked up
+    // front: a refused file stops the run before it starts. Its warnings (a
+    // chain with no folder, an unknown skill) join the catalogue warnings
+    // below, so --strict fails on them.
+    let hookFile = null;
+    if (args.hookRegistry) {
+        const path = resolve(args.hookRegistry);
+        const text = await readFile(path, 'utf8').catch(() => null);
+        if (text === null) usage(`--hook-registry ${path} could not be read.`);
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (err) {
+            usage(`--hook-registry ${path} is not JSON (${err.message}).`);
+        }
+        const revision = checkFactRegistryRevision(parsed);
+        if (!revision.ok) {
+            usage(
+                `--hook-registry ${path}: the stated revision does not match its body.\n\n` +
+                    `  stated : ${revision.stated}\n  derived: ${revision.derived}\n\n` +
+                    '  The revision is the sha256 of the canonical body. A file that disagrees\n' +
+                    '  was edited by hand or truncated; read it from the curriculum repo\'s main.',
+            );
+        }
+        const chainIds = chainText === null
+            ? null
+            : new Set([...chains.titles.keys()].map((f) => f.replace(/^\d+-/, '')));
+        const plan = planHookRegistry(parsed, {
+            chainIds,
+            skillIds: skills ? skills.ids : null,
+            path: args.hookRegistry,
+        });
+        if (!plan.ok) {
+            console.error(`\nREFUSED — ${args.hookRegistry} cannot be mirrored. Nothing was written.\n`);
+            for (const e of plan.errors) console.error(`  ${e}`);
+            console.error('\n  The shape is the C-97 contract; a file outside it is an ask-back to the\n  curriculum side, not a fix in this file.\n');
+            process.exit(1);
+        }
+        hookFile = { path: args.hookRegistry, revision: revision.derived, ...plan };
+    }
+
     try {
         rejectUnusableKey(key);
     } catch (err) {
@@ -2516,6 +2659,14 @@ async function main() {
     );
     console.log(
         `registry  : ${registry ? `${registry.path} (${registry.ids.size} ids)` : 'none supplied'}`,
+    );
+    console.log(
+        `hooks     : ${
+            hookFile
+                ? `${hookFile.path} (${hookFile.chains} chains, ${hookFile.hooks.length} hooks, ` +
+                  `revision ${hookFile.revision.slice(0, 8)}…)`
+                : 'none supplied'
+        }`,
     );
     console.log(
         `skills    : ${
@@ -2646,7 +2797,7 @@ async function main() {
     // Every file's text is read ONCE here and carried through the run: the key
     // has to be known before planning (it decides which row a file converts
     // against), and reading twice for 150 files is waste the run can see.
-    const catalogueWarnings = [];
+    const catalogueWarnings = hookFile ? [...hookFile.warnings] : [];
     const keyed = [];
     for (const file of files) {
         const markdown = await readFile(file.absolute, 'utf8').catch(() => null);
@@ -3042,6 +3193,24 @@ async function main() {
         glossaryPlan !== null &&
         isMassRetire(glossaryPlan.retired.length, glossaryPlan.active_before);
 
+    // The hook mirror's plan, from the database's own dry run (the glossary's
+    // rule: the dry run cannot disagree with the write). FAIL-SOFT on a
+    // database that predates 0057, loudly, and --strict fails the run.
+    let hookPlan = null;
+    let hookMirrorFailed = null;
+    if (hookFile) {
+        try {
+            hookPlan = await db.syncChainHooks(owner.id, hookFile.hooks, false);
+        } catch (err) {
+            hookMirrorFailed = isMissingRelation(err.message)
+                ? 'sync_chain_hooks is missing (migration 0057 not applied) — the file was ' +
+                  'checked but not mirrored. Apply 0057 and re-run.'
+                : err.message;
+        }
+    }
+    const hookMassRetire =
+        hookPlan !== null && isMassRetire(hookPlan.retired.length, hookPlan.active_before);
+
     const suspectCount = warned.reduce(
         (n, { warnings }) => n + warnings.filter(isBindingWarning).length,
         0,
@@ -3278,6 +3447,35 @@ async function main() {
         }
     }
 
+    // ---- the hook report (C-97) ---------------------------------------------
+    if (hookFile) {
+        console.log('\nhooks:');
+        console.log(
+            `  file     : ${hookFile.path} · revision ${hookFile.revision.slice(0, 8)}… · ` +
+                `${hookFile.chains} chains · ${hookFile.hooks.length} hooks`,
+        );
+        if (hookPlan) {
+            const verb = args.dryRun ? 'would be' : 'to be';
+            console.log(
+                `  store    : ${hookPlan.new.length} new · ${hookPlan.changed.length} changed · ` +
+                    `${hookPlan.retired.length} retired · ${hookPlan.unretired.length} un-retired ` +
+                    `(${verb} written; ${hookPlan.active_before} active before)`,
+            );
+            if (hookPlan.retired.length > 0 && (args.dryRun || hookMassRetire)) {
+                console.log(`  retire   : ${hookPlan.retired.join(', ')}`);
+            }
+            if (hookMassRetire) {
+                console.log(
+                    `  ⚠ that is a MASS retire (more than ${MASS_RETIRE_MAX}, or more than 20% of the ` +
+                        'active hooks). A live run refuses it before any write unless ' +
+                        '--allow-mass-retire is passed.',
+                );
+            }
+        } else if (hookMirrorFailed) {
+            console.log(`  store    : ⚠ ${hookMirrorFailed}`);
+        }
+    }
+
     // ---- the fact-scope report (D43) ----------------------------------------
     if (factScope) {
         console.log('\nfact scope:');
@@ -3422,7 +3620,8 @@ async function main() {
                         catalogueWarnings.length > 0 ||
                         glossaryWarnings.length > 0 ||
                         glossaryMirrorFailed !== null ||
-                        factScopeMirrorFailed !== null))
+                        factScopeMirrorFailed !== null ||
+                        hookMirrorFailed !== null))
                 ? 1
                 : 0,
         );
@@ -3439,6 +3638,18 @@ async function main() {
                 '  A glossary file that lost most of its entries is far more often the wrong\n' +
                 '  file than an intended cull. If it is intended, re-run with\n' +
                 '  --allow-mass-retire. (Retired entries are never deleted, and a returning\n' +
+                '  id un-retires.)\n',
+        );
+        process.exit(1);
+    }
+    if (hookMassRetire && !args.allowMassRetire) {
+        console.error(
+            `\nREFUSED — this run would retire ${hookPlan.retired.length} of ` +
+                `${hookPlan.active_before} active hooks. Nothing was written.\n\n` +
+                `  ${hookPlan.retired.join('\n  ')}\n\n` +
+                '  A hook registry that lost most of its hooks is far more often the wrong\n' +
+                '  file than an intended cull. If it is intended, re-run with\n' +
+                '  --allow-mass-retire. (Retired hooks are never deleted, and a returning\n' +
                 '  id un-retires.)\n',
         );
         process.exit(1);
@@ -3528,6 +3739,27 @@ async function main() {
                     '  Nothing was written to the fact scope. The import itself continues.',
             );
         }
+    }
+
+    // The hook mirror (0057): one atomic RPC, before any activity write.
+    // Fail-soft and loud, like the glossary's; --strict fails the run.
+    if (hookFile && hookPlan && hookMirrorFailed === null) {
+        try {
+            const mirrored = await db.syncChainHooks(owner.id, hookFile.hooks, true);
+            // From the database's echo, never from the plan.
+            console.log(
+                `hooks     : mirrored — ${mirrored.new.length} new · ${mirrored.changed.length} changed · ` +
+                    `${mirrored.retired.length} retired · ${mirrored.unretired.length} un-retired`,
+            );
+        } catch (err) {
+            hookMirrorFailed = err.message;
+        }
+    }
+    if (hookMirrorFailed !== null) {
+        console.warn(
+            `⚠ hook mirror FAILED (${hookMirrorFailed}).\n` +
+                '  The hook store was not changed. The import itself continues.',
+        );
     }
 
     // Updates first: they are the re-run case, they cannot collide on a slug,
@@ -3649,6 +3881,7 @@ async function main() {
                     glossaryWarnings.length > 0 ||
                     glossaryMirrorFailed !== null ||
                     factScopeMirrorFailed !== null ||
+                    hookMirrorFailed !== null ||
                     registryMirrorFailed))
             ? 1
             : 0,
