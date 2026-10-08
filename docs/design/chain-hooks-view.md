@@ -1,6 +1,6 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: RULED and ENG-REVIEWED (2026-10-08).** Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
+**Status: RULED, ENG-REVIEWED and DESIGN-REVIEWED (2026-10-08).** Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
 
 ## What a hook is (re-derived from curriculum `main` b74e02a, graph v0.17.19)
 
@@ -1002,16 +1002,252 @@ None.
 - (4/10) `my_chain_hooks` could cache its result in sessionStorage. Suppressed:
   one call per page load costs less than invalidating a cache (Section 4 #3).
 
+# Design review (plan-design-review, 2026-10-08)
+
+**Target:** the UI half of this plan: the `/chains/:chainId` teacher page, the
+"Hooks (n)" link on Activities-list unit headers, and the editor drawer line.
+Reviewed text-only: the gstack designer has no OpenAI key configured, so no
+mockups were made. Outside design voices were skipped (D2: Codex is not
+installed; a same-harness check would duplicate the passes).
+
+**System audit:** there is no DESIGN.md. The calibration sources are
+- the token roles in `packages/app/src/index.css` (`--color-canvas/surface/ink/muted/line/success/danger/accent`, light-dark());
+- the UX lens (`docs/design/ux-lens.md`);
+- the closest house precedent, the FactsTeacher page: a lazy route, `ft-` classes in a route CSS file, `.ft-crumb` + `.ft-h1`, "Loading…" muted, `role="alert"` with "Something went wrong loading this. Check your connection, then try again.", and status shown with an icon plus words, never colour alone (DR-21);
+- the Activities list's unit header: an `h2`, a muted count, and muted underlined text actions (`Activities.tsx:637-668`).
+
+Step 0: 5/10 (content and order ruled; page shell, states, mark
+interaction, accessibility and print not specified). Focus: all 7 passes (D1).
+
+## Pass 1: Information architecture (4/10 → 9/10)
+
+**1A (ruled): the unit title is the heading.**
+
+```
+Activities / Angles and Parallel Lines        crumb (.ch-crumb), links to /activities
+Angles and Parallel Lines                     h1 (.ch-h1) = the unit title of the chain's activities
+Questions to open a lesson. Pick one when your class's day begins.   muted subtitle, one line
+Class: [9MAT2 ▾]                              the ruled picker (CH-9b)
+Hooks · 2                                     h2 section, pool order
+  ┌ prompt (the anchor) / Opens: <skill label> / Teacher notes / mark controls ┐ (per hook)
+Activities in this unit                       h2 section, teaching order, rows link to /activity/:id
+```
+
+Document title: "<unit> — Hooks". **Recorded house pattern (not a new
+choice):** the list's "Hooks (n)" link is a muted underlined text action in
+the unit header row, to the left of "List unit in the Bank" when both show.
+Remaining gap (keeps it at 9): none material.
+
+## Pass 2: Interaction states (3/10 → 9/10)
+
+Ruled: **2.1A** (no link to an empty unit; the page still explains), **2.2A**
+(no class means no marks, plus one quiet line), **2.3A** (optimistic, with an
+honest failure). Loading and the read failure follow house patterns (FactsTeacher;
+D3), recorded rather than re-asked. Note: after curriculum PR #55, 5 of the 17
+chains have pools, so 12 do not. (The 2.1 question said 14, which was wrong;
+the ruling stands.)
+
+```
+FEATURE            | LOADING              | EMPTY                                   | ERROR                                         | SUCCESS                         | PARTIAL
+-------------------|----------------------|-----------------------------------------|-----------------------------------------------|---------------------------------|--------------------------------
+Chain page (whole) | "Loading…" muted,    | no live hooks: under "Hooks", "No hooks | role=alert "Couldn't load hooks. Check your  | header + pool + activities      | pool loads, activities empty:
+                   | header shows at once | for this unit yet." + muted "Hooks come | connection, then try again." + Retry button  |                                 | the section says "No activities
+                   |                      | with the curriculum import. This unit's | (D3); the Activities section still renders   |                                 | in this unit are in your library."
+                   |                      | activities are listed below." (2.1A)    | from the list data                           |                                 |
+Class picker       | (with the page)      | zero classes: no picker; muted line     | classes read fails: picker hidden, the same  | "Class: [name ▾]", last choice  | classes, none chosen: "Choose a
+                   |                      | "Track which hooks a class has used:    | muted line is NOT shown (no false "create a  | remembered (localStorage,       | class"; mark controls hidden
+                   |                      | create a class in My classes." (2.2A)   | class" prompt); hooks still readable         | try/catch)                      | until one is picked (2.2A)
+Used marks         | marks for the picked | no marks: every hook unmarked           | write fails: card reverts, "Couldn't save ·  | card shows used treatment (Pass | n/a
+                   | class load with page |                                         | Try again" text-danger role=status (2.3A)    | 5) instantly, optimistic (2.3A) |
+List "Hooks (n)"   | link absent until    | chain without a pool: no link (2.1A)    | read fails: no link, no notice (D3)          | "Hooks (n)" muted text action   | n/a
+                   | the read returns     |                                         |                                               |                                 |
+Drawer line        | absent until read    | no pool: no line (2.1A)                 | read fails: no line                          | "This unit's hooks →"           | n/a
+```
+
+Remaining gap (keeps it at 9): the activities-empty wording is house-style
+and was not separately ruled.
+
+## Pass 3: Journey (7/10 → 8/10, no new decision)
+
+```
+STEP | TEACHER DOES                                   | FEELS            | PLAN SPECIFIES?
+1    | before class, opens Activities, sees Hooks (2) | oriented         | yes (list link, 2.1A)
+2    | opens the unit page; last class pre-picked     | quick            | yes (CH-9b, remembered)
+3    | scans the unmarked hooks, reads a note         | choosing         | yes (pool order, notes open, "Opens: <skill>")
+4    | reads the prompt to the class / puts it up     | confident        | yes (the prompt is the large anchor)
+5    | marks it used                                  | done, instantly  | yes (2.3A optimistic)
+6    | next lesson: that hook shows "Used 12 Feb"     | trust            | yes (5.1A)
+```
+
+5-second: the prompt. 5-minute: the note and the mark. 5-year: the pool grows
+by year batch with no layout change. Kept from a 10: "which hook fits today"
+lives in the notes' prose ("fire before activity 03"), which is curriculum
+content, deliberately not structured (C-97 (f): no status field).
+
+## Pass 4: AI-slop risk (6/10 → 8/10)
+
+Mode: OPERATE (app UI). **4.1A (ruled): one container with hairline
+dividers**, the Activities list's D8 pattern:
+- one `bg-canvas border border-line rounded-lg` container;
+- each hook a padded block (`px-4 py-4`) separated by `border-t border-line`, in pool order;
+- no shadow, no per-hook border, no accent stripe.
+
+Hard rejections: none after 4.1A (rule 7, stacked cards, cleared).
+
+Litmus:
+1. Product unmistakable: n/a, inside the app shell.
+2. One visual anchor: YES, the prompt.
+3. Scannable by headings: YES.
+4. One job per section: YES.
+5. Cards necessary: NO, so none are used.
+6. Motion: none, and none needed.
+7. Premium without shadows: YES, nothing uses one.
+
+Kept from a 10: the app-wide system-ui chrome font (blacklist #11), which
+belongs to the backlogged brand pass (STATE → Backlog (6)) and is out of scope
+here.
+
+## Pass 5: Design-system alignment (5/10 → 9/10)
+
+Recorded house pattern: route CSS `routes/chainHooks.css` (or
+`practice/`-style sibling), imported only by the lazy route, with `ch-` classes
+on the `index.css` roles (`--color-canvas/surface/ink/muted/line/success-strong/danger`),
+mirroring `factsTeacher.css`. Nothing goes in `index.css` (shell CSS
+14.9/15.0). Buttons copy the app's secondary button. Selects are native
+(`Bank.tsx:392` style). The date input is native (eng review §2 #6).
+
+**5.1A (ruled): the used look.**
+- The prompt goes from `--color-ink` to `--color-muted` (AA).
+- A status line: a check icon plus "Used 12 Feb" in `--color-success-strong`, then a
+  "Change date" text action and an "Unmark" secondary button.
+- An unmarked hook shows a "Mark used" secondary button.
+- No opacity, no strikethrough, no colour-only signal (DR-21).
+- Dates are formatted by the existing `formatListDate` (`lib/classActivities.ts:195`): browser locale, month short, year only when it differs. So NZ reads "12 Feb" and US reads "Feb 12".
+- ⚠ **Build trap:** `used_on` is a `date`, and `new Date('2026-02-12')` parses as UTC midnight, so a US browser would show Feb 11. Build the Date from its parts (`new Date(y, m - 1, d)`) before formatting. Add a test row pinned to a US timezone.
+
+Kept from a 10: no DESIGN.md exists. `/design-consultation` (the backlog
+brand pass) would give these tokens a written home.
+
+## Pass 6: Responsive and accessibility (2/10 → 9/10)
+
+Recorded house pattern:
+- the page shell copies FactsTeacher (`max-width: 56rem`, `padding: 24px 16px 64px`);
+- below about 480px the controls wrap under the prompt and the class picker goes full width;
+- the prompt stays at its size on a phone (it is what gets read aloud);
+- dark mode comes free from the light-dark() tokens.
+
+**6.1A (ruled): headed articles and named toggles.**
+- The Hooks section is a `<section aria-labelledby>` with an `h2` "Hooks".
+- Each hook is an `<article aria-labelledby>` whose prompt is its `h3`, styled as the prompt rather than as a heading.
+- "Mark used"/"Unmark" is ONE `<button aria-pressed>`, named "Mark used: <first 8 words of the prompt>…".
+- Marking announces "Marked used for <class>" through a polite `role="status"` line.
+- Every button and link has a hit area of at least 44×44 px.
+- Focus rings use the app's accent focus token, and focus stays on the toggle after it flips.
+
+Kept from a 10: the prompt-as-heading makes long headings, accepted as the cost.
+
+## Pass 7: Unresolved decisions (2 resolved, 0 deferred)
+
+- **7.1A (ruled): print is a reference sheet with no marks.**
+  - It shows the unit title (`h1`), one line "Hooks — teacher copy, not for students", then each hook (prompt, "Opens: <skill>", "Teacher notes" + note) with `break-inside: avoid`.
+  - The Activities section prints as a plain list.
+  - It hides the crumb, the class picker, every button and status line, and all marks.
+  - `@page { margin: 0.5in }`, ink on white (CLAUDE.md → baseline print CSS).
+- **7.2A (ruled): "Change date" is an inline swap that saves on change.**
+  - The action replaces "Used 12 Feb" with `<label>Used on <input type="date" max={local today}></label>`, focused.
+  - Choosing a date saves optimistically (2.3A) and restores the line.
+  - Esc, or blur without a change, restores the line unchanged.
+  - Focus returns to "Change date".
+
+```
+DECISION NEEDED                         | IF DEFERRED, WHAT HAPPENS
+----------------------------------------|---------------------------
+(none left)                             |
+```
+
+## Design review: NOT in scope
+- **A DESIGN.md / brand pass** (fonts, the system-ui chrome stack): already in STATE → Backlog (6), `/design-consultation`.
+- **Mockups:** the gstack designer has no OpenAI key. Run `~/.claude/skills/gstack/design/dist/design setup` and `/design-shotgun` if visuals are wanted before build.
+- **A "next hook for this class" highlight:** the pool order plus the used state already answer it; subtraction default.
+- **Showing the prompt full-screen for the class:** not asked for (CH-8 declined a copy button); print and the large prompt cover it.
+
+## Design review: what already exists
+- **FactsTeacher page shell** (`routes/FactsTeacher.tsx:205-209`, `practice/factsTeacher.css`): crumb, h1, panel, route CSS, loading and error copy, DR-21 status rule.
+- **The Activities list's unit header and D8 flat list** (`routes/Activities.tsx:616-700`): header actions, the hairline container.
+- **`formatListDate`** (`lib/classActivities.ts:195`).
+- **Native `<select>`** (`routes/Bank.tsx:392`).
+- **"Couldn't save"** inline danger text (`routes/ActivityPrint.tsx:566`).
+- **Token roles** in `index.css`, including `success-strong`.
+
+## Design review: TODOS
+None proposed. The only design debt (DESIGN.md, chrome font) is already on the
+backlog.
+
+## Design review: Implementation Tasks
+Synthesized from this review's findings. These amend the eng-review tasks
+(T4–T6) and are built with them.
+
+- [ ] **DT1 (P1, human: ~3 h / CC: ~15 min)**: chain page: header, states and layout
+  - Surfaced by: 1A, 2.1A, 2.2A, 4.1A.
+  - Crumb and h1 from the unit; one hairline container; the empty-pool, no-class and no-class-chosen states.
+  - Files: `packages/app/src/routes/ChainHooks.tsx`, `routes/chainHooks.css`
+  - Verify: `ChainHooks.test.tsx` rows: the empty-pool text; zero classes means no controls plus the My classes line; with classes but none chosen, the controls stay hidden.
+- [ ] **DT2 (P1, human: ~3 h / CC: ~15 min)**: used marks: look, optimistic save, date edit
+  - Surfaced by: 2.3A, 5.1A, 7.2A, and the Pass 5 date trap.
+  - Files: `ChainHooks.tsx`, `chainHooks.css`
+  - Verify: tests for the used look (muted prompt, check + words); a failed write reverts and shows "Couldn't save · Try again"; the inline date swap (Esc restores); `used_on` "2026-02-12" renders Feb 12 under `TZ=America/New_York`.
+- [ ] **DT3 (P1, human: ~2 h / CC: ~10 min)**: accessibility
+  - Surfaced by: 6.1A.
+  - Files: `ChainHooks.tsx`
+  - Verify: tests that each hook is an article with an h3; the toggle has aria-pressed and a named label; the status announcement; then the a11y lane (axe) on the route.
+- [ ] **DT4 (P2, human: ~1 h / CC: ~10 min)**: print sheet
+  - Surfaced by: 7.1A.
+  - Files: `chainHooks.css`
+  - Verify: a print-mode render hides the picker, buttons and marks, and shows the "teacher copy" line.
+- [ ] **DT5 (P2, human: ~30 min / CC: ~5 min)**: hide the drawer line and the list link without a pool
+  - Surfaced by: 2.1A.
+  - Files: `components/ActivityConfigDrawer.tsx`, `routes/Activities.tsx`
+  - Verify: the drawer and list tests with and without a pool.
+
+## Design review: completion summary
+
+```
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | no DESIGN.md; tokens in index.css; UI scope: 1 page + 2 links |
+  | Step 0               | 5/10; focus: all 7 passes (D1)              |
+  | Pass 1  (Info Arch)  | 4/10 → 9/10 after fixes                     |
+  | Pass 2  (States)     | 3/10 → 9/10 after fixes                     |
+  | Pass 3  (Journey)    | 7/10 → 8/10 after fixes                     |
+  | Pass 4  (AI Slop)    | 6/10 → 8/10 after fixes                     |
+  | Pass 5  (Design Sys) | 5/10 → 9/10 after fixes                     |
+  | Pass 6  (Responsive) | 2/10 → 9/10 after fixes                     |
+  | Pass 7  (Decisions)  | 2 resolved, 0 deferred                      |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (4 items)                           |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | 0 items proposed                            |
+  | Approved Mockups     | 0 generated (no OpenAI key), 0 approved     |
+  | Decisions made       | 9 added to plan                             |
+  | Decisions deferred   | 0                                           |
+  | Overall design score | 2/10 → 8/10                                 |
+  +====================================================================+
+```
+
+Outside design voices: skipped (D2). Unresolved design decisions: none.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run for this plan |
-| Outside Review | codex (`/plan-eng-review` outside voice) | Independent 2nd opinion | 1 | unavailable | Codex not installed; in-host Fable 5.1 fallback ran: 7 findings (1 P1 confirmed → D4) |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | issues_open (mapped work) | 47 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | not run for this plan |
-| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 3 | clean (latest, 2026-10-01, another plan) | not run for this plan |
+| Outside Review | codex (`/plan-eng-review` outside voice) | Independent 2nd opinion | 36 | unavailable | Codex not installed; in-host Fable 5.1 fallback: 7 findings (1 P1 confirmed → D4) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 48 | issues_open (mapped work) | 47 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 19 | clean | score: 2/10 → 8/10, 9 decisions |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 9 | — (not run for this plan) | — |
 
-- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable (CLI not installed). In-host fallback on Fable 5.1 completed with findings; it does not count as outside coverage.
-- **VERDICT:** no review is CLEAR for this plan. The Eng Review is issues_open because its 47 findings are mapped build work; every decision (D1–D6) is ruled. eng review required
+- Runs are this branch's logged totals across every plan. Status and findings describe THIS plan.
+- **OUTSIDE COVERAGE:** codex, plan-review phase: unavailable (CLI not installed), in-host Fable 5.1 fallback completed with findings, which is not outside coverage. Design phase: outside voices skipped (D2).
+- **VERDICT:** DESIGN CLEARED. The Eng Review is issues_open because its 47 findings are mapped build work; every decision (eng D1–D6, design 1A–7.2A) is ruled. eng review required
 NO UNRESOLVED DECISIONS
