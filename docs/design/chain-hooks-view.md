@@ -1,6 +1,6 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: BUILT 2026-10-08 (local; §As built) — apply 0057 live, then push.** RULED, ENG-REVIEWED, DESIGN-REVIEWED and ENG-RE-REVIEWED the same day. Re-run: RT1–RT5 (plain mark buttons, Change date disabled while a write is in flight, an e2e spec for print + axe). Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
+**Status: LIVE 2026-10-08** (0057 applied, verify-0057 12/12 live; pushed `c9f9eedc`, CI green; 13 hooks mirrored and read back live; receipt B-130). RULED, ENG-REVIEWED, DESIGN-REVIEWED and ENG-RE-REVIEWED the same day. Re-run: RT1–RT5 (plain mark buttons, Change date disabled while a write is in flight, an e2e spec for print + axe). Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
 
 ## What a hook is (re-derived from curriculum `main` b74e02a, graph v0.17.19)
 
@@ -1557,7 +1557,7 @@ Built in one session on `main`, unpushed. Commits: `dd1a353a` (T1, T2),
 4. **Not built:** the optional importer read of `hook-ids-retired.txt`. Their
    generator already gates it (C-97).
 
-**Pending author actions, in order:**
+**Pending author actions, in order (ALL DONE 2026-10-08; one lesson: a mirrors-only run from an empty folder also rewrites the docs manifests, so restore them from git afterwards):**
 1. Apply 0057 live.
 2. Run `pnpm verify:auth --target live --only verify-0057`.
 3. Push `main` (OV-7: the UI calls the new RPC, so apply first).
