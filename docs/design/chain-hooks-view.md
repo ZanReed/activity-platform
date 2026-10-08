@@ -1,11 +1,6 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: RULED by the author 2026-10-08 (§Rulings at the end). The joint half
-(CH-2, CH-5) was AGREED by the curriculum side in C-97 (§Joint contract); the build
-waits for their generator PR.** Nothing is built and no migration exists. Scheduled by the author
-2026-10-08: "easier for me to also see them if they are held within the app
-rather than a raw text file". TODOS → "Teacher guides: a teacher-only field and
-generated teacher views" holds the queue entry.
+**Status: RULED and ENG-REVIEWED (2026-10-08).** Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
 
 ## What a hook is (re-derived from curriculum `main` b74e02a, graph v0.17.19)
 
@@ -358,3 +353,665 @@ graph v0.17.20; after it merges there are 5 chains with pools and 13 hooks).
   `chain-hooks.md` rule + the "…to students" amendment), after #54 and on
   Zan's go. They send it to us for a pre-merge check against this import plan
   before Zan merges.
+
+---
+
+# Eng review (plan-eng-review, 2026-10-08)
+
+**Target:** this file, `docs/design/chain-hooks-view.md` (ruled CH-1..CH-12 +
+CH-9a-d, joint contract agreed in C-97), reviewed at platform `main` cd0ac386.
+Everything above the line is the plan as ruled; this section and below is the
+review.
+
+## Scope record
+
+feature answers: none proposed (the feature list was ruled item by item
+2026-10-08); structure: A, Smaller arrangement (D1, author 2026-10-08);
+accepted scope: one migration with `chain_hook` + `class_hook_use`, the service
+sync `sync_chain_hooks`, ONE teacher read RPC `my_chain_hooks()`, no client
+select policy on `chain_hook`, `class_hook_use` read and written directly under
+`is_class_teacher` RLS; app = `lib/chainHooks.ts`, a lazy chain route with
+route-scoped CSS, the Activities-list link, the drawer link; pending remedies:
+none. **Scope Challenge result: scope accepted as-is** (the smaller arrangement
+keeps every ruled feature).
+
+**This replaces CH-6's two read paths.** Owner and copier both read through
+`my_chain_hooks()`. It returns every live pool for every chain in which the
+caller owns a non-deleted activity, either through that activity's own
+`source_path` or, for a Bank copy, through its original's `source_path`. It
+also returns the activity → chain map, so the list knows which unit gets which
+link.
+
+## Scope Challenge findings (factual corrections, no question needed)
+
+1. **[P2] (9/10) CH-3's mass-retire guard is misdescribed.** The plan says
+   "more than half … without `--force`". The importer's real guard is
+   `scripts/batch-import.mjs:1888-1893`: "EN-12: more than 25, OR more than
+   20% of the active entries AND more than 5", overridden by
+   `--allow-mass-retire`. **Correction:** reuse `isMassRetire` and the
+   existing flag. One consequence to state: with pools this size (9 hooks
+   today, 13 after their #54), no realistic retire trips it (the `> 5` floor).
+   That is acceptable because a retire is reversible: the next good file
+   un-retires, and marks survive (CH-5). The dry run prints every retire by id.
+2. **[P2] (9/10) CH-9d's "marks … go with its purge" is false.** Prior
+   learning applied: `class-rows-never-purged-and-purge-is-explicit`
+   (9/10, from 2026-10-01). Classes are only soft-deleted, and the account
+   purge refuses a teacher who still has classes
+   (`0050_fact_sprint.sql:1374`, "or exists (select 1 from classes x where
+   x.teacher_id = v_uid"). **Correction:**
+   - `class_hook_use.class_id` references `classes(id) on delete cascade`,
+     correct but inert today;
+   - a mark lives as long as its class row, which today means indefinitely;
+   - the data-map and retention-policy rows say exactly that (teacher planning
+     state, no student data).
+   The ruled behavior, "marks belong to the class", is unchanged.
+3. **[P2] (9/10) Shell CSS has 0.1 KiB of headroom.** Today's dist reads
+   "shell CSS (entry, gz) 14.9 KiB (cap 15.0 KiB)". **Correction:** the chain
+   page's screen and print CSS ship in a route-scoped file imported by the lazy
+   route, the way `routes/FactsTeacher.tsx:56` imports
+   `'../practice/factsTeacher.css'`. Nothing goes in `index.css`. Shell JS is
+   154.6 / 158.0 (stop line 156.5). The new `lazy()` line costs bytes, not
+   KiB, but CI's budget check is the proof.
+4. **[P3] (8/10) CH-9a's "records today" needs a timezone.** The author is in
+   NZ and colleagues in the US. **Correction:** the default date is the
+   BROWSER's local date (the `Intl.DateTimeFormat().resolvedOptions().timeZone`
+   pattern at `routes/FactsTeacher.tsx:238`), sent as a `date`. Never the
+   server's `now()::date`, which is UTC and would stamp an NZ morning as
+   yesterday.
+
+Distribution: no new artifact. No Edge Function, no committed bundle, no
+sanitize change, so no redeploy. The one ordering rule is OV-7: the author
+applies the migration before the UI is pushed.
+
+## Section 1: Architecture
+
+```
+ curriculum main                         platform
+ ───────────────                         ────────
+ curriculum-graph.json
+   └─ generate_hook_registry.py ─► hook-registry.json (revision, chains{id:[hooks]})
+                                        │  pnpm import:batch --hook-registry F
+                                        ▼
+                             importer: checkFactRegistryRevision(F) ── mismatch → refuse
+                                       chain_id ∈ chain-registry folders (strip ^\d+-)? ─ no → warn/--strict fail
+                                       connects_to ∈ skills-registry? ─ no → warn/--strict fail
+                                        │ rpc sync_chain_hooks(owner, hooks, apply=false)  (dry run report)
+                                        │ isMassRetire? ─ yes, no --allow-mass-retire → refuse
+                                        ▼ rpc sync_chain_hooks(…, apply=true)   [service role only]
+                             chain_hook (owner_id, hook_id) ── retire, never delete
+                                        │
+ teacher browser ── rpc my_chain_hooks() [definer, current_user_is_teacher()]
+   │                 activities a (owner = me, not deleted)
+   │                   chain = strip(folder(a.source_path))
+   │                        ?? strip(folder(original(a.copied_from_activity_id).source_path))
+   │                 hooks = chain_hook where owner = (a.owner | original.owner), retired_at null
+   │                 → jsonb { activityChains: {activity_id: chain_id}, chains: {chain_id: [hooks…]} }
+   ├─ Activities list: "Hooks (n)" per distinct chain among a unit's members
+   ├─ /chains/:chainId: pool (literal text) + that chain's activities in order
+   │     └─ class picker → class_hook_use (RLS is_class_teacher) → dim + date badge
+   └─ editor drawer: "This unit's hooks →" when the activity has a chain
+```
+
+**Findings, most severe first:**
+
+1. **[P1] (9/10) `my_chain_hooks()` must check that the caller is a teacher.**
+   Students hold authenticated sessions too. Today they own no activities: the
+   insert policy requires a teacher, per the 0013 comment "Containment —
+   authoring policies require a teacher" (`0013_student_identity.sql:135`). A
+   definer function bypasses RLS, though, so the gate goes inside it, using the
+   existing `current_user_is_teacher()` helper (`0013:114`). That helper also
+   excludes a deleted account. This is required proof of the ruled "teachers
+   only" (CH-6), not a choice. Verify row: a student session gets an empty
+   result even when an activity row is planted with the student as its owner.
+2. **[P2] (8/10) A copy's original may be soft-deleted or hard-deleted.**
+   `copied_from_activity_id … on delete set null`
+   (`0054_activity_bank.sql:55`): a hard delete cuts the link, and the copy
+   loses its hooks with no error. A SOFT delete leaves the original's row and
+   folder readable on the server. What the copier sees then is a choice: **D2**.
+3. **[P2] (8/10) A unit group can hold more than one chain.** The list groups
+   by unit STRING (`lib/activityGrouping.ts`). The importer warns when two
+   chains share a title (`batch-import.mjs:532`, "Two chains resolving to the
+   SAME display title"), and a hand-made activity can carry a chain's unit
+   title. **Behavior (detail of the ruled CH-7):** one "Hooks (n)" link per
+   distinct chain among the group's members, normally exactly one; no link
+   when no member has a chain.
+4. **[P2] (8/10) Activities fail-soft.** An Activities page whose hook RPC
+   fails must still render the list. This is a regression risk with history:
+   a push before an apply once broke the Activities list. Settled as a
+   regression contract in Section 3.
+5. **[P3] (7/10) Copy of a copy.** Corrected by the outside voice (#3): it is
+   not unreachable, it FAILS SAFE. A copy-of-a-copy carries no `source_path`,
+   so it resolves to no chain. Originally written: "Not reachable." A copy can never be listed
+   (`0055_bank_authors.sql:197`, "and a.copied_from_activity_id is null" in
+   `list_bank`), so it cannot be copied, and one join from copy to original is
+   complete. Recorded so the build does not add a recursive walk.
+
+Dispositions (Section 1): #1 accepted as required proof of CH-6 (no question); #2 D2 → A, keep the hooks; #3 accepted as a detail of CH-7; #4 settled as the D3 regression contract; #5 evidence only.
+
+## Section 2: Code quality
+
+1. **[P1] (9/10) Hook warnings must be routed into `catalogueWarnings`, or
+   `--strict` will not fail on them.** Prior learning applied:
+   `batch-import-strict-ignores-importer-warnings` (9/10, from 2026-10-03).
+   `--strict` fails only on binding, catalogue and glossary warnings. CH-3's
+   "unknown chain / unknown skill fails `--strict`" holds only if those
+   warnings go into the catalogue list explicitly. This is required proof of
+   CH-3. The test is a strict run with an unknown chain id exiting non-zero.
+   Measure the exit with no pipe (prior learning `pipe-exit-code-artifact`).
+2. **[P2] (9/10) Reuse the revision check as it is.**
+   `checkFactRegistryRevision(registry)` (`batch-import.mjs:187-191`) reads
+   only `registry?.header?.revision` and hashes `canonicalJson(registry.body)`,
+   so it is already generic over any `{header, body}` file. Call it for the
+   hook registry; do not copy it. A rename is optional and not worth a
+   separate change.
+3. **[P2] (8/10) A missing migration must fail soft, with the fix named.**
+   The importer already classifies missing objects
+   (`batch-import.mjs:1885`, `/\b(PGRST205|PGRST202|42P01|42883)\b/`). The
+   hook mirror goes through that path and prints "apply 00NN" the way the
+   glossary mirror does, rather than crashing the whole run. This is required
+   by the migration-before-push ordering.
+4. **[P3] (7/10) Shared-code rubric: keep `sync_chain_hooks` separate from
+   `sync_glossary_entries` (extraction REJECTED).** They have the same shape:
+   upsert, retire the absent, un-retire the returning, `p_apply` dry run,
+   moving `updated_at` only on real change (`0043 §C`). But the tables and
+   columns differ. The only plpgsql generic is dynamic SQL, which is less
+   explicit and harder to verify than two short functions. Savings would be
+   about 40 lines removed and about 50 added for the generic version: net
+   growth, so no extraction.
+5. **[P3] (7/10) `position` is derived, not authored.** The sync writes each
+   hook's array index as `position`, and a reorder counts as `changed`, so the
+   dry run shows it. Pool order is the authored order (C-97 (a)).
+6. **[P3] (6/10) Medium confidence, verify at build: the date input.** The
+   CH-9a editable date is a native `<input type="date">` with `max` set to the
+   browser's local today (reuse ladder rung 3). The column is `date not null`.
+   No picker library.
+
+Dispositions (Section 2): #1, #3 accepted as required proof; #2 accepted reuse; #4 extraction rejected (rubric); #5, #6 accepted details. No questions.
+
+## Section 3: Tests
+
+Grounded in the existing harnesses: `packages/app/src/__tests__/Activities.test.tsx`
+(hoisted `from`/`rpc` mocks, `lib/bank` mocked so rpc counts stay about
+deleting), `scripts/tests/batch-import.test.mjs` (2,737 lines, the importer
+suite), and the verify-script pattern of `scripts/verify-0043.sql` /
+`verify-0054.sql`. Every path below is PROPOSED, so every row is a gap the
+build must fill. Nothing is claimed as already covered.
+
+```
+CODE PATHS                                               USER FLOWS
+[+] scripts/batch-import.mjs --hook-registry             [+] Author imports hooks
+  ├── revision re-derived (checkFactRegistryRevision)      ├── [GAP] dry run prints new/changed/retired/unretired
+  │   ├── [GAP] match → continue                           └── [GAP] real run, then the four pools on the chain page [→E2E manual, author]
+  │   └── [GAP] mismatch → refuse, names the file
+  ├── chain_id vs chain-registry folders (strip ^\d+-)   [+] Teacher (owner) opens a unit
+  │   ├── [GAP] unknown → warn                             ├── [GAP] "Hooks (n)" on a unit with a pool, none without
+  │   └── [GAP] unknown + --strict → exit ≠ 0              ├── [GAP] chain page: prompt, "Opens: <label>", note, pool order
+  ├── connects_to vs skills-registry (same two rows)       └── [GAP] `$4` renders as `$4` (literal text)
+  ├── missing table/RPC → fail soft, names 00NN [GAP]
+  └── isMassRetire → refuse w/o --allow-mass-retire [GAP] [+] Colleague with a Bank copy
+[+] sync_chain_hooks (service only)                        ├── [GAP] sees the original unit's pool [→verify SQL]
+  ├── [GAP] apply=false writes nothing, same report        └── [GAP] original soft-deleted → still sees it (D2)
+  ├── [GAP] retire absent / un-retire returning           [+] Used marks (CH-9)
+  ├── [GAP] updated_at moves only on change                ├── [GAP] pick class → mark → dimmed + date badge
+  └── [GAP] anon/authenticated cannot execute              ├── [GAP] edit date → one row, new date
+[+] my_chain_hooks (definer)                               ├── [GAP] other class → undimmed
+  ├── [GAP] owner: own chains only                         └── [GAP] unmark → row gone
+  ├── [GAP] copier: original's pool via copied_from      [+] Error states (D3)
+  ├── [GAP] no activity in chain → nothing                 ├── [GAP] list renders unchanged when the read rejects  CRITICAL
+  ├── [GAP] student session → empty (planted row too)      └── [GAP] chain page "Couldn't load hooks" + Retry refetches
+  └── [GAP] retired hooks excluded
+[+] class_hook_use RLS (is_class_teacher)
+  ├── [GAP] other teacher: no read, no write
+  └── [GAP] student: nothing
+[+] Activities list: links per distinct chain [GAP]; existing rows/delete/undo/listing [★★★ TESTED, must stay green]
+
+COVERAGE: 0/33 proposed paths tested (all new)  |  existing Activities behavior: tested, at risk → CRITICAL regression row
+QUALITY: n/a (no new tests yet)  |  GAPS: 33 (1 manual E2E)
+Legend: ★★★ behavior + edge + error  |  ★★ happy path  |  ★ smoke  |  [→E2E] integration
+```
+
+**Required tests (all proof of approved behavior; no new policy, so no
+further question):**
+
+| file | asserts | kind | value card |
+|---|---|---|---|
+| `scripts/tests/batch-import.test.mjs` (extend) | fixture hook registry → exact dry-run counts; revision mismatch refuses; unknown chain and unknown skill each fail `--strict` (exit measured without a pipe); missing-RPC fails soft naming 00NN; mass retire refuses without the flag | unit | protects=the mirror never writes a wrong or tampered file; fails_when=revision check, strict routing or guard is removed; why_new=no hook path exists; seam=none |
+| `scripts/verify-00NN.sql` (new, added to `AUTH_VERIFY_SET`) | sync is service-only; apply=false writes nothing; retire/un-retire; owner reads own pools via `my_chain_hooks`; copier reads the original's pool; copier with the original SOFT-deleted still reads it (D2); teacher with no activity in a chain reads nothing; student session reads nothing even with a planted owned row; `class_hook_use` other-teacher read/write refused, student refused; a mark on a retired hook survives and returns on un-retire | SQL verify | protects=teachers-only, copy scope, class scope; fails_when=the teacher gate, the copy join or `is_class_teacher` is dropped; why_new=new tables and RPCs; seam=none |
+| `packages/app/src/__tests__/Activities.test.tsx` (extend) | mock `lib/chainHooks` like `lib/bank`; one link per distinct chain with a live pool, none without; **CRITICAL:** rejecting read → rows, delete/undo and listing behave exactly as before, no notice (D3) | unit | protects=the list survives a failed or missing hook RPC; fails_when=the fetch is awaited inside the list load or an error bubbles; why_new=the 0054 push-before-apply incident; seam=none |
+| `packages/app/src/__tests__/ChainHooks.test.tsx` (new) | sentinel prompt renders; note containing `$4` renders `$4`; pool order kept; "Opens: <label>"; class picker → mark → dimmed with date; other class undimmed; edit date keeps one row; failure → "Couldn't load hooks" + Retry refetches (D3) | unit | protects=literal rendering, per-class marks, the honest error; fails_when=text goes through the markdown renderer, or marks key on the wrong class; why_new=new route; seam=none |
+| drawer link (extend the config-drawer test) | "This unit's hooks →" shows only when the activity has a chain | unit | protects=no dead link on a hand-made activity; fails_when=the link renders unconditionally; why_new=new element; seam=none |
+
+**Mutation tests, one per guard, run once on the day each is written:**
+- drop `current_user_is_teacher()` from `my_chain_hooks`: the student row goes red;
+- drop the copy join: the copier row goes red;
+- add a `deleted_at is null` on the original: the D2 row goes red;
+- route the note through the markdown renderer: the `$4` test goes red;
+- await the hook fetch inside the list load and reject it: the CRITICAL list test goes red.
+
+**Tests made obsolete by this plan:** none.
+
+Dispositions (Section 3): the regression contract is D3 → A; every table row above is accepted as proof of approved behavior.
+
+## Section 4: Performance
+
+1. **[P3] (8/10) Fetch the hooks alongside the list, never before it.**
+   `my_chain_hooks` runs in parallel with the Activities list query and
+   resolves into link state afterwards. One extra round trip, off the list's
+   critical path (this is also what D3's contract tests).
+2. **[P3] (7/10) Scale.**
+   - One teacher owns about 150 activities (the planned catalogue), across at
+     most 17 chains with pools.
+   - The RPC joins the caller's activities through the existing partial index
+     `activities_owner_idx on activities (owner_id) where deleted_at is null`
+     (`0001_initial_schema.sql:111`) and at most one original per copy (PK).
+   - It reads `chain_hook` by its primary-key prefix `(owner_id, …)`. The
+     result is a few KB of jsonb.
+   - `class_hook_use` reads by PK prefix `class_id`.
+   - No index is added beyond the two primary keys. Revisit only if a teacher
+     passes about 1,000 activities.
+3. **[P3] (8/10) No caching layer.** The data changes only when an import
+   runs, and one call per page load is cheaper than any invalidation scheme.
+
+Dispositions (Section 4): all accepted as build details. No questions.
+
+## Outside voice
+
+Codex preflight: `CODEX_MODE: not_installed`, so outside-model coverage is
+unavailable (install with `npm install -g @openai/codex`). As the author
+pre-authorized ("consider Fable for the outside opinion if it seems needed"),
+the second opinion ran as ONE read-only Claude subagent on **Fable 5.1**
+(`claude-fable-5-1`, Plan type, foreground). It is a different model in the
+same harness, so it is recorded as an in-host fallback, NOT as outside
+coverage.
+
+```
+OUTSIDE VOICE (Claude subagent, Fable 5.1), summarized faithfully; findings verified by the parent:
+1 High:   my_chain_hooks' copier hop trusts activities.copied_from_activity_id, which any teacher can
+          rewrite (update policy has no column list, no trigger). Point an owned row at any uuid ->
+          read that owner's hooks for ANY chain, listed or not. Verify script as drafted would pass.
+2 Medium: source_path is equally client-writable; safe because the direct branch keys on the caller's
+          own owner_id. Pin it with a verify row. The importer moves source_path (0041), so an
+          original's chain can change under a copier (intended; state it).
+3 Medium: "copy of a copy unreachable" is UI-only: copy_bank_activity never checks copied_from is null,
+          and visibility is client-writable. A copy-of-a-copy has no source_path, so it fails safe.
+          Pre-existing: a direct visibility write also bypasses is_bank_lister.
+4 Medium: the build need not wait for their generator PR; the shape is fixed, the revision check is
+          generic, tests run on a fixture. Only the live import depends on the PR.
+5 Low:    class_hook_use WITH CHECK must pin marked_by = auth.uid(); marked_by -> users needs an explicit
+          on delete (default NO ACTION would be a new, unlisted purge blocker, 0050:1370-1380).
+6 Low:    the {chain_id: [hooks]} result shape cannot hold two owners' pools for one chain.
+7 Low:    readChainRegistry (batch-import.mjs:502) does not strip ^\d+- today; the chain check is new parsing.
+Checked clean: teacher gate, copy-then-delete, students, the mass-retire correction, the p_owner existence check.
+Recommendation (theirs): hold the build until #1 has a ruled fix.
+```
+
+**Parent verification:**
+- **#1 CONFIRMED (9/10).** `0013_student_identity.sql:152-157`:
+  `alter policy activities_update_own … with check (owner_id = (select
+  auth.uid()) and (select current_user_is_teacher()))`. No column list.
+  `grep` finds no trigger on `activities` and no column-level grant. The
+  INSERT policy (`0013:146`) is equally open, so a teacher can also INSERT a
+  row carrying any `copied_from_activity_id`. The honest copy path writes it
+  only inside `copy_bank_activity`, a SECURITY DEFINER function
+  (`0054:251-316`, which also writes an `activity.bank_copy` audit row). →
+  **D4.**
+- **#2 accepted** as required proof: verify row "a teacher with a hand-set
+  `source_path` and no pool of their own reads nothing".
+- **#3 accepted as a correction:** Section 1 #5 should read "fails safe", not
+  "unreachable". The `visibility` / `is_bank_lister` bypass is pre-existing
+  Bank scope, filed as a TODO (below), not fixed here.
+- **#4 is a sequencing choice** against ruled CH-12 → **D5.**
+- **#5 accepted as a detail:** `with check (marked_by = (select auth.uid()) and
+  is_class_teacher(class_id))`, and `marked_by … on delete set null`, keeping
+  it off the purge's hand-kept blocker list.
+- **#6 accepted, following the BK-7 precedent** ("The copy owner's entry for a
+  term always wins", `0054:322-324`): the caller's own pool for a chain wins,
+  and the original owner's is the fallback. One pool per `chain_id` in the
+  result.
+- **#7 accepted as a correction:** the chain check builds a new
+  folder→chain_id map (strip `^\d+-`) from `readChainRegistry`'s entries.
+
+## Decision ledger
+
+### R1: what a copier sees when the Bank original is soft-deleted
+Finding: Section 1 #2, P2, confidence 8/10, `0054_activity_bank.sql:55`, reviewer: Claude (plan-eng-review).
+Plan baseline: unspecified. CH-6 ruled "owner plus Bank copiers"; it did not cover a deleted original.
+Runtime evidence: `copied_from_activity_id uuid references activities(id) on delete set null` (0054:55). Activities are soft-deleted (`deleted_at`) by the client, and the row survives until purge. The original owner's `chain_hook` rows are unaffected by deleting one activity.
+Comparison grid:
+
+| Choice | Current | A | B |
+|---|---|---|---|
+| R1 soft-deleted original | unspecified, pending | copier keeps the pool (resolve chain from the original's row regardless of its `deleted_at`) | copier loses the pool (join requires the original `deleted_at is null`) |
+| Hard-deleted original | link nulled, no hooks (fixed by FK) | unchanged | unchanged |
+| Teacher-only gate (Sec 1 #1) | required proof of CH-6 | unchanged | unchanged |
+
+Question D2:
+D2 — When the original of a Bank copy is deleted, does the copier keep the unit's hooks?
+Project/branch/task: main, the chain hook view build (my_chain_hooks read RPC).
+ELI10: A colleague's copy finds its unit's hooks through your original activity. If you delete that original (a soft delete, so the row still exists on the server), the server can still see which unit it was in. We can keep showing the colleague the hooks, or stop.
+Stakes if we pick wrong: a colleague mid-unit loses their hooks because you tidied your library, or deleted content stays reachable.
+Recommendation: A because the hooks belong to the unit, not to that one activity row, and the copier's own activity still exists.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Keep the hooks (recommended)
+  ✅ A colleague teaching a copy keeps their hook pool when the author tidies or deletes the original activity
+  ✅ Matches the copy itself, which also survives the original's deletion (copy-on-use, BK-1)
+  ❌ Hooks stay reachable through a deleted row until a hard delete nulls the link (FK on delete set null)
+B) Drop the hooks
+  ✅ Deleting the original cleanly removes everything reached through it, with no lingering link
+  ❌ A colleague's chain page goes empty mid-unit with no explanation, for an action they did not take
+Net: keeping the pool follows the copy's own survival rule; dropping it is tidier but surprises the copier.
+Header: D2 Deleted orig
+Options:
+A) Keep the hooks (recommended)
+The copier still sees the unit's hook pool after the original is soft-deleted; my_chain_hooks resolves the chain from the original's row whatever its deleted_at. A hard delete still cuts the link (FK). Verify row: soft-delete the original, the copier still gets the pool. Human ~10 min / CC ~2 min.
+B) Drop the hooks
+The copier stops seeing the pool once the original is soft-deleted; the join requires the original's deleted_at is null. Verify row: soft-delete the original, the copier gets no pool. Human ~10 min / CC ~2 min.
+
+State: approved
+Actual answer: A) Keep the hooks (author, D2, 2026-10-08)
+Accepted scope: my_chain_hooks resolves a copy's chain from the original's row whatever its deleted_at; a hard delete still cuts the link through the FK; verify row "soft-delete the original, the copier still gets the pool". The teacher-only gate and the hard-delete behavior are unchanged.
+History: none
+
+### R2: regression contract, the Activities list and the chain page when the hook read fails
+Finding: Section 1 #4 / Section 3 regression rule, P1, confidence 8/10, `packages/app/src/__tests__/Activities.test.tsx:26-59` (the list load + rpc mocks), reviewer: Claude (plan-eng-review). History: a push before an apply once broke the Activities list (memory activity-bank-0054); `my_chain_hooks` is a NEW RPC, so the same window exists (PGRST202 until 00NN is applied).
+Plan baseline: unspecified. CH-7 ruled the link and the page; failure behavior was not covered.
+Runtime evidence: Activities loads `from('activities')…order()` and the Bank lister flag; any rejected promise in that path is today's blast radius. The tests mock `lib/bank` precisely so rpc call counts stay about deleting (`:49-51`).
+Comparison grid:
+
+| Choice | Current | A | B | C |
+|---|---|---|---|---|
+| R2 list when the read fails | n/a (no read) | list renders unchanged, no hook links, no notice | same as A | list renders, small "Hooks unavailable" note |
+| R2 chain page when the read fails | n/a | "Couldn't load hooks" + Retry | blank pool, no notice | "Couldn't load hooks" + Retry |
+| Existing list behavior (rows, delete/undo, listing) | tested | preserved; tests mock `lib/chainHooks` like `lib/bank` | same | same |
+| D2 soft-deleted original | approved A | unchanged | unchanged | unchanged |
+
+Question D3:
+D3 — What do teachers see if the hook lookup fails?
+Project/branch/task: main, the chain hook view build (Activities list + chain page).
+ELI10: The Activities list will make one extra call to fetch hook pools. If that call fails, for example in the gap between pushing the page and applying the migration (this exact gap once broke the Activities list), the list must still work. The question is what the teacher sees instead of hooks, and the tests will lock that in.
+Stakes if we pick wrong: the Activities list breaks for every teacher on a failed call, or hooks vanish with no sign anything is wrong.
+Recommendation: A because the list's job is the list, so it stays quiet, while on the chain page the hooks ARE the content, so it says so and offers Retry.
+Completeness: A=10/10, B=7/10, C=9/10
+Pros / cons:
+A) Quiet list, page says so (recommended)
+  ✅ The Activities list renders exactly as today when the lookup fails; only the hook links are missing
+  ✅ The chain page names the failure and offers Retry, so a teacher is never left with a silently empty pool
+  ❌ A teacher on the list alone gets no sign that the hook links are temporarily missing
+B) Quiet everywhere
+  ✅ Smallest UI: no error states to design, word or test beyond "does not crash"
+  ❌ A failed load on the chain page looks exactly like a chain with no hooks: a silent failure
+C) Note on both
+  ✅ Every surface tells the teacher when hooks could not load
+  ❌ A note on the list during a deploy gap shows to every teacher for a feature most units do not have yet
+Net: protect the list absolutely, and be honest only where hooks are the point.
+Header: D3 Read fails
+Options:
+A) Quiet list, page says so (recommended)
+Contract: the list renders unchanged when my_chain_hooks rejects or is missing (no links, no notice); the chain page shows "Couldn't load hooks" with Retry. Tests: list with a rejecting lib/chainHooks still renders rows and delete/undo; chain page shows the error and Retry refetches; existing Activities tests mock lib/chainHooks like lib/bank. Human ~1.5 h / CC ~15 min.
+B) Quiet everywhere
+Contract: both surfaces render without hooks and show nothing on failure. Tests: the list renders with a rejecting lib/chainHooks; the chain page renders an empty pool. Human ~1 h / CC ~10 min.
+C) Note on both
+Contract: the list shows a small "Hooks unavailable" note and the chain page shows "Couldn't load hooks" with Retry. Tests: both notices render on rejection; the list still renders rows and delete/undo. Human ~2 h / CC ~20 min.
+
+State: approved
+Actual answer: A) Quiet list, page says so (author, D3, 2026-10-08)
+Accepted scope: the list renders unchanged when my_chain_hooks rejects or is missing (no links, no notice); the chain page shows "Couldn't load hooks" with Retry. Tests: list with a rejecting lib/chainHooks still renders rows and delete/undo; chain page shows the error and Retry refetches; existing Activities tests mock lib/chainHooks like lib/bank. D2 stays approved A.
+History: none
+
+### R3: close the copy-provenance forgery before the copier hop ships
+Finding: Outside voice #1, P1 (security), confidence 9/10, `supabase/migrations/0013_student_identity.sql:146,152-157`, reviewer: Fable 5.1 subagent, verified by the parent.
+Plan baseline: CH-6 (owner + Bank copiers), D1 (one RPC `my_chain_hooks`), D2 (A, keep hooks when the original is soft-deleted). All three assumed `copied_from_activity_id` is written only by `copy_bank_activity`.
+Runtime evidence: no trigger on `activities`, no column grant; the insert and update policies check only `owner_id = auth.uid()` and `current_user_is_teacher()`. So any teacher can set `copied_from_activity_id` on an owned row to any activity id that reaches them (student links carry it, `/a/:activityId`). Precedent for the fix: `users_timezone_guard` (`0036_check_rollup.sql:64-95`), "current_user is the CLIENT role under PostgREST ('authenticated'/'anon'); definer functions run as their owner".
+Comparison grid:
+
+| Choice | Current | A | B | C | D |
+|---|---|---|---|---|---|
+| R3 provenance columns | client-writable on insert and update | BEFORE INSERT OR UPDATE trigger on `activities` refuses a client-role (`authenticated`/`anon`) insert carrying, or update changing, `copied_from_activity_id`/`copied_from_version_id`; `copy_bank_activity` (definer) and the importer (service) unaffected | unchanged (accept the hole) | unchanged; investigate only | unchanged; decide later |
+| Copier hop in `my_chain_hooks` | approved CH-6/D1 | ships, gated on trusted provenance | ships on forgeable provenance | waits on the investigation | waits |
+| D2 soft-deleted original | approved A | unchanged | unchanged | unchanged | unchanged |
+| Verify | drafted | + forged insert refused, + forged update refused, + honest copy still works, + a forged row reads no pool; mutation: drop the trigger, forged rows go red | none added | none | none |
+
+Question D4:
+D4 — Lock the "copied from" link so it cannot be forged?
+Project/branch/task: main, the chain hook view build (my_chain_hooks copier hop); found by the Fable outside voice, confirmed in 0013:146-157.
+ELI10: A colleague's copy finds your hooks through a hidden "copied from" link on their activity. Today any teacher can write that link themselves, pointing it at ANY activity whose id they can see (every student link contains one). The server would then hand them that unit's hooks, including the answer-bearing notes, even for units you never put in the Bank. The fix is a small database guard: only the real copy button (and the importer) may set that link. A guard of this exact kind already protects a column on users.
+Stakes if we pick wrong: any teacher account, or a student who self-attests as a teacher, can read hook notes for any unit by planting one link.
+Recommendation: A because it closes the hole at its root for every reader of the link (this feature, the glossary fallback, the Bank's "From the Activity Bank" label), with a precedent already in the repo.
+Completeness: A=10/10, B=3/10, C=5/10, D=3/10
+Pros / cons:
+A) Apply this change (recommended)
+  ✅ The copier hop can trust the link: only copy_bank_activity and the service-role importer can ever write it
+  ✅ Reuses the users_timezone_guard pattern (0036) that the repo already verifies and relies on
+  ❌ One more trigger on activities, a hot table, though it only compares two columns per write
+B) Keep this row's current value
+  ✅ No migration change beyond the ruled build
+  ❌ Ships teacher-only answer notes behind a link any teacher can forge: the plan's central safety claim fails
+C) Investigate before choosing
+  ✅ Leaves time to weigh the alternatives (gate on the bank_copy audit row, or drop the copier hop from v1)
+  ❌ Blocks the copier hop and its verify rows until a second round; the trigger is already the precedent-backed answer
+D) Defer this proposed change only
+  ✅ Lets the rest of the review finish now
+  ❌ Leaves R3 unresolved, and the copier hop cannot be built safely until it is answered
+Net: a ten-line guard with a repo precedent, against shipping a forgeable door to answer-bearing notes.
+Header: D4 Lock link
+Options:
+A) Apply this change (recommended)
+Add a BEFORE INSERT OR UPDATE trigger on activities that raises when current_user in ('authenticated','anon') inserts a row with copied_from_activity_id/copied_from_version_id set, or changes either on update. copy_bank_activity (definer) and the importer (service role) are unaffected. Verify rows: forged insert refused, forged update refused, honest copy still works, a forged row reads no pool; mutation: drop the trigger, those rows go red. Human ~1 h / CC ~10 min.
+B) Keep this row's current value
+No guard; the copier hop resolves provenance as written, and a teacher who writes the link reads that owner's hooks. No new verify rows. Human 0 / CC 0.
+C) Investigate before choosing
+Bounded: compare the trigger with an audit-row gate (activity.bank_copy, 0054:310) and with dropping the copier hop, report back, implement nothing. The copier hop and its verify rows wait; every other approved item is unchanged. Human ~1 h / CC ~15 min.
+D) Defer this proposed change only
+R3 stays unresolved and the copier hop cannot be built until it is answered; every other approved item is unchanged. Human 0 / CC 0.
+
+State: approved
+Actual answer: A) Apply this change (author, D4, 2026-10-08)
+Accepted scope: a BEFORE INSERT OR UPDATE trigger on activities that raises when current_user in ('authenticated','anon') inserts a row with copied_from_activity_id/copied_from_version_id set, or changes either on update; copy_bank_activity (definer) and the importer (service role) unaffected. Verify rows: forged insert refused, forged update refused, honest copy still works, a forged row reads no pool; mutation: drop the trigger, those rows go red. The copier hop ships gated on this; D2 stays A.
+History: none
+
+### R4: build order, start before the curriculum generator PR lands?
+Finding: Outside voice #4, P2, confidence 8/10, this file's CH-12 ("Their generator lands … → This side builds") and §Joint contract ("They send it to us for a pre-merge check against this import plan"), reviewer: Fable 5.1 subagent.
+Plan baseline: CH-12 as ruled 2026-10-08: their generator first, then our build, then the author applies, then the import.
+Runtime evidence: the file shape is fixed (C-97, "No additions"); `checkFactRegistryRevision` is already generic (`batch-import.mjs:187-191`); the importer suite runs on fixtures (`scripts/tests/batch-import.test.mjs`). A pre-merge check of a generated file can only run a real dry run against a working `--hook-registry` flag.
+Comparison grid:
+
+| Choice | Current | A | B | C | D |
+|---|---|---|---|---|---|
+| R4 when the build starts | after their generator PR (CH-12) | now, against a hand-made fixture in the agreed shape; the pre-merge check becomes a real dry run on their PR's file | after their PR (unchanged) | unchanged; investigate only | unchanged; decide later |
+| Migration apply + push order | author applies before the UI is pushed (OV-7) | unchanged | unchanged | unchanged | unchanged |
+| The live import (CH-12 step 4) | after their PR merges | unchanged | unchanged | unchanged | unchanged |
+| D2, D3, D4 | approved | unchanged | unchanged | unchanged | unchanged |
+
+Question D5:
+D5 — Start building now, before the curriculum side's generator PR lands?
+Project/branch/task: main, the chain hook view build (CH-12 sequencing).
+ELI10: You ruled "their generator first, then we build". But the file's shape is already agreed, and our tests run on a sample file anyway. If we build first, their pre-merge check becomes a real dry run of their actual file through our real importer, instead of a read-through. The live import still waits for their PR, and you still apply the migration before anything is pushed.
+Stakes if we pick wrong: either a pre-merge check that can't actually run the file, or the build arc opening while their PR is still in flight.
+Recommendation: A because it turns their pre-merge check from reading into running, and nothing live moves earlier.
+Completeness: A=10/10, B=7/10, C=5/10, D=5/10
+Pros / cons:
+A) Apply this change (recommended)
+  ✅ Their PR's pre-merge check becomes a real --dry-run of the generated file through the shipped importer
+  ✅ Nothing live moves earlier: the apply-before-push and import-after-merge rules are unchanged
+  ❌ Opens the build arc while their PR is in flight; a late shape change would mean a small fixture and test edit
+B) Keep this row's current value
+  ✅ Keeps your ruled order exactly, and the build sees their real file from the first line of code
+  ❌ The pre-merge check can only read the file, and the build idles until #54 and their PR both merge
+C) Investigate before choosing
+  ✅ Leaves room to ask the curriculum side how soon their PR will be ready
+  ❌ A round trip for a question whose answer does not change the risk of building against a fixed shape
+D) Defer this proposed change only
+  ✅ Lets the review close without settling the build date
+  ❌ Leaves CH-12's order open; the next session would have to ask again
+Net: build against the agreed shape now, so their file meets working code at the check.
+Header: D5 Build order
+Options:
+A) Apply this change (recommended)
+Start the build now against a hand-made fixture in the C-97 shape; the pre-merge check on their PR is a real --dry-run of the generated file through our importer. Unchanged: the author applies the migration before the UI is pushed, and the live import waits for their PR to merge. Human 0 extra / CC 0 extra.
+B) Keep this row's current value
+Build only after their generator PR lands (CH-12 as ruled); the pre-merge check reads the file against this plan. Apply-before-push and import-after-merge unchanged. Human 0 / CC 0.
+C) Investigate before choosing
+Bounded: ask the curriculum session for their PR's expected date in the next letter, report back, change nothing. Human ~5 min / CC ~5 min.
+D) Defer this proposed change only
+CH-12's order stays as ruled for now and R4 stays open for the next session; everything else unchanged. Human 0 / CC 0.
+
+State: approved
+Actual answer: A) Apply this change (author, D5, 2026-10-08)
+Accepted scope: the build may start now against a hand-made fixture in the C-97 shape; the pre-merge check on their PR is a real --dry-run of the generated file through our importer. Unchanged: the author applies the migration before the UI is pushed, and the live import waits for their PR to merge. D2, D3, D4 unchanged.
+History: CH-12 as ruled (generator first, then build) is superseded on the build start only.
+
+### R5: the Bank listing flag bypass (TODO candidate)
+Finding: Outside voice #3, P2, confidence 9/10, `0013_student_identity.sql:152-157` + `0055_bank_authors.sql:111-116,193`, reviewer: Fable 5.1 subagent, verified by the parent (no app code writes `visibility`; the grep of `packages/app/src` finds none).
+Plan baseline: out of this plan's scope (pre-existing Bank behavior).
+Runtime evidence: as Finding. **Procedure note:** this record was written AFTER the answer. The D6 brief was sent from the review's chat rather than from a saved pre-answer record. The brief's full text is the AskUserQuestion payload of D6 in this session.
+Question D6: TODO, the Bank's listing flag can be set directly. A) Add to TODOS.md / B) Skip / C) Build it now in this PR (recommended C).
+Header: D6 Bank TODO
+
+State: approved
+Actual answer: A) Add to TODOS.md (author, D6, 2026-10-08)
+Accepted scope: a TODOS entry under "Activity Bank follow-ons (0054, 2026-10-07)" with What/Why/Pros/Cons/Context/Depends on D4/Trigger; nothing changes in this build.
+History: none
+
+Approval readiness: PASS. Checked R1 (D2 → A), R2 (D3 → A), R3 (D4 → A), R4 (D5 → A), R5 (D6 → A), plus the scope record (D1 → A). Every other accepted item is required proof of an approved ruling (CH-1..CH-12, CH-9a-d), with its answer cited in §Rulings.
+
+## Implementation Tasks
+Synthesized from this review's findings. Each task derives from a specific
+finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [ ] **T1 (P1, human: ~1 day / CC: ~40 min)**: database, migration 00NN
+  - Surfaced by: Scope record (D1), Section 1 #1–#3, D2, D4, Outside voice #2, #5, #6.
+  - Tables: `chain_hook` (owner-keyed, retire-never-delete) and `class_hook_use`:
+    - `class_id → classes on delete cascade`;
+    - `marked_by → users on delete set null`;
+    - `used_on date not null`;
+    - RLS `is_class_teacher(class_id)`, WITH CHECK pinning `marked_by = auth.uid()`.
+  - Functions:
+    - `sync_chain_hooks` (service only; copies 0043's `p_owner` existence check and dry-run shape);
+    - `my_chain_hooks()`: definer; `current_user_is_teacher()`; own `source_path`, or the copy's original (whatever its `deleted_at`, D2); the caller's own pool wins (BK-7 rule); returns `{activityChains, chains}`;
+    - the client-role provenance guard trigger on `activities` (D4).
+  - Grant stanzas; `data-map.md` + `retention-policy.md` rows ("kept while the class row exists; classes are never hard-deleted"); `supabase/migrations/README.md` index.
+  - Files: `supabase/migrations/00NN_chain_hooks.sql`, `docs/compliance/data-map.md`, `docs/compliance/retention-policy.md`, `supabase/migrations/README.md`
+  - Verify: `node --test scripts/tests/data-map-coverage.test.mjs scripts/tests/migrations-index.test.mjs`
+- [ ] **T2 (P1, human: ~4 h / CC: ~25 min)**: verify script + mutations
+  - Surfaced by: Section 3 table row 2, D2, D4, Outside voice #2.
+  - Files: `scripts/verify-00NN.sql`, `scripts/verify-runner.mjs` (`AUTH_VERIFY_SET`)
+  - Verify: the local verify run green, then each of the five mutations turns its row red once.
+- [ ] **T3 (P1, human: ~1 day / CC: ~40 min)**: importer `--hook-registry`
+  - Surfaced by: Scope finding 1, Section 2 #1–#3, #5, Outside voice #7, D5.
+  - Reuse `checkFactRegistryRevision`; a new folder→chain_id map (strip `^\d+-`); skills check; route warnings into `catalogueWarnings`; fail soft through the missing-object regex; `isMassRetire` + `--allow-mass-retire`; dry-run report. Build against a hand-made fixture in the C-97 shape.
+  - Files: `scripts/batch-import.mjs`, `scripts/tests/batch-import.test.mjs`, a fixture under `scripts/tests/fixtures/`
+  - Verify: `node --test scripts/tests/batch-import.test.mjs`; strict exit measured without a pipe.
+- [ ] **T4 (P1, human: ~3 h / CC: ~20 min)**: `lib/chainHooks.ts` + the Activities-list link
+  - Surfaced by: Section 1 #3, #4, D3, Section 4 #1.
+  - Fetch in parallel with the list, fail soft, one link per distinct chain.
+  - Files: `packages/app/src/lib/chainHooks.ts`, `packages/app/src/routes/Activities.tsx`, `packages/app/src/__tests__/Activities.test.tsx`
+  - Verify: `pnpm --filter @activity/app test -- Activities`
+- [ ] **T5 (P1, human: ~1 day / CC: ~40 min)**: the chain page
+  - Surfaced by: CH-7/CH-8/CH-9a-d, Scope findings 3–4, D3, Section 2 #6.
+  - A lazy route; route-scoped screen + print CSS (never `index.css`); literal text; class picker (localStorage in try/catch); marks with a native date input defaulting to the browser's local date; "Couldn't load hooks" + Retry.
+  - Files: `packages/app/src/routes/ChainHooks.tsx`, its CSS, `packages/app/src/App.tsx`, `packages/app/src/__tests__/ChainHooks.test.tsx`
+  - Verify: `pnpm --filter @activity/app test -- ChainHooks`; `node scripts/check-perf-budget.mjs` (shell JS under 156.5, shell CSS at or under 15.0)
+- [ ] **T6 (P2, human: ~1 h / CC: ~10 min)**: the editor drawer link
+  - Surfaced by: CH-7.3.
+  - Files: `packages/app/src/components/ActivityConfigDrawer.tsx` + its test
+  - Verify: the drawer test with and without a chain.
+- [ ] **T7 (P2, human: ~1 h / CC: ~10 min)**: the pre-merge check of the curriculum generator PR
+  - Surfaced by: D5, the Joint contract.
+  - Run `pnpm import:batch … --hook-registry <their file> --dry-run --strict` and reply by letter.
+  - Files: none (a letter)
+  - Verify: exit 0 and the expected chain and hook counts.
+- [ ] **T8 (P2, human: ~1 h / CC: ~10 min)**: docs close-out
+  - Surfaced by: the CLAUDE.md close-out rule.
+  - An As-built section, STATE/TODOS pointers, and the pending author actions (apply 00NN, then push, then import).
+  - Files: `docs/design/chain-hooks-view.md`, `STATE.md`, `TODOS.md`
+  - Verify: `pnpm verify`.
+
+## NOT in scope
+- **D49 correctives:** none exist; trigger is the first corrective file on their main.
+- **The per-activity generated view (ask 2):** its own trigger, the first activity taught by a colleague.
+- **Hooks in the Bank:** CH-7.5; trigger is a colleague asking to see hooks before copying.
+- **The Bank listing-flag bypass:** D6, filed in TODOS.
+- **A hook-ids-retired ledger reader:** belt over their generator's gate; decided at build only if cheap.
+- **Any student surface:** hooks are teacher-only (CH-6).
+
+## What already exists (reused, not rebuilt)
+- **`sync_glossary_entries` (0043 §C):** shape copied for `sync_chain_hooks`; extraction rejected (Section 2 #4).
+- **`glossary_for_activity` copier fallback (0054:326):** pattern and own-wins rule for `my_chain_hooks`.
+- **`current_user_is_teacher()` (0013:114) and `is_class_teacher()` (0014):** gates.
+- **`users_timezone_guard` (0036:64-95):** pattern for the D4 provenance trigger.
+- **`checkFactRegistryRevision` (batch-import.mjs:187):** reused as-is.
+- **`isMassRetire` / `--allow-mass-retire` (batch-import.mjs:1888):** reused.
+- **The missing-object regex (batch-import.mjs:1885):** fail-soft path.
+- **`lazy()` routes in `App.tsx` and route-scoped CSS (`FactsTeacher.tsx:56`):** reused.
+- **The `lib/bank` mock pattern in `Activities.test.tsx`:** reused for `lib/chainHooks`.
+
+## Failure modes
+
+| path | realistic failure | covered by | user sees |
+|---|---|---|---|
+| push before apply | `my_chain_hooks` missing (PGRST202) | D3 CRITICAL list test | list unchanged; chain page "Couldn't load hooks" + Retry |
+| import | tampered or stale file | revision refuse test | importer names the file and refuses |
+| import | migration not applied | fail-soft test | importer names 00NN |
+| import | a bad file retires hooks | dry-run report + guard | retires listed by id; reversible on next good run |
+| read | forged provenance | D4 verify rows + mutation | refused at write time |
+| read | original hard-deleted | FK set null | copier's pool disappears (accepted, BK-1) |
+| marks | wrong class | RLS verify rows | write refused |
+| render | `$`-bearing text | literal-text test | text exactly as authored |
+
+Critical gaps (no test AND no handling AND silent): **0**.
+
+## Worktree parallelization strategy
+
+| Step | Modules touched | Depends on |
+|------|----------------|------------|
+| T1 migration | supabase/migrations, docs/compliance | — |
+| T2 verify | scripts (verify) | T1 |
+| T3 importer | scripts (batch-import) | T1's RPC signature only |
+| T4–T6 app | packages/app | T1's RPC result shape |
+| T7 pre-merge check | none | T3 + their PR |
+
+Lane A: T1 → T2 (shared supabase/). Lane B: T3 (scripts/, independent once the
+sync signature is fixed). Lane C: T4 → T5 → T6 (packages/app/). Execution: write
+T1 first, so the RPC shapes are fixed, then run A, B and C in parallel and merge.
+Conflict flags: `scripts/` is shared by T2 and T3 (different files). Parallel
+sessions share this checkout, so a single session runs the lanes sequentially.
+
+## Unresolved decisions
+None.
+
+## Completion summary
+- Step 0: Scope Challenge: scope accepted as-is (D1 smaller arrangement keeps every ruled feature)
+- Architecture Review: 5 issues found
+- Code Quality Review: 6 issues found
+- Test Review: diagram produced, 33 gaps identified (all unbuilt code; 1 CRITICAL regression row settled by D3)
+- Performance Review: 3 issues found
+- NOT in scope: written
+- What already exists: written
+- TODOS.md updates: 1 item proposed to user (D6 → added)
+- Failure modes: 0 critical gaps flagged
+- Unresolved decisions: 0 in this review
+- Outside voice: Codex not installed (unavailable); in-host fallback ran on Fable 5.1 by the author's pre-authorization, 7 findings, #1 a confirmed P1 security hole (D4)
+- Parallelization: 3 lanes, 2 parallel after T1 / sequential in one checkout
+- Lake Score: 3/3 (D3, D4 and D5 were scored for completeness and each answer picked the 10/10 option; D1, D2 and D6 were kind choices, excluded)
+
+## Suppressed findings (appendix)
+- (4/10) The date column could carry a range CHECK (for example, not before
+  2020). Suppressed: the native input's `max` plus `not null` is enough, and
+  there is no regression it would catch.
+- (4/10) `my_chain_hooks` could cache its result in sessionStorage. Suppressed:
+  one call per page load costs less than invalidating a cache (Section 4 #3).
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run for this plan |
+| Outside Review | codex (`/plan-eng-review` outside voice) | Independent 2nd opinion | 1 | unavailable | Codex not installed; in-host Fable 5.1 fallback ran: 7 findings (1 P1 confirmed → D4) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | issues_open (mapped work) | 47 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | not run for this plan |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable (CLI not installed). In-host fallback on Fable 5.1 completed with findings; it does not count as outside coverage.
+- **VERDICT:** no review is CLEAR for this plan. The Eng Review is issues_open because its 47 findings are mapped build work; every decision (D1–D6) is ruled. eng review required
+NO UNRESOLVED DECISIONS
