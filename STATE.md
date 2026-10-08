@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **BANK TEACHING-ORDER FIX (0056) is LIVE (2026-10-08):** applied, `verify-0056`/`0055`/`0054` live green; the Bank lists Year 7 as 712 → 713, then Year 8. Nothing owed.
 
-**CHAIN HOOK VIEW — design pass written 2026-10-08, AWAITING THE AUTHOR'S RULINGS** on CH-1..CH-12 ([chain-hooks-view.md](docs/design/chain-hooks-view.md)). Nothing built; B-124 to the curriculum session waits for the rulings.
+**CHAIN HOOK VIEW — RULED 2026-10-08** ([chain-hooks-view.md](docs/design/chain-hooks-view.md); CH-9 used-marks in v1). Nothing built. Waiting on the curriculum reply to B-124 (the hook-registry contract) and their generator; then the build, then the author applies the migration before the push.
 
 **Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
 

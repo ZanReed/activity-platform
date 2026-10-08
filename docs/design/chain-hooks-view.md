@@ -1,7 +1,8 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: DESIGN PASS, awaiting the author's rulings (2026-10-08).** Nothing is
-built, no migration exists, and no letter has been sent. Scheduled by the author
+**Status: RULED by the author 2026-10-08 (§Rulings at the end). CH-2 and CH-5
+are a JOINT contract, proposed to the curriculum side in B-124; build waits for
+their reply and their generator.** Nothing is built and no migration exists. Scheduled by the author
 2026-10-08: "easier for me to also see them if they are held within the app
 rather than a raw text file". TODOS → "Teacher guides: a teacher-only field and
 generated teacher views" holds the queue entry.
@@ -273,6 +274,54 @@ arc waits for rulings and their generator.
 
 ## Out of scope
 
-Correctives (D49), the per-activity generated view (ask 2), "used" marks
-(CH-9), hooks in the Bank (CH-7.5), any student surface, and hook figures
+Correctives (D49), the per-activity generated view (ask 2), hooks in the Bank (CH-7.5), any student surface, and hook figures
 (hooks are text-only by their rule).
+
+## Rulings (author, 2026-10-08)
+
+Walked item by item. Every item went as recommended except **CH-9**.
+
+| item | ruling |
+|---|---|
+| CH-1 | Hooks + the chain's activities in order. Correctives and ask 2 wait for their triggers. |
+| CH-2 | `hook-registry.json` with a sha256 revision, skill labels inline, plain text. Proposed in B-124. |
+| CH-3 | `--hook-registry` flag as described, including the mass-retire guard. |
+| CH-4 | Owner-keyed `chain_hook` table. |
+| CH-5 | Retire, never delete, and ask their side for the id-permanence sentence. |
+| CH-6 | Owner plus Bank copiers (for activities they own). No student path. |
+| CH-7 | Chain page + "Hooks (n)" list link, the editor drawer link, and print CSS. Not the Bank. |
+| CH-8 | Prompt large, "Opens: <skill>", notes shown OPEN, literal text. No copy button. |
+| **CH-9** | **BUILD IT IN v1** (overrides the defer recommendation). Sub-rulings below. |
+| CH-10 | Kept separate from the teacher guide. |
+| CH-11 | No capability-facts or authoring-prompt change. |
+| CH-12 | Send B-124 now. |
+
+### CH-9 as ruled: "used" marks per class
+
+- **CH-9a: a toggle with an EDITABLE date.** Marking records today, and the
+  teacher can change the date afterwards (the "forgot to mark it on the day"
+  case). Unmark by toggling off.
+- **CH-9b: a class picker on the chain page.** It lists the teacher's own
+  classes and remembers the last choice per viewer (browser storage, with a
+  try/catch, because it is a convenience). With no class picked, the page is
+  the plain hook view.
+- **CH-9c: dimmed in place**, keeping the authored pool order, with a
+  "Used 12 Feb" badge.
+- **CH-9d: unmarking deletes the row.** The mark is teacher planning state, not
+  student work. Marks belong to the class and go with its purge.
+
+**Shape (for the build's own review, not yet ruled in detail):**
+`class_hook_use (class_id → classes, hook_id text, used_on date, marked_by →
+users, updated_at, primary key (class_id, hook_id))`. RLS through the existing
+`is_class_teacher(p_class_id)` helper, never an inlined ownership check (CLAUDE.md
+→ Things NOT to do). `hook_id` has no foreign key, because a copier's hooks
+are owned by the original's owner (CH-6), so no key pair can be formed. CH-5's
+retire-never-delete is what keeps a mark resolving. `data-map.md` and
+`retention-policy.md` gain a row in the same migration commit (class-linked
+teacher state, no student data). The verify script adds: another teacher cannot
+read or write your class's marks; a student session reads nothing; editing the
+date keeps one row; a mark on a retired hook survives and reappears on
+un-retire. Mutation-test by dropping the `is_class_teacher` gate.
+
+The guards section above gains one rendered-output guard: a marked hook
+renders dimmed with its date for that class and undimmed for another class.
