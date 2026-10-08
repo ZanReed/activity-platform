@@ -1,10 +1,12 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-06-draft-13`. Windows below are the author-ruled S1 defaults
+> Version `2026-10-08-draft-14`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-14` (2026-10-08) adds the chain hook rows (migration 0057): `chain_hook`, curriculum content keyed to its owning teacher (kept for the account lifetime, removed by the `users` cascade), and `class_hook_use`, a class's "used" marks (kept with the class row, whose purge is not built). Neither holds student data.
 >
 > `draft-13` (2026-10-06) records that **counsel answered the packet**
 > (reported by the author: the current measures are sufficient, Q1 to Q11),
@@ -118,6 +120,8 @@
 | `audit_log` | **2 years** | row creation | scheduled purge |
 | Teacher account + activities | account lifetime | — | soft-delete flow (0008), purge after 30 days (existing) |
 | Course glossary (`glossary_entry` — a teacher's course vocabulary; curriculum content, no student data; migration 0043) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0043.sql` §E). Terms dropped from the source file are RETIRED (`retired_at`), never deleted, so a published worksheet's marks keep resolving; nothing else removes a row |
+| Chain hook pools (`chain_hook` — a teacher's mirrored hook prompts and notes; curriculum content, no student data; migration 0057) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0057.sql` §B). Hooks dropped from the source file are RETIRED (`retired_at`), never deleted; nothing else removes a row |
+| Class hook marks (`class_hook_use` — which hook a class has heard, the date, who marked it; teacher planning state, no student data; migration 0057) | life of the class | the mark is made | the teacher unmarking deletes the row; otherwise FK `ON DELETE CASCADE` from `classes` — **inert today**, because class rows are never hard-deleted (see the class row below) |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
 | Legacy localStorage (published pages) | never leaves the student device | — | student clears browser storage; page's own reset |
 | Viewer local buffer (T7) | until sign-out or sync | — | `signOutEverything()` purges the namespace |

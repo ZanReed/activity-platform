@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-08-draft-23`. Mirrors migrations 0001–**0056**, verified
+> Version `2026-10-08-draft-24`. Mirrors migrations 0001–**0057**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-24` (2026-10-08) — 0057 adds two TEACHER-keyed tables, no student data.** `chain_hook` mirrors the curriculum's chain hook pools (a hook's prompt and its teacher note) keyed to the owning teacher (`owner_id`), like the glossary; only the batch importer writes it, and only TEACHERS read it, through `my_chain_hooks` (a Bank copier reads the original's pool; students never). `class_hook_use` records which hook a class has heard and on what date (`used_on`), with the teacher who marked it (`marked_by`): teacher planning state, read and written only by the class's teacher. The migration also stops client roles from writing an activity's copy provenance (`copied_from_*`), which changes no data. The range moves to 0057 on that basis.
 >
 > **`draft-23` (2026-10-08) — 0056 adds NO personal data.** It changes only the ORDER in which `list_bank` returns rows (teaching order). The range moves to 0056 on that basis.
 >
@@ -336,6 +338,8 @@
 | `check_grade_suggestions.model_id` / `prompt_rev` / `schema_rev` / `tokens_in` / `tokens_out` / `machine_confidence` / `billable` (0042) | machine telemetry on the drafting run, **not personal per se** — listed because the rows they stamp are about a student | — | claim/submit RPCs | quality auditing per revision; spend metering for the (unreachable) hosted path | with the row |
 | `grading_settings.teacher_id` + `provider` / `quota_microdollars` (0042) | teacher identity on AI-grading config — provider choice is a compliance-significant setting (it decides where student work is processed) | teacher | author-run SQL for the pilot (no client write path; zero policies) | the D11 provider seam + D13 budget quota | account lifetime (CASCADE from `users`) |
 | `glossary_entry.owner_id` (0043) | teacher identity on course vocabulary (term, US variant, definition body — curriculum content, **no student data**) | teacher | the batch importer's service connection, via `sync_glossary_entries` (no client write path) | whose catalogue a glossary belongs to; students read it through `glossary_for_activity` for a published activity | account lifetime (CASCADE from `users`); terms leaving the file are RETIRED, never deleted, so published worksheets keep resolving |
+| `chain_hook.owner_id` (0057) | teacher identity on a chain's hook pool (each hook's prompt, the skills it opens, and a teacher note that can carry the answer — curriculum content, **no student data**) | teacher | the batch importer's service connection, via `sync_chain_hooks` (no client privilege at all) | whose catalogue a hook pool belongs to; read only by TEACHERS through `my_chain_hooks` — the owner, or a colleague holding a Bank copy of an activity in that chain; never students | account lifetime (CASCADE from `users`); hooks leaving the file are RETIRED, never deleted, so a class's marks keep resolving |
+| `class_hook_use.class_id` / `marked_by` / `used_on` (0057) | which hook a class has heard, the date, and the teacher who marked it — teacher planning state, **no student data** | teacher | the class's teacher, directly under `is_class_teacher` RLS (`marked_by` pinned to the caller) | the chain page's per-class "used" marks | life of the class row (CASCADE from `classes`, inert today: classes are only soft-deleted); `marked_by` SET NULL if that teacher's account is purged; unmarking deletes the row |
 | `check_rollup_daily.*` / `check_item_rollup_daily.*` (0036) | per-day counts of checks, verdicts and **distinct students** per question — **no student identifier by construction** (absence asserted against `information_schema` by `verify-0036.sql` §B) | — | nightly `run_analytics_maintenance` from `section_checks` | durable teacher analytics that survive the pruning of superseded attempts | ⚠ **the life of the ACTIVITY — these OUTLIVE the individual checks they summarize, and are NOT recomputed when a student is purged.** A row reading `students = 1` describes one identifiable student's day. Full statement + the reasoning in [retention-policy.md](retention-policy.md); this is **counsel question Q10** |
 | `allowlist.email` | teacher email | teacher | author-entered | invite gate | until removed |
 | `student_domain.domain` | district domain (not personal per se) | — | author-entered | student admission gate | until removed |
