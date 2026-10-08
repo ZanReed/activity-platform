@@ -1,6 +1,6 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: RULED, ENG-REVIEWED and DESIGN-REVIEWED (2026-10-08).** Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
+**Status: RULED, ENG-REVIEWED, DESIGN-REVIEWED and ENG-RE-REVIEWED (2026-10-08).** Re-run: RT1–RT5 (plain mark buttons, Change date disabled while a write is in flight, an e2e spec for print + axe). Design: 2/10 → 8/10, 9 rulings (1A–7.2A), tasks DT1–DT5 amending T4–T6. Rulings are in §Rulings, and the joint contract was agreed in C-97. The eng review (§Eng review) replaced CH-6's two read paths with ONE RPC (D1). It ruled D2–D5, and the decisive one is D4: lock the copy provenance columns, a P1 hole found by the Fable outside voice. It filed D6 in TODOS and mapped the build to T1–T8. **The build may start now against a fixture (D5)**; the live import waits for the curriculum generator PR. Nothing is built yet.
 
 ## What a hook is (re-derived from curriculum `main` b74e02a, graph v0.17.19)
 
@@ -1237,17 +1237,279 @@ Synthesized from this review's findings. These amend the eng-review tasks
 
 Outside design voices: skipped (D2). Unresolved design decisions: none.
 
+# Eng review re-run after the design review (plan-eng-review, 2026-10-08)
+
+**Target:** this file, reviewed for the design-review delta since `ecc095de`: passes
+1–7 and DT1–DT5. Eng D1–D6 stand. **Scope Challenge (delta):** no new service
+or table; DT1–DT5 touch only files the plan already lists. Below the complexity
+gate, so **scope accepted as-is**.
+
+## Re-run Section 1: Architecture
+1. **[P2] (8/10) DT5 puts `my_chain_hooks` on the editor's path.** The
+   drawer's guide section opens from `ActivityConfigDrawer.tsx:257-264`
+   (`onClick={() => onToggle('guide')}`). **Accepted mechanics, the ruled
+   outcome unchanged (2.1A):** fetch on the FIRST open of the Teacher guide
+   section, never on editor load, and fail soft (no line, per the Pass 2
+   table). This adds no cost to opening the editor.
+2. **[P3] (7/10) The mark writes go straight to `class_hook_use` under RLS
+   (D1 scope record).**
+   - Mark: an upsert on `(class_id, hook_id)` with PostgREST
+     `Prefer: resolution=merge-duplicates,return=representation`. The
+     `return=representation` matters: the importer once crashed on an empty
+     201, per the comment at `batch-import.mjs:2188`.
+   - Unmark: a delete.
+   - Change date: an update.
+   - No write is possible before a class is chosen (2.2A).
+3. **[P2] (8/10) A date edit can start while the mark's own write is still in
+   flight.** 2.3A says a second click during a write "is ignored". The used
+   status line (and its "Change date") appears optimistically the instant
+   "Mark used" is pressed, so a quick date change would be ignored and lost.
+   → **D1-rerun (R7).**
+
+## Re-run Section 2: Code quality
+1. **[P1] (8/10) `aria-pressed` conflicts with a label that changes.** 6.1A
+   specifies `<button aria-pressed>` with "Mark used"/"Unmark" as its name, and
+   5.1A rules two different visible labels. A toggle button whose label
+   changes WITH its state double-signals ("Unmark, toggle button, pressed"),
+   and the ARIA authoring practice for toggle buttons keeps the label constant.
+   → **D2-rerun (R6).** (No repo source to quote. The motivating plan lines are
+   §Pass 6 6.1A and §Pass 5 5.1A above, so this is calibrated as a plan
+   contradiction, not a code bug.)
+2. **[P2] (8/10) DT2's US-timezone test is brittle; test a pure helper
+   instead.** Switching `TZ` inside a running vitest worker depends on when
+   Node first caches it. **Correction:** a pure `dateOnlyToLocalDate('2026-02-12')`
+   helper, asserting `getFullYear/getMonth/getDate` = 2026/1/12, plus one
+   assertion that `formatListDate` receives that Date. It holds in any zone, and it
+   fails if someone swaps in `new Date(str)` and runs in the US.
+3. **[P3] (7/10) The accessible name's "first 8 words".** One small helper
+   (`hookShortName`) used by the toggle name and the status announcement, so
+   both use the same words.
+
+Dispositions: S1 #1, #2 accepted details; S1 #3 → D1-rerun; S2 #1 → D2-rerun;
+S2 #2, #3 accepted corrections.
+
+## Re-run Section 3: Tests (delta)
+
+```
+DESIGN-REVIEW PATHS (all proposed)                     COVERAGE
+  header/crumb from unit (1A)                          [GAP] unit test
+  empty pool / zero classes / none chosen (2.1A, 2.2A) [GAP] unit tests (3 rows)
+  optimistic mark, revert + "Couldn't save" (2.3A)     [GAP] unit test with a rejecting write
+  in-flight date edit (D1-rerun)                       [GAP] unit test, pending ruling
+  used look: muted prompt, check + words (5.1A)        [GAP] unit test (class + text, never colour only)
+  inline date swap, Esc restores (7.2A)                [GAP] unit test
+  date-only parse (Pass 5 trap)                        [GAP] pure helper test (S2 #2)
+  headed articles, toggle semantics (6.1A, D2-rerun)   [GAP] unit test on roles/names
+  print sheet hides controls + marks (7.1A)            [GAP] jsdom CANNOT evaluate @media print → D3-rerun
+  axe on the chain route                               [GAP] the a11y lane is student-only → D3-rerun
+  drawer line only with a pool, fetched on open (DT5)  [GAP] drawer test, 3 rows (pool, none, rejected)
+GAPS: 11, all unbuilt code. Regression risk: the editor drawer's existing tests (fetch on open must not fire on mount).
+```
+
+**Corrections to the design tasks' Verify lines:**
+- DT3's "the a11y lane (axe) on the route" is not existing coverage. The a11y
+  project matches only `**/a11y/**/*.e2e.ts`, which holds
+  `e2e/a11y/student-surfaces.e2e.ts`.
+- DT4's "a print-mode render" cannot run in jsdom.
+
+The precedents for real proof are `print-answer-key.e2e.ts:35`
+(`page.emulateMedia({ media: 'print' })`) and the teacher stub
+`e2e/helpers/factsTeacherStub.ts` with `signInAs`. → **D3-rerun (R8).**
+
+**Regression (carried, CRITICAL):** the editor drawer's tests must show
+`my_chain_hooks` is NOT called on mount, only when the guide section opens.
+This is required proof of S1 #1, not a new policy.
+
+## Re-run Section 4: Performance
+No issues found. The drawer fetch is deferred to the guide section's first
+open (S1 #1). On the chain page, switching class costs one `class_hook_use`
+read by PK prefix. Optimistic marks add no round trip to the visible path.
+
+## Re-run decision ledger
+
+### R6: toggle semantics for "Mark used" / "Unmark"
+Finding: re-run S2 #1, P1, confidence 8/10, this file §Pass 6 (6.1A) and §Pass 5 (5.1A), reviewer: Claude (plan-eng-review re-run).
+Plan baseline: 6.1A (`<button aria-pressed>` named "Mark used: …") + 5.1A (visible "Mark used" on an unmarked hook, "Unmark" on a used one).
+Runtime evidence: none (unbuilt). WAI-ARIA authoring practice: a toggle button's label does not change with its state.
+Comparison grid:
+
+| Choice | Current | A | B |
+|---|---|---|---|
+| R6 control semantics | aria-pressed + changing label (contradictory) | plain buttons: "Mark used" / "Unmark", no aria-pressed; the status line carries the state | one constant-label toggle "Used" with aria-pressed; visible text constant |
+| 5.1A visible wording | approved | unchanged | changes to one constant "Used" control |
+| Accessible name carries the hook's words | approved (6.1A) | unchanged ("Mark used: <words>…" / "Unmark: <words>…") | unchanged ("Used: <words>…") |
+| Status announcement | approved (6.1A) | unchanged | unchanged |
+
+Question D1:
+D1 — 'Mark used' / 'Unmark': two plain buttons, or one toggle?
+Project/branch/task: main, the chain page's mark control (design 5.1A + 6.1A).
+ELI10: The design review ruled two different visible labels ('Mark used', then 'Unmark') AND a toggle attribute that tells screen readers 'pressed / not pressed'. Together they say the state twice: a screen reader hears 'Unmark, toggle button, pressed', which is confusing. The accessibility guidance is to pick one. Either the label changes (plain buttons), or the label stays fixed and the pressed state changes (a true toggle).
+Stakes if we pick wrong: screen-reader users get a muddled control, or sighted teachers lose the clear 'Unmark' wording you approved.
+Recommendation: A because it keeps the wording you ruled in 5.1A, and the status line already announces the change.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Plain buttons, changing label (recommended)
+  ✅ Keeps your ruled visible wording exactly: 'Mark used' on an unmarked hook, 'Unmark' on a used one
+  ✅ Screen readers hear a plain action ('Unmark: Draw two long straight lines…'), and the status line confirms it
+  ❌ Drops the pressed/not-pressed state, so the state lives in the 'Used 12 Feb' line rather than on the button
+B) One toggle, constant label
+  ✅ A true toggle: one 'Used' button whose pressed state is the state, the cleanest pattern for assistive tech
+  ❌ Replaces your ruled 'Mark used' / 'Unmark' wording with one less explicit 'Used' control
+Net: keep the words you chose; let the status line carry the state.
+Header: D1 Toggle
+Options:
+A) Plain buttons, changing label (recommended)
+'Mark used' and 'Unmark' are ordinary <button>s (no aria-pressed), named 'Mark used: <first 8 words>…' / 'Unmark: <first 8 words>…'; the polite status line announces 'Marked used for <class>' / 'Unmarked'. Focus stays on the control after it swaps. Amends 6.1A only.
+B) One toggle, constant label
+One <button aria-pressed> with constant visible text 'Used' and name 'Used: <first 8 words>…'; pressed = used. The status line still announces the change. Amends 5.1A's visible wording and 6.1A.
+
+State: approved
+Actual answer: A) Plain buttons, changing label (author, D1-rerun, 2026-10-08)
+Accepted scope: 'Mark used' and 'Unmark' are ordinary <button>s (no aria-pressed), named 'Mark used: <first 8 words>…' / 'Unmark: <first 8 words>…'; the polite status line announces 'Marked used for <class>' / 'Unmarked'; focus stays on the control after it swaps. Amends 6.1A only (5.1A wording unchanged).
+History: 6.1A as first ruled carried aria-pressed; superseded on that attribute only.
+
+### R7: a date edit while the mark's write is in flight
+Finding: re-run S1 #3, P2, confidence 8/10, this file §Pass 2 (2.3A "a second click while one is in flight is ignored") and §Pass 7 (7.2A), reviewer: Claude (plan-eng-review re-run).
+Plan baseline: 2.3A ignores a second click while a write is in flight; 7.2A shows "Change date" on the used line, which appears optimistically.
+Runtime evidence: none (unbuilt).
+Comparison grid:
+
+| Choice | Current | A | B |
+|---|---|---|---|
+| R7 date edit during the mark's write | unspecified (would be ignored, so lost) | "Change date" shows disabled until the mark's write lands (then enabled) | the latest intent per hook is queued and sent after the in-flight write |
+| 2.3A toggle double-click | approved: ignored | unchanged | unchanged |
+| D1-rerun | pending | pending | pending |
+
+Question D2:
+D2 — What if a teacher changes the date before 'Mark used' has finished saving?
+Project/branch/task: main, the chain page's used marks (design 2.3A + 7.2A).
+ELI10: Marking shows the used line instantly, including 'Change date', before the save finishes. The design review said a second action during a save is ignored, so a date picked in that half-second would be silently dropped. Either make 'Change date' wait until the mark is saved, or remember the date and send it right after.
+Stakes if we pick wrong: a teacher sets yesterday's date, sees it, and the page quietly keeps today's.
+Recommendation: A because the window is a fraction of a second, and a briefly disabled link is honest and simple, with no queue to build or test.
+Completeness: A=9/10, B=10/10
+Pros / cons:
+A) Disable 'Change date' until saved (recommended)
+  ✅ Nothing is ever dropped: the link enables the moment the mark's write lands, usually within a second
+  ✅ No queue logic: one in-flight write per hook, matching 2.3A's ignore rule
+  ❌ On a slow network the link stays grey for a moment, which a teacher may notice
+B) Queue the latest intent per hook
+  ✅ The teacher can act at once, and their last choice always wins
+  ❌ A per-hook intent queue with its own failure and revert cases, all to build and test
+Net: a briefly disabled link beats a queue for a sub-second window.
+Header: D2 In-flight
+Options:
+A) Disable 'Change date' until saved (recommended)
+While a hook's write is in flight, its 'Change date' renders disabled (aria-disabled, muted) and enables when the write lands; on a failed write the line reverts (2.3A) and the link disappears with it. Test: a pending write shows the link disabled; resolving enables it. Human ~30 min / CC ~5 min.
+B) Queue the latest intent per hook
+Each hook holds the latest desired state; a change during an in-flight write is sent after it, and the visible state is always the latest intent; a failure reverts to the last saved state and shows 'Couldn't save · Try again'. Tests: queued date sent after the mark; failure of either reverts. Human ~2 h / CC ~20 min.
+
+State: approved
+Actual answer: A) Disable 'Change date' until saved (author, D2-rerun, 2026-10-08)
+Accepted scope: while a hook's write is in flight its 'Change date' renders disabled (aria-disabled, muted) and enables when the write lands; on a failed write the line reverts (2.3A) and the link disappears with it. Test: pending write → link disabled; resolve → enabled. 2.3A's ignore rule for toggles unchanged.
+History: none
+
+### R8: real-browser proof for print and accessibility on the chain route
+Finding: re-run S3, P2, confidence 9/10, `packages/app/playwright.config.ts:150-151` (a11y project `testMatch: '**/a11y/**/*.e2e.ts'`, which holds only `e2e/a11y/student-surfaces.e2e.ts`); jsdom has no `@media print`. Reviewer: Claude (plan-eng-review re-run).
+Plan baseline: DT3 "a11y lane (axe) on the route"; DT4 "a print-mode render" (both assumed coverage that does not exist).
+Runtime evidence: precedents `e2e/print-answer-key.e2e.ts:35` (`page.emulateMedia({ media: 'print' })`) and `e2e/helpers/factsTeacherStub.ts` + `studentSession.ts` `signInAs` (a stubbed signed-in teacher page).
+Comparison grid:
+
+| Choice | Current | A | B |
+|---|---|---|---|
+| R8 proof depth | jsdom unit tests only (print and axe unproven) | + one e2e spec `e2e/a11y/chain-hooks.e2e.ts` with a `chainHooksStub.ts` (mocks derived from production constants, P2): axe scan clean, and in print media the picker, buttons and marks are hidden and the "teacher copy" line shows | unit tests assert the no-print class on every control; no browser proof |
+| D1-rerun, D2-rerun | pending | pending | pending |
+
+Question D3:
+D3 — Add one browser test for the chain page's print sheet and accessibility?
+Project/branch/task: main, the chain page's verification (design DT3 + DT4).
+ELI10: Two of the design tasks assumed tests that don't exist. The accessibility lane only checks student pages, and the unit-test browser (jsdom) can't apply print styles. So 'controls hide on paper' and 'axe finds no problems' would go unproven. The repo already has the pieces: a print-media e2e test and a signed-in teacher stub for the facts page.
+Stakes if we pick wrong: a print sheet that prints the class picker and buttons, or an accessibility regression no test sees.
+Recommendation: A because both proofs are cheap given the existing stub and print precedents, and print is a repo standing constraint (baseline print CSS).
+Completeness: A=10/10, B=6/10
+Pros / cons:
+A) Add the e2e spec (recommended)
+  ✅ Proves print really hides the picker, buttons and marks, in real Chromium print media, not just via a class name
+  ✅ Puts the first teacher route in the a11y lane with an axe scan, using the facts-teacher stub pattern
+  ❌ One more spec plus a stub to keep in step with the RPC's shape (P2 says mocks derive from production constants)
+B) Unit tests only
+  ✅ No new e2e harness: unit tests assert every control carries the no-print class
+  ❌ A class name is not proof the print stylesheet hides it, and axe never runs on a teacher page
+Net: two real proofs for one small spec, on rails the repo already has.
+Header: D3 Proof
+Options:
+A) Add the e2e spec (recommended)
+New e2e/a11y/chain-hooks.e2e.ts + e2e/helpers/chainHooksStub.ts (stub derived from the my_chain_hooks result type and class_hook_use row shape): signInAs a teacher, open /chains/<id>, run axe (no violations), then emulateMedia print and assert the picker, buttons and marks are hidden and the teacher-copy line is visible. Human ~3 h / CC ~20 min.
+B) Unit tests only
+ChainHooks.test.tsx asserts every control and status line carries the no-print class and the teacher-copy line exists; no e2e spec, no axe run. Human ~30 min / CC ~5 min.
+
+State: approved
+Actual answer: A) Add the e2e spec (author, D3-rerun, 2026-10-08)
+Accepted scope: new e2e/a11y/chain-hooks.e2e.ts + e2e/helpers/chainHooksStub.ts (stub derived from the my_chain_hooks result type and class_hook_use row shape, P2): signInAs a teacher, open /chains/<id>, axe with no violations, then emulateMedia print and assert the picker, buttons and marks hidden and the teacher-copy line visible. Replaces DT3's and DT4's assumed coverage.
+History: none
+
+Approval readiness (re-run): PASS. Checked R6 (D1-rerun → A), R7 (D2-rerun → A), R8 (D3-rerun → A). Every other re-run item is an accepted detail or correction preserving an approved outcome (2.1A, 2.3A, 5.1A, 6.1A, 7.1A, 7.2A, D3).
+
+## Re-run outside voice
+Preflight: `CODEX_MODE: not_installed` (Codex CLI absent). The native fallback
+needs TaskOutput and TaskStop, which this session does not declare. So per the
+skill: **"Outside voice unavailable. Continuing to planning decisions and
+Approval readiness."** No outside coverage for this delta. The first run's Fable
+voice covered the back-end half, and this delta is UI-only.
+
+## Re-run TODOS
+None proposed.
+
+## Re-run Implementation Tasks
+These amend DT2, DT3 and DT4 and are built with them.
+
+- [ ] **RT1 (P1, human: ~30 min / CC: ~5 min)**: mark control semantics
+  - Surfaced by: R6 (D1-rerun A).
+  - Plain buttons, no aria-pressed; names via `hookShortName`; the status line.
+  - Files: `packages/app/src/routes/ChainHooks.tsx`
+  - Verify: unit test that the button has no aria-pressed, its name begins "Mark used:"/"Unmark:", and the status text appears.
+- [ ] **RT2 (P1, human: ~30 min / CC: ~5 min)**: "Change date" disabled while the write is in flight
+  - Surfaced by: R7 (D2-rerun A).
+  - Files: `ChainHooks.tsx`
+  - Verify: unit test with a pending write (link aria-disabled), resolved (enabled), rejected (line reverts and the link is gone).
+- [ ] **RT3 (P1, human: ~3 h / CC: ~20 min)**: browser proof
+  - Surfaced by: R8 (D3-rerun A).
+  - Files: `packages/app/e2e/a11y/chain-hooks.e2e.ts`, `packages/app/e2e/helpers/chainHooksStub.ts`
+  - Verify: `pnpm --filter @activity/app exec playwright test --project=a11y chain-hooks` (axe clean; print hides controls).
+- [ ] **RT4 (P1, human: ~30 min / CC: ~5 min)**: date-only helper
+  - Surfaced by: re-run S2 #2.
+  - Files: `packages/app/src/lib/` (next to `formatListDate`)
+  - Verify: `dateOnlyToLocalDate('2026-02-12')` parts = 2026/1/12.
+- [ ] **RT5 (P1, human: ~30 min / CC: ~5 min)**: drawer fetch on the guide section's first open
+  - Surfaced by: re-run S1 #1 + the CRITICAL regression.
+  - Files: `packages/app/src/components/ActivityConfigDrawer.tsx` + its test
+  - Verify: the drawer test proves `my_chain_hooks` is not called on mount, is called once on the first guide open, and shows no line on rejection.
+
+## Re-run completion summary
+- Step 0: Scope Challenge: scope accepted as-is (delta below the complexity gate)
+- Architecture Review: 3 issues found
+- Code Quality Review: 3 issues found
+- Test Review: diagram produced, 11 gaps identified (all unbuilt; 1 CRITICAL regression row: drawer fetch not on mount)
+- Performance Review: 0 issues found
+- NOT in scope: unchanged from the first run
+- What already exists: plus `factsTeacherStub.ts` + `signInAs`, `print-answer-key.e2e.ts:35` emulateMedia
+- TODOS.md updates: 0 items proposed
+- Failure modes: 0 critical gaps flagged (save failure is visible, 2.3A; the read failure is handled, D3)
+- Unresolved decisions: 0 in this review
+- Outside voice: codex not installed, native fallback unavailable (no TaskOutput/TaskStop), so unavailable
+- Parallelization: sequential implementation, no parallelization opportunity (RT1–RT5 share ChainHooks.tsx except RT3/RT5)
+- Lake Score: 1/2 (D2-rerun and D3-rerun were scored for completeness; D3-rerun picked the 10/10 option, and D2-rerun picked A at 9/10, the recommended one. D1-rerun was a kind choice, excluded)
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 3 | clean (latest, 2026-10-01, another plan) | not run for this plan |
-| Outside Review | codex (`/plan-eng-review` outside voice) | Independent 2nd opinion | 36 | unavailable | Codex not installed; in-host Fable 5.1 fallback: 7 findings (1 P1 confirmed → D4) |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 48 | issues_open (mapped work) | 47 issues, 0 critical gaps |
+| Outside Review | codex (`/plan-eng-review` outside voice) | Independent 2nd opinion | 37 | unavailable | run 1: Codex not installed, in-host Fable 5.1 fallback, 7 findings (1 P1 → D4); re-run: unavailable |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 49 | issues_open (mapped work) | re-run: 6 issues + 11 test gaps, 0 critical gaps; first run: 47 issues |
 | Design Review | `/plan-design-review` | UI/UX gaps | 19 | clean | score: 2/10 → 8/10, 9 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 9 | — (not run for this plan) | — |
 
 - Runs are this branch's logged totals across every plan. Status and findings describe THIS plan.
-- **OUTSIDE COVERAGE:** codex, plan-review phase: unavailable (CLI not installed), in-host Fable 5.1 fallback completed with findings, which is not outside coverage. Design phase: outside voices skipped (D2).
-- **VERDICT:** DESIGN CLEARED. The Eng Review is issues_open because its 47 findings are mapped build work; every decision (eng D1–D6, design 1A–7.2A) is ruled. eng review required
+- **OUTSIDE COVERAGE:** codex, plan-review phase: unavailable on both eng runs (CLI not installed). Run 1's in-host Fable 5.1 fallback completed with findings, which is not outside coverage. Design phase: outside voices skipped (D2).
+- **VERDICT:** DESIGN CLEARED. The Eng Review is issues_open because its findings are mapped build work (T1–T8, DT1–DT5, RT1–RT5); every decision is ruled (eng D1–D6, design 1A–7.2A, re-run D1–D3). eng review required
 NO UNRESOLVED DECISIONS
