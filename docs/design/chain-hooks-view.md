@@ -859,7 +859,7 @@ CH-12's order stays as ruled for now and R4 stays open for the next session; eve
 State: approved
 Actual answer: A) Apply this change (author, D5, 2026-10-08)
 Accepted scope: the build may start now against a hand-made fixture in the C-97 shape; the pre-merge check on their PR is a real --dry-run of the generated file through our importer. Unchanged: the author applies the migration before the UI is pushed, and the live import waits for their PR to merge. D2, D3, D4 unchanged.
-History: CH-12 as ruled (generator first, then build) is superseded on the build start only.
+History: CH-12 as ruled (generator first, then build) is superseded on the build start only. **Amended 2026-10-08 (author, after C-98):** their PR #55 (head 8d4faa9) arrived before our flag existed. The author ruled it may MERGE NOW, on a file-level pre-merge check (B-126): the revision re-derived with checkFactRegistryRevision = d9635393…5d0; 5 chains and 13 hooks match the graph in order and text; ids resolve. T7 becomes the first `--dry-run --strict` against their main once T3 is built.
 
 ### R5: the Bank listing flag bypass (TODO candidate)
 Finding: Outside voice #3, P2, confidence 9/10, `0013_student_identity.sql:152-157` + `0055_bank_authors.sql:111-116,193`, reviewer: Fable 5.1 subagent, verified by the parent (no app code writes `visibility`; the grep of `packages/app/src` finds none).
@@ -918,7 +918,7 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Verify: the drawer test with and without a chain.
 - [ ] **T7 (P2, human: ~1 h / CC: ~10 min)**: the pre-merge check of the curriculum generator PR
   - Surfaced by: D5, the Joint contract.
-  - Run `pnpm import:batch … --hook-registry <their file> --dry-run --strict` and reply by letter.
+  - Run `pnpm import:batch … --hook-registry <their file> --dry-run --strict` against their MAIN (PR #55 merged before the flag existed, per the author's 2026-10-08 ruling) and reply by letter.
   - Files: none (a letter)
   - Verify: exit 0 and the expected chain and hook counts.
 - [ ] **T8 (P2, human: ~1 h / CC: ~10 min)**: docs close-out
