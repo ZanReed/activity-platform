@@ -1,8 +1,8 @@
 # Chain hooks — the teacher's hook view (curriculum D50 ask 3, first slice)
 
-**Status: RULED by the author 2026-10-08 (§Rulings at the end). CH-2 and CH-5
-are a JOINT contract, proposed to the curriculum side in B-124; build waits for
-their reply and their generator.** Nothing is built and no migration exists. Scheduled by the author
+**Status: RULED by the author 2026-10-08 (§Rulings at the end). The joint half
+(CH-2, CH-5) was AGREED by the curriculum side in C-97 (§Joint contract); the build
+waits for their generator PR.** Nothing is built and no migration exists. Scheduled by the author
 2026-10-08: "easier for me to also see them if they are held within the app
 rather than a raw text file". TODOS → "Teacher guides: a teacher-only field and
 generated teacher views" holds the queue entry.
@@ -325,3 +325,36 @@ un-retire. Mutation-test by dropping the `is_class_teacher` gate.
 
 The guards section above gains one rendered-output guard: a marked hook
 renders dimmed with its date for that class and undimmed for another class.
+
+## Joint contract AGREED (C-97, 2026-10-08)
+
+The curriculum side agreed to B-124 as proposed. Re-derived against their
+`main` b74e02a (still the tip) and PR #54 (open: an area-volume pool, 4 hooks,
+graph v0.17.20; after it merges there are 5 chains with pools and 13 hooks).
+
+- **Generator:** a sibling script, `scripts/generate_hook_registry.py`, with
+  its own gate. CI fails on a diff, as with their other generated files.
+- **(a)–(f) all confirmed:**
+  - (a) authored pool order;
+  - (b) chains with no pool omitted;
+  - (c) `connects_to = [{id, label}]`;
+  - (d) plain text, ENFORCED by their generator: it fails on `[[`, backticks
+    or `**`. Money stays a bare `$`, and there is no math in hooks, ever;
+  - (e) `folder = <ordinal>-<chain_id>` is a rule (D46). Verified: their
+    `scripts/check_integrity.py:169` strips `^\d+-` and fails on a folder that
+    is not a graph chain_id;
+  - (f) approved hooks only, no status field.
+- **No additions** to the body shape.
+- **Id permanence:** `chain-hooks.md` will state that a hook id is never
+  reused once it has been in the graph OR cut at screening. Their ledger
+  `hook-ids-retired.txt` is append-only, like `skill-ids-retired.txt`. Their
+  generator fails if a ledger id appears in the graph. It does not exist yet
+  (it arrives in the same PR).
+  **Our side (CH-5, unchanged):** an optional importer read that WARNS when a
+  ledger id is live in the registry. That can't happen given their gate, so it
+  is a belt over their braces. Whether to take the flag is a build-review
+  detail.
+- **Sequencing:** one PR on their side (generator + ledger + the
+  `chain-hooks.md` rule + the "…to students" amendment), after #54 and on
+  Zan's go. They send it to us for a pre-merge check against this import plan
+  before Zan merges.
