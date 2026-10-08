@@ -1307,9 +1307,12 @@ GAPS: 11, all unbuilt code. Regression risk: the editor drawer's existing tests 
 ```
 
 **Corrections to the design tasks' Verify lines:**
-- DT3's "the a11y lane (axe) on the route" is not existing coverage. The a11y
-  project matches only `**/a11y/**/*.e2e.ts`, which holds
-  `e2e/a11y/student-surfaces.e2e.ts`.
+- DT3's "the a11y lane (axe) on the route" is not existing coverage: no spec
+  scans `/chains/:chainId`. ⚠ **Corrected at build (2026-10-08):** this line
+  first said the a11y lane was student-only. It is not —
+  `e2e/a11y/student-surfaces.e2e.ts:735-800` already scans the teacher
+  number-facts page. The ruling (D3-rerun A) is unaffected: the chain page
+  still needed its own scan and a real print check.
 - DT4's "a print-mode render" cannot run in jsdom.
 
 The precedents for real proof are `print-answer-key.e2e.ts:35`

@@ -57,6 +57,14 @@ vi.mock('../lib/bank', () => ({
     isBankLister: () => Promise.resolve(bank.lister.current),
     setActivityListing: bank.setActivityListing,
 }));
+// The unit-header hook links (0057, CH-7) are mocked at lib/chainHooks for the
+// same reason as lib/bank: the rpc call counts above stay about deleting.
+// Only the fetch is mocked; chainsWithHooks/chainHooksPath are the real ones.
+const hooks = vi.hoisted(() => ({ fetch: vi.fn() }));
+vi.mock('../lib/chainHooks', async (importActual) => ({
+    ...(await importActual<typeof import('../lib/chainHooks')>()),
+    fetchMyChainHooks: hooks.fetch,
+}));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({
         session: { user: { id: 'owner-1' } },
@@ -85,6 +93,8 @@ beforeEach(() => {
     h.listResult.current = { data: ROWS, error: null };
     h.rpc.mockClear();
     h.rpc.mockImplementation(() => Promise.resolve({ error: null }));
+    hooks.fetch.mockReset();
+    hooks.fetch.mockResolvedValue({ activityChains: {}, chains: {} });
 });
 afterEach(cleanup);
 
@@ -697,3 +707,44 @@ describe('Activities — Activity Bank markers and curator controls (0054)', () 
     });
 });
 
+
+describe('Activities unit-header hook links (0057, CH-7, D3)', () => {
+    const UNIT_ROWS = [
+        { id: 'p1', title: 'Angle relationships', status: 'published', updated_at: '2026-10-08T00:00:00Z',
+          unit: 'Angles and Parallel Lines', source_path: '713-chain.geom.parallel-lines/01.md' },
+        { id: 'p2', title: 'Parallel lines', status: 'draft', updated_at: '2026-10-07T00:00:00Z',
+          unit: 'Angles and Parallel Lines', source_path: '713-chain.geom.parallel-lines/02.md' },
+        { id: 't1', title: 'Triangle sums', status: 'published', updated_at: '2026-10-06T00:00:00Z',
+          unit: 'Triangles', source_path: '712-chain.geom.triangles-polygons/01.md' },
+    ];
+    const POOL = {
+        activityChains: { p1: 'chain.geom.parallel-lines', p2: 'chain.geom.parallel-lines', t1: 'chain.geom.triangles-polygons' },
+        chains: {
+            'chain.geom.parallel-lines': [
+                { id: 'hook.a', connects_to: [], prompt: 'A', note: 'a' },
+                { id: 'hook.b', connects_to: [], prompt: 'B', note: 'b' },
+            ],
+        },
+    };
+
+    it('links a unit whose chain has a pool, with its count, and nothing for a unit without one', async () => {
+        h.listResult.current = { data: UNIT_ROWS, error: null };
+        hooks.fetch.mockResolvedValue(POOL);
+        renderList();
+        const link = await screen.findByRole('link', { name: 'Hooks (2)' });
+        expect(link.getAttribute('href')).toBe('/chains/chain.geom.parallel-lines');
+        expect(screen.getAllByRole('link', { name: /^Hooks \(/ })).toHaveLength(1);
+    });
+
+    it('CRITICAL: a failed hook read leaves the list exactly as it was — rows, delete and Undo — with no notice', async () => {
+        hooks.fetch.mockRejectedValue(new Error('Could not find the function public.my_chain_hooks'));
+        renderList();
+        await screen.findByRole('link', { name: 'Warm Up' });
+        expect(screen.getByRole('link', { name: 'Review' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: /^Hooks \(/ })).toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Delete Warm Up' }));
+        await screen.findByRole('button', { name: 'Undo' });
+        expect(h.rpc).toHaveBeenCalledWith('soft_delete_activity', { p_activity_id: 'a1' });
+    });
+});

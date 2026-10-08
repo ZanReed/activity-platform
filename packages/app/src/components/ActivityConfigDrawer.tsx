@@ -39,6 +39,7 @@ import TeacherGuideEditor from '../editor/TeacherGuideEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
 import { describeWorkSpace } from '../lib/workSpaceUnits';
 import TagChipInput from './TagChipInput';
+import { chainHooksPath, fetchMyChainHooks } from '../lib/chainHooks';
 import {
     PEDAGOGICAL_ROLES,
     PEDAGOGICAL_ROLE_HELP,
@@ -397,9 +398,53 @@ export function ConfigDrawer({
                         initialContent={guideInitialContent}
                         onUpdate={onGuideEditorUpdate}
                     />
+                    <UnitHooksLink activityId={activityId} open={active === 'guide'} />
                 </div>
             </div>
         </aside>
+    );
+}
+
+/**
+ * "This unit's hooks →" (0057, CH-7.3; design 2.1A; eng re-run RT5). Shown only
+ * when the activity's chain HAS a live pool, and fetched on the guide section's
+ * FIRST open — never when the editor mounts, so opening the editor costs no
+ * extra request. A failed read shows nothing (D3). No hook text here: the
+ * guide and the pool stay separate (CH-10).
+ */
+function UnitHooksLink({ activityId, open }: { activityId?: string; open: boolean }) {
+    const [chain, setChain] = useState<string | null>(null);
+    const started = useRef(false);
+    // A MOUNTED guard, not a per-run `cancelled`: the fetch runs once, and a
+    // per-run cleanup would discard its result whenever `open` flips (the
+    // teacher closes the drawer) or StrictMode re-runs the effect — and the
+    // `started` guard would then never let it run again.
+    const alive = useRef(true);
+    useEffect(() => {
+        alive.current = true;
+        return () => {
+            alive.current = false;
+        };
+    }, []);
+    useEffect(() => {
+        if (!open || !activityId || started.current) return;
+        started.current = true;
+        fetchMyChainHooks()
+            .then((data) => {
+                const c = data.activityChains[activityId];
+                if (alive.current && c && (data.chains[c]?.length ?? 0) > 0) setChain(c);
+            })
+            .catch(() => {
+                /* no line (D3) */
+            });
+    }, [open, activityId]);
+    if (!chain) return null;
+    return (
+        <p className="mt-4 text-sm">
+            <Link to={chainHooksPath(chain)} className="font-medium text-strong underline underline-offset-2">
+                This unit's hooks →
+            </Link>
+        </p>
     );
 }
 

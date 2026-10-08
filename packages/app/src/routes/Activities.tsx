@@ -16,6 +16,7 @@ import {
 } from '../lib/pedagogicalRole';
 import { useScrollMemory } from '../lib/useScrollMemory';
 import { isBankLister, setActivityListing } from '../lib/bank';
+import { chainHooksPath, chainsWithHooks, fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
 
 interface ActivityRow {
     id: string;
@@ -103,6 +104,24 @@ export default function Activities() {
         void isBankLister().then((ok) => {
             if (!cancelled) setBankLister(ok);
         });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // The unit headers' "Hooks (n)" links (0057, CH-7). Fetched beside the list,
+    // never before it, and a failed or missing read is simply no links (D3):
+    // this page must render exactly as it did before hooks existed.
+    const [chainHooks, setChainHooks] = useState<MyChainHooks>(NO_CHAIN_HOOKS);
+    useEffect(() => {
+        let cancelled = false;
+        fetchMyChainHooks()
+            .then((data) => {
+                if (!cancelled) setChainHooks(data);
+            })
+            .catch(() => {
+                /* no links, no notice (D3) */
+            });
         return () => {
             cancelled = true;
         };
@@ -647,6 +666,16 @@ export default function Activities() {
                     {group.rows.length === 1 ? ' activity' : ' activities'}
                     {drafts > 0 && ` · ${drafts} draft${drafts === 1 ? '' : 's'}`}
                     </span>
+                    <span className="ml-auto flex items-baseline gap-3">
+                    {chainsWithHooks(chainHooks, group.rows.map((r) => r.id)).map((chain) => (
+                        <Link
+                        key={chain}
+                        to={chainHooksPath(chain)}
+                        className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
+                        >
+                        Hooks ({chainHooks.chains[chain]?.length ?? 0})
+                        </Link>
+                    ))}
                     {bankLister && group.rows.some((r) => r.status === 'published' && !r.copied_from_activity_id) && (() => {
                         const published = group.rows.filter(
                             (r) => r.status === 'published' && !r.copied_from_activity_id,
@@ -657,7 +686,7 @@ export default function Activities() {
                             type="button"
                             disabled={listingBusy !== null}
                             onClick={() => void applyListing(published, !allListed, `unit:${group.key}`)}
-                            className="ml-auto text-xs font-medium text-muted underline underline-offset-2 hover:text-strong disabled:opacity-50"
+                            className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong disabled:opacity-50"
                             >
                             {listingBusy === `unit:${group.key}`
                                 ? 'Updating…'
@@ -667,6 +696,7 @@ export default function Activities() {
                             </button>
                         );
                     })()}
+                    </span>
                     </div>
 
                     {/* Flat rows, hairline separators (D8). The card-per-row

@@ -1,0 +1,294 @@
+/* =============================================================================
+   chainHooks.css — the chain hook page (docs/design/chain-hooks-view.md)
+   -----------------------------------------------------------------------------
+   Imported by the LAZY route only, so none of it is shell CSS (shell CSS sits
+   at 14.9/15.0 KiB; eng review scope finding 3). `ch-` classes on the app's
+   colour tokens, mirroring factsTeacher.css. One container with hairline
+   dividers, never a stack of cards (design 4.1A). A used hook says so with an
+   icon and words, never by colour or opacity alone (5.1A, DR-21).
+   ========================================================================== */
+
+.ch-page {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  min-height: 100vh;
+}
+
+.ch-wrap {
+  margin: 0 auto;
+  max-width: 56rem;
+  padding: 24px 16px 64px;
+}
+
+.ch-crumb {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.ch-crumb a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ch-h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 4px 0 4px;
+}
+
+.ch-h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.ch-section {
+  margin-top: 32px;
+}
+
+.ch-muted {
+  color: var(--color-muted);
+}
+
+.ch-picker {
+  align-items: center;
+  color: var(--color-strong);
+  display: inline-flex;
+  font-size: 14px;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ch-picker select {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 6px;
+  color: var(--color-ink);
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.ch-panel {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+/* The pool: ONE container, hairlines between hooks (4.1A). */
+.ch-list {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+}
+
+.ch-hook {
+  padding: 16px;
+}
+
+.ch-hook + .ch-hook {
+  border-top: 1px solid var(--color-line);
+}
+
+/* The prompt is the page's visual anchor: it is what gets read aloud. It is
+   an h3 for navigation (6.1A) but styled as the prompt, not as a heading. */
+.ch-prompt {
+  color: var(--color-ink);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ch-prompt--used {
+  color: var(--color-muted);
+}
+
+.ch-opens {
+  color: var(--color-muted);
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+.ch-notes-label {
+  color: var(--color-strong);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 12px 0 2px;
+}
+
+.ch-note {
+  color: var(--color-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ch-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.ch-status {
+  align-items: center;
+  color: var(--color-success-strong);
+  display: inline-flex;
+  font-size: 14px;
+  gap: 6px;
+}
+
+.ch-error {
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.ch-date-edit {
+  align-items: center;
+  color: var(--color-strong);
+  display: inline-flex;
+  font-size: 14px;
+  gap: 6px;
+}
+
+.ch-date-edit input {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 6px;
+  color: var(--color-ink);
+  font: inherit;
+  min-height: 44px;
+  padding: 6px 10px;
+}
+
+.ch-btn {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 6px;
+  color: var(--color-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 16px;
+}
+
+.ch-link {
+  background: none;
+  border: 0;
+  color: var(--color-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 8px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ch-link[aria-disabled='true'] {
+  color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+.ch-btn:focus-visible,
+.ch-link:focus-visible,
+.ch-picker select:focus-visible,
+.ch-date-edit input:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.ch-acts {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ch-acts li {
+  font-size: 14px;
+  padding: 10px 14px;
+}
+
+.ch-acts li + li {
+  border-top: 1px solid var(--color-line);
+}
+
+.ch-acts a {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.ch-print-only {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .ch-controls {
+    justify-content: flex-start;
+  }
+
+  .ch-picker,
+  .ch-picker select {
+    width: 100%;
+  }
+}
+
+/* The printed sheet is a REFERENCE (7.1A): the unit, the "teacher copy" line,
+   each hook with its notes, the activities as a plain list. No picker, no
+   buttons, no marks (they are one class's screen state). */
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  .ch-page {
+    background: #fff;
+    color: #000;
+    min-height: 0;
+  }
+
+  .ch-wrap {
+    max-width: none;
+    padding: 0;
+  }
+
+  .ch-noprint {
+    display: none !important;
+  }
+
+  .ch-print-only {
+    color: #000;
+    display: block;
+    font-size: 12px;
+    margin: 0 0 12px;
+  }
+
+  .ch-list,
+  .ch-acts,
+  .ch-panel {
+    border-color: #999;
+  }
+
+  .ch-hook {
+    break-inside: avoid;
+  }
+
+  .ch-prompt,
+  .ch-prompt--used,
+  .ch-note,
+  .ch-opens,
+  .ch-muted {
+    color: #000;
+  }
+}

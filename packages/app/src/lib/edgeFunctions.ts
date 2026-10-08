@@ -39,3 +39,6 @@ export const SET_ACTIVITY_LISTING_RPC = 'set_activity_listing';
 export const IS_BANK_LISTER_RPC = 'is_bank_lister';
 /** 0055 (BK-13): a teacher opts in to (or out of) a name on their Bank cards. */
 export const SET_PUBLIC_NAME_RPC = 'set_public_name';
+/** The chain hook view (0057, docs/design/chain-hooks-view.md D1): the ONE
+ * teacher read of hook pools, own and Bank-copied. */
+export const MY_CHAIN_HOOKS_RPC = 'my_chain_hooks';

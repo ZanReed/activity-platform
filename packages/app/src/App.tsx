@@ -43,6 +43,7 @@ import JoinClass from './routes/JoinClass';
 const Activities = lazy(() => import('./routes/Activities'));
 const Classes = lazy(() => import('./routes/Classes'));
 const Bank = lazy(() => import('./routes/Bank'));
+const ChainHooks = lazy(() => import('./routes/ChainHooks'));
 const ActivityEditor = lazy(() => import('./routes/ActivityEditor'));
 const ActivityPrint = lazy(() => import('./routes/ActivityPrint'));
 // The Submissions dashboard died at S9 Drop 3 — Phase 2.6 manual grading is
@@ -138,6 +139,15 @@ export default function App() {
         element={
             <RequireAuth>
             <Bank />
+            </RequireAuth>
+        }
+        />
+        {/* A unit's hook pool, teachers only (0057; chain-hooks-view.md). */}
+        <Route
+        path="/chains/:chainId"
+        element={
+            <RequireAuth>
+            <ChainHooks />
             </RequireAuth>
         }
         />

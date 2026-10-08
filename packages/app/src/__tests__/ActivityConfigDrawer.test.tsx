@@ -11,7 +11,7 @@
 // panel never offers it).
 // =============================================================================
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { createEmptyDocument, type ActivityMeta } from '@activity/schema';
@@ -20,6 +20,16 @@ import {
     ConfigButtons,
     ConfigDrawer,
 } from '../components/ActivityConfigDrawer';
+
+// The unit-hooks line (0057, RT5). Only fetchMyChainHooks is mocked; the path
+// builder is the real one, so the link's href is what production builds.
+const hooksMock = vi.hoisted(() => ({
+    fetch: vi.fn(),
+}));
+vi.mock('../lib/chainHooks', async (importActual) => ({
+    ...(await importActual<typeof import('../lib/chainHooks')>()),
+    fetchMyChainHooks: hooksMock.fetch,
+}));
 
 // Unmount between tests — leftover trees duplicate element ids across
 // renders, and jsdom resolves scoped #id queries document-first.
@@ -386,5 +396,71 @@ describe('activity taxonomy controls', () => {
         fireEvent.keyDown(input, { key: 'Enter' });
         expect(tagsNext).toEqual(['factoring']);
         expect(metaNext).toBeNull();
+    });
+});
+
+describe('Teacher guide section — the unit-hooks line (0057, CH-7.3, 2.1A, RT5)', () => {
+    const POOL = {
+        activityChains: { 'act-1': 'chain.geom.parallel-lines', 'act-2': 'chain.vfy.empty' },
+        chains: {
+            'chain.geom.parallel-lines': [{ id: 'hook.a', connects_to: [], prompt: 'P', note: 'N' }],
+        },
+    };
+    beforeEach(() => {
+        hooksMock.fetch.mockReset();
+        hooksMock.fetch.mockResolvedValue(POOL);
+    });
+
+    function drawerFor(active: 'guide' | 'settings' | null, activityId: string) {
+        return (
+            <MemoryRouter>
+                <ConfigDrawer
+                    active={active}
+                    onClose={() => {}}
+                    meta={meta}
+                    onMetaChange={() => {}}
+                    panelEditorKey="test"
+                    panelInitialContent={{ type: 'doc', content: [{ type: 'paragraph' }] }}
+                    panelTitle=""
+                    onPanelTitleChange={() => {}}
+                    onPanelEditorUpdate={() => {}}
+                    calculator={undefined}
+                    onCalculatorChange={() => {}}
+                    guideEditorKey="test-guide"
+                    guideInitialContent={{ type: 'doc', content: [{ type: 'paragraph' }] }}
+                    onGuideEditorUpdate={() => {}}
+                    activityId={activityId}
+                    taxonomy={inertTaxonomy}
+                />
+            </MemoryRouter>
+        );
+    }
+
+    it('does NOT fetch when the editor mounts the drawer — only on the guide section\'s first open', async () => {
+        const { rerender } = render(drawerFor(null, 'act-1'));
+        rerender(drawerFor('settings', 'act-1'));
+        expect(hooksMock.fetch).not.toHaveBeenCalled();
+        rerender(drawerFor('guide', 'act-1'));
+        const link = await screen.findByRole('link', { name: /this unit's hooks/i });
+        expect(link.getAttribute('href')).toBe('/chains/chain.geom.parallel-lines');
+        rerender(drawerFor(null, 'act-1'));
+        rerender(drawerFor('guide', 'act-1'));
+        expect(hooksMock.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows no line when the unit has no live pool', async () => {
+        render(drawerFor('guide', 'act-2'));
+        await waitFor(() => expect(hooksMock.fetch).toHaveBeenCalledTimes(1));
+        await Promise.resolve();
+        expect(screen.queryByRole('link', { name: /this unit's hooks/i })).toBeNull();
+    });
+
+    it('shows no line, and no error, when the read fails (D3)', async () => {
+        hooksMock.fetch.mockRejectedValue(new Error('PGRST202'));
+        render(drawerFor('guide', 'act-1'));
+        await waitFor(() => expect(hooksMock.fetch).toHaveBeenCalledTimes(1));
+        await Promise.resolve();
+        expect(screen.queryByRole('link', { name: /this unit's hooks/i })).toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
     });
 });
