@@ -324,12 +324,21 @@ export function parseFigureFence(
             }
             case 'segment': {
                 const dashed = flag('dashed');
-                const pts = refs(pointToks((t) => t.t === 'word' && t.v.toLowerCase() === 'dashed'));
+                // `arrow`: a head at the SECOND point (a translation vector).
+                const arrow = flag('arrow');
+                const pts = refs(pointToks((t) => t.t === 'word' && ['dashed', 'arrow'].includes(t.v.toLowerCase())));
                 if (strs.length) skip(line, 'a segment takes no label (use side AB "…")');
                 else if (typeof pts === 'string') skip(line, pts);
                 else if (pts.length !== 2) skip(line, 'a segment needs exactly two points');
                 else if (same(pts[0]!, pts[1]!)) refuse(line, 'its two points are the same point');
-                else drawables.push({ kind: 'segment', from: pts[0], to: pts[1], ...(dashed ? { style: 'dashed' } : {}) });
+                else
+                    drawables.push({
+                        kind: 'segment',
+                        from: pts[0],
+                        to: pts[1],
+                        ...(dashed ? { style: 'dashed' } : {}),
+                        ...(arrow ? { arrow: true } : {}),
+                    });
                 break;
             }
             case 'side': {

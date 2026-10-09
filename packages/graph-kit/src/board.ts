@@ -28,8 +28,10 @@ import {
   chevrons,
   cuboid,
   freeText,
+  MARK,
   markContext,
   markOwner,
+  segmentArrow,
   sideLabel,
   ticks,
   type MarkPrim,
@@ -1732,6 +1734,8 @@ export interface DisplayDrawable {
   // Continuation arrowheads on unbounded ends (curve/expression/ray + vertical).
   // undefined = true; false is the authored opt-out.
   arrows?: boolean;
+  // segment only: a filled head at `to` (a vector). Distinct from `arrows`.
+  arrow?: boolean;
   // Authored color palette key (see drawable-palette.ts). Absent = the shared
   // default; an unknown key falls back to it too (resolveDrawableColor).
   color?: string;
@@ -1945,7 +1949,7 @@ export function drawStaticDrawables(
         });
       } else if (m.t === 'face') {
         board.create('polygon', m.pts.map(fromPx) as unknown[], {
-          fillColor: color, fillOpacity: 0.12, hasInnerPoints: false, fixed: true,
+          fillColor: color, fillOpacity: m.solid ? 1 : MARK.cuboidFaceOpacity, hasInnerPoints: false, fixed: true,
           vertices: { visible: false, fixed: true },
           borders: { strokeWidth: 0, highlight: false, fixed: true },
         });
@@ -2081,14 +2085,20 @@ export function drawStaticDrawables(
       }
       case 'segment': {
         if (!isPair(d.from) || !isPair(d.to)) break;
-        board.create('segment', [d.from, d.to], {
+        // An arrowed segment (a vector): the shaft stops at the head's base and
+        // the solid head's tip sits ON `to` — the same figure-marks geometry
+        // paper uses (ER-4), so screen and print cannot drift. No dots.
+        const arrow = d.arrow === true ? segmentArrow(toPx(d.from), toPx(d.to), unit) : null;
+        board.create('segment', [d.from, arrow ? fromPx(arrow.shaftEnd) : d.to], {
           strokeColor: color,
           strokeWidth: 2,
           highlight: false,
           fixed: true,
           dash: d.style === 'dashed' ? 2 : 0,
         });
-        if (d.endpoints) {
+        if (arrow) {
+          drawPrims([arrow.head], color);
+        } else if (d.endpoints) {
           board.create('point', d.from, dotAttrs(d.endpoints[0], color, openFill));
           board.create('point', d.to, dotAttrs(d.endpoints[1], color, openFill));
         }

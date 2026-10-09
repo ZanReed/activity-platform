@@ -381,3 +381,15 @@ describe('```mc options: keep-order (side-by-side figures)', () => {
         expect(mc('prompt: Which?', 'options: keep-ordre', ...CHOICES).blocks[0]!.type).not.toBe('multipleChoice');
     });
 });
+
+describe('segment arrow (arrowhead Drop 1)', () => {
+    it('reads arrow beside dashed, names or coordinates, head at the second point', () => {
+        const r = fig(ALT, ...POINTS, 'segment A B arrow', 'segment C (8,5) dashed arrow', 'segment (5,12) (5,0) dashed');
+        expect(r.problems).toEqual([]);
+        expect(r.attrs?.drawables.slice(3)).toEqual([
+            { kind: 'segment', from: [0, 0], to: [8, 0], arrow: true },
+            { kind: 'segment', from: [2, 5], to: [8, 5], style: 'dashed', arrow: true },
+            { kind: 'segment', from: [5, 12], to: [5, 0], style: 'dashed' },
+        ]);
+    });
+});

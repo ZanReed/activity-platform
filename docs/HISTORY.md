@@ -1,5 +1,9 @@
 # HISTORY.md
 
+**▶ Moved out of STATE 2026-10-09 (closed record, nothing owed).** Kept verbatim:
+
+**BANK TEACHING-ORDER FIX (0056) is LIVE (2026-10-08):** applied, `verify-0056`/`0055`/`0054` live green; the Bank lists Year 7 as 712 → 713, then Year 8. Nothing owed.
+
 **▶ Moved out of STATE 2026-10-08 (closed records, nothing owed).** Kept verbatim:
 
 **BANK FILTERS + AUTHORS (BK-11…BK-13) are LIVE (2026-10-07):** 0055 applied, `verify-0055` and `verify-0054` live green, pushed at `6dc2a324` (CI green); the author opted in ("Zan Reed" on all six listed activities). Nothing owed.

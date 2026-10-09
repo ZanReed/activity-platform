@@ -266,6 +266,12 @@ const SegmentDrawable = z.object({
   // Y7 geometry (D4): a dashed segment — a height, a hidden edge, a
   // construction line. Same vocabulary as curve/expression.style.
   style: z.enum(['solid', 'dashed']).optional(),
+  // A filled arrowhead at `to` — a translation vector shown as a stimulus
+  // (arrowhead Drop 1, ruled 2026-10-09). Singular on purpose: ray/curve
+  // `arrows` means "keeps going" and defaults ON; this is "points this way"
+  // and defaults OFF. An arrowed segment draws NO endpoint dots, on either
+  // renderer, whatever `endpoints` says.
+  arrow: z.boolean().optional(),
   color: DrawableColor.optional(),
 });
 

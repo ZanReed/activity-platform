@@ -2,7 +2,8 @@
 // beside `answer:` in a ```graph fence become the block's `stimulus`, read by
 // the figure grammar when they need it (ER-11), and survive the round trip.
 import { beforeAll, describe, expect, it } from 'vitest';
-import { InteractiveGraphBlock } from '@activity/schema';
+import { ActivityDocument, ActivityMeta, InteractiveGraphBlock } from '@activity/schema';
+import { sanitizeActivityDocument } from '@activity/viewer';
 import { getMarkdownImporter } from '../lib/markdownToTiptap';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { wrapBlocksStrict } from '../lib/batchImportPipeline';
@@ -133,5 +134,72 @@ describe('the stimulus survives import → document → editor → document', ()
         );
         expect(again.stimulus).toEqual(first.stimulus);
         expect(again.stimulusAlt).toBe(first.stimulusAlt);
+    });
+});
+
+describe('segment arrowheads and dashes (arrowhead Drop 1)', () => {
+    const segs = (r: ReturnType<typeof graph>, key = 'stimulus') =>
+        ((attrsOf(r)[key] ?? (attrsOf(r).interaction as Record<string, unknown>)?.drawables) as Record<string, unknown>[]).filter(
+            (d) => d.kind === 'segment',
+        );
+
+    it('the COORDINATE form keeps dashed — it was silently dropped until 2026-10-09', () => {
+        const r = graph('show: segment (1,1) (4,3) dashed', 'answer: (0,0)');
+        expect(r.warnings).toEqual([]);
+        expect(segs(r)).toEqual([{ kind: 'segment', from: [1, 1], to: [4, 3], style: 'dashed' }]);
+    });
+
+    it('the coordinate form reads arrow, alone and with dashed', () => {
+        const r = graph('show: segment (1,1) (4,3) arrow', 'show: segment (0,0) (0,2) dashed arrow', 'answer: (0,0)');
+        expect(r.warnings).toEqual([]);
+        expect(segs(r)).toEqual([
+            { kind: 'segment', from: [1, 1], to: [4, 3], arrow: true },
+            { kind: 'segment', from: [0, 0], to: [0, 2], style: 'dashed', arrow: true },
+        ]);
+    });
+
+    it('the NAMED form reads arrow, with the head at the second point', () => {
+        const r = graph('show: point (1,1) "A"', 'show: point (4,3) "B"', 'show: segment A B arrow', 'answer: (0,0)');
+        expect(r.warnings).toEqual([]);
+        expect(segs(r)).toEqual([{ kind: 'segment', from: [1, 1], to: [4, 3], arrow: true }]);
+    });
+
+    it('a DISPLAY graph keeps both too', () => {
+        const r = graph('show: segment (1,1) (4,3) dashed arrow');
+        expect(r.warnings).toEqual([]);
+        const d = (attrsOf(r).interaction as { drawables: Record<string, unknown>[] }).drawables;
+        expect(d).toEqual([{ kind: 'segment', from: [1, 1], to: [4, 3], style: 'dashed', arrow: true }]);
+    });
+
+    it('arrow on any other kind is NOT silently ignored', () => {
+        const r = graph('show: line y = x arrow', 'answer: (0,0)');
+        expect(r.warnings.length).toBeGreaterThan(0);
+    });
+});
+
+describe('the arrow reaches what a student is SERVED', () => {
+    // A field read only by the importer is an orphan. Walk the stored path:
+    // markdown → importer → serialize → schema parse (zod strips unknown keys)
+    // → the read API's sanitize, for a graded stimulus AND a figure fence.
+    it('survives serialize, the schema and sanitize', () => {
+        const md = [
+            '```graph',
+            'show: segment (0,0) (3,2) dashed arrow',
+            'answer: (3,2)',
+            '```',
+            '',
+            '```figure',
+            'alt: A vector',
+            'segment (0,0) (3,2) arrow',
+            '```',
+        ].join('\n');
+        const r = importMd(md);
+        expect(r.warnings).toEqual([]);
+        const doc = ActivityDocument.parse(
+            tiptapToActivity(wrapBlocksStrict(r.blocks), ActivityMeta.parse({ title: 't', course: 'c' })),
+        );
+        const served = JSON.stringify(sanitizeActivityDocument(doc));
+        expect(served.match(/"kind":"segment"[^}]*"arrow":true/g), 'both segments keep the arrow').toHaveLength(2);
+        expect(served).toMatch(/"kind":"segment"[^}]*"style":"dashed"[^}]*"arrow":true/);
     });
 });

@@ -4537,9 +4537,14 @@ function parseShowDrawable(value: string): ShowResult {
         : /\bclosed\b/i.test(value)
           ? 'closed'
           : undefined;
-    const body = value
-        .replace(/\bdashed\b|\bdotted\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '')
-        .trim();
+    // `arrow` is a segment's head at its second point (a vector). Stripped
+    // ONLY on a segment line: on any other kind it stays in the body, so the
+    // line fails to read here and the figure grammar reports it, rather than
+    // a silently ignored word.
+    const isSegment = /^\s*segment\b/i.test(value);
+    const arrow = isSegment && /\barrow\b/i.test(value);
+    const stripped = value.replace(/\bdashed\b|\bdotted\b|\bopen\b|\bclosed\b|"[^"]*"/gi, '');
+    const body = (isSegment ? stripped.replace(/\barrow\b/gi, '') : stripped).trim();
     const kindMatch =
         /^(point|line|curve|expression|segment|ray|region)\s+(.+)$/i.exec(body);
     if (!kindMatch) return { ok: false, message: `unrecognized show line "${value}"` };
@@ -4565,7 +4570,15 @@ function parseShowDrawable(value: string): ShowResult {
             ok: true,
             drawable:
                 kind === 'segment'
-                    ? { kind, from: p[0], to: p[1] }
+                    ? {
+                          kind,
+                          from: p[0],
+                          to: p[1],
+                          // `dashed` was matched above and then DROPPED here
+                          // until 2026-10-09 — silently, with no warning.
+                          ...(style ? { style } : {}),
+                          ...(arrow ? { arrow: true } : {}),
+                      }
                     : {
                           kind,
                           from: p[0],

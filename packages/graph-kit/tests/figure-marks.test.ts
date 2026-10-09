@@ -13,6 +13,7 @@ import {
   chevrons,
   markContext,
   outwardNormal,
+  segmentArrow,
   sideLabel,
   ticks,
   vertexLetter,
@@ -172,5 +173,39 @@ describe('outwardNormal', () => {
   it('matches an edge given in either direction', () => {
     const ctx = tri([A, B, C]);
     expect(outwardNormal(ctx, A, B)).toEqual(outwardNormal(ctx, B, A));
+  });
+});
+
+describe('segment arrowhead (arrowhead Drop 1)', () => {
+  const a: Pt = [100, 200];
+  const b: Pt = [300, 200];
+
+  it('puts the tip ON the second point and stops the shaft at the head base', () => {
+    const r = segmentArrow(a, b)!;
+    expect(r.head.pts[0]).toEqual(b);
+    expect(r.head.solid).toBe(true);
+    expect(dist(r.shaftEnd, b)).toBeCloseTo(MARK.arrowHeadLength);
+    // The base corners straddle the shaft end, half-width either side.
+    expect(dist(r.head.pts[1]!, r.shaftEnd)).toBeCloseTo(MARK.arrowHeadHalfWidth);
+    expect(dist(r.head.pts[2]!, r.shaftEnd)).toBeCloseTo(MARK.arrowHeadHalfWidth);
+  });
+
+  it('points the way the segment runs (a→b), not the other way', () => {
+    const r = segmentArrow(b, a)!;
+    expect(r.head.pts[0]).toEqual(a);
+    expect(r.shaftEnd[0]).toBeGreaterThan(a[0]);
+  });
+
+  it('never takes more than half a short segment, so a shaft stays visible', () => {
+    const r = segmentArrow([0, 0], [10, 0])!;
+    expect(dist(r.shaftEnd, [10, 0])).toBeCloseTo(5);
+  });
+
+  it('scales with the renderer unit', () => {
+    expect(dist(segmentArrow(a, b, 2)!.shaftEnd, b)).toBeCloseTo(2 * MARK.arrowHeadLength);
+  });
+
+  it('refuses a degenerate segment', () => {
+    expect(segmentArrow(a, a)).toBeNull();
   });
 });

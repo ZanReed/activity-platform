@@ -162,7 +162,18 @@ function mergeExtras(prev: DrawableAttr, next: DrawableAttr): DrawableAttr {
                 merged = { ...next, ...(p.arrows !== undefined ? { arrows: p.arrows } : {}) };
                 break;
             }
-            // segment: no extras beyond geometry + color.
+            case 'segment': {
+                // Geometry + open/closed come from the text; dashed and the
+                // arrowhead live behind the row's options, so carry them (a
+                // text edit used to drop a dashed segment's style).
+                const p = prev as Extract<DrawableAttr, { kind: 'segment' }>;
+                merged = {
+                    ...next,
+                    ...(p.style !== undefined ? { style: p.style } : {}),
+                    ...(p.arrow !== undefined ? { arrow: p.arrow } : {}),
+                };
+                break;
+            }
         }
     }
     // Color is kind-agnostic — preserve across any edit, including a kind change.

@@ -173,7 +173,7 @@ export type DrawableAttr =
           color?: DrawableColorKey;
       }
     | { kind: 'expression'; expression: string; style?: 'solid' | 'dashed'; arrows?: boolean; color?: DrawableColorKey }
-    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed']; style?: 'solid' | 'dashed'; color?: DrawableColorKey }
+    | { kind: 'segment'; from: [number, number]; to: [number, number]; endpoints?: ['open' | 'closed', 'open' | 'closed']; style?: 'solid' | 'dashed'; arrow?: boolean; color?: DrawableColorKey }
     | { kind: 'ray'; from: [number, number]; through: [number, number]; fromStyle?: 'open' | 'closed'; arrows?: boolean; color?: DrawableColorKey }
     | { kind: 'polygon'; vertices: [number, number][]; filled: boolean; color?: DrawableColorKey }
     // Y7 geometry marks (Q2) — produced by the ```figure fence, never by a

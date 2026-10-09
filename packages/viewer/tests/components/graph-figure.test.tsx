@@ -97,9 +97,44 @@ describe('a standalone figure draws what was authored', () => {
     expect(container.querySelector('marker'), 'a ray needs a marker to point with').not.toBeNull();
   });
 
-  it('gives a segment its ENDPOINT DOTS', () => {
+  it('gives a segment its AUTHORED endpoint dots', () => {
+    const container = renderFigure([
+      { kind: 'segment', from: [-4, -2], to: [0, 2], endpoints: ['closed', 'open'] },
+    ]);
+    expect(container.querySelectorAll('circle').length, 'both authored ends are marked').toBe(2);
+  });
+
+  // Ruling 10 (2026-10-09): dots only when authored, plane or not. Paper used to
+  // add closed dots on a plane while the board drew none, so a stimulus segment
+  // looked different on paper than on screen.
+  it('draws NO dots on a segment whose endpoints were not authored, even on a plane', () => {
     const container = renderFigure([{ kind: 'segment', from: [-4, -2], to: [0, 2] }]);
-    expect(container.querySelectorAll('circle').length, 'both ends are marked').toBeGreaterThan(0);
+    expect(container.querySelectorAll('circle').length).toBe(0);
+  });
+
+  // Arrowhead Drop 1: a vector. The head is a SOLID polygon whose tip sits on
+  // `to`; the shaft stops short of it; no dots even when endpoints were authored.
+  it('gives an ARROWED segment a solid head at its second point and no dots', () => {
+    const container = renderFigure([
+      { kind: 'segment', from: [-4, -2], to: [0, 2], arrow: true, endpoints: ['closed', 'closed'] },
+    ]);
+    const g = container.querySelector('[data-drawable="segment"]')!;
+    const head = g.querySelector('polygon');
+    expect(head, 'an arrowed segment draws a head').not.toBeNull();
+    expect(head!.getAttribute('fill-opacity')).toBe('1');
+    expect(g.querySelectorAll('circle').length, 'no endpoint dots on a vector').toBe(0);
+    const tip = head!.getAttribute('points')!.split(' ')[0]!.split(',').map(Number);
+    const line = g.querySelector('line')!;
+    const shaftEnd = [Number(line.getAttribute('x2')), Number(line.getAttribute('y2'))];
+    const tail = [Number(line.getAttribute('x1')), Number(line.getAttribute('y1'))];
+    const dist = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!);
+    expect(dist(tail, shaftEnd), 'the shaft stops at the head base, short of the tip').toBeLessThan(dist(tail, tip));
+    expect(dist(shaftEnd, tip)).toBeGreaterThan(5);
+  });
+
+  it('draws NO head on a plain segment', () => {
+    const container = renderFigure([{ kind: 'segment', from: [-4, -2], to: [0, 2] }]);
+    expect(container.querySelector('[data-drawable="segment"] polygon')).toBeNull();
   });
 
   it('renders a point LABEL as text', () => {

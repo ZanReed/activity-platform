@@ -225,7 +225,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - options: (comma-separated) turn on grading behaviours:
     allow-no-solution     give the student a "no solution" choice
     no-solution-correct   make "no solution" THE correct answer and any drawn answer a decoy (a trick question)
-    no-builtin-feedback   turn OFF the automatic mistake hints (swapped coordinates, swapped slope/intercept, …), which are on by default
+    no-builtin-feedback   no effect yet: automatic mistake hints are not shown to students, so write each mistake you want caught as a mistake: line
     type-equation         with start:, also require the typed target equation
 - A SHOWN SHAPE BESIDE THE QUESTION: show: lines written WITH an answer: are
   fixed on the student's graph (and on the printed sheet) for them to work
@@ -248,6 +248,9 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   Write each mistake: as the WHOLE wrong image (every point), so it only
   matches that error. alt: (optional) says what is shown, for screen
   readers; never put the answer in it. Never show the answer itself.
+  A TRANSLATION VECTOR is an arrowed segment: show: segment A B arrow (or
+  show: segment (0,0) (3,2) arrow). The head is at the SECOND point, so
+  write the tail first; arrow combines with dashed. It has no end dots.
   Not beside an answer: show: expression, cuboid.
 - For an ungraded figure, use show: lines instead of an answer:
     show: point (2, 3) closed "A"
@@ -255,6 +258,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     show: line y > 2x + 1 for x >= 0   (inequalities shade; domains clip)
     show: expression sin(x)      (plots any formula)
     show: ray (0,0) (2,1) open
+    show: segment (0,0) (3,2) arrow   (a vector: the head at the second point)
 
 NUMBER LINES (a fenced block with the `numberline` tag becomes a 1-D number-line question)
 - ```numberline … ``` with one statement per line:
@@ -554,7 +558,8 @@ GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
   a question that names it ("which diagram...?"). At most 12 characters.
 - point (x, y) "A" names a point (its letter is drawn beside it);
   polygon A B C draws the outline (region A B C draws it shaded);
-  segment A C draws a line between two points (segment A C dashed for dashes).
+  segment A C draws a line between two points (segment A C dashed for dashes;
+  segment A C arrow puts an arrowhead at C, for a vector; both words can go together).
 - side AB "8 cm" labels a side; the label goes outside the shape.
 - angle BAC marks the angle AT THE MIDDLE letter (here A). Its label is a
   degree value (68°), right (draws the small square), or text in quotes
@@ -752,7 +757,7 @@ options: allow-no-solution
 - `prompt:` the question text (optional). Accepts `$inline$` math with the same currency guard as body text; `{{…}}` blanks stay literal here.
 - `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`; on a ray/segment question either figure matches (the classic ray mistake is its segment version).
 - `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
-- `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d)`, `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
+- `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d) [dashed] [arrow]` (`arrow` = a filled head at the second point, a vector; an arrowed segment has no end dots, and a segment otherwise has dots only where `open`/`closed` says so), `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
 - **`show:` lines beside an `answer:` are the question's stimulus**: fixed shapes drawn on the student's graph under their own points, and on the printed student sheet, for them to work from. They are never marked. The lines after `show:` use the [figure grammar](#geometry-figures-figure-fence) (named points, `polygon`, `region`, `segment`, `side`, `angle`, `ticks`, `parallel`, `text`) as well as the forms above, and names resolve across all of the fence's `show:` lines in any order. Example: `show: point (1,1) "A"` · `show: point (4,1) "B"` · `show: point (2,4) "C"` · `show: polygon A B C` · `show: line x = 0 dashed` · `answer: (-1,1), (-4,1), (-2,4)`.
   - **A mirror line** is `show: line … dashed` (`x = 2`, `y = -1`, `y = x`): an infinite line across the window. A centre of rotation is a named point.
   - **Colour:** an uncoloured stimulus shape is drawn slate, so it cannot be mistaken for the student's own (blue) work.
@@ -761,7 +766,7 @@ options: allow-no-solution
   - **Not beside an answer:** `show: expression …` and `cuboid`. Each is refused with a warning.
   - **Problems:** a `show:` line that cannot be read is skipped and reported, and the question still imports; the batch importer skips the whole file, exactly as for a `figure` problem.
 - `start:` a shown parent curve, making the block a TRANSFORM question (design #5): the student drags the dashed start curve onto the target given by `answer:` (which must then be an equation — not points, not a ray, not `none`). No verticals and no domain clauses on `start:`.
-- `options:` `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (turn off the automatic swapped-coordinate / swapped-slope mistake hints, which are on by default), `type-equation` (with `start:`, the student must ALSO type the target's equation — both channels must be correct).
+- `options:` `allow-no-solution` (give a "no solution" choice), `no-solution-correct` ("no solution" is THE answer — a trick question; implies `allow-no-solution`), `no-builtin-feedback` (no effect yet — the automatic swapped-coordinate / swapped-slope hints are not shown to students, a deferral since 2026-08-25 (X3); an authored `mistake:` always fires, binding and all), `type-equation` (with `start:`, the student must ALSO type the target's equation — both channels must be correct).
 - On a transform question, `mistake:` also accepts two reserved tokens — `drawn-not-written` (the drag is right but the typed equation isn't) and `written-not-drawn` (the reverse) — alongside ordinary wrong-equation matches, which match against EITHER channel.
 
 A malformed graph block imports as plain text with a warning, never silently guessing — including `type-equation` without `start:`, and `start:` with a non-equation answer.
@@ -1555,7 +1560,7 @@ text (4,-1.5) "base"
 | `caption: A` | a short label (at most 12 characters) drawn in bold above the figure and read first by a screen reader. Optional. In a `columns` figure column the same thing is written `figure: A`. |
 | `point (x, y) "A"` | a named point. The name is what every other line refers to; its letter is drawn outside the shape. `point (x, y)` with no name draws a dot. |
 | `polygon A B C …` | the outline through the named points. `region A B C …` draws it shaded. |
-| `segment A C` | a line between two points; add `dashed` for a height, a hidden edge or a construction line. |
+| `segment A C` | a line between two points; add `dashed` for a height, a hidden edge or a construction line, and `arrow` for a vector (a filled head at the SECOND point, C; no end dots). The two words combine: `segment A C dashed arrow`. |
 | `side AB "8 cm"` | a side label, placed outside the shape beside that side (further out when the side also has ticks or arrows). |
 | `angle BAC 68°` | the angle **at the middle letter** (A), from AB round to AC: under 180° unless you add `reflex`. The label is a degree value (`68°`), `right` (the small square only, never square + arc), or quoted text (`"x"`). **No label** draws the arc alone. |
 | `ticks BC 2` | equal-length marks on a side: 1, 2 or 3 (default 1). Sides with the same count are equal. |

@@ -23,6 +23,8 @@ const EVERY: FigureSourceAttrs = {
         { kind: 'polygon', vertices: [[8, 0], [8, 5], [2, 5]], filled: true },
         { kind: 'segment', from: [2, 5], to: [2, 0], style: 'dashed' },
         { kind: 'segment', from: [0, 0], to: [1, 1] },
+        { kind: 'segment', from: [0, 0], to: [8, 5], arrow: true },
+        { kind: 'segment', from: [8, 0], to: [8, 5], style: 'dashed', arrow: true },
         { kind: 'side_label', from: [0, 0], to: [8, 0], text: '8 cm' },
         { kind: 'angle_mark', at: [0, 0], from: [8, 0], to: [2, 5], label: '68°' },
         { kind: 'angle_mark', at: [8, 0], from: [0, 0], to: [2, 5], label: 'x' },

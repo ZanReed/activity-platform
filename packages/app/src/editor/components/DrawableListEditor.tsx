@@ -250,13 +250,18 @@ function RowOptions({
 
             {d.kind === 'segment' && (
                 <div className="drawable-row__opt-line">
-                    {check('open start', d.endpoints?.[0] === 'open', (on) =>
+                    {check('arrow', d.arrow === true, (on) =>
+                        onChange({ ...d, arrow: on ? true : undefined }),
+                    )}
+                    {/* An arrowed segment draws no endpoint dots (ruling 3), so
+                        the open/closed choices would do nothing — hide them. */}
+                    {d.arrow !== true && check('open start', d.endpoints?.[0] === 'open', (on) =>
                         onChange({
                             ...d,
                             endpoints: [on ? 'open' : 'closed', d.endpoints?.[1] ?? 'closed'],
                         }),
                     )}
-                    {check('open end', d.endpoints?.[1] === 'open', (on) =>
+                    {d.arrow !== true && check('open end', d.endpoints?.[1] === 'open', (on) =>
                         onChange({
                             ...d,
                             endpoints: [d.endpoints?.[0] ?? 'closed', on ? 'open' : 'closed'],

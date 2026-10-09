@@ -45,8 +45,10 @@ import {
   chevrons,
   cuboid,
   freeText,
+  MARK,
   markContext,
   markOwner,
+  segmentArrow,
   sideLabel,
   ticks,
   vertexLetter,
@@ -453,14 +455,22 @@ function renderCurve(
 
 function renderSegment(p: Plane, d: Extract<Drawable, { kind: 'segment' }>, color: string): string {
   const dash = d.style === 'dashed' ? ' stroke-dasharray="8 6"' : '';
+  const a = pt(p, d.from);
+  const b = pt(p, d.to);
+  // An arrowed segment (a vector) stops its shaft at the head's base and draws
+  // the solid head with its tip ON `to`; it never carries endpoint dots.
+  const arrow = d.arrow === true ? segmentArrow(a, b, p.scale) : null;
+  const end = arrow ? arrow.shaftEnd : b;
   const line =
-    `<line x1="${round1(p.px(d.from[0]))}" y1="${round1(p.py(d.from[1]))}"` +
-    ` x2="${round1(p.px(d.to[0]))}" y2="${round1(p.py(d.to[1]))}"` +
+    `<line x1="${round1(a[0])}" y1="${round1(a[1])}"` +
+    ` x2="${round1(end[0])}" y2="${round1(end[1])}"` +
     ` stroke="${color}" stroke-width="2"${dash}/>`;
-  // Plane-less: a segment is an edge of a figure (a height, a diagonal), not a
-  // plotted interval, so it carries no endpoint dots unless they were authored.
-  if (!p.plane && !d.endpoints) return line;
-  const [fromStyle, toStyle] = d.endpoints ?? ['closed', 'closed'];
+  if (arrow) return line + prims([arrow.head], color, p.scale);
+  // Dots only when AUTHORED, plane or not (ruling 10, 2026-10-09): the board
+  // has always drawn none by default, and paper used to add closed dots on a
+  // plane — so a stimulus segment looked different on paper than on screen.
+  if (!d.endpoints) return line;
+  const [fromStyle, toStyle] = d.endpoints;
   return line + endpointDot(p, d.from, fromStyle, color) + endpointDot(p, d.to, toStyle, color);
 }
 
@@ -522,7 +532,7 @@ function prims(list: readonly MarkPrim[], color: string, scale = 1): string {
         ` style="${INK_STYLE}">${escape(m.text)}</text>`;
     } else if (m.t === 'face') {
       const pts = m.pts.map((q) => `${round1(q[0])},${round1(q[1])}`).join(' ');
-      out += `<polygon points="${pts}" fill="${color}" fill-opacity="0.12" stroke="none"/>`;
+      out += `<polygon points="${pts}" fill="${color}" fill-opacity="${m.solid ? 1 : MARK.cuboidFaceOpacity}" stroke="none"/>`;
     } else if (m.pts.length === 2) {
       const [a, b] = m.pts as [Pt, Pt];
       out +=

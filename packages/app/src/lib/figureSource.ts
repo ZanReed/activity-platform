@@ -83,8 +83,8 @@ export function formatFigureSource(a: FigureSourceAttrs): { text: string; lossy:
                 lines.push(`${d.filled === false ? 'polygon' : 'region'} ${refs(...d.vertices)}`);
                 break;
             case 'segment':
-                if (d.endpoints) lossy.add('segment endpoint dots');
-                lines.push(`segment ${refs(d.from, d.to)}${d.style === 'dashed' ? ' dashed' : ''}`);
+                if (d.endpoints && !d.arrow) lossy.add('segment endpoint dots');
+                lines.push(`segment ${refs(d.from, d.to)}${d.style === 'dashed' ? ' dashed' : ''}${d.arrow ? ' arrow' : ''}`);
                 break;
             case 'side_label':
                 lines.push(`side ${refs(d.from, d.to)} ${quote(d.text)}`);

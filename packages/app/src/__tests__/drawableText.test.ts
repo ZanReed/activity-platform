@@ -84,6 +84,19 @@ describe('updateDrawableFromText — merge-preserve', () => {
     });
 });
 
+describe('updateDrawableFromText — a segment keeps its row options', () => {
+    // dashed and the arrowhead live behind the row's options, not its text. A
+    // text edit used to rebuild the segment from geometry alone and drop both.
+    it('editing a dashed, arrowed segment keeps dashed AND the arrow', () => {
+        const d: DrawableAttr = { kind: 'segment', from: [0, 0], to: [3, 2], style: 'dashed', arrow: true };
+        const res = updateDrawableFromText(d, 'segment (1, 1) to (4, 3)', KINDS);
+        expect(res).toEqual({
+            ok: true,
+            drawable: { kind: 'segment', from: [1, 1], to: [4, 3], style: 'dashed', arrow: true },
+        });
+    });
+});
+
 describe('updateDrawableFromText — color always survives', () => {
     it('color persists across a coord edit', () => {
         const d: DrawableAttr = { kind: 'point', at: [2, 3], color: 'red' };

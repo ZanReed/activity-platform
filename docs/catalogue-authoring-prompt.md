@@ -137,7 +137,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - options: (comma-separated) turn on grading behaviours:
     allow-no-solution     give the student a "no solution" choice
     no-solution-correct   make "no solution" THE correct answer and any drawn answer a decoy (a trick question)
-    no-builtin-feedback   turn OFF the automatic mistake hints (swapped coordinates, swapped slope/intercept, …), which are on by default
+    no-builtin-feedback   no effect yet: automatic mistake hints are not shown to students, so write each mistake you want caught as a mistake: line
     type-equation         with start:, also require the typed target equation
 - A SHOWN SHAPE BESIDE THE QUESTION: show: lines written WITH an answer: are
   fixed on the student's graph (and on the printed sheet) for them to work
@@ -160,6 +160,9 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   Write each mistake: as the WHOLE wrong image (every point), so it only
   matches that error. alt: (optional) says what is shown, for screen
   readers; never put the answer in it. Never show the answer itself.
+  A TRANSLATION VECTOR is an arrowed segment: show: segment A B arrow (or
+  show: segment (0,0) (3,2) arrow). The head is at the SECOND point, so
+  write the tail first; arrow combines with dashed. It has no end dots.
   Not beside an answer: show: expression, cuboid.
 - For an ungraded figure, use show: lines instead of an answer:
     show: point (2, 3) closed "A"
@@ -167,6 +170,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     show: line y > 2x + 1 for x >= 0   (inequalities shade; domains clip)
     show: expression sin(x)      (plots any formula)
     show: ray (0,0) (2,1) open
+    show: segment (0,0) (3,2) arrow   (a vector: the head at the second point)
 
 NUMBER LINES (a fenced block with the `numberline` tag becomes a 1-D number-line question)
 - ```numberline … ``` with one statement per line:
@@ -466,7 +470,8 @@ GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
   a question that names it ("which diagram...?"). At most 12 characters.
 - point (x, y) "A" names a point (its letter is drawn beside it);
   polygon A B C draws the outline (region A B C draws it shaded);
-  segment A C draws a line between two points (segment A C dashed for dashes).
+  segment A C draws a line between two points (segment A C dashed for dashes;
+  segment A C arrow puts an arrowhead at C, for a vector; both words can go together).
 - side AB "8 cm" labels a side; the label goes outside the shape.
 - angle BAC marks the angle AT THE MIDDLE letter (here A). Its label is a
   degree value (68°), right (draws the small square), or text in quotes

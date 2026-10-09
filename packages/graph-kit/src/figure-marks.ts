@@ -30,10 +30,12 @@ export interface MarkLine {
   readonly weight?: 'mark' | 'edge' | 'grid';
   readonly dashed?: boolean;
 }
-/** A filled face (a cuboid's visible faces, Q6): fill only, no stroke. */
+/** A filled face: fill only, no stroke. A cuboid's visible faces (Q6) are
+ *  tinted (the default); a segment's arrowhead is `solid` (full opacity). */
 export interface MarkFace {
   readonly t: 'face';
   readonly pts: readonly Pt[];
+  readonly solid?: boolean;
 }
 /** Text centred on (x, y). `vertex` = a vertex letter (15, italic); `label` = 16. */
 export interface MarkText {
@@ -71,6 +73,12 @@ export const MARK = {
   cuboidDepthScale: 0.5,
   cuboidLabelGap: 16,
   cuboidFaceOpacity: 0.12,
+  // Segment arrowhead (arrowhead Drop 1): a filled triangle, tip ON the
+  // segment's `to`. Never longer than this fraction of the segment, so a short
+  // vector keeps a visible shaft.
+  arrowHeadLength: 12,
+  arrowHeadHalfWidth: 5,
+  arrowHeadMaxFraction: 0.5,
 } as const;
 
 /** A structural view of the drawables the context is built from — the board
@@ -280,6 +288,27 @@ export function chevrons(ctx: MarkContext, a: Pt, b: Pt, count: number, unit = 1
     out.push({ t: 'line', pts: [add(back, mul(n, h)), tip, add(back, mul(n, -h))] });
   }
   return out;
+}
+
+/**
+ * A segment's arrowhead at `b` (pointing a→b): the solid triangle, plus the
+ * point where the SHAFT must stop — the head's base — so a 2-wide or dashed
+ * line never pokes through the tip. Both renderers draw the shaft a→shaftEnd
+ * and then the face. null for a degenerate segment (the importer refuses
+ * those; this is the renderer's own refusal).
+ */
+export function segmentArrow(a: Pt, b: Pt, unit = 1): { shaftEnd: Pt; head: MarkFace } | null {
+  const v = sub(b, a);
+  const d = norm(v);
+  if (!d) return null;
+  const length = Math.min(MARK.arrowHeadLength * unit, len(v) * MARK.arrowHeadMaxFraction);
+  const halfWidth = length * (MARK.arrowHeadHalfWidth / MARK.arrowHeadLength);
+  const n: Pt = [-d[1], d[0]];
+  const base = add(b, mul(d, -length));
+  return {
+    shaftEnd: base,
+    head: { t: 'face', pts: [b, add(base, mul(n, halfWidth)), add(base, mul(n, -halfWidth))], solid: true },
+  };
 }
 
 function wrapAngle(a: number): number {
