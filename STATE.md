@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **BANK TEACHING-ORDER FIX (0056) is LIVE (2026-10-08):** applied, `verify-0056`/`0055`/`0054` live green; the Bank lists Year 7 as 712 → 713, then Year 8. Nothing owed.
 
-**NEXT (author-ruled 2026-10-08): the segment ARROWHEAD for translation vectors, built before the curriculum's 714 transformations drafts return. Design pass first, in a new session — TODOS → "An arrowhead on a segment" has the starting facts.**
+**NEXT: the segment ARROWHEAD (Drop 1, display) + a graded `plot_vector` (Drop 2). Design pass DONE and RULED 2026-10-09 (0–10, 9B, V1–V7, "yes to all unless the curriculum side has pushback"; record in TODOS → "An arrowhead on a segment"). Joint syntax sent as B-134; NO CODE until their answer (C-104). C-103 answered as B-133.**
 
 **CHAIN HOOK VIEW is LIVE (2026-10-08):** 0057 applied (verify-0057 12/12 live; 0054/0055/0056/0043 still green), pushed at `c9f9eedc` (CI green), 13 hooks mirrored from the curriculum `71dd581` file and read back live (5 chains; Zan's account sees rate, triangles, parallel-lines). Nothing owed. Re-mirror with `--hook-registry` on any import; from an EMPTY folder it also rewrites the docs manifests — restore them with `git checkout -- docs/*manifest* docs/skill-coverage.json` ([chain-hooks-view.md](docs/design/chain-hooks-view.md)).
 
