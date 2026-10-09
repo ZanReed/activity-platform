@@ -402,7 +402,12 @@ jobs:
       - name: Generate baselines
         env:
           PRINT_BASELINES: '1'
-        run: pnpm --filter @activity/app exec playwright test print-baselines --update-snapshots
+        # `=all`, not the bare flag: since Playwright 1.50 a bare
+        # --update-snapshots means "changed", which rewrites only images that
+        # FAIL the 1% tolerance — so an intended change smaller than that (the
+        # 2026-10-09 removal of default segment dots) could never reach a
+        # committed baseline. Proven locally: bare wrote nothing, =all did.
+        run: pnpm --filter @activity/app exec playwright test print-baselines --update-snapshots=all
 
       - name: Upload baselines
         uses: actions/upload-artifact@v7

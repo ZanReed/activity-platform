@@ -26,7 +26,10 @@ import { blockPrintRoster, blockRegistry, type BlockType } from '@activity/viewe
 // GENERATING OR UPDATING THE IMAGES (a deliberate act, not a side effect):
 //
 //   PRINT_BASELINES=1 pnpm --filter @activity/app exec playwright test \
-//     print-baselines --update-snapshots
+//     print-baselines --update-snapshots=all
+//
+// `=all`: a bare --update-snapshots rewrites only images that FAIL the 1%
+// tolerance, so a deliberate change smaller than that never lands.
 //
 // run on Linux — either in CI via a manual workflow dispatch, or locally in a
 // container. Commit the resulting .png files. Until they exist this suite skips
