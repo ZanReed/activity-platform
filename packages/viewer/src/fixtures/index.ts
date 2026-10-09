@@ -317,6 +317,18 @@ function authoredRawByType(
     {
       ...graphBase(),
       id: fid(),
+      prompt: [text('Draw a vector that moves a shape 3 right and 2 up.')],
+      // A FREE vector over a shown stimulus vector — the 714 shape: the
+      // student draws the displacement anywhere; the key is (dx, dy) only.
+      interaction: {
+        type: 'plot_vector',
+        vectors: [{ dx: 3, dy: 2, tolerance: 0.1 }],
+      },
+      stimulus: [{ kind: 'segment', from: [-6, -5], to: [-3, -3], arrow: true }],
+    },
+    {
+      ...graphBase(),
+      id: fid(),
       prompt: [
         text('Shift the parabola 2 right and 1 up, then type its equation.'),
       ],

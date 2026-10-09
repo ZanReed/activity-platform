@@ -3,7 +3,10 @@
 // the figure grammar when they need it (ER-11), and survive the round trip.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ActivityDocument, ActivityMeta, InteractiveGraphBlock } from '@activity/schema';
-import { sanitizeActivityDocument } from '@activity/viewer';
+import { emptySectionResponses, sanitizeActivityDocument } from '@activity/viewer';
+// Deep relative import, the misconceptionEndToEnd precedent: gradeSection is
+// not on the viewer's public surface.
+import { gradeSection } from '../../../viewer/src/server/grading/index.js';
 import { getMarkdownImporter } from '../lib/markdownToTiptap';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { wrapBlocksStrict } from '../lib/batchImportPipeline';
@@ -201,5 +204,76 @@ describe('the arrow reaches what a student is SERVED', () => {
         const served = JSON.stringify(sanitizeActivityDocument(doc));
         expect(served.match(/"kind":"segment"[^}]*"arrow":true/g), 'both segments keep the arrow').toHaveLength(2);
         expect(served).toMatch(/"kind":"segment"[^}]*"style":"dashed"[^}]*"arrow":true/);
+    });
+});
+
+describe('answer: vector — a graded FREE vector, end to end (arrowhead Drop 2)', () => {
+    const md = [
+        '```graph',
+        'prompt: Draw a vector for 3 right, 2 up.',
+        'show: segment (-6,-5) (-3,-3) arrow',
+        'answer: vector 3, 2',
+        'mistake: vector -3, -2 :: Check which way it points. :: mis.vector.reversed',
+        'mistake: vector 2, 3 :: Across first, then up. :: mis.coord.axes-swapped',
+        '```',
+    ].join('\n');
+
+    it('imports with no warnings as plot_vector, mistakes kept as written', () => {
+        const r = graph(...md.split('\n').slice(1, -1));
+        expect(r.warnings).toEqual([]);
+        const a = attrsOf(r);
+        expect(a.interaction).toEqual({ type: 'plot_vector', vectors: [{ dx: 3, dy: 2, tolerance: 0.1 }] });
+        expect((a.mistakeFeedback as { match: string }[]).map((m) => m.match)).toEqual(['vector -3, -2', 'vector 2, 3']);
+    });
+
+    it('serializes, survives the schema, is STRIPPED for the student, and grades with its binding', () => {
+        const r = importMd(md);
+        expect(r.warnings).toEqual([]);
+        const doc = ActivityDocument.parse(
+            tiptapToActivity(wrapBlocksStrict(r.blocks), ActivityMeta.parse({ title: 't', course: 'c' })),
+        );
+        const stored = JSON.stringify(doc);
+        expect(stored).toContain('"type":"plot_vector"');
+        const served = JSON.stringify(sanitizeActivityDocument(doc));
+        expect(served).toContain('"type":"plot_vector"');
+        expect(served, 'the displacement is the answer and must not reach the student').not.toContain('"vectors"');
+
+        const id = stored.match(/"id":"([0-9a-f-]{36})","type":"interactive_graph"/)![1]!;
+        const sectionId = (doc as { sections: { id: string }[] }).sections[0]!.id;
+        const grade = (points: [number, number][]) =>
+            gradeSection({
+                document: doc as never,
+                sectionId,
+                responses: { ...emptySectionResponses(), graphs: { [id]: { interaction: 'plot_vector', points } as never } },
+            }).items[id];
+        expect(grade([[4, 4], [7, 6]])?.verdict).toBe('correct');
+        expect(grade([[7, 6], [4, 4]])?.misconceptionIds).toEqual(['mis.vector.reversed']);
+        expect(grade([[0, 0], [2, 3]])?.misconceptionIds).toEqual(['mis.coord.axes-swapped']);
+    });
+
+    it('round-trips document → editor → document unchanged (opening a copy in the editor)', () => {
+        const meta = { title: 'T' } as Parameters<typeof tiptapToActivity>[1];
+        const find = (doc: ReturnType<typeof tiptapToActivity>) =>
+            doc.sections
+                .flatMap((s) => s.rows.flatMap((row) => row.columns.flatMap((c) => c.blocks)))
+                .find((b) => b.type === 'interactive_graph') as InteractiveGraphBlock;
+        const first = tiptapToActivity(wrapBlocksStrict(importMd(md).blocks), meta);
+        const again = tiptapToActivity(activityToTiptap({ ...first }), meta);
+        expect(InteractiveGraphBlock.safeParse(find(again)).success).toBe(true);
+        expect(find(again).interaction).toEqual(find(first).interaction);
+        expect(find(again).mistakeFeedback).toEqual(find(first).mistakeFeedback);
+        expect(find(again).stimulus).toEqual(find(first).stimulus);
+    });
+
+    it('refuses the zero vector, a bracketed vector, and a non-vector mistake — loudly', () => {
+        for (const lines of [
+            ['answer: vector 0, 0'],
+            ['answer: vector (3, 2)'],
+            ['answer: vector 3, 2', 'mistake: (3, 2) :: a point is not a vector'],
+        ]) {
+            const r = graph(...lines);
+            expect(r.blocks[0]!.type, lines.join(' / ')).not.toBe('interactiveGraph');
+            expect(r.warnings.length, lines.join(' / ')).toBeGreaterThan(0);
+        }
     });
 });

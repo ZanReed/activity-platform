@@ -123,6 +123,13 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   quadratic, cubic, quartic, absolute value (y = 2|x - 3| + 1), square
   root (y = 2*sqrt(x - 3) + 1), exponential, logarithmic, and vertical
   lines.
+- A VECTOR question: answer: vector 3, 2 asks the student to DRAW a vector
+  3 right and 2 up. They drag its tail and its arrowhead, and it is marked
+  right ANYWHERE on the grid: only the direction and length count. Negative
+  components point left or down (vector -3, 2). Never vector 0, 0, and no
+  brackets (vector (3, 2) is refused). Its mistake: lines must be vectors too:
+    mistake: vector -3, -2 :: Check which way it points.
+    mistake: vector 2, 3 :: Across first, then up.
 - The prompt line may include inline math: prompt: Graph $y = 2x + 3$.
 - Optional targeted feedback for an anticipated wrong answer (repeatable):
     mistake: y = x + 2 :: Remember - the number multiplying x is the slope.

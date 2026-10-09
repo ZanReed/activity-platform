@@ -465,6 +465,40 @@ export function parseRaySegment(raw: string): ParsedRaySegment {
   };
 }
 
+// ---- Free vectors (arrowhead Drop 2) -----------------------------------------
+// `vector 3, 2` — a displacement (dx, dy), never a position: the student may
+// draw it anywhere. The components go through parsePointList so they accept
+// exactly the number forms a point does (negatives, decimals, the unicode
+// minus). Parentheses are REFUSED on purpose: `vector (3, 2)` reads as a
+// point, and a point is a position, which a free vector does not have.
+// The zero vector is refused (author ruling 2026-10-09): nothing to draw.
+
+export type ParsedVector =
+  | { kind: 'vector'; dx: number; dy: number }
+  | { kind: 'error'; message: string };
+
+export function parseVector(raw: string): ParsedVector {
+  const text = preprocess(raw);
+  const m = /^vector\b(.*)$/i.exec(text);
+  const usage = 'A vector is its two components, like vector 3, 2 (3 right, 2 up)';
+  if (!m) return { kind: 'error', message: usage };
+  const rest = (m[1] ?? '').trim();
+  if (rest.includes('(') || rest.includes(')')) {
+    return { kind: 'error', message: `${usage}, with no brackets` };
+  }
+  const pts = parsePointList(`(${rest})`);
+  if (!pts || pts.length !== 1) return { kind: 'error', message: usage };
+  const [dx, dy] = pts[0]!;
+  if (dx === 0 && dy === 0) {
+    return { kind: 'error', message: 'A vector cannot be 0, 0 (there is nothing to draw)' };
+  }
+  return { kind: 'vector', dx, dy };
+}
+
+export function formatVector(v: { dx: number; dy: number }): string {
+  return `vector ${fmt(v.dx)}, ${fmt(v.dy)}`;
+}
+
 export function formatRay(ray: {
   from: [number, number];
   through: [number, number];

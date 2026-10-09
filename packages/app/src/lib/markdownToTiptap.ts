@@ -58,6 +58,7 @@ import {
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
+    parseVector,
 } from '@activity/graph-kit/formula';
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import { parseFigureFence } from './figureFence';
@@ -4744,6 +4745,15 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
                     interaction = { type: 'plot_point', correctPoints: [[0, 0]], tolerance: 0.1 };
                     break;
                 }
+                if (/^vector\b/i.test(value)) {
+                    // A FREE vector (arrowhead Drop 2): displacement only,
+                    // drawn anywhere. `vector 0, 0` and `vector (3, 2)` are
+                    // refused by the shared parser, with its message.
+                    const v = parseVector(value);
+                    if (v.kind === 'error') return fail(v.message);
+                    interaction = { type: 'plot_vector', vectors: [{ dx: v.dx, dy: v.dy, tolerance: 0.1 }] };
+                    break;
+                }
                 if (/^(ray|segment)\b/i.test(value)) {
                     const parsed = parseRaySegment(value);
                     if (parsed.kind === 'error') return fail(parsed.message);
@@ -4844,6 +4854,16 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
     }
 
     if (!interaction && drawables.length === 0) return fail('empty graph block');
+    // A vector question's mistakes must BE vectors. Anything else compiles to
+    // a matcher that can never fire, so its feedback and its mis.* binding
+    // would be silently dead — refuse it here, by name.
+    if (interaction?.type === 'plot_vector') {
+        for (const m of mistakes) {
+            if (parseVector(m.match).kind !== 'vector') {
+                return fail(`on a vector question, write each mistake as a vector, like "mistake: vector -3, -2 :: …" (not "${m.match}")`);
+            }
+        }
+    }
     // start: turns an equation answer into transform_curve (D7): the parent is
     // shown, the answer becomes the drag target, type-equation adds the typed
     // channel. Both misuses fail loudly \u2014 a silently dropped start: would

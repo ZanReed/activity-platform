@@ -197,6 +197,7 @@ export {
   scoreRayPartial,
   scoreSegment,
   scoreSegmentParts,
+  scoreVector,
   rayKeyShape,
   canonicalPair,
   rayArrowGlyphs,
@@ -210,6 +211,7 @@ export type {
   RegionAnswerKey,
   RayAnswerKey,
   SegmentAnswerKey,
+  VectorAnswerKey,
   LinearShape,
   LinearPieceStudentAnswer,
   InequalityAnswerKey,
@@ -245,10 +247,12 @@ export {
   formatDomainClause,
   formatPoints,
   parseRaySegment,
+  parseVector,
+  formatVector,
   formatRay,
   formatSegment,
 } from './formula.js';
-export type { ParsedFormula, ParsedDomain, ShadeSide, ParsedRaySegment } from './formula.js';
+export type { ParsedFormula, ParsedDomain, ShadeSide, ParsedRaySegment, ParsedVector } from './formula.js';
 
 // Authored drawable colors: a stored palette KEY resolves to a hex here, the
 // single source shared by the board, the renderer SVG, and the app picker.

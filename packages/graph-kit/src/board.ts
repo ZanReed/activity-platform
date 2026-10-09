@@ -658,6 +658,13 @@ export interface PointAnswerConfig {
   rayThroughHandles?: boolean;
   segmentBetweenHandles?: boolean;
   /**
+   * plot_vector (arrowhead Drop 2): an ARROW from handle 0 (tail) to handle 1
+   * (head) that follows drags. Drawn with figure-marks' segmentArrow — the
+   * same head the static engine prints — so the student's arrow and the
+   * answer key's look alike. Handle order is the answer; nothing re-sorts it.
+   */
+  vectorBetweenHandles?: boolean;
+  /**
    * STUDENT boards for plot_ray / plot_segment: the SHAPE is the student's
    * choice (ray toward positive / ray toward negative / segment), toggled at
    * runtime via setShape. Before a choice the line renders neutral (faint, no
@@ -912,6 +919,45 @@ export function createPointAnswerBoard(
       // A ray reads better with an arrowhead on its open end.
       lastArrow: config.rayThroughHandles === true,
     });
+  }
+
+  // plot_vector: shaft + solid head, both bound to the LIVE handle positions
+  // through coordinate functions, so JSXGraph recomputes them on every
+  // board.update() (a drag) with no manual redraw. The geometry is computed in
+  // the board's own pixels (y-down, figure-marks' space) and mapped back.
+  if (config.vectorBetweenHandles && points.length >= 2) {
+    const [tailPt, headPt] = [points[0]!, points[1]!];
+    const vToPx = (x: number, y: number): Pt => [x * board.unitX, -y * board.unitY];
+    const vFromPx = (p: Pt): [number, number] => [p[0] / board.unitX, -p[1] / board.unitY];
+    const vUnit = (): number => (board.canvasWidth || 400) / 400;
+    const arrow = () =>
+      segmentArrow(vToPx(tailPt.X(), tailPt.Y()), vToPx(headPt.X(), headPt.Y()), vUnit());
+    // A collapsed vector (handles together) has no head; every vertex sits on
+    // the head handle, so nothing stray is drawn.
+    const at = (pick: (a: NonNullable<ReturnType<typeof arrow>>) => Pt, axis: 0 | 1) => () => {
+      const a = arrow();
+      return a ? vFromPx(pick(a))[axis] : axis === 0 ? headPt.X() : headPt.Y();
+    };
+    const fnPoint = (pick: (a: NonNullable<ReturnType<typeof arrow>>) => Pt) => [at(pick, 0), at(pick, 1)];
+    const quiet = { fixed: true, highlight: false };
+    board.create('segment', [tailPt, fnPoint((a) => a.shaftEnd)], {
+      ...quiet,
+      strokeColor: ANSWER_COLOR,
+      strokeWidth: 2,
+      point2: { visible: false },
+    });
+    board.create(
+      'polygon',
+      [fnPoint((a) => a.head.pts[0]!), fnPoint((a) => a.head.pts[1]!), fnPoint((a) => a.head.pts[2]!)],
+      {
+        ...quiet,
+        fillColor: ANSWER_COLOR,
+        fillOpacity: 1,
+        hasInnerPoints: false,
+        vertices: { visible: false, fixed: true },
+        borders: { strokeWidth: 0, highlight: false, fixed: true },
+      },
+    );
   }
 
   // linearShape (student ray/segment): one line whose figure follows the

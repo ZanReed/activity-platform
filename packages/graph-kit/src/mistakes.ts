@@ -35,16 +35,18 @@ import {
   scoreRayParts,
   scoreSegment,
   scoreSegmentParts,
+  scoreVector,
   canonicalPair,
   type PointAnswerKey,
   type FunctionModel,
   type InequalitySide,
   type RayAnswerKey,
   type SegmentAnswerKey,
+  type VectorAnswerKey,
   type LinearShape,
   type LinearPieceStudentAnswer,
 } from './graph-score.js';
-import { parseGraphFormula, parsePointList, parseRaySegment } from './formula.js';
+import { parseGraphFormula, parsePointList, parseRaySegment, parseVector } from './formula.js';
 
 /** Reserved transform_curve match tokens — they fire on locally derived
  * CHANNEL OUTCOMES (drag right / type right) rather than on typed text.
@@ -169,6 +171,16 @@ export function compileMistakeMatchers(
         tolerance: ctx.pointTolerance ?? 0.1,
       };
       return { index, test: (ans) => scorePoints(key, ans.points) };
+    }
+
+    if (ctx.interactionType === 'plot_vector') {
+      // `vector -3, -2` (reversed), `vector 2, 3` (components swapped): the
+      // same displacement test as grading, so a mistake can never disagree
+      // with the scorer about what the student drew.
+      const v = parseVector(raw);
+      if (v.kind !== 'vector') return never;
+      const key: VectorAnswerKey = { dx: v.dx, dy: v.dy, tolerance: ctx.pointTolerance ?? 0.1 };
+      return { index, test: (ans) => scoreVector(key, ans.points) };
     }
 
     const parsed = parseGraphFormula(raw);

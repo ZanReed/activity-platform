@@ -655,6 +655,19 @@ export function answerKeyDrawables(block: InteractiveGraphBlock): Drawable[] {
         to: s.to,
         endpoints: s.endpoints,
       }));
+    case 'plot_vector':
+      // A FREE vector has no position, so the key draws one example of it:
+      // centred in the window, its tail snapped to the grid, so a teacher
+      // reads "3 right, 2 up" off whole squares. Any placement is right.
+      return interaction.vectors.map((v) => {
+        const a = block.axisConfig;
+        const snap = (x: number, step: number) => (step > 0 ? Math.round(x / step) * step : x);
+        const tail: [number, number] = [
+          snap((a.xMin + a.xMax - v.dx) / 2, a.xGridStep),
+          snap((a.yMin + a.yMax - v.dy) / 2, a.yGridStep),
+        ];
+        return { kind: 'segment', from: tail, to: [tail[0] + v.dx, tail[1] + v.dy], arrow: true };
+      });
     case 'transform_curve':
       // The KEY overlay is the target curve. (The parent curve is question
       // material and prints on the STUDENT sheet via questionDrawables — it

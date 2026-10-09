@@ -52,6 +52,7 @@ export {
   scoreRayPartial,
   scoreSegment,
   scoreSegmentParts,
+  scoreVector,
   rayKeyShape,
   canonicalPair,
 } from './graph-score.js';
@@ -62,6 +63,7 @@ export type {
   RegionAnswerKey,
   RayAnswerKey,
   SegmentAnswerKey,
+  VectorAnswerKey,
   LinearShape,
   LinearPieceStudentAnswer,
   InequalityAnswerKey,

@@ -6,6 +6,7 @@ import {
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
+    parseVector,
 } from '@activity/graph-kit';
 import InlineRichTextEditor from './InlineRichTextEditor';
 import DraftNumberInput from './DraftNumberInput';
@@ -161,7 +162,9 @@ function GraphSettingsPanel({
               ? 'y < 2x + 1  (or a boundary like y = 2x + 1)'
               : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                 ? 'ray (1, 2) through (3, 4)  or  segment (1, 2) to (3, 4)'
-                : 'y = x + 2';
+                : interaction.type === 'plot_vector'
+                  ? 'vector -3, -2  (reversed)   ·   vector 2, 3  (swapped)'
+                  : 'y = x + 2';
     const mistakeMatchError = (raw: string): string | null => {
         if (raw.trim() === '') return 'Type the wrong answer to watch for.';
         if (interaction.type === 'plot_point') {
@@ -169,6 +172,12 @@ function GraphSettingsPanel({
         }
         if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
             const parsed = parseRaySegment(raw);
+            return parsed.kind === 'error' ? parsed.message : null;
+        }
+        if (interaction.type === 'plot_vector') {
+            // Same rule as the importer: a vector question's mistakes are
+            // vectors, or they could never fire.
+            const parsed = parseVector(raw);
             return parsed.kind === 'error' ? parsed.message : null;
         }
         // transform_curve accepts the two RESERVED channel-mismatch tokens

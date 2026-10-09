@@ -90,6 +90,8 @@ export {
   RayAnswer,
   SegmentInteraction,
   SegmentAnswer,
+  VectorInteraction,
+  VectorAnswer,
   EndpointStyle,
   Drawable,
   DrawableColor,

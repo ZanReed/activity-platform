@@ -211,6 +211,13 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   quadratic, cubic, quartic, absolute value (y = 2|x - 3| + 1), square
   root (y = 2*sqrt(x - 3) + 1), exponential, logarithmic, and vertical
   lines.
+- A VECTOR question: answer: vector 3, 2 asks the student to DRAW a vector
+  3 right and 2 up. They drag its tail and its arrowhead, and it is marked
+  right ANYWHERE on the grid: only the direction and length count. Negative
+  components point left or down (vector -3, 2). Never vector 0, 0, and no
+  brackets (vector (3, 2) is refused). Its mistake: lines must be vectors too:
+    mistake: vector -3, -2 :: Check which way it points.
+    mistake: vector 2, 3 :: Across first, then up.
 - The prompt line may include inline math: prompt: Graph $y = 2x + 3$.
 - Optional targeted feedback for an anticipated wrong answer (repeatable):
     mistake: y = x + 2 :: Remember - the number multiplying x is the slope.
@@ -756,7 +763,7 @@ options: allow-no-solution
 - `axes: xMin..xMax, yMin..yMax` (optional; defaults -10..10 each way).
 - `prompt:` the question text (optional). Accepts `$inline$` math with the same currency guard as body text; `{{…}}` blanks stay literal here.
 - `mistake:` (repeatable) an anticipated wrong answer + targeted feedback, separated by `::` — e.g. `mistake: y = x + 2 :: Remember - the number multiplying x is the slope.` The wrong answer uses the same syntax as `answer:`; on a ray/segment question either figure matches (the classic ray mistake is its segment version).
-- `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
+- `answer:` ONE of — an equation (`y = 2x + 3`, `2x + 3y = 6`, `x^2 - 4`, `x = 4`); an inequality (`y > 2x + 1`, `x <= 3` — the sign sets dotted/solid + shaded side); a point list (`(2, 3), (4, 5)`); a ray or segment (`ray (1, 2) through (3, 4) open`, `segment (1, 2) to (3, 4) open closed` — `open`/`closed` set endpoint styles, default closed); `region (0,0), (4,0), (2,4)`; a FREE vector (`vector 3, 2` — the student drags a tail and an arrowhead, marked right anywhere on the grid because only the displacement counts; the drawn order is the answer, so a reversed vector is wrong; `vector 0, 0` and bracketed `vector (3, 2)` are refused, and every `mistake:` on a vector question must itself be a `vector …`, or the block is refused); or `none` (a "cannot be graphed" trick question). Domain clauses (`… for x >= 0`) are no longer accepted — write a ray or segment instead.
 - `show:` display drawables (no answer lines → a static display graph): `point (x, y) [open|closed] ["label"]`, `line <equation or inequality> [dashed|dotted]`, `expression <any formula> [dashed|dotted]`, `segment (a,b) (c,d) [dashed] [arrow]` (`arrow` = a filled head at the second point, a vector; an arrowed segment has no end dots, and a segment otherwise has dots only where `open`/`closed` says so), `ray (a,b) (c,d) [open|closed]`, `region (x,y), …`.
 - **`show:` lines beside an `answer:` are the question's stimulus**: fixed shapes drawn on the student's graph under their own points, and on the printed student sheet, for them to work from. They are never marked. The lines after `show:` use the [figure grammar](#geometry-figures-figure-fence) (named points, `polygon`, `region`, `segment`, `side`, `angle`, `ticks`, `parallel`, `text`) as well as the forms above, and names resolve across all of the fence's `show:` lines in any order. Example: `show: point (1,1) "A"` · `show: point (4,1) "B"` · `show: point (2,4) "C"` · `show: polygon A B C` · `show: line x = 0 dashed` · `answer: (-1,1), (-4,1), (-2,4)`.
   - **A mirror line** is `show: line … dashed` (`x = 2`, `y = -1`, `y = x`): an infinite line across the window. A centre of rotation is a named point.

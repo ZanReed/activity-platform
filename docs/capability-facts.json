@@ -100,6 +100,18 @@
         "schema": "interactive_graph interaction transform_curve"
       }
     },
+    "draw_vector": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "auto",
+        "captures_response": true,
+        "score_shape": "boolean"
+      },
+      "reached_by": {
+        "fence": "graph",
+        "schema": "interactive_graph interaction plot_vector"
+      }
+    },
     "essay": {
       "status": "shipped",
       "grading": {

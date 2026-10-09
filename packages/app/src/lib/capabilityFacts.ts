@@ -106,6 +106,9 @@ export const JOIN: Record<string, Join> = {
     // reached through the ```graph fence and graded by the graph scorers.
     draggable_curve: { fence: 'graph', schema: 'interactive_graph interaction transform_curve', probe: graphProbe('transform_curve'), scoring: 'auto', shape: 'boolean' },
     graded_polynomial: { fence: 'graph', schema: 'FunctionModel families cubic, quartic', probe: graphProbe('plot_function'), scoring: 'auto', shape: 'fraction' },
+    // Arrowhead Drop 2: a FREE vector, graded on displacement (id agreed with
+    // the curriculum side in C-104; they write the row's prose in the pin bump).
+    draw_vector: { fence: 'graph', schema: 'interactive_graph interaction plot_vector', probe: graphProbe('plot_vector'), scoring: 'auto', shape: 'boolean' },
     numberline: { fence: 'numberline', probe: { type: 'number_line' }, scoring: 'auto', response: zr(NumberLinePointResponse) },
     dataplot: { fence: 'dataplot', probe: { type: 'data_plot', interaction: { type: 'build_dotplot' } }, scoring: 'auto', response: zr(DataPlotDotplotResponse) },
     mc: { fence: 'mc', probe: { type: 'multiple_choice' }, scoring: 'auto', response: zr(ChoiceResponse) },

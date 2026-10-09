@@ -9,10 +9,12 @@ import {
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
+    parseVector,
     formatModel,
     formatPoints,
     formatRay,
     formatSegment,
+    formatVector,
     rayKeyShape,
     type GraphAuthorHandle,
     type GraphDisplayHandle,
@@ -36,6 +38,8 @@ import {
     firstRay,
     firstRegion,
     firstSegment,
+    firstVector,
+    vectorStartPoints,
 } from './graphAnswerHelpers';
 import {
     defaultDisplayInteraction,
@@ -45,6 +49,7 @@ import {
     defaultRayInteraction,
     defaultRegionInteraction,
     defaultSegmentInteraction,
+    defaultVectorInteraction,
     defaultTransformCurveInteraction,
     type DrawableAttr,
     type FunctionModelAttr,
@@ -248,7 +253,7 @@ function GraphAuthorBoard({
               ? firstRegion(interaction.regions).correctVertices.length
               : interaction.type === 'plot_point'
                 ? interaction.correctPoints.length
-                : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                : interaction.type === 'plot_ray' || interaction.type === 'plot_segment' || interaction.type === 'plot_vector'
                   ? 2
                   : 1;
     const startPoints =
@@ -264,7 +269,9 @@ function GraphAuthorBoard({
                   ? [firstRay(interaction.rays).from, firstRay(interaction.rays).through]
                   : interaction.type === 'plot_segment'
                     ? [firstSegment(interaction.segments).from, firstSegment(interaction.segments).to]
-                    : [];
+                    : interaction.type === 'plot_vector'
+                      ? vectorStartPoints(firstVector(interaction.vectors), axisConfig)
+                      : [];
     const startRef = useRef(startPoints);
     startRef.current = startPoints;
 
@@ -541,6 +548,18 @@ export default function InteractiveGraphView({
                 });
             }
         }
+        else if (interaction.type === 'plot_vector' && points.length === 2) {
+            // A FREE vector: only head − tail is stored. Dragging the whole
+            // arrow somewhere else changes nothing, by design.
+            const [tail, head] = points as [[number, number], [number, number]];
+            const dx = head[0] - tail[0];
+            const dy = head[1] - tail[1];
+            // A collapsed (zero) vector is not an answer; keep the last good one.
+            if (dx !== 0 || dy !== 0) {
+                const prev = firstVector(interaction.vectors);
+                updateAttributes({ interaction: { type: 'plot_vector', vectors: [{ ...prev, dx, dy }] } });
+            }
+        }
         // plot_ray / plot_segment moves arrive through onLinearChange (which
         // carries the shape + styles alongside the points) — nothing to do here.
     };
@@ -619,6 +638,8 @@ export default function InteractiveGraphView({
                     ? defaultRayInteraction()
                     : type === 'plot_segment'
                       ? defaultSegmentInteraction()
+                      : type === 'plot_vector'
+                      ? defaultVectorInteraction()
                       : type === 'transform_curve'
                         ? defaultTransformCurveInteraction()
                         : type === 'display'
@@ -799,7 +820,9 @@ export default function InteractiveGraphView({
                       ? formatSegment(firstSegment(interaction.segments))
                       : interaction.type === 'transform_curve'
                         ? formatModel(firstModel(interaction.models))
-                        : '';
+                        : interaction.type === 'plot_vector'
+                          ? formatVector(firstVector(interaction.vectors))
+                          : '';
 
     // A system (graph_inequality with N > 1 inequalities) previews as N shaded
     // half-planes on a static display board — the overlap darkens into the
@@ -901,6 +924,17 @@ export default function InteractiveGraphView({
                     ],
                 },
             });
+            return null;
+        }
+        if (interaction.type === 'plot_vector') {
+            const parsed = parseVector(raw);
+            if (parsed.kind === 'error') return parsed.message;
+            const prev = firstVector(interaction.vectors);
+            updateAttributes({
+                interaction: { type: 'plot_vector', vectors: [{ ...prev, dx: parsed.dx, dy: parsed.dy }] },
+            });
+            // (applyFormula bumps formulaEpoch on success, so the board's
+            // handles re-seed from the typed vector.)
             return null;
         }
         if (interaction.type === 'plot_ray' || interaction.type === 'plot_segment') {
@@ -1091,6 +1125,7 @@ export default function InteractiveGraphView({
                                 <option value="transform_curve">Transform a curve</option>
                                 <option value="graph_inequality">Graph an inequality</option>
                                 <option value="plot_ray">Draw a ray or segment</option>
+                                <option value="plot_vector">Draw a vector</option>
                                 <option value="shade_region">Shade a region</option>
                                 <option value="display">Display (static graph)</option>
                             </select>
@@ -1310,6 +1345,8 @@ export default function InteractiveGraphView({
                                     ? 'Type the inequality below — the sign sets dotted/solid and the shaded side. Drag the handles to move the boundary. '
                                     : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                       ? 'Drag the two handles, then use the buttons on the graph to choose ray or segment and open/closed endpoints — exactly what students will do. Or type it below. '
+                                      : interaction.type === 'plot_vector'
+                                        ? 'Drag the tail and the arrowhead — students draw the same arrow, ANYWHERE on the grid: only its direction and length are marked. Or type it below. '
                                       : interaction.type === 'transform_curve'
                                         ? 'Students drag the dashed start curve onto the target — and type its equation. Type both curves below; the preview shows start (dashed) and target. '
                                         : 'Drag the handles — or type the equation below in any format. Add a range (e.g. "for -2 <= x <= 3") to bound the curve; a straight line with a range becomes a ray or segment. '}
@@ -1344,6 +1381,8 @@ export default function InteractiveGraphView({
                                         ? 'y > 2x + 1   ·   y <= x^2   ·   x >= 3'
                                         : interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
                                           ? 'ray (1, 2) through (3, 4) open   ·   segment (1, 2) to (3, 4)'
+                                          : interaction.type === 'plot_vector'
+                                            ? 'vector 3, 2   (3 right, 2 up)   ·   vector -1, 4'
                                           : interaction.type === 'transform_curve'
                                             ? 'y = (x - 2)^2 + 1   ·   y = -|x + 3|   ·   y = sqrt(x - 1) + 2'
                                             : 'y = 2x + 3   ·   x^2 - 4   ·   y = x^2 - 4 for -2 <= x <= 3   ·   x = 4'
@@ -1356,7 +1395,7 @@ export default function InteractiveGraphView({
                             // question type already names the figure).
                             modeKey={`answer:${interaction.type === 'plot_segment' ? 'plot_ray' : interaction.type}`}
                             defaultMode={
-                                interaction.type === 'plot_ray' || interaction.type === 'plot_segment'
+                                interaction.type === 'plot_ray' || interaction.type === 'plot_segment' || interaction.type === 'plot_vector'
                                     ? 'text'
                                     : 'math'
                             }

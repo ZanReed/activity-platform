@@ -42,6 +42,7 @@ import {
   scoreRay,
   scoreRegion,
   scoreSegment,
+  scoreVector,
   type MistakeCompileContext,
   type StudentGraphAnswer,
 } from '@activity/graph-kit/scorers';
@@ -164,7 +165,8 @@ function curveOf(work: GraphWork): [number, number][] {
  * gets its guard.
  *
  * Scope matches what the kit's matcher compiler supports: the single-object
- * plot_point / plot_function / graph_inequality / plot_ray / plot_segment.
+ * plot_point / plot_function / graph_inequality / plot_ray / plot_segment /
+ * plot_vector.
  * Systems, regions, number lines and data plots return null (mark-only).
  *
  * The caller invokes this only when the verdict is `false` — a correct,
@@ -224,6 +226,10 @@ export function selectGraphMistake(
     const ctx: MistakeCompileContext = { interactionType: type };
     if (type === 'plot_point') {
       ctx.pointTolerance = num(interaction.tolerance, 0.1);
+    }
+    if (type === 'plot_vector') {
+      const v = (interaction.vectors as Array<{ tolerance?: number }> | undefined)?.[0];
+      ctx.pointTolerance = num(v?.tolerance, 0.1);
     }
     if (
       (type === 'plot_function' || type === 'transform_curve') &&
@@ -385,6 +391,23 @@ function scoreInteractiveGraph(
       const segments = interaction.segments as unknown[] | undefined;
       if (!segments?.length) return false;
       return segments.every((seg) => scoreSegment(seg as never, piece as never));
+    }
+
+    case 'plot_vector': {
+      // A FREE vector: displacement only, in the order DRAWN (tail, head). The
+      // wire's points are never sorted for this type — a reversed vector is a
+      // different answer, and the classic wrong one.
+      const vectors = interaction.vectors as
+        | Array<{ dx: number; dy: number; tolerance?: number }>
+        | undefined;
+      if (!vectors?.length) return false;
+      if (work.points.length !== 2) return false;
+      return vectors.every((v) =>
+        scoreVector(
+          { dx: v.dx, dy: v.dy, tolerance: num(v.tolerance, 0.1) },
+          work.points,
+        ),
+      );
     }
 
     default:

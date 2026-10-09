@@ -252,6 +252,11 @@ describe('the graph family dispatches to the kit for every variant', () => {
             endpointStyles: s.endpoints ?? ['closed', 'closed'],
           };
         }
+        case 'plot_vector': {
+          // Tail then head, drawn ANYWHERE: only the displacement is the answer.
+          const v = (i.vectors as Array<Record<string, number>>)[0]!;
+          return { points: [[1, 1], [1 + v.dx!, 1 + v.dy!]] };
+        }
         default:
           return null;
       }
@@ -358,9 +363,16 @@ describe('the graph family dispatches to the kit for every variant', () => {
         domain?: Record<string, number | string>;
         parts?: Array<Record<string, unknown>>;
       };
+      // A FREE vector is the exception that proves the rule: moved +37 it is
+      // the SAME vector, so it stays correct. Its wrong answer is the
+      // reversed one (the classic mistake) — which also proves that drawn
+      // order is scored, never sorted away.
+      const isFreeVector = g.block.interaction?.type === 'plot_vector';
       const shifted = {
         ...work,
-        points: (work.points ?? []).map(([x, y]) => [x + 37, y + 37]),
+        points: isFreeVector
+          ? [...(work.points ?? [])].reverse()
+          : (work.points ?? []).map(([x, y]) => [x + 37, y + 37]),
         ...(work.domain
           ? {
               domain: {
@@ -1221,5 +1233,75 @@ describe('correspondence grades end to end (the walk projects the nested key)', 
   it('nothing docked produces NO entry — unanswered, never wrong', () => {
     expect(grade(undefined).items[corrId]).toBeUndefined();
     expect(grade({}).items[corrId]).toBeUndefined();
+  });
+});
+
+describe('a FREE vector grades on displacement only (arrowhead Drop 2)', () => {
+  // Curriculum C-104 chose free vectors only: `answer: vector 3, 2` is right
+  // wherever it is drawn; the order drawn (tail, head) IS the answer. Purpose-
+  // built document, the misconception sensor's pattern.
+  const id = crypto.randomUUID();
+  const text = (s: string) => ({ type: 'text', text: s });
+  const doc = {
+    sections: [
+      {
+        id: 'vector-section',
+        rows: [
+          {
+            columns: [
+              {
+                blocks: [
+                  {
+                    id,
+                    type: 'interactive_graph',
+                    prompt: [text('Draw a vector for 3 right, 2 up.')],
+                    axisConfig: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+                    interaction: { type: 'plot_vector', vectors: [{ dx: 3, dy: 2, tolerance: 0.1 }] },
+                    mistakeFeedback: [
+                      { match: 'vector -3, -2', feedback: [text('Check which way it points.')], misconceptionId: 'mis.vector.reversed' },
+                      { match: 'vector 2, 3', feedback: [text('Across first, then up.')], misconceptionId: 'mis.coord.axes-swapped' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const grade = (points: [number, number][]) =>
+    gradeSection({
+      document: doc as never,
+      sectionId: 'vector-section',
+      responses: { ...emptySectionResponses(), graphs: { [id]: { interaction: 'plot_vector', points } as never } },
+    }).items[id];
+
+  it('is right drawn anywhere — position is never scored', () => {
+    expect(grade([[0, 0], [3, 2]])?.verdict).toBe('correct');
+    expect(grade([[-7, 5], [-4, 7]])?.verdict).toBe('correct');
+  });
+
+  it('a REVERSED vector is wrong, and its authored mistake fires with its binding', () => {
+    const item = grade([[3, 2], [0, 0]]);
+    expect(item?.verdict).toBe('incorrect');
+    expect(item?.misconceptionIds).toEqual(['mis.vector.reversed']);
+    expect(JSON.stringify(item?.feedback)).toContain('Check which way it points.');
+  });
+
+  it('swapped components are wrong, and that mistake fires instead', () => {
+    const item = grade([[1, 1], [3, 4]]);
+    expect(item?.verdict).toBe('incorrect');
+    expect(item?.misconceptionIds).toEqual(['mis.coord.axes-swapped']);
+  });
+
+  it('an unanticipated wrong vector is plainly wrong, no ids', () => {
+    const item = grade([[0, 0], [5, 5]]);
+    expect(item?.verdict).toBe('incorrect');
+    expect(item?.misconceptionIds).toBeUndefined();
+  });
+
+  it('a handle count other than two is wrong, never a crash', () => {
+    expect(grade([[0, 0]])?.verdict).toBe('incorrect');
   });
 });

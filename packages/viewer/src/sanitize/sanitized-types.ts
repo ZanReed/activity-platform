@@ -105,6 +105,7 @@ export type SanitizedGraphInteraction = DistributiveOmit<
   | 'inequalities'
   | 'rays'
   | 'segments'
+  | 'vectors'
 >;
 
 export type SanitizedNumberLineInteraction = DistributiveOmit<

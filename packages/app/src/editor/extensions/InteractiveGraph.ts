@@ -144,6 +144,17 @@ export interface SegmentInteractionAttr {
     type: 'plot_segment';
     segments: SegmentAnswerAttr[];
 }
+// plot_vector (arrowhead Drop 2): a FREE vector — displacement only, never a
+// position. Array-of-one like rays/segments.
+export interface VectorAnswerAttr {
+    dx: number;
+    dy: number;
+    tolerance: number;
+}
+export interface VectorInteractionAttr {
+    type: 'plot_vector';
+    vectors: VectorAnswerAttr[];
+}
 // Static-display drawables (interaction.type === 'display'). Parallel to the
 // schema's Drawable union; the NodeView reads them by `kind`. `curve` reuses the
 // same FunctionModelAttr plot_function uses (a display curve is one curve).
@@ -223,6 +234,7 @@ export type GraphInteraction =
     | InequalityInteractionAttr
     | RayInteractionAttr
     | SegmentInteractionAttr
+    | VectorInteractionAttr
     | TransformCurveInteractionAttr
     | DisplayInteractionAttr;
 
@@ -259,6 +271,11 @@ export function defaultRayInteraction(): RayInteractionAttr {
         type: 'plot_ray',
         rays: [{ from: [0, 0], through: [3, 3], fromStyle: 'closed', tolerance: 0.25 }],
     };
+}
+
+// A fresh free vector: 3 right, 2 up — the 714 example.
+export function defaultVectorInteraction(): VectorInteractionAttr {
+    return { type: 'plot_vector', vectors: [{ dx: 3, dy: 2, tolerance: 0.1 }] };
 }
 
 export function defaultSegmentInteraction(): SegmentInteractionAttr {

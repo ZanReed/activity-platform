@@ -1143,6 +1143,27 @@ export function scoreSegment(key: SegmentAnswerKey, ans: LinearPieceStudentAnswe
   return p.earned === p.total;
 }
 
+// ---- plot_vector: a FREE vector (arrowhead Drop 2) --------------------------
+// Scored on DISPLACEMENT only — head minus tail, per component within the
+// tolerance — so the same vector drawn anywhere on the grid is right. The
+// points arrive in DRAWN order (tail, head) and are never canonicalised: a
+// reversed vector is a different vector, and the classic wrong answer.
+
+export interface VectorAnswerKey {
+  dx: number;
+  dy: number;
+  tolerance: number;
+}
+
+export function scoreVector(key: VectorAnswerKey, points: [number, number][]): boolean {
+  if (points.length !== 2) return false;
+  const [tail, head] = points as [[number, number], [number, number]];
+  const dx = head[0] - tail[0];
+  const dy = head[1] - tail[1];
+  const tol = key.tolerance + 1e-9;
+  return Math.abs(dx - key.dx) <= tol && Math.abs(dy - key.dy) <= tol;
+}
+
 // ---- shade_region: score a polygon by area overlap --------------------------
 // The student drags a polygon's vertices to cover a target region; correctness
 // is intersection-over-union (IoU) with the correct polygon ≥ minOverlap — so

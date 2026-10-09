@@ -5,6 +5,7 @@ import type {
     RayAnswerAttr,
     RegionAnswerAttr,
     SegmentAnswerAttr,
+    VectorAnswerAttr,
 } from '../extensions/InteractiveGraph';
 
 // ============================================================================
@@ -67,4 +68,24 @@ export function firstSegment(list: SegmentAnswerAttr[]): SegmentAnswerAttr {
             tolerance: 0.25,
         }
     );
+}
+
+export function firstVector(list: VectorAnswerAttr[]): VectorAnswerAttr {
+    return list[0] ?? { dx: 3, dy: 2, tolerance: 0.1 };
+}
+
+/** Where the author board puts a FREE vector's two handles: centred in the
+ * window, tail snapped to the grid — the same placement the printed answer key
+ * uses (graph-svg answerKeyDrawables), so the teacher sees the key they print.
+ * Position is never stored; only head − tail is. */
+export function vectorStartPoints(
+    v: { dx: number; dy: number },
+    axis: { xMin: number; xMax: number; yMin: number; yMax: number; xGridStep: number; yGridStep: number },
+): [[number, number], [number, number]] {
+    const snap = (x: number, step: number) => (step > 0 ? Math.round(x / step) * step : x);
+    const tail: [number, number] = [
+        snap((axis.xMin + axis.xMax - v.dx) / 2, axis.xGridStep),
+        snap((axis.yMin + axis.yMax - v.dy) / 2, axis.yGridStep),
+    ];
+    return [tail, [tail[0] + v.dx, tail[1] + v.dy]];
 }

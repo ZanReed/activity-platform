@@ -374,7 +374,15 @@ describe('the declaration is where it is for a reason', () => {
     // server bundles regenerate in the same commit; the get-activity and
     // check-activity redeploys are pending author actions, and no file carrying
     // a ```teacher-guide fence may be imported before they are live.
-    expect(SANITIZER_REV).toBe('3-14401abc');
+    //
+    // MOVED 2026-10-09: '3-14401abc' → '3-1fa22562'. Arrowhead Drop 2 added
+    // the `plot_vector` variant and `interaction.vectors` to interactive_graph's
+    // strip list (a free vector's displacement IS the answer). Declaration
+    // change, hash recomputed itself. Both server bundles regenerate in the
+    // same commit; the get-activity and check-activity redeploys are pending
+    // author actions, and no `answer: vector` file may be imported before they
+    // are live (the old functions' schema does not know the variant at all).
+    expect(SANITIZER_REV).toBe('3-1fa22562');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

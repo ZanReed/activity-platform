@@ -206,6 +206,29 @@ export const SegmentInteraction = z.object({
 });
 export type SegmentInteraction = z.infer<typeof SegmentInteraction>;
 
+// ---- plot_vector: draw a FREE vector (arrowhead Drop 2, ruled 2026-10-09) ----
+// The student drags two handles, TAIL then HEAD, and an arrow follows them.
+// Only the DISPLACEMENT is the answer (head − tail): a free vector is the same
+// vector wherever it is drawn, so position is never scored (curriculum C-104
+// chose free vectors only; "join A to A′" is the points answer's job). The
+// order the student draws in IS the answer — a reversed vector is the classic
+// wrong one, caught by an authored `mistake: vector -dx, -dy`. Array-of-one
+// like rays/segments so a system stays additive; never more than one today.
+export const VectorAnswer = z.object({
+  dx: z.number(),
+  dy: z.number(),
+  // Per-component tolerance in graph units — the points answer's default, as
+  // the curriculum side was told (B-135): a snapped vector is exact.
+  tolerance: z.number().nonnegative().default(0.1),
+});
+export type VectorAnswer = z.infer<typeof VectorAnswer>;
+
+export const VectorInteraction = z.object({
+  type: z.literal('plot_vector'),
+  vectors: z.array(VectorAnswer).min(1).max(1),
+});
+export type VectorInteraction = z.infer<typeof VectorInteraction>;
+
 // ---- transform_curve: drag-then-type (wishlist #5) ---------------------------
 // A SHOWN parent curve (`start` — display material, deliberately NOT stripped:
 // it is the question), which the student transforms by dragging plot_function-
@@ -240,6 +263,7 @@ export const GraphInteraction = z.discriminatedUnion('type', [
   InequalityInteraction,
   RayInteraction,
   SegmentInteraction,
+  VectorInteraction,
   TransformCurveInteraction,
   DisplayInteraction,
 ]);

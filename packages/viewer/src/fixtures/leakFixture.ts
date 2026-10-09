@@ -214,6 +214,15 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     {
       ...graphBase(),
       interaction: {
+        // A free vector's key is its displacement; both components and the
+        // tolerance are the secret.
+        type: 'plot_vector',
+        vectors: [{ dx: NUM, dy: NUM, tolerance: NUM }],
+      },
+    },
+    {
+      ...graphBase(),
+      interaction: {
         // The START model deliberately carries plain values, not NUM
         // sentinels: it is question material and SURVIVES sanitize by design
         // (the student must see the parent curve). The target model is the

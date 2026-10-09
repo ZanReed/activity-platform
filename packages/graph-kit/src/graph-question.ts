@@ -26,6 +26,7 @@ import {
   scoreRayParts,
   scoreSegmentParts,
   canonicalPair,
+  scoreVector,
   rayArrowGlyphs,
   endpointLabels,
   fitFunction,
@@ -43,6 +44,7 @@ import {
   type SegmentAnswerKey,
   type LinearShape,
   type LinearPieceStudentAnswer,
+  type VectorAnswerKey,
 } from './graph-score.js';
 import type {
   PointAnswerConfig,
@@ -679,6 +681,13 @@ function readRayKey(raw: unknown): RayAnswerKey {
   };
 }
 
+// Read the plot_vector answer key (`{ vectors: [{ dx, dy, tolerance }] }`).
+function readVectorKey(raw: unknown): VectorAnswerKey {
+  const arr = ((raw ?? {}) as { vectors?: unknown }).vectors;
+  const first = ((Array.isArray(arr) ? arr[0] : undefined) ?? {}) as Record<string, unknown>;
+  return { dx: numOr(first.dx, 1), dy: numOr(first.dy, 0), tolerance: numOr(first.tolerance, 0.1) };
+}
+
 // Read the plot_segment answer key (`{ segments: [{ from, to, endpoints,
 // tolerance }, …] }`; the single-segment widget uses the FIRST).
 function readSegmentKey(raw: unknown): SegmentAnswerKey {
@@ -733,12 +742,14 @@ export async function mountGraphQuestion(
   const isRay = interactionType === 'plot_ray';
   const isSegment = interactionType === 'plot_segment';
   const isTransform = interactionType === 'transform_curve';
+  const isVector = interactionType === 'plot_vector';
   // Ungraded input mode: no key, so nothing here scores or classifies. See
   // GraphQuestionConfig.answerKey.
   const ungraded = cfg.answerKey === undefined || cfg.answerKey === null;
   const ineqKey = isInequality && !ungraded ? readInequalityKey(cfg.answerKey) : null;
   const rayKey = isRay && !ungraded ? readRayKey(cfg.answerKey) : null;
   const segmentKey = isSegment && !ungraded ? readSegmentKey(cfg.answerKey) : null;
+  const vectorKey = isVector && !ungraded ? readVectorKey(cfg.answerKey) : null;
   const domainKey =
     interactionType === 'plot_function' && !ungraded
       ? readDomainKey(cfg.answerKey)
@@ -757,7 +768,12 @@ export async function mountGraphQuestion(
       ungraded
       ? questionRecipe('plot_function', undefined, axis, cfg.questionShape)
       : questionRecipe('plot_function', { models: [ineqKey!.boundary] }, axis)
-    : isRay || isSegment
+    : isVector
+      ? // Two handles, TAIL then HEAD, graded or not (the key never sets the
+        // count — there is always exactly one vector). Default handle order
+        // is the response order; nothing sorts it.
+        { count: 2, scorer: (pts) => vectorKey !== null && scoreVector(vectorKey, pts) }
+      : isRay || isSegment
       ? // Two endpoint handles; scoring is parts-based in build() (styles ride
         // alongside points), so the recipe scorer is a stub.
         { count: 2, scorer: () => false }
@@ -947,6 +963,7 @@ export async function mountGraphQuestion(
       // the student's choice, never pre-drawn (the author board uses the fixed
       // rayThroughHandles/segmentBetweenHandles flags instead).
       linearShape: isRay || isSegment,
+      vectorBetweenHandles: isVector,
       domainEndpoints: domainKey
         ? {
             min: typeof domainKey.min === 'number',
@@ -1694,13 +1711,14 @@ export async function mountGraphAuthor(
   const polygon = cfg.interactionType === 'shade_region';
   const authorRay = cfg.interactionType === 'plot_ray';
   const authorSegment = cfg.interactionType === 'plot_segment';
+  const authorVector = cfg.interactionType === 'plot_vector';
   // plot_function fixes the handle count by family; shade_region uses one vertex
-  // per handle (≥3); ray/segment always two; plot_point uses one per point.
+  // per handle (≥3); ray/segment/vector always two; plot_point uses one per point.
   const count = family
     ? handlesForFamily(family)
     : polygon
       ? Math.max(3, points.length)
-      : authorRay || authorSegment
+      : authorRay || authorSegment || authorVector
         ? 2
         : Math.max(1, points.length);
   const deriveCurve: PointAnswerConfig['deriveCurve'] | undefined = family
@@ -1747,6 +1765,9 @@ export async function mountGraphAuthor(
       // Ray/segment authoring uses the SAME dynamic shape mode students get —
       // the teacher chooses the figure with the same pills.
       linearShape: isLinear,
+      // plot_vector: the teacher drags the SAME arrow the student does; the
+      // NodeView turns head − tail into the stored (dx, dy).
+      vectorBetweenHandles: authorVector,
       // Bounded curve: the outer HANDLES are the endpoints. The teacher seeds
       // them at the typed range (functionStartPoints) and can drag them — a
       // drag reports through onChange, and the NodeView recomputes the bound
