@@ -338,6 +338,65 @@
       "exponential",
       "logarithmic",
       "vertical"
-    ]
+    ],
+    "figure_grammar": {
+      "settings": [
+        "alt",
+        "caption",
+        "axes",
+        "plane",
+        "to scale",
+        "hidden"
+      ],
+      "line_kinds": [
+        "point",
+        "polygon",
+        "region",
+        "segment",
+        "side",
+        "angle",
+        "ticks",
+        "parallel",
+        "text",
+        "cuboid"
+      ],
+      "fallback_kinds": [
+        "line",
+        "curve",
+        "ray"
+      ],
+      "refused_kinds": [
+        "expression"
+      ],
+      "flags": {
+        "angle": [
+          "right",
+          "reflex"
+        ],
+        "cuboid": [
+          "units"
+        ],
+        "curve": [
+          "dashed",
+          "dotted"
+        ],
+        "line": [
+          "dashed",
+          "dotted"
+        ],
+        "point": [
+          "open",
+          "closed"
+        ],
+        "ray": [
+          "open",
+          "closed"
+        ],
+        "segment": [
+          "dashed",
+          "arrow"
+        ]
+      }
+    }
   }
 }

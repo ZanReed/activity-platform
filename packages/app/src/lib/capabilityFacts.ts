@@ -42,6 +42,13 @@ import {
     type Block,
 } from '@activity/schema';
 import { BLANK_MODIFIERS, FENCES } from './importFormatRegistry';
+import {
+    FIGURE_FALLBACK_KINDS,
+    FIGURE_FLAGS,
+    FIGURE_REFUSED_KINDS,
+    FIGURE_SETTINGS,
+    LINE_KINDS,
+} from './figureFence';
 
 /** `grading.scoring` values. */
 export const SCORING = ['auto', 'rubric', 'none'] as const;
@@ -173,6 +180,21 @@ export function gradedCurveFamilies(): string[] {
         .filter((family) => family !== '');
 }
 
+/** The ```figure grammar (C-107 (b)): what check_figures.py reads instead of a
+ * copy. Every list is the parser's own declaration in figureFence.ts, which the
+ * parser consumes; capabilityFacts.test.ts probes each entry through the parser. */
+export function figureGrammar() {
+    const flags: Record<string, string[]> = {};
+    for (const k of Object.keys(FIGURE_FLAGS).sort()) flags[k] = [...FIGURE_FLAGS[k]!];
+    return {
+        settings: [...FIGURE_SETTINGS],
+        line_kinds: [...LINE_KINDS],
+        fallback_kinds: [...FIGURE_FALLBACK_KINDS],
+        refused_kinds: [...FIGURE_REFUSED_KINDS],
+        flags,
+    };
+}
+
 // ---- derivation --------------------------------------------------------------------
 export interface CapabilityFact {
     status: 'shipped';
@@ -256,7 +278,7 @@ export function capabilityFacts() {
         vocabulary: { scoring: [...SCORING], score_shape: [...SCORE_SHAPES] },
         capabilities,
         exempt_fences: exempt,
-        prose_facts: { graded_curve_families: gradedCurveFamilies() },
+        prose_facts: { graded_curve_families: gradedCurveFamilies(), figure_grammar: figureGrammar() },
     };
 }
 

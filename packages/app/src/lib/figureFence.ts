@@ -139,7 +139,33 @@ function angleDeg(at: XY, from: XY, to: XY): number {
 
 // ---- the parser -------------------------------------------------------------------
 
-const LINE_KINDS = ['point', 'polygon', 'region', 'segment', 'side', 'angle', 'ticks', 'parallel', 'text', 'cuboid'] as const;
+// ---- the grammar, as data (published in docs/capability-facts.json) -----------
+// The curriculum side's check_figures.py reads these through its PINNED copy of
+// capability-facts.json (prose_facts.figure_grammar, C-107 (b), author-ruled
+// 2026-10-09/10), so a change here reaches their checker only through a pin
+// bump — their scheduled capability-drift job goes red until it lands. The
+// parser below CONSUMES these lists; capabilityFacts.test.ts holds the rest
+// (every declared kind, setting and flag is probed through this parser, and a
+// source scan fails on a flag word the declaration does not name).
+
+/** Line kinds this grammar owns. */
+export const LINE_KINDS = ['point', 'polygon', 'region', 'segment', 'side', 'angle', 'ticks', 'parallel', 'text', 'cuboid'] as const;
+/** Kinds a figure line FALLS BACK to the show: grammar for (parseShowDrawable). */
+export const FIGURE_FALLBACK_KINDS = ['line', 'curve', 'ray'] as const;
+/** Kinds refused in a figure, with a warning (the static renderer cannot draw them). */
+export const FIGURE_REFUSED_KINDS = ['expression'] as const;
+/** Setting lines (one per figure; not drawables). */
+export const FIGURE_SETTINGS = ['alt', 'caption', 'axes', 'plane', 'to scale', 'hidden'] as const;
+/** Bare flag words each kind reads. Quoted labels, tick counts and a cuboid's unit word (cm) are arguments, not flags. */
+export const FIGURE_FLAGS: Readonly<Record<string, readonly string[]>> = {
+    point: ['open', 'closed'],
+    segment: ['dashed', 'arrow'],
+    angle: ['right', 'reflex'],
+    cuboid: ['units'],
+    line: ['dashed', 'dotted'],
+    curve: ['dashed', 'dotted'],
+    ray: ['open', 'closed'],
+};
 /** Q6 / N2: more unit cubes than this per dimension is refused. */
 const MAX_UNIT_CUBES = 12;
 const DEGREE_RE = new RegExp(String.raw`^(${NUM})°$`);
@@ -262,14 +288,16 @@ export function parseFigureFence(
         const rest = toks.slice(1);
 
         if (!(LINE_KINDS as readonly string[]).includes(kind)) {
-            if (kind === 'expression') {
+            if ((FIGURE_REFUSED_KINDS as readonly string[]).includes(kind)) {
                 skip(line, 'an expression needs the calculator and is never drawn in a figure');
-            } else if ((kind === 'line' || kind === 'curve' || kind === 'ray') && fallback) {
+            } else if ((FIGURE_FALLBACK_KINDS as readonly string[]).includes(kind) && fallback) {
                 const r = fallback(line);
                 if (r.ok) drawables.push(r.drawable);
                 else skip(line, r.message);
             } else {
-                skip(line, 'not a figure line (point, polygon, region, segment, side, angle, ticks, parallel, text, cuboid, line, ray)');
+                // Named from the declaration, so the message cannot drift from
+                // the grammar (it omitted `curve` until 2026-10-10).
+                skip(line, `not a figure line (${[...LINE_KINDS, ...FIGURE_FALLBACK_KINDS].join(', ')})`);
             }
             continue;
         }
