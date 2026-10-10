@@ -636,6 +636,12 @@ annotation lines skip-with-warning, ER-12a, and count as figure problems);
 editor rows; both bundles + both deploys. Scoring is unchanged (labels never
 reach `plot_point`).
 
+## Publish the figure grammar as data (curriculum C-107 (b), 2026-10-10)
+
+**What:** the curriculum side's new `check_figures.py` keeps its own copy of the ```figure grammar (line kinds + flags). Nothing machine-readable is published: `LINE_KINDS` in `packages/app/src/lib/figureFence.ts` is code-only, the flags are read per case (`flag('dashed')`, `flag('arrow')`, …), and a figure line the grammar does not own falls back to `parseShowDrawable` (so `line` / `curve` / `ray` are accepted and `expression` is refused — proven 2026-10-10, and their copy was missing all four). Their ask: generate it into `docs/capability-facts.json` as a `prose_facts` entry so a pin bump carries it (the `graded_curve_families` pattern). Cost: small, but every figure-grammar change then moves the facts file and needs a pin bump.
+
+**Trigger:** the next change to the figure grammar (a new line kind or flag), or a drift between their copy and ours found in a dry run. Queueing it is the author's call (CLAUDE.md, "a new wish gets a trigger, not a slot").
+
 ## Vector labels in column notation (arrowhead ruling 8, 2026-10-09)
 
 **What:** a typeset column vector (3 over 2) beside a vector. Ruled OUT of the arrowhead arc: authors label with `text` lines ("3 right, 2 up", "(3, 2)"). The static renderer has no maths layout, so this is its own arc.
