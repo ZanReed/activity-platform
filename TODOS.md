@@ -636,7 +636,11 @@ annotation lines skip-with-warning, ER-12a, and count as figure problems);
 editor rows; both bundles + both deploys. Scoring is unchanged (labels never
 reach `plot_point`).
 
-## Publish the figure grammar as data (curriculum C-107 (b), 2026-10-10)
+## ✅ BUILT 2026-10-10 (author: "do this", folded into their drift run) — Publish the figure grammar as data (curriculum C-107 (b))
+
+**As built:** `prose_facts.figure_grammar` in `docs/capability-facts.json`, from figureFence.ts's own `LINE_KINDS` / `FIGURE_FALLBACK_KINDS` / `FIGURE_REFUSED_KINDS` / `FIGURE_SETTINGS` / `FIGURE_FLAGS`, guarded in capabilityFacts.test.ts (probes + flag source scan, mutation-tested). A figure-grammar change now moves the facts file → their capability-drift job → pin bump. Unpushed at 5d902a78; shape sent as B-142.
+
+*The entry as filed:*
 
 **What:** the curriculum side's new `check_figures.py` keeps its own copy of the ```figure grammar (line kinds + flags). Nothing machine-readable is published: `LINE_KINDS` in `packages/app/src/lib/figureFence.ts` is code-only, the flags are read per case (`flag('dashed')`, `flag('arrow')`, …), and a figure line the grammar does not own falls back to `parseShowDrawable` (so `line` / `curve` / `ray` are accepted and `expression` is refused — proven 2026-10-10, and their copy was missing all four). Their ask: generate it into `docs/capability-facts.json` as a `prose_facts` entry so a pin bump carries it (the `graded_curve_families` pattern). Cost: small, but every figure-grammar change then moves the facts file and needs a pin bump.
 
