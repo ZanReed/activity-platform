@@ -4,7 +4,7 @@
   "counts": {
     "activities": 13,
     "covered": 11,
-    "coveredPublished": 7,
+    "coveredPublished": 11,
     "partial": 0,
     "uncovered": 85,
     "partsAuthored": 11,
@@ -70,7 +70,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "710-chain.measure.area-volume/03-area-composite.md"
       ],
@@ -84,7 +84,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "710-chain.measure.area-volume/02-area-rect-triangle.md"
       ],
@@ -98,7 +98,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "710-chain.measure.area-volume/01-perimeter.md"
       ],
@@ -112,7 +112,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "710-chain.measure.area-volume/04-volume-cuboid.md"
       ],
@@ -131,7 +131,9 @@
         "801-chain.rate.proportional/02-constant-of-proportionality.md"
       ],
       "consolidations": [],
-      "supporting": []
+      "supporting": [
+        "801-chain.rate.proportional/04-proportional-consolidation.md"
+      ]
     },
     {
       "id": "rate.proportional-graph",
@@ -157,7 +159,9 @@
         "801-chain.rate.proportional/01-unit-rate.md"
       ],
       "consolidations": [],
-      "supporting": []
+      "supporting": [
+        "801-chain.rate.proportional/04-proportional-consolidation.md"
+      ]
     }
   ],
   "partial": [],

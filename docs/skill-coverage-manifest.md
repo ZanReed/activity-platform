@@ -12,7 +12,7 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**11 of 96 skills covered** (7 published, 4 draft only) · 0 partly covered · 13 activities
+**11 of 96 skills covered** (11 published, 0 draft only) · 0 partly covered · 13 activities
 
 **11 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
@@ -24,13 +24,13 @@
 | `geom.angles.relationships` | published | `713-chain.geom.parallel-lines/01-angle-relationships.md` | — | — |
 | `geom.angles.triangle-quad-sum` | published | `712-chain.geom.triangles-polygons/02-angle-sums.md` | — | — |
 | `geom.triangles.classify` | published | `712-chain.geom.triangles-polygons/01-triangles-classify.md` | — | — |
-| `measure.area.composite` | draft only | `710-chain.measure.area-volume/03-area-composite.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
-| `measure.area.rect-triangle` | draft only | `710-chain.measure.area-volume/02-area-rect-triangle.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
-| `measure.perimeter.polygons` | draft only | `710-chain.measure.area-volume/01-perimeter.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
-| `measure.volume.cuboid` | draft only | `710-chain.measure.area-volume/04-volume-cuboid.md` | `710-chain.measure.area-volume/05-perimeter-area-volume.md` | — |
-| `rate.constant-of-proportionality` | published | `801-chain.rate.proportional/02-constant-of-proportionality.md` | — | — |
+| `measure.area.composite` | published | `710-chain.measure.area-volume/03-area-composite.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `measure.area.rect-triangle` | published | `710-chain.measure.area-volume/02-area-rect-triangle.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `measure.perimeter.polygons` | published | `710-chain.measure.area-volume/01-perimeter.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
+| `measure.volume.cuboid` | published | `710-chain.measure.area-volume/04-volume-cuboid.md` | `710-chain.measure.area-volume/05-perimeter-area-volume.md` | — |
+| `rate.constant-of-proportionality` | published | `801-chain.rate.proportional/02-constant-of-proportionality.md` | — | `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `rate.proportional-graph` | published | `801-chain.rate.proportional/03-proportional-graph.md` | `801-chain.rate.proportional/04-proportional-consolidation.md` | — |
-| `rate.unit-rate` | published | `801-chain.rate.proportional/01-unit-rate.md` | — | — |
+| `rate.unit-rate` | published | `801-chain.rate.proportional/01-unit-rate.md` | — | `801-chain.rate.proportional/04-proportional-consolidation.md` |
 
 ## Uncovered
 
