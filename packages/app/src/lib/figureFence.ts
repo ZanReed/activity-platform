@@ -150,6 +150,14 @@ function angleDeg(at: XY, from: XY, to: XY): number {
 
 /** Line kinds this grammar owns. */
 export const LINE_KINDS = ['point', 'polygon', 'region', 'segment', 'side', 'angle', 'ticks', 'parallel', 'text', 'cuboid'] as const;
+/** The one message for `open`/`closed` on a DISPLAY segment, in both grammars
+ *  (author ruling 2026-10-10: refuse with a warning so the curriculum builder
+ *  fixes the file — the words were silently dropped before). Endpoint dots on
+ *  a segment come only from an `answer: segment … open closed` line or the
+ *  editor's row checkboxes. */
+export const SEGMENT_ENDPOINT_REFUSAL =
+    'a shown segment takes no open/closed endpoint dots (remove the word; dots come only from an answer: segment line)';
+
 /** Kinds a figure line FALLS BACK to the show: grammar for (parseShowDrawable). */
 export const FIGURE_FALLBACK_KINDS = ['line', 'curve', 'ray'] as const;
 /** Kinds refused in a figure, with a warning (the static renderer cannot draw them). */
@@ -354,8 +362,12 @@ export function parseFigureFence(
                 const dashed = flag('dashed');
                 // `arrow`: a head at the SECOND point (a translation vector).
                 const arrow = flag('arrow');
+                // Not flag(): open/closed are not segment flags, and the flag
+                // source scan (capabilityFacts.test.ts) must not count them.
+                const endpointWord = words.some((t) => ['open', 'closed'].includes(t.v.toLowerCase()));
                 const pts = refs(pointToks((t) => t.t === 'word' && ['dashed', 'arrow'].includes(t.v.toLowerCase())));
-                if (strs.length) skip(line, 'a segment takes no label (use side AB "…")');
+                if (endpointWord) skip(line, SEGMENT_ENDPOINT_REFUSAL);
+                else if (strs.length) skip(line, 'a segment takes no label (use side AB "…")');
                 else if (typeof pts === 'string') skip(line, pts);
                 else if (pts.length !== 2) skip(line, 'a segment needs exactly two points');
                 else if (same(pts[0]!, pts[1]!)) refuse(line, 'its two points are the same point');

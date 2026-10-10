@@ -277,3 +277,38 @@ describe('answer: vector — a graded FREE vector, end to end (arrowhead Drop 2)
         }
     });
 });
+
+describe('open/closed on a SHOWN segment is refused, never dropped (author ruling 2026-10-10)', () => {
+    // It was read and silently discarded: the file asked for dots and got none.
+    // Refused with a named warning so the curriculum builder fixes the file;
+    // on a graded graph it also rides the figure channel, so a batch run skips it.
+    const REFUSAL = 'takes no open/closed endpoint dots';
+
+    it('in a graph fence beside an answer: warned, counted as a figure problem, no dots drawn', () => {
+        const r = graph('show: segment (0,0) (3,2) open closed', 'answer: (1,1)');
+        expect(r.warnings.join(' ')).toContain(REFUSAL);
+        expect(r.figureProblems?.join(' ')).toContain(REFUSAL);
+    });
+
+    it('in a display graph', () => {
+        const r = graph('show: segment (0,0) (3,2) closed');
+        expect(r.warnings.join(' ')).toContain(REFUSAL);
+    });
+
+    it('in a figure fence, by name or coordinates — the same message', () => {
+        for (const seg of ['segment A B open', 'segment (0,0) (3,2) closed']) {
+            const r = importMd(['```figure', 'alt: x', 'point (0,0) "A"', 'point (3,2) "B"', seg, '```'].join('\n'));
+            expect(r.warnings.join(' '), seg).toContain(REFUSAL);
+        }
+    });
+
+    it('a plain or arrowed shown segment is untouched', () => {
+        const r = graph('show: segment (0,0) (3,2) dashed arrow', 'answer: (1,1)');
+        expect(r.warnings).toEqual([]);
+    });
+
+    it('a ray keeps its open/closed start (a different kind, not refused)', () => {
+        const r = graph('show: ray (0,0) (2,1) open', 'answer: (1,1)');
+        expect(r.warnings).toEqual([]);
+    });
+});

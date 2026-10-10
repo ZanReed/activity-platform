@@ -61,7 +61,7 @@ import {
     parseVector,
 } from '@activity/graph-kit/formula';
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
-import { parseFigureFence } from './figureFence';
+import { parseFigureFence, SEGMENT_ENDPOINT_REFUSAL } from './figureFence';
 import { parseChartFence } from './chartFence';
 import { freeVariables } from '@activity/graph-kit/scorers';
 import {
@@ -4563,6 +4563,11 @@ function parseShowDrawable(value: string): ShowResult {
                 ...(endpoint ? { style: endpoint } : {}),
             },
         };
+    }
+    if (kind === 'segment' && endpoint) {
+        // Refused, not dropped (author ruling 2026-10-10): the old branch read
+        // the word and then discarded it, so a file asked for dots and got none.
+        return { ok: false, message: SEGMENT_ENDPOINT_REFUSAL };
     }
     if (kind === 'segment' || kind === 'ray') {
         const p = parsePointList(rest);
