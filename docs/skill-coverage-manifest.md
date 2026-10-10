@@ -12,9 +12,9 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**11 of 96 skills covered** (11 published, 0 draft only) · 0 partly covered · 13 activities
+**14 of 96 skills covered** (11 published, 3 draft only) · 0 partly covered · 17 activities
 
-**11 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+**14 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
 ## Covered
 
@@ -23,6 +23,9 @@
 | `geom.angles.parallel-transversal` | published | `713-chain.geom.parallel-lines/02-parallel-lines.md` | — | — |
 | `geom.angles.relationships` | published | `713-chain.geom.parallel-lines/01-angle-relationships.md` | — | — |
 | `geom.angles.triangle-quad-sum` | published | `712-chain.geom.triangles-polygons/02-angle-sums.md` | — | — |
+| `geom.transform.reflect` | draft only | `714-chain.geom.transformations/02-reflect.md` | — | `714-chain.geom.transformations/04-which-transformation.md` |
+| `geom.transform.rotate` | draft only | `714-chain.geom.transformations/03-rotate.md` | `714-chain.geom.transformations/04-which-transformation.md` | — |
+| `geom.transform.translate` | draft only | `714-chain.geom.transformations/01-translate.md` | — | `714-chain.geom.transformations/04-which-transformation.md` |
 | `geom.triangles.classify` | published | `712-chain.geom.triangles-polygons/01-triangles-classify.md` | — | — |
 | `measure.area.composite` | published | `710-chain.measure.area-volume/03-area-composite.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
 | `measure.area.rect-triangle` | published | `710-chain.measure.area-volume/02-area-rect-triangle.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
@@ -61,9 +64,6 @@ reason for existing — a count alone cannot be acted on.
 - `function.notation.solve`
 - `function.repr.correspondence`
 - `geom.nets.identify`
-- `geom.transform.reflect`
-- `geom.transform.rotate`
-- `geom.transform.translate`
 - `limit.difference-quotient.setup`
 - `limit.difference-quotient.simplify`
 - `limit.graphical.estimate`

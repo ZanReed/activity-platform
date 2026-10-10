@@ -13,7 +13,7 @@
   not a build failure.
 -->
 
-113 bindings · 18 distinct ids · 13 files
+168 bindings · 25 distinct ids · 17 files
 
 ## By id
 
@@ -26,6 +26,8 @@
 | `mis.area.same-perimeter-same-area` | 1 | `710-chain.measure.area-volume/02-area-rect-triangle.md` |
 | `mis.area.slant-as-height` | 9 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md` |
 | `mis.area.triangle-no-half` | 12 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md` |
+| `mis.coord.axes-swapped` | 15 | `714-chain.geom.transformations/01-translate.md`, `714-chain.geom.transformations/02-reflect.md`, `714-chain.geom.transformations/03-rotate.md`, `714-chain.geom.transformations/04-which-transformation.md` |
+| `mis.integers.larger-digit-larger` | 1 | `714-chain.geom.transformations/01-translate.md` |
 | `mis.parallel.all-equal` | 5 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
 | `mis.parallel.assumed` | 1 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
 | `mis.perimeter.counts-squares` | 4 | `710-chain.measure.area-volume/01-perimeter.md` |
@@ -33,6 +35,11 @@
 | `mis.proportional.one-pair-assumed-constant` | 4 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.rate.compares-totals` | 2 | `801-chain.rate.proportional/01-unit-rate.md` |
 | `mis.rate.ratio-inverted` | 6 | `801-chain.rate.proportional/01-unit-rate.md`, `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.reflect.diagonal-as-vertical` | 7 | `714-chain.geom.transformations/02-reflect.md` |
+| `mis.reflect.half-turn-confused` | 8 | `714-chain.geom.transformations/04-which-transformation.md` |
+| `mis.reflect.translates` | 6 | `714-chain.geom.transformations/02-reflect.md`, `714-chain.geom.transformations/04-which-transformation.md` |
+| `mis.rotate.centre-ignored` | 11 | `714-chain.geom.transformations/03-rotate.md`, `714-chain.geom.transformations/04-which-transformation.md` |
+| `mis.translate.counts-gaps` | 7 | `714-chain.geom.transformations/01-translate.md`, `714-chain.geom.transformations/04-which-transformation.md` |
 | `mis.triangle.orientation-matters` | 5 | `712-chain.geom.triangles-polygons/01-triangles-classify.md` |
 | `mis.units.area-as-linear` | 10 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md`, `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
 | `mis.units.volume-as-square` | 16 | `710-chain.measure.area-volume/04-volume-cuboid.md`, `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
@@ -72,6 +79,23 @@
     - `mis.angles.vertical-as-supplementary` ×1
     - `mis.parallel.all-equal` ×5
     - `mis.parallel.assumed` ×1
+- `714-chain.geom.transformations/01-translate.md` — 15 bindings
+    - `mis.coord.axes-swapped` ×8
+    - `mis.integers.larger-digit-larger` ×1
+    - `mis.translate.counts-gaps` ×6
+- `714-chain.geom.transformations/02-reflect.md` — 15 bindings
+    - `mis.coord.axes-swapped` ×3
+    - `mis.reflect.diagonal-as-vertical` ×7
+    - `mis.reflect.translates` ×5
+- `714-chain.geom.transformations/03-rotate.md` — 12 bindings
+    - `mis.coord.axes-swapped` ×2
+    - `mis.rotate.centre-ignored` ×10
+- `714-chain.geom.transformations/04-which-transformation.md` — 13 bindings
+    - `mis.coord.axes-swapped` ×2
+    - `mis.reflect.half-turn-confused` ×8
+    - `mis.reflect.translates` ×1
+    - `mis.rotate.centre-ignored` ×1
+    - `mis.translate.counts-gaps` ×1
 - `801-chain.rate.proportional/01-unit-rate.md` — 4 bindings
     - `mis.rate.compares-totals` ×2
     - `mis.rate.ratio-inverted` ×2
@@ -92,4 +116,5 @@
 
 - `mis.angles.sum-depends-on-size`
 - `mis.area.same-perimeter-same-area`
+- `mis.integers.larger-digit-larger`
 - `mis.parallel.assumed`

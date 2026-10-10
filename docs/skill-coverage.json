@@ -2,12 +2,12 @@
   "schema": "activity-platform/skill-coverage@1",
   "registrySize": 96,
   "counts": {
-    "activities": 13,
-    "covered": 11,
+    "activities": 17,
+    "covered": 14,
     "coveredPublished": 11,
     "partial": 0,
-    "uncovered": 85,
-    "partsAuthored": 11,
+    "uncovered": 82,
+    "partsAuthored": 14,
     "partsDeclared": 102
   },
   "multiPartSkills": {
@@ -52,6 +52,48 @@
       ],
       "consolidations": [],
       "supporting": []
+    },
+    {
+      "id": "geom.transform.reflect",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "714-chain.geom.transformations/02-reflect.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "714-chain.geom.transformations/04-which-transformation.md"
+      ]
+    },
+    {
+      "id": "geom.transform.rotate",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "714-chain.geom.transformations/03-rotate.md"
+      ],
+      "consolidations": [
+        "714-chain.geom.transformations/04-which-transformation.md"
+      ],
+      "supporting": []
+    },
+    {
+      "id": "geom.transform.translate",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "714-chain.geom.transformations/01-translate.md"
+      ],
+      "consolidations": [],
+      "supporting": [
+        "714-chain.geom.transformations/04-which-transformation.md"
+      ]
     },
     {
       "id": "geom.triangles.classify",
@@ -190,9 +232,6 @@
     "function.notation.solve",
     "function.repr.correspondence",
     "geom.nets.identify",
-    "geom.transform.reflect",
-    "geom.transform.rotate",
-    "geom.transform.translate",
     "limit.difference-quotient.setup",
     "limit.difference-quotient.simplify",
     "limit.graphical.estimate",
@@ -265,6 +304,10 @@
     "712-chain.geom.triangles-polygons/02-angle-sums.md",
     "713-chain.geom.parallel-lines/01-angle-relationships.md",
     "713-chain.geom.parallel-lines/02-parallel-lines.md",
+    "714-chain.geom.transformations/01-translate.md",
+    "714-chain.geom.transformations/02-reflect.md",
+    "714-chain.geom.transformations/03-rotate.md",
+    "714-chain.geom.transformations/04-which-transformation.md",
     "801-chain.rate.proportional/01-unit-rate.md",
     "801-chain.rate.proportional/02-constant-of-proportionality.md",
     "801-chain.rate.proportional/03-proportional-graph.md",
