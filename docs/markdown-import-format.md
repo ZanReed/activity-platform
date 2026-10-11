@@ -795,6 +795,7 @@ answer: -2 <= x < 5
 - `axis: -10..10 step 2` (optional) — the window and tick step (step optional, default 1). Left out, the window auto-fits the answer values (padded a step each side so points and endpoints aren't jammed at the edge, and a ray visibly extends). An answer value outside an *explicit* window imports with a warning (the student couldn't place it there).
 - `prompt:` the question text (optional). Accepts `$inline$` math; `{{…}}` blanks stay literal here.
 - `solution:` optional worked explanation.
+- **Marking follows the tick step.** A plotted point (or interval endpoint) counts when it is within a quarter of the `axis:` step of the answer, never more than 0.1: on an integer line that is 0.1 as before; on a tenths line (`step 0.1`) only the answer's own tick counts, and likewise for hundredths. (Until 2026-10-12 the tolerance was a fixed 0.1, so a tenths line marked the NEIGHBOURING tick right.) A teacher can still change the tolerance in the editor's advanced settings.
 - There is **no `show:` line** — unlike the graph and data-plot fences, the number-line block has no static display mode; both interactions are graded.
 
 A malformed number-line block imports as plain text with a warning.

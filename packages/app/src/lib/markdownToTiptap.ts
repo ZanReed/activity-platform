@@ -4490,6 +4490,14 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
         max = hi + step;
     }
 
+    // The tolerance follows the tick step (author ruling 2026-10-12). It was a
+    // fixed 0.1 set before the axis was known, so on a tenths line 0.6 was
+    // marked RIGHT for 0.7 and on a hundredths line anything in 0.30–0.40 was
+    // right for 0.35. A quarter of the step, capped at 0.1: integer lines keep
+    // 0.1, and on a finer line only the answer's own tick counts (the handle
+    // snaps to the step; a Shift-nudge is a tenth of it).
+    interaction.tolerance = numberLineTolerance(step);
+
     return {
         type: 'numberLine',
         attrs: {
@@ -4501,6 +4509,12 @@ function parseNumberLineFence(src: string, ctx: Ctx): JSONContent | null {
         },
         content: graphPromptContent(prompt, ctx),
     };
+}
+
+/** A number line's marking tolerance from its tick step: a quarter of the step,
+ *  never more than 0.1 (the old fixed value, still right for integer lines). */
+export function numberLineTolerance(step: number): number {
+    return Math.min(0.1, step / 4);
 }
 
 // parseNumberLineInterval lives in editor/numberLineFormula.ts (shared with the
