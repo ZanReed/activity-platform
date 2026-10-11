@@ -1,5 +1,9 @@
 # HISTORY.md
 
+**▶ Moved out of STATE 2026-10-12 (closed record, nothing owed).** Kept verbatim:
+
+**CHAIN HOOK VIEW is LIVE (2026-10-08):** 0057 applied (verify-0057 12/12 live; 0054/0055/0056/0043 still green), pushed at `c9f9eedc` (CI green), 13 hooks mirrored from the curriculum `71dd581` file and read back live (5 chains; Zan's account sees rate, triangles, parallel-lines). Nothing owed. Re-mirror with `--hook-registry` on any import; from an EMPTY folder it also rewrites the docs manifests — restore them with `git checkout -- docs/*manifest* docs/skill-coverage.json` ([chain-hooks-view.md](docs/design/chain-hooks-view.md)).
+
 **▶ Moved out of STATE 2026-10-09 (closed record, nothing owed).** Kept verbatim:
 
 **BANK TEACHING-ORDER FIX (0056) is LIVE (2026-10-08):** applied, `verify-0056`/`0055`/`0054` live green; the Bank lists Year 7 as 712 → 713, then Year 8. Nothing owed.

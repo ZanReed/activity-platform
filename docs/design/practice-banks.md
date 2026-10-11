@@ -1,7 +1,10 @@
 # Practice banks — the bank file format and its import (D43, design pass)
 
-**Status:** DESIGN PASS 2026-10-12 — decisions PROPOSED, awaiting the author's
-rulings; then the curriculum side's agreement by letter; no code before both.
+**Status:** DESIGN PASS 2026-10-12 — **ALL TWELVE (PB-1…PB-12) RULED AS
+RECOMMENDED by the author 2026-10-12 ("yes to all").** The format was sent to the
+curriculum side for agreement as B-160; **no code until their answer (C-123+)**.
+Next: an eng review (`/plan-eng-review`) of the build, then the build in the
+PB-11 scope.
 Parent: [practice-blocks.md](practice-blocks.md) (premise 6: "bank items use the
 existing markdown format in a new practice file kind keyed by `skill:`, with a
 per-session seed", ACCEPTED by the curriculum side as answer 6, with two format
