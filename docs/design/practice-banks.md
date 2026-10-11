@@ -2,7 +2,8 @@
 
 **Status:** DESIGN PASS 2026-10-12 — **ALL TWELVE (PB-1…PB-12) RULED AS
 RECOMMENDED by the author 2026-10-12 ("yes to all").** The format was sent to the
-curriculum side for agreement as B-160; **no code until their answer (C-123+)**.
+curriculum side as B-160 and **AGREED in C-123** with two discrimination-bank
+amendments and the PB-6 spelling (section at the end; reply owed as B-161).
 Next: an eng review (`/plan-eng-review`) of the build, then the build in the
 PB-11 scope.
 Parent: [practice-blocks.md](practice-blocks.md) (premise 6: "bank items use the
@@ -176,3 +177,50 @@ file format is agreed by letter, as the arrowhead syntax was.
 Mixed practice itself (scheduling, spacing, per-session seed derivation, how a
 discrimination answer credits skills, the per-student record) — its own pass,
 behind its gate. Seeded graph keys (seeded-data D5) stay out.
+
+## Curriculum agreement — C-123 (2026-10-12), received at session close, NOT yet answered
+
+**Agreed: PB-1…PB-12**, with two amendments for the discrimination bank and the
+PB-6 spelling. Reply owed as **B-161** by the next platform session; the two
+amendments look like straight extensions of PB-1/PB-3 but get the author's
+glance before the eng review.
+
+- **Amendment (a), PB-1 file name:** a discrimination bank is
+  `banks/<chain-folder>/<chain-id>.discrimination.md` (e.g.
+  `banks/801-chain.rate.proportional/chain.rate.proportional.discrimination.md`)
+  — one per chain. The importer refuses a `role: discrimination` file under any
+  other name, and a skill bank whose file name is not its `skill:`.
+- **Amendment (b), PB-3 ids:** `<chain-id>.discrimination#<heading>` (e.g.
+  `chain.rate.proportional.discrimination#d1`) — file stem + heading, the
+  skill-bank rule; cannot collide with a skill id.
+- **PB-5:** no variable is shared between templates in any of their three skill
+  banks (checked). **PB-3:** their ledger is `bank-item-ids-retired.txt` in the
+  curriculum repo; check_bank fails on reuse.
+- **PB-6, their proposed grammar — everything stays INSIDE the one ```seed
+  fence:**
+  - DERIVED: `name: = expr` (leading `=`), over EARLIER names only, evaluated in
+    order, never drawn; a later reference is refused; a template that references
+    a derived variable implicitly references its sources (for PB-5's sharing
+    check and PB-8's enumeration).
+  - CONSTRAINT: `where <heading>: <predicate>` scoped to one template in a BANK
+    (heading must exist; predicate may use only that template's variables,
+    derived included); an UNSCOPED `where:` is REFUSED in a bank (it would
+    couple templates) and is the ONLY form allowed in an ACTIVITY (no headings).
+    Several `where` lines for one scope AND together.
+  - PREDICATE: a boolean in the existing mathjs expression language (`== != < <=
+    > >= and or not`, plus the already-allowed functions `mod gcd lcm round floor
+    abs …`) — no new evaluator.
+  - RESERVED: `where` joins RESERVED_SEED_NAMES.
+  - ENUMERATION: every combination, a per-template cap, refuse a template with
+    no valid combination; their check_bank enumerates identically and also
+    reports the share of combinations a `where` rejects.
+  - Example from their letter:
+    ```
+    vh: list 2, 4, 5
+    vd: int 60..200
+    k: = vd / vh
+    where t6: mod(vd, vh) == 0 and cp > 2.5
+    ```
+- **Their question 4 — confirm in B-161:** bank FILES land in the CATALOGUE
+  (the pilot), like activities; the curriculum repo gets only the ledger and the
+  tool. (That matches PB-1: the importer reads banks from the catalogue.)
