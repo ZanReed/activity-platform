@@ -219,8 +219,12 @@ glance before the eng review.
     vh: list 2, 4, 5
     vd: int 60..200
     k: = vd / vh
-    where t6: mod(vd, vh) == 0 and cp > 2.5
+    where t6: cp / cn > 0.4 and cp > 2.5
     ```
+    (C-123 ERRATUM: their first example's `where t6: mod(vd, vh) == 0 …` broke
+    the scope rule — `vd`/`vh` are not t6's variables. The rule stands: a
+    scoped predicate uses only its own template's variables. The importer
+    must refuse exactly that mistake.)
 - **Their question 4 — confirm in B-161:** bank FILES land in the CATALOGUE
   (the pilot), like activities; the curriculum repo gets only the ledger and the
   tool. (That matches PB-1: the importer reads banks from the catalogue.)
