@@ -13,7 +13,7 @@
   not a build failure.
 -->
 
-168 bindings · 25 distinct ids · 17 files
+175 bindings · 26 distinct ids · 18 files
 
 ## By id
 
@@ -28,6 +28,7 @@
 | `mis.area.triangle-no-half` | 12 | `710-chain.measure.area-volume/02-area-rect-triangle.md`, `710-chain.measure.area-volume/03-area-composite.md` |
 | `mis.coord.axes-swapped` | 15 | `714-chain.geom.transformations/01-translate.md`, `714-chain.geom.transformations/02-reflect.md`, `714-chain.geom.transformations/03-rotate.md`, `714-chain.geom.transformations/04-which-transformation.md` |
 | `mis.integers.larger-digit-larger` | 1 | `714-chain.geom.transformations/01-translate.md` |
+| `mis.nets.any-six-squares` | 7 | `715-chain.geom.nets/01-nets.md` |
 | `mis.parallel.all-equal` | 5 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
 | `mis.parallel.assumed` | 1 | `713-chain.geom.parallel-lines/02-parallel-lines.md` |
 | `mis.perimeter.counts-squares` | 4 | `710-chain.measure.area-volume/01-perimeter.md` |
@@ -96,6 +97,8 @@
     - `mis.reflect.translates` ×1
     - `mis.rotate.centre-ignored` ×1
     - `mis.translate.counts-gaps` ×1
+- `715-chain.geom.nets/01-nets.md` — 7 bindings
+    - `mis.nets.any-six-squares` ×7
 - `801-chain.rate.proportional/01-unit-rate.md` — 4 bindings
     - `mis.rate.compares-totals` ×2
     - `mis.rate.ratio-inverted` ×2

@@ -2,12 +2,12 @@
   "schema": "activity-platform/skill-coverage@1",
   "registrySize": 96,
   "counts": {
-    "activities": 17,
-    "covered": 14,
-    "coveredPublished": 11,
+    "activities": 18,
+    "covered": 15,
+    "coveredPublished": 14,
     "partial": 0,
-    "uncovered": 82,
-    "partsAuthored": 14,
+    "uncovered": 81,
+    "partsAuthored": 15,
     "partsDeclared": 102
   },
   "multiPartSkills": {
@@ -54,11 +54,23 @@
       "supporting": []
     },
     {
-      "id": "geom.transform.reflect",
+      "id": "geom.nets.identify",
       "registered": true,
       "declaredParts": 1,
       "complete": true,
       "published": false,
+      "parts": [
+        "715-chain.geom.nets/01-nets.md"
+      ],
+      "consolidations": [],
+      "supporting": []
+    },
+    {
+      "id": "geom.transform.reflect",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": true,
       "parts": [
         "714-chain.geom.transformations/02-reflect.md"
       ],
@@ -72,7 +84,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "714-chain.geom.transformations/03-rotate.md"
       ],
@@ -86,7 +98,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "714-chain.geom.transformations/01-translate.md"
       ],
@@ -231,7 +243,6 @@
     "function.notation.evaluate",
     "function.notation.solve",
     "function.repr.correspondence",
-    "geom.nets.identify",
     "limit.difference-quotient.setup",
     "limit.difference-quotient.simplify",
     "limit.graphical.estimate",
@@ -308,6 +319,7 @@
     "714-chain.geom.transformations/02-reflect.md",
     "714-chain.geom.transformations/03-rotate.md",
     "714-chain.geom.transformations/04-which-transformation.md",
+    "715-chain.geom.nets/01-nets.md",
     "801-chain.rate.proportional/01-unit-rate.md",
     "801-chain.rate.proportional/02-constant-of-proportionality.md",
     "801-chain.rate.proportional/03-proportional-graph.md",
