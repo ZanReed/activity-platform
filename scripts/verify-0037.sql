@@ -64,11 +64,20 @@ select 'publish_does_not_stamp_tags',
        (select strpos(prosrc, 'tags') = 0 and strpos(prosrc, 'pedagogical_role') = 0
           from pg_proc where proname = 'publish_activity'),
        'the OTHER half of the provenance ruling: tags/role are row-native and live. A second writer here would make the column mean two things depending on publish state';
-select 'tags_has_no_index_yet',
-       not exists (select 1 from pg_indexes
-                    where schemaname = 'public' and tablename = 'activities'
-                      and indexdef ilike '%gin%' and indexdef ilike '%tags%'),
-       'D12/P1, and this row is a TRIPWIRE not a preference: the GIN index belongs in the Bank catalog-RPC migration beside its first server-side tag query. Flip this row there — do not delete it, and do not satisfy it by adding the index early';
+-- FLIPPED 2026-10-12: this was the D12/P1 tripwire `tags_has_no_index_yet`.
+-- It fired as designed when 0054 (the Bank's catalog-RPC migration) added the
+-- GIN index, but the flip it asked for was missed, so the row read red on live
+-- from 0054 until the 2026-10-12 full run caught it. It now pins the index
+-- 0054 made: GIN on tags, scoped to listed rows only.
+select 'tags_gin_index_is_the_bank_listed_one',
+       (select count(*) = 1
+               and bool_and(indexname = 'activities_listed_tags_gin'
+                            and indexdef ilike '%using gin (tags)%'
+                            and indexdef ilike '%visibility = ''public''%')
+          from pg_indexes
+         where schemaname = 'public' and tablename = 'activities'
+           and indexdef ilike '%gin%' and indexdef ilike '%tags%'),
+       'D12/P1 resolved by 0054: exactly one GIN index on tags, the Bank''s listed-rows-only seam';
 -- The P4 sweep. §C proves the stamp fires for ONE activity through the RPC;
 -- this proves the invariant holds across the whole live corpus, which is the
 -- difference between "derived" and "merely written". Any published activity
