@@ -26,13 +26,28 @@ function bank(seed: string, body: string, meta = 'kind: bank\nstatus: draft\nski
 }
 
 describe('cross-check with check_bank (BE-12, their 85ca61a fixtures)', () => {
-    it('rate.unit-rate passes with their counts: t2 20/24, t3 11/12', () => {
+    it('rate.unit-rate passes with their counts: t2 20/24, t3 11/12, t4 4/4 (\\*)', () => {
         const r = parse(fixture('rate.unit-rate.md'));
         expect(r.problems).toEqual([]);
         const byHeading = Object.fromEntries(r.items.map((i) => [i.heading, i.table]));
         expect([byHeading.t2!.rows.length, byHeading.t2!.total]).toEqual([20, 24]);
         expect([byHeading.t3!.rows.length, byHeading.t3!.total]).toEqual([11, 12]);
-        expect(r.items.map((i) => i.itemId)).toEqual(['rate.unit-rate#t2', 'rate.unit-rate#t3']);
+        expect([byHeading.t4!.rows.length, byHeading.t4!.total]).toEqual([4, 4]);
+        expect(r.items.map((i) => i.itemId)).toEqual(['rate.unit-rate#t2', 'rate.unit-rate#t3', 'rate.unit-rate#t4']);
+    });
+
+    it.each([
+        ['bad-bank-two-stars', /stayed as text, so that blank never formed/],
+        ['bad-bank-no-status', /`status:` is `draft` or `ratified`.*missing/],
+    ])('%s fails for the shared reason', (name, reason) => {
+        const r = parse(fixture(`${name}.md`), name);
+        expect(r.problems.some((p) => reason.test(p))).toBe(true);
+        expect(r.items).toEqual([]);
+    });
+
+    it('bad-bank-unused: theirs is a problem, ours a warning that fails --strict (every import runs --strict)', () => {
+        const r = parse(fixture('bad-bank-unused.md'), 'bad-bank-unused');
+        expect(r.warnings.some((w) => /“z” is declared but no template uses it/.test(w))).toBe(true);
     });
 
     it.each([
