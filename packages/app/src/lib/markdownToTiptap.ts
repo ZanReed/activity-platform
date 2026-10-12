@@ -2777,7 +2777,7 @@ function parseObjectivesFence(src: string, ctx: Ctx): JSONContent | null {
 
         const t = /^title:\s*(.*)$/i.exec(line);
         if (t) {
-            const v = (t[1] ?? '').trim();
+            const v = unescapeMarkdown((t[1] ?? '').trim());
             if (v) title = v;
             continue;
         }
@@ -3138,7 +3138,7 @@ function parseExampleFence(
         const line = rawLine.trim();
         const t = /^title:\s*(.*)$/i.exec(line);
         if (t) {
-            const v = (t[1] ?? '').trim();
+            const v = unescapeMarkdown((t[1] ?? '').trim());
             if (v) title = v;
             continue;
         }
@@ -3419,7 +3419,7 @@ function parseContentLines(
         if (t) {
             flushList();
             flushFigure();
-            const v = (t[1] ?? '').trim();
+            const v = unescapeMarkdown((t[1] ?? '').trim());
             if (v && title === undefined) title = v;
             continue;
         }
@@ -4109,9 +4109,21 @@ interface ImportedCriterion {
     maxPoints: number;
     description?: string;
 }
+// Plain-string fields — a `title:` line, a rubric criterion — never pass
+// through markdown-it's inline parse, so its backslash escapes were never
+// undone: `title: Pay \$3.36` stored, and showed, the backslash (found on the
+// first catalogue files to put money in a title or a rubric, 701, 2026-10-12).
+// Undo CommonMark's escapes (a backslash before any ASCII punctuation) for
+// these fields exactly as prose gets them. Applied AFTER any field split, so a
+// separator is still a separator.
+const MD_ESCAPE = /\\([!-/:-@[-`{-~])/g;
+function unescapeMarkdown(s: string): string {
+    return s.replace(MD_ESCAPE, '$1');
+}
+
 function parseRubricLine(raw: string): ImportedCriterion | null {
     if (!raw) return null;
-    const parts = raw.split('|').map((p) => p.trim());
+    const parts = raw.split('|').map((p) => unescapeMarkdown(p.trim()));
     const label = parts[0] ?? '';
     const maxPoints = Number(parts[1] ?? '');
     if (!label) return null;

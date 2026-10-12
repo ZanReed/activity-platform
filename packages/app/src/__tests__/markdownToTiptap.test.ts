@@ -3981,3 +3981,36 @@ describe('blank bodies are protected from markdown emphasis', () => {
         expect(warnings.filter((w) => w.startsWith('Seed:'))).toEqual([]);
     });
 });
+
+// Plain-string fields undo markdown's backslash escapes, as prose does
+// (2026-10-12: the 701 chain put `\$3.36` in a worked title and a rubric, and
+// the backslash was stored and shown).
+describe('escaped characters in plain-string fields', () => {
+    const strings = (md: string): string[] => {
+        const out: string[] = [];
+        const walk = (n: unknown): void => {
+            if (typeof n === 'string') out.push(n);
+            else if (Array.isArray(n)) n.forEach(walk);
+            else if (n && typeof n === 'object') Object.values(n).forEach(walk);
+        };
+        walk(convert(md).blocks);
+        return out;
+    };
+
+    it.each([
+        ['a worked example title', '```worked\ntitle: Pay \\$3.36 cash\nStep: add\n```', 'Pay $3.36 cash'],
+        ['a faded example title', '```faded\ntitle: Pay \\$3\nStep: {{5}}\n```', 'Pay $3'],
+        ['a rubric description', '```shortanswer\nprompt: Explain.\nrubric: Correct | 1 | Adds \\$2.34 + \\$4.13\n```', 'Adds $2.34 + $4.13'],
+        ['a rubric label', '```shortanswer\nprompt: Explain.\nrubric: Rounds to \\$6.50 | 1\n```', 'Rounds to $6.50'],
+    ])('%s: \\$ stores as $', (_label, md, want) => {
+        const all = strings(md);
+        expect(all).toContain(want);
+        expect(all.some((s) => s.includes('\\$'))).toBe(false);
+    });
+
+    it('a rubric separator is still a separator after unescaping', () => {
+        const all = strings('```shortanswer\nprompt: Explain.\nrubric: A \\* B | 2 | why\n```');
+        expect(all).toContain('A * B');
+        expect(all).toContain('why');
+    });
+});
