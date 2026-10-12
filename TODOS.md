@@ -646,6 +646,10 @@ reach `plot_point`).
 
 **Trigger:** the next change to the figure grammar (a new line kind or flag), or a drift between their copy and ours found in a dry run. Queueing it is the author's call (CLAUDE.md, "a new wish gets a trigger, not a slot").
 
+## A DISPLAY-ONLY number line (curriculum C-134 item 3, 2026-10-12)
+
+A number line that SHOWS a decimal sitting between two ticks, with nothing to answer, for worked examples. Today ```numberline is always graded. **Count: 2 places**, both in the 701 place-value chain: 01's "0.45 or 0.5" worked example, and 03's "3.47 to the nearest tenth". **Trigger: the 701 chain's activity PR** (their drafts are waiting on the glossary, PR #71, and on Zan screening the hooks). Zan ranks it. Graded decimal-step lines already work since the B-160 tick-step fix: 01 can plot 1.09, 1.1, 1.15 and 1.2 on 1..1.3 step 0.01, and 03 can plot 5.82 on 5.8..5.9 step 0.01. Zan decides whether those go in.
+
 ## Seeded money shows cents (curriculum C-129 item 3, 2026-10-12)
 
 A seeded value renders as its shortest number, so `list 3.00, 3.60` shows "$3.6". NZ money is always written to two decimal places once cents appear. Chain 1's banks show only whole dollars, so nothing is broken today. **Trigger: the first bank or activity that shows a seeded NON-whole money amount** (likely the 701 number-strand cash rounding). Zan ranks it. Their spelling idea, for the design pass: render a list value as AUTHORED (`3.60` stays "3.60"), with a per-variable display form for derived values. ⚠ That touches `formatSeedValue` (in both server bundles), so it costs both redeploys. Until it fires, their drafts keep seeded money to whole dollars, or ask for a typed amount graded by value.
