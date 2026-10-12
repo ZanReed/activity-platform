@@ -162,3 +162,10 @@ describe('derivedNumber — what a table stores (BE-3)', () => {
     expect(Object.is(derivedNumber(-0), 0)).toBe(true);
   });
 });
+
+describe('review fixes', () => {
+  it('#4 NaN and Infinity are not decimal constants', () => {
+    expect(refused('a != NaN')).toMatch(/isn't allowed/);
+    expect(refused('a < Infinity')).toMatch(/isn't allowed/);
+  });
+});

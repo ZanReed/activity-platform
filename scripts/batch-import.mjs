@@ -1930,8 +1930,9 @@ export function isBankPath(sourcePath) {
 /** True when the file's leading ```meta fence says `kind: bank` — a bank file
  *  outside banks/ is refused by name rather than imported as an activity. */
 export function declaresBank(markdown) {
-    const m = /^\s*```meta\n([\s\S]*?)\n```/.exec(markdown);
-    return m !== null && /^kind:\s*bank\s*$/m.test(m[1]);
+    // The same fence discipline as scanSourceKey: CRLF-tolerant, anywhere.
+    const m = /^```meta[ \t]*\r?\n([\s\S]*?)^```[ \t]*$/m.exec(markdown);
+    return m !== null && /^[ \t]*kind[ \t]*:[ \t]*bank[ \t]*\r?$/m.test(m[1] ?? '');
 }
 
 /**
@@ -2067,9 +2068,26 @@ export function planBankFiles(pipeline, bankFiles, options = {}) {
         }
         seen.set(row.item_id, row.bank_path);
     }
+    // A duplicate id SKIPS both files (exit 1), never a silent hold.
     const duplicated = rows.length !== new Set(rows.map((r) => r.item_id)).size;
+    if (duplicated) {
+        const byPath = new Map(bankFiles.map((f) => [f.sourcePath, f]));
+        const counts = new Map();
+        for (const row of rows) counts.set(row.item_id, [...(counts.get(row.item_id) ?? []), row.bank_path]);
+        const idsByPath = new Map();
+        for (const [id, paths] of counts) {
+            if (paths.length < 2) continue;
+            for (const path of new Set(paths)) idsByPath.set(path, [...(idsByPath.get(path) ?? []), id]);
+        }
+        for (const [path, ids] of idsByPath) {
+            skipped.push({
+                file: byPath.get(path),
+                error: `item id${ids.length === 1 ? '' : 's'} ${ids.join(', ')} ${ids.length === 1 ? 'is' : 'are'} minted by more than one bank file (PB-3).`,
+            });
+        }
+    }
 
-    return { rows: skipped.length === 0 && !duplicated ? rows : [], files, skipped, warnings, ignored, duplicated };
+    return { rows: skipped.length === 0 ? rows : [], files, skipped, warnings, ignored, duplicated };
 }
 
 export async function loadPipeline() {
@@ -2508,6 +2526,7 @@ export function parseArgs(argv) {
     let factRegistry = null;
     let hookRegistry = null;
     let allowMassRetire = false;
+    let allowUnretire = false;
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -2551,6 +2570,7 @@ export function parseArgs(argv) {
         else if (arg.startsWith('--hook-registry='))
             hookRegistry = arg.slice('--hook-registry='.length);
         else if (arg === '--allow-mass-retire') allowMassRetire = true;
+        else if (arg === '--allow-unretire') allowUnretire = true;
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
         else positional.push(arg);
     }
@@ -2568,6 +2588,7 @@ export function parseArgs(argv) {
         factRegistry,
         hookRegistry,
         allowMassRetire,
+        allowUnretire,
     };
 }
 
@@ -2580,7 +2601,7 @@ export function usageText() {
                              [--skills-registry <file>]
                              [--chain-registry <file>] [--glossary <file>]
                              [--fact-registry <file>] [--hook-registry <file>]
-                             [--allow-mass-retire] [--strict]
+                             [--allow-mass-retire] [--allow-unretire] [--strict]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
                its path RELATIVE to this folder
@@ -2633,6 +2654,12 @@ export function usageText() {
                entries, or more than 20% of the active ones (and more than 5).
                Without it such a run is refused before any write and the retire
                set is printed
+  --allow-unretire
+               let a returning RETIRED practice-bank item id back into the bank
+               store. Without it the run refuses, names the ids and writes no
+               bank row: an item id is never reused (PB-3), so a returning one
+               is usually a heading reused by mistake. Its own flag, because
+               --force (the activity drift override) must not imply it
   --strict     make every binding, catalogue and glossary warning — a suspect
                id, an id outside the registry, a mistake that can never fire, a
                missing registry, an unresolved [[term]], a glossary file
@@ -3438,14 +3465,14 @@ async function main() {
             bankFiles.length === 0
                 ? null
                 : 'only README files under banks/ — the bank store is untouched';
-    } else if (bankRun.skipped.length > 0 || bankRun.duplicated) {
+    } else if (bankRun.skipped.length > 0) {
         bankHeld =
             `${bankRun.skipped.length || 'some'} bank file${bankRun.skipped.length === 1 ? ' has' : 's have'} ` +
             'problems — the bank store is untouched until they are fixed (a partial mirror ' +
             'would retire their items)';
     } else {
         try {
-            bankPlan = await db.syncPracticeItems(owner.id, bankRun.rows, false, args.force);
+            bankPlan = await db.syncPracticeItems(owner.id, bankRun.rows, false, args.allowUnretire);
         } catch (err) {
             bankMirrorFailed = isMissingRelation(err.message)
                 ? 'sync_practice_items is missing (migration 0058 not applied) — the banks were ' +
@@ -3455,7 +3482,7 @@ async function main() {
     }
     const bankMassRetire =
         bankPlan !== null && isMassRetire(bankPlan.retired.length, bankPlan.active_before);
-    // PB-3: a returning retired id is REFUSED unless --force. Not fail-soft: a
+    // PB-3: a returning retired id is REFUSED unless --allow-unretire. Not fail-soft: a
     // reused id would merge two templates' histories once serving exists.
     const bankRefused = bankPlan?.refused ?? [];
 
@@ -3503,7 +3530,8 @@ async function main() {
         if (bankRefused.length > 0) {
             console.log(
                 '  REFUSED — retired bank item ids are back in the files. Bank item ids are\n' +
-                    '  never reused (PB-3): give the template a NEW heading. --force re-admits them.',
+                    '  never reused (PB-3): give the template a NEW heading. --allow-unretire\n' +
+                    '  re-admits them (its own flag: --force is the activity drift override).',
             );
             for (const id of bankRefused) console.log(`      refused ${id}`);
         }
@@ -4066,7 +4094,7 @@ async function main() {
     // otherwise, like the hook mirror; --strict fails the run.
     if (bankPlan && bankMirrorFailed === null && bankRefused.length === 0) {
         try {
-            const mirrored = await db.syncPracticeItems(owner.id, bankRun.rows, true, args.force);
+            const mirrored = await db.syncPracticeItems(owner.id, bankRun.rows, true, args.allowUnretire);
             // From the database's echo, never from the plan.
             console.log(
                 `banks     : mirrored — ${mirrored.new.length} new · ${mirrored.changed.length} changed · ` +

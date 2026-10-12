@@ -233,3 +233,30 @@ describe('a blank that never formed', () => {
         expect(r.problems.join()).toMatch(/stayed as text, so that blank never formed/);
     });
 });
+
+describe('review fixes (Fable review of 0a5dc56c)', () => {
+    it('#1 derived chains compute at FULL precision; only the stored value rounds', () => {
+        const r = parse(bank('a: list 1, 2\nb: list 3\nk: = a / b\nm: = k * b\nwhere t1: k * b - a == 0', '## t1\n\nIt is {m}: {{=m}}'));
+        expect(r.problems).toEqual([]);
+        const t = r.items[0]!.table;
+        expect(t.columns).toEqual(['a', 'b', 'k', 'm']);
+        expect(t.rows).toEqual([[1, 3, 0.333333333333, 1], [2, 3, 0.666666666667, 2]]);
+    });
+
+    it('#2 a LITERAL mistake equal to a seeded answer at some row is refused', () => {
+        const r = parse(bank('a: list 2, 3', '## t1\n\n{a}: {{=a*2 | !4 :: Added.}}'));
+        expect(r.problems.join()).toMatch(/at a=2: mistake !4 = 4 equals the answer/);
+    });
+
+    it('#6 list values are decimal literals only (no 0x10 / 0b101 / 0o7)', () => {
+        const r = parse(bank('a: list 0x10, 2', '## t1\n\n{a}: {{=a}}'));
+        expect(r.problems.join()).toMatch(/list values must all be decimal numbers/);
+        expect(parse(bank('a: list -1.5, +2, .5, 1e2', '## t1\n\n{a}: {{=a}}')).problems).toEqual([]);
+    });
+
+    it('#11 an explicit `role: skill` is accepted', () => {
+        const r = parse(bank('a: list 1', '## t1\n\n{a}: {{=a}}', 'kind: bank\nstatus: draft\nrole: skill\nskill: rate.unit-rate'));
+        expect(r.problems).toEqual([]);
+        expect(r.meta?.role).toBe('skill');
+    });
+});

@@ -160,6 +160,8 @@ function check(node: MathNode, names: string[]): void {
   switch (node.type) {
     case 'ConstantNode':
       if (typeof node.value !== 'number') throw new SeedExprError(`"${String(node.value)}" is not a number`);
+      // mathjs parses Infinity and NaN as constants; neither is a decimal.
+      if (!Number.isFinite(node.value)) throw new SeedExprError(`${String(node.value)} isn't allowed — use decimal numbers`);
       return;
     case 'SymbolNode': {
       const name = node.name ?? '';

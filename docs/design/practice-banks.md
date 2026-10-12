@@ -270,8 +270,9 @@ on was re-checked by hand. Receipts are given inline. "Measured" means a probe w
    collects expression references from `blank.answer` / acceptable answers
    (`markdownToTiptap.ts:3655-3670`), not from `mistakeFeedback[].match`.
 7. **A claimed guard does not exist.** `seed-vars.ts:14-17` says
-   `evaluate.test.ts` checks that every bare-name builtin is reserved. No such
-   file exists (P11). `ln`, `sec`/`csc`/`cot`, the hyperbolics and `factorial`
+   `evaluate.test.ts` checks that every bare-name builtin is reserved. The file
+   exists (`graph-kit/tests/`) but carries no such guard (P11; corrected at
+   build — the review first said the file was missing). `ln`, `sec`/`csc`/`cot`, the hyperbolics and `factorial`
    can be called but are not reserved.
 8. **The mirror pattern un-retires.** `sync_chain_hooks` sets
    `retired_at = null` on a returning id (`0057_chain_hooks.sql:165`). PB-3
@@ -288,8 +289,10 @@ subpath, `seed-expr`, added to the `exports` map. It is a second
 relational (`== != < <= > >=`) and logical (`and or not`) operators, plus
 `gcd`/`lcm`. Equality uses mathjs's epsilon. The calculator is unchanged. It
 is the same library, so there is no new expression language, but the
-platform's implementation is the authority. `round` rounds half away from
-zero, and B-162 tells them so they can match.
+platform's implementation is the authority. `round` rounds halves UP
+(`floor(x + 1/2)`: 2.5 → 3, −2.5 → −2 — the calculator's `Math.round` too), and
+B-162 tells them so they can match. *(Corrected 2026-10-12: this line first said
+"half away from zero", which neither side does.)*
 
 **BE-2 — Derived/`where` are BANKS-ONLY in this slice; activities are
 deferred with a trigger.** This applies the "a wish gets a trigger, not a
@@ -387,3 +390,89 @@ two redeploys. No smaller arrangement keeps BE-3 and BE-8.
 Serving, per-session seeds and mixed practice (gated). Derived/`where` in
 activities (BE-2's trigger). The capability row (PB-12). Seeded math (R2's
 trigger stands).
+
+## As built — 2026-10-12 (platform `0a5dc56c`, local, unpushed)
+
+BE-1…BE-12 built in the PB-11 scope. `pnpm verify` green (8/8 gates); **both
+Edge Function bundles byte-identical** (the drift gates are the proof of BE-2:
+nothing to redeploy). verify-0058 green on the LOCAL stack (7 posture rows,
+B 7/7, C 10/10). The four chain 1 drafts, reshaped to the agreed keys in
+scratch, import clean: 21 items, 1–48 combinations per template; one warning
+(`db` declared, unused, in `rate.proportional-graph`). The full mirror
+lifecycle was run on the local stack — apply 21 new; no-op re-run writes
+nothing (`updated_at` unmoved); a dropped template retires; its return is
+REFUSED (exit 1); `--force` re-admits — then the residue was deleted (P7).
+The preview was checked in a real browser against the local stack.
+
+**Where it lives:** `graph-kit/src/seed-expr.ts` (subpath `./seed-expr`),
+`schema/src/bank-seed.ts` (subpath `./bank-seed`, never in the barrel),
+`app/src/lib/bankSeed.ts` + `bankImport.ts` (pure), `scripts/batch-import.mjs`
+(`planBankFiles`, routing, mirror), migration 0058 + `scripts/verify-0058.sql`,
+`app/src/lib/practiceBank.ts` + `components/BankItemPreview.tsx` + the chain
+page's "Practice bank" section.
+
+**Deviations from the rulings, each deliberate:**
+
+- **BE-1 — a tree walk, not a second mathjs instance sharing evaluate.ts's
+  table.** Sharing the table meant editing `evaluate.ts`, which the GRADING
+  bundle carries — a byte change there breaks BE-2's "no redeploys". Instead:
+  mathjs's parser plus an explicit walk over a closed grammar that owns the
+  agreed semantics (half-up `round`, epsilon equality, zero divisors throw).
+  A parity test pins the shared arithmetic against `compileFunction` over a
+  grid, so a derived value and an answer key over it cannot disagree.
+- **BE-5 — no static "divisor range contains 0" rule.** Enumeration is
+  exhaustive, so a zero divisor at ANY combination already fails the template,
+  naming the row — exactly where their check_bank fails (C-127 noted the
+  difference; it is gone).
+- **BE-7 — the reserved-names guard is bound to the REAL table:**
+  `evaluate.test.ts` parses evaluate.ts's `math.import` block and `create()`
+  dependency list and proves each name callable; the activity list's 24-name
+  gap is pinned so it cannot grow silently (widen it when BE-2's trigger
+  fires). Mutation-tested.
+- **BE-8 — the mirror is HELD, not partial,** when any bank file has a problem
+  (a partial set would retire the broken file's items), and untouched when the
+  folder has no `banks/` (a sub-folder run must not retire a whole store).
+- **BE-11 additions:** the preview hides the worksheet header; it shows the
+  row's values, the answer key in place, and each mistake's value with its
+  binding; "Find the extremes" ranks rows by the FIRST seeded answer.
+
+**Found while building:**
+
+- **Two `*` in one blank breaks the blank, silently** (markdown emphasis eats
+  it; `{{=2*a | !2*a+b :: …}}` imports as plain text, no warning). Banks now
+  refuse any literal `{{` that survives conversion; activities still have the
+  bug — spun off as its own task (fix at the importer, both surfaces).
+- A list authored with trailing zeros (`3.60`) renders `3.6` — the shipped
+  activity behaviour, inherited. Worth a letter if money prompts need cents.
+- `README.md` under `banks/` is ignored with a notice (their drafts zip had
+  one), not refused.
+
+**Fable review of `0a5dc56c` (2026-10-12), all eleven findings fixed in the
+follow-up commit, each with a regression test:**
+
+1. Derived values chained through 12-sf-ROUNDED intermediates (`m = k*b`
+   stored 0.999999999999). Now the scope keeps full precision — later derived
+   variables and the predicates read exact-within-epsilon values, matching
+   check_bank's Fractions — and only the STORED value rounds.
+2. PB-8 skipped a LITERAL mistake on a seeded answer (`!4` vs `a*2` at a=2);
+   it now compares whenever either side is seeded.
+3. `declaresBank` missed CRLF files, so a misplaced bank could import as an
+   activity; it now uses `scanSourceKey`'s fence discipline.
+4. `NaN` / `Infinity` parsed as constants in predicates; refused.
+5. verify-0058 never checked the definer's `search_path` pin; row added and
+   mutation-tested (unpinned → red, restored → green).
+6. `list 0x10` parsed (Number() takes hex/binary/octal); decimal literals only.
+7. A duplicate item id across two files held the mirror but exited 0; both
+   files now SKIP (exit 1).
+8. **Ruling detail changed (author to confirm):** BE-8 put "re-admit a retired
+   id" under `--force`, which also overrides the activity drift guard — one
+   re-admit would force-overwrite every hand-edited activity in the run. It is
+   now its own flag, `--allow-unretire`.
+9. BE-1's text said "half away from zero"; both sides round halves UP. Text
+   corrected; behaviour and parity unchanged.
+10. A zero divisor guarded by an earlier `and` term short-circuits (Python's
+    `and` does too) — "guard first" goes in the letter, no code change.
+11. An explicit `role: skill` was refused; accepted.
+
+**Not built (by ruling):** student serving, per-session seeds, mixed practice,
+the capability row (PB-12), derived/`where` in activities (BE-2's trigger).

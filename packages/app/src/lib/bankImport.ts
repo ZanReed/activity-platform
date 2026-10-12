@@ -202,8 +202,8 @@ function parseBankMeta(src: string | null, problems: string[], warnings: string[
     }
     const roleRaw = kv.get('role');
     const role: BankRole | null =
-        roleRaw === undefined ? 'skill' : roleRaw === 'discrimination' ? 'discrimination' : null;
-    if (role === null) problems.push(`meta: \`role: ${roleRaw}\` — a bank's role is absent (a skill bank) or \`discrimination\` (PB-7).`);
+        roleRaw === undefined || roleRaw === 'skill' ? 'skill' : roleRaw === 'discrimination' ? 'discrimination' : null;
+    if (role === null) problems.push(`meta: \`role: ${roleRaw}\` — a bank's role is \`skill\` (the default) or \`discrimination\` (PB-7).`);
 
     const skill = kv.get('skill') || null;
     const chain = kv.get('chain') || null;
@@ -351,7 +351,9 @@ function checkRow(authored: BlankLike[], resolved: BlankLike[], declared: Set<st
             const rm = r.mistakeFeedback?.[m]?.match;
             if (typeof am !== 'string' || typeof rm !== 'string') continue;
             if (/^unit-(missing|wrong)$/.test(am.trim())) continue;
-            if (!freeVariables(am).some((v) => declared.has(v))) continue;
+            // Compare whenever EITHER side is seeded: a literal `!4` on a
+            // seeded answer can equal it at some rows, and never fire there.
+            if (!seeded && !freeVariables(am).some((v) => declared.has(v))) continue;
             const mv = parseNumericValue(rm);
             if (mv === null) return `mistake !${am} doesn’t evaluate to a number (got “${rm}”)`;
             if (answer !== null && numericallyClose(mv, answer, tol)) {

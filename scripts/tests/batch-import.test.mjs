@@ -1687,6 +1687,7 @@ test('§I --strict and --misconception-registry parse, in either form', () => {
             factRegistry: null,
             hookRegistry: null,
             allowMassRetire: false,
+            allowUnretire: false,
         },
     );
     assert.equal(parseArgs(['~/cat', '--misconception-registry=tax.txt']).registry, 'tax.txt');
@@ -3042,4 +3043,29 @@ test('banks: fingerprintBankItem ignores minted ids but sees the table', () => {
         fingerprintBankItem(base),
         fingerprintBankItem({ ...base, value_table: { columns: ['a'], rows: [[2]], total: 1 } }),
     );
+});
+
+test('banks review fixes: CRLF / indented-position meta, duplicate ids skip, --allow-unretire', () => {
+    // #3 a CRLF bank and a meta fence after a leading blank line both declare.
+    assert.equal(declaresBank(UNIT_RATE.replace(/\n/g, '\r\n')), true);
+    assert.equal(declaresBank('\n\n' + UNIT_RATE), true);
+    assert.throws(
+        () => convertOne(pipeline, UNIT_RATE.replace(/\n/g, '\r\n'), null, '801-chain.rate.proportional/u.md'),
+        /declares `kind: bank`/,
+    );
+    // #7 two files minting one id: both SKIP (exit 1), nothing mirrored.
+    const run = planBankFiles(
+        pipeline,
+        [
+            bankFile('banks/801-chain.rate.proportional/rate.unit-rate.md', UNIT_RATE),
+            bankFile('banks/802-chain.rate.other/rate.unit-rate.md', UNIT_RATE),
+        ],
+        { chainFolders: new Set([...CHAINS, '802-chain.rate.other']) },
+    );
+    assert.equal(run.skipped.length, 2);
+    assert.match(run.skipped[0].error, /minted by more than one bank file/);
+    assert.deepEqual(run.rows, []);
+    // #8 its own flag, independent of --force.
+    assert.equal(parseArgs(['f', '--owner', 'o', '--allow-unretire']).allowUnretire, true);
+    assert.equal(parseArgs(['f', '--owner', 'o', '--force']).allowUnretire, false);
 });

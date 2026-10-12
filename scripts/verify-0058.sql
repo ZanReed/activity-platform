@@ -42,6 +42,10 @@ select 'practice_item_no_client_writes',
 select 'practice_item_sync_definer',
        (select prosecdef from pg_proc where proname = 'sync_practice_items'),
        'SECURITY DEFINER';
+select 'practice_item_sync_search_path_pinned',
+       (select coalesce('search_path=public' = any(proconfig), false)
+          from pg_proc where proname = 'sync_practice_items'),
+       'a definer function with an unpinned search_path can be hijacked';
 select 'practice_item_sync_service_only',
        has_function_privilege('service_role', 'sync_practice_items(uuid,jsonb,boolean,boolean)', 'execute')
        and not has_function_privilege('authenticated', 'sync_practice_items(uuid,jsonb,boolean,boolean)', 'execute')

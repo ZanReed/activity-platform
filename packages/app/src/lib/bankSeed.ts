@@ -63,6 +63,7 @@ export interface ParsedBankSeed {
 }
 
 const NAME = /^[a-z][a-z0-9_]*$/;
+const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
 const NAME_LINE = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/;
 // `where t6: …` and the refused `where: …`. A heading may contain hyphens.
 const WHERE_LINE = /^where(?:\s+(\S+?))?\s*:\s*(.*)$/;
@@ -143,8 +144,10 @@ export function parseBankSeedFence(src: string): ParsedBankSeed {
         } else if (listM) {
             const parts = (listM[1] ?? '').split(',').map((v) => v.trim());
             const values = parts.map(Number);
-            if (parts.some((p) => p === '') || values.some((v) => !Number.isFinite(v))) {
-                problems.push(`seed: ${name}: list values must all be numbers.`);
+            // Decimal literals only: Number() would also take 0x10, 0b101 and
+            // 0o7, which the curriculum side's float() refuses.
+            if (parts.some((p) => !DECIMAL.test(p)) || values.some((v) => !Number.isFinite(v))) {
+                problems.push(`seed: ${name}: list values must all be decimal numbers.`);
                 continue;
             }
             drawn.set(name, { name, kind: 'list', values });
@@ -232,7 +235,16 @@ export function enumerateTemplate(
             scope[n] = lists[i]![idx[i]!]!;
         });
         try {
-            for (const d of derivedCols) scope[d.name] = derivedNumber(d.expr.evaluate(scope));
+            // FULL precision in the scope (later derived variables and the
+            // predicates read it — the curriculum side computes exactly); the
+            // 12-significant-figure rounding applies only to what is STORED.
+            // derivedNumber still validates (number, finite) at evaluation.
+            const stored: Record<string, number> = {};
+            for (const d of derivedCols) {
+                const v = d.expr.evaluate(scope);
+                stored[d.name] = derivedNumber(v);
+                scope[d.name] = v as number;
+            }
             let keep = true;
             for (const w of wheres) {
                 const v = w.predicate.evaluate(scope);
@@ -244,7 +256,7 @@ export function enumerateTemplate(
                     break;
                 }
             }
-            if (keep) rows.push([...drawnCols.map((n) => scope[n]!), ...derivedCols.map((d) => scope[d.name]!)]);
+            if (keep) rows.push([...drawnCols.map((n) => scope[n]!), ...derivedCols.map((d) => stored[d.name]!)]);
         } catch (err) {
             const at = drawnCols.map((n) => `${n}=${scope[n]}`).join(', ');
             return { ok: false, problems: [`${heading}: at ${at || 'its only combination'}: ${(err as Error).message}.`] };
