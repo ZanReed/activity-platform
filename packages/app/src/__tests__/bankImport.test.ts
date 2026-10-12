@@ -44,10 +44,10 @@ describe('cross-check with check_bank (BE-12, their 85ca61a fixtures)', () => {
         expect(r.items).toEqual([]);
     });
 
-    it('bad-bank-two-stars PASSES here since 2026-10-12: blank bodies are protected (a deliberate divergence, sent by letter)', () => {
-        const r = parse(fixture('bad-bank-two-stars.md'), 'bad-bank-two-stars');
+    it('bank-two-stars passes on both sides (their #70, 281fe63): t1 4/4', () => {
+        const r = parse(fixture('bank-two-stars.md'), 'bank-two-stars');
         expect(r.problems).toEqual([]);
-        expect(r.items[0]!.table.rows).toHaveLength(4);
+        expect([r.items[0]!.table.rows.length, r.items[0]!.table.total]).toEqual([4, 4]);
     });
 
     it('bad-bank-unused: theirs is a problem, ours a warning that fails --strict (every import runs --strict)', () => {

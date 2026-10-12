@@ -1,7 +1,7 @@
 # Practice-bank cross-check fixtures (BE-12)
 
 Copied BY COMMIT from the curriculum repo (ZanReed/curriculum), merge
-`df65b40` (PR #69; first copied at `85ca61a`, PR #68), `tests/fixtures/tools/`.
+`feb3cf9` (PR #70 + #71; earlier `df65b40` PR #69, first `85ca61a` PR #68), `tests/fixtures/tools/`.
 `bankImport.test.ts` asserts each is accepted or refused for the SAME reason
 check_bank gives. A divergence goes to the curriculum side as a letter, never
 a local patch to these files. Re-copy (and re-stamp this line) only when they
@@ -16,6 +16,5 @@ change upstream.
 Note: the older `bad-bank-*` files carry no `status:`, which this side requires
 (PB-10), so they also fail for that; the tests assert the shared reason.
 
-`bad-bank-two-stars.md` PASSES here since 2026-10-12 — a deliberate divergence: the
-importer now protects blank bodies from markdown emphasis, so two `*` in one blank
-is a correct blank, not a broken one (sent to the curriculum side by letter).
+`bank-two-stars.md` (their `banks/`, passing since their #70): two bare `*` in one
+blank is a correct blank on both sides; our importer protects blank bodies.
