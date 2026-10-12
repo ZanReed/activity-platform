@@ -20,9 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**701 place-value: dry run CLEAN after `258ce648`** (title:/rubric escapes kept `\$`; also live in 801-04's rubric). **Author:** push, import (3 create + 801-04 update), republish 801-04 and publish the three; I send the receipt.
-
-**`check-activity` redeployed 2026-10-12 for `40694bc1`** (plot_point refuses extra points): deployed bundle byte-identical to the repo's (`cda488a5…`), `verify_jwt` true. Nothing owed.
+**701: dry run clean after `258ce648`.** Author: push, import, republish 801-04, publish the three.
 
 **D43 PRACTICE BANKS — PB-11 slice LIVE 2026-10-12** (main through `a8c81a31`; 0058 applied, verify-0058 10/10 live; CI green on `98351382`). Chain 1's four banks imported and **RATIFIED** (21 items, read back live; receipts B-167, B-169) — the first of the two chains the mixed-practice gate needs. Two-star blank fix `694584ec` (importer, all surfaces). Record: [practice-banks.md](docs/design/practice-banks.md) → Eng review + As built. `--allow-unretire` (not `--force`) re-admits a retired item id — RULED 2026-10-12. Serving stays gated (mixed practice). Liaison: next C-142 / B-179.
 **Closed 2026-10-10…12, nothing owed:** arrowhead Drops 1+2 (graded free vectors) live; 714 transformations + 715 nets imported, PUBLISHED and Bank-listed; figure grammar published as data (pinned at their `f0309d0`); shown-segment open/closed refused; number-line tolerance follows the tick step (`2d0a2886`).
