@@ -4,7 +4,7 @@
   "counts": {
     "activities": 18,
     "covered": 15,
-    "coveredPublished": 14,
+    "coveredPublished": 15,
     "partial": 0,
     "uncovered": 81,
     "partsAuthored": 15,
@@ -58,7 +58,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "715-chain.geom.nets/01-nets.md"
       ],
