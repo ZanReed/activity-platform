@@ -76,3 +76,46 @@ describe('a number line is marked to its own tick step', () => {
         expect(numberLineTolerance(0.01)).toBeCloseTo(0.0025);
     });
 });
+
+// Curriculum C-135 (2026-10-12): the 701 place-value drafts' two graded lines —
+// decimal-step windows that do NOT start at 0. The values below are what the
+// board actually reports: the drag snap (Math.round(x / step) * step) and an
+// arrow-key walk from the left end (repeated + step), float drift included.
+describe('decimal-step lines that do not start at 0 (701, C-135)', () => {
+    const snapped = (x: number, step: number) => Math.round(x / step) * step;
+    const walked = (from: number, steps: number, step: number) => {
+        let x = from;
+        for (let k = 0; k < steps; k++) x += step;
+        return x;
+    };
+
+    it('03: 5.8..5.9 step 0.01 — 5.82 right (snapped or walked), 5.81 and 5.83 wrong', () => {
+        const grade = grader(['prompt: Plot 5.82.', 'axis: 5.8..5.9 step 0.01', 'answer: 5.82']);
+        expect(grade(plot(snapped(5.8213, 0.01)))).toBe('correct');
+        expect(grade(plot(walked(5.8, 2, 0.01)))).toBe('correct');
+        expect(grade(plot(snapped(5.81, 0.01)))).toBe('incorrect');
+        expect(grade(plot(snapped(5.83, 0.01)))).toBe('incorrect');
+    });
+
+    it('01: 1..1.3 step 0.01 — four points scored as a SET', () => {
+        const grade = grader([
+            'prompt: Plot 1.09, 1.1, 1.15 and 1.2.',
+            'axis: 1..1.3 step 0.01',
+            'answer: 1.09, 1.1, 1.15, 1.2',
+        ]);
+        const s = (x: number) => snapped(x, 0.01);
+        expect(grade(plot(s(1.09), s(1.1), s(1.15), s(1.2)))).toBe('correct');
+        // any order
+        expect(grade(plot(s(1.2), s(1.09), s(1.15), s(1.1)))).toBe('correct');
+        // walked from the left end
+        expect(grade(plot(walked(1, 9, 0.01), walked(1, 10, 0.01), walked(1, 15, 0.01), walked(1, 20, 0.01)))).toBe('correct');
+        // one point a tick off, or one missing: never right. (The board gives
+        // exactly one handle per correct point, so an EXTRA point cannot come
+        // from the UI; the scorer does not refuse one from a crafted request —
+        // filed separately, 2026-10-12.)
+        expect(grade(plot(s(1.09), s(1.1), s(1.16), s(1.2)))).not.toBe('correct');
+        expect(grade(plot(s(1.09), s(1.1), s(1.15)))).not.toBe('correct');
+        // the classic 1.1 vs 1.10 vs 1.01 slip
+        expect(grade(plot(s(1.09), s(1.01), s(1.15), s(1.2)))).not.toBe('correct');
+    });
+});
