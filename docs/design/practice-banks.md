@@ -228,3 +228,162 @@ glance before the eng review.
 - **Their question 4 — confirm in B-161:** bank FILES land in the CATALOGUE
   (the pilot), like activities; the curriculum repo gets only the ledger and the
   tool. (That matches PB-1: the importer reads banks from the catalogue.)
+
+## Eng review — 2026-10-12 (`/plan-eng-review`, PROPOSED, awaiting rulings)
+
+Scope reviewed: the PB-11 build (import, store, validate, teacher preview; no
+student serving), with the focus on PB-6. Re-derived against shipped code
+(P10). An independent second reviewer (a subagent, since Codex is not
+installed) challenged the draft. Every claim of its that the rulings below rest
+on was re-checked by hand. Receipts are given inline. "Measured" means a probe was run.
+
+### What the code says (the facts the rulings rest on)
+
+1. **The shipped evaluator cannot run the agreed predicate language.**
+   Measured with `compileFunction` (`graph-kit/src/evaluate.ts:291`):
+   `7 == 7`, `3 < 4`, `3 != 4`, `1 and 0`, `not 0` → no parse;
+   `gcd(12, 8)`, `lcm(4, 6)` → NaN. The instance is built from arithmetic
+   dependencies only (`evaluate.ts:124-136`), and its function table has no
+   gcd/lcm. So C-123's "existing mathjs language, no new evaluator" is false
+   here. B-161 repeated that claim without checking it, so B-162 must correct it.
+2. **The two sides disagree on `round` and on exactness.** Their `check_bank`
+   (PR #68 @ `6efebdf6`) uses `round(Fraction(a))`, which is Python's
+   half-to-even rounding (2.5 → 2). Ours is `Math.round` (`evaluate.ts:177-180`, 2.5 → 3).
+   They compute in exact Fractions and we compute in doubles: `0.1*3` =
+   0.30000000000000004. `formatSeedValue` is a bare `String(v)`
+   (`seedValues.ts:68-71`), so a derived `{t}` could render as float noise.
+   Also, `mod(x, 0)` returns x here, while Python raises an error.
+3. **The read bundle has no evaluator.** `viewer-server.bundle.js` is 1,089,490 B
+   with no mathjs. The ceiling is 1500 KiB (`perf-budgets.mjs:53`). A
+   standalone build of `compileFunction` is ~338 KiB [measured]. So deriving
+   values at serve time would put the bundle at ~1,400/1,500 KiB [estimated]
+   and undo the read/grade split.
+4. **Both bundles contain `RESERVED_SEED_NAMES`** (`seed-vars.ts:24`;
+   "this name is reserved" greps once in each bundle). Any edit to the activity
+   seed schema is a re-bundle plus two redeploys.
+5. **The fence parser cannot read the new lines, and it fails soft.**
+   `markdownToTiptap.ts:3576` is
+   `/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/`. `where t6: …` does not match.
+   `k: = vd / vh` falls to a skip. An unscoped `where:` parses as a variable
+   called `where`. All three only warn.
+6. **The reference sweep misses mistake matchers.** `validateSeedReferences`
+   collects expression references from `blank.answer` / acceptable answers
+   (`markdownToTiptap.ts:3655-3670`), not from `mistakeFeedback[].match`.
+7. **A claimed guard does not exist.** `seed-vars.ts:14-17` says
+   `evaluate.test.ts` checks that every bare-name builtin is reserved. No such
+   file exists (P11). `ln`, `sec`/`csc`/`cot`, the hyperbolics and `factorial`
+   can be called but are not reserved.
+8. **The mirror pattern un-retires.** `sync_chain_hooks` sets
+   `retired_at = null` on a returning id (`0057_chain_hooks.sql:165`). PB-3
+   forbids reusing a bank item id.
+9. **PR #68 counts its 10,000 cap BEFORE filtering** (the product of the
+   referenced drawn variables' sizes, `check_bank.py:203-210`).
+
+### Proposed rulings (numbered; each yes/no)
+
+**BE-1 — A dedicated seed-expression evaluator.** Add a new node-safe graph-kit
+subpath, `seed-expr`, added to the `exports` map. It is a second
+`mathjs/number` instance that imports evaluate.ts's function table (so `log`,
+`round` and `floor` mean exactly what they mean in answer keys), plus the
+relational (`== != < <= > >=`) and logical (`and or not`) operators, plus
+`gcd`/`lcm`. Equality uses mathjs's epsilon. The calculator is unchanged. It
+is the same library, so there is no new expression language, but the
+platform's implementation is the authority. `round` rounds half away from
+zero, and B-162 tells them so they can match.
+
+**BE-2 — Derived/`where` are BANKS-ONLY in this slice; activities are
+deferred with a trigger.** This applies the "a wish gets a trigger, not a
+slot" rule. No activity uses the new grammar, and supporting it on the serve
+path costs ~300 KiB on every open (fact 3). Banks get their own seed schema
+type in a module neither bundle imports, and `where` is reserved there only. So
+the activity schema, both bundles and both Edge Functions are UNCHANGED, and
+there are NO redeploys this slice. In an activity file, a derived line or a
+`where:` line is a HARD ERROR, even without `--strict`. Trigger: the first
+authored activity that needs either one. This needs the curriculum side's
+yes, because C-123 lists unscoped `where:` as the activity form (B-162 asks).
+
+**BE-3 — Store each template's VALID-COMBINATION TABLE at import.** Serving
+and grading then become a table lookup with no evaluator, and they cannot
+disagree with the importer or with each other. The lookup is index =
+hash(`<seed>:<item id>`) mod rows. Canonical order: drawn variables sorted by
+name, each value list in its authored order, the cartesian product in that
+order. Derived values are rounded to 12 significant figures, so the table
+holds no float noise. The order rule goes in the letter so their tool can
+reproduce row counts. This replaces deriving at serve time, which is what
+removes the D8 serve/grade risk for banks: there is one table and one index
+function.
+
+**BE-4 — Pin the item revision into the lookup.** A `practice_item` row is
+updated in place, unlike an immutable `versionId`. So the content fingerprint
+goes into the stored row, and a future serve/grade pair must name it.
+Serving is out of scope, so this slice only stores the fingerprint and
+documents the rule.
+
+**BE-5 — Per-template variable sets, built properly.** A template's set is
+every variable it references in prose, answers, acceptable answers and
+MISTAKE matchers (fact 6), plus the transitive sources of any derived
+variable. `where` lines never add to the set, so the C-123 erratum case is
+refused. The cap is 10,000, counted before filtering over that set, matching
+PR #68. `sample` variables are refused in banks. A divisor range containing 0
+is refused for `mod`, `/` and `gcd`. Any combination with a non-finite derived
+value is refused. A template with zero valid combinations is refused.
+
+**BE-6 — The decimal checks stay theirs, plus one noise check.** We keep no
+decimal-place rule (PB-8), and a `+- tol` tolerance is split off before
+evaluation, so `{{=ct/cn +- 0.005}}` never warns (this answers C-125's
+question). We add one check: a derived value referenced in prose whose rounded
+form still has more than 6 decimal places warns (`--strict` fails). Our side
+is the only one that renders.
+
+**BE-7 — A new parse path for bank fences.** The `seed` fence gets a bank mode
+that recognises `name: = expr`, `where <heading>: …` and refuses unscoped
+`where:`. Every malformed line is an error that fails the file, not a skip.
+Fix the phantom guard while we are here (fact 7): write the `evaluate.test.ts`
+it claims, and reserve `ln`, `sec`, `csc`, `cot`, the hyperbolics,
+`factorial`, `and`, `or`, `not`, `xor`, `to` and `in` in the bank seed schema.
+The activity list widens only when BE-2's trigger fires.
+
+**BE-8 — Store: `practice_item` (migration 0058), owner-only and
+service-written.** RLS: the owner may SELECT, and there are no client
+INSERT/UPDATE/DELETE policies at all, because answer keys live in the content.
+Prior learning `activities-columns-client-writable` is why there are no client
+write policies. Students and anon users get nothing. Writes go through
+`sync_practice_items` (a service RPC with dry-run, retire and mass-retire). A
+returning retired id is REFUSED, not un-retired (fact 8); `--force` overrides
+it by name. `verify-0058` proves RLS denies a student and an anon caller.
+`data-map.md` and `retention-policy.md` change in the same commit.
+
+**BE-9 — Unchanged means unchanged.** The fingerprint covers id-normalised
+content (reuse `contentKey`), the seed spec, the combination table and
+`status`. Otherwise every re-import reports every item changed, because
+conversion mints fresh UUIDs. A draft→ratified flip counts as a change.
+
+**BE-10 — Folder routing.** The batch importer routes `banks/` to the bank
+path. It never treats `banks` as a chain folder, and it refuses `kind: bank`
+anywhere else and a non-bank file under `banks/` (PB-2). It also enforces the
+amendment (a) file names. Until this ships, they place nothing there (C-124
+item 2 agrees).
+
+**BE-11 — Teacher preview on `/chains/:chainId`.** It is lazy-loaded and
+client-side, with no Edge Function. It renders in print mode, as
+`BankPreview` does, so there is no Check button. For the sample it shows the
+answer key and each mistake value, because ratifying needs the answers. It
+has "another sample" stepping and a "show the extremes" view (the rows with
+the minimum and maximum answer), and the valid/total count per template. The
+discrimination bank shows on the same page.
+
+**BE-12 — Cross-check fixtures.** PR #68's fixtures (`rate.unit-rate.md`,
+20/24 and 11/12 valid; the five `bad-bank-*` files) are copied into importer
+tests with their source commit recorded. Each must be accepted or refused for
+the same reason on our side. A divergence is a letter, not a local patch.
+
+**Structure (complexity gate):** about 14 files and 3 new modules (`seed-expr`,
+the bank parse and enumeration, the preview). BE-2 is the shrink. Without it,
+the slice also touches both server handlers, both bundles, the D8 guard and
+two redeploys. No smaller arrangement keeps BE-3 and BE-8.
+
+### Not in scope (recorded)
+
+Serving, per-session seeds and mixed practice (gated). Derived/`where` in
+activities (BE-2's trigger). The capability row (PB-12). Seeded math (R2's
+trigger stands).
