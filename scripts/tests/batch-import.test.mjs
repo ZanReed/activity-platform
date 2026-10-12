@@ -53,7 +53,11 @@ import {
     coverageJson,
     collectBindings,
     convertOne,
+    declaresBank,
     describeChanges,
+    fingerprintBankItem,
+    isBankPath,
+    planBankFiles,
     duplicateChainTitles,
     editDistanceWithin,
     findMarkdownFiles,
@@ -2907,4 +2911,135 @@ test('§HK a MASS retire is refused before any write without --allow-mass-retire
     assert.deepEqual(noWrites(stub.calls).map((c) => c.url), [], 'nothing written');
     const allowed = await runImport(hookStub({ retired: many, active_before: 33 }), [...hookArgs, '--allow-mass-retire']);
     assert.equal(allowed.code, 0, allowed.output);
+});
+
+
+// ---- practice banks (D43; docs/design/practice-banks.md BE-1…BE-12) ---------
+// Through the REAL node bundle: bankImport.ts reaches graph-kit's seed-expr
+// subpath and schema's bank-seed subpath, so this is also the run that dies if
+// either ever pulls a browser-only module into node (CLAUDE.md's barrel rule).
+
+const BANK = (meta, seed, body) =>
+    '```meta\n' + meta + '\n```\n\n```seed\n' + seed + '\n```\n\n' + body;
+const UNIT_RATE = BANK(
+    'kind: bank\nstatus: draft\nskill: rate.unit-rate',
+    'bn: list 10, 20\nbp: list 3.00, 4.00\nbu: = bp / bn\nwhere t1: bu < 0.3',
+    '## t1\n\nA {bn}-pack costs \\${bp}. One costs \\${{=bu | !bn/bp :: Upside down. :: mis.rate.ratio-inverted}}.\n\n## t2\n\nTwo plus two: {{=4}}',
+);
+const bankFile = (sourcePath, markdown) => ({ sourcePath, markdown });
+const CHAINS = new Set(['801-chain.rate.proportional']);
+
+test('banks: routing — banks/ is never an activity; kind: bank outside it is refused (PB-2)', () => {
+    assert.equal(isBankPath('banks/801-chain.rate.proportional/rate.unit-rate.md'), true);
+    assert.equal(isBankPath('801-chain.rate.proportional/a.md'), false);
+    assert.equal(isBankPath('bankside/a.md'), false);
+    assert.equal(declaresBank(UNIT_RATE), true);
+    assert.equal(declaresBank('```meta\ntitle: A\n```\n\nText.'), false);
+    assert.throws(
+        () => convertOne(pipeline, UNIT_RATE, null, '801-chain.rate.proportional/rate.unit-rate.md'),
+        /declares `kind: bank` but is not under banks\//,
+    );
+});
+
+test('banks: BE-2 — derived/where in an ACTIVITY skips the file in a plain run', () => {
+    assert.throws(
+        () => convertOne(pipeline, '```seed\na: int 2..5\nk: = a * 2\n```\n\n{a}: {{=k}}', null, 'x/a.md'),
+        /seed problem[\s\S]*only in practice banks/,
+    );
+});
+
+test('banks: a clean file plans rows with tables, counts and a fingerprint', () => {
+    const run = planBankFiles(
+        pipeline,
+        [bankFile('banks/801-chain.rate.proportional/rate.unit-rate.md', UNIT_RATE)],
+        { chainFolders: CHAINS },
+    );
+    assert.deepEqual(run.skipped, []);
+    assert.deepEqual(run.files[0].items, [
+        { itemId: 'rate.unit-rate#t1', valid: 2, total: 4 },
+        { itemId: 'rate.unit-rate#t2', valid: 1, total: 1 },
+    ]);
+    const [t1, t2] = run.rows;
+    assert.equal(t1.chain_id, 'chain.rate.proportional');
+    assert.equal(t1.role, 'skill');
+    assert.equal(t1.skill_id, 'rate.unit-rate');
+    assert.equal(t1.status, 'draft');
+    assert.deepEqual([t1.position, t2.position], [0, 1]);
+    assert.deepEqual(t1.value_table.columns, ['bn', 'bp', 'bu']);
+    assert.match(t1.fingerprint, /^[0-9a-f]{64}$/);
+    assert.ok(pipeline.ActivityDocument.safeParse(t1.document).success);
+});
+
+test('banks: BE-9 — an unchanged file fingerprints the same on every run; status is content', () => {
+    const plan = (md) =>
+        planBankFiles(pipeline, [bankFile('banks/801-chain.rate.proportional/rate.unit-rate.md', md)], {
+            chainFolders: CHAINS,
+        }).rows.map((r) => r.fingerprint);
+    const a = plan(UNIT_RATE);
+    const b = plan(UNIT_RATE);
+    // Conversion mints fresh ids every time — the fingerprint must not see them.
+    assert.deepEqual(a, b);
+    const ratified = plan(UNIT_RATE.replace('status: draft', 'status: ratified'));
+    assert.notEqual(ratified[0], a[0]);
+    const edited = plan(UNIT_RATE.replace('Upside down.', 'Flipped.'));
+    assert.notEqual(edited[0], a[0]);
+    assert.equal(edited[1], a[1], 'an untouched template keeps its fingerprint');
+});
+
+test('banks: one file with a problem HOLDS the whole mirror (no partial retire)', () => {
+    const run = planBankFiles(
+        pipeline,
+        [
+            bankFile('banks/801-chain.rate.proportional/rate.unit-rate.md', UNIT_RATE),
+            bankFile(
+                'banks/801-chain.rate.proportional/rate.proportional-graph.md',
+                BANK('kind: bank\nstatus: draft\nskill: rate.proportional-graph', 'a: list 1\nwhere: a > 0', '## t1\n\n{a} {{=a}}'),
+            ),
+        ],
+        { chainFolders: CHAINS },
+    );
+    assert.equal(run.skipped.length, 1);
+    assert.match(run.skipped[0].error, /unscoped `where:` is refused/);
+    assert.deepEqual(run.rows, [], 'a partial row set would retire the broken file\'s items');
+});
+
+test('banks: README is ignored; discrimination chain must match its folder; registries warn', () => {
+    const disc = BANK(
+        'kind: bank\nstatus: draft\nrole: discrimination\nchain: chain.rate.other\ndiscriminates: rate.unit-rate, rate.mystery',
+        'a: list 1',
+        '## d1\n\n{a} {{=a}}',
+    );
+    const run = planBankFiles(
+        pipeline,
+        [
+            bankFile('banks/801-chain.rate.proportional/README.md', '# notes'),
+            bankFile('banks/801-chain.rate.proportional/chain.rate.other.discrimination.md', disc),
+            bankFile('banks/999-chain.nowhere/rate.unit-rate.md', UNIT_RATE),
+        ],
+        { chainFolders: CHAINS, skills: { path: 'skills.txt', ids: new Set(['rate.unit-rate']) } },
+    );
+    assert.deepEqual(run.ignored, ['banks/801-chain.rate.proportional/README.md']);
+    assert.match(run.skipped[0].error, /`chain: chain\.rate\.other` but the bank sits in 801-chain\.rate\.proportional/);
+    assert.ok(run.warnings.some((w) => /skill “rate\.mystery” is not in skills\.txt/.test(w)));
+    assert.ok(run.warnings.some((w) => /no activity folder or chain-registry row is named 999-chain\.nowhere/.test(w)));
+});
+
+test('banks: a bank too deep or loose in banks/ is refused (PB-1)', () => {
+    const run = planBankFiles(pipeline, [bankFile('banks/rate.unit-rate.md', UNIT_RATE)], { chainFolders: CHAINS });
+    assert.match(run.skipped[0].error, /banks\/<chain folder>\/<name>\.md/);
+});
+
+test('banks: fingerprintBankItem ignores minted ids but sees the table', () => {
+    const base = {
+        role: 'skill', skill_id: 's', chain_id: 'chain.x', discriminates: [], status: 'draft',
+        document: { id: '0f8fad5b-d9cb-469f-a165-70867728950e', x: 1 },
+        seed_spec: { drawn: [], derived: [], where: [] },
+        value_table: { columns: ['a'], rows: [[1]], total: 1 },
+    };
+    const renamed = { ...base, document: { id: '7c9e6679-7425-40de-944b-e07fc1f90ae7', x: 1 } };
+    assert.equal(fingerprintBankItem(base), fingerprintBankItem(renamed));
+    assert.notEqual(
+        fingerprintBankItem(base),
+        fingerprintBankItem({ ...base, value_table: { columns: ['a'], rows: [[2]], total: 1 } }),
+    );
 });

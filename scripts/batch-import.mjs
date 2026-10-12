@@ -686,6 +686,13 @@ export async function findMarkdownFiles(root) {
  */
 export function convertOne(pipeline, markdown, existingRow, sourcePath, options = {}) {
     const { chainTitle = null, glossary = undefined } = options;
+    // PB-2: a file that SAYS it is a bank but sits outside banks/ is refused,
+    // never imported as an activity whose ```seed fence would then fail.
+    if (declaresBank(markdown)) {
+        throw new Error(
+            'declares `kind: bank` but is not under banks/ — move it to banks/<chain folder>/ (PB-1, PB-2)',
+        );
+    }
     const result = pipeline.importer(markdown, glossary ? { glossary } : undefined);
 
     if (
@@ -711,6 +718,16 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         throw new Error(
             `figure or chart problem${result.figureProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
                 result.figureProblems.join('\n      '),
+        );
+    }
+    // Practice banks BE-2 (C-127): a derived variable or a `where` line in an
+    // ACTIVITY's ```seed fence skips the file in every run, the figure rule's
+    // posture. Without it the line would be dropped and the activity would
+    // serve numbers its author had constrained away.
+    if (result.seedProblems && result.seedProblems.length > 0) {
+        throw new Error(
+            `seed problem${result.seedProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
+                result.seedProblems.join('\n      '),
         );
     }
 
@@ -1894,6 +1911,167 @@ export function renderManifest(summary) {
  * does not import the barrel" would pass forever while some new transitive
  * import re-broke node. This actually bundles and runs the thing.
  */
+// =============================================================================
+// Practice banks (D43; docs/design/practice-banks.md PB-1…PB-12, BE-1…BE-12)
+// =============================================================================
+// A bank file lives at banks/<chain folder>/<stem>.md (PB-1) and declares
+// `kind: bank` (PB-2: the location and the key must agree, either way round).
+// packages/app/src/lib/bankImport.ts does the per-file work; this section
+// routes, adds the catalogue-level checks only the script can make (folder →
+// chain, skill registry, misconception bindings), and builds the rows the
+// 0058 mirror takes.
+
+export const BANKS_FOLDER = 'banks';
+
+export function isBankPath(sourcePath) {
+    return sourcePath === BANKS_FOLDER || sourcePath.startsWith(`${BANKS_FOLDER}/`);
+}
+
+/** True when the file's leading ```meta fence says `kind: bank` — a bank file
+ *  outside banks/ is refused by name rather than imported as an activity. */
+export function declaresBank(markdown) {
+    const m = /^\s*```meta\n([\s\S]*?)\n```/.exec(markdown);
+    return m !== null && /^kind:\s*bank\s*$/m.test(m[1]);
+}
+
+/**
+ * The item fingerprint (BE-4/BE-9): everything a student could see or be
+ * graded on — the document (minted ids renamed, so an unchanged file
+ * fingerprints the same on every run), the seed spec, the value table, the
+ * status and the item's role/skill/chain. A draft→ratified flip is a change.
+ */
+export function fingerprintBankItem(row) {
+    const key = contentKey({
+        role: row.role,
+        skill_id: row.skill_id,
+        chain_id: row.chain_id,
+        discriminates: row.discriminates,
+        status: row.status,
+        document: row.document,
+        seed_spec: row.seed_spec,
+        value_table: row.value_table,
+    });
+    return createHash('sha256').update(key).digest('hex');
+}
+
+/**
+ * Plan every bank file. Returns:
+ *   rows      — the mirror's p_items (only when NO file has a problem)
+ *   files     — per file: its items' valid/total counts, warnings, problems
+ *   skipped   — [{ file, error }] for the run's skip list (exit 1)
+ *   warnings  — catalogue-level warnings (fail under --strict)
+ *   ignored   — README.md files under banks/ (notes for humans)
+ */
+export function planBankFiles(pipeline, bankFiles, options = {}) {
+    const { glossary = undefined, skills = null, registry = null, chainFolders = new Set() } = options;
+    const rows = [];
+    const files = [];
+    const skipped = [];
+    const warnings = [];
+    const ignored = [];
+
+    for (const file of bankFiles) {
+        const parts = file.sourcePath.split('/');
+        if (parts.length === 3 && /^readme\.md$/i.test(parts[2])) {
+            ignored.push(file.sourcePath);
+            continue;
+        }
+        const problems = [];
+        if (parts.length !== 3) {
+            problems.push('a bank file sits at banks/<chain folder>/<name>.md (PB-1).');
+        }
+        const folder = parts[1] ?? '';
+        const chainId = folder.replace(/^\d+-/, '');
+        if (parts.length === 3 && !/^chain\.[a-z0-9][a-z0-9.-]*$/.test(chainId)) {
+            problems.push(`folder ${folder} is not a chain folder (<ordinal>-chain.…).`);
+        } else if (parts.length === 3 && !chainFolders.has(folder)) {
+            warnings.push(
+                `${file.sourcePath}: no activity folder or chain-registry row is named ${folder} — check the folder name.`,
+            );
+        }
+        const stem = (parts[parts.length - 1] ?? '').replace(/\.md$/i, '');
+        const result = pipeline.parseBankFile(file.markdown, {
+            stem,
+            importer: pipeline.importer,
+            ...(glossary ? { glossary } : {}),
+        });
+        problems.push(...result.problems);
+        const meta = result.meta;
+        if (meta?.role === 'discrimination' && meta.chain && meta.chain !== chainId) {
+            problems.push(`\`chain: ${meta.chain}\` but the bank sits in ${folder} (PB-7).`);
+        }
+        if (meta && skills) {
+            for (const id of [meta.skill, ...meta.discriminates].filter(Boolean)) {
+                if (!skills.ids.has(id)) {
+                    warnings.push(`${file.sourcePath}: skill “${id}” is not in ${skills.path}.`);
+                }
+            }
+        }
+        for (const t of result.unresolvedTerms) {
+            warnings.push(`${file.sourcePath}: [[${t}]] resolves to no glossary entry.`);
+        }
+        const fileWarnings = [...result.warnings];
+        for (const item of result.items) {
+            const collected = collectBindings(item.document);
+            fileWarnings.push(
+                ...bindingWarningsFor(`${item.itemId}`, collected, registry).map((w) =>
+                    w.startsWith(item.itemId) ? w.slice(item.itemId.length + 2) : w,
+                ),
+            );
+        }
+        files.push({
+            sourcePath: file.sourcePath,
+            role: meta?.role ?? null,
+            status: meta?.status ?? null,
+            items: result.items.map((i) => ({
+                itemId: i.itemId,
+                valid: i.table.rows.length,
+                total: i.table.total,
+            })),
+            problems,
+            warnings: fileWarnings,
+        });
+        if (problems.length > 0) {
+            skipped.push({
+                file,
+                error: `bank problem${problems.length === 1 ? '' : 's'} — fix and re-run:\n      ${problems.join('\n      ')}`,
+            });
+            continue;
+        }
+        warnings.push(...fileWarnings.map((w) => `${file.sourcePath}: ${w}`));
+        result.items.forEach((item, position) => {
+            const row = {
+                item_id: item.itemId,
+                bank_path: file.sourcePath,
+                role: meta.role,
+                skill_id: meta.role === 'skill' ? meta.skill : null,
+                chain_id: chainId,
+                discriminates: [...meta.discriminates],
+                status: meta.status,
+                position,
+                document: item.document,
+                seed_spec: item.seed,
+                value_table: item.table,
+            };
+            rows.push({ ...row, fingerprint: fingerprintBankItem(row) });
+        });
+    }
+
+    // Two files minting the same item id (a copied bank) — the mirror would
+    // refuse the duplicate; name both files here instead.
+    const seen = new Map();
+    for (const row of rows) {
+        const prior = seen.get(row.item_id);
+        if (prior && prior !== row.bank_path) {
+            warnings.push(`${row.item_id} is minted by both ${prior} and ${row.bank_path}.`);
+        }
+        seen.set(row.item_id, row.bank_path);
+    }
+    const duplicated = rows.length !== new Set(rows.map((r) => r.item_id)).size;
+
+    return { rows: skipped.length === 0 && !duplicated ? rows : [], files, skipped, warnings, ignored, duplicated };
+}
+
 export async function loadPipeline() {
     const result = await build({
         entryPoints: [resolve(repo, 'packages/app/src/lib/batchImportPipeline.ts')],
@@ -1945,6 +2123,9 @@ export async function loadPipeline() {
         slugWithSuffix: mod.slugWithSuffix,
         DEFAULT_TITLE: mod.DEFAULT_TITLE,
         DEFAULT_COURSE: mod.DEFAULT_COURSE,
+        // Practice banks (D43): one bank file → items + problems.
+        // planBankFiles drives it.
+        parseBankFile: mod.parseBankFile,
     };
 }
 
@@ -2269,6 +2450,23 @@ export function makeDb(url, key) {
             return call('/rpc/sync_chain_hooks', {
                 method: 'POST',
                 body: JSON.stringify({ p_owner: ownerId, p_hooks: hooks, p_apply: apply }),
+            });
+        },
+
+        /**
+         * The practice-bank mirror (0058, BE-8): ONE atomic service RPC.
+         * apply=false reports and writes nothing; a returning retired item id
+         * is REFUSED unless allowUnretire (--force).
+         */
+        syncPracticeItems(ownerId, items, apply, allowUnretire = false) {
+            return call('/rpc/sync_practice_items', {
+                method: 'POST',
+                body: JSON.stringify({
+                    p_owner: ownerId,
+                    p_items: items,
+                    p_apply: apply,
+                    p_allow_unretire: allowUnretire,
+                }),
             });
         },
 
@@ -2809,6 +3007,22 @@ async function main() {
     }
     files = keyed;
 
+    // ---- practice banks (D43, PB-4) ------------------------------------------
+    // Banks leave the activity plan HERE: a bank is not an activity, and
+    // planIdentity must never see one (it would plan a create per bank file).
+    const bankFiles = files.filter((f) => isBankPath(f.sourcePath));
+    files = files.filter((f) => !isBankPath(f.sourcePath));
+    const bankRun = planBankFiles(pipeline, bankFiles, {
+        glossary: glossarySource.entries,
+        skills,
+        registry,
+        chainFolders: new Set([
+            ...files.map((f) => chainFolderOf(f.sourcePath)).filter(Boolean),
+            ...chains.titles.keys(),
+        ]),
+    });
+    catalogueWarnings.push(...bankRun.warnings);
+
     // Two files claiming one identity. Fatal BEFORE any write, because the
     // alternative is one file's document landing in the other's row and the
     // loser being reported as a create that then fails on the unique index —
@@ -2863,7 +3077,7 @@ async function main() {
         force: args.force,
     });
 
-    const skipped = [];
+    const skipped = [...bankRun.skipped];
     const warned = [];
     const plannedCreates = [];
     const plannedUpdates = [];
@@ -3211,6 +3425,40 @@ async function main() {
     const hookMassRetire =
         hookPlan !== null && isMassRetire(hookPlan.retired.length, hookPlan.active_before);
 
+    // The bank mirror's plan (0058), from the database's own dry run. HELD —
+    // the store untouched — when any bank file has a problem: the mirror takes
+    // the WHOLE set, so a partial one would retire the broken file's items.
+    // Also untouched when the folder has no banks at all (a sub-folder run must
+    // not retire a whole store). FAIL-SOFT on a database without 0058.
+    let bankPlan = null;
+    let bankMirrorFailed = null;
+    let bankHeld = null;
+    if (bankRun.files.length === 0) {
+        bankHeld =
+            bankFiles.length === 0
+                ? null
+                : 'only README files under banks/ — the bank store is untouched';
+    } else if (bankRun.skipped.length > 0 || bankRun.duplicated) {
+        bankHeld =
+            `${bankRun.skipped.length || 'some'} bank file${bankRun.skipped.length === 1 ? ' has' : 's have'} ` +
+            'problems — the bank store is untouched until they are fixed (a partial mirror ' +
+            'would retire their items)';
+    } else {
+        try {
+            bankPlan = await db.syncPracticeItems(owner.id, bankRun.rows, false, args.force);
+        } catch (err) {
+            bankMirrorFailed = isMissingRelation(err.message)
+                ? 'sync_practice_items is missing (migration 0058 not applied) — the banks were ' +
+                  'checked but not mirrored. Apply 0058 and re-run.'
+                : err.message;
+        }
+    }
+    const bankMassRetire =
+        bankPlan !== null && isMassRetire(bankPlan.retired.length, bankPlan.active_before);
+    // PB-3: a returning retired id is REFUSED unless --force. Not fail-soft: a
+    // reused id would merge two templates' histories once serving exists.
+    const bankRefused = bankPlan?.refused ?? [];
+
     const suspectCount = warned.reduce(
         (n, { warnings }) => n + warnings.filter(isBindingWarning).length,
         0,
@@ -3226,6 +3474,43 @@ async function main() {
             `${orphans.length} orphan${orphans.length === 1 ? '' : 's'} · ` +
             `${skipped.length} skipped\n`,
     );
+
+    // ---- the bank report (D43) ----------------------------------------------
+    if (bankRun.files.length > 0 || bankRun.ignored.length > 0) {
+        const itemCount = bankRun.files.reduce((n, f) => n + f.items.length, 0);
+        console.log(
+            `banks     : ${bankRun.files.length} file${bankRun.files.length === 1 ? '' : 's'} · ` +
+                `${itemCount} item${itemCount === 1 ? '' : 's'}`,
+        );
+        for (const f of bankRun.files) {
+            const label = f.problems.length > 0 ? 'PROBLEMS' : `${f.role} · ${f.status}`;
+            console.log(`  ${f.sourcePath}  (${label})`);
+            // valid/total per template — the counts the curriculum side's
+            // check_bank must reproduce (B-162 item 3; ours are the authority).
+            if (f.items.length > 0) {
+                console.log(`      ${f.items.map((i) => `${i.itemId.split('#')[1]} ${i.valid}/${i.total}`).join(' · ')}`);
+            }
+            for (const w of f.warnings) console.log(`      ⚠ ${w}`);
+        }
+        for (const p of bankRun.ignored) console.log(`  ${p}  (ignored — notes for humans)`);
+        if (bankPlan) {
+            console.log(
+                `  mirror  : ${bankPlan.new.length} new · ${bankPlan.changed.length} changed · ` +
+                    `${bankPlan.retired.length} retired`,
+            );
+            for (const id of bankPlan.retired) console.log(`      retire  ${id}`);
+        }
+        if (bankRefused.length > 0) {
+            console.log(
+                '  REFUSED — retired bank item ids are back in the files. Bank item ids are\n' +
+                    '  never reused (PB-3): give the template a NEW heading. --force re-admits them.',
+            );
+            for (const id of bankRefused) console.log(`      refused ${id}`);
+        }
+        if (bankHeld) console.log(`  HELD    : ${bankHeld}`);
+        if (bankMirrorFailed) console.log(`  ⚠ ${bankMirrorFailed}`);
+        console.log('');
+    }
 
     if (drifted.length) {
         console.log(
@@ -3615,13 +3900,15 @@ async function main() {
             skipped.length > 0 ||
                 drifted.length > 0 ||
                 conflicts.length > 0 ||
+                bankRefused.length > 0 ||
                 (args.strict &&
                     (bindingProblems > 0 ||
                         catalogueWarnings.length > 0 ||
                         glossaryWarnings.length > 0 ||
                         glossaryMirrorFailed !== null ||
                         factScopeMirrorFailed !== null ||
-                        hookMirrorFailed !== null))
+                        hookMirrorFailed !== null ||
+                        bankMirrorFailed !== null))
                 ? 1
                 : 0,
         );
@@ -3651,6 +3938,18 @@ async function main() {
                 '  file than an intended cull. If it is intended, re-run with\n' +
                 '  --allow-mass-retire. (Retired hooks are never deleted, and a returning\n' +
                 '  id un-retires.)\n',
+        );
+        process.exit(1);
+    }
+    if (bankMassRetire && !args.allowMassRetire) {
+        console.error(
+            `\nREFUSED — this run would retire ${bankPlan.retired.length} of ` +
+                `${bankPlan.active_before} active bank items. Nothing was written.\n\n` +
+                `  ${bankPlan.retired.join('\n  ')}\n\n` +
+                '  A banks/ folder that lost most of its items is far more often the wrong\n' +
+                '  folder than an intended cull. If it is intended, re-run with\n' +
+                '  --allow-mass-retire. (Retired items are never deleted, and their ids are\n' +
+                '  never reused.)\n',
         );
         process.exit(1);
     }
@@ -3759,6 +4058,28 @@ async function main() {
         console.warn(
             `⚠ hook mirror FAILED (${hookMirrorFailed}).\n` +
                 '  The hook store was not changed. The import itself continues.',
+        );
+    }
+
+    // The bank mirror (0058): one atomic RPC, before any activity write. Never
+    // applied over a refusal (PB-3) or a held plan; fail-soft and loud
+    // otherwise, like the hook mirror; --strict fails the run.
+    if (bankPlan && bankMirrorFailed === null && bankRefused.length === 0) {
+        try {
+            const mirrored = await db.syncPracticeItems(owner.id, bankRun.rows, true, args.force);
+            // From the database's echo, never from the plan.
+            console.log(
+                `banks     : mirrored — ${mirrored.new.length} new · ${mirrored.changed.length} changed · ` +
+                    `${mirrored.retired.length} retired · ${mirrored.unretired.length} re-admitted`,
+            );
+        } catch (err) {
+            bankMirrorFailed = err.message;
+        }
+    }
+    if (bankMirrorFailed !== null) {
+        console.warn(
+            `⚠ bank mirror FAILED (${bankMirrorFailed}).\n` +
+                '  The bank store was not changed. The import itself continues.',
         );
     }
 
@@ -3875,6 +4196,7 @@ async function main() {
     process.exit(
         skipped.length > 0 ||
             conflicts.length > 0 ||
+            bankRefused.length > 0 ||
             (args.strict &&
                 (bindingProblems > 0 ||
                     catalogueWarnings.length > 0 ||
@@ -3882,6 +4204,7 @@ async function main() {
                     glossaryMirrorFailed !== null ||
                     factScopeMirrorFailed !== null ||
                     hookMirrorFailed !== null ||
+                    bankMirrorFailed !== null ||
                     registryMirrorFailed))
             ? 1
             : 0,

@@ -15,7 +15,8 @@
     "./scorers": "./src/scorers.ts",
     "./static-svg": "./src/static-svg.ts",
     "./chart-svg": "./src/static-svg/chart-svg.ts",
-    "./model-format": "./src/model-format.ts"
+    "./model-format": "./src/model-format.ts",
+    "./seed-expr": "./src/seed-expr.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -25,6 +25,7 @@ const m = vi.hoisted(() => ({
     unmark: vi.fn(),
     listClasses: vi.fn(),
     activities: { current: { data: [] as unknown[], error: null as unknown } },
+    bank: vi.fn(),
 }));
 
 vi.mock('../lib/chainHooks', async (importActual) => ({
@@ -35,6 +36,14 @@ vi.mock('../lib/chainHooks', async (importActual) => ({
     unmarkHook: m.unmark,
 }));
 vi.mock('../lib/classes', () => ({ listClasses: m.listClasses }));
+vi.mock('../lib/practiceBank', async (importActual) => ({
+    ...(await importActual<typeof import('../lib/practiceBank')>()),
+    listBankItems: m.bank,
+}));
+// The preview carries the viewer; the page test proves only that it mounts.
+vi.mock('../components/BankItemPreview', () => ({
+    default: ({ itemId }: { itemId: string }) => <div data-testid="bank-preview">{itemId}</div>,
+}));
 vi.mock('../lib/supabase', () => ({
     supabase: {
         from: () => {
@@ -104,6 +113,7 @@ beforeEach(() => {
     m.mark.mockReset().mockResolvedValue(undefined);
     m.unmark.mockReset().mockResolvedValue(undefined);
     m.listClasses.mockReset().mockResolvedValue(CLASSES);
+    m.bank.mockReset().mockResolvedValue([]);
     m.activities.current = { data: ACTS, error: null };
     try {
         window.localStorage.clear();
@@ -118,7 +128,8 @@ describe('ChainHooks page — content (1A, CH-8, C-97 (d))', () => {
         renderPage();
         expect(await screen.findByRole('heading', { level: 1, name: 'Angles and Parallel Lines' })).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Activities' }).getAttribute('href')).toBe('/activities');
-        expect(document.title).toBe('Angles and Parallel Lines — Hooks');
+        // The title is set in an effect, after the heading's commit — wait for it.
+        await waitFor(() => expect(document.title).toBe('Angles and Parallel Lines — Hooks'));
     });
 
     it('renders hook text LITERALLY — "$4" stays "$4" — each hook an article headed by its prompt', async () => {
@@ -285,5 +296,49 @@ describe('ChainHooks page — used marks (CH-9, 2.3A, 5.1A, RT1, RT2, 7.2A)', ()
         fireEvent.click(await screen.findByRole('button', { name: /^Unmark: Draw two/ }));
         expect(m.unmark).toHaveBeenCalledWith('c1', 'hook.angles.squashed-x');
         expect(await screen.findByRole('button', { name: /^Mark used: Draw two/ })).toBeTruthy();
+    });
+});
+
+// ---- Practice bank section (0058; practice-banks.md PB-11, BE-11) ------------
+describe('ChainHooks page — practice bank (BE-11)', () => {
+    const ITEMS = [
+        { item_id: 'chain.x.discrimination#d1', bank_path: 'banks/713-x/chain.x.discrimination.md', role: 'discrimination',
+          skill_id: null, discriminates: ['geom.a', 'geom.b'], status: 'draft', position: 0 },
+        { item_id: 'geom.a#t1', bank_path: 'banks/713-x/geom.a.md', role: 'skill',
+          skill_id: 'geom.a', discriminates: [], status: 'ratified', position: 0 },
+        { item_id: 'geom.a#t2', bank_path: 'banks/713-x/geom.a.md', role: 'skill',
+          skill_id: 'geom.a', discriminates: [], status: 'ratified', position: 1 },
+    ];
+
+    it('is absent when the chain has no bank items (or no 0058)', async () => {
+        renderPage();
+        await screen.findByRole('heading', { level: 2, name: /Hooks/ });
+        expect(m.bank).toHaveBeenCalledWith(CHAIN);
+        expect(screen.queryByRole('heading', { name: /Practice bank/ })).toBeNull();
+    });
+
+    it('lists items per file with status, the discrimination bank named by its skills', async () => {
+        m.bank.mockResolvedValue(ITEMS);
+        renderPage();
+        expect(await screen.findByRole('heading', { level: 2, name: 'Practice bank · 3' })).toBeTruthy();
+        expect(screen.getByRole('heading', { level: 3, name: /Telling skills apart: geom\.a, geom\.b Draft/ })).toBeTruthy();
+        expect(screen.getByRole('heading', { level: 3, name: /geom\.a Ratified/ })).toBeTruthy();
+        expect(screen.getAllByRole('button', { name: /^Preview / }).map((b) => b.textContent)).toEqual([
+            'Preview d1', 'Preview t1', 'Preview t2',
+        ]);
+        expect(screen.getByText(/Students don't see these yet/)).toBeTruthy();
+    });
+
+    it('opens one preview at a time, and Hide closes it', async () => {
+        m.bank.mockResolvedValue(ITEMS);
+        renderPage();
+        fireEvent.click(await screen.findByRole('button', { name: 'Preview t1' }));
+        expect((await screen.findByTestId('bank-preview')).textContent).toBe('geom.a#t1');
+        expect(screen.getByRole('button', { name: 'Hide t1' }).getAttribute('aria-expanded')).toBe('true');
+        fireEvent.click(screen.getByRole('button', { name: 'Preview t2' }));
+        expect((await screen.findByTestId('bank-preview')).textContent).toBe('geom.a#t2');
+        expect(screen.getAllByTestId('bank-preview')).toHaveLength(1);
+        fireEvent.click(screen.getByRole('button', { name: 'Hide t2' }));
+        await waitFor(() => expect(screen.queryByTestId('bank-preview')).toBeNull());
     });
 });

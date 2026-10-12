@@ -168,6 +168,14 @@ export interface ImportResult {
     // geometry activity the marks are the answer, so a dropped mark is a wrong
     // question, not a cosmetic warning. Never derived by matching warning text.
     figureProblems?: string[];
+    // Present ONLY when the ```seed fence holds a form ACTIVITIES do not
+    // support yet: a derived variable (`k: = a / b`) or a `where` line. Both
+    // are practice-bank grammar (PB-6), banks-only until an authored activity
+    // needs one (eng review BE-2, agreed by the curriculum side in C-127).
+    // Also in `warnings` for the paste dialog; the batch importer reads this
+    // typed channel and SKIPS the file in every run, strict or not — a
+    // dropped constraint would serve numbers the author ruled out.
+    seedProblems?: string[];
 }
 
 /**
@@ -189,6 +197,15 @@ export interface ImportGlossaryEntry {
  */
 export interface ImportOptions {
     readonly glossary?: readonly ImportGlossaryEntry[];
+    /**
+     * Set by the practice-bank importer (docs/design/practice-banks.md BE-5)
+     * when converting ONE template section. The bank's ```seed fence lives in
+     * the bank file, not the section, so the activity seed cross-checks would
+     * report every `{name}` as undeclared; the bank path runs its own
+     * per-template reference checks instead. A ```seed fence inside a section
+     * is itself a seed problem.
+     */
+    readonly bankSection?: true;
 }
 
 export interface GlossaryReference {
@@ -465,6 +482,7 @@ export function getGlossaryFileParser(): Promise<GlossaryFileParser> {
                         spans: [],
                         refPanelBlocks: [],
                         figureProblems: [],
+                        seedProblems: [],
                         definitions: new Map(),
                         definitionTerms: new Map(),
                         inline: inlineParser(md),
@@ -833,6 +851,10 @@ interface Ctx {
     warnings: Set<string>;
     // ```figure problems, ALSO added to warnings (see ImportResult.figureProblems).
     figureProblems: string[];
+    // ```seed forms activities refuse (see ImportResult.seedProblems).
+    seedProblems: string[];
+    // The bank importer's per-section conversion (ImportOptions.bankSection).
+    bankSection?: true;
     // Math spans lifted from the raw source (see extractMath), indexed by the
     // placeholder number the mapper re-expands.
     spans: MathSpan[];
@@ -1002,6 +1024,8 @@ function tokensToBlocks(
         spans,
         refPanelBlocks: [],
         figureProblems: [],
+        seedProblems: [],
+        ...(options?.bankSection ? { bankSection: true as const } : {}),
         definitions: new Map(),
         definitionTerms: new Map(),
         inline,
@@ -1029,9 +1053,10 @@ function tokensToBlocks(
     }
     if (options?.glossary) glossaryPrePass(tokens, ctx, options.glossary);
     const blocks = mapBlocks(nest(tokens), ctx);
-    validateSeedReferences(blocks, ctx);
+    if (!ctx.bankSection) validateSeedReferences(blocks, ctx);
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
     if (ctx.figureProblems.length > 0) result.figureProblems = [...ctx.figureProblems];
+    if (ctx.seedProblems.length > 0) result.seedProblems = [...ctx.seedProblems];
     if (ctx.refPanelBlocks.length > 0) {
         result.referencePanel = ctx.refPanelTitle
             ? { title: ctx.refPanelTitle, blocks: ctx.refPanelBlocks }
@@ -3570,9 +3595,29 @@ function parseSeedFence(src: string, ctx: Ctx): void {
     const meta: ImportedMeta = ctx.meta ?? {};
     const vars: SeedVarType[] = [...(meta.seedVars ?? [])];
     const warn = (msg: string): void => { ctx.warnings.add('Seed: ' + msg); };
+    const problem = (msg: string): void => {
+        ctx.seedProblems.push(msg);
+        warn(msg);
+    };
+    if (ctx.bankSection) {
+        problem('a ```seed fence inside a bank template — a bank declares its variables once, in the file\u2019s own ```seed fence.');
+        return;
+    }
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
         if (line === '') continue;
+        // Practice-bank grammar (PB-6), refused in activities until an authored
+        // activity needs it (BE-2). Checked BEFORE the name-line parse: `where
+        // t6: …` doesn't match it, and `where: …` would otherwise read as a
+        // variable called "where".
+        if (/^where\b[^:]*:/.test(line)) {
+            problem(`\u201c${line}\u201d \u2014 \`where\` constraints work only in practice banks for now; an activity can\u2019t use them yet.`);
+            continue;
+        }
+        if (/^[A-Za-z_][A-Za-z0-9_]*\s*:\s*=/.test(line)) {
+            problem(`\u201c${line}\u201d \u2014 derived variables (\`name: = expression\`) work only in practice banks for now; an activity can\u2019t use them yet.`);
+            continue;
+        }
         const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/.exec(line);
         if (!m) { warn(`\u201c${line}\u201d isn\u2019t a \`name: spec\` line and was skipped.`); continue; }
         const name = m[1] ?? '';

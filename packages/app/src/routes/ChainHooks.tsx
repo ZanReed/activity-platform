@@ -15,7 +15,7 @@
 //   * no student surface of any kind.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -32,7 +32,12 @@ import {
     type ChainHook,
     type MyChainHooks,
 } from '../lib/chainHooks';
+import { groupBankItemsByFile, listBankItems, type BankItemRow } from '../lib/practiceBank';
 import './chainHooks.css';
+
+// The practice-bank preview (PB-11, BE-11) carries the viewer; it is paid for
+// only when a teacher opens one.
+const BankItemPreview = lazy(() => import('../components/BankItemPreview'));
 
 const CLASS_KEY = 'chainHooks.classId';
 
@@ -80,6 +85,23 @@ export default function ChainHooks() {
     const [editing, setEditing] = useState<string | null>(null);
     const [announce, setAnnounce] = useState('');
     const changeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+    // Practice banks (0058): null until loaded; an empty list hides the
+    // section, as does a database without the table (fail-soft, never an error
+    // on a page whose job is hooks).
+    const [bankItems, setBankItems] = useState<BankItemRow[] | null>(null);
+    const [previewing, setPreviewing] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        setBankItems(null);
+        setPreviewing(null);
+        void listBankItems(chainId).then((items) => {
+            if (!cancelled) setBankItems(items);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [chainId]);
 
     const loadHooks = useCallback(async () => {
         setHooksFailed(false);
@@ -395,6 +417,55 @@ export default function ChainHooks() {
                     )}
                 </section>
 
+                {bankItems !== null && bankItems.length > 0 && (
+                    <section aria-labelledby="ch-bank-h" className="ch-section ch-noprint">
+                        <h2 id="ch-bank-h" className="ch-h2">Practice bank · {bankItems.length}</h2>
+                        <p className="ch-muted">
+                            Practice items from the curriculum import, for reading before a bank is ratified.
+                            Students don't see these yet.
+                        </p>
+                        {groupBankItemsByFile(bankItems).map(([path, items]) => {
+                            const first = items[0]!;
+                            const fileLabel = first.role === 'discrimination'
+                                ? `Telling skills apart: ${first.discriminates.join(', ')}`
+                                : first.skill_id ?? path;
+                            return (
+                                <div key={path} className="bank-file">
+                                    <h3 className="bank-file__title">
+                                        {fileLabel}{' '}
+                                        <span className={`bank-chip bank-chip--${first.status}`}>
+                                            {first.status === 'ratified' ? 'Ratified' : 'Draft'}
+                                        </span>
+                                    </h3>
+                                    <ul className="bank-items">
+                                        {items.map((item) => {
+                                            const open = previewing === item.item_id;
+                                            const heading = item.item_id.split('#')[1];
+                                            return (
+                                                <li key={item.item_id} className="bank-item">
+                                                    <button
+                                                        type="button"
+                                                        className="ch-link"
+                                                        aria-expanded={open}
+                                                        onClick={() => setPreviewing(open ? null : item.item_id)}
+                                                    >
+                                                        {open ? 'Hide' : 'Preview'} {heading}
+                                                    </button>
+                                                    {open && (
+                                                        <Suspense fallback={<p className="ch-muted" role="status">Loading preview…</p>}>
+                                                            <BankItemPreview itemId={item.item_id} />
+                                                        </Suspense>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            );
+                        })}
+                    </section>
+                )}
+
                 <p className="sr-only" role="status" aria-live="polite">
                     {announce}
                 </p>
@@ -402,3 +473,4 @@ export default function ChainHooks() {
         </main>
     );
 }
+

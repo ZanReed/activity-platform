@@ -287,3 +287,63 @@ describe('normalizeAsciiMath — spaced-letter reassembly (MathLive unknown name
     expect(normalizeAsciiMath('min(1,2)')).toBe('min(1,2)');
   });
 });
+
+// =============================================================================
+// Reserved seed names vs the REAL function table (practice banks, BE-7)
+// -----------------------------------------------------------------------------
+// seed-vars.ts has long said "graph-kit's evaluator suite guards … every mathjs
+// builtin an expression can reach bare-name is on this list". Until 2026-10-12
+// no test did (eng review fact 7). A seeded variable named like a callable
+// function would be bound into a key expression as a literal — `ln` → `(3)` —
+// and the call would vanish. The set is DERIVED from evaluate.ts's own source
+// (the math.import block and the create() dependency list), and each derived
+// name is PROVED callable, so a function added to the calculator joins the
+// guard without anyone retyping a list.
+// =============================================================================
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { RESERVED_SEED_NAMES } from '@activity/schema';
+import { BANK_RESERVED_SEED_NAMES } from '@activity/schema/bank-seed';
+
+function callableNames(): string[] {
+  const src = readFileSync(fileURLToPath(new URL('../src/evaluate.ts', import.meta.url)), 'utf8');
+  const importBlock = /\nmath\.import\(\s*\{([\s\S]*?)\n\s*\},\s*\{\s*override/.exec(src)?.[1] ?? '';
+  const imported = [...importBlock.matchAll(/^ {4}([A-Za-z][A-Za-z0-9]*)\s*[:,]/gm)].map((m) => m[1]!);
+  const createBlock = /\nconst math = create\(\{([\s\S]*?)\}/.exec(src)?.[1] ?? '';
+  const deps = [...createBlock.matchAll(/([A-Za-z]+)Dependencies/g)].map((m) => m[1]!);
+  const live = (n: string): boolean =>
+    [`${n}(4, 2)`, `${n}(4)`, `${n}(0.5)`].some((e) => {
+      const f = compileFunction(e);
+      return f !== null && Number.isFinite(f(0));
+    });
+  // Constants are reachable bare too (pi, e) — they are not calls.
+  const constants = imported.filter((n) => !live(n) && Number.isFinite(compileFunction(n)?.(0) ?? NaN));
+  return [...new Set([...imported.filter(live), ...deps.filter(live), ...constants])].sort();
+}
+
+describe('reserved seed names cover every bare-name builtin (BE-7)', () => {
+  const names = callableNames();
+
+  it('derives a real set from the source (not vacuous)', () => {
+    // If the regexes stop matching, the guard below would pass on [] — pin
+    // landmarks from each source so a refactor of evaluate.ts fails HERE.
+    for (const landmark of ['sin', 'ln', 'nCr', 'mean', 'add', 'mod', 'pi']) {
+      expect(names).toContain(landmark);
+    }
+  });
+
+  it('every one is reserved for banks', () => {
+    expect(names.filter((n) => !BANK_RESERVED_SEED_NAMES.includes(n))).toEqual([]);
+  });
+
+  it('the ACTIVITY list misses exactly these (widen it when BE-2 fires)', () => {
+    // RESERVED_SEED_NAMES is in both server bundles, so it is left alone until
+    // the activity-side trigger fires (BE-2). This pin makes the gap visible
+    // and stops it growing silently: a new calculator function lands here.
+    expect(names.filter((n) => !RESERVED_SEED_NAMES.includes(n))).toEqual([
+      'acosh', 'acot', 'acsc', 'add', 'asec', 'asinh', 'atanh', 'cosh', 'cot', 'csc',
+      'divide', 'factorial', 'ln', 'logBase', 'multiply', 'nCr', 'nPr', 'nthRoot',
+      'sec', 'sinh', 'subtract', 'tanh', 'unaryMinus', 'unaryPlus',
+    ]);
+  });
+});

@@ -1617,6 +1617,39 @@ describe('```seed fence (wishlist #6)', () => {
         expect(warnings.some((w) => w.includes('inside math'))).toBe(true);
     });
 
+    // Practice banks BE-2 (C-127): bank grammar is refused in activities until
+    // an authored activity needs it — on a TYPED channel the batch importer
+    // skips on, not merely a warning (a dropped `where` serves excluded numbers).
+    it.each([
+        ['a derived variable', 'k: = a / 2'],
+        ['a scoped where', 'where t1: a > 2'],
+        ['an unscoped where', 'where: a > 2'],
+    ])('BE-2: %s is a seed problem in an activity', (_label, line) => {
+        const md = '```seed\na: int 2..9\n' + line + '\n```\n\nUse {a}.';
+        const { meta, seedProblems, warnings } = convert(md);
+        expect(seedProblems).toHaveLength(1);
+        expect(seedProblems![0]).toContain('only in practice banks');
+        expect(warnings.some((w) => w.includes('only in practice banks'))).toBe(true);
+        // …and never becomes a variable (`where: …` used to parse as one).
+        expect(meta?.seedVars).toEqual([{ name: 'a', spec: { kind: 'int', min: 2, max: 9 } }]);
+    });
+
+    it('BE-2: a plain fence has no seed problems (the channel stays absent)', () => {
+        const { seedProblems } = convert('```seed\na: int 2..9\n```\n\nUse {a}.');
+        expect(seedProblems).toBeUndefined();
+    });
+
+    it('bankSection: the bank path owns the seed checks, so {name} does not warn', () => {
+        const { warnings, seedProblems } = convert('One costs ${{=bp/bn}} at {bn} for ${bp}.', { bankSection: true });
+        expect(warnings.filter((w) => w.startsWith('Seed:'))).toEqual([]);
+        expect(seedProblems).toBeUndefined();
+    });
+
+    it('bankSection: a ```seed fence inside a template is a seed problem', () => {
+        const { seedProblems } = convert('```seed\na: int 1..3\n```\n\nUse {a}.', { bankSection: true });
+        expect(seedProblems?.[0]).toContain('inside a bank template');
+    });
+
     it('braces with NO seed fence get one forgot-the-fence warning', () => {
         const { warnings } = convert('You have {a} apples.');
         expect(warnings.some((w) => w.includes('no ```seed fence'))).toBe(true);

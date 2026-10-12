@@ -292,3 +292,73 @@
     color: #000;
   }
 }
+
+/* ---- Practice bank (0058, BE-11) ---------------------------------------- */
+.bank-file {
+  margin-top: 1.25rem;
+}
+.bank-file__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+.bank-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  vertical-align: middle;
+}
+.bank-chip--draft {
+  color: var(--color-muted);
+}
+.bank-chip--ratified {
+  color: var(--color-success-strong);
+}
+.bank-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bank-item {
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.bank-preview {
+  margin: 0.75rem 0 1rem;
+}
+.bank-preview__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+.bank-preview__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.bank-preview__values {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  margin: 0.5rem 0;
+}
+.bank-preview__render {
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+.bank-preview__mistakes ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+/* A preview is one item, not a worksheet: no name/date lines, no title. */
+.bank-preview__render .viewer-print-header,
+.bank-preview__render .viewer-print-heading {
+  display: none;
+}

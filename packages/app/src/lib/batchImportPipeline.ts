@@ -87,6 +87,12 @@ export {
 } from './factScope';
 export type { FactScopeMirror, FactScopeResult } from './factScope';
 
+// Practice banks (D43, docs/design/practice-banks.md): one bank FILE → its
+// items, value tables and problems. Pure; the script owns routing and the
+// mirror (planBankFiles).
+export { parseBankFile } from './bankImport';
+export type { BankFileResult, BankItem, BankMeta } from './bankImport';
+
 export { slugify, slugWithSuffix } from './slug';
 
 export { normalizeTags } from './normalizeTags';

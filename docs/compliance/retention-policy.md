@@ -1,10 +1,12 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-08-draft-14`. Windows below are the author-ruled S1 defaults
+> Version `2026-10-12-draft-15`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-15` (2026-10-12) adds the practice-bank item rows (migration 0058): `practice_item`, curriculum content keyed to its owning teacher (kept for the account lifetime, removed by the `users` cascade; items dropped from the file are retired, never deleted). No student data.
 >
 > `draft-14` (2026-10-08) adds the chain hook rows (migration 0057): `chain_hook`, curriculum content keyed to its owning teacher (kept for the account lifetime, removed by the `users` cascade), and `class_hook_use`, a class's "used" marks (kept with the class row, whose purge is not built). Neither holds student data.
 >
@@ -122,6 +124,7 @@
 | Course glossary (`glossary_entry` — a teacher's course vocabulary; curriculum content, no student data; migration 0043) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0043.sql` §E). Terms dropped from the source file are RETIRED (`retired_at`), never deleted, so a published worksheet's marks keep resolving; nothing else removes a row |
 | Chain hook pools (`chain_hook` — a teacher's mirrored hook prompts and notes; curriculum content, no student data; migration 0057) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0057.sql` §B). Hooks dropped from the source file are RETIRED (`retired_at`), never deleted; nothing else removes a row |
 | Class hook marks (`class_hook_use` — which hook a class has heard, the date, who marked it; teacher planning state, no student data; migration 0057) | life of the class | the mark is made | the teacher unmarking deletes the row; otherwise FK `ON DELETE CASCADE` from `classes` — **inert today**, because class rows are never hard-deleted (see the class row below) |
+| Practice-bank items (`practice_item` — a teacher's mirrored bank templates, their seeded-value tables and status; curriculum content, no student data; migration 0058) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0058.sql` §C). Items dropped from the source file are RETIRED (`retired_at`), never deleted; nothing else removes a row |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
 | Legacy localStorage (published pages) | never leaves the student device | — | student clears browser storage; page's own reset |
 | Viewer local buffer (T7) | until sign-out or sync | — | `signOutEverything()` purges the namespace |
