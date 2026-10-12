@@ -243,8 +243,10 @@ interface Refs {
     readonly expr: Set<string>;
     /** data: {name} on a data plot (a `sample` — refused in banks). */
     readonly dataVar: Set<string>;
-    /** A literal `{{` survived into prose: a blank that did not parse — most
-     *  often two `*` in one blank, which markdown reads as emphasis. */
+    /** A literal `{{` survived into prose: a blank that did not form (an
+     *  empty answer, a stray brace). Two `*` in one blank was the first cause
+     *  found; the importer now protects blank bodies, and this stays as the
+     *  backstop — a bank item with a dead blank is a wrong item. */
     unparsedBlank: boolean;
 }
 
@@ -458,7 +460,7 @@ export function parseBankFile(markdown: string, options: ParseBankFileOptions): 
 
         const refs = collectRefs(doc);
         if (refs.unparsedBlank) {
-            problems.push(`${where} a \`{{…}}\` stayed as text, so that blank never formed — two \`*\` in one blank read as italics; write \`2*a\` once or use brackets.`);
+            problems.push(`${where} a \`{{…}}\` stayed as text, so that blank never formed — check it has an answer and balanced braces.`);
         }
         for (const n of refs.dataVar) problems.push(`${where} data: {${n}} needs a \`sample\` variable, and banks have none (BE-5).`);
         for (const n of refs.latex) {

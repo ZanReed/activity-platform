@@ -388,8 +388,11 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
                 // escaping, then protect escaped `\[[` (see protectEscapedBrackets),
                 // then parse the placeholdered text.
                 const { text, spans } = extractMath(stripMarkdownFence(markdown));
-                const tokens = md.parse(protectEscapedBrackets(text), {}) as unknown as MdToken[];
-                return restoreEscapedBrackets(
+                const tokens = md.parse(
+                    protectEscapedBrackets(protectBlankBodies(text)),
+                    {},
+                ) as unknown as MdToken[];
+                return restoreBlankSentinels(restoreEscapedBrackets(
                     tokensToBlocks(
                         tokens,
                         spans,
@@ -397,7 +400,7 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
                         (text) => md.parse(text, {}) as unknown as MdToken[],
                         options,
                     ),
-                );
+                ));
             };
         });
     }
@@ -821,7 +824,7 @@ function maskBlankSpecs(text: string): string {
             | { blankCanon?: string; blankAlts?: string }
             | undefined;
         if (typeof groups !== 'object' || groups === null) return whole;
-        return parseBlankSpec(groups.blankCanon ?? '', groups.blankAlts ?? '')
+        return parseBlankSpec(unprotectBlankText(groups.blankCanon ?? ''), unprotectBlankText(groups.blankAlts ?? ''))
             ? MASKED_BLANK
             : whole;
     });
@@ -1598,6 +1601,53 @@ function mergeText(nodes: JSONContent[]): JSONContent[] {
     return out;
 }
 
+// ---- Blank bodies are not markdown (2026-10-12) --------------------------
+// A `{{…}}` body is the blank grammar's, never markdown's. Left to markdown-it,
+// two `*` (or `_`, or backticks) in one blank — `{{=2*a | !2*a+b :: …}}` —
+// became emphasis, the blank was split across tokens, and it imported as
+// plain text with NO warning. Found building practice banks; bank items refuse
+// the symptom (bankImport.ts), and this removes the cause for every surface.
+//
+// The extractMath / protectEscapedBrackets pattern: on the RAW source, every
+// span matching BLANK_SUB (the live tokenizer's own grammar, never a retyped
+// copy) has its emphasis characters swapped for private-use sentinels, which
+// markdown-it treats as ordinary text. An author's escape (`\*`, the interim
+// workaround) collapses to the same sentinel, so it means what it meant.
+// makeBlank unprotects its input before parseBlankSpec — answers, mistake
+// matchers and feedback carry the real characters into every check — and the
+// finished result swaps back anything else (a blank kept literal, a degrade
+// path), so no sentinel ever reaches a document.
+const BLANK_SENTINELS: Record<string, string> = {
+    '*': String.fromCharCode(0xe003),
+    _: String.fromCharCode(0xe004),
+    '`': String.fromCharCode(0xe005),
+};
+const BLANK_SENTINEL_RE = new RegExp(`[${Object.values(BLANK_SENTINELS).join('')}]`, 'g');
+const BLANK_SENTINEL_CHAR: Record<string, string> = Object.fromEntries(
+    Object.entries(BLANK_SENTINELS).map(([c, s]) => [s, c]),
+);
+
+function protectBlankBodies(src: string): string {
+    return src.replace(new RegExp(BLANK_SUB, 'g'), (blank) =>
+        blank
+            .replace(/\\([*_`])/g, (_m, c: string) => BLANK_SENTINELS[c]!)
+            .replace(/[*_`]/g, (c) => BLANK_SENTINELS[c]!),
+    );
+}
+
+function unprotectBlankText(s: string): string {
+    return s.replace(BLANK_SENTINEL_RE, (c) => BLANK_SENTINEL_CHAR[c]!);
+}
+
+function restoreBlankSentinels<T>(value: T): T {
+    if (typeof value === 'string') return unprotectBlankText(value) as T;
+    if (Array.isArray(value)) return value.map(restoreBlankSentinels) as T;
+    if (value === null || typeof value !== 'object') return value;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = restoreBlankSentinels(v);
+    return out as T;
+}
+
 function sameMarks(a: JSONContent, b: JSONContent): boolean {
     return JSON.stringify(a.marks ?? []) === JSON.stringify(b.marks ?? []);
 }
@@ -1789,7 +1839,9 @@ function resolveAgainstGlossary(
 // through unchanged). Null (empty answer) → the caller keeps the sentinel as
 // literal text.
 function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | null {
-    const spec = parseBlankSpec(canonRaw, altsRaw);
+    // The body arrives sentinel-protected (protectBlankBodies); every check
+    // downstream must see the author's real characters.
+    const spec = parseBlankSpec(unprotectBlankText(canonRaw), unprotectBlankText(altsRaw));
     if (!spec) return null;
     for (const w of spec.warnings) ctx.warnings.add(w);
     const attrs: Record<string, unknown> = {

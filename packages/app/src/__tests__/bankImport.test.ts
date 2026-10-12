@@ -37,12 +37,17 @@ describe('cross-check with check_bank (BE-12, their 85ca61a fixtures)', () => {
     });
 
     it.each([
-        ['bad-bank-two-stars', /stayed as text, so that blank never formed/],
         ['bad-bank-no-status', /`status:` is `draft` or `ratified`.*missing/],
     ])('%s fails for the shared reason', (name, reason) => {
         const r = parse(fixture(`${name}.md`), name);
         expect(r.problems.some((p) => reason.test(p))).toBe(true);
         expect(r.items).toEqual([]);
+    });
+
+    it('bad-bank-two-stars PASSES here since 2026-10-12: blank bodies are protected (a deliberate divergence, sent by letter)', () => {
+        const r = parse(fixture('bad-bank-two-stars.md'), 'bad-bank-two-stars');
+        expect(r.problems).toEqual([]);
+        expect(r.items[0]!.table.rows).toHaveLength(4);
     });
 
     it('bad-bank-unused: theirs is a problem, ours a warning that fails --strict (every import runs --strict)', () => {
@@ -243,9 +248,14 @@ describe('PB-1/2/3/7/9/10 and BE-6/BE-7', () => {
 });
 
 describe('a blank that never formed', () => {
-    it('two * in one blank (markdown emphasis) is a problem, not a silent text blank', () => {
-        const r = parse(bank('a: list 2\nb: list 3', '## t1\n\n{a}, {b}: {{=a}} and {{=2*a | !2*a+b :: Added.}}'));
+    it('a blank that cannot form (empty answer) is a problem, not a silent text blank', () => {
+        const r = parse(bank('a: list 2', '## t1\n\n{a}: {{=a}} and {{ }}'));
         expect(r.problems.join()).toMatch(/stayed as text, so that blank never formed/);
+    });
+
+    it('two * in one blank now FORMS (the importer protects blank bodies)', () => {
+        const r = parse(bank('a: list 2\nb: list 3', '## t1\n\n{a}, {b}: {{=2*a | !2*a+b :: Added.}}'));
+        expect(r.problems).toEqual([]);
     });
 });
 

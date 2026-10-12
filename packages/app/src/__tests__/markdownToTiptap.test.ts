@@ -3915,3 +3915,69 @@ describe('course glossary resolution', () => {
         expect(mark?.attrs.content).toMatchObject([para('Not a [[link]].')]);
     });
 });
+
+// Blank bodies are not markdown (2026-10-12). Two `*` (or `_`, or backticks)
+// in one blank used to become emphasis: the blank split across tokens and
+// imported as plain text with NO warning. Bound to the produced document.
+describe('blank bodies are protected from markdown emphasis', () => {
+    const blankOf = (md: string) => {
+        const { blocks } = convert(md);
+        const found: Record<string, unknown>[] = [];
+        const visit = (n: unknown): void => {
+            if (Array.isArray(n)) return n.forEach(visit);
+            if (n && typeof n === 'object') {
+                const o = n as Record<string, unknown>;
+                if (o.type === 'blank') found.push(o.attrs as Record<string, unknown>);
+                Object.values(o).forEach(visit);
+            }
+        };
+        visit(blocks);
+        return { blocks, found };
+    };
+
+    it('two * in one blank: the blank forms, with its real characters', () => {
+        const { found } = blankOf('Doubled: {{=2*a | !2*a+b :: Added *b* too.}}');
+        expect(found).toHaveLength(1);
+        expect(found[0]!.answer).toBe('2*a');
+        const mf = found[0]!.mistakeFeedback as Array<{ match: string; feedback: Array<{ text?: string }> }>;
+        expect(mf[0]!.match).toBe('2*a+b');
+        expect(mf[0]!.feedback.map((f) => f.text).join('')).toBe('Added *b* too.');
+    });
+
+    it('underscores and backticks in a blank are literal too', () => {
+        const { found } = blankOf('Name it: {{x_1_a | `x`}}');
+        expect(found).toHaveLength(1);
+        expect(found[0]!.answer).toBe('x_1_a');
+        expect(found[0]!.acceptableAnswers).toEqual(['`x`']);
+    });
+
+    it('the interim escape `\\*` still means `*` (curriculum fixture t4)', () => {
+        const { found } = blankOf('{{=qa\\*qb+qb | !qa\\*qb :: Missed the extra box.}}');
+        expect(found[0]!.answer).toBe('qa*qb+qb');
+        expect((found[0]!.mistakeFeedback as Array<{ match: string }>)[0]!.match).toBe('qa*qb');
+    });
+
+    it('emphasis OUTSIDE a blank still works, and no sentinel leaks anywhere', () => {
+        const md = 'A *really* big {{=2*a*b}} and **bold** after.';
+        const { blocks, found } = blankOf(md);
+        expect(found[0]!.answer).toBe('2*a*b');
+        const json = JSON.stringify(blocks);
+        expect(json).toContain('"italic"');
+        expect(json).toContain('"bold"');
+        expect(/[-]/.test(json)).toBe(false);
+    });
+
+    it('a blank kept literal by design keeps its characters (worked example)', () => {
+        const { blocks } = convert('```worked\nprompt: Show it.\nStep: {{2*a*b}}\n```');
+        const json = JSON.stringify(blocks);
+        expect(json).toContain('{{2*a*b}}');
+        expect(/[-]/.test(json)).toBe(false);
+    });
+
+    it('seed references inside a two-star answer are seen (no false unreferenced warning)', () => {
+        // `a` is referenced ONLY through the two-star expressions: before the
+        // fix the blank never formed and "nothing references a" fired.
+        const { warnings } = convert('```seed\na: int 2..5\n```\n\nTotal: {{=2*a*a | !2*a+1 :: Added one.}}');
+        expect(warnings.filter((w) => w.startsWith('Seed:'))).toEqual([]);
+    });
+});

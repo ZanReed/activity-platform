@@ -15,3 +15,7 @@ change upstream.
 
 Note: the older `bad-bank-*` files carry no `status:`, which this side requires
 (PB-10), so they also fail for that; the tests assert the shared reason.
+
+`bad-bank-two-stars.md` PASSES here since 2026-10-12 — a deliberate divergence: the
+importer now protects blank bodies from markdown emphasis, so two `*` in one blank
+is a correct blank, not a broken one (sent to the curriculum side by letter).

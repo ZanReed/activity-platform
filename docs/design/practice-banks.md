@@ -438,10 +438,11 @@ page's "Practice bank" section.
 
 **Found while building:**
 
-- **Two `*` in one blank breaks the blank, silently** (markdown emphasis eats
-  it; `{{=2*a | !2*a+b :: …}}` imports as plain text, no warning). Banks now
-  refuse any literal `{{` that survives conversion; activities still have the
-  bug — spun off as its own task (fix at the importer, both surfaces).
+- **Two `*` in one blank broke the blank, silently** (markdown emphasis ate
+  it; `{{=2*a | !2*a+b :: …}}` imported as plain text, no warning). FIXED at
+  the importer the same day for every surface: blank bodies are protected from
+  emphasis (`protectBlankBodies`, mutation-tested). Banks keep refusing any
+  literal `{{` that survives conversion, as a backstop.
 - A list authored with trailing zeros (`3.60`) renders `3.6` — the shipped
   activity behaviour, inherited. Worth a letter if money prompts need cents.
 - `README.md` under `banks/` is ignored with a notice (their drafts zip had
