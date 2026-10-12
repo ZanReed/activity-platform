@@ -465,10 +465,11 @@ follow-up commit, each with a regression test:**
 6. `list 0x10` parsed (Number() takes hex/binary/octal); decimal literals only.
 7. A duplicate item id across two files held the mirror but exited 0; both
    files now SKIP (exit 1).
-8. **Ruling detail changed (author to confirm):** BE-8 put "re-admit a retired
-   id" under `--force`, which also overrides the activity drift guard — one
-   re-admit would force-overwrite every hand-edited activity in the run. It is
-   now its own flag, `--allow-unretire`.
+8. **Ruling detail changed — RULED by the author 2026-10-12 ("keep"):** BE-8
+   put "re-admit a retired id" under `--force`, which also overrides the
+   activity drift guard — one re-admit would force-overwrite every hand-edited
+   activity in the run. Re-admitting is its own flag, `--allow-unretire`;
+   `--force` stays the activity drift override only.
 9. BE-1's text said "half away from zero"; both sides round halves UP. Text
    corrected; behaviour and parity unchanged.
 10. A zero divisor guarded by an earlier `and` term short-circuits (Python's
