@@ -2,12 +2,12 @@
   "schema": "activity-platform/skill-coverage@1",
   "registrySize": 96,
   "counts": {
-    "activities": 18,
-    "covered": 15,
+    "activities": 21,
+    "covered": 18,
     "coveredPublished": 15,
     "partial": 0,
-    "uncovered": 81,
-    "partsAuthored": 15,
+    "uncovered": 78,
+    "partsAuthored": 18,
     "partsDeclared": 102
   },
   "multiPartSkills": {
@@ -176,6 +176,42 @@
       "supporting": []
     },
     {
+      "id": "number.place-value.decimals",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "701-chain.number.place-value/01-decimals.md"
+      ],
+      "consolidations": [],
+      "supporting": []
+    },
+    {
+      "id": "number.place-value.powers-of-ten",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "701-chain.number.place-value/02-powers-of-ten.md"
+      ],
+      "consolidations": [],
+      "supporting": []
+    },
+    {
+      "id": "number.round.cash",
+      "registered": true,
+      "declaredParts": 1,
+      "complete": true,
+      "published": false,
+      "parts": [
+        "701-chain.number.place-value/03-rounding-cash.md"
+      ],
+      "consolidations": [],
+      "supporting": []
+    },
+    {
       "id": "rate.constant-of-proportionality",
       "registered": true,
       "declaredParts": 1,
@@ -270,11 +306,8 @@
     "number.integers.subtract",
     "number.operations.order",
     "number.percent.hundredths",
-    "number.place-value.decimals",
-    "number.place-value.powers-of-ten",
     "number.primes.classify",
     "number.roots.square",
-    "number.round.cash",
     "pattern.linear.graph",
     "pattern.linear.rule",
     "prob.experimental.large-numbers",
@@ -306,6 +339,9 @@
   "unregistered": [],
   "activitiesWithoutPrimarySkill": [],
   "files": [
+    "701-chain.number.place-value/01-decimals.md",
+    "701-chain.number.place-value/02-powers-of-ten.md",
+    "701-chain.number.place-value/03-rounding-cash.md",
     "710-chain.measure.area-volume/01-perimeter.md",
     "710-chain.measure.area-volume/02-area-rect-triangle.md",
     "710-chain.measure.area-volume/03-area-composite.md",
