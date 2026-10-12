@@ -229,7 +229,7 @@ glance before the eng review.
   (the pilot), like activities; the curriculum repo gets only the ledger and the
   tool. (That matches PB-1: the importer reads banks from the catalogue.)
 
-## Eng review — 2026-10-12 (`/plan-eng-review`, PROPOSED, awaiting rulings)
+## Eng review — 2026-10-12 (`/plan-eng-review`) — BE-1…BE-12 ALL RULED AS RECOMMENDED by the author 2026-10-12 ("yes to all"); sent to the curriculum side as B-162 (BE-2 needs their yes)
 
 Scope reviewed: the PB-11 build (import, store, validate, teacher preview; no
 student serving), with the focus on PB-6. Re-derived against shipped code
@@ -279,7 +279,7 @@ on was re-checked by hand. Receipts are given inline. "Measured" means a probe w
 9. **PR #68 counts its 10,000 cap BEFORE filtering** (the product of the
    referenced drawn variables' sizes, `check_bank.py:203-210`).
 
-### Proposed rulings (numbered; each yes/no)
+### Rulings (author: yes to all, 2026-10-12)
 
 **BE-1 — A dedicated seed-expression evaluator.** Add a new node-safe graph-kit
 subpath, `seed-expr`, added to the `exports` map. It is a second
