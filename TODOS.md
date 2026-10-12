@@ -646,6 +646,12 @@ reach `plot_point`).
 
 **Trigger:** the next change to the figure grammar (a new line kind or flag), or a drift between their copy and ours found in a dry run. Queueing it is the author's call (CLAUDE.md, "a new wish gets a trigger, not a slot").
 
+## Seeded money shows cents (curriculum C-129 item 3, 2026-10-12)
+
+A seeded value renders as its shortest number, so `list 3.00, 3.60` shows "$3.6". NZ money is always written to two decimal places once cents appear. Chain 1's banks show only whole dollars, so nothing is broken today. **Trigger: the first bank or activity that shows a seeded NON-whole money amount** (likely the 701 number-strand cash rounding). Zan ranks it. Their spelling idea, for the design pass: render a list value as AUTHORED (`3.60` stays "3.60"), with a per-variable display form for derived values. ⚠ That touches `formatSeedValue` (in both server bundles), so it costs both redeploys. Until it fires, their drafts keep seeded money to whole dollars, or ask for a typed amount graded by value.
+
+**Also owed (bank cross-check, BE-12):** when curriculum PR #69 merges, re-copy `tests/fixtures/tools/` into `packages/app/src/__tests__/fixtures/banks/` (re-stamp the README). The passing fixture gains t4 (4/4, which uses `\*`). Also add their three new failing fixtures: bad-bank-two-stars, bad-bank-unused, bad-bank-no-status. Each must fail on our side for the same reason.
+
 ## Vector labels in column notation (arrowhead ruling 8, 2026-10-09)
 
 **What:** a typeset column vector (3 over 2) beside a vector. Ruled OUT of the arrowhead arc: authors label with `text` lines ("3 right, 2 up", "(3, 2)"). The static renderer has no maths layout, so this is its own arc.
