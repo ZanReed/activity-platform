@@ -309,6 +309,13 @@ function scoreInteractiveGraph(
         | [number, number][]
         | undefined;
       if (!correctPoints?.length) return false;
+      // EXACTLY one point per answer point (2026-10-12). The board gives one
+      // handle per correct point, so only a crafted request can send more —
+      // and scorePoints matches each answer and ignores extras, so a request
+      // plotting every lattice point would have scored. The count lives HERE,
+      // at grading, not in the shared scorer: authored mistakes reuse that
+      // scorer and may name fewer points than the answer.
+      if (work.points.length !== correctPoints.length) return false;
       return scorePoints(
         { correctPoints, tolerance: num(interaction.tolerance, 0.1) },
         work.points,
@@ -426,6 +433,9 @@ function scoreNumberLine(
     case 'plot_point': {
       const correctPoints = interaction.correctPoints as number[] | undefined;
       if (!correctPoints?.length) return false;
+      // Exactly one point per answer point — see the plot_point case above
+      // (a crafted request plotting every tick would otherwise score).
+      if (work.points.length !== correctPoints.length) return false;
       return scoreNumberLinePoints(
         { correctPoints, tolerance: num(interaction.tolerance, 0.1) },
         values1D(work),

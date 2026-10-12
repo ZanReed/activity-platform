@@ -1021,6 +1021,42 @@ describe('misconception ids reach the wire (the sensor guard)', () => {
     expect(right.items[id]?.misconceptionIds).toBeUndefined();
   });
 
+  // ---- extra points (2026-10-12) ---------------------------------------------
+  // The board gives one handle per correct point, so only a CRAFTED request can
+  // send more. scorePoints matches each answer point and ignores the rest, so
+  // grading must refuse a count mismatch itself, or a request plotting every
+  // lattice point / tick would score.
+  it('plot_point: an extra point is incorrect, on a graph and on a number line', () => {
+    const gid = crypto.randomUUID();
+    const graph = gradeDoc(
+      oneBlockDoc({
+        id: gid,
+        type: 'interactive_graph',
+        prompt: [t('Plot (1, 2) and (3, 4).')],
+        axisConfig: { xMin: -6, xMax: 6, yMin: -6, yMax: 6 },
+        interaction: { type: 'plot_point', correctPoints: [[1, 2], [3, 4]], tolerance: 0.1 },
+      }),
+      { graphs: { [gid]: { interaction: 'plot_point', points: [[1, 2], [3, 4], [0, 0]] } } },
+    );
+    expect(graph.items[gid]?.verdict).toBe('incorrect');
+
+    const lid = crypto.randomUUID();
+    const line = (points: [number, number][]) =>
+      gradeDoc(
+        oneBlockDoc({
+          id: lid,
+          type: 'number_line',
+          prompt: [t('plot 4')],
+          config: { min: 0, max: 10 },
+          interaction: { type: 'plot_point', correctPoints: [4], tolerance: 0.1 },
+        }),
+        { graphs: { [lid]: { interaction: 'plot_point', points } } },
+      ).items[lid]?.verdict;
+    // Every tick at once: the bypass this closes.
+    expect(line(Array.from({ length: 11 }, (_, k) => [k, 0] as [number, number]))).toBe('incorrect');
+    expect(line([[4, 0]])).toBe('correct');
+  });
+
   // ---- cross-family guard ---------------------------------------------------
 
   it('a number_line block never picks up a graph annotation', () => {

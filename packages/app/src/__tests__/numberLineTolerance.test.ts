@@ -109,12 +109,12 @@ describe('decimal-step lines that do not start at 0 (701, C-135)', () => {
         expect(grade(plot(s(1.2), s(1.09), s(1.15), s(1.1)))).toBe('correct');
         // walked from the left end
         expect(grade(plot(walked(1, 9, 0.01), walked(1, 10, 0.01), walked(1, 15, 0.01), walked(1, 20, 0.01)))).toBe('correct');
-        // one point a tick off, or one missing: never right. (The board gives
-        // exactly one handle per correct point, so an EXTRA point cannot come
-        // from the UI; the scorer does not refuse one from a crafted request —
-        // filed separately, 2026-10-12.)
+        // one point a tick off, one missing, or one EXTRA: never right. (The
+        // board gives one handle per correct point, so an extra can only come
+        // from a crafted request; grading refuses it since 2026-10-12.)
         expect(grade(plot(s(1.09), s(1.1), s(1.16), s(1.2)))).not.toBe('correct');
         expect(grade(plot(s(1.09), s(1.1), s(1.15)))).not.toBe('correct');
+        expect(grade(plot(s(1.09), s(1.1), s(1.15), s(1.2), s(1.25)))).not.toBe('correct');
         // the classic 1.1 vs 1.10 vs 1.01 slip
         expect(grade(plot(s(1.09), s(1.01), s(1.15), s(1.2)))).not.toBe('correct');
     });
