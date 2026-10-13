@@ -262,7 +262,12 @@ mechanical holds it back except that no job calls it (verify-0048's
    **Every class with checks has a real end date.** Checks opened before
    0048 carry the 400-day backstop, not a teacher's date; that is by ruling
    (RP-8), but read which ones before arming.
-5. **The author's explicit yes**, in words, for arming.
+5. **The author's explicit yes**, in words, for arming. ⏸ **2026-10-13: the
+   author ruled "leave it unscheduled now".** Nothing is lost by waiting: the
+   earliest keep_until on live is 2027-01-17. **TRIGGER: ask again before
+   2027-01-10** (a week before the first date passes), or sooner if any
+   class's keep_until moves earlier. Past that date without arming, data is
+   kept beyond what the retention policy states.
 6. Only then: a migration adding the cron job, which FLIPS verify-0048's
    `prune_is_unscheduled` row to expect it (P5: flip, don't delete), and
    updates retention-policy.md's Mechanics and data-map.md in the same commit.
