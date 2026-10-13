@@ -246,8 +246,12 @@ mechanical holds it back except that no job calls it (verify-0048's
    sessions, 0 attempts, 0 practice sessions; no job names the prune. Live
    then held 2 closed checks (keep_until 2027-11-09, the backstop), 1
    practice session (keep_until 2027-01-17) and 1 class ending 2026-12-18:
-   nothing is past its date, so 0 is the right answer. **THE SECOND REPORT IS
-   DUE ON OR AFTER 2026-10-13.** **Dry-run reports read on live**, at least twice a week apart:
+   nothing is past its date, so 0 is the right answer. ✅ **SECOND REPORT
+   READ 2026-10-13** (live, read-only): again 0 checks, 0 sessions, 0
+   attempts, 0 sprint rows; candidates query empty; live holds 2 closed checks
+   (both keep_until 2027-01-17, the class's 2026-12-18 + 30), 2 practice
+   sessions, 163 attempts; no cron job names the prune. Step 3 is MET (two
+   reports a week apart, both explained). Next: step 5, the author's yes. **Dry-run reports read on live**, at least twice a week apart:
    `select prune_fact_practice();` — the candidates must be explainable check
    by check (`select id, class_id, keep_until, closed_at from class_probes
    where pruned_at is null and keep_until < current_date`).
