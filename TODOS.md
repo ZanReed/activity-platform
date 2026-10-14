@@ -3,6 +3,10 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## OPEN BUG (author, 2026-10-14): teacher navigation between Activities and Classes
+
+Found by the author at the start of his teacher/student walkthrough: there's no easy way to get from the Activities page to a class page, or from a class page back to Activities. Not yet reproduced or diagnosed. Start with `/investigate`. Read both routes (`packages/app/src/routes/Activities.tsx`, the classes routes) and the shared header/nav. Write down what links exist today and what a teacher expects, then propose the fix with a design note if it adds navigation. The walkthrough checklist (artifact WEUxCETSsyXK8x5nmH5ohH, db collection `steps`) is where his other findings will land.
+
 ## THE AUTHOR'S TEST QUEUE — build run of 2026-10-04
 
 One entry per issue the author reports while testing a hand-off: what he saw, where, and the fix or the open question. Worked through together between items.

@@ -20,9 +20,11 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**701 place-value LIVE 2026-10-13** (three published v1; 801-04 republished v6 with the escape fix). Nothing owed.
+**701 place-value LIVE 2026-10-13.**
 
-**D43 PRACTICE BANKS — PB-11 slice LIVE 2026-10-12** (main through `a8c81a31`; 0058 applied, verify-0058 10/10 live; CI green on `98351382`). Chain 1's four banks imported and **RATIFIED** (21 items, read back live; receipts B-167, B-169) — the first of the two chains the mixed-practice gate needs. Two-star blank fix `694584ec` (importer, all surfaces). Record: [practice-banks.md](docs/design/practice-banks.md) → Eng review + As built. `--allow-unretire` (not `--force`) re-admits a retired item id — RULED 2026-10-12. Serving stays gated (mixed practice). Liaison: next C-145 / B-184.
+**NEXT (2026-10-14): the author's teacher+student WALKTHROUGH.** Checklist: [Platform Walkthrough](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) (28 steps; marks and notes in its db collection `steps`, read with ArtifactData when he says "read my walkthrough notes", then triage each one). First finding, filed in TODOS: teacher navigation between Activities and Classes. Nothing is owed live: 0058 + banks LIVE (chain 1 ratified, 21 items), 701 LIVE, check-activity redeploy hash-verified, prune left UNSCHEDULED by ruling (ask again before 2027-01-10).
+
+**D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled. Serving gated (mixed practice). Liaison: next C-145 / B-184.
 **Closed 2026-10-10…12, nothing owed:** arrowhead Drops 1+2 (graded free vectors) live; 714 transformations + 715 nets imported, PUBLISHED and Bank-listed; figure grammar published as data (pinned at their `f0309d0`); shown-segment open/closed refused; number-line tolerance follows the tick step (`2d0a2886`).
 
 **Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
