@@ -1201,6 +1201,14 @@
   padding: var(--space-2) var(--space-4);
 }
 
+/* S6 (student review, 2026-10-14): the student top bar shows Print as a
+   printer icon; the word stays as the accessible name. Square, at the touch
+   floor. */
+.viewer-print-action--icon {
+  min-width: var(--touch-target);
+  padding: var(--space-2);
+}
+
 .viewer-print-action:hover:not(:disabled) {
   background: var(--vw-color-hover);
 }
@@ -1234,6 +1242,21 @@
   font-size: var(--type-h3);
   margin: 0 auto;
   max-width: var(--measure);
+}
+
+/* S4/S6: inside the row, the title block owns the measure's width; the row
+   itself is what centres on the page. */
+.viewer-topbar__titles {
+  min-width: 0;
+}
+
+.viewer-topbar__titles h1 {
+  margin: 0;
+}
+
+.viewer-topbar__back {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
 }
 
 /* Skeleton rows: shimmer under the paper card while content loads. The
@@ -2638,6 +2661,19 @@
  * both exist it stacks above (GD-8: reading tools left, the doing tool right). */
 .tool-corner--stacked {
   bottom: calc(var(--space-4) + var(--touch-target) + var(--space-2));
+}
+
+/* S7 (student review, 2026-10-14): at phone width the check footer sticks to
+   the bottom of the screen (D7, above) and is a full-width button, so the
+   floating tools sat ON it, covering part of its tap area. ONE rule lifts
+   every corner (stacked ones included) by the footer's height. `translate`,
+   not `bottom`: it composes with the stacked offset, and nothing fixed lives
+   inside a corner (the kit's panel mounts outside it, see .tool-mount), so
+   the containing block it creates traps nothing. */
+@media (max-width: 480px) {
+  .tool-corner {
+    translate: 0 calc(-2 * var(--space-3) - var(--touch-target));
+  }
 }
 
 .glossary-layer {

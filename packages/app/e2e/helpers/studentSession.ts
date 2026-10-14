@@ -285,9 +285,13 @@ export async function stubActivityApi(
     });
   });
 
-  // No get-feedback stub: the function was deleted at S9 Drop 3 (nothing in
-  // the viewer ever calls fetchReleasedFeedback — zero call sites), and a
+  // No get-feedback stub: that Edge Function was deleted at S9 Drop 3, and a
   // stub for a nonexistent endpoint violates P2 silently (eng ruling Q1).
+  // Released feedback DOES load in the viewer — through the
+  // get_my_released_feedback RPC (0034), wired at StudentViewer.tsx's
+  // `releasedFeedback: fetchReleasedFeedbackRows` — so a spec that needs it
+  // routes `**/rest/v1/rpc/get_my_released_feedback` itself. (Corrected
+  // 2026-10-14, student review S9: this used to say nothing called it.)
 
   return {
     get checkRequests() {

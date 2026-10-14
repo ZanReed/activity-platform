@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router';
+import { Routes, Route, useLocation } from 'react-router';
 import { SessionProvider } from './lib/SessionContext';
 import RequireAuth from './components/RequireAuth';
 import ThemeToggle from './components/ThemeToggle';
@@ -93,6 +93,8 @@ function RouteFallback() {
 }
 
 export default function App() {
+    // The student viewer route, `/a/:activityId` (and nothing else under /a).
+    const onActivityPage = useLocation().pathname.startsWith('/a/');
     return (
         <SessionProvider>
         <Suspense fallback={<RouteFallback />}>
@@ -218,7 +220,11 @@ export default function App() {
         )}
         </Routes>
         </Suspense>
-        <ThemeToggle />
+        {/* Not inside an activity (author ruling D2, 2026-10-14): the
+            reading tools own that bottom-left corner, and on phones it sat on
+            the sticky Check bar. The student keeps it on Home; the choice
+            persists, so the activity still renders in it. */}
+        {!onActivityPage && <ThemeToggle />}
         <UpdateNotice />
         </SessionProvider>
     );

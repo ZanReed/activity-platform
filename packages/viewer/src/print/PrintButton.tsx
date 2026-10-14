@@ -22,6 +22,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { awaitPrintReady, type PrintReadyReport } from './printReadiness.js';
+import { VISUALLY_HIDDEN } from '../blocks/canvasChrome.js';
 
 export interface PrintButtonProps {
   /** Test seam: what actually opens the dialog. */
@@ -30,6 +31,32 @@ export interface PrintButtonProps {
   readonly onReady?: ((report: PrintReadyReport) => void) | undefined;
   readonly timeoutMs?: number | undefined;
   readonly label?: string | undefined;
+  /** A printer icon instead of the word, for the student top bar (student
+   *  review S6, 2026-10-14). The word stays in the accessible name and in the
+   *  aria-live text, so "Preparing…" is still announced. */
+  readonly iconOnly?: boolean | undefined;
+}
+
+// Lucide's "printer" (ISC), inlined: the viewer package carries no icon
+// library, and one glyph does not justify adding one.
+function PrinterIcon(): ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
+      <rect x="6" y="14" width="12" height="8" rx="1" />
+    </svg>
+  );
 }
 
 export function PrintButton({
@@ -37,6 +64,7 @@ export function PrintButton({
   onReady,
   timeoutMs,
   label = 'Print',
+  iconOnly = false,
 }: PrintButtonProps): ReactElement {
   const [preparing, setPreparing] = useState(false);
   // Guards the window between the click and the dialog opening. `preparing`
@@ -64,7 +92,8 @@ export function PrintButton({
   return (
     <button
       type="button"
-      className="viewer-print-action"
+      className={iconOnly ? 'viewer-print-action viewer-print-action--icon' : 'viewer-print-action'}
+      title={iconOnly ? label : undefined}
       data-print-action="true"
       disabled={preparing}
       // The state is announced, not just shown: the wait is the whole point of
@@ -75,7 +104,16 @@ export function PrintButton({
         void handleClick();
       }}
     >
-      {preparing ? 'Preparing…' : label}
+      {iconOnly ? (
+        <>
+          <PrinterIcon />
+          <span style={VISUALLY_HIDDEN}>{preparing ? 'Preparing…' : label}</span>
+        </>
+      ) : preparing ? (
+        'Preparing…'
+      ) : (
+        label
+      )}
     </button>
   );
 }

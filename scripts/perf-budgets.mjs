@@ -174,10 +174,15 @@ export const SHELL_JS_GZ_KIB = 158;
  * 15% of this row) was REFUSED because Ctrl+P bypasses PrintButton's readiness
  * barrier by design. Not restated here: one home per fact.
  *
+ * RAISED 15 -> 16.5 on 2026-10-14 (author ruling D1), at 15.02 KiB measured
+ * (9.9% headroom, inside the ~10% policy). The student review's S4/S6/S7/S8
+ * went over by 21 bytes after trimming to the minimum, and the progress work
+ * (S2/S5) adds more student-surface CSS. Reasoning in DECISIONS.md, same entry.
+ *
  * TIGHTEN THIS AGAIN the moment anything shrinks it, in the same commit, the
  * way slice 1 did.
  */
-export const SHELL_CSS_GZ_KIB = 15;
+export const SHELL_CSS_GZ_KIB = 16.5;
 
 /**
  * Service-worker precache budgets (S8 ruling D10; TODO ruling D19).

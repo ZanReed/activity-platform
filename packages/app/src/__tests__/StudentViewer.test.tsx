@@ -641,3 +641,25 @@ describe('the tool cluster reaches the student (calculator slice)', () => {
         ).not.toBeInTheDocument();
     });
 });
+
+describe('the activity top bar (student review S4/S6, 2026-10-14)', () => {
+    afterEach(() => window.localStorage.clear());
+
+    it('offers a way back to Home and Print as a named icon', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = {
+            activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
+            versionId: 'v1',
+            versionNum: 1,
+            title: 'Linear Systems',
+            document: servedFixtureDocument(),
+        };
+        renderRoute();
+        const back = await screen.findByRole('link', { name: '← My classes' });
+        expect(back).toHaveAttribute('href', '/');
+        const print = screen.getByRole('button', { name: 'Print' });
+        // The icon form: the word is the accessible name, not visible text.
+        expect(print.querySelector('svg')).not.toBeNull();
+        expect(print).toHaveAttribute('title', 'Print');
+    });
+});

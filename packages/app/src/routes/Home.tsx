@@ -119,8 +119,12 @@ export default function Home() {
     <main className="min-h-screen bg-surface p-8">
       <div className="mx-auto max-w-2xl">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="text-3xl font-bold text-ink">Activity Platform</h1>
+          <h1 className="text-3xl font-bold text-ink">
+            {isStudent ? studentGreeting(session.user.user_metadata) : 'Activity Platform'}
+          </h1>
           {isStudent ? (
+            // The email stays visible on purpose (OV#9): on a shared
+            // Chromebook it is how a student sees whose account is open.
             <span className="flex items-baseline gap-3 text-sm text-muted">
               {session.user.email}
               <button
@@ -142,6 +146,15 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+/** Student review S8 (2026-10-14): a student's Home greets them by first
+ *  name (Google's `full_name`/`name` metadata) rather than with the product's
+ *  name. No name on the account → a plain greeting, never the raw email. */
+export function studentGreeting(meta: Record<string, unknown> | undefined): string {
+  const raw = meta?.full_name ?? meta?.name;
+  const first = typeof raw === 'string' ? raw.trim().split(/\s+/)[0] : '';
+  return first ? `Hi, ${first}` : 'Hi there';
 }
 
 function TeacherHome({ email }: { email: string }) {
@@ -192,6 +205,7 @@ function StudentHome({ email }: { email: string }) {
   const [state, setState] = useState<ClassesState>({ phase: 'loading' });
   const [activities, setActivities] = useState<ActivitiesState>({ phase: 'loading' });
   const [idlePrompt, setIdlePrompt] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
 
   const loadActivities = useCallback(() => {
     setActivities({ phase: 'loading' });
@@ -289,11 +303,14 @@ function StudentHome({ email }: { email: string }) {
                 {/* The class's daily number-facts practice, when its teacher
                     has it on (SP-1). The page itself is a lazy route. */}
                 {c.factsCode ? (
+                  // S8: its own row, set apart from the activity list — it is a
+                  // daily practice, not one more worksheet to finish.
                   <Link
                     to={`/facts/${c.factsCode}`}
-                    className="ml-3 flex min-h-[44px] items-center border-l-2 border-line py-1.5 pl-3 text-sm font-medium text-ink underline underline-offset-2 hover:bg-surface"
+                    className="mt-2 flex min-h-[44px] items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-2"
                   >
-                    Number facts practice
+                    <span className="underline underline-offset-2">Number facts practice</span>
+                    <span className="text-xs text-muted">Daily</span>
                   </Link>
                 ) : null}
                 {activities.phase === 'ready' &&
@@ -351,8 +368,28 @@ function StudentHome({ email }: { email: string }) {
               </button>
             </p>
           )}
-          <h3 className="mt-6 mb-1 text-sm font-semibold text-ink">Join another class</h3>
-          <JoinCodeForm inputId="join-code" onJoined={load} />
+          {/* S8: a rare action once the student has a class, so it waits
+              behind one button instead of sitting open under every list. */}
+          {showJoin ? (
+            <>
+              <h3 className="mt-6 mb-1 text-sm font-semibold text-ink">Join another class</h3>
+              <JoinCodeForm
+                inputId="join-code"
+                onJoined={() => {
+                  setShowJoin(false);
+                  load();
+                }}
+              />
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowJoin(true)}
+              className="mt-6 text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
+            >
+              Join another class
+            </button>
+          )}
         </div>
       )}
     </div>

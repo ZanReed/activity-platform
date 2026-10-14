@@ -1,10 +1,9 @@
-# Student experience: UX-lens review (UNRULED, 2026-10-14)
+# Student experience: UX-lens review (RULED 2026-10-14)
 
-> **Status:** review only, no code. Run against [ux-lens.md](ux-lens.md) after
-> the author's walkthrough finding: *"the student has no way to know what they
-> have submitted answers for and completed and what has not been completed."*
-> Decisions S1–S9 wait for the author's yes/no per item. S1–S3 need an eng
-> pass (a migration and a new read path) after the ruling, before any code.
+> **Status:** the author ruled S1–S9 all as recommended (2026-10-14).
+> **BUILT:** S4, S6, S7, S8, S9, plus two rulings made during the build:
+> D1 (shell CSS cap 15 → 16.5, DECISIONS.md) and D2 (no theme switch inside an
+> activity). **NEXT:** S1–S3 + S5 go through `/plan-eng-review` before code.
 
 **Method.** Code read of the student surfaces (`Home.tsx` → `StudentHome`,
 `StudentViewer.tsx`, `viewer/src/container/ViewerContainer.tsx`,

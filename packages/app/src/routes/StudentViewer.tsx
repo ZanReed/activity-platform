@@ -30,7 +30,7 @@ import {
   useMemo,
   useState, useRef } from 'react';
 import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import {
   PrintButton,
   activityTypeLabel,
@@ -582,18 +582,30 @@ export default function StudentViewer() {
   return (
     <>
       <header className="viewer-topbar">
-        <h1>{state.served.title}</h1>
-        {/* D4 — the same meta line the printed sheet carries, in the same
-            words, from the same function. Plain text at the muted token: no
-            chip, no colour, no radius. `worksheet` is the unmarked default and
-            contributes nothing, so most activities render no line at all. */}
-        {topbarMeta.length > 0 ? (
-          <p className="viewer-topbar__meta">{topbarMeta.join(' · ')}</p>
-        ) : null}
-        {/* Ruling 7.3A wants this in the completion panel and the chip menu;
-            neither exists yet, so it lives in the bar that does (S5-3). The
-            action is the same one those will call. */}
-        <PrintButton />
+        {/* Student review S4/S6 (2026-10-14): one aligned row on the page's
+            measure — the way home, the title block, and Print as an icon.
+            Before, the title sat on the measure while the meta and Print
+            sat at the window's left edge, and there was no way back to Home
+            but the browser's Back button. */}
+        <div className="viewer-topbar__row">
+          <div className="viewer-topbar__titles">
+            <Link to="/" className="viewer-topbar__back">
+              ← My classes
+            </Link>
+            <h1>{state.served.title}</h1>
+            {/* D4 — the same meta line the printed sheet carries, in the same
+                words, from the same function. Plain text at the muted token: no
+                chip, no colour, no radius. `worksheet` is the unmarked default and
+                contributes nothing, so most activities render no line at all. */}
+            {topbarMeta.length > 0 ? (
+              <p className="viewer-topbar__meta">{topbarMeta.join(' · ')}</p>
+            ) : null}
+          </div>
+          {/* Ruling 7.3A wants this in the completion panel and the chip menu;
+              neither exists yet, so it lives in the bar that does (S5-3). The
+              action is the same one those will call. */}
+          <PrintButton iconOnly />
+        </div>
       </header>
       {/* BANNER ORDER IS THE DEDUP RULE (outside-voice finding 13; rebuilt as
           ONE chain by eng review D9 after its old comment failed to enumerate
