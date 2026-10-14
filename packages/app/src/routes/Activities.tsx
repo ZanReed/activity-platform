@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
+import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -89,6 +90,11 @@ function RoleBadge({ role }: { role: string | null }) {
 export default function Activities() {
     const { session } = useSession();
     const navigate = useNavigate();
+    // Class membership for the add-to-class doors (assign-to-class A1/A6).
+    const membership = useClassMembership();
+    // Which add-to-class panel is open: `unit:<key>`, a row id, or none. One
+    // at a time, so the page never grows a column of open panels.
+    const [classPanel, setClassPanel] = useState<string | null>(null);
     const location = useLocation();
 
     const [activities, setActivities] = useState<ActivityRow[]>([]);
@@ -459,6 +465,11 @@ export default function Activities() {
     const groups = groupByUnit(sortForOutline(visibleActivities), {
         orderFrom: activities,
     });
+    // The WHOLE unit, in teaching order, for the add-to-class door: a search
+    // narrows what the list shows, never what "add this unit" adds.
+    const fullUnits = new Map(
+        groupByUnit(sortForOutline(activities)).map((g) => [g.key, g.rows]),
+    );
 
     // Name the course in group headers only when there is more than one to
     // distinguish. Repeating "Algebra II" above every unit is a constant, and
@@ -663,6 +674,37 @@ export default function Activities() {
                     {drafts > 0 && ` · ${drafts} draft${drafts === 1 ? '' : 's'}`}
                     </span>
                     <span className="ml-auto flex items-baseline gap-3">
+                    {(() => {
+                        // A6: which classes hold this unit, and how much of it.
+                        const ids = (fullUnits.get(group.key) ?? group.rows)
+                            .filter((r) => r.status === 'published')
+                            .map((r) => r.id);
+                        const held = unitMembership(membership, ids);
+                        if (held.length === 0) return null;
+                        return (
+                            <span className="text-xs text-muted" data-unit-membership>
+                            In{' '}
+                            {held
+                                .map(({ cls, count }) =>
+                                    count === ids.length ? cls.name : `${cls.name} (${count}/${ids.length})`,
+                                )
+                                .join(' · ')}
+                            </span>
+                        );
+                    })()}
+                    {group.rows.some((r) => r.status === 'published') && (
+                        <button
+                        type="button"
+                        aria-expanded={classPanel === `unit:${group.key}`}
+                        aria-label={`Add unit ${group.unit ?? 'No unit'} to a class`}
+                        onClick={() =>
+                            setClassPanel((cur) => (cur === `unit:${group.key}` ? null : `unit:${group.key}`))
+                        }
+                        className="text-xs font-medium text-ink underline underline-offset-2 hover:text-strong"
+                        >
+                        Add to class…
+                        </button>
+                    )}
                     {chainsWithHooks(chainHooks, group.rows.map((r) => r.id)).map((chain) => (
                         <Link
                         key={chain}
@@ -695,6 +737,15 @@ export default function Activities() {
                     </span>
                     </div>
 
+                    {classPanel === `unit:${group.key}` && (
+                        <AddToClassPanel
+                        targets={fullUnits.get(group.key) ?? group.rows}
+                        membership={membership}
+                        label={group.unit ?? 'No unit'}
+                        onClose={() => setClassPanel(null)}
+                        />
+                    )}
+
                     {/* Flat rows, hairline separators (D8). The card-per-row
                         treatment fails the hard rules at 150 rows: the
                         decoration IS the noise. Structure comes from the
@@ -703,7 +754,7 @@ export default function Activities() {
                     {group.rows.map((a, i) => (
                         <li
                         key={a.id}
-                        className={`flex items-center gap-3 px-3.5 py-2 transition hover:bg-surface-2 ${
+                        className={`flex flex-wrap items-center gap-x-3 px-3.5 py-2 transition hover:bg-surface-2 ${
                             i > 0 ? 'border-t border-line' : ''
                         }`}
                         >
@@ -726,6 +777,27 @@ export default function Activities() {
                         )}
                         <RoleBadge role={a.pedagogical_role} />
                         <StatusBadge status={a.status} />
+                        {a.status === 'published' && (() => {
+                            // A1 single door + A6 membership in one control:
+                            // it names the classes holding this activity, or
+                            // offers to add it to one.
+                            const held = classesHolding(membership, a.id);
+                            return (
+                                <button
+                                type="button"
+                                aria-expanded={classPanel === a.id}
+                                aria-label={
+                                    held.length > 0
+                                        ? `${a.title}: on Home in ${held.map((c) => c.name).join(', ')}. Change classes`
+                                        : `Add ${a.title} to a class`
+                                }
+                                onClick={() => setClassPanel((cur) => (cur === a.id ? null : a.id))}
+                                className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
+                                >
+                                {held.length > 0 ? held.map((c) => c.name).join(' · ') : 'Add to class'}
+                                </button>
+                            );
+                        })()}
                         {bankLister && a.status === 'published' && !a.copied_from_activity_id && (
                             <button
                             type="button"
@@ -756,6 +828,14 @@ export default function Activities() {
                         {deletingId === a.id ? 'Deleting…' : 'Delete'}
                         </button>
                         </span>
+                        {classPanel === a.id && (
+                            <AddToClassPanel
+                            targets={[a]}
+                            membership={membership}
+                            label={a.title}
+                            onClose={() => setClassPanel(null)}
+                            />
+                        )}
                         </li>
                     ))}
                     </ul>

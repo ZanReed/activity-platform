@@ -662,8 +662,10 @@ function ClassCard({
         type="button"
         onClick={() => setShowActivities((s) => !s)}
         aria-expanded={showActivities}
-        className={`text-sm font-medium underline underline-offset-2 transition ${
-            showActivities ? 'text-ink' : 'text-muted hover:text-strong'
+        className={`rounded-md border px-2.5 py-1 text-sm font-medium transition ${
+            showActivities
+                ? 'border-line-strong bg-surface text-ink'
+                : 'border-line-strong bg-canvas text-ink hover:bg-surface'
         }`}
         >
         Activities ({activityCount})

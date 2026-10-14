@@ -7,6 +7,13 @@ ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during revi
 
 Cause: there was no shared teacher navigation. Each page wrote its own back link, so /classes linked nowhere and /activities linked only to the Bank; Home was the only page linking to all of them. Fixed with `components/TeacherNav.tsx` (My activities · My classes · Activity Bank, current page marked, Sign out) on /activities, /classes and /bank only. Author ruled 2026-10-14: the editor and its sub-pages keep their own back links, with no bar; the Bank's "← My activities" and the Activities page's "Activity Bank" link were removed as duplicates. Guard: `__tests__/TeacherNav.test.tsx` renders the REAL pages; it was mutation-tested (removing the bar from Classes turned 3 rows red).
 
+## Adding activities to a class: the two deferred items (assign-to-class.md, ruled 2026-10-14)
+
+A1–A6 are BUILT (see the doc's "As built"). Two items wait on a trigger:
+
+- **A4(b): students' Home grouped by unit, in teaching order.** Today the Home is newest first (DR-1), and a unit add is sent last-first so it reads in teaching order (A4(a)). A single activity added later sits on top. **Trigger:** a class has two or more units on its Home and students report not finding the current one. Needs a `list_class_activities` change plus a migration, and it reverses DR-1, so it needs a design pass.
+- **A7: publish from the Activities list without opening the editor.** **Trigger:** a teacher has to open more than one draft in a row only to publish it for a class. Bank copies are published when they are copied, so today this only affects the teacher's own drafts.
+
 ## THE AUTHOR'S TEST QUEUE — build run of 2026-10-04
 
 One entry per issue the author reports while testing a hand-off: what he saw, where, and the fix or the open question. Worked through together between items.

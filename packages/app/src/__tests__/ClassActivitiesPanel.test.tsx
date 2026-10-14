@@ -22,6 +22,7 @@ import {
 const h = vi.hoisted(() => ({
     share: vi.fn(),
     unshare: vi.fn(),
+    addMany: vi.fn(),
 }));
 
 vi.mock('../lib/classActivities', async (importOriginal) => {
@@ -30,6 +31,7 @@ vi.mock('../lib/classActivities', async (importOriginal) => {
         ...real,
         shareActivityToClass: h.share,
         unshareActivityFromClass: h.unshare,
+        addActivitiesToClass: h.addMany,
     };
 });
 
@@ -43,6 +45,8 @@ import ClassActivitiesPanel, {
     type TeacherActivitiesData,
 } from '../components/ClassActivitiesPanel';
 
+// The outline keys every picker option now carries (assign-to-class A5).
+const OPT_KEYS = { course: null, unit: null, source_path: null, updated_at: '2026-10-01T00:00:00Z' };
 const CLASS_ID = 'cccccccc-0000-4000-8000-000000000001';
 const ACT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
@@ -117,7 +121,7 @@ describe('add (DR-9)', () => {
         h.share.mockRejectedValue(new Error('Activity is not published'));
         const d = data({
             rows: [],
-            options: [{ id: ACT_ID, title: 'Quiz review', publishedAt: null }],
+            options: [{ id: ACT_ID, title: 'Quiz review', publishedAt: null, ...OPT_KEYS }],
         });
         render(<ClassActivitiesPanel classId={CLASS_ID} data={d} />);
         fireEvent.change(screen.getByRole('combobox'), {
@@ -160,7 +164,7 @@ describe('states (DR-7 / DR-9b,d)', () => {
             <ClassActivitiesPanel
                 classId={CLASS_ID}
                 data={data({
-                    options: [{ id: ACT_ID, title: 'Linear equations practice', publishedAt: null }],
+                    options: [{ id: ACT_ID, title: 'Linear equations practice', publishedAt: null, ...OPT_KEYS }],
                 })}
             />,
         );
@@ -198,5 +202,48 @@ describe('undo timer (DR-14)', () => {
             vi.advanceTimersByTime(20_000);
         });
         expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
+    });
+});
+
+describe('the picker groups by unit, with "Add whole unit" (assign-to-class A5)', () => {
+    const opt = (id: string, title: string, unit: string | null, path: string | null) => ({
+        id,
+        title,
+        publishedAt: null,
+        ...OPT_KEYS,
+        unit,
+        source_path: path,
+    });
+    // Newest-published-first, as the data layer returns them: the opposite of
+    // teaching order, so a picker that kept the fetch order fails here.
+    const OPTIONS = [
+        opt('i2', 'Integers 2', 'Integers', 'y7/int/02.md'),
+        opt('i1', 'Integers 1', 'Integers', 'y7/int/01.md'),
+        opt('p1', 'Place value 1', 'Place value', 'y7/pv/01.md'),
+        opt('x1', 'Loose sheet', null, null),
+    ];
+
+    it('shows units in teaching order, a whole-unit choice for 2+, none for No unit', () => {
+        render(<ClassActivitiesPanel classId={CLASS_ID} data={data({ rows: [], options: OPTIONS })} />);
+        const groups = [...document.querySelectorAll('optgroup')];
+        expect(groups.map((g) => g.label)).toEqual(['Integers', 'Place value', 'No unit']);
+        expect([...groups[0]!.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+            'Add whole unit (2)',
+            'Integers 1',
+            'Integers 2',
+        ]);
+        expect(groups[1]!.textContent).not.toMatch(/whole unit/);
+        expect(groups[2]!.textContent).not.toMatch(/whole unit/);
+    });
+
+    it('"Add whole unit" adds the unit in teaching order', async () => {
+        h.addMany.mockResolvedValue({ added: ['i2', 'i1'], failed: [], refused: false });
+        const d = data({ rows: [], options: OPTIONS });
+        render(<ClassActivitiesPanel classId={CLASS_ID} data={d} />);
+        const wholeUnit = screen.getByRole('option', { name: 'Add whole unit (2)' }) as HTMLOptionElement;
+        fireEvent.change(screen.getByRole('combobox'), { target: { value: wholeUnit.value } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+        await waitFor(() => expect(h.addMany).toHaveBeenCalledWith(CLASS_ID, ['i1', 'i2']));
+        expect(d.reload).toHaveBeenCalled();
     });
 });

@@ -1,9 +1,10 @@
-# Adding activities to a class — design pass (UNRULED, 2026-10-14)
+# Adding activities to a class — RULED + BUILT (2026-10-14)
 
-> **Status:** design pass only, no code. Run against [ux-lens.md](ux-lens.md)
-> after the author's walkthrough finding (2026-10-14): *"it seems clunky that
-> you have to open the activities in order to assign them."* Decisions A1–A7
-> below wait for the author's yes/no per item.
+> **Status:** the author ruled all seven items as recommended (2026-10-14) and
+> A1–A6 are BUILT (see "As built" at the end). A4(b) and A7 are filed in TODOS
+> with triggers. The pass was run against [ux-lens.md](ux-lens.md) after the
+> author's walkthrough finding: *"it seems clunky that you have to open the
+> activities in order to assign them."*
 
 ## Feature and goal
 
@@ -134,3 +135,25 @@ F1–F4.
 
 Due dates, per-student assignment, scheduling a unit to appear later, and
 publish-from-list (A7). The dormant `assignments` table stays dormant (0030).
+
+## As built (2026-10-14)
+
+- `components/AddToClass.tsx`: `useClassMembership` (classes + class rows, one
+  pair of queries per page, loaded after first paint, refetched after every
+  write), `AddToClassPanel` (A2's checkbox list, opened INLINE under the unit
+  header or row, since the row list's rounded overflow would clip a popover),
+  and the A6 helpers `classesHolding` / `unitMembership`.
+- `routes/Activities.tsx`: unit header shows "In 7A (1/2) · 7B" and an "Add to
+  class…" door; each PUBLISHED row's door names its classes ("7A · 7B") or reads
+  "Add to class". Drafts have no row door. The unit door always acts on the
+  WHOLE unit, whatever a search is hiding.
+- `lib/classActivities.ts`: `addActivitiesToClass` sends adds last-first, one at
+  a time (A4(a)); picker options now carry course/unit/source_path/updated_at.
+- `ClassActivitiesPanel.tsx`: the picker groups by unit in teaching order, with
+  "Add whole unit (n)" for any unit with 2+ remaining; `Classes.tsx`'s
+  "Activities (n)" is a bordered button.
+- No migration, no Edge Function, no bundle: push is the deploy.
+- Guards: `AddToClass.test.tsx` (real Activities page and real data layer; the
+  order row was mutation-tested by dropping the reverse: 2 rows red) and the A5
+  rows in `ClassActivitiesPanel.test.tsx` (mutation-tested by dropping the
+  outline sort: 2 rows red).

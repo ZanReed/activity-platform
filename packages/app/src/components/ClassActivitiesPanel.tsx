@@ -25,7 +25,9 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { groupByUnit, sortForOutline } from '../lib/activityGrouping';
 import {
+    addActivitiesToClass,
     formatListDate,
     isNotPublishedError,
     listPublishedActivities,
@@ -37,6 +39,10 @@ import {
 } from '../lib/classActivities';
 
 export const UNDO_WINDOW_MS = 6000;
+
+// A picker value that names a whole unit rather than one activity. Activity
+// ids are UUIDs, so this prefix can never collide with one.
+const UNIT_VALUE_PREFIX = 'unit:';
 
 // The DR-9 copy, exported so RTL rows assert the ruled strings, never retyped.
 export const ADD_FAILED_COPY = "Couldn't add just now — try again.";
@@ -108,6 +114,11 @@ export default function ClassActivitiesPanel({
     const rows = data.rows.filter((r) => r.classId === classId);
     const addedIds = new Set(rows.map((r) => r.activityId));
     const options = data.options.filter((o) => !addedIds.has(o.id));
+    // Grouped by unit in teaching order, like My activities (assign-to-class
+    // A5): the flat newest-first list made a teacher recall which titles a
+    // unit holds. A unit with 2+ not-yet-added activities also offers
+    // "Add whole unit"; the unfiled group is not a unit and does not.
+    const groups = groupByUnit(sortForOutline(options), { orderFrom: data.options });
 
     const [selected, setSelected] = useState('');
     const [adding, setAdding] = useState(false);
@@ -161,6 +172,20 @@ export default function ClassActivitiesPanel({
         setAdding(true);
         setAddError(null);
         try {
+            if (selected.startsWith(UNIT_VALUE_PREFIX)) {
+                const key = selected.slice(UNIT_VALUE_PREFIX.length);
+                const ids = groups.find((g) => g.key === key)?.rows.map((r) => r.id) ?? [];
+                const result = await addActivitiesToClass(classId, ids);
+                await data.reload();
+                if (result.failed.length > 0) {
+                    setAddError(result.refused ? ADD_REFUSED_COPY : ADD_FAILED_COPY);
+                    return;
+                }
+                setSelected('');
+                setAnnounce(`Added ${result.added.length}.`);
+                selectRef.current?.focus();
+                return;
+            }
             await shareActivityToClass(classId, selected);
             await data.reload();
             setSelected('');
@@ -337,11 +362,20 @@ export default function ClassActivitiesPanel({
             className="min-h-[44px] max-w-full rounded-md border border-line-strong bg-canvas px-2.5 py-2 text-sm text-ink"
             >
             <option value="">Choose a published activity…</option>
-            {options.map((o) => (
-                <option key={o.id} value={o.id}>
-                {o.title}
-                {o.publishedAt ? ` — published ${formatListDate(o.publishedAt)}` : ''}
-                </option>
+            {groups.map((g) => (
+                <optgroup key={g.key} label={g.unit ?? 'No unit'}>
+                {g.unit !== null && g.rows.length > 1 && (
+                    <option value={`${UNIT_VALUE_PREFIX}${g.key}`}>
+                    Add whole unit ({g.rows.length})
+                    </option>
+                )}
+                {g.rows.map((o) => (
+                    <option key={o.id} value={o.id}>
+                    {o.title}
+                    {o.publishedAt ? ` — published ${formatListDate(o.publishedAt)}` : ''}
+                    </option>
+                ))}
+                </optgroup>
             ))}
             </select>
             <button

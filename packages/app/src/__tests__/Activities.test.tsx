@@ -65,6 +65,10 @@ vi.mock('../lib/chainHooks', async (importActual) => ({
     ...(await importActual<typeof import('../lib/chainHooks')>()),
     fetchMyChainHooks: hooks.fetch,
 }));
+// The add-to-class doors (assign-to-class A1/A6) load classes on mount; this
+// file is about the list itself, so the teacher has none. Their behaviour is
+// AddToClass.test.tsx's job.
+vi.mock('../lib/classes', () => ({ listClasses: () => Promise.resolve([]) }));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({
         session: { user: { id: 'owner-1' } },

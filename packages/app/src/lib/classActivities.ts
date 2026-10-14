@@ -106,13 +106,20 @@ export interface PublishedActivityOption {
     id: string;
     title: string;
     publishedAt: string | null;
+    // The outline keys (assign-to-class A5): the class-page picker groups by
+    // unit in teaching order, like My activities. A published row's course/unit
+    // columns ARE the truth (stamped at publish), so no draft-first read here.
+    course: string | null;
+    unit: string | null;
+    source_path: string | null;
+    updated_at: string;
 }
 
 export async function listPublishedActivities(): Promise<PublishedActivityOption[]> {
     const { data, error } = await supabase
         .from('activities')
         .select(
-            'id, title, current_version:activity_versions!activities_current_version_id_fkey(created_at)',
+            'id, title, course, unit, source_path, updated_at, current_version:activity_versions!activities_current_version_id_fkey(created_at)',
         )
         .eq('status', 'published')
         .is('deleted_at', null)
@@ -121,11 +128,23 @@ export async function listPublishedActivities(): Promise<PublishedActivityOption
     interface Row {
         id: string;
         title: string;
+        course: string | null;
+        unit: string | null;
+        source_path: string | null;
+        updated_at: string;
         current_version: { created_at: string } | { created_at: string }[] | null;
     }
     const rows = ((data ?? []) as Row[]).map((r) => {
         const v = Array.isArray(r.current_version) ? r.current_version[0] : r.current_version;
-        return { id: r.id, title: r.title, publishedAt: v?.created_at ?? null };
+        return {
+            id: r.id,
+            title: r.title,
+            publishedAt: v?.created_at ?? null,
+            course: r.course ?? null,
+            unit: r.unit ?? null,
+            source_path: r.source_path ?? null,
+            updated_at: r.updated_at,
+        };
     });
     // Newest-published-first (DR-1); a null date (shouldn't happen for a
     // published row) sorts last rather than throwing.
@@ -155,6 +174,43 @@ export async function unshareActivityFromClass(
         p_activity_id: activityId,
     });
     if (error) throw new Error(error.message);
+}
+
+/** What a several-activity add did (assign-to-class A3/A4). */
+export interface AddManyResult {
+    added: string[];
+    /** Ids that failed, in the order they were tried. */
+    failed: string[];
+    /** True when any failure was the not-published refusal (the race). */
+    refused: boolean;
+}
+
+/**
+ * Add several activities to one class, given in TEACHING order (assign-to-class
+ * A4(a), ruled 2026-10-14). Students' Home lists newest first (DR-1), so the
+ * adds are sent LAST-FIRST and ONE AT A TIME: each add is newer than the one
+ * before, and the unit reads in teaching order on the student's Home. Sent in
+ * parallel or first-first, the unit would show reversed, which is the bug this
+ * exists to fix. Guard: classActivities.test.ts.
+ *
+ * Each call is the audited, idempotent 0030 RPC, so a retry after a partial
+ * failure is safe; a failure does not stop the rest.
+ */
+export async function addActivitiesToClass(
+    classId: string,
+    idsInTeachingOrder: readonly string[],
+): Promise<AddManyResult> {
+    const result: AddManyResult = { added: [], failed: [], refused: false };
+    for (const id of [...idsInTeachingOrder].reverse()) {
+        try {
+            await shareActivityToClass(classId, id);
+            result.added.push(id);
+        } catch (err) {
+            result.failed.push(id);
+            if (isNotPublishedError(err)) result.refused = true;
+        }
+    }
+    return result;
 }
 
 /** The share door's one distinguishable refusal (the unpublished race). */
