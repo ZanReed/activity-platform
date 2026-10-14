@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
+import { TeacherNav } from '../components/TeacherNav';
 import { useSession } from '../lib/SessionContext';
 import ClassActivitiesPanel, {
     useTeacherClassActivities,
@@ -767,6 +768,7 @@ export default function Classes() {
     return (
         <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-2xl">
+        <TeacherNav />
         <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-ink">My classes</h1>
         <button

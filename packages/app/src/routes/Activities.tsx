@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { TeacherNav } from '../components/TeacherNav';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -477,15 +478,10 @@ export default function Activities() {
     return (
         <main className="min-h-screen bg-surface p-8">
         <div className="mx-auto max-w-2xl">
+        <TeacherNav />
         <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-ink">My activities</h1>
         <div className="flex items-center gap-3">
-        <Link
-        to="/bank"
-        className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
-        >
-        Activity Bank
-        </Link>
         <button
         type="button"
         onClick={handleCreate}

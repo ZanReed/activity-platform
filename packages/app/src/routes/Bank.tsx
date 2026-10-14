@@ -14,7 +14,8 @@
 // =============================================================================
 
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
+import { TeacherNav } from '../components/TeacherNav';
 import { teacherGuideToTiptap } from '../lib/serialize';
 import {
     BANK_LICENSE,
@@ -364,13 +365,8 @@ export default function Bank() {
     return (
         <main className="min-h-screen bg-surface p-8">
             <div className="mx-auto max-w-3xl">
-                <Link
-                    to="/activities"
-                    className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
-                >
-                    ← My activities
-                </Link>
-                <h1 className="mt-3 text-2xl font-bold text-ink">Activity Bank</h1>
+                <TeacherNav />
+                <h1 className="text-2xl font-bold text-ink">Activity Bank</h1>
                 <p className="mt-1 text-sm text-muted">
                     Ready-made activities, in teaching order. <strong>Add to my library</strong> makes
                     a copy that is yours: share it with a class straight away, or change anything
