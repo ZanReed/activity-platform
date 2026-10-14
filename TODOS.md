@@ -7,6 +7,10 @@ ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during revi
 
 Cause: there was no shared teacher navigation. Each page wrote its own back link, so /classes linked nowhere and /activities linked only to the Bank; Home was the only page linking to all of them. Fixed with `components/TeacherNav.tsx` (My activities · My classes · Activity Bank, current page marked, Sign out) on /activities, /classes and /bank only. Author ruled 2026-10-14: the editor and its sub-pages keep their own back links, with no bar; the Bank's "← My activities" and the Activities page's "Activity Bank" link were removed as duplicates. Guard: `__tests__/TeacherNav.test.tsx` renders the REAL pages; it was mutation-tested (removing the bar from Classes turned 3 rows red).
 
+## ⚠ Shell CSS is at its cap (measured 2026-10-14)
+
+The entry stylesheet is 15,322 of 15,360 bytes gzipped (38 bytes of headroom) after the teacher nav, add-to-class and row-anatomy changes. Each was trimmed to reuse existing utilities, and the cap was NOT raised. **Trigger:** the next change that adds a new Tailwind utility to the shell fails `perf budgets`. At that point the author rules between trimming (find dead utilities) and a cap raise under the ~10% headroom policy (DECISIONS.md → "The shell CSS cap").
+
 ## Adding activities to a class: the two deferred items (assign-to-class.md, ruled 2026-10-14)
 
 A1–A6 are BUILT (see the doc's "As built"). Two items wait on a trigger:

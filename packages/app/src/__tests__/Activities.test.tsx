@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import {
     act,
     cleanup,
@@ -529,10 +530,10 @@ describe('Activities curriculum outline', () => {
         expect(evt.defaultPrevented).toBe(false);
     });
 
-    it('shows the role badge only for classified activities', async () => {
+    it('shows the role badge only for a non-default role (R2: "Lesson" is the default)', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        expect(screen.getByText('Lesson')).toBeTruthy();
+        expect(screen.queryByText('Lesson')).toBeNull();
         expect(screen.getByText('Practice')).toBeTruthy();
         // o3/o4 are unclassified — no placeholder chrome.
         expect(screen.queryByText('Unclassified')).toBeNull();
@@ -687,8 +688,10 @@ describe('Activities — Activity Bank markers and curator controls (0054)', () 
         h.listResult.current = { data: BANK_ROWS, error: null };
         renderList();
         await screen.findAllByText('Listed One');
-        expect(screen.getAllByText('In the Bank')).toHaveLength(1);
-        expect(screen.getAllByText('From the Bank')).toHaveLength(1);
+        // R5/R6: icons with names. A non-curator's listed row shows a static
+        // marker, never a control.
+        expect(screen.getAllByRole('img', { name: 'In the Activity Bank' })).toHaveLength(1);
+        expect(screen.getAllByRole('img', { name: 'From the Activity Bank: this copy is yours' })).toHaveLength(1);
         expect(screen.queryByRole('button', { name: /in the Activity Bank/ })).toBeNull();
         expect(screen.queryByText('List unit in the Bank')).toBeNull();
     });
@@ -750,5 +753,52 @@ describe('Activities unit-header hook links (0057, CH-7, D3)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Delete Warm Up' }));
         await screen.findByRole('button', { name: 'Undo' });
         expect(h.rpc).toHaveBeenCalledWith('soft_delete_activity', { p_activity_id: 'a1' });
+    });
+});
+
+describe('Activities — row anatomy (R1–R7, 2026-10-14; amends D8)', () => {
+    const ROW_SET = [
+        { id: 'p1', title: 'Published One', status: 'published', updated_at: '2026-07-10T00:00:00Z', unit: 'U', visibility: 'public', copied_from_activity_id: null },
+        { id: 'd1', title: 'Draft One', status: 'draft', updated_at: '2026-07-09T00:00:00Z', unit: 'U', visibility: 'private', copied_from_activity_id: null },
+    ];
+    const rowOf = (title: string) => screen.getByRole('link', { name: title }).closest('li')!;
+
+    it('badges only the exception: a draft says so, a published row has no status badge', async () => {
+        h.listResult.current = { data: ROW_SET, error: null };
+        renderList();
+        await screen.findByRole('link', { name: 'Published One' });
+        expect(within(rowOf('Draft One')).getByText('draft')).toBeTruthy();
+        expect(within(rowOf('Published One')).queryByText('published')).toBeNull();
+    });
+
+    it('the edited date lives in the title tooltip, not the row', async () => {
+        h.listResult.current = { data: ROW_SET, error: null };
+        renderList();
+        const link = await screen.findByRole('link', { name: 'Published One' });
+        expect(link.getAttribute('title')).toMatch(/^Published One\nEdited .*2026/);
+        expect(rowOf('Published One').textContent).not.toMatch(/2026/);
+    });
+
+    it('Analytics and Delete are named icon controls on every row', async () => {
+        h.listResult.current = { data: ROW_SET, error: null };
+        renderList();
+        await screen.findByRole('link', { name: 'Published One' });
+        for (const t of ['Published One', 'Draft One']) {
+            const row = rowOf(t);
+            const id = t === 'Published One' ? 'p1' : 'd1';
+            expect(within(row).getByRole('link', { name: `Analytics for ${t}` })).toHaveAttribute('href', `/activity/${id}/analytics`);
+            expect(within(row).getByRole('button', { name: `Delete ${t}` })).toBeTruthy();
+            expect(row.textContent).not.toMatch(/Analytics|Delete/);
+        }
+    });
+
+    it('a curator gets ONE Bank control per row, pressed when listed', async () => {
+        bank.lister.current = true;
+        h.listResult.current = { data: ROW_SET, error: null };
+        renderList();
+        const toggle = await screen.findByRole('button', { name: 'Remove Published One from the Activity Bank' });
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        // No separate marker beside the control.
+        expect(within(rowOf('Published One')).queryByRole('img', { name: 'In the Activity Bank' })).toBeNull();
     });
 });

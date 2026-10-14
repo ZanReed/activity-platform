@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
+import { BarChart3, Import, Library, Trash2 } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -48,6 +49,10 @@ interface ActivityRow {
     copied_from_activity_id: string | null;
 }
 
+// A row's icon controls (R4/R5): a 24px hit target around a 16px icon.
+const ICON_BUTTON =
+    'inline-flex items-center justify-center rounded-md p-1 transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink';
+
 // How many activities the "Recently edited" strip carries (D4). Five keeps it
 // one row at every viewport; it is a shortcut back into work, not a list.
 const RECENT_LIMIT = 5;
@@ -79,7 +84,9 @@ function StatusBadge({ status }: { status: ActivityRow['status'] }) {
 // "no role" is a legitimate state and deserves no placeholder chrome.
 function RoleBadge({ role }: { role: string | null }) {
     const parsed = asPedagogicalRole(role);
-    if (!parsed) return null;
+    // "Lesson" is the default role, on most rows: a constant is noise (row
+    // anatomy R2, 2026-10-14). Review and Practice are the ones worth seeing.
+    if (!parsed || parsed === 'lesson') return null;
     return (
         <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-accent">
         {PEDAGOGICAL_ROLE_LABELS[parsed]}
@@ -659,7 +666,7 @@ export default function Activities() {
                     groupCourses.length === 1 ? groupCourses[0] : null;
                 return (
                     <section key={group.key} aria-labelledby={headingId}>
-                    <div className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-line bg-surface pb-1.5 pt-2">
+                    <div className="sticky top-0 z-10 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line bg-surface pb-1.5 pt-2">
                     <h2
                     id={headingId}
                     className="text-sm font-semibold text-ink"
@@ -673,7 +680,7 @@ export default function Activities() {
                     {group.rows.length === 1 ? ' activity' : ' activities'}
                     {drafts > 0 && ` · ${drafts} draft${drafts === 1 ? '' : 's'}`}
                     </span>
-                    <span className="ml-auto flex items-baseline gap-3">
+                    <span className="ml-auto flex flex-wrap items-baseline justify-end gap-x-3 gap-y-1 whitespace-nowrap">
                     {(() => {
                         // A6: which classes hold this unit, and how much of it.
                         const ids = (fullUnits.get(group.key) ?? group.rows)
@@ -758,25 +765,30 @@ export default function Activities() {
                             i > 0 ? 'border-t border-line' : ''
                         }`}
                         >
+                        {/* Row anatomy amended 2026-10-14 (R1–R7, amends D8):
+                            the title owns the row; only EXCEPTIONS get a badge
+                            (draft, a non-lesson role); the edited date moved to
+                            the title's tooltip; Analytics, Delete and the Bank
+                            markers are icons with names. */}
                         <Link
                         to={`/activity/${a.id}`}
-                        className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:underline"
+                        title={`${a.title}\nEdited ${formatEdited(a.updated_at)}`}
+                        className="min-w-0 flex-1 basis-full truncate text-sm font-medium text-ink hover:underline sm:basis-0"
                         >
                         {a.title}
                         </Link>
-                        <span className="flex shrink-0 items-center gap-2.5">
+                        <span className="ml-auto flex shrink-0 items-center gap-2">
                         {a.copied_from_activity_id && (
-                            <span className="text-xs text-muted" title="Added from the Activity Bank — this copy is yours">
-                            From the Bank
-                            </span>
-                        )}
-                        {a.visibility === 'public' && (
-                            <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success-strong">
-                            In the Bank
-                            </span>
+                            <Import
+                            role="img"
+                            aria-label="From the Activity Bank: this copy is yours"
+                            className="h-3.5 w-3.5 text-faint"
+                            >
+                            <title>From the Activity Bank: this copy is yours</title>
+                            </Import>
                         )}
                         <RoleBadge role={a.pedagogical_role} />
-                        <StatusBadge status={a.status} />
+                        {a.status !== 'published' && <StatusBadge status={a.status} />}
                         {a.status === 'published' && (() => {
                             // A1 single door + A6 membership in one control:
                             // it names the classes holding this activity, or
@@ -798,34 +810,45 @@ export default function Activities() {
                                 </button>
                             );
                         })()}
-                        {bankLister && a.status === 'published' && !a.copied_from_activity_id && (
+                        {bankLister && a.status === 'published' && !a.copied_from_activity_id ? (
+                            // R5: the marker IS the control. Filled = listed.
                             <button
                             type="button"
                             disabled={listingBusy !== null}
                             onClick={() => void applyListing([a], a.visibility !== 'public', a.id)}
                             aria-label={a.visibility === 'public' ? `Remove ${a.title} from the Activity Bank` : `List ${a.title} in the Activity Bank`}
-                            className="hidden text-xs font-medium text-muted underline underline-offset-2 hover:text-strong disabled:opacity-50 sm:inline"
+                            aria-pressed={a.visibility === 'public'}
+                            title={a.visibility === 'public' ? 'In the Activity Bank. Click to remove' : 'Not in the Activity Bank. Click to list'}
+                            className={`${ICON_BUTTON} ${
+                                a.visibility === 'public'
+                                    ? 'bg-success-bg text-success-strong'
+                                    : 'text-faint hover:text-strong'
+                            } disabled:opacity-50`}
                             >
-                            {listingBusy === a.id ? '…' : a.visibility === 'public' ? 'Unlist' : 'List'}
+                            <Library aria-hidden="true" className="h-4 w-4" />
                             </button>
-                        )}
-                        <span className="hidden text-xs text-muted sm:inline">
-                        {formatEdited(a.updated_at)}
-                        </span>
+                        ) : a.visibility === 'public' ? (
+                            <span title="In the Activity Bank" className="rounded-md bg-success-bg p-1 text-success-strong">
+                            <Library role="img" aria-label="In the Activity Bank" className="h-4 w-4" />
+                            </span>
+                        ) : null}
                         <Link
                         to={`/activity/${a.id}/analytics`}
-                        className="hidden text-xs font-medium text-muted underline underline-offset-2 hover:text-strong sm:inline"
+                        aria-label={`Analytics for ${a.title}`}
+                        title="Analytics"
+                        className={`${ICON_BUTTON} text-muted hover:text-strong`}
                         >
-                        Analytics
+                        <BarChart3 aria-hidden="true" className="h-4 w-4" />
                         </Link>
                         <button
                         type="button"
                         onClick={() => handleDelete(a)}
                         disabled={deletingId === a.id}
                         aria-label={`Delete ${a.title}`}
-                        className="text-xs font-medium text-muted underline underline-offset-2 transition hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Delete"
+                        className={`${ICON_BUTTON} text-muted hover:text-danger disabled:cursor-not-allowed disabled:opacity-50`}
                         >
-                        {deletingId === a.id ? 'Deleting…' : 'Delete'}
+                        <Trash2 aria-hidden="true" className="h-4 w-4" />
                         </button>
                         </span>
                         {classPanel === a.id && (

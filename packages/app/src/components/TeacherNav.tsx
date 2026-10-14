@@ -27,9 +27,9 @@ export function TeacherNav() {
     return (
         <nav
         aria-label="Teacher pages"
-        className="mb-6 flex items-center justify-between border-b border-line pb-3 text-sm"
+        className="mb-6 flex items-center justify-between gap-3 border-b border-line pb-3 text-sm"
         >
-        <ul className="flex items-center gap-4">
+        <ul className="flex items-center gap-3 whitespace-nowrap">
         {TEACHER_NAV_LINKS.map((l) => (
             <li key={l.to}>
             <NavLink
@@ -49,7 +49,7 @@ export function TeacherNav() {
         <button
         type="button"
         onClick={() => void signOut()}
-        className="font-medium text-muted underline-offset-2 hover:text-strong hover:underline"
+        className="whitespace-nowrap font-medium text-muted underline-offset-2 hover:text-strong hover:underline"
         >
         Sign out
         </button>

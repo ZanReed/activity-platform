@@ -93,6 +93,16 @@ rather than answering where to put them.
   `surface-2` fill. Row anatomy: **title** (primary, the link) → **role badge +
   status badge** (secondary) → **edited date** (tertiary, right-aligned) →
   quiet actions. Unit label NOT repeated in rows — the header carries it.
+  **⚠ AMENDED 2026-10-14 (author, R1–R7, after his walkthrough: "the title is
+  being covered by all our buttons").** The title owns the row. Only
+  exceptions get a badge: `draft` (never `published`) and a non-lesson role
+  (never `Lesson`). The edited date moved to the title's tooltip. Analytics
+  and Delete are named icons, visible at every width (Analytics used to be
+  hidden on phones). The Bank pill and List/Unlist merged into one toggle icon
+  (curator only; a non-curator's listed row shows a static icon), and "From
+  the Bank" is an icon. The class door ("7A · 7B" / "Add to class",
+  assign-to-class.md) stays as text. Guard: `Activities.test.tsx` → "row
+  anatomy".
 - **D9 — `/` focuses search** with the standard guard (ignored when an
   input/textarea/contenteditable has focus); Escape clears + blurs; the
   placeholder advertises it ("Search… /").

@@ -285,7 +285,7 @@ export function AddToClassPanel({
                 const mixed = k > 0 && !all;
                 return (
                     <li key={cls.id}>
-                    <label className="flex min-h-[36px] cursor-pointer items-center gap-2.5 text-sm text-ink">
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 text-sm text-ink">
                     <input
                     type="checkbox"
                     checked={all}
@@ -295,7 +295,7 @@ export function AddToClassPanel({
                     aria-checked={mixed ? 'mixed' : all}
                     disabled={busy !== null}
                     onChange={() => void (all ? remove(cls) : add(cls))}
-                    className="h-4 w-4 accent-primary"
+                    className="h-4 w-4"
                     />
                     <span className="font-medium">{cls.name}</span>
                     {mixed && (
