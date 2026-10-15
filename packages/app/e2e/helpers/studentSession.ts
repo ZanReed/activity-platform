@@ -122,6 +122,15 @@ export interface ActivityApiOptions {
   versionId?: string;
   title?: string;
   check?: CheckOutcome;
+  /**
+   * The stub server REMEMBERS checks (student review S3 restore): every
+   * accepted check is kept per section, the student's own-rows read returns
+   * those section ids, and check-activity's `mode: 'restore'` returns them.
+   * Off by default: a stub that forgets is what every pre-restore spec was
+   * written against, and it still answers the own-rows read (with nothing),
+   * so no spec meets an unanswered request and the restore-failed banner.
+   */
+  serverRemembers?: boolean;
 }
 
 /** Buffer + document keys this student has on the device, newest scan. */
@@ -181,6 +190,8 @@ export async function seedForeignWork(
 export interface ActivityApi {
   /** Requests seen, newest last. Lets a spec assert "exactly one attempt". */
   readonly checkRequests: unknown[];
+  /** Restore-mode requests seen (S3). Never counted as checks. */
+  readonly restoreRequests: unknown[];
   /** Simulate no network: matched requests are aborted, as a dead Wi-Fi does. */
   setOffline(offline: boolean): void;
   /** Make the next check return this status instead of a verdict. */
@@ -200,7 +211,22 @@ export async function stubActivityApi(
     offline: false,
     failStatus: null as number | null,
     checkRequests: [] as unknown[],
+    restoreRequests: [] as unknown[],
+    remembered: new Map<string, { responses: unknown; result: unknown }>(),
   };
+
+  // The student's own checked section ids (restore D5). The table name is the
+  // one PostgREST literal here: it names the migration-0020 table, which no
+  // app constant carries (the app reads it through supabase-js), so it is
+  // restated deliberately (P2's documented-divergence clause).
+  await page.route('**/rest/v1/section_checks*', async (route) => {
+    if (await abortIfOffline(route)) return;
+    await route.fulfill({
+      json: options.serverRemembers
+        ? [...state.remembered.keys()].map((section_id) => ({ section_id }))
+        : [],
+    });
+  });
 
   const abortIfOffline = async (route: Route): Promise<boolean> => {
     if (!state.offline) return false;
@@ -252,7 +278,22 @@ export async function stubActivityApi(
     const body = route.request().postDataJSON() as {
       sectionId: string;
       responses?: Record<string, Record<string, unknown>>;
+      mode?: string;
+      sectionIds?: string[];
     };
+    // RESTORE (S3): never a check, never recorded as one.
+    if (body.mode === 'restore') {
+      state.restoreRequests.push(body);
+      await route.fulfill({
+        json: {
+          wireVersion: CHECK_WIRE_VERSION,
+          sections: (body.sectionIds ?? [])
+            .filter((id) => state.remembered.has(id))
+            .map((id) => ({ sectionId: id, ...state.remembered.get(id)! })),
+        },
+      });
+      return;
+    }
     state.checkRequests.push(body);
 
     if (state.failStatus !== null) {
@@ -273,16 +314,18 @@ export async function stubActivityApi(
         };
       }
     }
-    await route.fulfill({
-      json: {
-        // Imported, never retyped (A16/P2): a hand-copied wire version makes a
-        // future bump fail e2e with a confusing symptom instead of a clear one.
-        wireVersion: CHECK_WIRE_VERSION,
-        sectionId: body.sectionId,
-        items,
-        solutions: options.check?.solutions ?? {},
-      },
-    });
+    const result = {
+      // Imported, never retyped (A16/P2): a hand-copied wire version makes a
+      // future bump fail e2e with a confusing symptom instead of a clear one.
+      wireVersion: CHECK_WIRE_VERSION,
+      sectionId: body.sectionId,
+      items,
+      solutions: options.check?.solutions ?? {},
+    };
+    if (options.serverRemembers) {
+      state.remembered.set(body.sectionId, { responses: body.responses ?? {}, result });
+    }
+    await route.fulfill({ json: result });
   });
 
   // No get-feedback stub: that Edge Function was deleted at S9 Drop 3, and a
@@ -296,6 +339,9 @@ export async function stubActivityApi(
   return {
     get checkRequests() {
       return state.checkRequests;
+    },
+    get restoreRequests() {
+      return state.restoreRequests;
     },
     setOffline(offline: boolean) {
       state.offline = offline;
