@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { Editor, getSchema } from '@tiptap/core';
 import { Node as PMNode } from '@tiptap/pm/model';
 import {
@@ -145,8 +145,16 @@ describe('Q14 — a blank id is unique, however the duplicate arrives', () => {
     /** A REAL headless editor, so the repair plugin runs exactly as it does in
      *  the app. Extracting plugins by hand does not work here: several of this
      *  editor's extensions build their plugin from a live `this.editor`. */
-    const editorWith = (doc: ActivityDocument): Editor =>
-        new Editor({
+    // Every editor is DESTROYED after its test. Left alive, ProseMirror's
+    // DOMObserver keeps a flush timer that can fire after jsdom is torn down
+    // ("document is not defined"): an unhandled error that fails the CI run
+    // with every assertion passing (seen on 2ed0d6d4, 2026-10-15).
+    const live: Editor[] = [];
+    afterEach(() => {
+        for (const editor of live.splice(0)) editor.destroy();
+    });
+    const editorWith = (doc: ActivityDocument): Editor => {
+        const editor = new Editor({
             element: document.createElement('div'),
             extensions: buildEditorExtensions(),
             // The FULL strict-grid JSON, not toBare's output: toBare unwraps
@@ -155,6 +163,9 @@ describe('Q14 — a blank id is unique, however the duplicate arrives', () => {
             // shape builds an invalid document that fails on the first edit.
             content: activityToTiptap(doc),
         });
+        live.push(editor);
+        return editor;
+    };
 
     const blankIds = (editor: Editor): string[] => {
         const ids: string[] = [];
