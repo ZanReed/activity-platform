@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-12-draft-25`. Mirrors migrations 0001–**0058**, verified
+> Version `2026-10-15-draft-26`. Mirrors migrations 0001–**0059**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-26` (2026-10-15) — 0059 adds no personal-data column and gives a student a read of their OWN work.** `section_checks.section_total` is a count of sections in the published version that was checked (a property of the document, not of the student), written by check-activity. `my_activity_progress()` is a SECURITY DEFINER read scoped to `auth.uid()`: per activity on the caller's live classes, how many sections THEY have checked, whether an older version has their checks, and whether a grade on their own work has been released. It reads no other student's rows and returns no teacher identity. Check-activity's new read-only restore mode returns the caller's own stored answers and verdicts back to them (no new storage; solutions are recomputed, never stored). The range moves to 0059 on that basis.
 >
 > **`draft-25` (2026-10-12) — 0058 adds one TEACHER-keyed table, no student data.** `practice_item` mirrors the practice-bank items in the catalogue's `banks/` folder (each template's content, its seeded-value table, and its draft/ratified status), keyed to the owning teacher (`owner_id`), like the glossary and the hook store. Only the batch importer writes it, through `sync_practice_items`; only the OWNER reads it (one owner-scoped SELECT policy). Its content is answer-key class, and nothing serves it to students yet. The range moves to 0058 on that basis.
 >
