@@ -14,7 +14,7 @@
 //    lie they will follow several times).
 // =============================================================================
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Per-file, matching this package's convention (ImportMarkdownDialog.test.tsx):
 // registers the jest-dom matchers on vitest's expect and augments its types.
 import '@testing-library/jest-dom/vitest';
@@ -44,8 +44,22 @@ const h = vi.hoisted(() => ({
     },
     meta: { current: { title: 'Linear Systems', teacherName: 'Kia Jafari' } as unknown },
     load: { current: null as unknown },
+    /** Restore (S3): the student's checked section ids on the served version,
+     *  every call recorded; an Error rejects the read. */
+    checkedIds: { current: [] as string[] | Error },
+    checkedCalls: [] as Array<[string, string]>,
+    restore: { current: null as null | ((req: { sectionIds: string[] }) => unknown) },
+    restoreCalls: [] as Array<{ sectionIds: string[] }>,
 }));
 
+vi.mock('../lib/grading', () => ({
+    fetchReleasedFeedbackRows: async () => [],
+    fetchMyCheckedSectionIds: async (versionId: string, studentId: string) => {
+        h.checkedCalls.push([versionId, studentId]);
+        if (h.checkedIds.current instanceof Error) throw h.checkedIds.current;
+        return h.checkedIds.current;
+    },
+}));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({ session: h.session.current, loading: false }),
 }));
@@ -83,12 +97,17 @@ vi.mock('@activity/viewer', async (importOriginal) => {
         createHttpCheckService: () => ({
             checkSection: async (req: { sectionId: string }) => h.check.current(req),
             fetchReleasedFeedback: async () => ({ graded: false, blocks: {} }),
+            restoreChecked: async (req: { sectionIds: string[] }) => {
+                h.restoreCalls.push(req);
+                if (!h.restore.current) return { wireVersion: 3, sections: [] };
+                return h.restore.current(req);
+            },
         }),
     };
 });
 
 import StudentViewer from '../routes/StudentViewer';
-import { ViewerLoadError } from '@activity/viewer';
+import { CHECK_WIRE_VERSION, indexDocument, ViewerLoadError } from '@activity/viewer';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 
 function renderRoute(id = 'aaaaaaaa-0000-4000-8000-000000000001') {
@@ -661,5 +680,89 @@ describe('the activity top bar (student review S4/S6, 2026-10-14)', () => {
         // The icon form: the word is the accessible name, not visible text.
         expect(print.querySelector('svg')).not.toBeNull();
         expect(print).toHaveAttribute('title', 'Print');
+    });
+});
+
+describe('restore on open (student review S3; eng review D5-D7, contract (2)(3)(5))', () => {
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+    function served(versionId = 'v1') {
+        return { activityId: ACTIVITY, versionId, versionNum: 1, title: 'Linear Systems', document: servedFixtureDocument() };
+    }
+    // The fixture's first section and its first blank: what a restore fills.
+    const index = indexDocument(servedFixtureDocument() as never);
+    const firstSection = index.sections.find((sec) => (sec.items.blanks ?? []).length > 0)!;
+    const firstBlank = firstSection.items.blanks![0]!;
+
+    beforeEach(() => {
+        // A clean device: other describes leave buffers behind (the global
+        // afterEach does not clear storage), and a buffer that already covers
+        // every section correctly means "nothing to restore" (D7).
+        window.localStorage.clear();
+        h.checkedIds.current = [];
+        h.checkedCalls.length = 0;
+        h.restore.current = null;
+        h.restoreCalls.length = 0;
+    });
+    afterEach(() => window.localStorage.clear());
+
+    it('asks for the SIGNED-IN student\'s own checked sections on the served version (2)', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served('v1');
+        renderRoute(ACTIVITY);
+        await waitFor(() => expect(h.checkedCalls).toEqual([['v1', STUDENT_ID]]));
+        // Nothing checked on the server → the check function is never woken.
+        expect(h.restoreCalls).toHaveLength(0);
+    });
+
+    it('fills a checked section and keeps it under THIS student\'s buffer key (5)', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served('v1');
+        h.checkedIds.current = [firstSection.sectionId];
+        h.restore.current = () => ({
+            wireVersion: CHECK_WIRE_VERSION,
+            sections: [{
+                sectionId: firstSection.sectionId,
+                responses: { blanks: { [firstBlank]: 'from the server' }, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: {} },
+                result: { wireVersion: CHECK_WIRE_VERSION, sectionId: firstSection.sectionId, items: {}, solutions: {} },
+            }],
+        });
+        renderRoute(ACTIVITY);
+        await waitFor(() => expect(h.restoreCalls).toHaveLength(1));
+        expect(h.restoreCalls[0]!.sectionIds).toEqual([firstSection.sectionId]);
+        await waitFor(() =>
+            expect(window.localStorage.getItem(`activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:v1`) ?? '').toContain('from the server'),
+        );
+    });
+
+    it('a pinned open (unsent work on an older version) never restores (3)', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        window.localStorage.setItem(
+            `activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:v1`,
+            JSON.stringify({
+                schemaVersion: 1, userId: STUDENT_ID, activityId: ACTIVITY, versionId: 'v1',
+                responses: { blanks: { 'blank-1': '42' }, choices: {}, matches: {}, orderings: {}, freeText: {}, graphs: {} },
+                checked: {}, pending: { 'sec-1': { fingerprint: 'fp' } }, inFlight: {},
+            }),
+        );
+        window.localStorage.setItem(`activity-viewer:doc:${STUDENT_ID}:${ACTIVITY}:v1`, JSON.stringify(served('v1')));
+        h.load.current = served('v2');
+        h.checkedIds.current = [firstSection.sectionId];
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(container.querySelector('[data-banner="pinned-version"]')).not.toBeNull());
+        await act(async () => {});
+        expect(h.checkedCalls).toHaveLength(0);
+        expect(h.restoreCalls).toHaveLength(0);
+    });
+
+    it('a failed read shows the banner, and Try again retries', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served('v1');
+        h.checkedIds.current = new Error('offline');
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(container.querySelector('[data-banner="restore-failed"]')).not.toBeNull());
+        h.checkedIds.current = [];
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+        await waitFor(() => expect(container.querySelector('[data-banner="restore-failed"]')).toBeNull());
+        expect(h.checkedCalls.length).toBe(2);
     });
 });

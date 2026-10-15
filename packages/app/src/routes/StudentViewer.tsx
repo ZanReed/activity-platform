@@ -44,6 +44,7 @@ import {
   createTabLock,
   createViewerBuffer,
   createViewerStore,
+  restoreEarlierWork,
   findUnsentWork,
   indexDocument,
   loadAnyCachedDocument,
@@ -61,7 +62,7 @@ import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { functionsBase, supabase } from '../lib/supabase';
 import { CHECK_ACTIVITY_FUNCTION } from '../lib/edgeFunctions';
-import { fetchReleasedFeedbackRows } from '../lib/grading';
+import { fetchMyCheckedSectionIds, fetchReleasedFeedbackRows } from '../lib/grading';
 import { useSession } from '../lib/SessionContext';
 import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
@@ -536,6 +537,35 @@ export default function StudentViewer() {
     };
   }, [store, userId, activityId, versionId, servedDocument]);
 
+  /**
+   * RESTORE (student-experience review S3; eng review D4–D7). Declared AFTER
+   * the local-first mount on purpose: effects run in declaration order, so the
+   * device copy has already hydrated when this decides which sections are
+   * untouched. Every NETWORK open runs it (D7); a pinned open (unsent work on
+   * an older version) and an offline copy never do (contract (3)). It never
+   * blocks the worksheet (D4): the student can type at once, and anything they
+   * touch before it lands is theirs.
+   */
+  const [restoreFailed, setRestoreFailed] = useState(false);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const servedSource = state.phase === 'ready' ? state.source : null;
+  useEffect(() => {
+    if (!store || !userId || !versionId || !servedDocument) return;
+    if (servedSource !== 'network') return;
+    let cancelled = false;
+    setRestoreFailed(false);
+    void restoreEarlierWork({
+      store,
+      index: indexDocument(servedDocument),
+      checkedSectionIds: () => fetchMyCheckedSectionIds(versionId, userId),
+    }).then((outcome) => {
+      if (!cancelled && outcome === 'failed') setRestoreFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [store, userId, versionId, servedDocument, servedSource, restoreAttempt]);
+
   // The signed-in half of the S8 timing contract (ruling D2). Fires on the
   // commit in which the worksheet itself first renders: `store` is non-null
   // only when a served document, a version and a user all exist, which is
@@ -621,6 +651,8 @@ export default function StudentViewer() {
             4. offline-copy      — context for why things look frozen
             5. pinned-version    — why they are NOT on the newest version
             6. stale-version     — a newer version exists; reload is OFFERED
+            7. restore-failed    — earlier checked work could not be loaded;
+                                   Retry fills only untouched sections (S3/D4)
 
           Idle above session-expired: the prompt precedes the sign-out that
           MAKES the session expire — showing the consequence before the
@@ -694,6 +726,17 @@ export default function StudentViewer() {
             onClick={() => globalThis.location?.reload()}
           >
             Reload to get the new version
+          </button>
+        </div>
+      ) : restoreFailed ? (
+        <div className="viewer-banner" role="status" data-banner="restore-failed">
+          <span>We couldn’t load your earlier answers.</span>
+          <button
+            type="button"
+            className="viewer-banner-action"
+            onClick={() => setRestoreAttempt((n) => n + 1)}
+          >
+            Try again
           </button>
         </div>
       ) : null}

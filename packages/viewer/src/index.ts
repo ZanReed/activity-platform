@@ -239,8 +239,11 @@ export type {
   TabLock,
   TabLockOptions,
 } from './store/tabLock.js';
-export { createViewerStore } from './store/store.js';
+export { createViewerStore, isSectionUntouched } from './store/store.js';
+export { restoreEarlierWork } from './store/restore.js';
+export type { RestoreEarlierWorkOptions } from './store/restore.js';
 export type {
+  RestoreOutcome,
   SectionItemIds,
   ViewerStore,
   ViewerStoreOptions,

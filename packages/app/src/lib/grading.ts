@@ -34,6 +34,27 @@ export async function fetchReleasedFeedbackRows(
   return (data ?? []) as ReleasedFeedbackRow[];
 }
 
+/**
+ * The signed-in student's checked section ids on one version (restore, S3 /
+ * eng review D5): one cheap, RLS-scoped read, so the slower check function is
+ * only woken when there is something to bring back. Filtered to the caller's
+ * own id as well as by RLS, because a class teacher's policy reads their
+ * students' rows too. THROWS on failure; restoreEarlierWork turns that into
+ * its 'failed' outcome.
+ */
+export async function fetchMyCheckedSectionIds(
+  versionId: string,
+  studentId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('section_checks')
+    .select('section_id')
+    .eq('activity_version_id', versionId)
+    .eq('student_id', studentId);
+  if (error) throw new Error(error.message);
+  return [...new Set(((data ?? []) as { section_id: string }[]).map((r) => r.section_id))];
+}
+
 /* ---- the teacher side (0034 §C/§D/§F) ------------------------------------ */
 
 /** One row of list_grading_queue: a (student, block) response plus its grade. */

@@ -19,6 +19,8 @@
 // =============================================================================
 
 import type {
+  RestoreRequest,
+  RestoreResult,
   CheckRequest,
   CheckService,
   ReleasedFeedbackResult,
@@ -278,6 +280,17 @@ export function createHttpCheckService(
           'stale_client',
           'This page is out of date. Reload to keep checking.',
         );
+      }
+      return data;
+    },
+
+    /** Restore (S3): the same endpoint, `mode: 'restore'`. Throws a
+     * CheckError like a check does; the store turns any throw into its
+     * 'failed' outcome. */
+    async restoreChecked(request: RestoreRequest): Promise<RestoreResult> {
+      const data = (await post(options.checkUrl, request)) as RestoreResult;
+      if (data?.wireVersion !== CHECK_WIRE_VERSION || !Array.isArray(data.sections)) {
+        throw new CheckError('stale_client', 'This page is out of date. Reload to keep checking.');
       }
       return data;
     },

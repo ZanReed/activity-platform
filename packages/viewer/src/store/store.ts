@@ -184,10 +184,61 @@ export interface ViewerStore {
    */
   dropPendingCheck(sectionId: string): void;
 
+  /**
+   * Bring back the student's OWN earlier checks for the named sections
+   * (student-experience review S3; eng review D4, D7). Asks the check
+   * service's restore mode, then merges ONLY into sections that are still
+   * untouched when the answer arrives (`isSectionUntouched`, re-evaluated at
+   * merge time): a section the student typed into, checked, or queued in the
+   * meantime is never overwritten. Never creates a pending check or an
+   * in-flight key, and never throws. 'nothing' covers "the service has no
+   * restore" and "nothing came back that could be merged".
+   */
+  restoreSections(
+    sectionIds: string[],
+    itemsBySection: Readonly<Record<string, SectionItemIds>>,
+  ): Promise<RestoreOutcome>;
+
   /** Persistence bridge (D9). hydrate() ignores payloads for a different
    * activity/version and version-mismatched blobs (null path). */
   serialize(): string;
   hydrate(raw: string | null | undefined): boolean;
+}
+
+export type RestoreOutcome = 'restored' | 'nothing' | 'failed';
+
+const RESPONSE_CATEGORIES = [
+  'blanks',
+  'choices',
+  'matches',
+  'correspondences',
+  'orderings',
+  'freeText',
+  'graphs',
+] as const satisfies ReadonlyArray<keyof SectionItemIds & keyof SectionResponses>;
+
+/**
+ * A section restore may fill (eng review D4, contract (1) as amended by D7):
+ * no answer in any of its item ids, no check result, nothing queued, nothing
+ * in flight. "Touched" is any of those, because each one is the student's own
+ * newer work or intent, and the device copy wins section by section.
+ */
+export function isSectionUntouched(
+  state: Pick<ViewerStoreState, 'responses' | 'sections' | 'pending' | 'inFlight'>,
+  sectionId: string,
+  items: SectionItemIds,
+): boolean {
+  const status = state.sections[sectionId];
+  if (status !== undefined && status.phase !== 'unchecked') return false;
+  if (state.pending[sectionId] !== undefined) return false;
+  if (state.inFlight[sectionId] !== undefined) return false;
+  for (const category of RESPONSE_CATEGORIES) {
+    const answered = (state.responses[category] ?? {}) as Record<string, unknown>;
+    for (const id of items[category] ?? []) {
+      if (answered[id] !== undefined) return false;
+    }
+  }
+  return true;
 }
 
 export interface ViewerStoreOptions {
@@ -501,6 +552,50 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       }
       if (!result?.blocks) return;
       commit({ ...state, releasedFeedback: { ...result.blocks } });
+    },
+
+    async restoreSections(sectionIds, itemsBySection) {
+      const restore = options.checkService.restoreChecked;
+      if (!restore || sectionIds.length === 0) return 'nothing';
+      let result;
+      try {
+        result = await restore.call(options.checkService, {
+          wireVersion: CHECK_WIRE_VERSION,
+          mode: 'restore',
+          activityId: state.activityId,
+          versionId: state.versionId,
+          sectionIds,
+        });
+      } catch {
+        return 'failed';
+      }
+      if (!result || result.wireVersion !== CHECK_WIRE_VERSION) return 'failed';
+
+      // Merge against the state AS IT IS NOW, not as it was when the request
+      // left: the student may have typed while it was out (D4).
+      const responses = structuredClone(state.responses);
+      const sections = { ...state.sections };
+      let merged = 0;
+      for (const restored of result.sections ?? []) {
+        if (!sectionIds.includes(restored.sectionId)) continue;
+        const items = itemsBySection[restored.sectionId];
+        if (!items || !isSectionUntouched(state, restored.sectionId, items)) continue;
+        // Only ids this document declares for this section: a stored row can
+        // never smuggle an answer into another section's input.
+        for (const category of RESPONSE_CATEGORIES) {
+          const from = (restored.responses?.[category] ?? {}) as Record<string, unknown>;
+          const into = (responses[category] ?? {}) as Record<string, unknown>;
+          for (const id of items[category] ?? []) {
+            if (from[id] !== undefined) into[id] = structuredClone(from[id]);
+          }
+          (responses as unknown as Record<string, unknown>)[category] = into;
+        }
+        sections[restored.sectionId] = { phase: 'checked', result: restored.result };
+        merged += 1;
+      }
+      if (merged === 0) return 'nothing';
+      commit({ ...state, responses, sections });
+      return 'restored';
     },
 
     dropPendingCheck(sectionId) {
