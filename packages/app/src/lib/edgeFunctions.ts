@@ -45,3 +45,7 @@ export const MY_CHAIN_HOOKS_RPC = 'my_chain_hooks';
 /** The student Home's per-activity status (0059, student-experience review S2):
  * own checks on activities in the caller's live classes. */
 export const MY_ACTIVITY_PROGRESS_RPC = 'my_activity_progress';
+/** Restore's cheap read (0060, Fable F1/F6): the caller's distinct checked
+ * section ids on one version. (Its sibling my_latest_checks is called by the
+ * check-activity Edge Function, not the app.) */
+export const MY_CHECKED_SECTION_IDS_RPC = 'my_checked_section_ids';

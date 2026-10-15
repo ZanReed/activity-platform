@@ -14,6 +14,7 @@
  * failure shipped undetected once.
  */
 import { supabase } from './supabase';
+import { MY_CHECKED_SECTION_IDS_RPC } from './edgeFunctions';
 import type { ReleasedFeedbackRow } from '@activity/viewer';
 
 /**
@@ -36,23 +37,25 @@ export async function fetchReleasedFeedbackRows(
 
 /**
  * The signed-in student's checked section ids on one version (restore, S3 /
- * eng review D5): one cheap, RLS-scoped read, so the slower check function is
- * only woken when there is something to bring back. Filtered to the caller's
- * own id as well as by RLS, because a class teacher's policy reads their
- * students' rows too. THROWS on failure; restoreEarlierWork turns that into
- * its 'failed' outcome.
+ * eng review D5): one cheap read, so the slower check function is only woken
+ * when there is something to bring back. `my_checked_section_ids` (0060) is
+ * DISTINCT server-side (a table select returned every attempt and PostgREST
+ * caps rows silently, Fable F1) and own rows by auth.uid().
+ *
+ * THROWS on failure; restoreEarlierWork turns that into its 'failed' outcome.
+ * An expired session throws with `kind: 'unauthenticated'` (Fable F4) so the
+ * route shows "sign in again" instead of a Try again that cannot work.
  */
-export async function fetchMyCheckedSectionIds(
-  versionId: string,
-  studentId: string,
-): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('section_checks')
-    .select('section_id')
-    .eq('activity_version_id', versionId)
-    .eq('student_id', studentId);
-  if (error) throw new Error(error.message);
-  return [...new Set(((data ?? []) as { section_id: string }[]).map((r) => r.section_id))];
+export async function fetchMyCheckedSectionIds(versionId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc(MY_CHECKED_SECTION_IDS_RPC, {
+    p_version_id: versionId,
+  });
+  if (error) {
+    const expired =
+      error.code === 'PGRST301' || error.code === 'PGRST303' || /JWT/i.test(error.message ?? '');
+    throw Object.assign(new Error(error.message), expired ? { kind: 'unauthenticated' } : {});
+  }
+  return ((data ?? []) as { section_id: string }[]).map((r) => r.section_id);
 }
 
 /* ---- the teacher side (0034 §C/§D/§F) ------------------------------------ */

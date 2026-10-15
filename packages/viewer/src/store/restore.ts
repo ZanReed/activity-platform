@@ -22,7 +22,12 @@
 // =============================================================================
 
 import type { DocumentIndex } from '../container/blockIndex.js';
-import { isSectionUntouched, type RestoreOutcome, type ViewerStore } from './store.js';
+import {
+  isSectionUntouched,
+  isUnauthenticatedError,
+  type RestoreOutcome,
+  type ViewerStore,
+} from './store.js';
 
 export interface RestoreEarlierWorkOptions {
   store: ViewerStore;
@@ -31,8 +36,9 @@ export interface RestoreEarlierWorkOptions {
   checkedSectionIds: () => Promise<string[]>;
 }
 
-/** Never throws: a failure is the 'failed' outcome, which the route shows as a
- * banner with Retry. */
+/** Never throws: a failure is 'failed' (the route's banner with Try again),
+ * and an expired session is 'unauthenticated' (the route's sign-in banner,
+ * Fable F4: a Try again cannot succeed until the student signs in). */
 export async function restoreEarlierWork(
   options: RestoreEarlierWorkOptions,
 ): Promise<RestoreOutcome> {
@@ -46,8 +52,8 @@ export async function restoreEarlierWork(
   let checked: string[];
   try {
     checked = await options.checkedSectionIds();
-  } catch {
-    return 'failed';
+  } catch (err) {
+    return isUnauthenticatedError(err) ? 'unauthenticated' : 'failed';
   }
   const onServer = new Set(checked);
   const needed = untouched.filter((id) => onServer.has(id));

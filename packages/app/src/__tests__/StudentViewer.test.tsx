@@ -47,15 +47,15 @@ const h = vi.hoisted(() => ({
     /** Restore (S3): the student's checked section ids on the served version,
      *  every call recorded; an Error rejects the read. */
     checkedIds: { current: [] as string[] | Error },
-    checkedCalls: [] as Array<[string, string]>,
+    checkedCalls: [] as string[],
     restore: { current: null as null | ((req: { sectionIds: string[] }) => unknown) },
     restoreCalls: [] as Array<{ sectionIds: string[] }>,
 }));
 
 vi.mock('../lib/grading', () => ({
     fetchReleasedFeedbackRows: async () => [],
-    fetchMyCheckedSectionIds: async (versionId: string, studentId: string) => {
-        h.checkedCalls.push([versionId, studentId]);
+    fetchMyCheckedSectionIds: async (versionId: string) => {
+        h.checkedCalls.push(versionId);
         if (h.checkedIds.current instanceof Error) throw h.checkedIds.current;
         return h.checkedIds.current;
     },
@@ -733,11 +733,11 @@ describe('restore on open (student review S3; eng review D5-D7, contract (2)(3)(
     });
     afterEach(() => window.localStorage.clear());
 
-    it('asks for the SIGNED-IN student\'s own checked sections on the served version (2)', async () => {
+    it('asks for the student\'s checked sections on the SERVED version (2: own rows are the SQL\'s job, verify-0060)', async () => {
         h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
         h.load.current = served('v1');
         renderRoute(ACTIVITY);
-        await waitFor(() => expect(h.checkedCalls).toEqual([['v1', STUDENT_ID]]));
+        await waitFor(() => expect(h.checkedCalls).toEqual(['v1']));
         // Nothing checked on the server → the check function is never woken.
         expect(h.restoreCalls).toHaveLength(0);
     });
@@ -780,6 +780,15 @@ describe('restore on open (student review S3; eng review D5-D7, contract (2)(3)(
         await act(async () => {});
         expect(h.checkedCalls).toHaveLength(0);
         expect(h.restoreCalls).toHaveLength(0);
+    });
+
+    it('an expired session shows the sign-in banner, not Try again (Fable F4)', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served('v1');
+        h.checkedIds.current = Object.assign(new Error('JWT expired'), { kind: 'unauthenticated' });
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(container.querySelector('[data-banner="session-expired"]')).not.toBeNull());
+        expect(container.querySelector('[data-banner="restore-failed"]')).toBeNull();
     });
 
     it('a failed read shows the banner, and Try again retries', async () => {

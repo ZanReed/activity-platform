@@ -27,7 +27,7 @@
 import type { Page, Route } from '@playwright/test';
 import { STUB_LANE_SUPABASE_URL } from './e2eOrigins';
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
-import { CHECK_ACTIVITY_FUNCTION } from '../../src/lib/edgeFunctions';
+import { CHECK_ACTIVITY_FUNCTION, MY_CHECKED_SECTION_IDS_RPC } from '../../src/lib/edgeFunctions';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 
 export const E2E_STUDENT_ID = 'dddddddd-0000-4000-8000-00000000e2e1';
@@ -215,11 +215,9 @@ export async function stubActivityApi(
     remembered: new Map<string, { responses: unknown; result: unknown }>(),
   };
 
-  // The student's own checked section ids (restore D5). The table name is the
-  // one PostgREST literal here: it names the migration-0020 table, which no
-  // app constant carries (the app reads it through supabase-js), so it is
-  // restated deliberately (P2's documented-divergence clause).
-  await page.route('**/rest/v1/section_checks*', async (route) => {
+  // The student's own checked section ids (restore D5; 0060). The path derives
+  // from the production constant (P2), never a retyped literal.
+  await page.route(`**/rest/v1/rpc/${MY_CHECKED_SECTION_IDS_RPC}`, async (route) => {
     if (await abortIfOffline(route)) return;
     await route.fulfill({
       json: options.serverRemembers

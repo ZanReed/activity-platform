@@ -557,9 +557,13 @@ export default function StudentViewer() {
     void restoreEarlierWork({
       store,
       index: indexDocument(servedDocument),
-      checkedSectionIds: () => fetchMyCheckedSectionIds(versionId, userId),
+      checkedSectionIds: () => fetchMyCheckedSectionIds(versionId),
     }).then((outcome) => {
-      if (!cancelled && outcome === 'failed') setRestoreFailed(true);
+      if (cancelled) return;
+      if (outcome === 'failed') setRestoreFailed(true);
+      // F4: the session is gone, so Try again cannot work; this is the same
+      // event as a check's 401, and it meets the same sign-in banner (2.3A).
+      if (outcome === 'unauthenticated') setAuthExpired(true);
     });
     return () => {
       cancelled = true;

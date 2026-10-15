@@ -7,6 +7,14 @@ ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during revi
 
 Cause: there was no shared teacher navigation. Each page wrote its own back link, so /classes linked nowhere and /activities linked only to the Bank; Home was the only page linking to all of them. Fixed with `components/TeacherNav.tsx` (My activities · My classes · Activity Bank, current page marked, Sign out) on /activities, /classes and /bank only. Author ruled 2026-10-14: the editor and its sub-pages keep their own back links, with no bar; the Bank's "← My activities" and the Activities page's "Activity Bank" link were removed as duplicates. Guard: `__tests__/TeacherNav.test.tsx` renders the REAL pages; it was mutation-tested (removing the bar from Classes turned 3 rows red).
 
+## Student restore: follow-ups from the Fable review (2026-10-15)
+
+Restore + progress (S1–S3/S5) shipped with F1, F4 and F6 fixed (0060). Three findings wait on a trigger:
+
+- **F2: a restore that lands after the student typed into ONE member of a check group.** Restore correctly skips the typed section (D4), but the group then reads "Checked 1 of 2 — one part didn't send" with a Retry, which misdescribes it. In `locked` mode the Retry gets a 409 and the typed section can never be restored on that device (its local answer keeps it "touched"). Fix sketch: on a `section_locked` 409, re-run restore for that section without the untouched guard (the server says it is immutable), and let group status tell "landed by restore" from "landed by this press". **Trigger:** a locked-mode activity is assigned to a class, or a student reports a part that "didn't send" after reopening.
+- **F3: restore mode has no rate ceiling of its own.** It costs a chain RPC, one read, a raw-document read and a re-grade per section (≤ 200 sections), and record_check's 60/min counter never sees it. Sign-in is required. Fix sketch: cap `sectionIds` to the document's section count after the read, or count restores in the same per-student window. **Trigger:** check-activity load or cost shows restore calls out of proportion to opens, or any multi-district rollout.
+- **F5: a very long section list could exceed URL limits.** Theoretical now that restore uses an RPC body; recheck if a read ever goes back to a GET with `in.(…)`. **Trigger:** none expected; fold into F3's cap.
+
 ## ⚠ Shell CSS is at its cap (measured 2026-10-14)
 
 The entry stylesheet is 15,322 of 15,360 bytes gzipped (38 bytes of headroom) after the teacher nav, add-to-class and row-anatomy changes. Each was trimmed to reuse existing utilities, and the cap was NOT raised. **Trigger:** the next change that adds a new Tailwind utility to the shell fails `perf budgets`. At that point the author rules between trimming (find dead utilities) and a cap raise under the ~10% headroom policy (DECISIONS.md → "The shell CSS cap").

@@ -100,22 +100,23 @@ const db: CheckActivityDb = {
       .single();
   },
 
-  async ownLatestChecks(authHeader, studentId, versionId, sectionIds) {
-    // RESTORE (S3). As the CALLER, so RLS applies — AND filtered to their own
-    // id, because a class teacher's policy would otherwise hand back their
-    // students' rows too. The handler keeps the latest attempt per section.
+  async ownLatestChecks(authHeader, _studentId, versionId, sectionIds) {
+    // RESTORE (S3), through my_latest_checks (0060) AS THE CALLER: the latest
+    // attempt per requested section, own rows by auth.uid() in the SQL. Two
+    // reasons it is an RPC and not a table select (Fable review, 2026-10-15):
+    // a select returned EVERY attempt and PostgREST silently stops at
+    // max_rows (F1); and "own rows" lived only in a `.eq` here, which no test
+    // reached, while a class teacher's RLS policy admits students' rows (F6).
+    // verify-0060 now proves the teacher case. `_studentId` (the same JWT
+    // subject) stays in the port for the handler's own bookkeeping.
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
     });
-    return await userClient
-      .from('section_checks')
-      .select('section_id, attempt_number, responses, verdicts')
-      .eq('student_id', studentId)
-      .eq('activity_version_id', versionId)
-      .in('section_id', sectionIds)
-      .order('section_id')
-      .order('attempt_number', { ascending: false });
+    return await userClient.rpc('my_latest_checks', {
+      p_version_id: versionId,
+      p_section_ids: sectionIds,
+    });
   },
 };
 

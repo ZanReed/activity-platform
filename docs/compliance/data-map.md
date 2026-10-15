@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-15-draft-26`. Mirrors migrations 0001–**0059**, verified
+> Version `2026-10-15-draft-27`. Mirrors migrations 0001–**0060**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-27` (2026-10-15) — 0060 adds no table or column: two read functions over `section_checks` that return a student their OWN rows only.** `my_checked_section_ids(version)` (distinct section ids) and `my_latest_checks(version, sections)` (the latest attempt per section, responses + verdicts) are SECURITY DEFINER reads filtered on `auth.uid()` in the SQL, so a class teacher's token gets only the teacher's own rows even though the teacher RLS policy could read the students' (verify-0060 B4). They replace a table select that could be silently truncated at the API row cap. The range moves to 0060 on that basis.
 >
 > **`draft-26` (2026-10-15) — 0059 adds no personal-data column and gives a student a read of their OWN work.** `section_checks.section_total` is a count of sections in the published version that was checked (a property of the document, not of the student), written by check-activity. `my_activity_progress()` is a SECURITY DEFINER read scoped to `auth.uid()`: per activity on the caller's live classes, how many sections THEY have checked, whether an older version has their checks, and whether a grade on their own work has been released. It reads no other student's rows and returns no teacher identity. Check-activity's new read-only restore mode returns the caller's own stored answers and verdicts back to them (no new storage; solutions are recomputed, never stored). The range moves to 0059 on that basis.
 >

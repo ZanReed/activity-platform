@@ -127,6 +127,20 @@ describe('restoreEarlierWork — every open, only what is missing (D5, D7)', () 
     expect(state.sections.s1).toBeUndefined();
   });
 
+  it('an expired session is "unauthenticated" from either read (Fable F4)', async () => {
+    const tagged = () => Object.assign(new Error('JWT expired'), { kind: 'unauthenticated' });
+    const { store, calls } = setup(async () => {
+      throw tagged();
+    });
+    expect(
+      await restoreEarlierWork({ store, index: INDEX, checkedSectionIds: async () => { throw tagged(); } }),
+    ).toBe('unauthenticated');
+    expect(calls).toHaveLength(0);
+    expect(await restoreEarlierWork({ store, index: INDEX, checkedSectionIds: async () => ['s1'] })).toBe(
+      'unauthenticated',
+    );
+  });
+
   it('a failed database read is the failed outcome, with no restore call', async () => {
     const { store, calls } = setup(async () => ({ wireVersion: CHECK_WIRE_VERSION, sections: [] }));
     const outcome = await restoreEarlierWork({

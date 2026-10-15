@@ -205,7 +205,13 @@ export interface ViewerStore {
   hydrate(raw: string | null | undefined): boolean;
 }
 
-export type RestoreOutcome = 'restored' | 'nothing' | 'failed';
+export type RestoreOutcome = 'restored' | 'nothing' | 'failed' | 'unauthenticated';
+
+/** A thrown error that says the session is gone (a CheckError of kind
+ *  'unauthenticated', or the app read's tagged Error): Fable F4. */
+export function isUnauthenticatedError(err: unknown): boolean {
+  return (err as { kind?: unknown } | null)?.kind === 'unauthenticated';
+}
 
 const RESPONSE_CATEGORIES = [
   'blanks',
@@ -566,8 +572,8 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           versionId: state.versionId,
           sectionIds,
         });
-      } catch {
-        return 'failed';
+      } catch (err) {
+        return isUnauthenticatedError(err) ? 'unauthenticated' : 'failed';
       }
       if (!result || result.wireVersion !== CHECK_WIRE_VERSION) return 'failed';
 

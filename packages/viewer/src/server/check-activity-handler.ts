@@ -126,10 +126,12 @@ export interface CheckActivityDb {
     sectionTotal: number | null;
   }): Promise<DbResult<RecordCheckResult>>;
   /**
-   * The CALLER's latest check per section on one version (restore, S3), read
-   * with the caller's JWT and filtered to `studentId` explicitly: RLS alone
-   * would also hand a class TEACHER their students' rows, and restore must
-   * only ever return the caller's own work.
+   * The CALLER's latest check per section on one version (restore, S3): the
+   * Deno wiring calls `my_latest_checks` (0060) with the caller's JWT, which
+   * returns ONE row per section, own rows by auth.uid() (a class TEACHER's RLS
+   * policy would otherwise admit their students' rows; verify-0060 B4). The
+   * handler still keeps the highest attempt per section and drops any section
+   * it did not ask for, so a port that returned more cannot widen the answer.
    */
   ownLatestChecks(
     authHeader: string,
