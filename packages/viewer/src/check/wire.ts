@@ -172,6 +172,39 @@ export interface CheckRequest {
   idempotencyKey?: string;
 }
 
+/**
+ * Restore: give a student back their OWN earlier checks (student-experience
+ * review S3, eng review D4–D7, 2026-10-15). Additive, same wire version — a
+ * different request shape on the same endpoint, told apart by `mode`.
+ *
+ * The client names the sections it is missing; the server returns, for each
+ * one the caller has checked on this version, their latest stored responses
+ * and verdicts plus the solutions those checks unlocked (recomputed through the
+ * caller's serve seed — solutions are never stored). A section the caller has
+ * not checked is simply absent from the answer, so this can never reveal a
+ * solution a real check would not have. It never records an attempt.
+ */
+export interface RestoreRequest {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  mode: 'restore';
+  activityId: string;
+  versionId: string;
+  sectionIds: string[];
+}
+
+export interface RestoredSection {
+  sectionId: string;
+  /** The latest checked attempt's responses, exactly as recorded. */
+  responses: SectionResponses;
+  /** Stored verdicts + recomputed solutions — the shape a check returns. */
+  result: SectionCheckResult;
+}
+
+export interface RestoreResult {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  sections: RestoredSection[];
+}
+
 // ---- Results (server → student) --------------------------------------------
 
 /** 'recorded' is the terminal verdict for the free-text family — captured for
@@ -261,4 +294,8 @@ export interface ReleasedFeedbackResult {
 export interface CheckService {
   checkSection(request: CheckRequest): Promise<SectionCheckResult>;
   fetchReleasedFeedback(activityId: string): Promise<ReleasedFeedbackResult>;
+  /** Optional: only the live student surface restores (S3). Previews, print
+   * and the mock leave it out, and the store treats its absence as "nothing to
+   * restore". */
+  restoreChecked?(request: RestoreRequest): Promise<RestoreResult>;
 }

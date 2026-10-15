@@ -93,8 +93,29 @@ const db: CheckActivityDb = {
         // 0040. Derived by the handler from the STORED document's
         // meta.submissionMode — never sent by the client (T1).
         p_locked: args.locked,
+        // 0059. The checked version's section count, derived by the handler
+        // from the stored document (student-experience review D3).
+        p_section_total: args.sectionTotal,
       })
       .single();
+  },
+
+  async ownLatestChecks(authHeader, studentId, versionId, sectionIds) {
+    // RESTORE (S3). As the CALLER, so RLS applies — AND filtered to their own
+    // id, because a class teacher's policy would otherwise hand back their
+    // students' rows too. The handler keeps the latest attempt per section.
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    return await userClient
+      .from('section_checks')
+      .select('section_id, attempt_number, responses, verdicts')
+      .eq('student_id', studentId)
+      .eq('activity_version_id', versionId)
+      .in('section_id', sectionIds)
+      .order('section_id')
+      .order('attempt_number', { ascending: false });
   },
 };
 

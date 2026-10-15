@@ -20,7 +20,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createCheckActivityHandler,
   validateCheckRequest,
+  validateRestoreRequest,
     type CheckActivityDb,
+    type OwnCheckRow,
 } from '../src/server/check-activity-handler.js';
 import { MalformedDocumentError } from '../src/server/grading/walk.js';
 
@@ -127,6 +129,7 @@ function harness(
         error: null,
       };
     },
+    ownLatestChecks: async () => ({ data: [], error: null }),
     recordCheck: async (args) => {
       records.push(args);
       return {
@@ -806,5 +809,186 @@ describe('the lock is DERIVED from the stored document, never received', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: Record<string, unknown> };
     expect(body.items['item-1']).toEqual({ verdict: 'correct' });
+  });
+});
+
+// -----------------------------------------------------------------------------
+// 0059 — the section total rides every check (student-experience review D3)
+// -----------------------------------------------------------------------------
+describe('every check carries the version section total (0059)', () => {
+  it('passes the stored document\'s section count to record_check', async () => {
+    const h = harness();
+    const res = await h.handler(post(validBody()));
+    expect(res.status).toBe(200);
+    expect((h.recorded()[0] as { sectionTotal: number }).sectionTotal).toBe(doc.sections.length);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// RESTORE (student-experience review S3; eng review findings 1-2, D4-D7)
+// -----------------------------------------------------------------------------
+// The security shape is the check's: the chain runs first, the raw document is
+// read only after it passes, solutions come only from sections the CALLER has a
+// row for, and nothing is ever written.
+describe('restore: a student gets their own checked work back', () => {
+  function restoreBody(over: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      wireVersion: CHECK_WIRE_VERSION,
+      mode: 'restore',
+      activityId: ACTIVITY,
+      versionId: VERSION,
+      sectionIds: [sectionId],
+      ...over,
+    };
+  }
+
+  it('validates the request shape before touching anything', async () => {
+    const h = harness();
+    for (const bad of [
+      restoreBody({ sectionIds: [] }),
+      restoreBody({ sectionIds: 'x' }),
+      restoreBody({ versionId: 'nope' }),
+      restoreBody({ wireVersion: 1 }),
+    ]) {
+      const res = await h.handler(post(bad));
+      expect(res.status).toBe(400);
+    }
+    expect(h.authorizationRan()).toBe(false);
+    expect(h.documentWasRead()).toBe(false);
+    expect(validateRestoreRequest(restoreBody({ sectionIds: ['a', 'a'] }))).toMatchObject({
+      ok: true,
+      request: { sectionIds: ['a'] },
+    });
+  });
+
+  it('runs the authorization chain first, and reads nothing when it fails', async () => {
+    let asked = false;
+    const h = harness({
+      versionForCheck: async () => ({ data: null, error: { message: 'Not available' } }),
+      ownLatestChecks: async () => {
+        asked = true;
+        return { data: [], error: null };
+      },
+    });
+    const res = await h.handler(post(restoreBody()));
+    expect(res.status).toBe(404);
+    expect(asked).toBe(false);
+    expect(h.documentWasRead()).toBe(false);
+  });
+
+  it('asks only for the CALLER\'s own rows, by their id, for the named sections', async () => {
+    const calls: unknown[][] = [];
+    const h = harness({
+      ownLatestChecks: async (...args) => {
+        calls.push(args);
+        return { data: [], error: null };
+      },
+    });
+    const res = await h.handler(post(restoreBody({ sectionIds: [sectionId, 'other'] })));
+    expect(res.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.slice(1)).toEqual([STUDENT, VERSION, [sectionId, 'other']]);
+    // Nothing to restore → the raw document is never even loaded.
+    expect(await res.json()).toEqual({ wireVersion: CHECK_WIRE_VERSION, sections: [] });
+    expect(h.documentWasRead()).toBe(false);
+  });
+
+  it('returns the latest attempt\'s responses and STORED verdicts, with solutions, and records nothing', async () => {
+    const { RELEASABLE, fullyLoadedDocument } = await import('../src/fixtures/leakFixture.js');
+    const leakDoc = fullyLoadedDocument() as unknown as { sections: Array<{ id: string }> };
+    const s0 = leakDoc.sections[0]!.id;
+    const rows: OwnCheckRow[] = [
+      { section_id: s0, attempt_number: 1, responses: { blanks: { old: 'first' } }, verdicts: { old: { verdict: 'incorrect' } } },
+      { section_id: s0, attempt_number: 2, responses: { blanks: { kept: 'second' } }, verdicts: { kept: { verdict: 'correct' } } },
+    ];
+    const h = harness({
+      readVersion: async () => ({ data: { content: leakDoc }, error: null }),
+      ownLatestChecks: async () => ({ data: rows, error: null }),
+    });
+    const res = await h.handler(post(restoreBody({ sectionIds: [s0] })));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      sections: Array<{ sectionId: string; responses: { blanks: Record<string, string> }; result: { items: unknown; solutions: unknown } }>;
+    };
+    expect(body.sections).toHaveLength(1);
+    const restored = body.sections[0]!;
+    expect(restored.sectionId).toBe(s0);
+    expect(restored.responses.blanks).toEqual({ kept: 'second' });
+    // The verdicts the teacher sees, not a re-grade.
+    expect(restored.result.items).toEqual({ kept: { verdict: 'correct' } });
+    // The solutions that check unlocked came back.
+    expect(JSON.stringify(restored.result.solutions)).toContain(RELEASABLE);
+    expect(h.recorded()).toHaveLength(0);
+  });
+
+  it('never returns a section the caller has no row for, nor one they did not ask for', async () => {
+    const { RELEASABLE, fullyLoadedDocument } = await import('../src/fixtures/leakFixture.js');
+    const one = fullyLoadedDocument() as unknown as { sections: Array<{ id: string }> };
+    // A second REAL section (the fixture has one), so a leak cannot hide behind
+    // "that section does not exist".
+    const leakDoc = { ...one, sections: [...one.sections, { ...one.sections[0]!, id: 'aaaaaaaa-0000-4000-8000-0000000000cc' }] };
+    const [first, second] = leakDoc.sections.map((sec) => sec.id) as [string, string];
+    const read = (rows: OwnCheckRow[]) =>
+      harness({
+        readVersion: async () => ({ data: { content: leakDoc }, error: null }),
+        ownLatestChecks: async () => ({ data: rows, error: null }),
+      });
+    const row = (id: string): OwnCheckRow => ({ section_id: id, attempt_number: 1, responses: {}, verdicts: {} });
+
+    // (a) Asks for both, has a row only for the first: the second is absent.
+    let res = await read([row(first)]).handler(post(restoreBody({ sectionIds: [first, second] })));
+    let body = (await res.json()) as { sections: Array<{ sectionId: string }> };
+    expect(body.sections.map((x) => x.sectionId)).toEqual([first]);
+    expect(JSON.stringify(body)).toContain(RELEASABLE);
+
+    // (b) Asks for the first only; the port also hands back a row for the
+    //     second (a real section): it must not be returned.
+    res = await read([row(first), row(second)]).handler(post(restoreBody({ sectionIds: [first] })));
+    body = (await res.json()) as { sections: Array<{ sectionId: string }> };
+    expect(body.sections.map((x) => x.sectionId)).toEqual([first]);
+  });
+
+  it('rebuilds solutions through the CALLER\'s seed', async () => {
+    const { deriveSeedValues } = await import('../src/sanitize/seedValues.js');
+    const { serveSeed } = await import('../src/sanitize/serveSeed.js');
+    const spec = [{ name: 'a', spec: { kind: 'int' as const, min: 2, max: 9 } }];
+    const own = deriveSeedValues(spec, serveSeed(VERSION, STUDENT)).a as number;
+    const blockId = '77777777-7777-4777-8777-777777777777';
+    const seededDoc = {
+      schemaVersion: 2,
+      meta: { title: 'T', seedVars: spec },
+      sections: [{
+        id: sectionId, title: 'S',
+        rows: [{ id: '99999999-9999-4999-8999-999999999999', columns: [{ id: '88888888-8888-4888-8888-888888888888', blocks: [{
+          id: blockId, type: 'fill_in_blank',
+          content: [{ type: 'text', text: 'Twice {a}: ' }, { type: 'blank', id: '66666666-6666-4666-8666-666666666666', answer: '2*a', answerType: 'numeric', width: 6 }],
+          solution: [{ type: 'text', text: 'The value was {a}.' }],
+        }] }] }],
+      }],
+    };
+    const h = harness({
+      readVersion: async () => ({ data: { content: seededDoc }, error: null }),
+      ownLatestChecks: async () => ({
+        data: [{ section_id: sectionId, attempt_number: 1, responses: { blanks: {} }, verdicts: {} }],
+        error: null,
+      }),
+    });
+    const res = await h.handler(post(restoreBody()));
+    expect(res.status).toBe(200);
+    const text = JSON.stringify(await res.json());
+    expect(text).toContain(`The value was ${own}.`);
+    expect(text).not.toContain('{a}');
+  });
+
+  it('says so when the read fails, without recording anything', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const h = harness({
+      ownLatestChecks: async () => ({ data: null, error: { message: 'boom' } }),
+    });
+    const res = await h.handler(post(restoreBody()));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ details: { code: 'restore_failed' } });
+    expect(h.recorded()).toHaveLength(0);
+    spy.mockRestore();
   });
 });

@@ -30,7 +30,10 @@
 import { UpgradeError, upgradeActivityDocument } from '@activity/schema';
 import {
   CHECK_WIRE_VERSION,
+  emptySectionResponses,
   type CheckRequest,
+  type RestoredSection,
+  type RestoreRequest,
   type SectionCheckResult,
   type SectionResponses,
 } from '../check/wire.js';
@@ -113,7 +116,35 @@ export interface CheckActivityDb {
      * loads.
      */
     locked: boolean;
+    /**
+     * How many sections this version has (0059, student-experience review
+     * D3). Every section sits in a check group and every member section of a
+     * pressed group is recorded, so "distinct checked sections = this number"
+     * is "finished". Derived here from the raw document, like `locked`; null
+     * only for a document with no sections (the column refuses 0).
+     */
+    sectionTotal: number | null;
   }): Promise<DbResult<RecordCheckResult>>;
+  /**
+   * The CALLER's latest check per section on one version (restore, S3), read
+   * with the caller's JWT and filtered to `studentId` explicitly: RLS alone
+   * would also hand a class TEACHER their students' rows, and restore must
+   * only ever return the caller's own work.
+   */
+  ownLatestChecks(
+    authHeader: string,
+    studentId: string,
+    versionId: string,
+    sectionIds: string[],
+  ): Promise<DbResult<OwnCheckRow[]>>;
+}
+
+/** One stored check, as restore reads it back. */
+export interface OwnCheckRow {
+  section_id: string;
+  attempt_number: number;
+  responses: unknown;
+  verdicts: unknown;
 }
 
 export interface CheckActivityHandlerDeps {
@@ -309,6 +340,66 @@ export function validateCheckRequest(
   };
 }
 
+/** Most sections a restore may name: a section is a page of a worksheet, and
+ * no activity approaches this. */
+const MAX_RESTORE_SECTIONS = 200;
+
+/** Validate a parsed body into a RestoreRequest, or explain why not. */
+export function validateRestoreRequest(
+  body: unknown,
+): { ok: true; request: RestoreRequest } | { ok: false; failure: ValidationFailure } {
+  const fail = (message: string, code: string) =>
+    ({ ok: false as const, failure: { message, code } });
+  if (body === null || typeof body !== 'object') {
+    return fail('Body must be a JSON object', 'malformed_body');
+  }
+  const b = body as Record<string, unknown>;
+  if (b.wireVersion !== CHECK_WIRE_VERSION) {
+    return fail(
+      `Unsupported wire version ${String(b.wireVersion)}; expected ${CHECK_WIRE_VERSION}`,
+      'wire_version_mismatch',
+    );
+  }
+  if (typeof b.activityId !== 'string' || !UUID_RE.test(b.activityId)) {
+    return fail('activityId must be a UUID', 'bad_activity_id');
+  }
+  if (typeof b.versionId !== 'string' || !UUID_RE.test(b.versionId)) {
+    return fail('versionId must be a UUID', 'bad_version_id');
+  }
+  if (
+    !Array.isArray(b.sectionIds) ||
+    b.sectionIds.length === 0 ||
+    b.sectionIds.length > MAX_RESTORE_SECTIONS ||
+    !b.sectionIds.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 200)
+  ) {
+    return fail('sectionIds must be a non-empty list of section ids', 'bad_section_ids');
+  }
+  return {
+    ok: true,
+    request: {
+      wireVersion: CHECK_WIRE_VERSION,
+      mode: 'restore',
+      activityId: b.activityId,
+      versionId: b.versionId,
+      sectionIds: [...new Set(b.sectionIds as string[])],
+    },
+  };
+}
+
+/** A stored responses blob, with every category present. Rows written before
+ * a category existed (correspondences, 2026-09) lack it; the grader expects
+ * all of them. */
+function normalizeStoredResponses(raw: unknown): SectionResponses {
+  const r = (raw !== null && typeof raw === 'object' ? raw : {}) as Partial<SectionResponses>;
+  return { ...emptySectionResponses(), ...r };
+}
+
+/** The version's section count (0059 section_total), or null for none. */
+function sectionCountOf(doc: unknown): number | null {
+  const sections = (doc as { sections?: unknown } | null)?.sections;
+  return Array.isArray(sections) && sections.length > 0 ? sections.length : null;
+}
+
 // jwtSub is imported (server/jwt.ts, G2) — this file's byte-identical
 // jwtSubject copy is gone; see the leaf for the no-verification reasoning.
 
@@ -318,6 +409,148 @@ export function createCheckActivityHandler(
   deps: CheckActivityHandlerDeps,
 ): (req: Request) => Promise<Response> {
   const { db, cors } = deps;
+
+  /**
+   * RESTORE (student-experience review S3; eng review findings 1–2, D4–D7).
+   *
+   *   chain (as caller) ─► raw doc (service role, only now) ─► seed ─►
+   *   the caller's OWN latest row per requested section ─► for each: the
+   *   stored verdicts + the solutions that check unlocked, recomputed by
+   *   grading the stored responses against the seeded document
+   *
+   * The same order as a check, for the same reason: the raw document holds
+   * answer keys, so nothing is read until the database has said this caller
+   * may check this version. Solutions come ONLY from sections the caller has a
+   * row for, so this returns nothing a real check did not already show them.
+   * The stored verdicts are returned as recorded (like an idempotent replay):
+   * re-grading would show the student a different verdict from the one their
+   * teacher sees if the grader has changed since. Nothing is written — no
+   * attempt, no rate count.
+   */
+  async function handleRestore(
+    req: Request,
+    authHeader: string,
+    body: unknown,
+  ): Promise<Response> {
+    const validated = validateRestoreRequest(body);
+    if (!validated.ok) {
+      return cors.errorResponse(req, 400, validated.failure.message, {
+        code: validated.failure.code,
+      });
+    }
+    const request = validated.request;
+
+    const { data: version, error: authError } = await db.versionForCheck(
+      authHeader,
+      request.activityId,
+      request.versionId,
+    );
+    if (authError) {
+      const msg = authError.message ?? '';
+      const status = msg.includes('Not available')
+        ? 404
+        : /JWT|token|auth/i.test(msg)
+          ? 401
+          : 500;
+      if (status === 500) {
+        console.error('[check-activity] restore authorization RPC error:', authError);
+      }
+      return cors.errorResponse(req, status, status === 404 ? 'Not available' : msg);
+    }
+    if (!version) return cors.errorResponse(req, 404, 'Not available');
+
+    const studentId = jwtSub(authHeader);
+    if (!studentId) {
+      console.error('[check-activity] authorized restore carried no sub claim');
+      return cors.errorResponse(req, 500, 'Could not identify the student');
+    }
+
+    const { data: rows, error: rowsError } = await db.ownLatestChecks(
+      authHeader,
+      studentId,
+      request.versionId,
+      request.sectionIds,
+    );
+    if (rowsError) {
+      console.error('[check-activity] restore read failed:', rowsError);
+      return cors.errorResponse(req, 500, 'Could not load your earlier work', {
+        code: 'restore_failed',
+      });
+    }
+    // Latest attempt per section, whatever order the port returned.
+    const latest = new Map<string, OwnCheckRow>();
+    for (const row of rows ?? []) {
+      if (!request.sectionIds.includes(row.section_id)) continue;
+      const prev = latest.get(row.section_id);
+      if (!prev || row.attempt_number > prev.attempt_number) latest.set(row.section_id, row);
+    }
+    if (latest.size === 0) {
+      return cors.jsonResponse(req, { wireVersion: CHECK_WIRE_VERSION, sections: [] });
+    }
+
+    const { data: versionRow, error: readError } = await db.readVersion(request.versionId);
+    if (readError || !versionRow) {
+      console.error('[check-activity] restore version read failed:', readError);
+      return cors.errorResponse(req, 500, 'Could not load the activity');
+    }
+    let upgraded;
+    try {
+      upgraded = upgradeActivityDocument(versionRow.content);
+    } catch (err) {
+      if (err instanceof UpgradeError) {
+        console.error('[check-activity] restore upgrade failed:', err);
+        return cors.errorResponse(req, 500, 'Could not load the activity', {
+          code: 'upgrade_failed',
+        });
+      }
+      throw err;
+    }
+    const seedVars =
+      ((upgraded.doc as { meta?: { seedVars?: SeedVar[] } }).meta?.seedVars) ?? [];
+    let gradedDoc = upgraded.doc;
+    let seedValues: SeedValues = {};
+    if (seedVars.length > 0) {
+      seedValues = deriveSeedValues(seedVars, serveSeed(request.versionId, studentId));
+      gradedDoc = substituteSeedValues(gradedDoc, seedValues);
+    }
+
+    const sections: RestoredSection[] = [];
+    for (const [sectionId, row] of latest) {
+      const responses = normalizeStoredResponses(row.responses);
+      let graded: SectionCheckResult;
+      try {
+        graded = gradeSection({
+          document: gradedDoc as never,
+          sectionId,
+          responses,
+          seedValues,
+          servedOrderings: deps.servedOrderings?.({
+            document: gradedDoc,
+            versionId: request.versionId,
+            studentId,
+            sectionId,
+          }),
+        });
+      } catch (err) {
+        // A row for a section this version does not have cannot happen (rows
+        // are version-scoped); a broken document is the check path's 500. Either
+        // way, leave this section out rather than fail the whole restore: the
+        // student keeps the sections that did come back.
+        console.error('[check-activity] restore could not rebuild a section', sectionId, err);
+        continue;
+      }
+      sections.push({
+        sectionId,
+        responses,
+        result: {
+          ...graded,
+          items: (row.verdicts ?? {}) as SectionCheckResult['items'],
+        },
+      });
+    }
+
+    return cors.jsonResponse(req, { wireVersion: CHECK_WIRE_VERSION, sections });
+  }
 
   return async function handleCheckActivity(req: Request): Promise<Response> {
     const preflight = cors.handlePreflight(req);
@@ -344,6 +577,17 @@ export function createCheckActivityHandler(
       return cors.errorResponse(req, 400, 'Body must be valid JSON', {
         code: 'malformed_body',
       });
+    }
+
+    // RESTORE (S3): a different request shape on the same endpoint. It runs the
+    // SAME authorization chain and seed path as a check, then returns only the
+    // caller's own stored work (see handleRestore).
+    if (
+      body !== null &&
+      typeof body === 'object' &&
+      (body as { mode?: unknown }).mode === 'restore'
+    ) {
+      return handleRestore(req, authHeader, body);
     }
 
     const validated = validateCheckRequest(body);
@@ -516,6 +760,7 @@ export function createCheckActivityHandler(
       verdicts: result.items,
       idempotencyKey,
       locked,
+      sectionTotal: sectionCountOf(upgraded.doc),
     });
     if (recordError) {
       const msg = recordError.message ?? '';

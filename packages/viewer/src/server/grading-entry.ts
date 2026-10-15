@@ -17,9 +17,11 @@
 export {
   createCheckActivityHandler,
   validateCheckRequest,
+  validateRestoreRequest,
 } from './check-activity-handler.js';
 export type {
   CheckActivityDb,
+  OwnCheckRow,
   CheckActivityHandlerDeps,
   RecordCheckResult,
   VersionForCheckRow,
@@ -39,6 +41,8 @@ export { computeServedOrderings } from './grading/servedOrder.js';
 export { CHECK_WIRE_VERSION } from '../check/wire.js';
 export type {
   CheckRequest,
+  RestoreRequest,
+  RestoreResult,
   SectionCheckResult,
   SectionResponses,
 } from '../check/wire.js';
