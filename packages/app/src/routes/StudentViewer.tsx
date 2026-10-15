@@ -28,7 +28,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useState, useRef } from 'react';
+  useState, useRef, useSyncExternalStore } from 'react';
 import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
 import { Link, useParams } from 'react-router';
 import {
@@ -566,6 +566,27 @@ export default function StudentViewer() {
     };
   }, [store, userId, versionId, servedDocument, servedSource, restoreAttempt]);
 
+  /**
+   * PROGRESS (student review S5): how many of this version's sections the
+   * student has checked. Every section sits in a check group and every member
+   * of a pressed group is checked, so "all sections checked" is "done" — the
+   * same definition the server's section_total uses (0059), pinned equal by
+   * viewer/tests/section-total-agreement.test.ts.
+   */
+  const progressSectionIds = useMemo(
+    () => (servedDocument ? indexDocument(servedDocument).sections.map((sec) => sec.sectionId) : []),
+    [servedDocument],
+  );
+  const subscribeProgress = useCallback(
+    (onChange: () => void) => (store ? store.subscribe(onChange) : () => {}),
+    [store],
+  );
+  const checkedCount = useSyncExternalStore(subscribeProgress, () =>
+    store
+      ? progressSectionIds.filter((id) => store.getState().sections[id]?.phase === 'checked').length
+      : 0,
+  );
+
   // The signed-in half of the S8 timing contract (ruling D2). Fires on the
   // commit in which the worksheet itself first renders: `store` is non-null
   // only when a served document, a version and a user all exist, which is
@@ -629,6 +650,12 @@ export default function StudentViewer() {
                 contributes nothing, so most activities render no line at all. */}
             {topbarMeta.length > 0 ? (
               <p className="viewer-topbar__meta">{topbarMeta.join(' · ')}</p>
+            ) : null}
+            {progressSectionIds.length > 0 ? (
+              <p className="viewer-topbar__meta" data-progress role="status">
+                {checkedCount} of {progressSectionIds.length}{' '}
+                {progressSectionIds.length === 1 ? 'section' : 'sections'} checked
+              </p>
             ) : null}
           </div>
           {/* Ruling 7.3A wants this in the completion panel and the chip menu;
@@ -761,6 +788,17 @@ export default function StudentViewer() {
         }}
         {...(takeOver ? { onTakeOver: takeOver } : {})}
       />
+      {/* S5: the end of the activity, once every section is checked. The
+          completion panel ruling 7.3A anticipated. */}
+      {progressSectionIds.length > 0 && checkedCount === progressSectionIds.length ? (
+        <section className="viewer-complete" aria-labelledby="viewer-complete-title" data-complete>
+          <h2 id="viewer-complete-title">All sections checked ✓</h2>
+          <p>Your teacher can see your work.</p>
+          <Link to="/" className="viewer-banner-action">
+            Back to my classes
+          </Link>
+        </section>
+      ) : null}
       {/* The summonable tool corner, mounted HERE rather than inside
           ViewerContainer (C16): the container is also what ActivityPrint — a
           screen render of the teacher's print preview — and DevViewer render,

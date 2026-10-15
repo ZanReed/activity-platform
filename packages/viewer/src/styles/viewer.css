@@ -1244,6 +1244,34 @@
   max-width: var(--measure);
 }
 
+/* S5 (student review): the end of an activity, once every section is
+   checked. The page's measure, the paper surface, one action home. */
+.viewer-complete {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-md);
+  margin: var(--space-4) auto;
+  max-width: var(--measure);
+  padding: var(--space-4);
+}
+
+.viewer-complete h2 {
+  font-family: var(--vw-font-chrome);
+  font-size: var(--type-h3);
+  margin: 0 0 var(--space-1);
+}
+
+.viewer-complete p {
+  color: var(--vw-color-ink-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.viewer-complete a {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
+}
+
 /* S4/S6: inside the row, the title block owns the measure's width; the row
    itself is what centres on the page. */
 .viewer-topbar__titles {

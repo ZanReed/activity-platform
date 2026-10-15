@@ -766,3 +766,52 @@ describe('restore on open (student review S3; eng review D5-D7, contract (2)(3)(
         expect(h.checkedCalls.length).toBe(2);
     });
 });
+
+describe('progress and the end of the activity (student review S5)', () => {
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+    const index = indexDocument(servedFixtureDocument() as never);
+    const n = index.sections.length;
+    function served() {
+        return { activityId: ACTIVITY, versionId: 'v1', versionNum: 1, title: 'Linear Systems', document: servedFixtureDocument() };
+    }
+    function seedChecked(ids: string[]) {
+        window.localStorage.setItem(
+            `activity-viewer:buffer:${STUDENT_ID}:${ACTIVITY}:v1`,
+            JSON.stringify({
+                schemaVersion: 1, userId: STUDENT_ID, activityId: ACTIVITY, versionId: 'v1',
+                responses: { blanks: {}, choices: {}, matches: {}, orderings: {}, freeText: {}, graphs: {} },
+                checked: Object.fromEntries(ids.map((id) => [id, { wireVersion: CHECK_WIRE_VERSION, sectionId: id, items: {}, solutions: {} }])),
+                pending: {}, inFlight: {},
+            }),
+        );
+    }
+    beforeEach(() => {
+        window.localStorage.clear();
+        h.checkedIds.current = [];
+    });
+    afterEach(() => window.localStorage.clear());
+
+    it('says how many sections are checked, and shows no end panel before they all are', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(container.querySelector('[data-progress]')).not.toBeNull());
+        expect(container.querySelector('[data-progress]')!.textContent).toBe(
+            `0 of ${n} ${n === 1 ? 'section' : 'sections'} checked`,
+        );
+        expect(container.querySelector('[data-complete]')).toBeNull();
+    });
+
+    it('every section checked → the completion panel, with the way home', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        seedChecked(index.sections.map((sec) => sec.sectionId));
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(container.querySelector('[data-complete]')).not.toBeNull());
+        expect(container.querySelector('[data-progress]')!.textContent).toBe(
+            `${n} of ${n} ${n === 1 ? 'section' : 'sections'} checked`,
+        );
+        expect(screen.getByRole('heading', { name: 'All sections checked ✓' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Back to my classes' })).toHaveAttribute('href', '/');
+    });
+});
