@@ -532,14 +532,15 @@ missing coverage, not a clean review.
 - Parallelization: 3 lanes, 3 parallel / 3 sequential
 - Lake Score: 1/1 (D6 picked the 10/10 option)
 
-REALITY: premise-table pass every finding quotes its source line student-experience-review.md:findings
-REALITY: already-done pass no commits on origin/main since 2026-10-13 touch census, server, migrations or Home; no restore/progress commits
-REALITY: surface-check pass named RPCs/tables verified in migrations (record_check 0040:54, section_checks 0020:58, check_grades 0034:86, list_class_activities 0030:177)
-REALITY: binding-decisions pass flow-modes rule "locked reveals solutions" carried into contract and test plan; can_read_activity landmine honoured
-REALITY: numbers pass cold start 3-4 s [measured: 0020 comment]; file counts and row volumes [estimated]
-REALITY: deferred-asks pass author asks S1/S2/S3/S5 all in scope; nothing left out
-REALITY: pr-count pass one PR-equivalent (local commits on main, author pushes)
-REALITY: transaction-semantics n/a no driver, pool or protocol change
+REALITY: premise-table pass findings 1-8 each quote a source; e.g. packages/viewer/src/server/check-activity-handler.ts:14-27 (chain before read), supabase/migrations/0020_section_checks.sql:88-89 (index)
+REALITY: already-done pass `git log origin/main --since=2026-10-13` over census/server/migrations/Home returned nothing; base commit b60bd1ce
+REALITY: surface-check pass supabase/migrations/0040_check_lock.sql:54 (record_check), supabase/migrations/0020_section_checks.sql:58 (section_checks), supabase/migrations/0034_check_grades.sql:86 (released_at), supabase/migrations/0030_class_activities.sql:177 (list_class_activities)
+REALITY: binding-decisions pass "locked reveals solutions" from the flow-modes design decision is carried into the test plan; can_read_activity untouched per supabase/migrations/0030_class_activities.sql:17-20
+REALITY: numbers pass cold start 3-4 s [measured: supabase/migrations/0020_section_checks.sql:74-75]
+REALITY: numbers pass file counts and per-student row volumes [estimated: docs/design/student-experience-review.md:207-211]
+REALITY: deferred-asks pass S1/S2/S3/S5 all in scope per docs/design/student-experience-review.md:147-161; nothing left out
+REALITY: pr-count pass one batch of local commits on main (CLAUDE.md:27 "Never git push"; the author pushes)
+REALITY: transaction-semantics n/a no driver, pool or protocol change (docs/design/student-experience-review.md:147)
 
 ## GSTACK REVIEW REPORT
 
