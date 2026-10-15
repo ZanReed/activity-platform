@@ -484,27 +484,27 @@ Lane A: T1 → T2 → T3 → T6. Lane B: T4 (independent). Lane C: T5 after T1. 
 Synthesized from this review's findings. Each task derives from a specific
 finding above. Run with Claude Code or Codex; checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~4h / CC: ~20min)** — db — Migration 0059: `section_checks.section_total`, `record_check(... p_section_total integer default null)` with the revoke/grant stanza, `my_activity_progress()` (definer, own rows, live classes), verify-0059.sql, data-map range bump
+- [x] **T1 (P1, human: ~4h / CC: ~20min)** — db — Migration 0059: `section_checks.section_total`, `record_check(... p_section_total integer default null)` with the revoke/grant stanza, `my_activity_progress()` (definer, own rows, live classes), verify-0059.sql, data-map range bump
   - Surfaced by: Scope Challenge — D3; finding 3
   - Files: supabase/migrations/0059_*.sql, scripts/verify-0059.sql, docs/compliance/data-map.md
   - Verify: local `supabase db reset` + verify-0059 rows; `pnpm verify`
-- [ ] **T2 (P1, human: ~6h / CC: ~30min)** — server — check-activity writes the version's gradable-section total; new read-only `restore` mode behind the same chain and seed path; grading bundle regenerated
+- [x] **T2 (P1, human: ~6h / CC: ~30min)** — server — check-activity writes the version's gradable-section total; new read-only `restore` mode behind the same chain and seed path; grading bundle regenerated
   - Surfaced by: Architecture — findings 1, 2; D3
   - Files: packages/viewer/src/server/check-activity-handler.ts, grading/, check/wire.ts, supabase/functions/_shared/*.bundle.js
   - Verify: handler unit tests (chain-before-read, own-sections-only, seed parity, no record_check); `pnpm bundle:grading-server`
-- [ ] **T3 (P1, human: ~6h / CC: ~30min)** — viewer — own-section-ids read on every open, untouched-only merge, banner + Retry, pinned opens skip
+- [x] **T3 (P1, human: ~6h / CC: ~30min)** — viewer — own-section-ids read on every open, untouched-only merge, banner + Retry, pinned opens skip
   - Surfaced by: Decisions D4, D5, D6, D7
   - Files: packages/viewer/src/store/*, packages/app/src/routes/StudentViewer.tsx, client/httpCheckService.ts
   - Verify: store + route tests for contract (1)–(6) and the D7 rows
-- [ ] **T4 (P1, human: ~3h / CC: ~20min)** — viewer — "k of n sections checked" + completion panel; client/server count cross-check
+- [x] **T4 (P1, human: ~3h / CC: ~20min)** — viewer — "k of n sections checked" + completion panel; client/server count cross-check
   - Surfaced by: S5; finding 6
   - Files: packages/viewer/src/container/ViewerContainer.tsx, styles/viewer.css
   - Verify: container tests; cross-check test on fixture documents
-- [ ] **T5 (P1, human: ~3h / CC: ~20min)** — app — Home status from `my_activity_progress`, separate fetch
+- [x] **T5 (P1, human: ~3h / CC: ~20min)** — app — Home status from `my_activity_progress`, separate fetch
   - Surfaced by: S2
   - Files: packages/app/src/routes/Home.tsx, packages/app/src/lib/classActivities.ts
   - Verify: Home tests for each status; list survives a failed progress fetch
-- [ ] **T6 (P1, human: ~2h / CC: ~15min)** — e2e — check, purge as sign-out, reopen, answers + Checked return, zero new checks
+- [x] **T6 (P1, human: ~2h / CC: ~15min)** — e2e — check, purge as sign-out, reopen, answers + Checked return, zero new checks
   - Surfaced by: D6
   - Files: packages/app/e2e/student/restore.e2e.ts
   - Verify: `pnpm --filter @activity/app test:e2e:student`
@@ -541,6 +541,26 @@ REALITY: numbers pass file counts and per-student row volumes [estimated: docs/d
 REALITY: deferred-asks pass S1/S2/S3/S5 all in scope per docs/design/student-experience-review.md:147-161; nothing left out
 REALITY: pr-count pass one batch of local commits on main (CLAUDE.md:27 "Never git push"; the author pushes)
 REALITY: transaction-semantics n/a no driver, pool or protocol change (docs/design/student-experience-review.md:147)
+
+### As built (2026-10-15, on Opus; local commits, NOT live)
+
+T1 `5c8d50af` · T2 `421844e4` · T3 `fce03464` · T4 `a428680f` · T5 `50274110` · T6 `d4b0c319`.
+
+- **"Done" simplified during the build:** every section sits in a check group
+  and a pressed group records EVERY member section (store.ts `checkGroup`), so
+  `section_total` is the version's section count, not a "gradable" count. The
+  client counts the same thing; `viewer/tests/section-total-agreement.test.ts`
+  pins served == raw through the real sanitizer.
+- **Restore reads only the caller's rows by id**, not by RLS alone: the class
+  teacher policy on `section_checks` would also return their students' rows.
+- **Mutation-tested:** verify-0059 own-rows filter, the restore section filter,
+  the merge-time untouched guard, the pinned-open guard, the completion panel
+  condition; the e2e fails with a forgetful stub.
+- **Release order (author):** apply 0059 live → run verify-0059 + verify-0020 +
+  verify-0040 live → (recommended) a Fable review of the restore path →
+  `pnpm deploy:check` and hash-verify the grading bundle → push. Pushing first
+  would break Home's status (no RPC) and show every student the restore-failed
+  banner (the old function rejects `mode: 'restore'` with a 400).
 
 ## GSTACK REVIEW REPORT
 
