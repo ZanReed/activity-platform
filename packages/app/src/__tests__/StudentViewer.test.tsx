@@ -107,7 +107,8 @@ vi.mock('@activity/viewer', async (importOriginal) => {
 });
 
 import StudentViewer from '../routes/StudentViewer';
-import { CHECK_WIRE_VERSION, indexDocument, ViewerLoadError } from '@activity/viewer';
+import { upgradeActivityDocument } from '@activity/schema';
+import { CHECK_WIRE_VERSION, indexDocument, sanitizeActivityDocument, ViewerLoadError } from '@activity/viewer';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 
 function renderRoute(id = 'aaaaaaaa-0000-4000-8000-000000000001') {
@@ -683,13 +684,40 @@ describe('the activity top bar (student review S4/S6, 2026-10-14)', () => {
     });
 });
 
+/** Two sections, one blank each, through the real sanitizer: what the restore
+ *  and progress rows need, and NO graph blocks. The full fixture's graph kit
+ *  keeps importing after a short test unmounts, and its late MathLive failure
+ *  surfaces as an unhandled rejection that fails the run. */
+function smallServedDoc() {
+    const section = (n: number) => ({
+        id: `aaaaaaaa-0000-4000-8000-00000000050${n}`,
+        title: `Part ${n}`,
+        rows: [{
+            id: `aaaaaaaa-0000-4000-8000-00000000051${n}`,
+            columns: [{
+                id: `aaaaaaaa-0000-4000-8000-00000000052${n}`,
+                blocks: [{
+                    id: `aaaaaaaa-0000-4000-8000-00000000053${n}`,
+                    type: 'fill_in_blank',
+                    content: [
+                        { type: 'text', text: 'x = ' },
+                        { type: 'blank', id: `aaaaaaaa-0000-4000-8000-00000000054${n}`, answer: '3' },
+                    ],
+                }],
+            }],
+        }],
+    });
+    const raw = { schemaVersion: 2, meta: { title: 'Small' }, sections: [section(1), section(2)] };
+    return sanitizeActivityDocument(upgradeActivityDocument(raw).doc as never);
+}
+
 describe('restore on open (student review S3; eng review D5-D7, contract (2)(3)(5))', () => {
     const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
     function served(versionId = 'v1') {
-        return { activityId: ACTIVITY, versionId, versionNum: 1, title: 'Linear Systems', document: servedFixtureDocument() };
+        return { activityId: ACTIVITY, versionId, versionNum: 1, title: 'Linear Systems', document: smallServedDoc() };
     }
     // The fixture's first section and its first blank: what a restore fills.
-    const index = indexDocument(servedFixtureDocument() as never);
+    const index = indexDocument(smallServedDoc() as never);
     const firstSection = index.sections.find((sec) => (sec.items.blanks ?? []).length > 0)!;
     const firstBlank = firstSection.items.blanks![0]!;
 
@@ -769,10 +797,10 @@ describe('restore on open (student review S3; eng review D5-D7, contract (2)(3)(
 
 describe('progress and the end of the activity (student review S5)', () => {
     const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
-    const index = indexDocument(servedFixtureDocument() as never);
+    const index = indexDocument(smallServedDoc() as never);
     const n = index.sections.length;
     function served() {
-        return { activityId: ACTIVITY, versionId: 'v1', versionNum: 1, title: 'Linear Systems', document: servedFixtureDocument() };
+        return { activityId: ACTIVITY, versionId: 'v1', versionNum: 1, title: 'Linear Systems', document: smallServedDoc() };
     }
     function seedChecked(ids: string[]) {
         window.localStorage.setItem(

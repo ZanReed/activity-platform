@@ -16,6 +16,7 @@
 import { functionsBase, supabase } from './supabase';
 import {
     LIST_CLASS_ACTIVITIES_RPC,
+    MY_ACTIVITY_PROGRESS_RPC,
     SHARE_ACTIVITY_RPC,
     UNSHARE_ACTIVITY_RPC,
 } from './edgeFunctions';
@@ -211,6 +212,60 @@ export async function addActivitiesToClass(
         }
     }
     return result;
+}
+
+/** One activity's status for the signed-in student (0059 my_activity_progress). */
+export interface ActivityProgress {
+    activityId: string;
+    /** Sections in the current version, or null when every check predates 0059. */
+    sectionsTotal: number | null;
+    /** Distinct sections checked on the CURRENT version. */
+    sectionsChecked: number;
+    /** An older version has this student's checks / was finished. */
+    earlierChecked: boolean;
+    earlierDone: boolean;
+    /** A grade on the student's work in this activity has been released. */
+    feedbackReleased: boolean;
+}
+
+/** The student Home's status read (S2). THROWS on failure; Home treats a
+ * failure as "no status" and keeps the plain list (degraded, not broken). */
+export async function listMyActivityProgress(): Promise<ActivityProgress[]> {
+    const { data, error } = await supabase.rpc(MY_ACTIVITY_PROGRESS_RPC);
+    if (error) throw new Error(error.message);
+    interface Row {
+        activity_id: string;
+        sections_total: number | null;
+        sections_checked: number;
+        earlier_checked: boolean;
+        earlier_done: boolean;
+        feedback_released: boolean;
+    }
+    return ((data ?? []) as Row[]).map((r) => ({
+        activityId: r.activity_id,
+        sectionsTotal: r.sections_total ?? null,
+        sectionsChecked: r.sections_checked ?? 0,
+        earlierChecked: Boolean(r.earlier_checked),
+        earlierDone: Boolean(r.earlier_done),
+        feedbackReleased: Boolean(r.feedback_released),
+    }));
+}
+
+/**
+ * The words a student reads on Home (S1/S2/S3, D3). "Done" needs a total the
+ * server wrote; a NULL total (checks from before 0059) is "Started", never
+ * guessed done. Earlier-version work speaks only when the current version is
+ * untouched — once they start the new one, that is the status that matters.
+ */
+export function progressLabel(p: ActivityProgress): string {
+    if (p.sectionsChecked > 0) {
+        if (p.sectionsTotal !== null && p.sectionsChecked >= p.sectionsTotal) return 'Done ✓';
+        if (p.sectionsTotal !== null) return `In progress (${p.sectionsChecked} of ${p.sectionsTotal})`;
+        return 'Started';
+    }
+    if (p.earlierDone) return 'Done (earlier version)';
+    if (p.earlierChecked) return 'Started (earlier version)';
+    return 'Not started';
 }
 
 /** The share door's one distinguishable refusal (the unpublished race). */

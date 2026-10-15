@@ -42,3 +42,6 @@ export const SET_PUBLIC_NAME_RPC = 'set_public_name';
 /** The chain hook view (0057, docs/design/chain-hooks-view.md D1): the ONE
  * teacher read of hook pools, own and Bank-copied. */
 export const MY_CHAIN_HOOKS_RPC = 'my_chain_hooks';
+/** The student Home's per-activity status (0059, student-experience review S2):
+ * own checks on activities in the caller's live classes. */
+export const MY_ACTIVITY_PROGRESS_RPC = 'my_activity_progress';

@@ -10,6 +10,9 @@ import { listMyClasses, type JoinedClass } from '../lib/classes';
 import {
   formatListDate,
   listClassActivities,
+  listMyActivityProgress,
+  progressLabel,
+  type ActivityProgress,
   type StudentClassActivity,
 } from '../lib/classActivities';
 import {
@@ -206,12 +209,19 @@ function StudentHome({ email }: { email: string }) {
   const [activities, setActivities] = useState<ActivitiesState>({ phase: 'loading' });
   const [idlePrompt, setIdlePrompt] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  // Status per activity (student review S2, 0059). A SEPARATE read from the
+  // list, like the list is separate from the classes (DR-9): if it fails the
+  // student still gets every activity, with its date instead of a status.
+  const [progress, setProgress] = useState<Map<string, ActivityProgress> | null>(null);
 
   const loadActivities = useCallback(() => {
     setActivities({ phase: 'loading' });
     listClassActivities()
       .then((rows) => setActivities({ phase: 'ready', rows }))
       .catch(() => setActivities({ phase: 'error' }));
+    listMyActivityProgress()
+      .then((rows) => setProgress(new Map(rows.map((p) => [p.activityId, p]))))
+      .catch(() => setProgress(null));
   }, []);
 
   const load = useCallback(() => {
@@ -329,9 +339,26 @@ function StudentHome({ email }: { email: string }) {
                             <span className="line-clamp-2 min-w-0 text-sm font-medium text-ink underline underline-offset-2">
                               {r.title}
                             </span>
-                            <span className="shrink-0 text-xs text-muted">
-                              Added {formatListDate(r.addedAt)}
-                            </span>
+                            {(() => {
+                              const p = progress?.get(r.activityId);
+                              if (!p) {
+                                return (
+                                  <span className="shrink-0 text-xs text-muted">
+                                    Added {formatListDate(r.addedAt)}
+                                  </span>
+                                );
+                              }
+                              const label = progressLabel(p);
+                              return (
+                                <span
+                                  className={`shrink-0 text-xs ${label === 'Done ✓' ? 'font-medium text-ink' : 'text-muted'}`}
+                                  data-progress={r.activityId}
+                                >
+                                  {label}
+                                  {p.feedbackReleased ? ' · Feedback ready' : ''}
+                                </span>
+                              );
+                            })()}
                           </Link>
                         </li>
                       ))}
