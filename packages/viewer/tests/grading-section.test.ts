@@ -1286,6 +1286,32 @@ describe('superscript units and text (docs/design/superscript-units.md)', () => 
     expect(gradeOne(text('x^2'), 'X²')?.verdict).toBe('incorrect');
   });
 
+  // Fable review P1: the ² key is on math blanks too, and the engine reads ^2.
+  const math = (answer: string) => ({
+    type: 'blank', id: crypto.randomUUID(), answer, acceptableAnswers: [], answerType: 'math', mistakeFeedback: [],
+  });
+
+  it('math blank: x² against a key of x^2, and x^2 against a key of x²', () => {
+    expect(gradeOne(math('x^2'), 'x²')?.verdict).toBe('correct');
+    expect(gradeOne(math('x²'), 'x^2')?.verdict).toBe('correct');
+    expect(gradeOne(math('(x+1)^2'), '(x+1)²')?.verdict).toBe('correct');
+    expect(gradeOne(math('2x^3'), '2x³')?.verdict).toBe('correct');
+  });
+
+  it('math blank: the fold never makes a wrong power right', () => {
+    expect(gradeOne(math('x^3'), 'x²')?.verdict).toBe('incorrect');
+    expect(gradeOne(math('x^2'), 'x³')?.verdict).toBe('incorrect');
+  });
+
+  it('unit blank: a mistake match with no number folds too (Fable P2)', () => {
+    const blank = {
+      ...area(),
+      mistakeFeedback: [{ match: 'm²', feedback: [t('give the number as well')] }],
+    };
+    expect(feedbackText(gradeOne(blank, 'm^2'))).toContain('give the number as well');
+    expect(feedbackText(gradeOne(blank, 'm²'))).toContain('give the number as well');
+  });
+
   it('D7: a text mistake match folds the same way', () => {
     // Both directions: each side's fold is a separate line of code.
     const item = gradeOne(text('2x', [{ match: 'x²', feedback: [t('that squares it')] }]), 'x^2');

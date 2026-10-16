@@ -163,12 +163,16 @@ function scoreMath(student: string, key: BlankKey): boolean {
   // check for their whole section.
   if (!checkExpressionSafety(student).ok) return false;
 
+  // `x²` ≡ `x^2` on both sides (Fable review P1, 2026-10-17): every blank
+  // shows a ² key, and the math engine reads only `^2`. Same widening-only
+  // fold as text blanks (D7); a bare `x2` is still never a superscript.
+  const folded = foldSuperscriptGlyphs(student);
   const tolerance = coerceTolerance(key.tolerance);
   const mode = key.equivalence === 'exact-form' ? 'exact-form' : 'value';
   for (const entry of key.answers) {
-    const prepared = prepareKeyValue(entry);
+    const prepared = foldSuperscriptGlyphs(prepareKeyValue(entry));
     // Parity: falsy entries are skipped rather than compared.
-    if (prepared && mathEquivalent(student, prepared, { mode, tolerance })) {
+    if (prepared && mathEquivalent(folded, prepared, { mode, tolerance })) {
       return true;
     }
   }
@@ -385,10 +389,12 @@ export function matchMistakeEntry(
       }
     }
     // String fallback, minus the reserved tokens — a student who literally
-    // types "unit-missing" must not summon the outcome-bound entry.
+    // types "unit-missing" must not summon the outcome-bound entry. Folds
+    // ² ↔ ^2 like the text fallback below (Fable review P2).
     for (const entry of key.mistakeFeedback) {
       if (isReservedUnitMatch(entry.match)) continue;
-      if (trimValue(prepareKeyValue(entry.match)).toLowerCase() === needle) {
+      const match = trimValue(prepareKeyValue(entry.match)).toLowerCase();
+      if (foldSuperscriptGlyphs(match) === foldSuperscriptGlyphs(needle)) {
         return entry;
       }
     }

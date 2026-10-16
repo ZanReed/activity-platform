@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE 2026-10-13.**
 
-**Superscript units BUILT, NOT DEPLOYED** (`201a0a29`; [superscript-units.md](docs/design/superscript-units.md) → AS BUILT; verify + browser lanes green). **Owed, in order:** Fable review → author `pnpm deploy:check` → hash-verify → THEN push → Notion stamp → B-184. Three visual follow-ups wait on the author (TODOS).
+**Superscript units BUILT, NOT DEPLOYED** (`201a0a29`; [superscript-units.md](docs/design/superscript-units.md) → AS BUILT; verify + browser lanes green). Fable review DONE (no P0; P1 fixed). **Owed, in order:** author `pnpm deploy:check` → hash-verify → THEN push → Notion stamp → B-184. 
 
 **Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
 

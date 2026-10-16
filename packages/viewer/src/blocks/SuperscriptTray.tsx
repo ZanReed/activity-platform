@@ -206,7 +206,11 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
     );
 
   useLayoutEffect(() => {
-    const measure = () => {
+    // The dock may scroll the blank clear of itself on open and when the visual
+    // viewport RESIZES (the keyboard opening), never on a visualViewport
+    // SCROLL (a pan) and never while pinch-zoomed: scrolling on every event
+    // fought the student's own pan (Fable review P2).
+    const measure = (mayScroll: boolean) => {
       const input = inputRef.current;
       const tray = trayRef.current;
       const field = fieldRef.current;
@@ -227,7 +231,8 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
           inputBottom: i.bottom,
           trayHeight: t.height,
         });
-        if (dock.scrollBy > 0) window.scrollBy(0, dock.scrollBy);
+        const zoomed = (vv?.scale ?? 1) > 1;
+        if (mayScroll && !zoomed && dock.scrollBy > 0) window.scrollBy(0, dock.scrollBy);
         commit({ placement: 'dock', shiftX: 0, offset: dock.bottom });
         return;
       }
@@ -245,15 +250,17 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
       const f = field.getBoundingClientRect();
       commit({ ...next, offset: next.placement === 'beside' ? besideFrom - f.left + GAP : null });
     };
-    measure();
+    const onResize = () => measure(true);
+    const onPan = () => measure(false);
+    measure(true);
     const vv = globalThis.visualViewport;
-    vv?.addEventListener('resize', measure);
-    vv?.addEventListener('scroll', measure);
-    window.addEventListener('resize', measure);
+    vv?.addEventListener('resize', onResize);
+    vv?.addEventListener('scroll', onPan);
+    window.addEventListener('resize', onResize);
     return () => {
-      vv?.removeEventListener('resize', measure);
-      vv?.removeEventListener('scroll', measure);
-      window.removeEventListener('resize', measure);
+      vv?.removeEventListener('resize', onResize);
+      vv?.removeEventListener('scroll', onPan);
+      window.removeEventListener('resize', onResize);
     };
   }, [fieldRef, inputRef]);
 

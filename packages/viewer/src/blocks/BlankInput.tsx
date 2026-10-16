@@ -16,7 +16,10 @@
 // author ruled it lazy: the placement and keys live in SuperscriptTray.tsx,
 // fetched in the background the first time an editable blank mounts, and used
 // on first focus. Offline with the chunk never fetched there is no tray, and
-// nothing else changes: grading accepts m2 and m^2 (SU-1, D7).
+// nothing else changes: grading accepts m2 and m^2 (SU-1, D7). A failed fetch
+// is NOT retried within the page: Chromium caches a failed dynamic import for
+// the document's life (measured 2026-10-17, one request across two focuses),
+// so clearing our own promise cannot cause a re-download. A reload does.
 //
 // Focus model (D3 + DR-2): the tray stays while focus is anywhere inside the
 // field, so Tab can walk input → ² → ³. Everything else (placement, the keys,

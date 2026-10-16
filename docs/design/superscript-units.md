@@ -758,6 +758,16 @@ Pass 7 re-rated: 9/10.
 - On a 375 px phone the 44 px tray covered the lines above and below. At ≤ 480 px the tray now DOCKS: fixed at the bottom of the visual viewport, right-aligned, above the sticky Check bar (and so above an open keyboard), scrolling the page just enough if the blank would sit behind it. Supersedes DR-1 on phones only; 44 px keys kept.
 Each fix has an e2e row (pill not overlapped after a wrong check; phone dock off the blank's block and above the Check bar) and a unit row (`besideFrom`, `dockLayout`); both e2e guards go red when the fix is reverted.
 
+## Fable review (2026-10-17, gating the check-activity deploy)
+
+Fable reviewed `dac28dcc..edaf4e84`: committed grading bundle byte-identical to a rebuild; a 300k-case fuzz found no input where the unit fold breaks the widening-only rule; regex cost 0.2 ms on 100 KB. **No P0.** Dispositions (author, 2026-10-17):
+
+- **P1 FIXED: math blanks (`{{==…}}`) got the ² key but the engine reads only `^2`** (probed: key `x^2`, typed `x²` → wrong, and the reverse). `scoreMath` now folds ² ³ ↔ ^2 ^3 on both sides (`x²` ≡ `x^2`, `(x+1)²` ≡ `(x+1)^2`; `x²` ≠ `x^3`); rows both directions in grading-section, each half mutation-tested.
+- **P2 FIXED: the unit-bearing path's string fallback** now folds like the text fallback.
+- **P2 FIXED: the phone dock fought a pinch-zoom pan.** It now scrolls only on open and on a visual-viewport RESIZE (the keyboard opening), never on a pan and never while zoomed. Not covered by a test (Playwright cannot pinch-zoom); the phone e2e row still passes.
+- **P2 NOT FIXED, BY MEASUREMENT: "retry the tray chunk after a failed load".** Resetting our promise does nothing: Chromium caches a failed dynamic import for the page's life (one request across two focuses, e2e probe 2026-10-17). The change was reverted rather than shipped as a fix that looks real; the limit is documented in BlankInput.tsx. A reload fetches it; typing `m2` grades right meanwhile.
+- **P2 for B-184 (pre-existing, not this diff):** a reserved `!unit-wrong` entry wins over an authored spelling-specific entry such as `!125 cm3 :: typed cm3`, so SU-2's spelling-specific feedback only fires on blanks with no `!unit-wrong`. Tell the curriculum side.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
