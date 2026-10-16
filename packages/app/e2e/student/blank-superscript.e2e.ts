@@ -157,17 +157,26 @@ test('DR-1: after a wrong check the feedback line under the blank stays uncovere
   await expect(tray(page)).toBeVisible();
   await record(page, info, 'after-wrong-check');
   expect(overlaps(await box(tray(page)), await box(feedback))).toBe(false);
+  // …and never the ✗ verdict mark beside the input (author, 2026-10-16).
+  const pill = page.locator(`[data-blank-id="${AREA}"] .viewer-state-pill`);
+  await expect(pill).toBeVisible();
+  expect(overlaps(await box(tray(page)), await box(pill))).toBe(false);
 });
 
-test('DR-2: at 375 px a tap on ² keeps focus and the tray stays on screen', async ({ page }, info) => {
+test('phone (375 px): the tray docks at the bottom, off the blank\'s lines, above the Check bar; a tap keeps focus', async ({ page }, info) => {
   await open(page, 375);
   await input(page, AREA).click();
   await input(page, AREA).pressSequentially('6 m');
-  await expect(tray(page)).toBeVisible();
+  await expect(tray(page)).toHaveAttribute('data-placement', 'dock');
   await record(page, info, 'phone');
   const tb = await box(tray(page));
+  // Nothing of the blank's own paragraph is covered.
+  expect(overlaps(tb, await box(page.locator('.viewer-blanks').first()))).toBe(false);
+  // On screen, and above the sticky Check bar when it shows.
   expect(tb.x).toBeGreaterThanOrEqual(0);
   expect(tb.x + tb.width).toBeLessThanOrEqual(375);
+  const bar = page.locator('.viewer-check-group__footer').first();
+  if (await bar.isVisible()) expect(tb.y + tb.height).toBeLessThanOrEqual((await box(bar)).y);
   await page.getByRole('button', { name: 'Insert squared' }).click();
   await expect(input(page, AREA)).toHaveValue('6 m²');
   await expect(input(page, AREA)).toBeFocused();

@@ -15,20 +15,31 @@
 //         catalogue lines put two blanks almost touching, e.g. "(x, y)".
 //   DR-2  a pointer press never takes focus (preventDefault), so the phone
 //         keyboard stays up and BlankInput uses the live caret.
-//   DR-3  quiet look from existing tokens; the glyph is aria-hidden and the
-//         button carries the name.
+//   DR-3  quiet look from existing tokens; the key face is aria-hidden and the
+//         button carries the name. The face draws a small box with the digit
+//         RAISED AT FULL SIZE: a ² glyph renders at ~60% of a digit and read as
+//         a speck on a 44 px key (author, 2026-10-16, from the first screenshots).
 //
-// Order tried: beside → below → above; if none is clear, below.
+// Order tried: beside → below → above; if none is clear, below. "Beside"
+// starts after the blank's verdict mark (✗/✓) when that mark is on the same
+// line, so the tray never hides it after a check.
+//
+// PHONES (≤ 480 px, author 2026-10-16): any tray in the text flow is taller
+// than a line (44 px keys) and covers the lines above and below. There the
+// tray DOCKS instead: fixed at the bottom of the visible screen, right-aligned,
+// above the sticky Check bar and the on-screen keyboard, the place a phone
+// keyboard's own accessory row sits. If the blank would end up behind the
+// dock, the page scrolls just enough to keep it visible.
 // =============================================================================
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { PointerEvent, RefObject } from 'react';
 
-export type TrayPlacement = 'beside' | 'below' | 'above';
+export type TrayPlacement = 'beside' | 'below' | 'above' | 'dock';
 
 const KEYS = [
-  { glyph: '²', label: 'Insert squared' },
-  { glyph: '³', label: 'Insert cubed' },
+  { glyph: '²', digit: '2', label: 'Insert squared' },
+  { glyph: '³', digit: '3', label: 'Insert cubed' },
 ] as const;
 
 /** Gap between the input (and its focus ring) and the tray, in px. */
@@ -81,14 +92,15 @@ export function chooseTrayPlacement(
   tray: { width: number; height: number },
   clip: Box,
   others: readonly Box[],
+  besideFrom: number = input.right,
 ): { placement: TrayPlacement; shiftX: number } {
   const midY = (input.top + input.bottom) / 2;
   const candidates: Array<{ placement: TrayPlacement; box: Box }> = [
     {
       placement: 'beside',
       box: {
-        left: input.right + GAP,
-        right: input.right + GAP + tray.width,
+        left: besideFrom + GAP,
+        right: besideFrom + GAP + tray.width,
         top: midY - tray.height / 2,
         bottom: midY + tray.height / 2,
       },
@@ -119,6 +131,37 @@ export function chooseTrayPlacement(
   }
   const below = candidates[1]!.box;
   return { placement: 'below', shiftX: clamp(below) };
+}
+
+/** Phones dock below this width (the viewer's phone breakpoint). */
+export const DOCK_MAX_WIDTH = 480;
+
+/**
+ * Pure dock layout, in layout-viewport px. `visibleBottom` is the bottom of
+ * the visual viewport (the keyboard's top when it is open); `barTop` is the
+ * top of a sticky Check bar showing at the bottom, if any. Returns the CSS
+ * `bottom` for the fixed tray and how far to scroll so the blank is not
+ * hidden behind it (0 when it is clear).
+ */
+export function dockLayout(m: {
+  innerHeight: number;
+  visibleBottom: number;
+  barTop: number | null;
+  inputBottom: number;
+  trayHeight: number;
+}): { bottom: number; scrollBy: number } {
+  const floor = Math.min(m.visibleBottom, m.barTop ?? Infinity);
+  const bottom = m.innerHeight - floor + GAP;
+  const trayTop = floor - GAP - m.trayHeight;
+  const scrollBy = Math.max(0, Math.ceil(m.inputBottom + GAP - trayTop));
+  return { bottom, scrollBy };
+}
+
+interface Place {
+  placement: TrayPlacement;
+  shiftX: number;
+  /** beside: `left` in px from the field; dock: `bottom` in px. */
+  offset: number | null;
 }
 
 export interface SuperscriptTrayProps {
@@ -153,10 +196,14 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
     onChange(input.value.slice(0, start) + glyph + input.value.slice(end));
     if (document.activeElement !== input) input.focus();
   };
-  const [place, setPlace] = useState<{ placement: TrayPlacement; shiftX: number }>({
-    placement: 'beside',
-    shiftX: 0,
-  });
+  const [place, setPlace] = useState<Place>({ placement: 'beside', shiftX: 0, offset: null });
+
+  const commit = (next: Place) =>
+    setPlace((prev) =>
+      prev.placement === next.placement && prev.shiftX === next.shiftX && prev.offset === next.offset
+        ? prev
+        : next,
+    );
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -164,20 +211,39 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
       const tray = trayRef.current;
       const field = fieldRef.current;
       if (!input || !tray || !field) return;
+      const t = tray.getBoundingClientRect();
+      const i = input.getBoundingClientRect();
+      const vv = globalThis.visualViewport;
+
+      if (window.innerWidth <= DOCK_MAX_WIDTH) {
+        const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+        const bar = Array.from(document.querySelectorAll('.viewer-check-group__footer'))
+          .map((el) => el.getBoundingClientRect())
+          .find((r) => r.height > 0 && r.top < visibleBottom && r.bottom >= visibleBottom - 1);
+        const dock = dockLayout({
+          innerHeight: window.innerHeight,
+          visibleBottom,
+          barTop: bar ? bar.top : null,
+          inputBottom: i.bottom,
+          trayHeight: t.height,
+        });
+        if (dock.scrollBy > 0) window.scrollBy(0, dock.scrollBy);
+        commit({ placement: 'dock', shiftX: 0, offset: dock.bottom });
+        return;
+      }
+
       const block = field.closest('[data-block-id]') ?? document.body;
       const others = Array.from(block.querySelectorAll<HTMLInputElement>('.viewer-blank__input'))
         .filter((el) => el !== input && !el.readOnly)
         .map((el) => el.getBoundingClientRect());
-      const t = tray.getBoundingClientRect();
-      const next = chooseTrayPlacement(
-        input.getBoundingClientRect(),
-        { width: t.width, height: t.height },
-        clipBoxFor(field),
-        others,
-      );
-      setPlace((prev) =>
-        prev.placement === next.placement && prev.shiftX === next.shiftX ? prev : next,
-      );
+      // The verdict mark (✗/✓) follows the field inside the same blank; when
+      // it sits on the input's line, beside starts after it.
+      const pill = field.parentElement?.querySelector(':scope > .viewer-state-pill');
+      const p = pill?.getBoundingClientRect();
+      const besideFrom = p && p.top < i.bottom && p.bottom > i.top ? Math.max(i.right, p.right) : i.right;
+      const next = chooseTrayPlacement(i, { width: t.width, height: t.height }, clipBoxFor(field), others, besideFrom);
+      const f = field.getBoundingClientRect();
+      commit({ ...next, offset: next.placement === 'beside' ? besideFrom - f.left + GAP : null });
     };
     measure();
     const vv = globalThis.visualViewport;
@@ -199,7 +265,14 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
       ref={trayRef}
       className="viewer-blank__tray"
       data-placement={place.placement}
-      style={place.shiftX ? { translate: `${place.shiftX}px 0` } : undefined}
+      style={{
+        ...(place.shiftX ? { translate: `${place.shiftX}px 0` } : {}),
+        ...(place.offset !== null
+          ? place.placement === 'dock'
+            ? { bottom: `${place.offset}px` }
+            : { left: `${place.offset}px` }
+          : {}),
+      }}
     >
       {KEYS.map((key) => (
         <button
@@ -211,7 +284,10 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => insert(key.glyph)}
         >
-          <span aria-hidden="true">{key.glyph}</span>
+          <span className="viewer-blank__tray-face" aria-hidden="true">
+            <span className="viewer-blank__tray-base" />
+            <span className="viewer-blank__tray-exp">{key.digit}</span>
+          </span>
         </button>
       ))}
     </span>

@@ -809,6 +809,14 @@
   left: 0;
 }
 
+/* Phones (≤ 480 px): docked at the bottom of the visible screen, over the
+   keyboard and the sticky Check bar, so it never sits on the lines around the
+   blank. `bottom` is set inline from the measured visual viewport. */
+.viewer-blank__tray[data-placement='dock'] {
+  position: fixed;
+  right: var(--space-3);
+}
+
 .viewer-blank__tray-key {
   align-items: center;
   background: transparent;
@@ -818,12 +826,32 @@
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 1.4em;
   justify-content: center;
   line-height: 1;
   min-height: var(--touch-target);
   min-width: var(--touch-target);
   padding: 0;
+}
+
+/* The key face: a small box with the exponent RAISED AT FULL DIGIT SIZE. A ²
+   glyph is drawn at ~60% of a digit and read as a speck on a 44 px key. */
+.viewer-blank__tray-face {
+  align-items: flex-start;
+  display: inline-flex;
+  gap: 1px;
+}
+
+.viewer-blank__tray-base {
+  border: 1.5px solid var(--vw-color-ink-muted);
+  border-radius: 2px;
+  height: 0.75em;
+  margin-top: 0.45em;
+  width: 0.6em;
+}
+
+.viewer-blank__tray-exp {
+  font-size: 1em;
+  font-weight: 600;
 }
 
 .viewer-blank__tray-key:hover,

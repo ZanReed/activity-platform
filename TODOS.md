@@ -23,9 +23,7 @@ This entry said the stylesheet sat 38 bytes under a 15.0 KiB cap (2026-10-14). T
 
 **What:** `normalizeUnit` (packages/viewer/src/server/grading/units.ts) lowercases both sides, so a unit that differs from another only by case cannot be told apart: millimetre/megametre, milligram/megagram, millilitre/megalitre. **Why it is fine today:** no catalogue file or live activity distinguishes units by case (read 2026-10-16); students type casually and Chromebooks auto-capitalize. **Trigger:** the first authored unit (or `unit-wrong` mistake) that differs from another accepted or mistake unit ONLY by case, e.g. a water-supply activity in megalitres (ML). **Then:** rule between a case-sensitive list of known SI prefixes and an author opt-in; either is a grading-bundle change and a `check-activity` redeploy. **Context:** docs/design/superscript-units.md → SU-5.
 
-## Superscript tray: the visual follow-ups the first screenshots showed (2026-10-16)
 
-Recorded at build, waiting on the author's rulings (see the design doc's AS BUILT): the ² glyph reads small at 1.4em, the beside tray covers the ✗ verdict pill after a wrong check, and the 44 px tray overhangs the lines above and below on a phone.
 
 ## Adding activities to a class: the two deferred items (assign-to-class.md, ruled 2026-10-14)
 

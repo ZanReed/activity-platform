@@ -20,7 +20,7 @@ import { ViewerProvider, createMockCheckService, createViewerStore } from '../..
 import FillInBlank from '../../src/blocks/FillInBlank.js';
 import Table from '../../src/blocks/Table.js';
 import { loadSuperscriptTray } from '../../src/blocks/BlankInput.js';
-import { chooseTrayPlacement } from '../../src/blocks/SuperscriptTray.js';
+import { chooseTrayPlacement, dockLayout } from '../../src/blocks/SuperscriptTray.js';
 import { TEST_USER_ID } from '../helpers/ids.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000002';
@@ -79,8 +79,11 @@ describe('which blanks get the tray', () => {
     expect(keys()).toHaveLength(0);
     await focusBlank('Blank 1 of 2');
     expect(keys().map((k) => k.getAttribute('aria-label'))).toEqual(['Insert squared', 'Insert cubed']);
-    // The glyph is decoration; the button carries the name (DR-3).
-    expect(keys()[0]!.querySelector('[aria-hidden="true"]')?.textContent).toBe('²');
+    // The face is decoration; the button carries the name (DR-3). It draws
+    // the exponent as a full-size digit, not the tiny ² glyph.
+    const face = keys()[0]!.querySelector('[aria-hidden="true"]');
+    expect(face?.querySelector('.viewer-blank__tray-exp')?.textContent).toBe('2');
+    expect(face?.textContent).not.toContain('²');
   });
 
   it('a TEXT blank gets it too (D6)', async () => {
@@ -201,8 +204,34 @@ describe('placement (DR-1 beside → below → above; D5 clip; DR-6 never on a b
     expect(chooseTrayPlacement(wide, tray, clip, [])).toEqual({ placement: 'below', shiftX: -30 });
   });
 
+  it('beside starts after the verdict mark when one is on the line', () => {
+    // besideFrom = the ✗ pill's right edge (220), not the input's (160).
+    const room = { ...roomy, right: 330 };
+    expect(chooseTrayPlacement(input, tray, room, [], 220).placement).toBe('beside');
+    // …and if the pill pushes it past the clip box, it falls back instead of covering the pill.
+    expect(chooseTrayPlacement(input, tray, room, [], 240).placement).toBe('below');
+  });
+
   it('falls back to below when nothing is clear', () => {
     const tight = { left: 95, top: 95, right: 170, bottom: 130 };
     expect(chooseTrayPlacement(input, tray, tight, []).placement).toBe('below');
+  });
+});
+
+describe('phone dock (≤ 480 px): bottom of the visible screen, never on the lines', () => {
+  const base = { innerHeight: 800, trayHeight: 52 };
+
+  it('sits on the visual viewport bottom (the keyboard top when it is open)', () => {
+    expect(dockLayout({ ...base, visibleBottom: 800, barTop: null, inputBottom: 300 })).toEqual({ bottom: 6, scrollBy: 0 });
+    expect(dockLayout({ ...base, visibleBottom: 450, barTop: null, inputBottom: 300 })).toEqual({ bottom: 356, scrollBy: 0 });
+  });
+
+  it('sits above a sticky Check bar showing at the bottom', () => {
+    expect(dockLayout({ ...base, visibleBottom: 800, barTop: 740, inputBottom: 300 }).bottom).toBe(66);
+  });
+
+  it('scrolls just enough when the blank would be hidden behind it', () => {
+    // floor 450, tray top 450-6-52 = 392; input bottom 420 needs 420+6-392 = 34.
+    expect(dockLayout({ ...base, visibleBottom: 450, barTop: null, inputBottom: 420 }).scrollBy).toBe(34);
   });
 });

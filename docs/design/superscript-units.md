@@ -752,7 +752,11 @@ Pass 7 re-rated: 9/10.
 
 **Tests, every guard mutation-tested the day it was written:** grading-primitives (canonicalUnit table, the live-710 symmetry corpus, idempotence, square ≠ cubic), grading-section (SU-1/SU-2/D7 walk rows), superscript-tray.test.tsx (16 rows), styles + tokens tests (z order, consumer, contrast pair bound to the tray's CSS), and `e2e/student/blank-superscript.e2e.ts` (6 rows, 30/30 over five repeats). Two guards were vacuous on first writing and fixed: the text mistake fold (only one direction was exercised) and a double read-only gate (each half hid the other; one removed). The focus-within line survives every jsdom mutation and is proven only by the e2e Tab row, which goes red without it.
 
-**Found by the screenshots, waiting on the author** (TODOS → "Superscript tray: the visual follow-ups"): the ² glyph reads small at 1.4em; beside the input the tray covers the ✗ verdict pill after a wrong check; on a 375 px phone the 44 px tray overhangs the lines above and below.
+**Found by the screenshots, FIXED the same day (author: "fix the three tray visuals before the Fable review"):**
+- The ² glyph read as a speck (a superscript glyph is ~60% of a digit). The key face now draws a small muted box with the exponent as a FULL-SIZE digit raised beside it; the button name is unchanged. Supersedes DR-3's "glyph 1.4em".
+- Beside the input the tray covered the ✗ verdict mark after a wrong check. "Beside" now starts after the `.viewer-state-pill` when it sits on the input's line (and falls back below/above if that leaves no room).
+- On a 375 px phone the 44 px tray covered the lines above and below. At ≤ 480 px the tray now DOCKS: fixed at the bottom of the visual viewport, right-aligned, above the sticky Check bar (and so above an open keyboard), scrolling the page just enough if the blank would sit behind it. Supersedes DR-1 on phones only; 44 px keys kept.
+Each fix has an e2e row (pill not overlapped after a wrong check; phone dock off the blank's block and above the Check bar) and a unit row (`besideFrom`, `dockLayout`); both e2e guards go red when the fix is reverted.
 
 ## GSTACK REVIEW REPORT
 
