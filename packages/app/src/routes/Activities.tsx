@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
-import { BarChart3, Import, Library, Trash2 } from 'lucide-react';
+import { BarChart3, ClipboardCheck, Import, Library, Trash2 } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -839,6 +839,17 @@ export default function Activities() {
                         className={`${ICON_BUTTON} text-muted hover:text-strong`}
                         >
                         <BarChart3 aria-hidden="true" className="h-4 w-4" />
+                        </Link>
+                        {/* The grading queue (hand-graded answers, by question). It had no
+                            link anywhere until 2026-10-17: the author found the gap looking
+                            for a test student's work. */}
+                        <Link
+                        to={`/activity/${a.id}/responses`}
+                        aria-label={`Responses for ${a.title}`}
+                        title="Responses"
+                        className={`${ICON_BUTTON} text-muted hover:text-strong`}
+                        >
+                        <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
                         </Link>
                         <button
                         type="button"

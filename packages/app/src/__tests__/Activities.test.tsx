@@ -403,11 +403,11 @@ describe('Activities curriculum outline', () => {
             name: 'Unit 2: Quadratics',
         });
         const section = quad.closest('section')!;
-        // Each row carries a title link AND an Analytics link; the title is
-        // the one whose href is the editor route.
+        // Each row carries a title link plus Analytics and Responses links; the
+        // title is the one whose href is the bare editor route.
         const titles = within(section)
             .getAllByRole('link')
-            .filter((a) => !a.getAttribute('href')?.endsWith('/analytics'))
+            .filter((a) => /^\/activity\/[^/]+$/.test(a.getAttribute('href') ?? ''))
             .map((a) => a.textContent);
         expect(titles).toEqual(['Vertex Form Exit Ticket', 'Factoring Trinomials']);
     });
@@ -787,8 +787,9 @@ describe('Activities — row anatomy (R1–R7, 2026-10-14; amends D8)', () => {
             const row = rowOf(t);
             const id = t === 'Published One' ? 'p1' : 'd1';
             expect(within(row).getByRole('link', { name: `Analytics for ${t}` })).toHaveAttribute('href', `/activity/${id}/analytics`);
+            expect(within(row).getByRole('link', { name: `Responses for ${t}` })).toHaveAttribute('href', `/activity/${id}/responses`);
             expect(within(row).getByRole('button', { name: `Delete ${t}` })).toBeTruthy();
-            expect(row.textContent).not.toMatch(/Analytics|Delete/);
+            expect(row.textContent).not.toMatch(/Analytics|Responses|Delete/);
         }
     });
 
