@@ -22,6 +22,8 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE 2026-10-13.**
 
+**Superscript units BUILT, NOT DEPLOYED** (`201a0a29`; [superscript-units.md](docs/design/superscript-units.md) → AS BUILT; verify + browser lanes green). **Owed, in order:** Fable review → author `pnpm deploy:check` → hash-verify → THEN push → Notion stamp → B-184. Three visual follow-ups wait on the author (TODOS).
+
 **Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
 
 **D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled. Serving gated (mixed practice). Liaison: next C-145 / B-184.
@@ -36,8 +38,6 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 **The daily facts practice (D43 slice 2, LIVE 2026-10-06) and the 0048 apply (prune DISARMED)** are closed records, moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-07; what is still owed on the prune is the D24 paragraph below and TODOS → the ARMING checklist.
 
 **PRACTICE BLOCKS (D43) — slice 1, per-family grouping and two-part checks are LIVE (2026-10-05)** and author-confirmed: migrations 0044 to 0047, registry revision `d0144e8d…`. Device checks T11/D6 WAIT for school devices (author has none; TODOS). Owed by the author: counsel's ANSWER to Q11 (sent, the author confirmed 2026-10-06; Q11(b) is step 1 of the prune's arming); the year-level placement by 1 November 2026. [practice-blocks.md](docs/design/practice-blocks.md) has every ruling and "as built" section.
-
-**Y7 geometry figures and the 2026-10-04 build run are CLOSED** (record moved to [HISTORY.md](docs/HISTORY.md) 2026-10-06; leftovers in [TODOS.md](TODOS.md) → "Y7 geometry slice — CLOSED").
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
 (author ruling 2026-09-26 — GPU box months away).** Proven against live:
