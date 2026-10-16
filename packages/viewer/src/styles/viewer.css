@@ -2231,6 +2231,14 @@
   /* A blank in a cell is a writing line, not a boxed field — the
      underline-blanks behaviour scoped inside the grid. min-width is dropped:
      an 8ch floor inside a narrow column would overflow the cell it sits in. */
+  /* The input's width: 100% resolves against .viewer-blank__field (the ² ³
+     tray's containing block), which shrinks to its content; the field takes the
+     cell's width so the writing line still spans the cell (CI baseline
+     table-print.png caught it collapsing to 62 px, 2026-10-17). */
+  .viewer-table__cell .viewer-blank__field {
+    width: 100%;
+  }
+
   .viewer-table__cell .viewer-blank__input {
     background: none !important;
     border: none !important;
