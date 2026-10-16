@@ -15,9 +15,17 @@ Restore + progress (S1–S3/S5) shipped with F1, F4 and F6 fixed (0060). Three f
 - **F3: restore mode has no rate ceiling of its own.** It costs a chain RPC, one read, a raw-document read and a re-grade per section (≤ 200 sections), and record_check's 60/min counter never sees it. Sign-in is required. Fix sketch: cap `sectionIds` to the document's section count after the read, or count restores in the same per-student window. **Trigger:** check-activity load or cost shows restore calls out of proportion to opens, or any multi-district rollout.
 - **F5: a very long section list could exceed URL limits.** Theoretical now that restore uses an RPC body; recheck if a read ever goes back to a GET with `in.(…)`. **Trigger:** none expected; fold into F3's cap.
 
-## ⚠ Shell CSS is at its cap (measured 2026-10-14)
+## ✅ Shell CSS cap — RAISED 15 → 16.5 on 2026-10-15 (ruling D1)
 
-The entry stylesheet is 15,322 of 15,360 bytes gzipped (38 bytes of headroom) after the teacher nav, add-to-class and row-anatomy changes. Each was trimmed to reuse existing utilities, and the cap was NOT raised. **Trigger:** the next change that adds a new Tailwind utility to the shell fails `perf budgets`. At that point the author rules between trimming (find dead utilities) and a cap raise under the ~10% headroom policy (DECISIONS.md → "The shell CSS cap").
+This entry said the stylesheet sat 38 bytes under a 15.0 KiB cap (2026-10-14). The author raised the cap to 16.5 the next day (`scripts/perf-budgets.mjs`, `SHELL_CSS_GZ_KIB`). Read the live number with `node scripts/check-perf-budget.mjs`; this entry no longer carries one.
+
+## Unit matching is case-blind: `mm` ≡ `Mm`, `mg` ≡ `Mg`, `mL` ≡ `ML` (superscript arc, SU-5, 2026-10-16)
+
+**What:** `normalizeUnit` (packages/viewer/src/server/grading/units.ts) lowercases both sides, so a unit that differs from another only by case cannot be told apart: millimetre/megametre, milligram/megagram, millilitre/megalitre. **Why it is fine today:** no catalogue file or live activity distinguishes units by case (read 2026-10-16); students type casually and Chromebooks auto-capitalize. **Trigger:** the first authored unit (or `unit-wrong` mistake) that differs from another accepted or mistake unit ONLY by case, e.g. a water-supply activity in megalitres (ML). **Then:** rule between a case-sensitive list of known SI prefixes and an author opt-in; either is a grading-bundle change and a `check-activity` redeploy. **Context:** docs/design/superscript-units.md → SU-5.
+
+## Superscript tray: the visual follow-ups the first screenshots showed (2026-10-16)
+
+Recorded at build, waiting on the author's rulings (see the design doc's AS BUILT): the ² glyph reads small at 1.4em, the beside tray covers the ✗ verdict pill after a wrong check, and the 44 px tray overhangs the lines above and below on a phone.
 
 ## Adding activities to a class: the two deferred items (assign-to-class.md, ruled 2026-10-14)
 
@@ -237,7 +245,11 @@ to catch.
   `median_rate` went red. Not in CI (the lane is local-only, as before).
 - **Device checks (T11, D6) — the author's:** on the school's real devices,
   that no on-screen keyboard appears, that physical keys register, and one
-  pass with a screen reader and with switch access. Record the result in
+  pass with a screen reader and with switch access.
+  **Also the ² ³ tray on blanks (superscript arc, D8):** on a phone and a
+  Chromebook, tapping ² keeps the blank focused and the on-screen keyboard
+  open; VoiceOver, TalkBack and ChromeVox read "Insert squared" / "Insert
+  cubed" and the blank's "Squared and cubed keys follow." note. Record the result in
   STATE. **WAITING (author, 2026-10-06): he has no school devices to test on.**
   **Trigger: the first school whose devices he can reach** — before the first
   classes (about February 2027) at the latest.

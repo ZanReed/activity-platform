@@ -58,16 +58,48 @@ export function normalizeUnit(raw: string): string {
     .replace(/\s*([/*^])\s*/g, '$1');
 }
 
+/**
+ * `²` → `^2` and `³` → `^3`, nothing else: the two spellings of ONE notation.
+ * Shared by unit matching (canonicalUnit) and TEXT blanks (ruling D7), where a
+ * typed `x²` must match a key of `x^2` now that every blank has a ² key. A
+ * bare digit is never touched here: on a text blank `x2` can mean 2x or a
+ * subscript, which is why normalize.ts refuses NFKC (it folds `x²` → `x2`).
+ */
+export function foldSuperscriptGlyphs(value: string): string {
+  return value.replace(/²/g, '^2').replace(/³/g, '^3');
+}
+
+/**
+ * normalizeUnit, plus the exponent spellings folded together (ruling SU-1,
+ * docs/design/superscript-units.md): `m²` ≡ `m^2` ≡ `m2`, `cm³` ≡ `cm^3` ≡
+ * `cm3`, `m/s²` ≡ `m/s2`. A student on a phone or Chromebook cannot easily
+ * type `²`, so before this an authored `m²` with no alternates marked the
+ * typed `m2` wrong.
+ *
+ * Applied to BOTH sides, so anything normalizeUnit already equated stays
+ * equal: the fold only ever widens a match. ORDER MATTERS: the glyphs become
+ * `^n` BEFORE the operator-space collapse, so `m ²` → `m ^2` → `m^2`. Only 2
+ * and 3, and only a digit right after a LETTER at a token end: `100g`, `m4`
+ * and `m 2` are left alone (a digit after a digit is part of a number; a
+ * spaced digit is not an exponent anyone writes).
+ */
+export function canonicalUnit(raw: string): string {
+  return normalizeUnit(foldSuperscriptGlyphs(raw)).replace(
+    /([a-z])([23])(?![0-9a-z])/g,
+    '$1^$2',
+  );
+}
+
 /** Is the student's unit one of the accepted forms (canonical + alternates)? */
 export function unitAccepted(
   studentUnit: string,
   unit: string,
   acceptableUnits: readonly string[] | undefined,
 ): boolean {
-  const needle = normalizeUnit(studentUnit);
-  if (needle === normalizeUnit(unit)) return true;
+  const needle = canonicalUnit(studentUnit);
+  if (needle === canonicalUnit(unit)) return true;
   for (const alt of acceptableUnits ?? []) {
-    if (needle === normalizeUnit(alt)) return true;
+    if (needle === canonicalUnit(alt)) return true;
   }
   return false;
 }

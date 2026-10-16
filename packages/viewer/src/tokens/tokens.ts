@@ -107,6 +107,7 @@ export const staticTokens = [
   '--vw-shadow-popover',
   '--vw-shadow-window',
   '--vw-shadow-drag',
+  '--z-inline-tray',
   '--z-tools',
   '--z-reference',
   '--z-calculator',

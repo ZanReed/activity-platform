@@ -35,6 +35,7 @@ import {
 import {
   splitUnitEntry,
   normalizeUnit,
+  canonicalUnit,
   unitAccepted,
 } from '../src/server/grading/units.js';
 import {
@@ -264,6 +265,67 @@ describe('unit-bearing numeric blanks', () => {
     it('accepts authored alternates', () => {
       expect(unitAccepted('kph', 'km/h', ['kph'])).toBe(true);
       expect(unitAccepted('mph', 'km/h', ['kph'])).toBe(false);
+    });
+  });
+
+  // SU-1 (docs/design/superscript-units.md): a student cannot easily type ²,
+  // so the exponent spellings of one unit grade the same.
+  describe('canonicalUnit (exponent spellings, SU-1)', () => {
+    it.each([
+      ['m²', ['m^2', 'm2', 'M2', 'm ²', 'm ^ 2', 'M²']],
+      ['cm³', ['cm^3', 'cm3', 'CM3', 'cm ^3']],
+      ['m/s²', ['m/s^2', 'm/s2', 'M/S2', 'm / s²']],
+      ['cm³/s', ['cm3/s', 'cm^3/s']],
+    ])('%s ≡ each of %j', (canonical, spellings) => {
+      for (const s of spellings) expect(canonicalUnit(s)).toBe(canonicalUnit(canonical));
+    });
+
+    it.each([
+      ['km/h', 'km/h'],
+      ['100g', '100g'], // a digit after a digit is part of a number
+      ['m4', 'm4'], // only 2 and 3
+      ['m 2', 'm 2'], // a spaced digit is not an exponent
+      ['m2s', 'm2s'], // not at a token end
+    ])('leaves %s alone', (raw, out) => {
+      expect(canonicalUnit(raw)).toBe(out);
+    });
+
+    it('an authored m² with no alternates accepts every typed spelling', () => {
+      for (const s of ['m2', 'm^2', 'm²', 'M2']) expect(unitAccepted(s, 'm²', undefined)).toBe(true);
+      expect(unitAccepted('m', 'm²', undefined)).toBe(false);
+      expect(unitAccepted('m3', 'm²', undefined)).toBe(false);
+    });
+
+    // CRITICAL regression contract (SU-1 "without breaking existing answers"):
+    // the fold only widens. Every unit and alternate the four live 710
+    // activities author (read from the catalogue, 2026-10-16) is checked
+    // pairwise: if normalizeUnit already equated two strings, canonicalUnit
+    // must too, and every spelling still accepts itself.
+    const LIVE_710_UNITS = [
+      'm²', 'm2', 'm^2', 'sq m', 'sqm', 'sq. m', 'square m', 'square metres', 'square metre',
+      'cm²', 'cm2', 'cm^2', 'sq cm', 'sqcm', 'sq. cm', 'square cm', 'square centimetres', 'square centimetre',
+      'cm³', 'cm3', 'cm^3', 'cubic cm', 'cubic centimetres', 'cubic centimetre',
+      'm³', 'm3', 'm^3', 'cubic m', 'cubic metres', 'cubic metre',
+      'm', 'metres', 'metre', 'cm', 'km/h', 'N·m', 'n * m',
+    ];
+    it('nothing normalizeUnit equated becomes unequal (live 710 corpus)', () => {
+      for (const a of LIVE_710_UNITS) {
+        expect(unitAccepted(a, a, undefined)).toBe(true);
+        for (const b of LIVE_710_UNITS) {
+          if (normalizeUnit(a) === normalizeUnit(b)) {
+            expect(canonicalUnit(a)).toBe(canonicalUnit(b));
+          }
+        }
+      }
+    });
+
+    it('is idempotent', () => {
+      for (const a of LIVE_710_UNITS) expect(canonicalUnit(canonicalUnit(a))).toBe(canonicalUnit(a));
+    });
+
+    it('never merges square with cubic, or either with the bare unit', () => {
+      const forms = ['m', 'm²', 'm³', 'cm', 'cm²', 'cm³'].map(canonicalUnit);
+      expect(new Set(forms).size).toBe(forms.length);
     });
   });
 

@@ -160,6 +160,11 @@ describe.each(themes)('WCAG AA — $name theme', ({ decls }) => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  // The ² ³ tray's keys draw ink on the overlay surface (DR-3).
+  it('ink is AA on the overlay surface (the ² ³ tray keys)', () => {
+    expect(contrast(value('--vw-color-ink'), value('--vw-color-overlay'))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('accent is AA on paper (links, focus rings carry meaning)', () => {
     expect(contrast(value('--vw-color-accent'), value('--vw-color-paper'))).toBeGreaterThanOrEqual(
       4.5,

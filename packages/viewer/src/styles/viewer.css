@@ -766,6 +766,81 @@
   font-size: var(--type-meta);
 }
 
+/* The ² ³ tray (docs/design/superscript-units.md). The field is its containing
+   block: .viewer-blank is a plain inline span that fragments across lines once
+   the pill and feedback join it, and absolute positioning inside a fragmented
+   inline is engine-dependent. Quiet on purpose (DR-3): every editable blank
+   gets it, word answers included. */
+.viewer-blank__field {
+  display: inline-block;
+  /* Carries the input's "never wider than its column" cap (2026-10-04): the
+     input's max-width: 100% now resolves against this box. */
+  max-width: 100%;
+  position: relative;
+}
+
+.viewer-blank__tray {
+  background: var(--vw-color-overlay);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  box-shadow: var(--vw-shadow-drag);
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  position: absolute;
+  white-space: nowrap;
+  z-index: var(--z-inline-tray);
+}
+
+/* DR-1: beside, centred on the input; below and above are the fallbacks. */
+.viewer-blank__tray[data-placement='beside'] {
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.viewer-blank__tray[data-placement='below'] {
+  left: 0;
+  top: calc(100% + 6px);
+}
+
+.viewer-blank__tray[data-placement='above'] {
+  bottom: calc(100% + 6px);
+  left: 0;
+}
+
+.viewer-blank__tray-key {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 1.4em;
+  justify-content: center;
+  line-height: 1;
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  padding: 0;
+}
+
+.viewer-blank__tray-key:hover,
+.viewer-blank__tray-key:active {
+  background: var(--vw-color-hover);
+}
+
+.viewer-visually-hidden {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+
 /* Tables. The grid IS the block: a real <table> with collapsed borders, so a
    row is held together by one element rather than by two columns' rules
    happening to line up (the ```columns workaround's structural defect). */
@@ -1708,6 +1783,7 @@
 :where([data-viewer-mode='print']) .viewer-state-pill,
 :where([data-viewer-mode='print']) .viewer-ordering__controls,
 :where([data-viewer-mode='print']) .viewer-blank__feedback,
+:where([data-viewer-mode='print']) .viewer-blank__tray,
 :where([data-viewer-mode='print']) .viewer-matching__select,
 :where([data-viewer-mode='print']) .viewer-correspondence__select,
 :where([data-viewer-mode='print']) .viewer-graph__unavailable,
@@ -2010,6 +2086,7 @@
   .viewer-state-pill,
   .viewer-ordering__controls,
   .viewer-blank__feedback,
+  .viewer-blank__tray,
   .viewer-matching__select,
   .viewer-correspondence__select,
   .viewer-graph__unavailable,

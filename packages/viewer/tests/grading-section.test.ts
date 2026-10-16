@@ -1188,6 +1188,113 @@ describe('unit-bearing blanks grade end to end (the walk projects the unit)', ()
   });
 });
 
+describe('superscript units and text (docs/design/superscript-units.md)', () => {
+  const t = (text: string) => ({ type: 'text', text });
+
+  function gradeOne(blank: Record<string, unknown>, entry: string) {
+    const id = blank.id as string;
+    const block = { id: crypto.randomUUID(), type: 'fill_in_blank', content: [t('x '), blank] };
+    const result = gradeSection({
+      document: {
+        sections: [{ id: 'sup', rows: [{ columns: [{ blocks: [block] }] }] }],
+      } as never,
+      sectionId: 'sup',
+      responses: { ...emptySectionResponses(), blanks: { [id]: entry } },
+    });
+    return result.items[id];
+  }
+  const feedbackText = (item: unknown) => JSON.stringify((item as { feedback?: unknown })?.feedback);
+
+  // SU-1: m² authored with NO alternates accepts every typed spelling.
+  const area = () => ({
+    type: 'blank', id: crypto.randomUUID(), answer: '28', acceptableAnswers: [],
+    answerType: 'numeric', unit: 'm²',
+    mistakeFeedback: [
+      { match: 'unit-wrong', feedback: [t('square metres')], misconceptionId: 'mis.units.area-as-linear' },
+    ],
+  });
+
+  it.each(['28 m2', '28 m^2', '28m²', '28 M2'])('SU-1: %s is correct against m²', (entry) => {
+    expect(gradeOne(area(), entry)?.verdict).toBe('correct');
+  });
+
+  it('SU-1: "28 m" is still unit-wrong; "28 m2" no longer is', () => {
+    expect(gradeOne(area(), '28 m')?.misconceptionIds).toEqual(['mis.units.area-as-linear']);
+    expect(gradeOne(area(), '28 m2')?.misconceptionIds).toBeUndefined();
+  });
+
+  // SU-2: the 710 volume shape, three spelling-specific entries.
+  const volume = () => ({
+    type: 'blank', id: crypto.randomUUID(), answer: '125', acceptableAnswers: [],
+    answerType: 'numeric', unit: 'cm³', acceptableUnits: ['cm3', 'cm^3'],
+    mistakeFeedback: [
+      { match: '125 cm²', feedback: [t('GLYPH message')], misconceptionId: 'mis.units.volume-as-square' },
+      { match: '125 cm2', feedback: [t('typed cm3 message')], misconceptionId: 'mis.units.volume-as-square' },
+    ],
+  });
+
+  it('SU-2: the spelling the student typed wins (exact pass first)', () => {
+    expect(feedbackText(gradeOne(volume(), '125 cm2'))).toContain('typed cm3 message');
+    expect(feedbackText(gradeOne(volume(), '125 CM2'))).toContain('typed cm3 message');
+    expect(feedbackText(gradeOne(volume(), '125 cm²'))).toContain('GLYPH message');
+  });
+
+  it('SU-2: a spelling with no entry of its own falls to the folded pass, in authored order', () => {
+    const item = gradeOne(volume(), '125 cm^2');
+    expect(item?.verdict).toBe('incorrect');
+    expect(feedbackText(item)).toContain('GLYPH message');
+  });
+
+  it('SU-2: !22 m² now senses a typed "22 m2" (it never did)', () => {
+    const blank = {
+      type: 'blank', id: crypto.randomUUID(), answer: '22', acceptableAnswers: [],
+      answerType: 'numeric', unit: 'm',
+      mistakeFeedback: [
+        { match: '22 m²', feedback: [t('skirting is a length')], misconceptionId: 'mis.units.length-as-area' },
+      ],
+    };
+    expect(gradeOne(blank, '22 m2')?.misconceptionIds).toEqual(['mis.units.length-as-area']);
+  });
+
+  it('SU-1: interchangeable slots grade with folded units', () => {
+    const a = { ...area(), answer: '6' };
+    const b = { ...area(), answer: '12', interchangeableWithPrevious: true };
+    const block = { id: crypto.randomUUID(), type: 'fill_in_blank', content: [a, t(' and '), b] };
+    const result = gradeSection({
+      document: { sections: [{ id: 'g', rows: [{ columns: [{ blocks: [block] }] }] }] } as never,
+      sectionId: 'g',
+      responses: { ...emptySectionResponses(), blanks: { [a.id]: '12 m2', [b.id]: '6 m^2' } },
+    });
+    expect(result.items[a.id]?.verdict).toBe('correct');
+    expect(result.items[b.id]?.verdict).toBe('correct');
+  });
+
+  // D7: text blanks fold ² ↔ ^2 only.
+  const text = (answer: string, mistakeFeedback: unknown[] = []) => ({
+    type: 'blank', id: crypto.randomUUID(), answer, acceptableAnswers: [], mistakeFeedback,
+  });
+
+  it('D7: x² and x^2 match either way on a text blank', () => {
+    expect(gradeOne(text('x^2'), 'x²')?.verdict).toBe('correct');
+    expect(gradeOne(text('x²'), 'x^2')?.verdict).toBe('correct');
+    expect(gradeOne(text('y³'), 'y^3')?.verdict).toBe('correct');
+  });
+
+  it('D7: a bare digit is never a superscript, and case still counts', () => {
+    expect(gradeOne(text('x^2'), 'x2')?.verdict).toBe('incorrect');
+    expect(gradeOne(text('x²'), 'x2')?.verdict).toBe('incorrect');
+    expect(gradeOne(text('x^2'), 'X²')?.verdict).toBe('incorrect');
+  });
+
+  it('D7: a text mistake match folds the same way', () => {
+    // Both directions: each side's fold is a separate line of code.
+    const item = gradeOne(text('2x', [{ match: 'x²', feedback: [t('that squares it')] }]), 'x^2');
+    expect(feedbackText(item)).toContain('that squares it');
+    const back = gradeOne(text('2x', [{ match: 'x^2', feedback: [t('that squares it')] }]), 'x²');
+    expect(feedbackText(back)).toContain('that squares it');
+  });
+});
+
 describe('correspondence grades end to end (the walk projects the nested key)', () => {
   const t = (text: string) => ({ type: 'text', text });
   const corrId = crypto.randomUUID();

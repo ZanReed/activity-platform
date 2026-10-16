@@ -227,6 +227,10 @@
   --vw-shadow-drag: 0 4px 12px rgba(15, 23, 42, 0.25);
 
   /* ---- Z scale (published-page ladder, room left for viewer chrome) ------*/
+  /* The ² ³ tray beside a focused blank (DR-4): above the worksheet text, below
+     every floating tool and the topbar, so a blank scrolled under them never
+     draws its tray on top. */
+  --z-inline-tray: 50;
   --z-tools: 110;
   --z-reference: 115;
   --z-calculator: 120;

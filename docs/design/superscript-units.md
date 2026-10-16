@@ -737,6 +737,23 @@ Pass 7 re-rated: 9/10.
 **Completion summary (design):** Step 0 rated 5/10, focus all 7 (D1); mockups not generated (no OpenAI key); outside voice: Fable subagent (D2, author's choice), 1 critical + 6 high + 6 medium findings, all verified or mapped; passes: IA 4→8, states 6→9, journey 5→9, slop 3→9, system 6→8, a11y 6→9, unresolved 6→9; decisions made: 6 (DR-1..DR-6); unresolved: 0; TODOs proposed: 0.
 
 
+## AS BUILT (2026-10-16, T1–T8; T9 release owed)
+
+**Ruled during the build (author, 2026-10-16): the tray is LAZY.** The baseline build measured the student shell at **157.0 KiB gz, already past the 156.5 stop line** (cap 158.0) before any change. The tray's code (placement, keys, insert) is its own chunk, `SuperscriptTray` (1.4 KiB gz), prefetched on idle when an editable blank mounts and used on first focus. Offline with the chunk never fetched there is no tray; grading still accepts `m2`/`m^2`. Shell after: **157.4 KiB** JS (+0.4: BlankInput's focus state, loader and the hint), CSS 15.1 → 15.3 of 16.5. Re-measure with `node scripts/check-perf-budget.mjs`.
+
+**Grading (T1–T3):** `canonicalUnit` + `foldSuperscriptGlyphs` in units.ts; `unitAccepted` compares canonical; `matchMistakeEntry`'s authored unit loop runs exact then folded (SU-2); `scoreText` and the text mistake fallback fold ² ↔ ^2 (D7). Grading bundle regenerated; the viewer-server bundle did not move (no sanitize change), so only `check-activity` needs a redeploy.
+
+**Viewer (T4):** `BlankInput.tsx` (eager) replaces the two input copies in FillInBlank and Table (D2); `SuperscriptTray.tsx` (lazy) holds `chooseTrayPlacement` (DR-1, D5 on both axes, DR-6) and the keys (DR-2 pointer `preventDefault`, D3 keyboard). New `--z-inline-tray: 50` (DR-4), `.viewer-blank__field` containing block, DR-3 styles, print/preview hide lists both carry `.viewer-blank__tray`.
+
+**Deviations, each smaller than the plan:**
+- No caret bookkeeping: an `<input>` keeps its selection when it loses focus, so the keyboard path reads `selectionStart` directly. Same behaviour as D3, less shell code.
+- DR-5's note is one hidden node PER BLANK (`aria-describedby` → `<blank-id>-superscript-hint`), not one per block: same announcement, no block-level wiring in two components.
+- Test 6 (a print-expectations row) was dropped: that harness fails on an absent target, and the tray never renders in print at all. Print is covered by the component test (no tray when read-only) and the print/preview mirror test in styles.test.ts.
+
+**Tests, every guard mutation-tested the day it was written:** grading-primitives (canonicalUnit table, the live-710 symmetry corpus, idempotence, square ≠ cubic), grading-section (SU-1/SU-2/D7 walk rows), superscript-tray.test.tsx (16 rows), styles + tokens tests (z order, consumer, contrast pair bound to the tray's CSS), and `e2e/student/blank-superscript.e2e.ts` (6 rows, 30/30 over five repeats). Two guards were vacuous on first writing and fixed: the text mistake fold (only one direction was exercised) and a double read-only gate (each half hid the other; one removed). The focus-within line survives every jsdom mutation and is proven only by the e2e Tab row, which goes red without it.
+
+**Found by the screenshots, waiting on the author** (TODOS → "Superscript tray: the visual follow-ups"): the ² glyph reads small at 1.4em; beside the input the tray covers the ✗ verdict pill after a wrong check; on a 375 px phone the 44 px tray overhangs the lines above and below.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

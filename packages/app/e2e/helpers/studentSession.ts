@@ -114,6 +114,8 @@ export interface CheckOutcome {
   /** Verdict per item id; anything omitted comes back 'correct'. */
   verdicts?: Record<string, 'correct' | 'incorrect' | 'recorded'>;
   solutions?: Record<string, unknown>;
+  /** Server-selected feedback per item id (the wire's optional `feedback`). */
+  feedback?: Record<string, unknown[]>;
 }
 
 export interface ActivityApiOptions {
@@ -304,11 +306,13 @@ export async function stubActivityApi(
 
     // Verdict for every id the client actually sent, so the response keys
     // match the request the way the real grader's do.
-    const items: Record<string, { verdict: string }> = {};
+    const items: Record<string, { verdict: string; feedback?: unknown[] }> = {};
     for (const category of Object.values(body.responses ?? {})) {
       for (const itemId of Object.keys(category)) {
+        const feedback = options.check?.feedback?.[itemId];
         items[itemId] = {
           verdict: options.check?.verdicts?.[itemId] ?? 'correct',
+          ...(feedback ? { feedback } : {}),
         };
       }
     }

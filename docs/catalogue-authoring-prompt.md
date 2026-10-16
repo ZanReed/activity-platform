@@ -41,6 +41,8 @@ FILL-IN-THE-BLANK
   second one with a leading tilde:  (x + {{2}})(x + {{~3}}). Each answer still
   counts once, so 2 and 3 in either order is right but 2 and 2 is not.
 - Always put a real answer inside the braces (an empty {{}} is ignored).
+- Every blank shows the student ² and ³ keys. On a text blank x² and x^2
+  match each other, but x2 never matches x² (it could mean 2x).
 - For a NUMERIC answer, put = right after the braces:  the area is {{=12}}.
   Numeric blanks accept every equivalent form — 0.5, 1/2, .50, and 1,234
   all count — so prefer them for any purely numeric answer. Add a tolerance
@@ -50,7 +52,9 @@ FILL-IN-THE-BLANK
   blanks only):  the speed is {{=1.5 unit: km/h}}. The student must type
   BOTH — a bare 1.5 is wrong, which is the point. Extra accepted spellings
   are comma-separated ({{=1.5 unit: km/h, kph}}); matching ignores case and
-  spacing but never converts (1500 m/h is wrong for 1.5 km/h). Composes
+  spacing but never converts (1500 m/h is wrong for 1.5 km/h). Exponent
+  spellings are one unit: write m² and m2, m^2 and m² all match (and
+  cm³ / cm3 / cm^3), so do not list them as alternates. Composes
   with tolerance:  {{=1.5 +- 0.1 unit: km/h}}. Two reserved mistake
   matches fire on unit OUTCOMES rather than typed text:  !unit-missing ::
   fires when the value is right but no unit was typed, and !unit-wrong ::

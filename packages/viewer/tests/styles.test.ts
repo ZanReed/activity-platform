@@ -517,6 +517,29 @@ describe('the reference panel’s floating form — stylesheet-only facts', () =
     expect(value('--z-tools')).toBeLessThan(value('--z-reference'));
   });
 
+  it('keeps the ² ³ tray UNDER every floating tool and the topbar (DR-4)', () => {
+    // A focused blank scrolled under the topbar or an open calculator must not
+    // draw its tray over them. And the token needs a real consumer.
+    const tokens = readFileSync(new URL('../src/tokens/tokens.css', import.meta.url), 'utf8');
+    const value = (name: string) => Number(new RegExp(`${name}:\\s*(\\d+)`).exec(tokens)?.[1]);
+    expect(value('--z-inline-tray')).toBeLessThan(value('--z-tools'));
+    expect(value('--z-inline-tray')).toBeGreaterThan(0);
+    const rule = /(?:^|\n)\.viewer-blank__tray \{([^}]*)\}/.exec(code);
+    expect(rule, '.viewer-blank__tray has no standalone rule').not.toBeNull();
+    expect(rule![1]!).toMatch(/z-index:\s*var\(--z-inline-tray\)/);
+  });
+
+  it('draws the tray from the pair the contrast test guards (DR-3)', () => {
+    // tokens.test.ts proves ink is AA on overlay in both themes; this proves
+    // the tray actually uses that pair, so the guard covers what ships.
+    const tray = /(?:^|\n)\.viewer-blank__tray \{([^}]*)\}/.exec(code)?.[1] ?? '';
+    const key = /(?:^|\n)\.viewer-blank__tray-key \{([^}]*)\}/.exec(code)?.[1] ?? '';
+    expect(tray).toMatch(/background:\s*var\(--vw-color-overlay\)/);
+    expect(key).toMatch(/(?:^|\s)color:\s*var\(--vw-color-ink\)/);
+    expect(key).toMatch(/min-height:\s*var\(--touch-target\)/);
+    expect(key).toMatch(/min-width:\s*var\(--touch-target\)/);
+  });
+
   it('anchors bottom-LEFT so an open calculator never collides', () => {
     // DECISIONS.md:195. The calculator's kit hardcodes right:1rem/bottom:1rem,
     // so a shared corner would bury one summon under the other's panel.

@@ -35,6 +35,8 @@ import { checkExpressionSafety } from './guards.js';
 import {
   splitUnitEntry,
   normalizeUnit,
+  canonicalUnit,
+  foldSuperscriptGlyphs,
   unitAccepted,
   isReservedUnitMatch,
   UNIT_MISSING_MATCH,
@@ -88,8 +90,10 @@ export type BlankVerdict = boolean | null;
 // ---- single-blank scoring ---------------------------------------------------
 
 function scoreText(student: string, key: BlankKey): boolean {
+  // `x²` ≡ `x^2` on both sides (ruling D7); case and spacing stay exact.
+  const folded = foldSuperscriptGlyphs(student);
   for (const entry of key.answers) {
-    if (prepareKeyValue(entry) === student) return true;
+    if (foldSuperscriptGlyphs(prepareKeyValue(entry)) === folded) return true;
   }
   return false;
 }
@@ -355,22 +359,29 @@ export function matchMistakeEntry(
           return entry;
         }
       }
+      // TWO PASSES (ruling SU-2): the spelling the student typed first, then
+      // the exponent-folded form. An author who wrote `!125 cm2 :: … typed
+      // cm3 …` beside `!125 cm² :: …` gets the message for the spelling the
+      // student actually used; `!22 m²` still catches a typed `22 m2`, which
+      // the exact pass alone never did.
       const tolerance = coerceTolerance(key.tolerance);
-      for (const entry of key.mistakeFeedback) {
-        if (isReservedUnitMatch(entry.match)) continue;
-        const matchSplit = splitUnitEntry(prepareKeyValue(entry.match));
-        if (matchSplit === null) continue;
-        if (!numericallyClose(split.value, matchSplit.value, tolerance)) {
-          continue;
+      for (const sameUnit of [normalizeUnit, canonicalUnit]) {
+        for (const entry of key.mistakeFeedback) {
+          if (isReservedUnitMatch(entry.match)) continue;
+          const matchSplit = splitUnitEntry(prepareKeyValue(entry.match));
+          if (matchSplit === null) continue;
+          if (!numericallyClose(split.value, matchSplit.value, tolerance)) {
+            continue;
+          }
+          if (
+            matchSplit.unit !== null &&
+            (split.unit === null ||
+              sameUnit(split.unit) !== sameUnit(matchSplit.unit))
+          ) {
+            continue;
+          }
+          return entry;
         }
-        if (
-          matchSplit.unit !== null &&
-          (split.unit === null ||
-            normalizeUnit(split.unit) !== normalizeUnit(matchSplit.unit))
-        ) {
-          continue;
-        }
-        return entry;
       }
     }
     // String fallback, minus the reserved tokens — a student who literally
@@ -400,8 +411,11 @@ export function matchMistakeEntry(
     }
   }
 
+  // Same superscript fold as scoreText (ruling D7): `!x²` catches a typed `x^2`.
+  const foldedNeedle = foldSuperscriptGlyphs(needle);
   for (const entry of key.mistakeFeedback) {
-    if (trimValue(prepareKeyValue(entry.match)).toLowerCase() === needle) {
+    const match = trimValue(prepareKeyValue(entry.match)).toLowerCase();
+    if (foldSuperscriptGlyphs(match) === foldedNeedle) {
       return entry;
     }
   }

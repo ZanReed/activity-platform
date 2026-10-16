@@ -34,6 +34,7 @@ import { useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { blankInputSize } from './blankSize.js';
+import { BlankInput } from './BlankInput.js';
 
 /** Plain text of a cell's inline content — the accessible name a header cell
  *  lends to the cells it heads. Math and blanks contribute nothing readable, so
@@ -160,25 +161,15 @@ export default function Table({
                                 ({stepLetter(index)})
                               </span>
                             ) : null}
-                            <input
-                              type="text"
-                              className="viewer-blank__input"
+                            <BlankInput
+                              blankId={blank.id}
                               value={value}
                               readOnly={mode === 'print' || keyAnswer !== undefined}
-                              aria-label={ariaLabel}
-                              {...(keyAnswer !== undefined
-                                ? { 'data-answer-key': 'filled' }
-                                : {})}
+                              ariaLabel={ariaLabel}
+                              answerKeyFilled={keyAnswer !== undefined}
                               size={blankInputSize(blank, mode, value)}
-                              {...(result
-                                ? {
-                                    'data-verdict': result.verdict,
-                                    'aria-invalid': result.verdict === 'incorrect',
-                                  }
-                                : {})}
-                              onChange={(event) =>
-                                store.setBlank(blank.id, event.target.value)
-                              }
+                              verdict={result?.verdict}
+                              onChange={(next) => store.setBlank(blank.id, next)}
                             />
                             {result ? (
                               <StatePill
