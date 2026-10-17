@@ -90,6 +90,9 @@ export { extractAnswerKey, extractBlockAnswerKey } from './answer-key/extract.js
 // instead, which lands it in that route's own chunk.
 export { deriveSeedValues, type SeedValues } from './sanitize/seedValues.js';
 export { substituteSeedValues } from './sanitize/substitute.js';
+// The serve seed's one spelling, for the teacher's class-progress answer list
+// (it rebuilds each student's served document client-side, class-progress-view D2).
+export { serveSeed } from './sanitize/serveSeed.js';
 export { AnswerKeyProvider, useBlockAnswerKey } from './answer-key/context.js';
 // S5.5 D15A — print-side shuffles, declared on the PrintSpec and applied here.
 // Separate from the serve shuffle on purpose: this moves no wire and no
