@@ -17,7 +17,10 @@
 --            the right-now count; correct first tries are not a group
 --        B4  recorded items (short answers) are not marked, so not listed
 --        B5  sections: students with a first try per section; older_only
---            counts a rostered student who checked only an older version
+--            counts a rostered student who checked only an older version;
+--            no_first counts one whose attempt 1 is gone (B5b)
+--        (B2 includes a multi-select student; B7a an unassigned activity the
+--         student HAS checked, so the assignment gate is really tested)
 --        B6  class_student_work carries attempt 1 beside the latest
 --        B7  refusals: another teacher, no claims; an unassigned activity of
 --            the teacher's reads empty
@@ -50,6 +53,7 @@ declare
   v_s   uuid := gen_random_uuid();  -- wrong first, right now
   v_p   uuid := gen_random_uuid();  -- wrong first, still wrong
   v_q   uuid := gen_random_uuid();  -- right first
+  v_m   uuid := gen_random_uuid();  -- multi-select: ticks the right AND a wrong choice
   v_r   uuid := gen_random_uuid();  -- rostered, only the older version
   v_g   uuid := gen_random_uuid();  -- removed
   v_o   uuid := gen_random_uuid();  -- outsider (only in the deleted class)
@@ -67,15 +71,16 @@ begin
   values (v_t,  'vfy0062-t@vfy0062.example',  '{}'::jsonb), (v_t2, 'vfy0062-t2@vfy0062.example', '{}'::jsonb),
          (v_s,  'vfy0062-s@vfy0062.example',  '{}'::jsonb), (v_p,  'vfy0062-p@vfy0062.example',  '{}'::jsonb),
          (v_q,  'vfy0062-q@vfy0062.example',  '{}'::jsonb), (v_r,  'vfy0062-r@vfy0062.example',  '{}'::jsonb),
+         (v_m,  'vfy0062-m@vfy0062.example',  '{}'::jsonb),
          (v_g,  'vfy0062-g@vfy0062.example',  '{}'::jsonb), (v_o,  'vfy0062-o@vfy0062.example',  '{}'::jsonb);
   update users set role = 'teacher' where id in (v_t, v_t2);
-  update users set role = 'student' where id in (v_s, v_p, v_q, v_r, v_g, v_o);
+  update users set role = 'student' where id in (v_s, v_p, v_q, v_r, v_m, v_g, v_o);
 
   insert into classes (teacher_id, name, age_assertion_by, assertion_text_version)
   values (v_t, 'vfy 0062', v_t, 'vfy') returning id into v_k;
   insert into classes (teacher_id, name, age_assertion_by, assertion_text_version, deleted_at)
   values (v_t, 'vfy 0062 gone', v_t, 'vfy', now()) returning id into v_k2;
-  insert into class_members (class_id, student_id) values (v_k, v_s), (v_k, v_p), (v_k, v_q), (v_k, v_r), (v_k2, v_o);
+  insert into class_members (class_id, student_id) values (v_k, v_s), (v_k, v_p), (v_k, v_q), (v_k, v_r), (v_k, v_m), (v_k2, v_o);
   insert into class_members (class_id, student_id, removed_at) values (v_k, v_g, now());
 
   insert into activities (owner_id, title, slug, status) values (v_t, 'A', 'vfy-0062-a', 'published') returning id into v_a;
@@ -101,6 +106,12 @@ begin
     (v_q, v_a, v_a2, 's1', 1, jsonb_build_object('choices', jsonb_build_object('mc1', jsonb_build_array(v_ca)), 'blanks', '{"b1": "0.8"}'::jsonb),
           '{"mc1": {"verdict": "correct"}, "b1": {"verdict": "correct"}}', now() - interval '2 hours'),
     (v_q, v_a, v_a2, 's2', 1, '{"freeText": {"sa": "because"}}', '{"sa": {"verdict": "recorded"}}', now() - interval '2 hours'),
+    -- M: multi-select, ticks A and B on attempt 1 (wrong), never re-checked.
+    (v_m, v_a, v_a2, 's1', 1, jsonb_build_object('choices', jsonb_build_object('mc1', jsonb_build_array(v_ca, v_cb))),
+          '{"mc1": {"verdict": "incorrect"}}', now() - interval '2 hours'),
+    -- S also checked C (owned by the teacher, NOT assigned): must never count.
+    (v_s, v_c, v_c1, 's1', 1, jsonb_build_object('choices', jsonb_build_object('mc1', jsonb_build_array(v_cb))),
+          '{"mc1": {"verdict": "incorrect"}}', now() - interval '2 hours'),
     -- R: only the older version.
     (v_r, v_a, v_a1, 's1', 1, '{}', '{"x": {"verdict": "incorrect"}}', now() - interval '3 hours'),
     -- G (removed) and O (outsider): wrong first, both would swell every count.
@@ -121,16 +132,17 @@ begin
 
   -- B2: multiple choice.
   select i into v_it from jsonb_array_elements(v_j->'items') i where i->>'item_id' = 'mc1';
-  if (v_it->>'first')::int is distinct from 3 or (v_it->>'right_first')::int is distinct from 1
-     or (v_it->>'wrong_first')::int is distinct from 2 or (v_it->>'wrong_right_now')::int is distinct from 1
-     or (v_it->>'picked')::int is distinct from 3 or v_it->>'family' is distinct from 'choices'
+  -- (M ticked two choices: counted once in first/wrong/picked, once in EACH group.)
+  if (v_it->>'first')::int is distinct from 4 or (v_it->>'right_first')::int is distinct from 1
+     or (v_it->>'wrong_first')::int is distinct from 3 or (v_it->>'wrong_right_now')::int is distinct from 1
+     or (v_it->>'picked')::int is distinct from 4 or v_it->>'family' is distinct from 'choices'
      or jsonb_array_length(v_it->'groups') <> 2
      or v_it->'groups'->0->'answer' is distinct from to_jsonb(v_cb)
-     or (v_it->'groups'->0->>'count')::int is distinct from 2
+     or (v_it->'groups'->0->>'count')::int is distinct from 3
      or (v_it->'groups'->0->>'right_now')::int is distinct from 1
      or v_it->'groups'->1->'answer' is distinct from to_jsonb(v_ca)
-     or (v_it->'groups'->1->>'count')::int is distinct from 1
-     or jsonb_array_length(v_it->'groups'->0->'students') <> 2 then
+     or (v_it->'groups'->1->>'count')::int is distinct from 2
+     or jsonb_array_length(v_it->'groups'->0->'students') <> 3 then
     raise exception 'FAIL B2: multiple choice %', v_it;
   end if;
 
@@ -151,10 +163,23 @@ begin
   end if;
 
   -- B5: sections and older_only.
-  if (select (s->>'students')::int from jsonb_array_elements(v_j->'sections') s where s->>'section_id' = 's1') is distinct from 3
+  if (select (s->>'students')::int from jsonb_array_elements(v_j->'sections') s where s->>'section_id' = 's1') is distinct from 4
      or (select (s->>'students')::int from jsonb_array_elements(v_j->'sections') s where s->>'section_id' = 's2') is distinct from 1
-     or (v_j->>'older_only')::int is distinct from 1 then
+     or (v_j->>'older_only')::int is distinct from 1
+     or (v_j->>'no_first')::int is distinct from 0 then
     raise exception 'FAIL B5: sections % older_only %', v_j->'sections', v_j->'older_only';
+  end if;
+
+  -- B5b: a student with a later attempt but no attempt 1 kept is counted in
+  --      no_first, and nowhere else.
+  insert into section_checks (student_id, activity_id, activity_version_id, section_id, attempt_number, responses, verdicts)
+  values (v_q, v_a, v_a2, 's3', 2, '{}', '{"z": {"verdict": "incorrect"}}');
+  execute 'set local role authenticated';
+  v_j := activity_first_tries(v_a);
+  execute 'reset role';
+  if (v_j->>'no_first')::int is distinct from 1
+     or exists (select 1 from jsonb_array_elements(v_j->'items') i where i->>'item_id' = 'z') then
+    raise exception 'FAIL B5b: no_first % items %', v_j->'no_first', v_j->'items';
   end if;
 
   -- B6: the answer panel's first attempt beside the latest.
@@ -172,6 +197,7 @@ begin
   execute 'set local role authenticated';
   v_j := activity_first_tries(v_c);
   execute 'reset role';
+  -- (S HAS a check on C, so this row fails if the assignment gate goes.)
   if jsonb_array_length(v_j->'items') <> 0 or (v_j->>'older_only')::int <> 0 then
     raise exception 'FAIL B7a: unassigned activity read %', v_j;
   end if;

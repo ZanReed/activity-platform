@@ -175,7 +175,8 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                 }
                                 const lines = sectionAnswerLines(served, s.section_id, shown.responses, shown.verdicts);
                                 const rows = lines.map((line) => {
-                                    const handGraded = handGradedLine(line.itemId);
+                                    // Grades belong to the LATEST attempt: on a first try, no badge.
+                                    const handGraded = !showFirst && handGradedLine(line.itemId);
                                     const graded = handGraded && s.graded_block_ids.includes(line.itemId);
                                     return { line, handGraded, graded };
                                 });

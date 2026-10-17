@@ -30,7 +30,7 @@
 -- -----------------------------------------------------------------------------
 -- §A — activity_first_tries: what students answered before any feedback
 -- -----------------------------------------------------------------------------
--- Returns { activity, older_only, sections[{section_id, students}],
+-- Returns { activity, older_only, no_first, sections[{section_id, students}],
 -- items[{section_id, item_id, family, first, right_first, wrong_first,
 -- wrong_right_now, picked, groups[]}] }.
 --
@@ -147,6 +147,8 @@ begin
                case when btrim(fi.answer #>> '{}') ~ '^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$'
                     then 'n:' || trim_scale(btrim(fi.answer #>> '{}')::numeric)::text
                     else 's:' || lower(btrim(fi.answer #>> '{}')) end
+             when fi.family = 'freeText' and jsonb_typeof(fi.answer) = 'string' then
+               's:' || lower(btrim(fi.answer #>> '{}'))
              else 'j:' || fi.answer::text
            end,
            fi.answer, fi.student_id, fi.name, fi.right_now, fi.verdict, fi.created_at
@@ -156,7 +158,7 @@ begin
   ),
   groups as (
     select m.section_id, m.item_id, m.answer_key,
-           (array_agg(m.family order by m.created_at))[1] as family,
+           (array_agg(m.family order by m.created_at) filter (where m.family is not null))[1] as family,
            (array_agg(m.answer order by m.created_at))[1] as answer,
            count(distinct m.student_id)::integer as n,
            count(distinct m.student_id) filter (where m.right_now)::integer as right_now,
@@ -178,7 +180,7 @@ begin
   ),
   per_item as (
     select fi.section_id, fi.item_id,
-           (array_agg(fi.family order by fi.created_at))[1] as family,
+           (array_agg(fi.family order by fi.created_at) filter (where fi.family is not null))[1] as family,
            count(distinct fi.student_id)::integer as first,
            count(distinct fi.student_id) filter (where fi.verdict->>'verdict' = 'correct')::integer as right_first,
            count(distinct fi.student_id) filter (where fi.verdict->>'verdict' = 'incorrect')::integer as wrong_first,
@@ -195,6 +197,12 @@ begin
                                    'current_version_id', v_act.current_version_id),
     'older_only', (select count(distinct c.student_id)::integer from checks c
                     where not exists (select 1 from cur where cur.student_id = c.student_id)),
+    -- Students with later attempts at a section of the current version but no
+    -- attempt 1 kept (only possible once rows are removed — FT-9): counted, so
+    -- the panel says so instead of under-reporting silently.
+    'no_first', (select count(distinct c.student_id)::integer from cur c
+                  where not exists (select 1 from firsts f
+                                     where f.student_id = c.student_id and f.section_id = c.section_id)),
     'sections', (select coalesce(jsonb_agg(jsonb_build_object('section_id', x.section_id,
                                                              'students', x.n)), '[]'::jsonb)
                    from (select f.section_id, count(distinct f.student_id)::integer as n

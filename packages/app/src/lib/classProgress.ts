@@ -170,6 +170,8 @@ export interface FirstTries {
     activity: { id: string; title: string; current_version_id: string | null };
     /** Rostered students whose checks are all on older versions (not counted). */
     older_only: number;
+    /** Students with later attempts but no attempt 1 kept (FT-9): not counted. */
+    no_first: number;
     sections: { section_id: string; students: number }[];
     items: FirstTryItem[];
 }

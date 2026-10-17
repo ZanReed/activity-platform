@@ -186,6 +186,7 @@ export async function stubClassProgressApi(page: Page): Promise<ClassProgressStu
   const firstTries: FirstTries = {
     activity: { id: CP_FRACTIONS, title: 'Fractions 2', current_version_id: V_FRACTIONS },
     older_only: 0,
+    no_first: 0,
     sections: [{ section_id: SEC_1, students: 2 }],
     items: [
       { section_id: SEC_1, item_id: f.mcId, family: 'choices', first: 2, right_first: 0, wrong_first: 2,

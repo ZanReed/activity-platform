@@ -64,6 +64,8 @@ export default function FirstTriesPanel({
                 wrong are right now.
                 {data.older_only > 0 &&
                     ` ${data.older_only} ${data.older_only === 1 ? 'student is' : 'students are'} only on an older version of this activity and not counted.`}
+                {data.no_first > 0 &&
+                    ` ${data.no_first} ${data.no_first === 1 ? "student's first try is" : "students' first tries are"} no longer kept, so not counted.`}
             </p>
             {seeded && (
                 <p className="mb-3 text-sm text-muted">
@@ -145,8 +147,22 @@ function FirstTryRow({
                             nameOf={nameOf}
                             studentHref={studentHref}
                         />
+                    ) : item.family === 'choices' ? (
+                        // The document could not be read: the groups include the RIGHT
+                        // choice's pickers, so they must not be listed as wrong answers.
+                        <p className="text-muted">
+                            This question's text could not be loaded, so its choices can't be shown. {item.picked} of{' '}
+                            {sectionStudents} picked an answer.
+                        </p>
                     ) : (
-                        <WrongFirst item={item} served={served} describe={describe} nameOf={nameOf} studentHref={studentHref} />
+                        <WrongFirst
+                            item={item}
+                            served={served}
+                            noAnswer={Math.max(sectionStudents - item.first, 0)}
+                            describe={describe}
+                            nameOf={nameOf}
+                            studentHref={studentHref}
+                        />
                     )}
                 </div>
             )}
@@ -216,19 +232,34 @@ function ChoiceSpread({
 function WrongFirst({
     item,
     served,
+    noAnswer,
     describe,
     nameOf,
     studentHref,
 }: {
     item: FirstTryItem;
     served: ServedDoc | null;
+    noAnswer: number;
     describe: (id: string) => string;
     nameOf: (sid: string, name: string) => string;
     studentHref: (sid: string) => string;
 }) {
     const place = served?.index.byItem[item.item_id] ?? null;
-    if (item.groups.length === 0) return <p className="text-muted">Everyone who answered was right first time.</p>;
+    const none =
+        noAnswer > 0 ? (
+            <p className="mt-2 text-muted">
+                No answer: {noAnswer} {noAnswer === 1 ? 'student' : 'students'}
+            </p>
+        ) : null;
+    if (item.groups.length === 0)
+        return (
+            <>
+                <p className="text-muted">Everyone who answered was right first time.</p>
+                {none}
+            </>
+        );
     return (
+        <>
         <ol className="space-y-2">
             {item.groups.map((g, i) => (
                 <li key={i}>
@@ -247,6 +278,8 @@ function WrongFirst({
                 </li>
             ))}
         </ol>
+        {none}
+        </>
     );
 }
 
@@ -281,7 +314,7 @@ function Who({
                             <Link to={studentHref(s.student_id)} className="text-strong underline underline-offset-2">
                                 {nameOf(s.student_id, s.name)}
                             </Link>
-                            <span className="ml-2 text-muted">{s.right_now ? 'right now' : 'not yet right'}</span>
+                            <span className="ml-2 text-muted">{s.right_now ? 'right now' : 'not right now'}</span>
                         </li>
                     ))}
                 </ul>
