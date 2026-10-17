@@ -21,6 +21,15 @@ import {
 
 import PublishStatus, { viewerShareUrl } from '../components/PublishStatus';
 
+// The line probes listClasses() on mount (the "Add to class" link is absent
+// for a teacher with no classes). Unmocked, that probe was a real request —
+// to the LIVE project, via .env.local — until 2026-10-18; the no-network guard
+// (src/test/noNetwork.setup.ts) now fails any test that makes one.
+vi.mock('../lib/classes', async (orig) => ({
+    ...(await orig<typeof import('../lib/classes')>()),
+    listClasses: vi.fn(() => Promise.resolve([])),
+}));
+
 const ACTIVITY_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
 beforeEach(() => {

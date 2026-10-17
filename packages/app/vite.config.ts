@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { STUB_LANE_SUPABASE_URL } from './e2e/helpers/e2eOrigins';
 
 // ------------------------------------------------------------------
 // MathLive fonts, self-hosted in the app bundle (2026-08-14, D-13 station).
@@ -264,6 +265,18 @@ export default defineConfig({
   // trying to avoid. One narrow cast, in the open.
   ...({
     test: {
+      // NO UNIT TEST REACHES A NETWORK (2026-10-18). Vitest loads .env.local,
+      // which points at the LIVE project, so an unmocked data call in a test
+      // used to send a real request to production (and made verify flaky).
+      // Two layers: the setup file refuses every fetch/XHR/WebSocket and FAILS
+      // the test that tried, naming the URL; and `env` repoints the client at
+      // the stub lanes' dead origin, so anything that slips past the setup file
+      // still cannot reach live. Reasoning: src/test/noNetwork.setup.ts.
+      setupFiles: ['./src/test/noNetwork.setup.ts'],
+      env: {
+        VITE_SUPABASE_URL: STUB_LANE_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: 'unit-test-anon-key-not-a-real-key',
+      },
       server: {
         deps: {
           // auth-js is inlined for the same reason, one layer down: the
