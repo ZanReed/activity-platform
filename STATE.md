@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE 2026-10-13.**
 
-**Class progress BUILT locally, NOT live (2026-10-17):** [class-progress-view.md](docs/design/class-progress-view.md) → As built (departures listed for the author). Release (OV-7): Fable review → author applies 0061 → verify-0061 live → THEN push.
+**Class progress: 0061 LIVE, SPA UNPUSHED (2026-10-18):** [class-progress-view.md](docs/design/class-progress-view.md) → As built. Fable fixes 253c7d91; verify-0061 live 5/5, verify-0059 8/8. **NEXT: author pushes main.**
 
 **Superscript units LIVE (2026-10-17)**, hash-verified, stamp `201a0a29`. **HELD: B-184** until a curriculum session runs (content: [superscript-units.md](docs/design/superscript-units.md)).
 
