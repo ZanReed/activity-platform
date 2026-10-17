@@ -560,3 +560,24 @@ Pass 7 re-rated: 9/10.
 - **VERDICT:** no review CLEAR (issues_open = mapped work, 0 open decisions). eng review required. Ready to implement T1–T5 with T4e–T4j; T6 (Fable review, live apply, push) author-gated.
 
 NO UNRESOLVED DECISIONS
+
+## As built (2026-10-17, T1–T5; T6 author-gated)
+
+Built on `main`, committed locally, NOT pushed, 0061 NOT applied live.
+
+- **0061** (`supabase/migrations/0061_class_progress.sql`): `class_progress`, `activity_progress`, `class_student_work`, `class_misconceptions` exactly as the working plan. `class_student_work` and `class_misconceptions` take a NULL class (the activity page's form: any class of the caller's with the activity assigned, still roster-scoped). `activity_progress` is gated on `can_read_activity` for the call only; students are chosen by roster × assignment (D6), so a later widening of that helper cannot widen who appears. One refusal (`not_in_scope`) for every failed gate of `class_student_work`.
+- **verify-0061** (local 5/5): catalog posture, every gate of every function, NULL total, older version, score, to-grade, the AGREEMENT row (D3), ever/still, the unmirrored id, wrong-answer grouping and the 2-student floor. Mutation-tested: 11 mutations (each roster/assignment/deleted gate, the done-rule drift, to-grade, the teacher gate, the floor), each red at its own row (B1, B2, B10, B4, B11, B11, B17, B17, B19, B23, B22a).
+- **answerText** (`packages/app/src/lib/answerText.ts`): seven families as words from the student's served document; `serveSeed` is now exported from the viewer barrel (one spelling). 19 tests, 6 mutations red.
+- **Pages:** `routes/ClassProgress.tsx`, `routes/ActivityProgress.tsx`, `progress/*` (answer panel as a child route, misconception and wrong-answer panels, controls). `.ft-table`/`.ft-tablewrap`/`.ft-num` moved to `styles/teacherTable.css` (facts page imports it; same class names, unchanged look). Links: Classes (beside Number facts), activity row (beside Analytics, Responses). Responses shows "Back to progress" for a validated `?from=` (must be an in-app `/classes/…/progress` or `/activity/…/progress` path).
+- **Tests:** `ClassProgress.test.tsx` (22: statuses, counts, chip href, Hide names DOM, device memory, sort, the nine states, activity page grouping/order/first-three-open, Responses back link, pure rules; 10 mutations red), Activities + Classes link rows, and `e2e/student/class-progress.e2e.ts` (3 rows incl. names absent from text AND attributes, reload keeps the panel, focus in/out, refresh failure, phone full page with no sideways scroll; the hide-names DOM guard mutation-tested red).
+
+**Where the build departs from a ruling's letter (for the author to confirm or overturn):**
+1. **DR-10 says a cell with work is a `<button>`; it is a link.** DR-5 gave the answer list its own address, so the cell navigates; a link is the correct element for that (it opens in a new tab, Back works, screen readers announce it as a link). Named in full exactly as DR-10 specifies.
+2. **The e2e lives in the stub-env ("student") lane, not the editor lane.** Signed-in specs need that lane's pinned Supabase env; the teacher facts page's spec lives there for the same reason.
+3. **"Attempts" is per section, not per question** (DR-9 lists it per question row): a check records a whole section, so the count is shown once per section heading.
+4. **Common wrong answers read labels from the UNSEEDED document** (many students' answers are grouped, so no one student's numbers apply); a seeded activity shows its `{name}` templates there. The answer panel uses each student's own seed.
+5. **On the activity page, a student whose latest work is on an older version gets one cell across the section columns** ("older version · ◐ 2/3"), because section ids are minted fresh per publish and an older version's sections do not line up with the current columns.
+6. **"Still" is per version × section** (the latest attempt at that section of that version), the only reading of "that question" that survives republishing.
+7. **The phone layout narrows the pinned name column to 8 rem** below 768 px (12 rem on desk, as ruled), so a 375 px screen keeps room for at least one activity column.
+
+**Found in passing (not this build's):** the local stack carries 3 `section_checks` rows from the integration lane (2026-10-15) that make verify-0036 C-behavioral-matrix red locally (its reconciliation pair counts them); with them set aside it is 20/20. Live is unaffected.

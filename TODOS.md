@@ -2270,6 +2270,15 @@ for each); and how a taxonomy RENAME is handled at read time, since stored rows 
 string forever (see the id-rename TODO). Everything else in this arc's design is inherited,
 not re-derived — but this dimension was never in it.
 
+🔁 **A SECOND READER OF THOSE ROWS (class progress, 0061, 2026-10-17).** The teacher's
+"Common misconceptions" panel (`class_misconceptions`, docs/design/class-progress-view.md D7/D8)
+counts students who showed a misconception on ANY attempt ("ever") — read straight from
+`section_checks.verdicts`, superseded attempts included. Arming the prune shrinks every "ever"
+count to what the latest attempts still carry, and the panel's "N showed it · M still do" would
+silently become "M showed it · M still do". The misconception aggregate above must therefore
+also serve that panel (or the panel must read it) before arming — add it to the arming
+checklist's verification step, and re-run verify-0061 after.
+
 **Trigger for ARMING:** real check growth on the `analytics_job_runs.section_check_rows` ledger
 (still 0 as of 2026-08-16 — 11 runs, all zero). No date; read the ledger. Building the rollup
 early was the author's deliberate call (momentum + every ruling fresh); arming has no such
