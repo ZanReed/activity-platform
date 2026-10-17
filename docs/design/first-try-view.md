@@ -86,3 +86,10 @@ verify-0062 (every gate row, first-try vs latest, multi-select, older-version
 exclusion, the "right now" count). App: a First tries panel, the panel switch,
 tests, an e2e row. No Edge Function change. Release as before: Fable review →
 author applies 0062 → verify live → push.
+
+## As built (2026-10-18)
+
+- **0062** (`supabase/migrations/0062_first_tries.sql`): `activity_first_tries(activity)` and `class_student_work` re-created with a `first` key per section. verify-0062 local 4/4; 9 mutations (removed student, deleted class, any attempt, right-now, recorded items, older-only, older versions counted, the panel's attempt 1, the teacher gate) each red at its own row; verify-0061 still 5/5.
+- **App:** `progress/FirstTriesPanel.tsx` on the activity page, between Common misconceptions and Common wrong answers (FT-1); the answer panel's per-section First try / Latest switch, shown only where a section was checked more than once (FT-8; "N to grade" always counts the latest attempt). Multiple-choice letters follow the AUTHORED order (as the printed key letters them). A seeded activity gets the same one-line note as Common wrong answers.
+- **Tests:** `FirstTries.test.tsx` (7; 8 mutations red, one of them only after a fourth question was added to the fixture — "first three open" was vacuous with three), the stub-lane e2e extended (spread, order on the page, the switch).
+- FT-9: TODOS → the check-rollup ARMING arc carries the first-tries blocker.

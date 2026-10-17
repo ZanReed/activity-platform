@@ -115,6 +115,16 @@ test('class grid → answer panel → hide names → activity page → back from
   const wrongTop = await wrong.boundingBox();
   const gridTop = await page.locator('table').first().boundingBox();
   expect(wrongTop!.y).toBeLessThan(gridTop!.y);
+  // First tries (0062): the whole spread, above the common wrong answers.
+  const firstHead = page.getByRole('heading', { name: 'First tries' });
+  await expect(firstHead).toBeVisible();
+  const firstBox = await firstHead.boundingBox();
+  const wrongHead = await page.getByRole('heading', { name: 'Common wrong answers' }).boundingBox();
+  expect(firstBox!.y).toBeLessThan(wrongHead!.y);
+  const firstPanel = page.locator('section', { has: firstHead });
+  await expect(firstPanel).toContainText('0 of 2 right first time · 1 of the 2 wrong is right now');
+  await expect(firstPanel).toContainText('A. three quarters✓ correct0 students');
+  await expect(firstPanel).toContainText('B. two thirds2 students · 1 right now');
   await expect(page.getByRole('columnheader', { name: 'Warm-up' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Section 2' })).toBeVisible();
   await page.screenshot({ path: 'test-results/activity-progress.png', fullPage: true });
@@ -123,6 +133,10 @@ test('class grid → answer panel → hide names → activity page → back from
   const activityPanel = page.getByRole('complementary', { name: 'Ana Lee' });
   await expect(activityPanel).toContainText('Answer: 0.8');
   expect(api.calls).toContain('class_student_work:activity');
+  // The panel's First try switch shows attempt 1 of the re-checked section.
+  await activityPanel.getByRole('button', { name: 'First try' }).click();
+  await expect(activityPanel).toContainText('two thirds');
+  await activityPanel.getByRole('button', { name: 'Latest' }).click();
 
   // "N to grade" carries where it came from; Responses offers "Back to progress".
   await page.route('**/rest/v1/rpc/list_grading_queue**', (route) => route.fulfill({ json: [] }));

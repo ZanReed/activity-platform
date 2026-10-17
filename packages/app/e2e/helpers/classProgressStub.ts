@@ -13,6 +13,7 @@ import {
   type ActivityDocument,
 } from '@activity/schema';
 import {
+  ACTIVITY_FIRST_TRIES_RPC,
   ACTIVITY_PROGRESS_RPC,
   CLASS_MISCONCEPTIONS_RPC,
   CLASS_PROGRESS_RPC,
@@ -22,6 +23,7 @@ import type {
   ActivityProgress,
   ClassMisconceptions,
   ClassProgress,
+  FirstTries,
   StudentWork,
 } from '../../src/lib/classProgress';
 
@@ -136,6 +138,10 @@ export async function stubClassProgressApi(page: Page): Promise<ClassProgressStu
       version_id: V_FRACTIONS, version_num: 2, is_current: true,
       sections: [
         { section_id: SEC_1, attempts: 2, attempt_number: 2, checked_at: '2027-02-09T09:41:00Z',
+          // Attempt 1 (0062): picked "two thirds" first, re-checked to "three quarters".
+          first: { checked_at: '2027-02-09T09:20:00Z',
+                   responses: { blanks: { [f.blankId]: '0.45' }, choices: { [f.mcId]: [f.choiceIds[1]!] } },
+                   verdicts: { [f.blankId]: { verdict: 'incorrect' }, [f.mcId]: { verdict: 'incorrect' } } },
           responses: { blanks: { [f.blankId]: '0.45' }, choices: { [f.mcId]: [f.choiceIds[0]!] } },
           verdicts: {
             [f.blankId]: { verdict: 'incorrect', feedback: t('Count the tenths.'), misconceptionIds: ['mis.decimal.tenths-as-place'] },
@@ -177,6 +183,22 @@ export async function stubClassProgressApi(page: Page): Promise<ClassProgressStu
     }],
   };
 
+  const firstTries: FirstTries = {
+    activity: { id: CP_FRACTIONS, title: 'Fractions 2', current_version_id: V_FRACTIONS },
+    older_only: 0,
+    sections: [{ section_id: SEC_1, students: 2 }],
+    items: [
+      { section_id: SEC_1, item_id: f.mcId, family: 'choices', first: 2, right_first: 0, wrong_first: 2,
+        wrong_right_now: 1, picked: 2, groups: [
+          { answer: f.choiceIds[1]!, family: 'choices', count: 2, right_now: 1, misconception_ids: [],
+            students: [{ student_id: CP_ANA, name: 'Ana Lee', right_now: true }, { student_id: CP_BEN, name: 'Ben Carter', right_now: false }] },
+        ] },
+    ],
+  };
+  await page.route(`**/rest/v1/rpc/${ACTIVITY_FIRST_TRIES_RPC}**`, (route) => {
+    stub.calls.push('activity_first_tries');
+    return route.fulfill({ json: firstTries });
+  });
   await page.route(`**/rest/v1/rpc/${CLASS_PROGRESS_RPC}**`, (route) => {
     stub.calls.push('class_progress');
     if (stub.failNext) return route.fulfill({ status: 500, json: { message: 'boom' } });

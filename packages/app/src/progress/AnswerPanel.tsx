@@ -61,8 +61,9 @@ export default function AnswerPanel() {
                 const ids = new Set<string>();
                 for (const v of work.versions)
                     for (const s of v.sections)
-                        for (const item of Object.values((s.verdicts ?? {}) as Record<string, { misconceptionIds?: string[] }>))
-                            for (const id of item?.misconceptionIds ?? []) ids.add(id);
+                        for (const verdicts of [s.verdicts, s.first?.verdicts])
+                            for (const item of Object.values((verdicts ?? {}) as Record<string, { misconceptionIds?: string[] }>))
+                                for (const id of item?.misconceptionIds ?? []) ids.add(id);
                 let descriptions = new Map<string, string | null>();
                 try {
                     descriptions = await fetchMisconceptionDescriptions([...ids]);
@@ -131,6 +132,8 @@ export default function AnswerPanel() {
 
 function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: string; activityId: string }) {
     const { work, docs, descriptions } = ready;
+    // FT-8: per section, which attempt is on screen. Latest by default.
+    const [firstShown, setFirstShown] = useState<ReadonlySet<string>>(() => new Set());
     if (work.versions.length === 0) {
         return <p className="text-sm text-muted">No checked work on this activity yet.</p>;
     }
@@ -138,7 +141,10 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
     let toGrade = 0;
     return (
         <div>
-            <p className="mb-2 text-sm text-muted">Showing each section's latest attempt.</p>
+            <p className="mb-2 text-sm text-muted">
+                Showing each section's latest attempt. Where there were several, you can switch a section to its
+                first try.
+            </p>
             {work.versions.map((v) => {
                 const served = docs.get(v.version_id) ?? null;
                 return (
@@ -153,14 +159,24 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                         )}
                         {served !== null &&
                             orderSections(served, v.sections).map((s) => {
-                                const lines = sectionAnswerLines(served, s.section_id, s.responses, s.verdicts);
+                                const key = `${v.version_id}:${s.section_id}`;
+                                const canSwitch = Boolean(s.first) && s.attempts > 1;
+                                const showFirst = canSwitch && firstShown.has(key);
+                                const shown = showFirst && s.first ? s.first : s;
+                                const handGradedLine = (itemId: string) => {
+                                    const block = served.index.byItem[itemId]?.block;
+                                    return block?.type === 'short_answer' || block?.type === 'essay';
+                                };
+                                // "N to grade" is always the LATEST attempt's, whatever is on screen.
+                                // A blank or omitted essay has NO verdict (the grader writes none),
+                                // yet Responses queues it and the grid counts it: so does this.
+                                for (const line of sectionAnswerLines(served, s.section_id, s.responses, s.verdicts)) {
+                                    if (handGradedLine(line.itemId) && !s.graded_block_ids.includes(line.itemId)) toGrade += 1;
+                                }
+                                const lines = sectionAnswerLines(served, s.section_id, shown.responses, shown.verdicts);
                                 const rows = lines.map((line) => {
-                                    const block = served.index.byItem[line.itemId]?.block;
-                                    const handGraded = block?.type === 'short_answer' || block?.type === 'essay';
+                                    const handGraded = handGradedLine(line.itemId);
                                     const graded = handGraded && s.graded_block_ids.includes(line.itemId);
-                                    // A blank or omitted essay has NO verdict (the grader writes none),
-                                    // yet Responses queues it and the grid counts it: so does this.
-                                    if (handGraded && !graded) toGrade += 1;
                                     return { line, handGraded, graded };
                                 });
                                 return (
@@ -171,6 +187,31 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                                 {s.attempts === 1 ? '1 attempt' : `${s.attempts} attempts`}
                                             </span>
                                         </h3>
+                                        {canSwitch && (
+                                            <div role="group" aria-label={`Which attempt: ${served.index.sectionTitles[s.section_id] ?? 'section'}`} className="my-1 inline-flex overflow-hidden rounded-md border border-line-strong text-xs">
+                                                {(['first', 'latest'] as const).map((which) => {
+                                                    const on = (which === 'first') === showFirst;
+                                                    return (
+                                                        <button
+                                                            key={which}
+                                                            type="button"
+                                                            aria-pressed={on}
+                                                            className={`min-h-[32px] px-3 ${on ? 'bg-surface font-semibold text-ink' : 'bg-canvas text-muted hover:text-ink'}`}
+                                                            onClick={() =>
+                                                                setFirstShown((prev) => {
+                                                                    const next = new Set(prev);
+                                                                    if (which === 'first') next.add(key);
+                                                                    else next.delete(key);
+                                                                    return next;
+                                                                })
+                                                            }
+                                                        >
+                                                            {which === 'first' ? 'First try' : 'Latest'}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                         {rows.length === 0 ? (
                                             <p className="text-sm text-muted">Nothing to answer in this section.</p>
                                         ) : (

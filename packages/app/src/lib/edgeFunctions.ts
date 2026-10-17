@@ -55,3 +55,5 @@ export const CLASS_PROGRESS_RPC = 'class_progress';
 export const ACTIVITY_PROGRESS_RPC = 'activity_progress';
 export const CLASS_STUDENT_WORK_RPC = 'class_student_work';
 export const CLASS_MISCONCEPTIONS_RPC = 'class_misconceptions';
+/** First tries on one activity (0062, docs/design/first-try-view.md). */
+export const ACTIVITY_FIRST_TRIES_RPC = 'activity_first_tries';

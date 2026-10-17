@@ -15,6 +15,7 @@
 
 import { supabase } from './supabase';
 import {
+    ACTIVITY_FIRST_TRIES_RPC,
     ACTIVITY_PROGRESS_RPC,
     CLASS_MISCONCEPTIONS_RPC,
     CLASS_PROGRESS_RPC,
@@ -93,6 +94,8 @@ export interface WorkSection {
     responses: unknown;
     verdicts: unknown;
     graded_block_ids: string[];
+    /** Attempt 1 of this section (0062, FT-8); null when it is missing. */
+    first?: { responses: unknown; verdicts: unknown; checked_at: string } | null;
 }
 
 export interface StudentWork {
@@ -138,6 +141,39 @@ export interface ClassMisconceptions {
     wrong_answers: WrongAnswerItem[];
 }
 
+/** One answer group on a first try (0062): a picked choice id (multiple
+ * choice), or a wrong answer grouped as the common wrong answers are. */
+export interface FirstTryGroup {
+    answer: unknown;
+    family: string | null;
+    count: number;
+    /** Of these students, right on their latest attempt at this question. */
+    right_now: number;
+    misconception_ids: string[];
+    students: { student_id: string; name: string; right_now: boolean }[];
+}
+
+export interface FirstTryItem {
+    section_id: string;
+    item_id: string;
+    family: string | null;
+    first: number;
+    right_first: number;
+    wrong_first: number;
+    wrong_right_now: number;
+    /** Multiple choice: students who ticked at least one choice. */
+    picked: number;
+    groups: FirstTryGroup[];
+}
+
+export interface FirstTries {
+    activity: { id: string; title: string; current_version_id: string | null };
+    /** Rostered students whose checks are all on older versions (not counted). */
+    older_only: number;
+    sections: { section_id: string; students: number }[];
+    items: FirstTryItem[];
+}
+
 // ---- The reads ---------------------------------------------------------------
 
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -172,6 +208,10 @@ export function fetchMisconceptions(
     activityId: string | null = null,
 ): Promise<ClassMisconceptions> {
     return rpc(CLASS_MISCONCEPTIONS_RPC, { p_class_id: classId, p_activity_id: activityId });
+}
+
+export function fetchFirstTries(activityId: string): Promise<FirstTries> {
+    return rpc(ACTIVITY_FIRST_TRIES_RPC, { p_activity_id: activityId });
 }
 
 /** The versions' content, read under the teacher's OWN RLS (activity

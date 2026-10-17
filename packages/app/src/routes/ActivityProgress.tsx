@@ -19,6 +19,8 @@ import {
     cellStatus,
     cellWords,
     fetchActivityProgress,
+    fetchFirstTries,
+    fetchMisconceptionDescriptions,
     fetchMisconceptions,
     fetchVersionContents,
     leastDoneFirst,
@@ -30,6 +32,7 @@ import {
     type ActivityProgressSection,
     type ActivityProgressStudent,
     type ClassMisconceptions,
+    type FirstTries,
 } from '../lib/classProgress';
 import {
     Controls,
@@ -44,12 +47,17 @@ import {
 } from '../progress/common';
 import MisconceptionPanel from '../progress/MisconceptionPanel';
 import WrongAnswersPanel from '../progress/WrongAnswersPanel';
+import FirstTriesPanel from '../progress/FirstTriesPanel';
 import '../styles/teacherTable.css';
 import '../progress/progress.css';
 
 interface Loaded {
     grid: ActivityProgressData;
     mis: ClassMisconceptions | null;
+    /** null when the first-tries read failed: the rest still shows. */
+    first: FirstTries | null;
+    /** Registry descriptions for every misconception id any panel shows. */
+    descriptions: Map<string, string | null>;
     /** version id → unseeded document; the current version is always tried. */
     docs: Map<string, ServedDoc>;
 }
@@ -59,9 +67,10 @@ export default function ActivityProgress() {
     const location = useLocation();
     const base = `/activity/${id}/progress`;
     const loaded = useProgressLoad<Loaded>(async () => {
-        const [grid, mis] = await Promise.all([
+        const [grid, mis, first] = await Promise.all([
             fetchActivityProgress(id),
             fetchMisconceptions(null, id).catch(() => null),
+            fetchFirstTries(id).catch(() => null),
         ]);
         const versionIds = [
             ...(grid.activity.current_version_id ? [grid.activity.current_version_id] : []),
@@ -80,7 +89,26 @@ export default function ActivityProgress() {
         } catch {
             // Same fallback.
         }
-        return { grid, mis, docs };
+        // First tries name misconceptions from the document's choices and from
+        // the verdicts; the other panel's rows already carry descriptions.
+        const ids = new Set<string>();
+        for (const it of first?.items ?? []) for (const g of it.groups) g.misconception_ids.forEach((m) => ids.add(m));
+        const current = grid.activity.current_version_id ? docs.get(grid.activity.current_version_id) : undefined;
+        for (const place of Object.values(current?.index.byItem ?? {})) {
+            for (const c of ((place.block as { choices?: { misconceptionId?: string }[] }).choices ?? [])) {
+                if (c.misconceptionId) ids.add(c.misconceptionId);
+            }
+        }
+        let descriptions = new Map<string, string | null>(
+            (mis?.misconceptions ?? []).map((m) => [m.id, m.description]),
+        );
+        try {
+            const more = await fetchMisconceptionDescriptions([...ids].filter((m) => !descriptions.has(m)));
+            descriptions = new Map([...descriptions, ...more]);
+        } catch {
+            // Tags then read as unknown; the counts still show.
+        }
+        return { grid, mis, first, descriptions, docs };
     }, [id]);
     const [hideNames, setHideNames] = useHideNames();
     const [leastDone, setLeastDone] = useLeastDoneFirst();
@@ -172,7 +200,7 @@ function Body({
             </p>
         );
     }
-    const { grid, mis, docs } = loaded.data;
+    const { grid, mis, first, descriptions, docs } = loaded.data;
     const activityId = grid.activity.id;
 
     if (grid.classes.length === 0) {
@@ -201,7 +229,7 @@ function Body({
     const everyone = grid.classes.flatMap((c) => c.students);
     const studentCount = new Set(everyone.map((s) => s.student_id)).size;
     const anyWork = everyone.some((s) => s.shown_version_id !== null);
-    const misDescriptions = new Map((mis?.misconceptions ?? []).map((m) => [m.id, m.description]));
+    const describe = (mid: string) => descriptions.get(mid) ?? `Unknown misconception (${mid})`;
 
     return (
         <>
@@ -215,20 +243,26 @@ function Body({
                     Couldn't load misconceptions and common wrong answers. Press Refresh to try again.
                 </p>
             ) : (
-                <>
-                    <MisconceptionPanel
-                        rows={mis.misconceptions}
-                        showActivities={false}
-                        nameOf={nameOf}
-                        studentHref={(sid) => `${base}/${sid}`}
-                    />
-                    <WrongAnswersPanel
-                        items={mis.wrong_answers}
-                        docs={docs}
-                        describe={(mid) => misDescriptions.get(mid) ?? `Unknown misconception (${mid})`}
-                    />
-                </>
+                <MisconceptionPanel
+                    rows={mis.misconceptions}
+                    showActivities={false}
+                    nameOf={nameOf}
+                    studentHref={(sid) => `${base}/${sid}`}
+                />
             )}
+            {/* FT-1: first tries sit above the common wrong answers (latest). */}
+            {first === null ? (
+                <p className="mt-8 text-sm text-muted">Couldn't load first tries. Press Refresh to try again.</p>
+            ) : (
+                <FirstTriesPanel
+                    data={first}
+                    served={current ?? null}
+                    describe={describe}
+                    nameOf={nameOf}
+                    studentHref={(sid) => `${base}/${sid}`}
+                />
+            )}
+            {mis !== null && <WrongAnswersPanel items={mis.wrong_answers} docs={docs} describe={describe} />}
             <div className="mt-8">
                 <Controls
                     hideNames={hideNames}
