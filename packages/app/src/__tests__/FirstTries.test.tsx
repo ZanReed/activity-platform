@@ -24,6 +24,35 @@ vi.mock('../lib/classProgress', async (orig) => ({
     ...(await orig<typeof import('../lib/classProgress')>()),
     ...api,
 }));
+
+// NO NETWORK (found 2026-10-18): with .env.local present, an unmocked read here
+// went to the LIVE project (anonymous, refused by its grant) and took ~0.5 s —
+// over findBy's 1 s under load, which made "the nine states" row 10 flaky. The
+// client is stubbed: any call it receives resolves at once with an error AND
+// is recorded, and the progress rows assert that none happened.
+const net = vi.hoisted(() => {
+    const calls: string[] = [];
+    const refuse = () => Promise.resolve({ data: null, error: { message: 'unmocked network call in a unit test' } });
+    const chain = (name: string): unknown =>
+        new Proxy(() => {}, {
+            get: (_t, prop) => (prop === 'then' ? (ok: (v: unknown) => unknown) => refuse().then(ok) : chain(name)),
+            apply: () => chain(name),
+        });
+    return {
+        calls,
+        supabase: {
+            rpc: (name: string) => {
+                calls.push(`rpc:${name}`);
+                return refuse();
+            },
+            from: (table: string) => {
+                calls.push(`from:${table}`);
+                return chain(table);
+            },
+        },
+    };
+});
+vi.mock('../lib/supabase', () => ({ supabase: net.supabase }));
 import AnswerPanel from '../progress/AnswerPanel';
 
 const t = (text: string) => [{ type: 'text' as const, text, marks: [] }];
@@ -66,6 +95,8 @@ function panel(data: FirstTries, served: ReturnType<typeof servedDocument> | nul
 }
 
 afterEach(() => {
+    expect(net.calls).toEqual([]);
+    net.calls.length = 0;
     cleanup();
     vi.clearAllMocks();
 });

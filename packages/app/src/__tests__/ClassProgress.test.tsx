@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
     fetchActivityProgress: vi.fn(),
     fetchMisconceptions: vi.fn(),
     fetchStudentWork: vi.fn(),
+    fetchFirstTries: vi.fn(),
     fetchVersionContents: vi.fn(async () => new Map()),
     fetchMisconceptionDescriptions: vi.fn(async () => new Map()),
 }));
@@ -25,6 +26,35 @@ vi.mock('../lib/classProgress', async (orig) => ({
     ...(await orig<typeof import('../lib/classProgress')>()),
     ...api,
 }));
+
+// NO NETWORK (found 2026-10-18): with .env.local present, an unmocked read here
+// went to the LIVE project (anonymous, refused by its grant) and took ~0.5 s —
+// over findBy's 1 s under load, which made "the nine states" row 10 flaky. The
+// client is stubbed: any call it receives resolves at once with an error AND
+// is recorded, and the progress rows assert that none happened.
+const net = vi.hoisted(() => {
+    const calls: string[] = [];
+    const refuse = () => Promise.resolve({ data: null, error: { message: 'unmocked network call in a unit test' } });
+    const chain = (name: string): unknown =>
+        new Proxy(() => {}, {
+            get: (_t, prop) => (prop === 'then' ? (ok: (v: unknown) => unknown) => refuse().then(ok) : chain(name)),
+            apply: () => chain(name),
+        });
+    return {
+        calls,
+        supabase: {
+            rpc: (name: string) => {
+                calls.push(`rpc:${name}`);
+                return refuse();
+            },
+            from: (table: string) => {
+                calls.push(`from:${table}`);
+                return chain(table);
+            },
+        },
+    };
+});
+vi.mock('../lib/supabase', () => ({ supabase: net.supabase }));
 
 import ClassProgress from '../routes/ClassProgress';
 import ActivityProgressPage from '../routes/ActivityProgress';
@@ -87,14 +117,24 @@ function classPage(path = '/classes/class-1/progress') {
 
 beforeEach(() => {
     window.localStorage.clear();
+    net.calls.length = 0;
     api.fetchMisconceptions.mockResolvedValue(noMis);
+    api.fetchFirstTries.mockResolvedValue({
+        activity: { id: A1, title: 'Fractions 2', current_version_id: null },
+        older_only: 0, no_first: 0, sections: [], items: [],
+    });
 });
+
+/** The progress rows read through the mocked lib only (Responses, below, is
+ * allowed its own reads; they are refused by the stub). */
+const noNetwork = () => afterEach(() => expect(net.calls).toEqual([]));
 afterEach(() => {
     cleanup();
     vi.clearAllMocks();
 });
 
 describe('the class grid (CP-2, DR-1, DR-9, DR-10)', () => {
+    noNetwork();
     it('shows each status in glyph + words, with full accessible names', async () => {
         api.fetchClassProgress.mockResolvedValue(grid());
         classPage();
@@ -177,6 +217,7 @@ describe('the class grid (CP-2, DR-1, DR-9, DR-10)', () => {
 });
 
 describe('the nine states (DR-4)', () => {
+    noNetwork();
     it('1. loading', () => {
         api.fetchClassProgress.mockReturnValue(new Promise(() => {}));
         classPage();
@@ -278,6 +319,7 @@ describe('the nine states (DR-4)', () => {
 });
 
 describe('the activity page (D5, DR-2, DR-3, DR-11)', () => {
+    noNetwork();
     it('groups by class with counts, puts wrong answers above the grid, opens only the first three', async () => {
         const schema = await import('@activity/schema');
         const doc = schema.createEmptyDocument();
@@ -388,6 +430,7 @@ describe('the pure rules', () => {
 });
 
 describe('the answer panel (CP-3, CP-7)', () => {
+    noNetwork();
     it('a blank essay has no verdict but still reads "To grade" and counts in the chip, as the grid does', async () => {
         const schema = await import('@activity/schema');
         const doc = schema.createEmptyDocument();
