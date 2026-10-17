@@ -418,17 +418,145 @@ None.
 - Parallelization: 3 steps, 0 parallel / 3 sequential
 - Lake Score: 3/3 (D2, D3, D7 chose the 10/10 or tied-top option)
 
+## Design review (2026-10-17)
+
+**Target:** this file after the eng review. **Focus:** all 7 dimensions (D1). **Initial rating: 4/10**: a data spec with no layout. No DESIGN.md; calibrated against the teacher pages (FactsTeacher `.ft-table`, Analytics `Stat`, Responses, Activities `ICON_BUTTON`) and the app's tokens. Mockups: not generated (designer has no OpenAI key). Outside voice: Fable cold read (D2), findings verified against the cited files and folded into the passes below.
+
+### Pass 1 — Information hierarchy: 3/10
+
+A 30 × 25 grid of equal cells has no first read. The question a teacher opens it with on Monday is "who hasn't done what I set last week?", which is a COLUMN question, then "who is behind overall?", a ROW question. → DR-1. The per-activity page groups rows by class, so its first read is class headers (the trap Responses' D9 removed). → DR-2. The misconception panel's position is unspecified. → DR-3.
+
+### DR-1: a first read for the class grid
+Options: A) count summaries: each activity column header carries "18 done · 5 started · 7 not started"; each student row ends with "done 4 of 9"; a 3-stat header above (assigned · students · last check, Analytics' `Stat` style) (recommended) · B) the grid alone
+State: approved — A) Lead with counts (author, 2026-10-17): column headers carry 'N done · N started · N not started', each row ends 'done N of M', three Stat cards above the grid (activities assigned, students, last check).
+
+### DR-2: the per-activity page's rows
+Plan baseline: D5 (grouped by class)
+Options: A) one flat roster with a Class column and class filter · B) keep D5's grouping by class, each block with its own counts (recommended; the comparison is why the page exists)
+State: approved — B) Grouped by class (author, 2026-10-17): one block per class, its heading carries that class's done/started/not-started counts; students sorted by name inside.
+
+### DR-3: where the misconception panel sits
+Options: A) class page: BELOW the grid (the grid is the page, misconceptions are the second read); per-activity page: ABOVE the section grid (one activity's misconceptions are the actionable signal) (recommended) · B) below the grid on both pages · C) a separate tab on each page
+State: approved — A) (author, 2026-10-17): class page = grid first, panel below; per-activity page = misconceptions and common wrong answers ABOVE the section grid.
+
+Pass 1 re-rated: 8/10.
+
+### Pass 2 — States: 2/10 (none specified)
+
+### DR-4: the state set (house patterns from FactsTeacher)
+Proposed set:
+- Loading: `role="status"` "Loading…". Error on first load: `role="alert"` "Couldn't load progress" + Try again.
+- Refresh failure: keep the last grid, show "Couldn't refresh · showing 9:41" (never blank the grid).
+- No students: "No students yet" + the class join code with Copy (as on Classes).
+- No activities assigned: "Nothing assigned yet" + link to Activities, where "Add to class" lives.
+- Nobody started: the full grid of "—" with one line "No one has checked any work yet" (the roster still shows).
+- A student with no checks on an activity: "—" (only checks are stored, so "opened but not checked" cannot be told apart and is not claimed).
+- NULL section total (checked before 0059): "Started · ?" with a title "Checked before progress totals were recorded".
+- Misconception id not in the registry: "Unknown misconception" with the id in small mono text.
+- Untitled section (activity page): "Section 3".
+Options: A) adopt this set (recommended) · B) only loading and error now, the rest when a teacher hits them
+State: approved — A) Adopt the set (author, 2026-10-17): all nine states as listed above.
+
+Pass 2 re-rated: 9/10.
+
+### Pass 3 — Journey: 4/10
+
+Desk, Monday: Classes → class → Progress → the newest activity's column (left, newest first) → a cell → that student's answers. The plan never says where "that student's answers" opens. → DR-5.
+
+### DR-5: where a student's answer list opens
+Options: A) its own address (`/classes/:classId/progress/:studentId/:activityId`, and the same under `/activity/:id/progress/…`), shown as a side panel over the right of the grid on screens ≥ 768 px and as a full page on phones; Back closes it, the link can be shared or reopened, Refresh keeps it open; focus moves into it and returns to the cell on close (recommended) · B) a modal dialog over the grid (the repo's RemoveStudentDialog pattern) · C) an expanding row under the student
+State: approved — A) Own address, side panel (author, 2026-10-17): `/classes/:classId/progress/:studentId/:activityId` and `/activity/:id/progress/:studentId`; side panel over the grid's right at ≥ 768 px, full page on phones; Back closes it, Refresh keeps it, focus moves in and returns to the clicked cell.
+
+### DR-6: show the correct answer in the answer list?
+Evidence: the teacher owns every assigned activity (0030:103), so the key is theirs; the answer key print already shows the canonical answer (answer-key/extract.ts).
+Options: A) under each WRONG answer, a muted "Answer: 0.8" line (the canonical answer only, as the printed key shows it; graphs as their target points) (recommended) · B) never show the key here
+State: approved — A) (author, 2026-10-17): under each wrong answer a muted "Answer: …" with the canonical answer only (graph items: target points); correct answers get no extra line. Hide names does not hide answers (a projector note for the page copy).
+
+### DR-7: sorting
+Options: A) default by name (ruled), plus one toggle "Least done first" (fewest done, then most started), mirroring the facts page's "Slowest first" checkbox; the choice is remembered on this device (recommended) · B) name only
+State: approved — A) (author, 2026-10-17): default by name; a "Least done first" checkbox (fewest done, then fewest started, then name), remembered on this device.
+
+### DR-8: getting back from Responses
+Evidence: ActivityResponses offers only "Back to editor"; "N to grade" (CP-7) leads there from a progress page.
+Options: A) "N to grade" links carry where they came from (`?from=` the progress page's own path, validated as an in-app path); Responses then shows "Back to progress" in place of "Back to editor" (recommended) · B) leave Responses as it is; the browser Back button returns
+State: approved — A) (author, 2026-10-17): "N to grade" links add `?from=<progress path>` (accepted only if it starts with `/classes/` or `/activity/`); Responses shows "Back to progress" when present, "Back to editor" otherwise.
+
+Pass 3 re-rated: 9/10.
+
+### Pass 4 — Visual specificity: 2/10 (data only)
+
+### DR-9: the visual spec (house tokens, no new colours)
+- **Table**, not cards: a real `<table>` in the facts page's style (`.ft-table`: 14 px, tabular numbers, `--color-line` row rules, muted 600-weight headers), inside a horizontal scroller (`.ft-tablewrap`).
+- **Sticky** header row and sticky first column. Name column 12 rem, truncated with the full name in a tooltip (no tooltip while names are hidden). Activity headers max 9 rem, clamped to two lines (full title to screen readers), the DR-1 counts under them in small muted text. Columns newest-assigned first, left.
+- **Cells, glyph + words, never colour alone:** `—` not started · `◐ 2/5` started · `● Done 80%` done (score shown on Done cells only) · `Started · ?` (pre-0059) · a small `older` tag when the student's latest work is on an older version.
+- **Colour:** Done cells `bg-success-bg` + `text-success-strong`; started in ink; not started muted; "N to grade" an amber chip (`bg-warning-bg`, `text-warning-strong`), amber meaning "look again" as on Responses; NO red anywhere on these pages (a wrong answer is a teaching signal, not an alarm).
+- **Rows** at least 44 px tall; the row total ("done 4 of 9") as the last column, right-aligned.
+- **Controls** in one line above the grid, under the Stat cards: "Hide names" switch, "Least done first" checkbox, Refresh button + "Updated 9:41".
+- **Answer panel** (DR-5): 28 rem wide on desk; sections as headings; per question one row: question label · student's answer · ✓ Right / ✗ Wrong (glyph + word) · attempts; feedback and misconception on a second muted line; "Answer: …" under wrong ones (DR-6). "Latest attempt" stated once at the top.
+- **Misconception panel:** one row per misconception: description · "7 showed it · 3 still do" · activities; a disclosure opens the students (Hide names applies), each linking to that student's answer panel.
+Options: A) adopt this spec (recommended) · B) leave visuals to the build and review screenshots after
+State: approved — A) Adopt the spec (author, 2026-10-17), as written above.
+
+Pass 4 re-rated: 9/10.
+
+### Pass 5 — Design system: 7/10 → 9/10 (no new decision)
+
+Only existing tokens are used (DR-9). `.ft-table` / `.ft-tablewrap` live in `practice/factsTeacher.css`, a lazy facts chunk; the build MOVES them to a shared teacher-table stylesheet that both the facts page and the progress pages import (two real callers, same behaviour; the facts page's look is unchanged). Recorded on purpose: the facts page keeps names CLOSED until disclosed (DR-19/21, a live class-time screen often projected) while these pages show names with a Hide switch (CP-5, a desk review screen). Two pages, two jobs, two rules; not to be "unified" without a ruling.
+
+### Pass 6 — Responsive & accessibility: 5/10
+
+Phone layout follows from DR-5 (answers as a full page) and DR-9 (horizontal scroller, sticky name column, 44 px rows). The accessibility set is open. → DR-10.
+
+### DR-10: the accessibility set
+- Table semantics: student names `th scope="row"`, activity or section titles `th scope="col"` (full text, clamped only visually).
+- A cell WITH work is a `<button>` inside the cell, named in full: "Ana Lee, Fractions 2: started, 2 of 5 sections" / "… done, 80 percent". A cell without work is plain text "not started", not a button.
+- Hide names is a real switch (`role="switch"`, `aria-checked`); when on, names leave the DOM entirely, including tooltips and button names ("Student 4, Fractions 2: …"), and the e2e asserts no name appears in text OR attributes.
+- Focus moves into the answer panel on open and returns to the cell that opened it (DR-5).
+- "N to grade" is named with its activity: "3 to grade in Fractions 2".
+- The misconception disclosure is a button with `aria-expanded`; its count text reads in full ("7 students showed it, 3 still do").
+Options: A) adopt this set (recommended) · B) table semantics only now
+State: approved — A) Adopt the set (author, 2026-10-17), as written above.
+
+Pass 6 re-rated: 9/10.
+
+### Pass 7 — Unresolved decisions: 6/10
+
+"Top 5 wrong answers per question" on a 40-question activity is up to 200 rows above the grid (DR-3 put this panel first). → DR-11.
+
+### DR-11: common wrong answers, sized
+Options: A) only questions where 2 or more students are wrong on their latest attempt, ordered by how many are wrong (most first); each question is a closed disclosure showing "Q4 · 9 wrong · most common: 0.75 (6)", opening to its top 5; the first 3 questions open by default (recommended) · B) every question, every top 5, always open
+State: approved — A) (author, 2026-10-17): questions with ≥ 2 students wrong on their latest attempt, most wrong first; each a closed disclosure "Q4 · 9 wrong · most common: 0.75 (6)" opening to its top 5; the first 3 open by default.
+
+Pass 7 re-rated: 9/10.
+
+### Design review outputs
+
+**Rating: 4/10 → 9/10.** The last point is real-teacher use (and mockups, which need an OpenAI key for the designer).
+
+**Design tasks (amend eng T4):**
+- [ ] **T4e (P1, human: ~1 day / CC: ~45min)** — layout per DR-1, DR-2, DR-3, DR-9: Stat cards, column counts, row totals, grouped activity page, panel placement, glyph+word cells, sticky header and name column, newest-first columns; move `.ft-table`/`.ft-tablewrap` to a shared teacher-table stylesheet (facts page unchanged).
+- [ ] **T4f (P1, human: ~4h / CC: ~25min)** — the nine states (DR-4), each with a component test.
+- [ ] **T4g (P1, human: ~1 day / CC: ~40min)** — the answer panel as its own route (DR-5): side panel ≥ 768 px, full page on phone, Back/Refresh behaviour, focus in/out; "Answer: …" under wrong answers (DR-6).
+- [ ] **T4h (P2, human: ~2h / CC: ~15min)** — "Least done first" (DR-7) and "Back to progress" on Responses via a validated `?from=` (DR-8).
+- [ ] **T4i (P1, human: ~3h / CC: ~20min)** — the accessibility set (DR-10), incl. the e2e assertion that hidden names appear in no text or attribute.
+- [ ] **T4j (P2, human: ~2h / CC: ~15min)** — common wrong answers sized per DR-11.
+
+**NOT in scope (design):** a projector/full-screen mode (these are desk pages; Hide names covers the projector case, recorded in Pass 5); mockups (no designer key; the build's e2e screenshots are the visual record).
+
+**Completion summary (design):** focus all 7 (D1); outside voice: Fable cold read (D2), findings verified and folded; passes: IA 3→8, states 2→9, journey 4→9, visual 2→9, system 7→9, a11y 5→9, unresolved 6→9; decisions made: 11 (DR-1..DR-11); unresolved: 0.
+
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 3 | not run for this plan | — |
-| Outside Review | codex via `/plan-eng-review` | Independent 2nd opinion | 40 | unavailable | CLI not installed; Fable review planned pre-apply |
+| Outside Review | codex via `/plan-eng-review`; Fable subagent via `/plan-design-review` | Independent 2nd opinion | 40 | eng: unavailable; design: Fable (in-host, different model) completed | design: 2 critical, 14 high, 9 medium, resolved in DR-1..DR-11 |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 53 | ISSUES OPEN (all mapped to tasks) | 30 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 20 | not run for this plan | — |
+| Design Review | `/plan-design-review` | UI/UX gaps | 21 | ISSUES OPEN (all mapped to tasks) | score: 4/10 → 9/10, 11 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 9 | not run for this plan | — |
 
-- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable (2026-10-17).
-- **VERDICT:** no review CLEAR (issues_open = mapped work, 0 open decisions). eng review required. Ready to implement T1–T5; T6 author-gated.
+- **OUTSIDE COVERAGE:** eng phase: codex unavailable (2026-10-17). Design phase: codex unavailable; Fable subagent completed at the author's choice (in-host, not a codex record).
+- **VERDICT:** no review CLEAR (issues_open = mapped work, 0 open decisions). eng review required. Ready to implement T1–T5 with T4e–T4j; T6 (Fable review, live apply, push) author-gated.
 
 NO UNRESOLVED DECISIONS
