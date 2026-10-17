@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-17-draft-28`. Mirrors migrations 0001–**0061**, verified
+> Version `2026-10-18-draft-29`. Mirrors migrations 0001–**0062**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-29` (2026-10-18) — 0062 adds no table or column: the class progress reads also show a student's FIRST attempt.** `activity_first_tries` counts what rostered students answered on their first check of each section (and lists who), and `class_student_work` returns that first attempt beside the latest. Same scope as draft-28 (live roster × assigned activity, verify-0062). Nothing is written. The range moves to 0062 on that basis.
 >
 > **`draft-28` (2026-10-17) — 0061 adds no table or column: a new teacher READ path to rostered students' checked work.** Four SECURITY DEFINER reads (`class_progress`, `activity_progress`, `class_student_work`, `class_misconceptions`) give a class's teacher their students' check statuses, scores, latest answers and verdicts, and the misconception tags the grader attached. Every one is scoped to the LIVE roster of a class the caller teaches × the activities assigned to that class — never to activity ownership, so a student who checked the teacher's activity outside any of their classes, or who was removed from the class, never appears (verify-0061). Students are named as on the facts pages (display name, else email); the page has a Hide names switch. Nothing is written. The range moves to 0061 on that basis.
 >

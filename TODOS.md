@@ -2270,6 +2270,13 @@ for each); and how a taxonomy RENAME is handled at read time, since stored rows 
 string forever (see the id-rename TODO). Everything else in this arc's design is inherited,
 not re-derived — but this dimension was never in it.
 
+🚫 **ARMING BLOCKER — FIRST TRIES (0062, first-try-view.md FT-9, author-ruled 2026-10-18).** The
+activity page's "First tries" panel and the answer panel's First try switch read ATTEMPT 1 of each
+section — precisely the superseded rows `prune_section_checks` deletes. Arming as specified empties
+that panel for every question a student re-checked. Before arming: either the prune keeps
+`attempt_number = 1`, or first-try counts (per version × item × answer group, with right-now) roll
+up first; then re-run verify-0062.
+
 🔁 **A SECOND READER OF THOSE ROWS (class progress, 0061, 2026-10-17).** The teacher's
 "Common misconceptions" panel (`class_misconceptions`, docs/design/class-progress-view.md D7/D8)
 counts students who showed a misconception on ANY attempt ("ever") — read straight from
