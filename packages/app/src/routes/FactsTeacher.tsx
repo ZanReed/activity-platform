@@ -53,6 +53,7 @@ import SprintPanel from '../practice/SprintPanel';
 import { guessYearEnd, longDay, yearEndBounds } from '../practice/yearEnd';
 
 export { guessYearEnd, longDay, YEAR_END_MAX_DAYS } from '../practice/yearEnd';
+import '../styles/teacherTable.css';
 import '../practice/factsTeacher.css';
 
 export const LIVE_POLL_MS = 5000;

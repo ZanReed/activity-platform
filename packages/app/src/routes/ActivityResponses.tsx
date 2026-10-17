@@ -44,7 +44,8 @@
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
+import { safeProgressPath } from '../lib/classProgress';
 import {
   RESPONSES_COPY as COPY,
   fetchGradingQueue,
@@ -154,6 +155,10 @@ function AssistFlag({ display }: { display: AssistDisplay }) {
 
 export default function ActivityResponses() {
   const { id = '' } = useParams<{ id: string }>();
+  // Opened from a progress page's "N to grade" (class-progress-view.md DR-8):
+  // go back there. Only an in-app progress path is honoured.
+  const [search] = useSearchParams();
+  const backToProgress = safeProgressPath(search.get('from'));
   const [rows, setRows] = useState<GradingQueueRow[] | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
   const [assistStatus, setAssistStatus] = useState<AssistStatus>({ provider: 'off' });
@@ -278,10 +283,10 @@ export default function ActivityResponses() {
       <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink">{COPY.title}</h1>
         <Link
-          to={`/activity/${id}`}
+          to={backToProgress ?? `/activity/${id}`}
           className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
         >
-          Back to editor
+          {backToProgress ? 'Back to progress' : 'Back to editor'}
         </Link>
       </div>
 

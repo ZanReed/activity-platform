@@ -59,13 +59,16 @@ export interface ServedDoc {
 }
 
 /** Build a student's served document from a version's stored content. Throws
- * when the content cannot be read by this build (the caller shows that). */
-export function servedDocument(content: unknown, versionId: string, studentId: string): ServedDoc {
+ * when the content cannot be read by this build (the caller shows that).
+ * studentId NULL = no student (the common-wrong-answers panel groups many
+ * students' answers): a seeded activity then keeps its `{name}` templates
+ * rather than showing one student's numbers as everyone's. */
+export function servedDocument(content: unknown, versionId: string, studentId: string | null): ServedDoc {
     const { doc } = upgradeActivityDocument(content);
     const vars = doc.meta.seedVars ?? [];
     let served: ActivityDocument = doc;
     let keyed: ActivityDocument = doc;
-    if (vars.length > 0) {
+    if (vars.length > 0 && studentId !== null) {
         const values = deriveSeedValues(vars, serveSeed(versionId, studentId));
         served = substituteSeedValues(doc, values);
         keyed = substituteSeededAnswers(served, values);

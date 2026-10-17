@@ -52,6 +52,10 @@ const ActivityAnalytics = lazy(() => import('./routes/ActivityAnalytics'));
 // Lazy like its sibling: the teacher grading surface must not weigh on the
 // student shell's entry chunk (the S8 budget).
 const ActivityResponses = lazy(() => import('./routes/ActivityResponses'));
+// Class progress (0061, docs/design/class-progress-view.md): teacher-only, lazy.
+const ClassProgress = lazy(() => import('./routes/ClassProgress'));
+const ActivityProgress = lazy(() => import('./routes/ActivityProgress'));
+const AnswerPanel = lazy(() => import('./progress/AnswerPanel'));
 const Privacy = lazy(() => import('./routes/Privacy'));
 // The number-facts demo (D43 slice 1): public, lazy, saves nothing.
 const FactsDemo = lazy(() => import('./routes/FactsDemo'));
@@ -162,6 +166,29 @@ export default function App() {
             </RequireAuth>
         }
         />
+        {/* A teacher's per-student view of checked work (class-progress-view.md
+            CP-1, D5). The answer panel is a CHILD route so the grid stays
+            mounted under it (DR-5: its own address, Back closes it). */}
+        <Route
+        path="/classes/:classId/progress"
+        element={
+            <RequireAuth>
+            <ClassProgress />
+            </RequireAuth>
+        }
+        >
+            <Route path=":studentId/:activityId" element={<AnswerPanel />} />
+        </Route>
+        <Route
+        path="/activity/:id/progress"
+        element={
+            <RequireAuth>
+            <ActivityProgress />
+            </RequireAuth>
+        }
+        >
+            <Route path=":studentId" element={<AnswerPanel />} />
+        </Route>
         <Route
         path="/activity/:id"
         element={

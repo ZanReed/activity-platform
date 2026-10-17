@@ -49,3 +49,9 @@ export const MY_ACTIVITY_PROGRESS_RPC = 'my_activity_progress';
  * section ids on one version. (Its sibling my_latest_checks is called by the
  * check-activity Edge Function, not the app.) */
 export const MY_CHECKED_SECTION_IDS_RPC = 'my_checked_section_ids';
+/** The teacher's class progress reads (0061, docs/design/class-progress-view.md):
+ * roster × assignment scoped, SECURITY DEFINER. Wrapped by lib/classProgress. */
+export const CLASS_PROGRESS_RPC = 'class_progress';
+export const ACTIVITY_PROGRESS_RPC = 'activity_progress';
+export const CLASS_STUDENT_WORK_RPC = 'class_student_work';
+export const CLASS_MISCONCEPTIONS_RPC = 'class_misconceptions';

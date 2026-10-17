@@ -1,0 +1,268 @@
+/* =============================================================================
+   progress.css — the class progress pages (class-progress-view.md DR-9, DR-5)
+   -----------------------------------------------------------------------------
+   Lazy teacher routes only. House tokens, no new colours. Glyph + words in
+   every cell, never colour alone; NO red anywhere on these pages (a wrong
+   answer is a teaching signal, not an alarm). The table itself is
+   styles/teacherTable.css (.ft-table); this file adds the sticky header and
+   name column, the cells, and the answer side panel.
+   ========================================================================== */
+
+.cp-scroller {
+  /* The containing block for the cells' sr-only text: without it those
+     absolutely positioned spans escape the scroller and widen the PAGE
+     (58 px of sideways scroll at phone width, caught by the e2e). */
+  position: relative;
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-canvas);
+}
+
+.cp-grid {
+  width: max-content;
+  min-width: 100%;
+}
+
+.cp-grid thead th {
+  background: var(--color-canvas);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  vertical-align: bottom;
+}
+
+.cp-grid th[scope='row'],
+.cp-grid thead th:first-child {
+  background: var(--color-canvas);
+  left: 0;
+  position: sticky;
+  z-index: 1;
+}
+
+.cp-grid thead th:first-child {
+  z-index: 3;
+}
+
+.cp-grid th[scope='row'] {
+  color: var(--color-ink);
+  font-weight: 500;
+  max-width: 12rem;
+  min-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 12rem;
+}
+
+@media (max-width: 767px) {
+  .cp-grid th[scope='row'] {
+    max-width: 8rem;
+    width: 8rem;
+  }
+}
+
+.cp-grid tbody tr {
+  height: 44px;
+}
+
+.cp-grid td,
+.cp-grid th {
+  vertical-align: middle;
+}
+
+.cp-colhead {
+  max-width: 9rem;
+  min-width: 6rem;
+}
+
+/* Two visual lines; the full title stays in the DOM for screen readers. */
+.cp-clamp {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--color-ink);
+  display: -webkit-box;
+  overflow: hidden;
+}
+
+.cp-counts {
+  color: var(--color-muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.cp-cell {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--color-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 4px;
+  min-height: 36px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.cp-cell:hover {
+  border-color: var(--color-line-strong);
+}
+
+.cp-cell:focus-visible,
+.cp-switch:focus-visible,
+.cp-disclosure:focus-visible,
+.cp-panel :focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.cp-cell[data-current='true'] {
+  border-color: var(--color-ink);
+}
+
+.cp-done {
+  background: var(--color-success-bg);
+  color: var(--color-success-strong);
+}
+
+.cp-none {
+  color: var(--color-muted);
+}
+
+.cp-older {
+  border: 1px solid var(--color-line-strong);
+  border-radius: 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.cp-chip {
+  background: var(--color-warning-bg);
+  border-radius: 999px;
+  color: var(--color-warning-strong);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 4px;
+  padding: 2px 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cp-chip:hover {
+  text-decoration: underline;
+}
+
+.cp-rowtotal {
+  color: var(--color-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The Hide names switch (role="switch"). */
+.cp-switch {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--color-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 14px;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.cp-switch-track {
+  background: var(--color-line-strong);
+  border-radius: 999px;
+  display: inline-block;
+  height: 20px;
+  position: relative;
+  transition: background 120ms;
+  width: 36px;
+}
+
+.cp-switch-track::after {
+  background: var(--color-canvas);
+  border-radius: 999px;
+  content: '';
+  height: 16px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 120ms;
+  width: 16px;
+}
+
+.cp-switch[aria-checked='true'] .cp-switch-track {
+  background: var(--color-primary);
+}
+
+.cp-switch[aria-checked='true'] .cp-switch-track::after {
+  transform: translateX(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-switch-track,
+  .cp-switch-track::after {
+    transition: none;
+  }
+}
+
+.cp-disclosure {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--color-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.cp-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+/* The answer panel (DR-5): a side panel over the grid's right at ≥ 768 px,
+   a full page on phones. */
+.cp-panel {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  inset: 0;
+  overflow-y: auto;
+  padding: 16px;
+  position: fixed;
+  z-index: 40;
+}
+
+@media (min-width: 768px) {
+  .cp-panel {
+    border-left: 1px solid var(--color-line-strong);
+    box-shadow: -8px 0 24px rgb(0 0 0 / 0.08);
+    left: auto;
+    width: 28rem;
+  }
+}
+
+.cp-answer {
+  border-bottom: 1px solid var(--color-line);
+  padding: 10px 0;
+}
+
+.cp-answer:last-child {
+  border-bottom: 0;
+}

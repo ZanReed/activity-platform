@@ -223,33 +223,8 @@
   padding: 0;
 }
 
-.ft-tablewrap {
-  overflow-x: auto;
-}
-
-.ft-table {
-  border-collapse: collapse;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  width: 100%;
-}
-
-.ft-table th,
-.ft-table td {
-  border-bottom: 1px solid var(--color-line);
-  padding: 8px 10px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.ft-table th {
-  color: var(--color-muted);
-  font-weight: 600;
-}
-
-.ft-table .ft-num {
-  text-align: right;
-}
+/* .ft-tablewrap / .ft-table / .ft-num moved to styles/teacherTable.css
+   (class progress, DR-9 Pass 5): two pages, one table look. */
 
 .ft-names {
   list-style: none;

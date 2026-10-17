@@ -788,8 +788,9 @@ describe('Activities — row anatomy (R1–R7, 2026-10-14; amends D8)', () => {
             const id = t === 'Published One' ? 'p1' : 'd1';
             expect(within(row).getByRole('link', { name: `Analytics for ${t}` })).toHaveAttribute('href', `/activity/${id}/analytics`);
             expect(within(row).getByRole('link', { name: `Responses for ${t}` })).toHaveAttribute('href', `/activity/${id}/responses`);
+            expect(within(row).getByRole('link', { name: `Progress for ${t}` })).toHaveAttribute('href', `/activity/${id}/progress`);
             expect(within(row).getByRole('button', { name: `Delete ${t}` })).toBeTruthy();
-            expect(row.textContent).not.toMatch(/Analytics|Responses|Delete/);
+            expect(row.textContent).not.toMatch(/Analytics|Responses|Progress|Delete/);
         }
     });
 

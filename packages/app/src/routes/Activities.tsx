@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
-import { BarChart3, ClipboardCheck, Import, Library, Trash2 } from 'lucide-react';
+import { BarChart3, ClipboardCheck, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -832,6 +832,16 @@ export default function Activities() {
                             <Library role="img" aria-label="In the Activity Bank" className="h-4 w-4" />
                             </span>
                         ) : null}
+                        {/* Each rostered student's checked work, by class (0061,
+                            class-progress-view.md D5): beside Analytics and Responses. */}
+                        <Link
+                        to={`/activity/${a.id}/progress`}
+                        aria-label={`Progress for ${a.title}`}
+                        title="Progress"
+                        className={`${ICON_BUTTON} text-muted hover:text-strong`}
+                        >
+                        <Users aria-hidden="true" className="h-4 w-4" />
+                        </Link>
                         <Link
                         to={`/activity/${a.id}/analytics`}
                         aria-label={`Analytics for ${a.title}`}

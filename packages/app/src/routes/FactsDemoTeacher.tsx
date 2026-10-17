@@ -13,6 +13,7 @@
 
 import { DEMO_RESULTS } from '../practice/demoResults';
 import { Results } from './FactsTeacher';
+import '../styles/teacherTable.css';
 import '../practice/factsTeacher.css';
 
 export default function FactsDemoTeacher({ onBack }: { onBack: () => void }) {
