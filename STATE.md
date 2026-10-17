@@ -20,9 +20,11 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**701 place-value LIVE 2026-10-13.**
+**701 place-value LIVE (2026-10-13).**
 
-**Class progress (0061) + first tries (0062) LIVE:** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4 + verify-0061 5/5 live; pushed through `3010fb2e` (app unit tests can no longer reach a network), CI green.
+**OWED: apply 0063 live** ([why](docs/reviews/2026-10-18-live-perf-baseline.md)): `supabase db push`, verify-0063/0036/0050/0051, push; then the [audit](docs/reviews/2026-10-efficiency-audit-prompt.md).
+
+**Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 
 **Superscript units LIVE (2026-10-17)**, hash-verified, stamp `201a0a29`. **HELD: B-184** until a curriculum session runs (content: [superscript-units.md](docs/design/superscript-units.md)).
 

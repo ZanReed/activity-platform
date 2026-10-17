@@ -3,6 +3,14 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## A client UPDATE on `users` dies with "infinite recursion detected in policy" (found 2026-10-18, building 0063)
+
+`set local role authenticated; update users set timezone = … where id = auth.uid()` fails on the local stack with `infinite recursion detected in policy for relation "users"` — `users_update_self`'s WITH CHECK (0006) re-selects `users`. **Nothing in the app hits it today:** the app's only `users` writes go through SECURITY DEFINER RPCs (`set_public_name`, the signup trigger), and `SessionContext`/`bank.ts` only select. **Trigger:** the first feature that writes a `users` column straight from the client (a timezone picker is the likely one) — fix the policy first (a definer helper for the role/tier pin), or write through an RPC like `set_public_name`. Not verified on live (read-only session); reproduce with verify-0063's fixture.
+
+## verify-0036 §C (row E, "ledger row wrong … reconciliation pair") is red on the LOCAL stack (2026-10-18)
+
+Found while verifying 0063. **Not 0063:** the same section, run against the pre-0063 `recompute_check_rollup_days` from 0036 inside a rolled-back transaction, fails the same way, and every rollup COUNT in §E passes — only `checks_below_watermark = rolled_checks_total` fails. Hypothesis (untested): the local database holds `section_checks` rows the roll does not count (e2e/seed residue — e.g. activities with no owner join, or rows outside the fixture's window), and the pair counts the whole table. Per the red-row rule, test that before filing it under "fixtures": count the local rows below the watermark that the roll skipped, and say which. Live has not been re-run since 0063; run it there with verify-0063.
+
 ## ✅ FIXED (author's bug, 2026-10-14): teacher navigation between Activities and Classes
 
 Cause: there was no shared teacher navigation. Each page wrote its own back link, so /classes linked nowhere and /activities linked only to the Bank; Home was the only page linking to all of them. Fixed with `components/TeacherNav.tsx` (My activities · My classes · Activity Bank, current page marked, Sign out) on /activities, /classes and /bank only. Author ruled 2026-10-14: the editor and its sub-pages keep their own back links, with no bar; the Bank's "← My activities" and the Activities page's "Activity Bank" link were removed as duplicates. Guard: `__tests__/TeacherNav.test.tsx` renders the REAL pages; it was mutation-tested (removing the bar from Classes turned 3 rows red).
