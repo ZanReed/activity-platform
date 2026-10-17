@@ -73,6 +73,11 @@ test('class grid → answer panel → hide names → activity page → back from
   await anaFractions.click();
   await page.getByRole('link', { name: 'Close' }).click();
   await expect(page.getByRole('link', { name: 'Ana Lee, Fractions 2: done, 50 percent' })).toBeFocused();
+  // Close REPLACES the panel's history entry: browser Back must not re-open it.
+  await page.goBack();
+  await expect(page.getByRole('complementary')).toHaveCount(0);
+  await page.goForward();
+  await expect(page.getByRole('complementary')).toHaveCount(0);
 
   // Hide names: no name in text or ANY attribute, including tooltips and
   // link names — and it survives a reload (remembered on this device).

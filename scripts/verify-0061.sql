@@ -17,15 +17,20 @@
 --                and the refusals (another teacher, a deleted class, no claims)
 --        B10     THE AGREEMENT ROW (D3): every class_progress cell equals
 --                my_activity_progress() run as that student, for both
---                rostered students
+--                rostered students — on the fields the two SHARE (total,
+--                checked, earlier_checked, earlier_done, current version).
+--                shown_*, score, to_grade and last_checked_at have no student
+--                twin; B4–B7 guard them.
 --        B11–B14 activity_progress: classes the caller teaches with it
 --                assigned (not a deleted one), rostered students only,
 --                per-section rows, the refusal for a non-owner
 --        B15–B18 class_student_work: latest attempt and attempt count, the
 --                NULL-class form, and one refusal per gate
---        B19–B23 class_misconceptions: ever/still, the unmirrored id, the
+--        B19–B24 class_misconceptions: ever/still, the unmirrored id, the
 --                outsider and the removed student not counted, wrong-answer
---                grouping (0.75 = .75), the 2-student floor, the refusals
+--                grouping (0.75 = .75), the 2-student floor, the refusals, and
+--                "still" judged on the student's most recent version only
+--                (a republish retires an old version's tags)
 
 -- @section A-catalog-posture
 -- @expect-rows
@@ -210,8 +215,8 @@ begin
   -- B5: S on D — checked before 0059: counted, total NULL (never "done").
   select c into v_c_ from jsonb_array_elements(v_j->'cells') c
    where (c->>'student_id')::uuid = v_s and (c->>'activity_id')::uuid = v_d;
-  if v_c_ is null or (v_c_->'sections_total') <> 'null'::jsonb
-     or (v_c_->>'sections_checked')::int <> 1 or (v_c_->'shown_total') <> 'null'::jsonb then
+  if v_c_ is null or (v_c_->'sections_total') is distinct from 'null'::jsonb
+     or (v_c_->>'sections_checked')::int <> 1 or (v_c_->'shown_total') is distinct from 'null'::jsonb then
     raise exception 'FAIL B5: S/D cell %', v_c_;
   end if;
   -- B6: P on A — only the older version: shown v1, 1 of 2, earlier not done.
@@ -405,7 +410,8 @@ begin
   end if;
   -- B20: an id the registry does not mirror is listed with a NULL description.
   select m into v_c_ from jsonb_array_elements(v_j->'misconceptions') m where m->>'id' = 'mis.vfy0061.unmirrored';
-  if v_c_ is null or (v_c_->'description') <> 'null'::jsonb or (v_c_->>'ever')::int <> 1 then
+  if v_c_ is null or (v_c_->'description') is distinct from 'null'::jsonb
+     or (v_c_->>'ever')::int is distinct from 1 or (v_c_->>'still')::int is distinct from 1 then
     raise exception 'FAIL B20: unmirrored %', v_c_;
   end if;
   -- B21: without an activity there are no wrong-answer rows.
@@ -436,6 +442,21 @@ begin
      or v_j->'wrong_answers'->0->'answers'->0->'misconception_ids' <> '["mis.vfy0061.x"]'::jsonb then
     raise exception 'FAIL B22: wrong answers %', v_j->'wrong_answers';
   end if;
+  -- B24: P has now checked v2 (B22's insert), so P's v1 tags are history:
+  --      the unmirrored tag (only on v1) is no longer "still"; mis.x is, because
+  --      P's v2 answer carries it too.
+  execute 'set local role authenticated';
+  v_j := class_misconceptions(v_k);
+  execute 'reset role';
+  select m into v_c_ from jsonb_array_elements(v_j->'misconceptions') m where m->>'id' = 'mis.vfy0061.unmirrored';
+  if (v_c_->>'ever')::int is distinct from 1 or (v_c_->>'still')::int is distinct from 0 then
+    raise exception 'FAIL B24: an older version''s tag still counts as still %', v_c_;
+  end if;
+  select m into v_c_ from jsonb_array_elements(v_j->'misconceptions') m where m->>'id' = 'mis.vfy0061.x';
+  if (v_c_->>'ever')::int is distinct from 2 or (v_c_->>'still')::int is distinct from 1 then
+    raise exception 'FAIL B24b: mis.x after the republish %', v_c_;
+  end if;
+
   -- B23: refusals — another teacher's class, and no class with no activity.
   perform set_config('request.jwt.claims', json_build_object('sub', v_t2, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';

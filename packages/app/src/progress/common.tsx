@@ -14,6 +14,9 @@ export interface Loaded<T> {
     data: T | null;
     /** The first load failed and there is nothing to show. */
     failed: boolean;
+    /** The first load was REFUSED (not the caller's class / activity), as
+     * opposed to a network failure: different advice. */
+    refused: boolean;
     /** A refresh failed; `data` is the last good load. */
     refreshFailed: boolean;
     loading: boolean;
@@ -24,6 +27,7 @@ export interface Loaded<T> {
 export function useProgressLoad<T>(load: () => Promise<T>, deps: readonly unknown[]): Loaded<T> {
     const [data, setData] = useState<T | null>(null);
     const [failed, setFailed] = useState(false);
+    const [refused, setRefused] = useState(false);
     const [refreshFailed, setRefreshFailed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [loadedAt, setLoadedAt] = useState<Date | null>(null);
@@ -46,10 +50,13 @@ export function useProgressLoad<T>(load: () => Promise<T>, deps: readonly unknow
                 setLoadedAt(new Date());
                 setLoading(false);
             },
-            () => {
+            (e: unknown) => {
                 if (mine !== generation.current) return;
                 if (hasData.current) setRefreshFailed(true);
-                else setFailed(true);
+                else {
+                    setFailed(true);
+                    setRefused(isRefusal(e));
+                }
                 setLoading(false);
             },
         );
@@ -63,7 +70,55 @@ export function useProgressLoad<T>(load: () => Promise<T>, deps: readonly unknow
         reload();
     }, [reload]);
 
-    return { data, failed, refreshFailed, loading, loadedAt, reload };
+    return { data, failed, refused, refreshFailed, loading, loadedAt, reload };
+}
+
+/** 0061's refusals (42501): not the caller's class, activity, or student. */
+export function isRefusal(e: unknown): boolean {
+    const m = e instanceof Error ? e.message : '';
+    return /not_class_teacher|not_your_activity|not_in_scope/.test(m);
+}
+
+/** The first-load failure, worded for its cause (DR-4). */
+export function LoadFailed({ refused, onRetry }: { refused: boolean; onRetry: () => void }) {
+    return (
+        <div className="rounded-lg border border-line bg-canvas p-4">
+            <p role="alert" className="text-sm text-ink">
+                {refused
+                    ? 'You can only see progress for your own classes and activities.'
+                    : "Couldn't load progress. Check your connection, then try again."}
+            </p>
+            {!refused && (
+                <button
+                    type="button"
+                    onClick={onRetry}
+                    className="mt-3 min-h-[44px] rounded-md border border-line-strong bg-canvas px-4 text-sm font-medium text-strong hover:bg-surface"
+                >
+                    Try again
+                </button>
+            )}
+        </div>
+    );
+}
+
+/** Refresh + "Updated 9:41" alone, for the empty states (CP-8 holds there too). */
+export function RefreshLine({ loaded }: { loaded: Pick<Loaded<unknown>, 'loading' | 'loadedAt' | 'refreshFailed' | 'reload'> }) {
+    const shown = loaded.loadedAt ? clockTime(loaded.loadedAt) : null;
+    return (
+        <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
+            <button
+                type="button"
+                onClick={loaded.reload}
+                disabled={loaded.loading}
+                className="min-h-[44px] rounded-md border border-line-strong bg-canvas px-4 font-medium text-strong hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
+            >
+                {loaded.loading ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <span role="status">
+                {loaded.refreshFailed ? `Couldn't refresh · showing ${shown ?? 'the last load'}` : shown ? `Updated ${shown}` : ''}
+            </span>
+        </p>
+    );
 }
 
 /** A device-remembered on/off choice (CP-5, DR-7). */

@@ -494,9 +494,9 @@ $$;
 -- assigned (the activity page, D5/D6).
 --
 -- Per misconception id (D8): `ever` = students who showed it on ANY attempt;
--- `still` = of those, how many show it on their LATEST attempt at that section
--- (per version: block ids are minted fresh per publish, so a later version's
--- latest is a different question). description is NULL when the id is not
+-- `still` = of those, how many show it on their LATEST attempt at a section of
+-- the version they most recently checked (block ids are minted fresh per
+-- publish, so an older version's latest attempt is history, not "still"). description is NULL when the id is not
 -- mirrored in misconception_registry — the page says so instead of hiding it.
 --
 -- ⚠ prune_section_checks (unarmed, 0035) deletes SUPERSEDED attempts, which is
@@ -562,27 +562,34 @@ begin
   checks as (
     select sc.*,
            (row_number() over (partition by sc.student_id, sc.activity_version_id, sc.section_id
-                               order by sc.attempt_number desc, sc.created_at desc) = 1) as is_latest
+                               order by sc.attempt_number desc, sc.created_at desc) = 1) as is_latest,
+           -- The version the student most recently checked on this activity.
+           -- "Still" is judged there only: after a republish, the old
+           -- version's latest attempt is history, and counting it would keep
+           -- a fixed misconception "still" forever (Fable review, 2026-10-17).
+           (sc.activity_version_id = first_value(sc.activity_version_id) over (
+              partition by sc.student_id, sc.activity_id
+              order by sc.created_at desc, sc.attempt_number desc)) as on_recent_version
     from section_checks sc
     join roster r on r.student_id = sc.student_id and r.activity_id = sc.activity_id
   ),
   items as (
     select c.student_id, c.activity_id, c.activity_version_id, c.section_id,
-           c.is_latest, c.created_at, c.responses,
+           c.is_latest, c.on_recent_version, c.created_at, c.responses,
            i.key as item_id, i.value as verdict
     from checks c
     cross join lateral jsonb_each(
       case when jsonb_typeof(c.verdicts) = 'object' then c.verdicts else '{}'::jsonb end) i
   ),
   tags as (
-    select it.student_id, it.activity_id, it.is_latest, m.mid
+    select it.student_id, it.activity_id, (it.is_latest and it.on_recent_version) as is_current_latest, m.mid
     from items it
     cross join lateral jsonb_array_elements_text(
       case when jsonb_typeof(it.verdict->'misconceptionIds') = 'array'
            then it.verdict->'misconceptionIds' else '[]'::jsonb end) m(mid)
   ),
   per_student as (
-    select t.mid, t.student_id, t.activity_id, bool_or(t.is_latest) as still
+    select t.mid, t.student_id, t.activity_id, bool_or(t.is_current_latest) as still
     from tags t
     group by t.mid, t.student_id, t.activity_id
   ),

@@ -33,6 +33,8 @@ import {
 } from '../lib/classProgress';
 import {
     Controls,
+    LoadFailed,
+    RefreshLine,
     Stat,
     lastCheckWords,
     useHideNames,
@@ -161,20 +163,7 @@ function Body({
     selected: string | null;
 }) {
     if (loaded.failed) {
-        return (
-            <div className="rounded-lg border border-line bg-canvas p-4">
-                <p role="alert" className="text-sm text-ink">
-                    Couldn't load progress. Check your connection, then try again.
-                </p>
-                <button
-                    type="button"
-                    onClick={loaded.reload}
-                    className="mt-3 min-h-[44px] rounded-md border border-line-strong bg-canvas px-4 text-sm font-medium text-strong hover:bg-surface"
-                >
-                    Try again
-                </button>
-            </div>
-        );
+        return <LoadFailed refused={loaded.refused} onRetry={loaded.reload} />;
     }
     if (!loaded.data) {
         return (
@@ -197,6 +186,7 @@ function Body({
                     </Link>
                     .
                 </p>
+                <RefreshLine loaded={loaded} />
             </div>
         );
     }

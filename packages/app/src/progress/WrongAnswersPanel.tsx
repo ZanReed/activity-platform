@@ -33,6 +33,12 @@ export default function WrongAnswersPanel({
             <p className="mb-3 text-sm text-muted">
                 Questions two or more students got wrong on their latest attempt.
             </p>
+            {[...docs.values()].some((d) => (d.doc.meta.seedVars ?? []).length > 0) && (
+                <p className="mb-3 text-sm text-muted">
+                    This activity gives each student different numbers, so the same answer can be right for one
+                    student and wrong for another. Read these as a hint, and open a student's answers to be sure.
+                </p>
+            )}
             {items.length === 0 ? (
                 <p className="text-sm text-muted">No question has two or more students wrong yet.</p>
             ) : (

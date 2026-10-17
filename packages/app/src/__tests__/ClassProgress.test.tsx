@@ -5,7 +5,7 @@
 // against the real functions; SQL correctness is verify-0061's, not this file's.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Outlet, Route, Routes } from 'react-router';
 import type {
     ActivityProgress,
     ClassMisconceptions,
@@ -29,6 +29,7 @@ vi.mock('../lib/classProgress', async (orig) => ({
 import ClassProgress from '../routes/ClassProgress';
 import ActivityProgressPage from '../routes/ActivityProgress';
 import ActivityResponses from '../routes/ActivityResponses';
+import AnswerPanel from '../progress/AnswerPanel';
 import {
     cellStatus,
     leastDoneFirst,
@@ -190,6 +191,15 @@ describe('the nine states (DR-4)', () => {
         expect(await screen.findByRole('link', { name: /Ana Lee, Fractions 2/ })).toBeTruthy();
     });
 
+    it('2b. a refusal (not this teacher\'s class) says so, with no "check your connection"', async () => {
+        api.fetchClassProgress.mockRejectedValue(new Error('not_class_teacher'));
+        classPage();
+        expect((await screen.findByRole('alert')).textContent).toBe(
+            'You can only see progress for your own classes and activities.',
+        );
+        expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    });
+
     it('3. a failed refresh keeps the grid and says what it is showing', async () => {
         api.fetchClassProgress.mockResolvedValueOnce(grid()).mockRejectedValueOnce(new Error('boom'));
         classPage();
@@ -205,6 +215,7 @@ describe('the nine states (DR-4)', () => {
         expect(await screen.findByText('No students yet')).toBeTruthy();
         expect(screen.getByText('ABC234')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
     });
 
     it('5. nothing assigned: a link to Activities', async () => {
@@ -212,6 +223,7 @@ describe('the nine states (DR-4)', () => {
         classPage();
         expect(await screen.findByText('Nothing assigned yet')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Activities' }).getAttribute('href')).toBe('/activities');
+        expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
     });
 
     it('6. nobody started: the full roster of dashes and one line', async () => {
@@ -372,5 +384,43 @@ describe('the pure rules', () => {
         const rows = ['x', 'y', 'z'];
         const t = { x: tally([]), y: tally([cellStatus(cell('s', 'a', {}))]), z: tally([]) } as const;
         expect(leastDoneFirst(rows, (r) => t[r as 'x' | 'y' | 'z'])).toEqual(['x', 'z', 'y']);
+    });
+});
+
+describe('the answer panel (CP-3, CP-7)', () => {
+    it('a blank essay has no verdict but still reads "To grade" and counts in the chip, as the grid does', async () => {
+        const schema = await import('@activity/schema');
+        const doc = schema.createEmptyDocument();
+        const essay = schema.createEssayBlock();
+        const graded = schema.createShortAnswerBlock();
+        doc.sections[0]!.rows[0]!.columns[0]!.blocks = [essay, graded];
+        const sid = doc.sections[0]!.id;
+        api.fetchStudentWork.mockResolvedValue({
+            student: { id: 's1', name: 'Ana Lee' },
+            activity: { id: A1, title: 'Fractions 2', current_version_id: 'v1' },
+            versions: [{ version_id: 'v1', version_num: 1, is_current: true, sections: [{
+                section_id: sid, attempts: 1, attempt_number: 1, checked_at: '2027-02-09T09:41:00Z',
+                // The essay was left empty: the grader wrote no verdict for it.
+                responses: { freeText: { [graded.id]: 'Done.' } },
+                verdicts: { [graded.id]: { verdict: 'recorded' } },
+                graded_block_ids: [graded.id],
+            }] }],
+        });
+        api.fetchVersionContents.mockResolvedValue(new Map([['v1', { version_num: 1, content: doc }]]));
+        const ctx = { hideNames: false, nameOf: (_: string, n: string) => n, classId: 'class-1', closeTo: '/classes/class-1/progress' };
+        render(
+            <MemoryRouter initialEntries={[`/classes/class-1/progress/s1/${A1}`]}>
+                <Routes>
+                    <Route path="/classes/:classId/progress" element={<Outlet context={ctx} />}>
+                        <Route path=":studentId/:activityId" element={<AnswerPanel />} />
+                    </Route>
+                </Routes>
+            </MemoryRouter>,
+        );
+        const chip = await screen.findByRole('link', { name: '1 to grade in Fractions 2' });
+        expect(chip).toBeTruthy();
+        const rows = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+        expect(rows.find((r) => r.includes('(no answer)'))).toContain('To grade');
+        expect(rows.find((r) => r.includes('Done.'))).toContain('Graded');
     });
 });

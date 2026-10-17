@@ -85,7 +85,7 @@ export default function AnswerPanel() {
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') navigate(ctx.closeTo);
+            if (e.key === 'Escape') navigate(ctx.closeTo, { replace: true });
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
@@ -104,8 +104,10 @@ export default function AnswerPanel() {
                     </h2>
                     {title && <p className="text-sm text-muted">{title}</p>}
                 </div>
+                {/* replace: browser Back after Close must not re-open the panel. */}
                 <Link
                     to={ctx.closeTo}
+                    replace
                     className="min-h-[44px] rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong hover:bg-surface"
                 >
                     Close
@@ -156,7 +158,9 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                     const block = served.index.byItem[line.itemId]?.block;
                                     const handGraded = block?.type === 'short_answer' || block?.type === 'essay';
                                     const graded = handGraded && s.graded_block_ids.includes(line.itemId);
-                                    if (handGraded && !graded && line.verdict === 'recorded') toGrade += 1;
+                                    // A blank or omitted essay has NO verdict (the grader writes none),
+                                    // yet Responses queues it and the grid counts it: so does this.
+                                    if (handGraded && !graded) toGrade += 1;
                                     return { line, handGraded, graded };
                                 });
                                 return (
@@ -214,10 +218,8 @@ function orderSections<T extends { section_id: string }>(served: ServedDoc, sect
 function verdictWords(line: AnswerLine, handGraded: boolean, graded: boolean): { glyph: string; word: string } {
     if (line.verdict === 'correct') return { glyph: '✓', word: 'Right' };
     if (line.verdict === 'incorrect') return { glyph: '✗', word: 'Wrong' };
-    if (line.verdict === 'recorded') {
-        if (handGraded) return graded ? { glyph: '●', word: 'Graded' } : { glyph: '○', word: 'To grade' };
-        return { glyph: '·', word: 'Recorded' };
-    }
+    if (handGraded) return graded ? { glyph: '●', word: 'Graded' } : { glyph: '○', word: 'To grade' };
+    if (line.verdict === 'recorded') return { glyph: '·', word: 'Recorded' };
     return { glyph: '·', word: 'Not marked' };
 }
 
