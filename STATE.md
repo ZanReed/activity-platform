@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE (2026-10-13).**
 
-**OWED: apply 0063 live** ([why](docs/reviews/2026-10-18-live-perf-baseline.md)): `supabase db push`, verify-0063/0036/0050/0051, push; then the [audit](docs/reviews/2026-10-efficiency-audit-prompt.md).
+**0063 LIVE**, verified ([820 → 5.5 ms](docs/reviews/2026-10-18-live-perf-baseline.md)). Owed: push, then [audit](docs/reviews/2026-10-efficiency-audit-prompt.md).
 
 **Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 

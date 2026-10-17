@@ -9,7 +9,7 @@ ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during revi
 
 ## verify-0036 §C (row E, "ledger row wrong … reconciliation pair") is red on the LOCAL stack (2026-10-18)
 
-Found while verifying 0063. **Not 0063:** the same section, run against the pre-0063 `recompute_check_rollup_days` from 0036 inside a rolled-back transaction, fails the same way, and every rollup COUNT in §E passes — only `checks_below_watermark = rolled_checks_total` fails. Hypothesis (untested): the local database holds `section_checks` rows the roll does not count (e2e/seed residue — e.g. activities with no owner join, or rows outside the fixture's window), and the pair counts the whole table. Per the red-row rule, test that before filing it under "fixtures": count the local rows below the watermark that the roll skipped, and say which. Live has not been re-run since 0063; run it there with verify-0063.
+Found while verifying 0063. **Not 0063:** the same section, run against the pre-0063 `recompute_check_rollup_days` from 0036 inside a rolled-back transaction, fails the same way, and every rollup COUNT in §E passes — only `checks_below_watermark = rolled_checks_total` fails. Hypothesis (untested): the local database holds `section_checks` rows the roll does not count (e2e/seed residue — e.g. activities with no owner join, or rows outside the fixture's window), and the pair counts the whole table. Per the red-row rule, test that before filing it under "fixtures": count the local rows below the watermark that the roll skipped, and say which. **Live is GREEN** (verify-0036 20/20 after 0063, 2026-10-18), which supports the local-data hypothesis.
 
 ## ✅ FIXED (author's bug, 2026-10-14): teacher navigation between Activities and Classes
 
