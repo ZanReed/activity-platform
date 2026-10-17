@@ -18,8 +18,10 @@ output is one report file and one PR.
    requests, no notifications.
 2. `docs/reviews/2026-10-18-live-perf-baseline.md` — **measured** numbers from
    the live database. Start from these. Its §1 (`pg_timezone_names`, ~820 ms
-   per call on the daily-practice path) is the one confirmed hot spot; trace
-   it fully and propose the fix.
+   per call on the daily-practice path) was the one confirmed hot spot and is
+   ALREADY FIXED by migration 0063 (live 2026-10-18, check 820 → 5.5 ms):
+   confirm no other path still scans `pg_timezone_names`, and do not re-file
+   it.
 3. `docs/DECISIONS.md` and `TODOS.md` — before proposing anything, check
    whether it was decided on purpose or is already filed. Things that look
    inefficient ON PURPOSE include: the separate grading bundle (keeps the
