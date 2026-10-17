@@ -60,6 +60,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * verify file here in the SAME commit that writes it.
  */
 export const AUTH_VERIFY_SET = [
+  'verify-0061.sql',
   'verify-0060.sql',
   'verify-0059.sql',
   'verify-0058.sql',
