@@ -22,7 +22,9 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE 2026-10-13.**
 
-**Superscript units LIVE (2026-10-17)**: `bcb33ddf` pushed, CI green; check-activity hash-verified (`aaa7ebd0…`); Notion stamp at `201a0a29`. **HELD (author): B-184** until a curriculum session runs; content in [superscript-units.md](docs/design/superscript-units.md) → SU-7 and the Fable review section.
+**Class progress view DESIGNED, not built (2026-10-17):** [class-progress-view.md](docs/design/class-progress-view.md) (eng D1–D8, design DR-1..DR-11; per-student grid, per-activity page, misconception panels). Release: Fable → author applies 0061 → verify-0061 live → THEN push.
+
+**Superscript units LIVE (2026-10-17)**, hash-verified, stamp `201a0a29`. **HELD: B-184** until a curriculum session runs (content: [superscript-units.md](docs/design/superscript-units.md)).
 
 **Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
 
