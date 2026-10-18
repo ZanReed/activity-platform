@@ -103,6 +103,10 @@ function makeHealthyDist(overrides = {}) {
         // The marker is the minified SHAPE: zod assigns the class name as a
         // string literal, which is what survives minification.
         'assets/zod-fixture.js': 'class E extends Error{constructor(){this.name="ZodError"}}',
+        // The two screens rung 3 moved out of the shell (SHELL_EVICTED): each
+        // must be found in SOME non-entry chunk, or its row reports a rotted marker.
+        'assets/SignedOutLanding-fixture.js': 'h("input",{id:"landing-code"})',
+        'assets/PendingOnboarding-fixture.js': 'h("div",{"data-onboarding":v})',
     };
     for (const [file, body] of Object.entries(chunks)) {
         writeFileSync(join(dir, file), body);
@@ -406,5 +410,27 @@ test('a dist without the immutable /assets/ header rule fails (audit #15)', () =
         } finally {
             cleanup(dir);
         }
+    }
+});
+
+test('a screen moved out of the shell fails when it is back in the entry, or its marker is gone (rung 3)', () => {
+    const back = makeHealthyDist({
+        entryBody: 'import("./katex-fixture.js");h("input",{id:"landing-code"});const app=1;',
+    });
+    try {
+        const { code, out } = runBudget(back);
+        assert.notEqual(code, 0);
+        assert.match(out, /signed-out landing/);
+    } finally {
+        cleanup(back);
+    }
+    const rotted = makeHealthyDist();
+    rmSync(join(rotted, 'assets/PendingOnboarding-fixture.js'));
+    try {
+        const { code, out } = runBudget(rotted);
+        assert.notEqual(code, 0);
+        assert.match(out, /MARKER NOT FOUND|rotted/);
+    } finally {
+        cleanup(rotted);
     }
 });

@@ -143,6 +143,34 @@ function authJsDeadModules(): Plugin {
 // The @/ alias resolves to src/. Workspace deps (@activity/schema,
 // @activity/renderer) resolve via pnpm's symlinks — no Vite config needed
 // for those, just package.json dependencies entries with workspace:*.
+// ---------------------------------------------------------------------------
+// REACT-ROUTER'S PRODUCTION BUILD (shell-slimming rung 3, 2026-10-18).
+//
+// react-router 7's package.json `exports` send every bundler condition to
+// dist/development; its dist/production twin ships unused in library mode. The
+// two are the same code except `ENABLE_DEV_WARNINGS` (true / false), so the
+// production build is the development one with its dev-warning branches and
+// the default error screen's developer hint left out: ~0.5 KiB gz off the
+// student shell. Applied to `vite build` only — the dev server and the tests
+// keep the development build and its warnings. Resolved from the installed
+// package, so an upgrade follows; the perf budget's "shell is free of
+// react-router's development build" row fails if this stops applying.
+// ---------------------------------------------------------------------------
+function reactRouterProductionBuild(): Plugin {
+  const pkg = createRequire(path.resolve(__dirname, 'package.json')).resolve(
+    'react-router/package.json',
+  );
+  const production = path.join(path.dirname(pkg), 'dist/production/index.mjs');
+  return {
+    name: 'activity:react-router-production',
+    apply: 'build',
+    enforce: 'pre',
+    resolveId(source) {
+      return source === 'react-router' ? production : null;
+    },
+  };
+}
+
 export default defineConfig({
   // The build's commit, stamped onto each number-facts session (ER-24) so a
   // "it didn't save" report can be tied to the code that ran. Cloudflare Pages
@@ -156,6 +184,7 @@ export default defineConfig({
     tailwindcss(),
     mathliveFonts(),
     authJsDeadModules(),
+    reactRouterProductionBuild(),
     // ------------------------------------------------------------------
     // Service worker (S6 V8, rulings S6-5 / S6-11).
     //

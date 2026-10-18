@@ -2510,6 +2510,8 @@ changes belongs here. Recorded with enough context to act without archaeology.
 
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 
+> ✅ **2026-10-18: RUNG 3 SHIPPED — react-router's production build + two lazy Home screens.** The shell had drifted from 151.82 (rung 2) to **157.9** — past the 156.5 stop line with nothing flagging it — and the viewer render fix (audit #5) needed ~0.3 more. A fresh sourcemap attribution (with the viewer fix in, 158.2): react-dom 53.4, auth-js 22.2 (GoTrueClient alone 17.4), react-router 11.6 (its DEVELOPMENT build — the package's exports never select `dist/production` in library mode), app code 19.2, postgrest + supabase-js + functions-js 7.5, viewer/figures/glossary the rest. Shipped: the `activity:react-router-production` plugin (build only; −0.5) and `SignedOutLanding` + `PendingOnboarding` lazy from Home (−1.1). **157.9 → 156.3 KiB gz**; with the viewer fix ≈ 156.6. Guards (mutation-tested): a `build is free of react-router's development build` row and two `shell leaves out …` rows (absent from the entry AND present in a lazy chunk). **There is no cheap rung left:** what remains is React, auth-js's single client class, and the router itself — every candidate now trades correctness or upgrade risk for bytes. The trigger below still governs.
+
 > ✅ **2026-10-04: RUNG 2 SHIPPED — auth-js's never-executed modules.** The
 > shell had reached the Y7 stop line (156.445 of 156.5 KiB, ER-9; cap 158.0).
 > A fresh sourcemap attribution found three modules GoTrueClient imports

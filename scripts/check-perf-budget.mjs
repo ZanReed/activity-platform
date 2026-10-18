@@ -51,6 +51,7 @@ import {
     CHUNK_LEDGER,
     SHELL_FORBIDDEN_MARKERS,
     ABSENT_FROM_BUILD,
+    SHELL_EVICTED,
     stripAssetSpecifiers,
 } from './perf-budgets.mjs';
 
@@ -247,6 +248,34 @@ for (const rowSpec of CHUNK_LEDGER) {
 // A matching chunk is NAMED in the failure. "storage-js is back" without
 // saying which chunk pulled it in is the archaeology expedition this script's
 // attribution rule exists to prevent.
+
+// -----------------------------------------------------------------------------
+// Rows — modules moved out of the shell into lazy chunks (rung 3)
+// -----------------------------------------------------------------------------
+// Absent from the entry AND present elsewhere: the second half is the liveness
+// proof, so a renamed marker fails instead of reporting "absent" forever.
+for (const spec of SHELL_EVICTED) {
+    const inEntry = spec.marker.test(entrySource);
+    const elsewhere = jsChunks.some(
+        (chunk) =>
+            chunk.path !== entryPath &&
+            spec.marker.test(stripAssetSpecifiers(readFileSync(chunk.path, 'utf8'))),
+    );
+    const ok = !inEntry && elsewhere;
+    const actual = inEntry ? 'IN SHELL' : elsewhere ? 'lazy' : 'MARKER NOT FOUND';
+    rows.push({ name: `shell leaves out ${spec.name}`, actual, cap: 'lazy', unit: '', ok });
+    if (!ok) {
+        failures.push({
+            name: `shell leaves out ${spec.name}`,
+            actual,
+            cap: 'lazy',
+            unit: '',
+            detail: inEntry
+                ? `${spec.name} is back in the entry chunk (${entry.file}). ${spec.why} Look for a static import of it.`
+                : `the marker ${spec.marker} matched no chunk at all — it has rotted. Pick a string that is still in the component's own markup (scripts/perf-budgets.mjs, SHELL_EVICTED).`,
+        });
+    }
+}
 
 for (const spec of ABSENT_FROM_BUILD) {
     const matched = [];

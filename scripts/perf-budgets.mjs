@@ -150,6 +150,12 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * tighter than the policy, so not a fossil (R6). The working stop line for
  * eager additions stays 156.5 (Y7 ER-9; TODOS → "The student shell's size
  * ladder").
+ *
+ * RUNG 3, 2026-10-18 — the shell had drifted to 157.9 with no flag, and the
+ * viewer render fix (audit #5) needed ~0.3 more. react-router's production
+ * build for `vite build` (−0.5) and the signed-out landing + pending
+ * onboarding made lazy from Home (−1.1): 157.9 → 156.3 KiB gz. Cap unchanged
+ * (158); stop line unchanged (156.5).
  */
 export const SHELL_JS_GZ_KIB = 158;
 
@@ -388,6 +394,41 @@ export const ABSENT_FROM_BUILD = [
         name: '@supabase/auth-js GoTrueAdminApi',
         marker: /\/admin\/generate_link|\/admin\/users/,
         why: 'The service-role admin API. A browser must never hold the key it needs; the stub keeps signOut, which ordinary sign-out routes through.',
+    },    // Shell-slimming rung 3 (2026-10-18): react-router's DEVELOPMENT build.
+    // Its exports send every bundler to dist/development; the
+    // activity:react-router-production plugin points `vite build` at the
+    // identical dist/production twin (ENABLE_DEV_WARNINGS false). The marker
+    // is a dev-only warning string: present in every chunk build of the
+    // development build, dead code (and so gone) in the production one.
+    // Mutation-tested by making the plugin pass 'react-router' through (a
+    // build that still typechecks — deleting the plugin call fails tsc first
+    // and measures the OLD dist): the row went red, shell 156.3 → 156.8.
+    {
+        name: "react-router's development build",
+        marker: /You can provide a way better UX than this/,
+        why: 'Dev-only warnings and the default error screen hint, ~0.5 KiB gz in the student shell. The activity:react-router-production plugin in vite.config.ts selects the production build.',
+    },
+];
+
+/**
+ * Modules moved OUT of the student shell into lazy chunks (rung 3, 2026-10-18).
+ *
+ * Two checks per row, both required: the marker is ABSENT from the entry chunk
+ * (a stray static import pulled it back), and PRESENT in some other chunk — so
+ * a marker that rotted (the string was renamed) fails loudly instead of
+ * passing forever. Markers are strings from the component's own markup: the
+ * copy it renders lives in lib/authMessages.ts, which stays in the shell.
+ */
+export const SHELL_EVICTED = [
+    {
+        name: 'the signed-out landing (SignedOutLanding)',
+        marker: /landing-code/,
+        why: 'A signed-in student on the way to a worksheet never sees it; Home loads it lazily.',
+    },
+    {
+        name: 'pending-account onboarding (PendingOnboarding)',
+        marker: /data-onboarding/,
+        why: 'Only a brand-new account with no role sees it; Home loads it lazily.',
     },
 ];
 

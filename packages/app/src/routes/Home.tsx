@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
-import { PendingOnboarding } from '../components/PendingOnboarding';
-import { SignedOutLanding } from '../components/SignedOutLanding';
 import { markIdleSignOut, consumeIdleSignOutFlag } from '../lib/auth';
 import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
@@ -24,6 +22,20 @@ import {
   BTN_SECONDARY,
 } from '../components/AuthScreens';
 import { JoinCodeForm } from '../components/JoinCodeForm';
+
+// SHELL-SLIMMING RUNG 3 (2026-10-18): the two Home branches a signed-in student
+// on their way to a worksheet never reaches are LAZY, so they leave the student
+// shell (~1.2 KiB gz). The cost is one small chunk the first time a signed-out
+// visitor opens `/` or a new account sees onboarding — shown behind the same
+// neutral card the role check already uses, so nothing flashes. Home itself
+// stays in the shell (S8 ruling D4). The perf budget has an absence row for
+// each, so a stray static import fails the build's budget check.
+const SignedOutLanding = lazy(() =>
+  import('../components/SignedOutLanding').then((m) => ({ default: m.SignedOutLanding })),
+);
+const PendingOnboarding = lazy(() =>
+  import('../components/PendingOnboarding').then((m) => ({ default: m.PendingOnboarding })),
+);
 
 // signOutEverything, not supabase.auth.signOut: shared-device sweep + the
 // failed-network session clear (ruling S6-6). Every sign-out control in the
@@ -70,7 +82,9 @@ export default function Home() {
       // The R5-DR pre-auth fork (board Row 0) — the dominant journey. It
       // replaced a lone "Sign in to continue" button, which forced every
       // student through Google before they could say why they were here.
-      <SignedOutLanding idleSignedOut={idleSignedOut} />
+      <Suspense fallback={<NeutralGateCard slow={slow} />}>
+        <SignedOutLanding idleSignedOut={idleSignedOut} />
+      </Suspense>
     );
   } else if (roleStatus === 'loading' || roleStatus === 'idle') {
     // Neutral until the role resolves — never a flash of the wrong shell (E-4).
@@ -102,12 +116,14 @@ export default function Home() {
     // and opens straight on the attestation card. What is left for this screen
     // is the intent-less arrival (direct OAuth, a stale bookmark).
     body = (
-      <PendingOnboarding
-        email={session.user.email ?? ''}
-        onPromoted={retryRole}
-        onSignOut={() => void signOut()}
-        initialView={teacherIntent ? 'attest' : 'fork'}
-      />
+      <Suspense fallback={<NeutralGateCard slow={slow} />}>
+        <PendingOnboarding
+          email={session.user.email ?? ''}
+          onPromoted={retryRole}
+          onSignOut={() => void signOut()}
+          initialView={teacherIntent ? 'attest' : 'fork'}
+        />
+      </Suspense>
     );
   } else if (role === 'student') {
     body = <StudentHome email={session.user.email ?? ''} />;
