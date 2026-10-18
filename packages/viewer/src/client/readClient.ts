@@ -87,7 +87,9 @@ export interface LoadOptions {
 }
 
 export interface ReadClientOptions {
-  /** Full URL of the get-activity function. */
+  /** Full URL of the get-activity function. It may already carry a query
+   * string (the app pins the function's region with one, audit #14); the
+   * request's own parameters are appended after it. */
   baseUrl: string;
   /** Current access token, or null when signed out. Called per request so a
    * refreshed token is picked up without rebuilding the client. */
@@ -163,7 +165,7 @@ export function createReadClient(options: ReadClientOptions): ViewerReadClient {
   }
 
   const url = (params: Record<string, string>) =>
-    `${options.baseUrl}?${new URLSearchParams(params).toString()}`;
+    `${options.baseUrl}${options.baseUrl.includes('?') ? '&' : '?'}${new URLSearchParams(params).toString()}`;
 
   return {
     async fetchMeta(activityId) {

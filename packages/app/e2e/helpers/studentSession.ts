@@ -202,6 +202,9 @@ export interface ActivityApi {
   failCheckWith(status: number | null): void;
   /** Content (version_id) requests seen — the download a reopen may skip. */
   readonly contentRequests: number;
+  /** Every Edge Function URL the viewer requested (get-activity and
+   * check-activity), newest last — lets a spec assert the region pin (#14). */
+  readonly functionUrls: string[];
   /** Serve a different served-form revision from now on (a server-side rule change). */
   setServeRev(rev: string): void;
 }
@@ -223,6 +226,7 @@ export async function stubActivityApi(
     remembered: new Map<string, { responses: unknown; result: unknown }>(),
     serveRev: SERVE_REV,
     contentRequests: 0,
+    functionUrls: [] as string[],
   };
 
   // The student's own checked section ids (restore D5; 0060). The path derives
@@ -247,6 +251,7 @@ export async function stubActivityApi(
 
   // Matched by path so the harness is independent of the configured origin.
   await page.route('**/functions/v1/get-activity*', async (route) => {
+    state.functionUrls.push(route.request().url());
     if (await abortIfOffline(route)) return;
     const url = new URL(route.request().url());
     const params = url.searchParams;
@@ -282,62 +287,68 @@ export async function stubActivityApi(
   // A1/P2: the matched path derives from the production constant — a retyped
   // literal here once matched the app's typo instead of catching it (history
   // in src/lib/edgeFunctions.ts).
-  await page.route(`**/functions/v1/${CHECK_ACTIVITY_FUNCTION}`, async (route) => {
-    if (await abortIfOffline(route)) return;
-    const body = route.request().postDataJSON() as {
-      sectionId: string;
-      responses?: Record<string, Record<string, unknown>>;
-      mode?: string;
-      sectionIds?: string[];
-    };
-    // RESTORE (S3): never a check, never recorded as one.
-    if (body.mode === 'restore') {
-      state.restoreRequests.push(body);
-      await route.fulfill({
-        json: {
-          wireVersion: CHECK_WIRE_VERSION,
-          sections: (body.sectionIds ?? [])
-            .filter((id) => state.remembered.has(id))
-            .map((id) => ({ sectionId: id, ...state.remembered.get(id)! })),
-        },
-      });
-      return;
-    }
-    state.checkRequests.push(body);
-
-    if (state.failStatus !== null) {
-      await route.fulfill({
-        status: state.failStatus,
-        json: { error: 'e2e-induced failure' },
-      });
-      return;
-    }
-
-    // Verdict for every id the client actually sent, so the response keys
-    // match the request the way the real grader's do.
-    const items: Record<string, { verdict: string; feedback?: unknown[] }> = {};
-    for (const category of Object.values(body.responses ?? {})) {
-      for (const itemId of Object.keys(category)) {
-        const feedback = options.check?.feedback?.[itemId];
-        items[itemId] = {
-          verdict: options.check?.verdicts?.[itemId] ?? 'correct',
-          ...(feedback ? { feedback } : {}),
-        };
+  // Matched on the PATH, so the query the app adds (the region pin, #14) does
+  // not stop it matching; `functionUrls` lets a spec assert that query.
+  await page.route(
+    (url) => url.pathname.endsWith(`/functions/v1/${CHECK_ACTIVITY_FUNCTION}`),
+    async (route) => {
+      state.functionUrls.push(route.request().url());
+      if (await abortIfOffline(route)) return;
+      const body = route.request().postDataJSON() as {
+        sectionId: string;
+        responses?: Record<string, Record<string, unknown>>;
+        mode?: string;
+        sectionIds?: string[];
+      };
+      // RESTORE (S3): never a check, never recorded as one.
+      if (body.mode === 'restore') {
+        state.restoreRequests.push(body);
+        await route.fulfill({
+          json: {
+            wireVersion: CHECK_WIRE_VERSION,
+            sections: (body.sectionIds ?? [])
+              .filter((id) => state.remembered.has(id))
+              .map((id) => ({ sectionId: id, ...state.remembered.get(id)! })),
+          },
+        });
+        return;
       }
-    }
-    const result = {
-      // Imported, never retyped (A16/P2): a hand-copied wire version makes a
-      // future bump fail e2e with a confusing symptom instead of a clear one.
-      wireVersion: CHECK_WIRE_VERSION,
-      sectionId: body.sectionId,
-      items,
-      solutions: options.check?.solutions ?? {},
-    };
-    if (options.serverRemembers) {
-      state.remembered.set(body.sectionId, { responses: body.responses ?? {}, result });
-    }
-    await route.fulfill({ json: result });
-  });
+      state.checkRequests.push(body);
+
+      if (state.failStatus !== null) {
+        await route.fulfill({
+          status: state.failStatus,
+          json: { error: 'e2e-induced failure' },
+        });
+        return;
+      }
+
+      // Verdict for every id the client actually sent, so the response keys
+      // match the request the way the real grader's do.
+      const items: Record<string, { verdict: string; feedback?: unknown[] }> = {};
+      for (const category of Object.values(body.responses ?? {})) {
+        for (const itemId of Object.keys(category)) {
+          const feedback = options.check?.feedback?.[itemId];
+          items[itemId] = {
+            verdict: options.check?.verdicts?.[itemId] ?? 'correct',
+            ...(feedback ? { feedback } : {}),
+          };
+        }
+      }
+      const result = {
+        // Imported, never retyped (A16/P2): a hand-copied wire version makes a
+        // future bump fail e2e with a confusing symptom instead of a clear one.
+        wireVersion: CHECK_WIRE_VERSION,
+        sectionId: body.sectionId,
+        items,
+        solutions: options.check?.solutions ?? {},
+      };
+      if (options.serverRemembers) {
+        state.remembered.set(body.sectionId, { responses: body.responses ?? {}, result });
+      }
+      await route.fulfill({ json: result });
+    },
+  );
 
   // No get-feedback stub: that Edge Function was deleted at S9 Drop 3, and a
   // stub for a nonexistent endpoint violates P2 silently (eng ruling Q1).
@@ -362,6 +373,9 @@ export async function stubActivityApi(
     },
     get contentRequests() {
       return state.contentRequests;
+    },
+    get functionUrls() {
+      return state.functionUrls;
     },
     setServeRev(rev: string) {
       state.serveRev = rev;

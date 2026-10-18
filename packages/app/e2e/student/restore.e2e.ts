@@ -21,6 +21,7 @@ import {
   stubActivityApi,
   stubIdentityApi,
 } from '../helpers/studentSession';
+import { FUNCTION_REGION } from '../../src/lib/edgeFunctions';
 
 test('check, sign-out wipe, reopen: the answer and "Checked." come back, with no new check', async ({
   page,
@@ -54,6 +55,15 @@ test('check, sign-out wipe, reopen: the answer and "Checked." come back, with no
   expect(api.restoreRequests).toHaveLength(1);
   expect(api.checkRequests).toHaveLength(1);
   await expect(page.locator('[data-banner="restore-failed"]')).toHaveCount(0);
+
+  // Audit #14: every function call ran pinned to the database's region —
+  // the read (resolve + content), the check, and the restore.
+  const urls = api.functionUrls;
+  expect(urls.some((u) => u.includes('/get-activity'))).toBe(true);
+  expect(urls.some((u) => u.includes('/check-activity'))).toBe(true);
+  for (const u of urls) {
+    expect(new URL(u).searchParams.get('forceFunctionRegion'), u).toBe(FUNCTION_REGION);
+  }
 });
 
 test('nothing checked on the server: no restore call, no banner', async ({ page }) => {

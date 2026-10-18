@@ -577,6 +577,16 @@ own `WARM TIMING` line as the client-side view; expect it to read slightly
 higher. Both are in the same place, which is why the ruling did not need to pick
 between them.
 
+## Edge Functions pinned to the database region (2026-10-18, efficiency audit #14)
+
+**Ruling (author, option A):** every Edge Function call the app makes runs in `us-east-2`, the database's region, through one builder (`edgeFunctionUrl` in `packages/app/src/lib/edgeFunctions.ts`, which adds `?forceFunctionRegion=us-east-2`). The restore `Promise.all` the audit proposed was DROPPED.
+
+- **Why (measured from Auckland, 2026-10-18):** an unpinned function runs nearest the caller. For NZ that was Sydney (`x-sb-edge-region: ap-southeast-2`), and every serial DB call then crossed the Pacific, at ~200 ms each. Pinned, the browser crosses once and the DB calls are local. A one-call request (anonymous meta) measured the same either way, as the arithmetic predicts. A check makes three serial calls, so the pin saves ~400 ms per check from NZ. US callers already ran on US functions and lose nothing. It plausibly explains the check-latency ruling's ~600 ms floor above as three Pacific crossings (not re-measured).
+- **Why the query parameter and not `x-region`:** the header would have to join both functions' CORS allow-list, which means a redeploy. The parameter needs no function change, and the handlers read only their own named parameters.
+- **Why `Promise.all` was dropped:** with the pin, parallelising `ownLatestChecks` with the authorization chain saves ~2 ms. That isn't worth a speculative read in a handler whose security IS its ordering.
+- **Risks accepted:** `us-east-2` is served but is not on Supabase's published region list; if it is ever refused, every function call fails loudly and the constant is a one-line fix. The documented `us-east-1` measured ~50–70 ms slower per call. A pinned region does not fail over in an outage, which doesn't matter while the database lives in that region. **The constant moves with the database:** a project move to another region must change it.
+- **Guards:** `edgeFunctionUrls.test.ts` (the builder adds the region; a sweep fails on any hand-built function URL) and the restore e2e row (every get-activity and check-activity request carries the pin). Both were mutation-tested on the day they were written.
+
 ## Print parity — the artifact, and why it is not a pixel diff (2026-08-01/02, S5, closes finding R4)
 
 Finding R4 said the renderer-retirement print gate was **unfalsifiable**: "per-block

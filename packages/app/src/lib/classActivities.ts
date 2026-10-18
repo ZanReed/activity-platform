@@ -20,6 +20,8 @@ import {
     MY_ACTIVITY_PROGRESS_RPC,
     SHARE_ACTIVITY_RPC,
     UNSHARE_ACTIVITY_RPC,
+    GET_ACTIVITY_FUNCTION,
+    edgeFunctionUrl,
 } from './edgeFunctions';
 
 /** One row of the student Home list (server-filtered: published, non-deleted,
@@ -297,7 +299,7 @@ export type ClassMetaResult =
 export async function fetchClassMeta(code: string): Promise<ClassMetaResult> {
     try {
         const res = await fetch(
-            `${functionsBase()}/get-activity?join_code=${encodeURIComponent(code)}&meta=1`,
+            edgeFunctionUrl(functionsBase(), GET_ACTIVITY_FUNCTION, { join_code: code, meta: '1' }),
         );
         if (res.status === 404) return { kind: 'none' };
         if (!res.ok) return { kind: 'error' };

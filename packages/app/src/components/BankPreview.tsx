@@ -23,6 +23,7 @@ import {
     type SanitizedActivityDocument,
 } from '@activity/viewer';
 import { functionsBase } from '../lib/supabase';
+import { GET_ACTIVITY_FUNCTION, edgeFunctionUrl } from '../lib/edgeFunctions';
 import { useSession } from '../lib/SessionContext';
 
 type State =
@@ -38,7 +39,7 @@ export default function BankPreview({ activityId }: { activityId: string }) {
     const readClient = useMemo(
         () =>
             createReadClient({
-                baseUrl: `${functionsBase()}/get-activity`,
+                baseUrl: edgeFunctionUrl(functionsBase(), GET_ACTIVITY_FUNCTION),
                 getAccessToken: () => tokenRef.current,
             }),
         [],

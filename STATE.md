@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE (2026-10-13).**
 
-**0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified.
+**0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin BUILT, unpushed:** app-only, live on push (no deploy); then confirm in logs (TODOS item 4).
 
 **Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 
@@ -37,7 +37,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06. The standing rule is unchanged: the author runs deploys unless he says otherwise.
+**Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06.
 
 **The daily facts practice (D43 slice 2, LIVE 2026-10-06) and the 0048 apply (prune DISARMED)** are closed records, moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-07; what is still owed on the prune is the D24 paragraph below and TODOS → the ARMING checklist.
 

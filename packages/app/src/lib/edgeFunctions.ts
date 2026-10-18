@@ -1,6 +1,6 @@
 /**
  * Edge Function NAMES the app calls — the deploy-surface half of the URL
- * (functionsBase() supplies the origin half; it lives in lib/supabase.ts,
+ * (`functionsBase` supplies the origin half; it lives in lib/supabase.ts,
  * the single env-read site).
  *
  * This module is deliberately env-free and side-effect-free so the Playwright
@@ -15,6 +15,41 @@
  * directory, so a rename on either side goes red.
  */
 export const CHECK_ACTIVITY_FUNCTION = 'check-activity';
+export const GET_ACTIVITY_FUNCTION = 'get-activity';
+
+/**
+ * The region every Edge Function call runs in: the DATABASE's region (audit
+ * #14, ruled 2026-10-18). Unpinned, a function runs nearest the caller — from
+ * NZ that is Sydney, and every serial DB call then crosses the Pacific (~200 ms
+ * each; a check makes three). Pinned, the browser crosses once and the DB calls
+ * are local. Measured from Auckland: break-even at one DB call, ~400 ms saved
+ * on a check. `us-east-2` is served (x-sb-edge-region proves it) but is not on
+ * Supabase's published region list; if it is ever refused, every function call
+ * fails loudly and this constant is the one-line fix. A pinned region does not
+ * fail over — moot while the database lives in that same region. MOVES WITH
+ * THE DATABASE: a project migration to another region must change this.
+ * Full record: DECISIONS.md → "Edge Functions pinned to the database region".
+ */
+export const FUNCTION_REGION = 'us-east-2';
+
+/**
+ * The URL of one Edge Function, region-pinned. EVERY function URL the app
+ * builds goes through here (`edgeFunctionUrls.test.ts` sweeps for hand-built
+ * ones). The pin is a query parameter, not the `x-region` header, because a
+ * header would have to be added to both functions' CORS allow-list (a
+ * redeploy); the platform's router reads the parameter, and the handlers read
+ * only their own named parameters, so it changes nothing there. Env-free so the e2e stubs can derive
+ * their matched URLs from it (P2) — `base` comes from `functionsBase`.
+ */
+export function edgeFunctionUrl(
+  base: string,
+  name: string,
+  params: Record<string, string> = {},
+): string {
+  // The pin is spread LAST so no caller's params can override it.
+  const query = new URLSearchParams({ ...params, forceFunctionRegion: FUNCTION_REGION });
+  return `${base}/${name}?${query.toString()}`;
+}
 
 /**
  * RPC names the app calls over PostgREST (`/rest/v1/rpc/<name>`) — same P2

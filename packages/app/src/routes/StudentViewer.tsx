@@ -62,7 +62,11 @@ import type {
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { functionsBase, supabase } from '../lib/supabase';
-import { CHECK_ACTIVITY_FUNCTION } from '../lib/edgeFunctions';
+import {
+  CHECK_ACTIVITY_FUNCTION,
+  GET_ACTIVITY_FUNCTION,
+  edgeFunctionUrl,
+} from '../lib/edgeFunctions';
 import { fetchMyCheckedSectionIds, fetchReleasedFeedbackRows } from '../lib/grading';
 import { useSession } from '../lib/SessionContext';
 import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
@@ -182,7 +186,7 @@ export default function StudentViewer() {
   const readClient = useMemo(
     () =>
       createReadClient({
-        baseUrl: `${functionsBase()}/get-activity`,
+        baseUrl: edgeFunctionUrl(functionsBase(), GET_ACTIVITY_FUNCTION),
         getAccessToken,
       }),
     [getAccessToken],
@@ -371,7 +375,7 @@ export default function StudentViewer() {
       checkService: createHttpCheckService({
         // A1: the name derives from the shared constant the e2e stubs also
         // import — never a retyped literal (history in lib/edgeFunctions.ts).
-        checkUrl: `${functionsBase()}/${CHECK_ACTIVITY_FUNCTION}`,
+        checkUrl: edgeFunctionUrl(functionsBase(), CHECK_ACTIVITY_FUNCTION),
         // The get-feedback TOMBSTONE that stood here is discharged: 0034 made
         // released feedback a PostgREST RPC, so the dead Edge Function URL is
         // gone rather than merely unused. Checking stays an Edge Function

@@ -252,3 +252,29 @@ describe('reuse of the device copy (serve revision)', () => {
     expect(calls).toHaveLength(2);
   });
 });
+
+describe('a base URL that already carries a query (the app pins the region, audit #14)', () => {
+  it('appends the request parameters after it, keeping both', async () => {
+    const calls: string[] = [];
+    const api = createReadClient({
+      baseUrl: `${BASE}?forceFunctionRegion=us-east-2`,
+      getAccessToken: () => 'tok',
+      fetchImpl: (async (url: string) => {
+        calls.push(String(url));
+        return String(url).includes('meta=1')
+          ? json(200, { title: 'T', teacher_name: null })
+          : json(200, { version_id: V1, version_num: 1, title: 'T' });
+      }) as unknown as typeof fetch,
+    });
+    await api.fetchMeta(ACTIVITY);
+    await api.resolve(ACTIVITY);
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      // One '?', and the server reads the request's own parameters.
+      expect(call.split('?')).toHaveLength(2);
+      const params = new URL(call).searchParams;
+      expect(params.get('forceFunctionRegion')).toBe('us-east-2');
+      expect(params.get('activity_id')).toBe(ACTIVITY);
+    }
+  });
+});
