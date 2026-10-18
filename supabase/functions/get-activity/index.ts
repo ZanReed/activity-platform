@@ -17,14 +17,17 @@
 //   - serves the handler.
 //
 // Deploy with `pnpm deploy:get-activity` (flag baked in). This function MUST
-// run with `--no-verify-jwt`, exactly like ingest-submission/get-feedback: the
-// META branch is called with NO Authorization header, so the platform's
+// run with `--no-verify-jwt` — the only function that does (supabase/config.toml
+// is the record): the META branch is called with NO Authorization header, so the platform's
 // default verify_jwt gate would 401 it before this code runs. The authed
 // branches do their own verification — the user-scoped RPC call fails with a
 // PostgREST auth error on a bad/expired JWT, which the handler maps to 401.
 // =============================================================================
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// supabase-js is pinned EXACT, to the app's version (packages/app/package.json):
+// a floating `@2` let each deploy resolve a different minor (audit 2026-10).
+// Bump the two functions and the app together.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
 import {
   createGetActivityHandler,
   type GetActivityDb,

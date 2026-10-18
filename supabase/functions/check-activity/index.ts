@@ -13,10 +13,9 @@
 //   - recomputes this student's serve-time `ordering` permutation,
 //   - serves the handler.
 //
-// ⚠ THIS FUNCTION KEEPS THE DEFAULT verify_jwt: TRUE. It is NOT part of the
-// no-verify-jwt trio (ingest-submission / get-feedback / get-activity). Those
-// three are called with no Authorization header from published pages or the
-// pre-auth interstitial; a check is always made by a signed-in student, so the
+// ⚠ THIS FUNCTION KEEPS THE DEFAULT verify_jwt: TRUE. Only get-activity runs
+// with --no-verify-jwt (its pre-auth meta branch is called with no
+// Authorization header); a check is always made by a signed-in student, so the
 // platform gate is a free first line of defense. Deploy with `pnpm deploy:check`
 // and do NOT add --no-verify-jwt to it.
 //
@@ -30,7 +29,10 @@
 // authorization RPC has succeeded.
 // =============================================================================
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// supabase-js is pinned EXACT, to the app's version (packages/app/package.json):
+// a floating `@2` let each deploy resolve a different minor (audit 2026-10).
+// Bump the two functions and the app together.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
 import {
   computeServedOrderings,
   createCheckActivityHandler,

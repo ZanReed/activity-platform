@@ -43,6 +43,7 @@ const h = vi.hoisted(() => {
         const qb: Record<string, unknown> = {
             select: () => qb,
             is: () => qb,
+            eq: () => qb,
             order: () => qb,
             then: (resolve: (v: unknown) => unknown) => resolve(result()),
         };
@@ -64,7 +65,14 @@ const h = vi.hoisted(() => {
     return { state, rpcCalls, from, rpc };
 });
 
-vi.mock('../lib/supabase', () => ({ supabase: { from: h.from, rpc: h.rpc } }));
+vi.mock('../lib/supabase', () => ({
+    supabase: {
+        from: h.from,
+        rpc: h.rpc,
+        // listTeacherClassActivities narrows to the signed-in teacher (audit #4).
+        auth: { getSession: async () => ({ data: { session: { user: { id: 'teacher-1' } } } }) },
+    },
+}));
 vi.mock('../lib/classes', () => ({
     listClasses: () => Promise.resolve(h.state.classes),
 }));

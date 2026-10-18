@@ -223,3 +223,19 @@ test('vite.config.ts still redirects all THREE auth-js modules at the stubs', ()
             'the real modules instead of the stubs.',
     );
 });
+
+// The two Edge Functions import supabase-js from esm.sh. They used a floating
+// `@2` until the 2026-10 efficiency audit, so each deploy could resolve a
+// different minor than the one the app (and its stubs) were audited against.
+// They now name the app's exact pin; this keeps the three in step.
+test('both Edge Functions import supabase-js at the app\'s exact pin', () => {
+    const pin = declaredPin();
+    for (const fn of ['get-activity', 'check-activity']) {
+        const src = readFileSync(join(repo, 'supabase/functions', fn, 'index.ts'), 'utf8');
+        const versions = [...src.matchAll(/esm\.sh\/@supabase\/supabase-js@([^'"/?]+)/g)].map((m) => m[1]);
+        assert.ok(versions.length > 0, `${fn}/index.ts no longer imports supabase-js from esm.sh — update this test`);
+        for (const v of versions) {
+            assert.equal(v, pin, `${fn}/index.ts imports supabase-js@${v}; the app pins ${pin}. Bump them together.`);
+        }
+    }
+});

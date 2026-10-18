@@ -11,6 +11,7 @@
  * reports chip strikes.
  */
 import { supabase } from './supabase';
+import { getVersionContents } from './versionContent';
 import type { CriterionEntry } from './grading';
 
 /* ---- wire types (0042 §K/§K2) -------------------------------------------- */
@@ -98,12 +99,11 @@ export async function fetchVersionRubrics(
 ): Promise<Map<string, RubricCriterionSpec[]>> {
   const rubrics = new Map<string, RubricCriterionSpec[]>();
   if (versionIds.length === 0) return rubrics;
-  const { data, error } = await supabase
-    .from('activity_versions')
-    .select('id, content')
-    .in('id', versionIds);
-  if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as { id: string; content: unknown }[]) {
+  // Read once per page session (versions are immutable): a grade save used to
+  // re-download every version in the queue just to find its rubrics (audit #8).
+  const contents = await getVersionContents(versionIds);
+  for (const [id, version] of contents) {
+    const row = { id, content: version.content };
     const content = row.content as {
       sections?: {
         rows?: { columns?: { blocks?: Record<string, unknown>[] }[] }[];

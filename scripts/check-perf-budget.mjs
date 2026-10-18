@@ -293,6 +293,22 @@ for (const spec of ABSENT_FROM_BUILD) {
 // dist files those URLs point at, so this never depends on Workbox's internal
 // bookkeeping staying shaped the way it is today.
 
+// ---- Asset caching header (efficiency audit 2026-10 #15) ---------------------
+// Cloudflare Pages serves static files `max-age=0, must-revalidate` unless
+// dist/_headers says otherwise, so every worker-less visit revalidated each
+// hashed chunk. The rule ships from packages/app/public/_headers; this checks
+// the BUILT tree, so a build change that stops copying public/ fails here.
+const headersPath = join(dist, '_headers');
+require_(
+    existsSync(headersPath) &&
+        /^\/assets\/\*\s*\n\s+Cache-Control:\s*public, max-age=31536000, immutable\s*$/m.test(
+            readFileSync(headersPath, 'utf8'),
+        ),
+    'dist/_headers is missing its `/assets/*  Cache-Control: public, max-age=31536000, ' +
+        'immutable` rule. It is copied from packages/app/public/_headers; without it ' +
+        'every hashed chunk is revalidated on each visit the service worker does not serve.',
+);
+
 const swPath = join(dist, 'sw.js');
 require_(
     existsSync(swPath),

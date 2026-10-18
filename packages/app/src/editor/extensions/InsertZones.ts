@@ -17,8 +17,14 @@ import { insertZonePositions } from '../strictGrid';
 //     document at zero at-rest cost and never touch RowSeamCaret's position
 //     math (widgets don't occupy doc positions). `props.decorations` recomputes
 //     the whole set every view update (the PlaceholderHint idiom): the walk is
-//     O(blocks), and stable per-seam widget keys let ProseMirror reuse the DOM
-//     so nothing churns on a keystroke or caret move. No structural classifier.
+//     O(blocks). Each widget is keyed by its kind and its ORDER among the
+//     zones of that kind — not by its doc position — so ProseMirror reuses a
+//     zone's DOM when an edit shifts where it sits: under a position key,
+//     typing rebuilt every zone below the caret on each keystroke (efficiency
+//     audit 2026-10 #7; insertZones.test.ts pins the reuse). Because a reused
+//     zone can sit at a new position, a click reads its LIVE position from
+//     `getPos()` — never one captured when the zone was built (also pinned).
+//     No structural classifier.
 //   • The widget DOM is aria-hidden + tabindex=-1: a pointer/touch convenience
 //     only. The keyboard/AT insert floor stays the slash menu, toolbar Insert
 //     menu, and the end square — announcing a "+" between every block would be
@@ -40,7 +46,7 @@ const insertZonesKey = new PluginKey('insertZones');
 
 function buildZone(
     editor: Editor,
-    pos: number,
+    getPos: () => number | undefined,
     kind: 'before' | 'append',
 ): HTMLElement {
     const zone = document.createElement('div');
@@ -62,6 +68,9 @@ function buildZone(
         e.preventDefault();
         const storage = (editor.storage as { insertZones?: InsertZonesStorage })
             .insertZones;
+        // Where the zone is NOW: the DOM may have been reused since it was built.
+        const pos = getPos();
+        if (pos === undefined) return;
         storage?.onZoneClick?.(pos, kind);
     });
     return zone;
@@ -102,16 +111,16 @@ export const InsertZones = Extension.create<
                     decorations: (state) => {
                         const zones = insertZonePositions(state.doc);
                         if (zones.length === 0) return DecorationSet.empty;
+                        const ordinal = { before: 0, append: 0 };
                         const decorations = zones.map(({ pos, kind }) =>
                             Decoration.widget(
                                 pos,
-                                () => buildZone(editor, pos, kind),
+                                (_view, getPos) => buildZone(editor, getPos, kind),
                                 {
-                                    // Stable per-seam key → PM reuses the widget
-                                    // DOM across recomputes (no churn on typing /
-                                    // caret moves); rebuilds only when the seam
-                                    // position actually shifts.
-                                    key: `insert-zone-${kind}-${pos}`,
+                                    // Kind + order, not position: PM reuses the
+                                    // widget DOM across typing and caret moves
+                                    // (see the header — audit #7).
+                                    key: `insert-zone-${kind}-${ordinal[kind]++}`,
                                     // `before` renders left of its block; the
                                     // column-end `append` after the last block.
                                     side: kind === 'append' ? 1 : -1,

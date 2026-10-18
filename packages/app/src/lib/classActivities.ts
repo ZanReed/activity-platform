@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { functionsBase, supabase } from './supabase';
+import { signedInUserId } from './currentUser';
 import {
     LIST_CLASS_ACTIVITIES_RPC,
     MY_ACTIVITY_PROGRESS_RPC,
@@ -68,9 +69,18 @@ export interface TeacherClassActivity {
  * student list — a deliberate verification affordance.
  */
 export async function listTeacherClassActivities(): Promise<TeacherClassActivity[]> {
+    // Narrowed through the caller's own classes (efficiency audit #4): the
+    // unfiltered read seq-scanned every class_activities row on the platform,
+    // running the DEFINER policy helpers per row. RLS still applies to what is
+    // left.
+    const uid = await signedInUserId();
+    if (!uid) return [];
     const { data, error } = await supabase
         .from('class_activities')
-        .select('class_id, activity_id, added_at, activities(title, status, deleted_at, current_version_id)')
+        .select(
+            'class_id, activity_id, added_at, activities(title, status, deleted_at, current_version_id), classes!inner(teacher_id)',
+        )
+        .eq('classes.teacher_id', uid)
         .order('added_at', { ascending: false })
         .order('activity_id', { ascending: false });
     if (error) throw new Error(error.message);

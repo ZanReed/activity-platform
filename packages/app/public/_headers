@@ -1,0 +1,12 @@
+# Cloudflare Pages response headers (efficiency audit 2026-10 #15).
+#
+# Everything under /assets/ is content-hashed by Vite: a changed file gets a
+# new name, so a cached copy can never be stale. Without this rule Pages serves
+# them `public, max-age=0, must-revalidate`, and every visit without the
+# service worker (a first visit, a hard reload, a managed Chromebook that
+# clears site data) revalidates each chunk with its own round trip.
+#
+# NOTHING ELSE is listed on purpose: index.html and the service worker must
+# keep revalidating, or a deploy could not reach a returning visitor.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

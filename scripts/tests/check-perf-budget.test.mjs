@@ -123,6 +123,10 @@ function makeHealthyDist(overrides = {}) {
 
     writeFileSync(join(dir, 'index.html'), '<!doctype html><title>fixture</title>');
     writeFileSync(
+        join(dir, '_headers'),
+        overrides.headers ?? '/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n',
+    );
+    writeFileSync(
         join(dir, 'sw.js'),
         overrides.sw ??
             'e.precacheAndRoute([{url:"index.html",revision:"abc"}],{}),e.cleanupOutdatedCaches()',
@@ -389,5 +393,18 @@ test('gzip is what is measured, not raw bytes', () => {
         assert.equal(code, 0, 'a 2 MB but highly-compressible entry is under the gz cap');
     } finally {
         cleanup(dir);
+    }
+});
+
+test('a dist without the immutable /assets/ header rule fails (audit #15)', () => {
+    for (const headers of ['', '/assets/*\n  Cache-Control: public, max-age=0\n']) {
+        const dir = makeHealthyDist({ headers });
+        try {
+            const { code, out } = runBudget(dir);
+            assert.notEqual(code, 0, 'a missing or weakened caching rule must fail the budget');
+            assert.match(out, /dist\/_headers/);
+        } finally {
+            cleanup(dir);
+        }
     }
 });

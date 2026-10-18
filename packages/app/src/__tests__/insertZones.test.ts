@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { getSchema } from '@tiptap/core';
+// @vitest-environment jsdom
+import { afterEach, describe, it, expect } from 'vitest';
+import { Editor, getSchema } from '@tiptap/core';
 import { Node as PMNode } from '@tiptap/pm/model';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import {
@@ -132,5 +133,69 @@ describe('insertZonePositions', () => {
             const parentIsColumn = $pos.parent.type.name === 'column';
             expect(parentIsColumn, `pos ${zone.pos} (${zone.kind}) not in a column`).toBe(true);
         }
+    });
+});
+
+// ============================================================================
+// The widget DOM across typing (efficiency audit 2026-10 #7). A position key
+// made every zone below the caret rebuild on each keystroke; the kind+order key
+// lets ProseMirror reuse it. The trap the audit named: a REUSED zone sits at a
+// new position, so its click must report where it is now, not where it was
+// built. Both halves are pinned here against a real (headless) editor.
+// ============================================================================
+
+
+describe('InsertZones widget DOM', () => {
+    const live: Editor[] = [];
+    afterEach(() => {
+        while (live.length) live.pop()?.destroy();
+    });
+
+    function mount(n: number): Editor {
+        const element = document.createElement('div');
+        document.body.append(element);
+        const editor = new Editor({
+            element,
+            extensions: buildEditorExtensions(),
+            content: stackDocJSON(...Array.from({ length: n }, (_, i) => para(`Block ${i + 1}`))),
+        });
+        live.push(editor);
+        return editor;
+    }
+    /** A position INSIDE the first block's text — typing, not a new block. */
+    const insideFirstText = (editor: Editor): number => {
+        let at = -1;
+        editor.state.doc.descendants((node, pos) => {
+            if (at < 0 && node.isText) at = pos + 1;
+            return at < 0;
+        });
+        return at;
+    };
+    const zoneEls = (editor: Editor) =>
+        [...editor.view.dom.querySelectorAll<HTMLElement>('[data-insert-zone]')];
+
+    it('typing at the top reuses every zone element instead of rebuilding them', () => {
+        const editor = mount(6);
+        const before = zoneEls(editor);
+        expect(before.length).toBeGreaterThan(3);
+        editor.commands.insertContentAt(insideFirstText(editor), 'xyz');
+        const after = zoneEls(editor);
+        expect(after).toHaveLength(before.length);
+        after.forEach((el, i) => expect(el).toBe(before[i]));
+    });
+
+    it('a reused zone reports its live position when clicked', () => {
+        const editor = mount(6);
+        const clicks: { pos: number; kind: string }[] = [];
+        (editor.storage as unknown as { insertZones: { onZoneClick: unknown } }).insertZones.onZoneClick = (
+            pos: number,
+            kind: string,
+        ) => clicks.push({ pos, kind });
+        const last = zoneEls(editor).at(-1)!;
+        editor.commands.insertContentAt(insideFirstText(editor), 'xyz'); // shifts every later seam by 3
+        expect(zoneEls(editor).at(-1)).toBe(last); // the same element...
+        last.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        const expected = insertZonePositions(editor.state.doc).at(-1)!;
+        expect(clicks).toEqual([{ pos: expected.pos, kind: expected.kind }]); // ...at its new seam
     });
 });

@@ -43,7 +43,7 @@
 //    queue still loads — drafts are advisory, grading is the product.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { safeProgressPath } from '../lib/classProgress';
 import {
@@ -164,45 +164,76 @@ export default function ActivityResponses() {
   const [assistStatus, setAssistStatus] = useState<AssistStatus>({ provider: 'off' });
   const [rubrics, setRubrics] = useState<Map<string, RubricCriterionSpec[]>>(new Map());
   const [error, setError] = useState<string | null>(null);
+  // A failed re-read AFTER a save keeps the queue on screen (the save itself
+  // succeeded — its own errors show in the panel); only the first load blanks.
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnly, setNeedsOnly] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    let queue: GradingQueueRow[];
-    try {
-      queue = await fetchGradingQueue(id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setRows(null);
+  // Each assist hydration carries a generation, so a slow one from an earlier
+  // save never overwrites the result of a later one.
+  const assistGen = useRef(0);
+
+  // The queue renders the moment it arrives; the assist layer hydrates AFTER
+  // it, in the background, and DEGRADES to nothing on failure. Both halves of
+  // that are the same posture: drafts are advisory — a draft layer that could
+  // delay or take down grading would invert "advisory, never authoritative".
+  // Rows without assist data are plain manual rows (DR-6), so late flags only
+  // ever add information. (Efficiency audit #8: a save no longer waits on it.)
+  const hydrateAssist = useCallback(
+    async (queue: GradingQueueRow[]) => {
+      const gen = ++assistGen.current;
+      try {
+        const [sugg, status, specs] = await Promise.all([
+          fetchSuggestions(id),
+          fetchAssistStatus(),
+          // Versions are immutable: each is downloaded once per page session.
+          fetchVersionRubrics([...new Set(queue.map((r) => r.activity_version_id))]),
+        ]);
+        if (gen !== assistGen.current) return;
+        setSuggestions(sugg);
+        setAssistStatus(status);
+        setRubrics(specs);
+      } catch {
+        if (gen !== assistGen.current) return;
+        setSuggestions([]);
+        setAssistStatus({ provider: 'off' });
+      }
+    },
+    [id],
+  );
+
+  // `refresh` re-reads in place after a save, confirm, reject or release: the
+  // queue and the open panel stay mounted (no "Loading…" swap), which is also
+  // what lets the panel's DR-11 outcome message stay on screen (audit #8).
+  const load = useCallback(
+    async (opts: { refresh?: boolean } = {}) => {
+      if (!opts.refresh) setLoading(true);
+      let queue: GradingQueueRow[];
+      try {
+        queue = await fetchGradingQueue(id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (opts.refresh) {
+          setRefreshError(message);
+          return;
+        }
+        setError(message);
+        setRows(null);
+        setLoading(false);
+        return;
+      }
+      setRows(queue);
+      setError(null);
+      setRefreshError(null);
       setLoading(false);
-      return;
-    }
-    // The queue renders the moment it arrives; the assist layer hydrates
-    // AFTER it and DEGRADES to nothing on failure. Both halves of that are
-    // the same posture: drafts are advisory — a draft layer that could delay
-    // or take down grading would invert "advisory, never authoritative".
-    // Rows without assist data are plain manual rows (DR-6), so late flags
-    // only ever add information.
-    setRows(queue);
-    setError(null);
-    setLoading(false);
-    try {
-      const [sugg, status, specs] = await Promise.all([
-        fetchSuggestions(id),
-        fetchAssistStatus(),
-        fetchVersionRubrics([...new Set(queue.map((r) => r.activity_version_id))]),
-      ]);
-      setSuggestions(sugg);
-      setAssistStatus(status);
-      setRubrics(specs);
-    } catch {
-      setSuggestions([]);
-      setAssistStatus({ provider: 'off' });
-    }
-  }, [id]);
+      void hydrateAssist(queue);
+    },
+    [id, hydrateAssist],
+  );
+  const refresh = useCallback(() => load({ refresh: true }), [load]);
 
   useEffect(() => {
     void load();
@@ -265,7 +296,7 @@ export default function ActivityResponses() {
       for (const studentId of unreleasedByStudent.keys()) {
         await releaseGrades(id, studentId);
       }
-      await load();
+      await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -295,6 +326,12 @@ export default function ActivityResponses() {
       {error && (
         <div role="alert" className="rounded-lg border border-line bg-surface-2 p-4 text-sm text-danger">
           {COPY.loadFailed}: {error}
+        </div>
+      )}
+
+      {refreshError && rows && !error && (
+        <div role="alert" className="mb-4 rounded-lg border border-line bg-surface-2 p-3 text-sm text-danger">
+          {COPY.refreshFailed}: {refreshError}
         </div>
       )}
 
@@ -433,7 +470,7 @@ export default function ActivityResponses() {
                     rubric={
                       rubrics.get(`${current.activity_version_id}:${current.block_id}`) ?? null
                     }
-                    onSaved={load}
+                    onSaved={refresh}
                   />
                 ) : (
                   <p className="rounded-lg border border-line bg-canvas p-6 text-sm text-muted">

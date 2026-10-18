@@ -172,6 +172,7 @@ export const RESPONSES_COPY = {
   noFreeTextBody:
     'Short-answer and essay questions appear here when the worksheet has them.',
   loadFailed: 'Couldn’t load responses',
+  refreshFailed: 'Couldn’t refresh the list — what’s on screen may be out of date',
   saveFailed: 'Couldn’t save that grade. Your entries are still here — try again.',
   releasedNote: 'Released · visible to student · edits appear immediately',
   studentPreview: 'As the student sees it',

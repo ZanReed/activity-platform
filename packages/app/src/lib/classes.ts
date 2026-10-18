@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { signedInUserId } from './currentUser';
 import { POLICY_VERSION } from './policyVersion';
 import { AUTH_CONTRACT } from './authMessages';
 
@@ -316,9 +317,15 @@ export async function claimTeacher(): Promise<void> {
  * class_members' student-select-self policy + classes_select_member.
  */
 export async function listMyClasses(): Promise<JoinedClass[]> {
+    // Narrowed to the caller's own rows (efficiency audit #4). RLS would return
+    // the same rows, but an unfiltered read makes Postgres scan the whole
+    // platform's memberships, calling is_class_teacher once per row.
+    const uid = await signedInUserId();
+    if (!uid) return [];
     const { data, error } = await supabase
         .from('class_members')
         .select('class_id, joined_at, classes(name, join_code, fact_sprint_on_at)')
+        .eq('student_id', uid)
         .is('removed_at', null)
         .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);

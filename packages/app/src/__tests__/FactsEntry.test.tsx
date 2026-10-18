@@ -30,7 +30,7 @@ vi.mock('../lib/classes', () => ({ joinClass: vi.fn(), redeemJoinCode: vi.fn() }
 vi.mock('../lib/auth', () => ({ signInWithGoogle: vi.fn() }));
 vi.mock('../lib/studentAuth', () => ({ signOutEverything: vi.fn(async () => {}) }));
 
-import FactsEntry from '../routes/FactsEntry';
+import FactsEntry, { WAIT_POLL_MS } from '../routes/FactsEntry';
 
 const READY = {
     state: 'ready', probe_id: 'probe-1', total: 2, ceiling_s: 15, saved: 0, next_n: 1,
@@ -184,6 +184,34 @@ describe('FactsEntry', () => {
         expect(card.textContent).toContain('Start from a fact you know.');
         expect(card.textContent).toContain('×5: Half of ×10.');
         expect(container.textContent).not.toMatch(/probe|sprint/i);
+    });
+
+    it('the waiting room asks both reads at once on each poll (audit #13)', async () => {
+        // The poll is driven by calling its own callback — no fake clock, so the
+        // row cannot flake on a loaded machine.
+        const intervals = vi.spyOn(window, 'setInterval');
+        try {
+            api.fetchEntry.mockResolvedValue({ state: 'none_open' });
+            page();
+            await screen.findByRole('heading', { name: 'Nothing to do yet' });
+            // The first read was sequential: entry, then practice.
+            expect(api.fetchEntry).toHaveBeenCalledTimes(1);
+            expect(sprintApi.fetchSprintEntry).toHaveBeenCalledTimes(1);
+            const poll = intervals.mock.calls.find(([, ms]) => ms === WAIT_POLL_MS)?.[0];
+            expect(typeof poll).toBe('function');
+            // The poll's entry read hangs; the practice read must not wait on it.
+            let answer: (v: unknown) => void = () => {};
+            api.fetchEntry.mockImplementation(() => new Promise((r) => { answer = r; }));
+            await act(async () => {
+                (poll as () => void)();
+            });
+            expect(api.fetchEntry).toHaveBeenCalledTimes(2);
+            expect(sprintApi.fetchSprintEntry).toHaveBeenCalledTimes(2);
+            await act(async () => answer({ state: 'none_open' }));
+            expect(screen.getByRole('heading', { name: 'Nothing to do yet' })).toBeTruthy();
+        } finally {
+            intervals.mockRestore();
+        }
     });
 
     it('the practice off (or a database without it) leaves the check\'s own screens', async () => {

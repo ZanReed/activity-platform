@@ -199,6 +199,28 @@ describe('the pre-fill (DR-1/DR-2/DR-3)', () => {
     });
   });
 
+  it('the saved outcome stays on screen while the queue re-reads in place (DR-11, audit #8)', async () => {
+    // Two rows, so grading one leaves the queue (not the all-caught-up card).
+    const other = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example' });
+    setup([row(), other], [suggestion()]);
+    await openFirstRow();
+    // The re-read after Save returns the row graded, as the server would.
+    // It takes real time, like a network read: an instant mock lets React batch
+    // the old "Loading…" swap away and the row would pass vacuously.
+    h.queue.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve([row({ graded: true, graded_at: '2026-09-27T00:00:00Z' }), other]), 30),
+        ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.queue).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ASSIST_COPY.savedConfirmed));
+    // In place: the panel never swapped out for the page's loading line.
+    expect(screen.queryByText('Loading…')).toBeNull();
+    expect(screen.getByLabelText(COPY.generalFeedback)).toBeTruthy();
+  });
+
   it('a draft that changed under the teacher reloads instead of guessing (EH-5)', async () => {
     h.confirm.mockRejectedValue(new Error('suggestion_changed'));
     setup([row()], [suggestion()]);

@@ -190,8 +190,8 @@ describe('the grading panel', () => {
     general_feedback: 'ok',
   });
 
-  async function openPanel(r: GradingQueueRow) {
-    setup([r]);
+  async function openPanel(r: GradingQueueRow, others: GradingQueueRow[] = []) {
+    setup([r, ...others]);
     // A graded, unrevised row is filtered out of the default queue by design —
     // reaching its panel means turning the filter off first, exactly as a
     // teacher would.
@@ -221,6 +221,16 @@ describe('the grading panel', () => {
       blockId: 'blk-1',
       generalFeedback: 'Nice reasoning.',
     });
+  });
+
+  it('a failed re-read after a good save keeps the queue and panel, and says so', async () => {
+    const other = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example' });
+    await openPanel(row(), [other]);
+    h.queue.mockRejectedValue(new Error('network down'));
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(COPY.refreshFailed));
+    expect(screen.getByLabelText(COPY.generalFeedback)).toBeTruthy();
+    expect(screen.queryByText(new RegExp(COPY.loadFailed))).toBeNull();
   });
 
   it('clamps points to the criterion maximum before they leave the client', async () => {

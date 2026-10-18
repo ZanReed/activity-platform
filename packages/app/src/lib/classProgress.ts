@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { getVersionContents, type VersionContent } from './versionContent';
 import {
     ACTIVITY_FIRST_TRIES_RPC,
     ACTIVITY_PROGRESS_RPC,
@@ -217,23 +218,12 @@ export function fetchFirstTries(activityId: string): Promise<FirstTries> {
 }
 
 /** The versions' content, read under the teacher's OWN RLS (activity
- * ownership) — 0061 deliberately returns no document content. */
-export async function fetchVersionContents(
+ * ownership) — 0061 deliberately returns no document content. Read once per
+ * page session (versions are immutable): versionContent.ts. */
+export function fetchVersionContents(
     versionIds: readonly string[],
-): Promise<Map<string, { version_num: number; content: unknown }>> {
-    const ids = [...new Set(versionIds)];
-    if (ids.length === 0) return new Map();
-    const { data, error } = await supabase
-        .from('activity_versions')
-        .select('id, version_num, content')
-        .in('id', ids);
-    if (error) throw new Error(error.message);
-    return new Map(
-        ((data ?? []) as { id: string; version_num: number; content: unknown }[]).map((r) => [
-            r.id,
-            { version_num: r.version_num, content: r.content },
-        ]),
-    );
+): Promise<Map<string, VersionContent>> {
+    return getVersionContents(versionIds);
 }
 
 /** Registry descriptions for misconception ids (0042; readable when signed in). */

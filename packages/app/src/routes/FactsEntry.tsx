@@ -120,22 +120,37 @@ export default function FactsEntry() {
     activeRef.current = active !== null || sprintRun !== null;
 
     // ---- the entry read ---------------------------------------------------------
+    // The last entry state seen. When it was one that leads to the practice
+    // read (the waiting room's polls, a re-entry after a check), the two reads
+    // run side by side instead of one after the other (efficiency audit #13).
+    // The FIRST read stays sequential, so a day with a check open costs one
+    // request, not two. fact_sprint_entry without p_start has no side effects.
+    const lastStateRef = useRef<string | null>(null);
     const enter = useCallback(async () => {
         if (activeRef.current) return null;
+        const leadsToSprint = (state: string) =>
+            state === 'none_open' || state === 'finished' || state === 'closed';
+        const sprintRead = () =>
+            fetchSprintEntry(code).then(
+                (s): SprintPractice | undefined =>
+                    s.state === 'ready' || s.state === 'resume' || s.state === 'nothing_due' ? s : undefined,
+                // A database without it, or any failure, reads as "off": the
+                // check's own screens are still right.
+                () => undefined,
+            );
         try {
-            const entry = await fetchEntry(code);
-            // No check to do: is the class's daily practice on? (A database
-            // without it, or any failure, reads as "off": the check's own
-            // screens are still right.)
+            let entry: Awaited<ReturnType<typeof fetchEntry>>;
             let sprint: SprintPractice | undefined;
-            if (entry.state === 'none_open' || entry.state === 'finished' || entry.state === 'closed') {
-                try {
-                    const s = await fetchSprintEntry(code);
-                    if (s.state === 'ready' || s.state === 'resume' || s.state === 'nothing_due') sprint = s;
-                } catch {
-                    sprint = undefined;
-                }
+            if (lastStateRef.current !== null && leadsToSprint(lastStateRef.current)) {
+                const [e, s] = await Promise.all([fetchEntry(code), sprintRead()]);
+                entry = e;
+                sprint = leadsToSprint(e.state) ? s : undefined;
+            } else {
+                entry = await fetchEntry(code);
+                // No check to do: is the class's daily practice on?
+                sprint = leadsToSprint(entry.state) ? await sprintRead() : undefined;
             }
+            lastStateRef.current = entry.state;
             if (!activeRef.current) setView({ kind: 'entry', entry, ...(sprint ? { sprint } : {}) });
             return entry;
         } catch {
@@ -147,6 +162,7 @@ export default function FactsEntry() {
     useEffect(() => {
         if (!userId || !roleReady || activeRef.current) return;
         setView({ kind: 'loading' });
+        lastStateRef.current = null; // a new user or code: the first read is sequential
         void enter();
         // Keyed on the USER and the code — never on the session object, whose
         // identity can change under a student who is answering.
