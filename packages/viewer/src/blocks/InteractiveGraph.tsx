@@ -32,7 +32,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { InteractiveGraphBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
@@ -50,7 +50,7 @@ export default function InteractiveGraph({
   block,
   mode = 'screen',
 }: BlockComponentProps<InteractiveGraphBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const answerKey = useBlockAnswerKey(block.id);
   const answerOverlay = answerKey?.graphOverlay;
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -60,13 +60,13 @@ export default function InteractiveGraph({
 
   const interactionType = block.interaction?.type ?? 'plot_point';
   const isDisplay = interactionType === 'display';
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
 
   // Bootstrap value, read ONCE at mount: re-seeding on every render would
   // fight the student's dragging.
-  const initialRef = useRef(state.responses.graphs[block.id]);
+  const initialRef = useRef(store.getState().responses.graphs[block.id]);
 
   useEffect(() => {
     // Display graphs take no input, and print mode renders the static

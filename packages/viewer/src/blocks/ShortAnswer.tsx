@@ -31,7 +31,7 @@
 import { useId } from 'react';
 import type { ShortAnswerBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useBlockFeedback, useItemResult, useResponse, useServedVersionId, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
@@ -45,15 +45,15 @@ export default function ShortAnswer({
   block,
   mode = 'screen',
 }: BlockComponentProps<ShortAnswerBlock>) {
-  const { store, state, phaseOf, resultFor, feedbackFor, solutionFor } =
-    useViewer();
+  const { store } = useViewer();
   const fieldId = useId();
 
-  const value = state.responses.freeText[block.id] ?? '';
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const feedback = feedbackFor(block.id);
-  const solution = solutionFor(block.id);
+  const value = useResponse('freeText', block.id) ?? '';
+  const servedVersionId = useServedVersionId();
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const feedback = useBlockFeedback(block.id);
+  const solution = useBlockSolution(block.id);
 
   return (
     <div
@@ -95,7 +95,7 @@ export default function ShortAnswer({
       {feedback ? (
         <ReleasedFeedbackCard
           feedback={feedback}
-          fromAnotherVersion={feedback.activityVersionId !== state.versionId}
+          fromAnotherVersion={feedback.activityVersionId !== servedVersionId}
         />
       ) : null}
 

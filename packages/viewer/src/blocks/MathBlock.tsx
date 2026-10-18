@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { MathBlock as MathBlockType } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useCheckedItems, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { loadMathRenderer, residentMathRenderer } from '../inline/math.js';
 import { StatePill } from './StatePill.js';
@@ -33,13 +33,14 @@ export default function MathBlock({
   block,
   mode = 'screen',
 }: BlockComponentProps<MathBlockType>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<MathPromptsSurfaceHandle | null>(null);
   const prompts = block.prompts ?? [];
   const hasGaps = prompts.length > 0;
-  const phase = phaseOf(block.id);
-  const solution = solutionFor(block.id);
+  const phase = useBlockPhase(block.id);
+  const solution = useBlockSolution(block.id);
+  const checkedItems = useCheckedItems(block.id);
 
   // KaTeX display render — always present, and the fallback when the gap
   // field never loads.
@@ -89,12 +90,12 @@ export default function MathBlock({
     };
   }, [html, fallbackLatex]);
 
-  // Snapshot restored gap values once, at mount.
-  const initialRef = useRef(
-    Object.fromEntries(
-      prompts.map((p) => [p.id, state.responses.blanks[p.id] ?? '']),
-    ),
+  // Snapshot restored gap values once, at mount (built once, not per render).
+  const initialRef = useRef<Record<string, string> | null>(null);
+  initialRef.current ??= Object.fromEntries(
+    prompts.map((p) => [p.id, store.getState().responses.blanks[p.id] ?? '']),
   );
+  const initialValues = initialRef.current;
 
   useEffect(() => {
     // gapAnswers: an answered equation must keep its static render. Mounting
@@ -113,7 +114,7 @@ export default function MathBlock({
 
     void mathPromptsSurface()(host, {
       latex: block.latex,
-      initialValues: initialRef.current,
+      initialValues,
       onValue: (promptId, ascii) => store.setBlank(promptId, ascii),
     })
       .then((handle) => {
@@ -174,7 +175,7 @@ export default function MathBlock({
         <>
           {phase === 'checking' ? <StatePill state="pending" label="Checking…" /> : null}
           {prompts.map((prompt) => {
-            const result = resultFor(block.id, prompt.id);
+            const result = checkedItems?.[prompt.id];
             return result ? (
               <StatePill
                 key={prompt.id}

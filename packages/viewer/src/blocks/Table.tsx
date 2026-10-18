@@ -30,7 +30,7 @@ import type { TableBlock } from '@activity/schema';
 import { stepLetter, tableBlankIds } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useCheckedItems, useResponses, useViewer, blankValueAt } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { blankInputSize } from './blankSize.js';
@@ -56,14 +56,18 @@ export default function Table({
   mode = 'screen',
   label,
 }: BlockComponentProps<TableBlock>) {
-  const { store, state, phaseOf, resultFor } = useViewer();
-  const phase = phaseOf(block.id);
+  const { store } = useViewer();
+  const phase = useBlockPhase(block.id);
   const answerKey = useBlockAnswerKey(block.id);
 
   // Reading order, and therefore the letters. Computed once per render from the
   // block itself — a property of the DOCUMENT, not of the frame it painted in
   // (the same reason numbering is a precomputed map rather than a counter).
   const blankIds = tableBlankIds(block);
+  // This block's answers and verdicts, read ONCE here (hooks cannot run in
+  // renderBlank): the block re-renders only when one of them changes.
+  const blankValues = useResponses('blanks', blankIds);
+  const checkedItems = useCheckedItems(block.id);
 
   // Sub-part letters appear on the same terms as fill_in_blank's (ruling N7):
   // a numbered problem with more than one gap. A single-blank table has nothing
@@ -129,10 +133,10 @@ export default function Table({
                       nodes={cell.content}
                       renderBlank={(blank) => {
                         const keyAnswer = answerKey?.blanks?.[blank.id];
-                        const value =
-                          keyAnswer ?? state.responses.blanks[blank.id] ?? '';
-                        const result = resultFor(block.id, blank.id);
                         const index = blankIds.indexOf(blank.id);
+                        const value =
+                          keyAnswer ?? blankValueAt(blankValues, index, blank.id, store) ?? '';
+                        const result = checkedItems?.[blank.id];
 
                         // The accessible name a sighted student reads off the
                         // grid: which row, which column. Falls back to the

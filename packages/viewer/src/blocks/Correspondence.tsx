@@ -23,7 +23,7 @@ import { allHaveFigures, figureIsSoleContent } from './figureSlot.js';
 import { columnLetter } from './paperAffordances.js';
 import { seededShuffle } from '../sanitize/shuffle.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useResponse, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 
@@ -31,12 +31,12 @@ export default function Correspondence({
   block,
   mode = 'screen',
 }: BlockComponentProps<CorrespondenceBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const groupId = useId();
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
-  const placed = (state.responses.correspondences ?? {})[block.id] ?? {};
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
+  const placed = useResponse('correspondences', block.id) ?? {};
   const answerKey = useBlockAnswerKey(block.id);
 
   // Per-column shuffle, seeded by block + column so the banks are stable and

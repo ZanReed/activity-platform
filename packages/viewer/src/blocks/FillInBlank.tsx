@@ -25,7 +25,7 @@ import type { FillInBlankBlock } from '@activity/schema';
 import { stepLetter } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useCheckedItems, useResponses, useViewer, blankValueAt } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { blankInputSize } from './blankSize.js';
@@ -36,9 +36,9 @@ export default function FillInBlank({
   mode = 'screen',
   label,
 }: BlockComponentProps<FillInBlankBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
-  const phase = phaseOf(block.id);
-  const solution = solutionFor(block.id);
+  const { store } = useViewer();
+  const phase = useBlockPhase(block.id);
+  const solution = useBlockSolution(block.id);
   // Teacher answer key, when this surface has one at all (S5.5 D3A). Undefined
   // on every student render — there is no provider there.
   const answerKey = useBlockAnswerKey(block.id);
@@ -47,6 +47,10 @@ export default function FillInBlank({
   const blankIds = block.content
     .filter((n) => (n as { type?: string }).type === 'blank')
     .map((n) => (n as unknown as { id: string }).id);
+  // This block's answers and verdicts, read ONCE here (hooks cannot run in
+  // renderBlank): the block re-renders only when one of them changes.
+  const blankValues = useResponses('blanks', blankIds);
+  const checkedItems = useCheckedItems(block.id);
 
   // SUB-PART LETTERING (ruling N7): "(a) ___ (b) ___" on a NUMBERED,
   // MULTI-BLANK problem, so a student writing on paper and a teacher marking
@@ -82,9 +86,9 @@ export default function FillInBlank({
             // a key is printed from a blank worksheet, and if a value somehow
             // existed, the answer is what the teacher asked to see.
             const keyAnswer = answerKey?.blanks?.[blank.id];
-            const value = keyAnswer ?? state.responses.blanks[blank.id] ?? '';
-            const result = resultFor(block.id, blank.id);
             const index = blankIds.indexOf(blank.id);
+            const value = keyAnswer ?? blankValueAt(blankValues, index, blank.id, store) ?? '';
+            const result = checkedItems?.[blank.id];
             // Renamed from `label` when the block-level label prop arrived —
             // the two are different things and the shadowing was a trap.
             const ariaLabel = letterBlanks

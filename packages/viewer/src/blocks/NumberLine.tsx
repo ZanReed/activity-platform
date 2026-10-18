@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NumberLineBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { numberLineSurface, type NumberLineSurfaceHandle } from './kitSurfaces.js';
@@ -36,7 +36,7 @@ export default function NumberLine({
   block,
   mode = 'screen',
 }: BlockComponentProps<NumberLineBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const answerMarks = useBlockAnswerKey(block.id)?.numberLineMarks;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<NumberLineSurfaceHandle | null>(null);
@@ -44,10 +44,10 @@ export default function NumberLine({
   const [mountFailed, setMountFailed] = useState(false);
 
   const interactionType = block.interaction?.type ?? 'plot_point';
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
-  const initialRef = useRef(state.responses.graphs[block.id]);
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
+  const initialRef = useRef(store.getState().responses.graphs[block.id]);
 
   useEffect(() => {
     if (mode === 'print') return;

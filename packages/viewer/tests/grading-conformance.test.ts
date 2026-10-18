@@ -172,7 +172,7 @@ describe('the one deliberate difference, pinned rather than discovered', () => {
     // engine drops unanswered items so the viewer shows no mark at all, which
     // is the ruled behavior (an omission is not a wrong answer).
     //
-    // This is safe for the client: container/context.tsx `resultFor` returns
+    // This is safe for the client: container/context.tsx `useItemResult` returns
     // undefined for a missing id, and every component already renders that as
     // the unmarked state. Pinned here so the difference stays a known property
     // instead of surfacing as "some answers show no tick" after the swap.

@@ -30,6 +30,7 @@
 
 import {
   Suspense,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -235,7 +236,13 @@ export function ViewerContainer({
   glossary,
   teacherGuide,
 }: ViewerContainerProps) {
-  const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
+  // Only the check statuses (efficiency audit 2026-10 #5): the container used
+  // to subscribe to the WHOLE store, so every keystroke re-rendered it and
+  // every block under it. A keystroke never replaces `sections`, so this
+  // re-renders on check events only; blocks read their own pieces through the
+  // context hooks. tests/components/render-scope.test.tsx pins it.
+  const selectSections = useCallback(() => store.getState().sections, [store]);
+  const sections = useSyncExternalStore(store.subscribe, selectSections, selectSections);
   const index = useMemo(() => indexDocument(doc), [doc]);
   // The page numbers, computed ONCE per document rather than counted during
   // render (ruling N1 — see numbering.ts for why a render-order counter is
@@ -506,14 +513,14 @@ export function ViewerContainer({
           group={group}
           mode={mode}
           locked={locked}
-          sections={state.sections}
+          sections={sections}
           crashedIn={crashedGradableIn}
           onCheck={handleCheckGroup}
         >
           {group.sections.map((sectionIndex) => {
             const section = sectionById[sectionIndex.sectionId];
             if (!section) return null;
-            const status = state.sections[section.id];
+            const status = sections[section.id];
             const frozen = locked && isSectionFrozen(status);
             return (
               <section
@@ -811,7 +818,12 @@ interface BlockSlotProps {
   label?: ResolvedLabel;
 }
 
-function BlockSlot({
+// Memoised: a check re-renders the container, and an unchanged block need not
+// follow it. Every prop is stable across those renders — the block comes from
+// the served document, label from the per-document numbering map,
+// resolveComponent from the caller, and onCrash is the container's
+// useCallback.
+const BlockSlot = memo(function BlockSlot({
   block,
   mode,
   resetKey,
@@ -895,4 +907,4 @@ function BlockSlot({
       </div>
     </BlockBoundary>
   );
-}
+});

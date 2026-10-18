@@ -13,7 +13,7 @@
 import { useId } from 'react';
 import type { EssayBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useBlockFeedback, useItemResult, useResponse, useServedVersionId, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
@@ -24,16 +24,16 @@ export default function Essay({
   block,
   mode = 'screen',
 }: BlockComponentProps<EssayBlock>) {
-  const { store, state, phaseOf, resultFor, feedbackFor, solutionFor } =
-    useViewer();
+  const { store } = useViewer();
   const fieldId = useId();
-  const value = state.responses.freeText[block.id] ?? '';
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
+  const value = useResponse('freeText', block.id) ?? '';
+  const servedVersionId = useServedVersionId();
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
   // The exemplar's twin: same released-feedback treatment, same label override,
   // imported rather than retyped (ShortAnswer.tsx is the family's source).
-  const feedback = feedbackFor(block.id);
+  const feedback = useBlockFeedback(block.id);
   const words = countWords(value);
   const hint = block.wordCountHint;
 
@@ -78,7 +78,7 @@ export default function Essay({
       {feedback ? (
         <ReleasedFeedbackCard
           feedback={feedback}
-          fromAnotherVersion={feedback.activityVersionId !== state.versionId}
+          fromAnotherVersion={feedback.activityVersionId !== servedVersionId}
         />
       ) : null}
 

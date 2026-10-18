@@ -312,10 +312,22 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     for (const listener of listeners) listener();
   }
 
-  function setResponse(mutate: (responses: SectionResponses) => void): void {
-    const responses = structuredClone(state.responses);
-    mutate(responses);
-    commit({ ...state, responses });
+  /**
+   * Replace ONE answer map, keeping every other map — and every other entry in
+   * this one — the same object (efficiency audit 2026-10 #5). This used to
+   * structuredClone ALL responses on every keystroke, so every answer on the
+   * page got a new identity and every block reading its own answer
+   * re-rendered (tests/components/render-scope.test.tsx). Each setter below
+   * builds a fresh value for the entry it changes; nothing is mutated in place.
+   */
+  function setResponse<K extends keyof SectionResponses>(
+    category: K,
+    write: (current: SectionResponses[K]) => SectionResponses[K],
+  ): void {
+    // `?? {}`: a state hydrated from a pre-v3 blob has no `correspondences`
+    // map at all (R7 — tolerate-absent, no schema bump).
+    const current = (state.responses[category] ?? {}) as SectionResponses[K];
+    commit({ ...state, responses: { ...state.responses, [category]: write(current) } });
   }
 
   // Named rather than returned inline so `checkGroup` can compose
@@ -330,50 +342,39 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     },
 
     setBlank(id, value) {
-      setResponse((r) => {
-        r.blanks[id] = value;
-      });
+      setResponse('blanks', (m) => ({ ...m, [id]: value }));
     },
     setChoices(blockId, choiceIds) {
-      setResponse((r) => {
-        r.choices[blockId] = [...choiceIds];
-      });
+      setResponse('choices', (m) => ({ ...m, [blockId]: [...choiceIds] }));
     },
     setMatch(blockId, itemId, targetId) {
-      setResponse((r) => {
-        const placed = { ...(r.matches[blockId] ?? {}) };
+      setResponse('matches', (m) => {
+        const placed = { ...(m[blockId] ?? {}) };
         if (targetId === null) delete placed[itemId];
         else placed[itemId] = targetId;
-        r.matches[blockId] = placed;
+        return { ...m, [blockId]: placed };
       });
     },
     setCorrespondence(blockId, itemId, columnId, targetId) {
-      setResponse((r) => {
-        // `?? {}` at every level: a state hydrated from a pre-v3 blob has no
-        // `correspondences` map at all (R7 — tolerate-absent, no schema bump).
-        const block = { ...((r.correspondences ?? {})[blockId] ?? {}) };
+      setResponse('correspondences', (m) => {
+        const block = { ...(m[blockId] ?? {}) };
         const row = { ...(block[itemId] ?? {}) };
         if (targetId === null) delete row[columnId];
         else row[columnId] = targetId;
         if (Object.keys(row).length === 0) delete block[itemId];
         else block[itemId] = row;
-        r.correspondences = { ...(r.correspondences ?? {}), [blockId]: block };
+        return { ...m, [blockId]: block };
       });
     },
     setOrdering(blockId, itemIds) {
-      setResponse((r) => {
-        r.orderings[blockId] = [...itemIds];
-      });
+      setResponse('orderings', (m) => ({ ...m, [blockId]: [...itemIds] }));
     },
     setFreeText(blockId, text) {
-      setResponse((r) => {
-        r.freeText[blockId] = text;
-      });
+      setResponse('freeText', (m) => ({ ...m, [blockId]: text }));
     },
     setGraphWork(blockId, work) {
-      setResponse((r) => {
-        r.graphs[blockId] = structuredClone(work);
-      });
+      // Cloned on the way IN: the caller's widget keeps its own object.
+      setResponse('graphs', (m) => ({ ...m, [blockId]: structuredClone(work) }));
     },
 
     async checkSection(sectionId, items) {

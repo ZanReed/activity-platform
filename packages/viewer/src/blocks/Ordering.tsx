@@ -23,7 +23,7 @@ import { useState } from 'react';
 import type { OrderingBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useResponse, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { VISUALLY_HIDDEN } from './canvasChrome.js';
@@ -32,16 +32,16 @@ export default function Ordering({
   block,
   mode = 'screen',
 }: BlockComponentProps<OrderingBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const [announcement, setAnnouncement] = useState('');
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
 
   // The student's arrangement, defaulting to the order they were SERVED
   // (already shuffled server-side — never re-sorted here).
   const servedIds = block.items.map((item) => item.id);
-  const order = state.responses.orderings[block.id] ?? servedIds;
+  const order = useResponse('orderings', block.id) ?? servedIds;
   const byId = new Map(block.items.map((item) => [item.id, item]));
 
   // The key holds each item's position in the AUTHORED order. Printed beside

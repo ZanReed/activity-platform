@@ -18,9 +18,9 @@
 // X", never "what happened to the third thing in my section".
 // =============================================================================
 
-import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
+import { createContext, useContext, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
-import type { CheckItemResult, ReleasedBlockFeedback } from '../check/wire.js';
+import type { CheckItemResult, ReleasedBlockFeedback, SectionResponses } from '../check/wire.js';
 import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { ViewerStore, ViewerStoreState } from '../store/store.js';
@@ -40,24 +40,26 @@ export type BlockPhase =
   | 'error';
 
 export interface ViewerContextValue {
+  /** The running worksheet's store. Stable for the life of the worksheet. */
   store: ViewerStore;
-  state: ViewerStoreState;
   /** Section owning a block — supplied by the container's index. */
   sectionOf(blockId: string): string | undefined;
-  /** Where the block's section is in the check cycle. */
-  phaseOf(blockId: string): BlockPhase;
-  /** The server's verdict for an item, once its section has been checked. */
-  resultFor(blockId: string, itemId?: string): CheckItemResult | undefined;
-  /** Solution content the server released for a block after its check. */
-  solutionFor(blockId: string): SanitizedInlineNode[] | undefined;
-  /**
-   * Released TEACHER feedback for a free-text block (0034 G5), or undefined.
-   * Deliberately NOT keyed off the check cycle like resultFor/solutionFor: this
-   * arrives from a separate read on open, exists only after a teacher released
-   * it, and outlives any number of re-checks.
-   */
-  feedbackFor(blockId: string): ReleasedBlockFeedback | undefined;
+  /** sectionId → every section its CHECK GROUP covers (R1/OV#14). */
+  groupOf(sectionId: string): string[] | undefined;
 }
+
+// WHAT CHANGED, AND WHY (efficiency audit 2026-10 #5, decisions 1–8 ruled
+// 2026-10-18). This context used to carry the whole store `state`, rebuilt on
+// every change, so one keystroke in one blank re-rendered every block on the
+// page (60 of 60 on a 60-block worksheet). It now carries only what never
+// changes while a worksheet is open; anything that changes is read through
+// useViewerSelector and the hooks below, so a block re-renders only when the
+// piece IT reads changes. tests/components/render-scope.test.tsx pins it.
+// ⚠ Do not add `state` back here, or a "convenience" hook that returns it:
+// either one silently brings back the whole-page re-render.
+// The hooks are deliberately PACKAGE-PRIVATE (not in index.ts): every block
+// component lives in this package, and the app reads none of them. Export them
+// when an outside caller exists, not before (P1).
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
@@ -78,61 +80,24 @@ export interface ViewerProviderProps {
   children: ReactNode;
 }
 
+const NO_SECTIONS: Record<string, string> = {};
+const NO_GROUPS: Record<string, string[]> = {};
+
 export function ViewerProvider({
   store,
-  sectionByBlock = {},
-  groupSections = {},
+  sectionByBlock = NO_SECTIONS,
+  groupSections = NO_GROUPS,
   defaultSectionId,
   children,
 }: ViewerProviderProps) {
-  const state = useSyncExternalStore(
-    store.subscribe,
-    store.getState,
-    store.getState,
-  );
-
-  const value = useMemo<ViewerContextValue>(() => {
-    const sectionOf = (blockId: string) =>
-      sectionByBlock[blockId] ?? defaultSectionId;
-
-    const statusOf = (blockId: string): SectionStatus | undefined => {
-      const sectionId = sectionOf(blockId);
-      return sectionId ? state.sections[sectionId] : undefined;
-    };
-
-    return {
+  const value = useMemo<ViewerContextValue>(
+    () => ({
       store,
-      state,
-      sectionOf,
-      phaseOf: (blockId) => statusOf(blockId)?.phase ?? 'unchecked',
-      resultFor: (blockId, itemId) => {
-        const status = statusOf(blockId);
-        if (status?.phase !== 'checked') return undefined;
-        return status.result.items[itemId ?? blockId];
-      },
-      solutionFor: (blockId) => {
-        const status = statusOf(blockId);
-        if (status?.phase !== 'checked') return undefined;
-        // SOLUTIONS ARE REVEALED PER GROUP, NOT PER SECTION (OV#14). Under
-        // ruling 3A a group is N independent RPCs, so a half-landed group
-        // would otherwise show the first section's worked solutions while the
-        // second is still editable — an answer key handed out for work the
-        // student has not yet committed. Verdicts are deliberately NOT gated
-        // this way: they describe work that DID land, and withholding them
-        // would leave a landed section looking unchecked.
-        const sectionId = sectionOf(blockId);
-        const siblings = sectionId ? groupSections[sectionId] : undefined;
-        if (
-          siblings &&
-          !siblings.every((id) => state.sections[id]?.phase === 'checked')
-        ) {
-          return undefined;
-        }
-        return status.result.solutions[blockId];
-      },
-      feedbackFor: (blockId) => state.releasedFeedback[blockId],
-    };
-  }, [store, state, sectionByBlock, groupSections, defaultSectionId]);
+      sectionOf: (blockId) => sectionByBlock[blockId] ?? defaultSectionId,
+      groupOf: (sectionId) => groupSections[sectionId],
+    }),
+    [store, sectionByBlock, groupSections, defaultSectionId],
+  );
 
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
 }
@@ -148,4 +113,157 @@ export function useViewer(): ViewerContextValue {
     );
   }
   return value;
+}
+
+/**
+ * Read one piece of the store and re-render only when THAT piece changes.
+ * `isEqual` lets a selector that builds a value (an array of blank values)
+ * keep its previous result when nothing in it changed — without it a fresh
+ * array every read would re-render on every store change.
+ *
+ * ⚠ Pass `select` INLINE (a new function each render). The cached value is
+ * reused while both the state and the `select` function are unchanged, so a
+ * memoised selector whose inputs change without a store commit (a
+ * `useCallback` missing a dep) would keep returning the old answer.
+ */
+export function useViewerSelector<T>(
+  select: (state: ViewerStoreState) => T,
+  isEqual: (a: T, b: T) => boolean = Object.is,
+): T {
+  const { store } = useViewer();
+  const cache = useRef<{ state: ViewerStoreState; select: unknown; value: T } | null>(null);
+  const read = () => {
+    const state = store.getState();
+    const prev = cache.current;
+    if (prev && prev.state === state && prev.select === select) return prev.value;
+    const next = select(state);
+    const value = prev && isEqual(prev.value, next) ? prev.value : next;
+    cache.current = { state, select, value };
+    return value;
+  };
+  return useSyncExternalStore(store.subscribe, read, read);
+}
+
+/**
+ * A blank's value from the values read for `blankIds`. A blank the renderer
+ * draws but `blankIds` does not list cannot happen today (both walk the same
+ * flat content); if it ever does, read the store directly rather than showing
+ * the student an empty box — a silent empty is exactly how an answer goes
+ * missing. (No log: the shell budget has no room for the string.)
+ */
+export function blankValueAt(
+  values: readonly (string | undefined)[],
+  index: number,
+  blankId: string,
+  store: ViewerStore,
+): string | undefined {
+  return index >= 0 ? values[index] : store.getState().responses.blanks[blankId];
+}
+
+/** Two arrays with the same items, by identity, in the same order. */
+export function sameItems<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((x, i) => Object.is(x, b[i]));
+}
+
+// ---- the per-question hooks -------------------------------------------------
+// Pure readers first (shared by the hooks and by anything holding a state
+// snapshot), then the hooks. Every reader returns a primitive or an object that
+// already lives in the state, so its identity changes only when it does.
+
+function statusIn(
+  state: ViewerStoreState,
+  sectionId: string | undefined,
+): SectionStatus | undefined {
+  return sectionId ? state.sections[sectionId] : undefined;
+}
+
+/** Where the block's section is in the check cycle. */
+export function useBlockPhase(blockId: string): BlockPhase {
+  const { sectionOf } = useViewer();
+  return useViewerSelector((s) => statusIn(s, sectionOf(blockId))?.phase ?? 'unchecked');
+}
+
+/**
+ * The server's verdicts for the block's section, once it has been checked —
+ * look an item up with `items?.[itemId ?? blockId]`.
+ */
+export function useCheckedItems(
+  blockId: string,
+): Record<string, CheckItemResult> | undefined {
+  const { sectionOf } = useViewer();
+  return useViewerSelector((s) => {
+    const status = statusIn(s, sectionOf(blockId));
+    return status?.phase === 'checked' ? status.result.items : undefined;
+  });
+}
+
+/** The server's verdict for one item (default: the block itself). */
+export function useItemResult(blockId: string, itemId?: string): CheckItemResult | undefined {
+  return useCheckedItems(blockId)?.[itemId ?? blockId];
+}
+
+/** Solution content the server released for a block after its check. */
+export function useBlockSolution(blockId: string): SanitizedInlineNode[] | undefined {
+  const { sectionOf, groupOf } = useViewer();
+  return useViewerSelector((s) => {
+    const sectionId = sectionOf(blockId);
+    const status = statusIn(s, sectionId);
+    if (status?.phase !== 'checked') return undefined;
+    // SOLUTIONS ARE REVEALED PER GROUP, NOT PER SECTION (OV#14). Under
+    // ruling 3A a group is N independent RPCs, so a half-landed group would
+    // otherwise show the first section's worked solutions while the second
+    // is still editable — an answer key handed out for work the student has
+    // not yet committed. Verdicts are deliberately NOT gated this way: they
+    // describe work that DID land, and withholding them would leave a landed
+    // section looking unchecked.
+    const siblings = sectionId ? groupOf(sectionId) : undefined;
+    if (siblings && !siblings.every((id) => s.sections[id]?.phase === 'checked')) {
+      return undefined;
+    }
+    return status.result.solutions[blockId];
+  });
+}
+
+/**
+ * Released TEACHER feedback for a free-text block (0034 G5), or undefined.
+ * Deliberately NOT keyed off the check cycle like the verdict hooks: this
+ * arrives from a separate read on open, exists only after a teacher released
+ * it, and outlives any number of re-checks.
+ */
+export function useBlockFeedback(blockId: string): ReleasedBlockFeedback | undefined {
+  return useViewerSelector((s) => s.releasedFeedback[blockId]);
+}
+
+/** The student's answer for one key of one response map. */
+export function useResponse<K extends keyof SectionResponses>(
+  category: K,
+  key: string,
+): SectionResponses[K][string] | undefined {
+  return useViewerSelector(
+    (s) => (s.responses[category] as SectionResponses[K] | undefined)?.[key] as
+      | SectionResponses[K][string]
+      | undefined,
+  );
+}
+
+/** Several answers from one map, in `keys` order (a block's blanks). */
+export function useResponses<K extends keyof SectionResponses>(
+  category: K,
+  keys: readonly string[],
+): (SectionResponses[K][string] | undefined)[] {
+  return useViewerSelector(
+    (s) =>
+      keys.map(
+        (k) =>
+          (s.responses[category] as SectionResponses[K] | undefined)?.[k] as
+            | SectionResponses[K][string]
+            | undefined,
+      ),
+    sameItems,
+  );
+}
+
+/** The version this worksheet is serving. */
+export function useServedVersionId(): string {
+  return useViewerSelector((s) => s.versionId);
 }

@@ -29,7 +29,7 @@ import { ChoiceFigure } from './ChoiceFigure.js';
 import { allHaveFigures, figureIsSoleContent } from './figureSlot.js';
 import { choiceLetter } from './paperAffordances.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useResponse, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 
@@ -37,7 +37,7 @@ export default function MultipleChoice({
   block,
   mode = 'screen',
 }: BlockComponentProps<MultipleChoiceBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const groupName = useId();
   // The key names correct choices by ID; the LETTER a teacher reads comes from
   // the position this render is drawing them in, so a shuffled print version
@@ -45,10 +45,10 @@ export default function MultipleChoice({
   const answerKey = useBlockAnswerKey(block.id);
   const keyedCorrect = new Set(answerKey?.correctChoiceIds ?? []);
 
-  const selected = state.responses.choices[block.id] ?? [];
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
+  const selected = useResponse('choices', block.id) ?? [];
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
   const disabled = mode === 'print';
   const figureLayout = allHaveFigures(block.choices);
 

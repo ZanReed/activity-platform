@@ -23,12 +23,11 @@
 
 import type { ProblemBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockSolution } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 
 export default function Problem({ block }: BlockComponentProps<ProblemBlock>) {
-  const { solutionFor } = useViewer();
-  const solution = solutionFor(block.id);
+  const solution = useBlockSolution(block.id);
   return (
     <div className="viewer-problem" data-block-type="problem" data-block-id={block.id}>
       <div className="viewer-problem__body">

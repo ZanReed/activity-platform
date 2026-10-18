@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DataPlotBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { dataPlotSurface, type DataPlotSurfaceHandle } from './kitSurfaces.js';
@@ -48,7 +48,7 @@ export default function DataPlot({
   block,
   mode = 'screen',
 }: BlockComponentProps<DataPlotBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const answerValues = useBlockAnswerKey(block.id)?.dataPlotValues;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<DataPlotSurfaceHandle | null>(null);
@@ -57,10 +57,10 @@ export default function DataPlot({
 
   const interactionType = block.interaction?.type ?? 'build_dotplot';
   const isDisplay = interactionType === 'display';
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
-  const initialRef = useRef(state.responses.graphs[block.id]);
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
+  const initialRef = useRef(store.getState().responses.graphs[block.id]);
 
   useEffect(() => {
     if (isDisplay || mode === 'print') return;

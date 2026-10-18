@@ -23,7 +23,7 @@ import { allHaveFigures, figureIsSoleContent } from './figureSlot.js';
 import { choiceLetter } from './paperAffordances.js';
 import { seededShuffle } from '../sanitize/shuffle.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useBlockSolution, useItemResult, useResponse, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 
@@ -36,12 +36,12 @@ export default function Matching({
   block,
   mode = 'screen',
 }: BlockComponentProps<MatchingBlock>) {
-  const { store, state, phaseOf, resultFor, solutionFor } = useViewer();
+  const { store } = useViewer();
   const groupId = useId();
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
-  const solution = solutionFor(block.id);
-  const placed = state.responses.matches[block.id] ?? {};
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
+  const solution = useBlockSolution(block.id);
+  const placed = useResponse('matches', block.id) ?? {};
 
   // THE BANK IS SHUFFLED, NEVER SHOWN IN AUTHORED ORDER (S5.5 D21C).
   //

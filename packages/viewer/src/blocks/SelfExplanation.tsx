@@ -11,7 +11,7 @@
 import { useId } from 'react';
 import type { SelfExplanationBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useViewer } from '../container/context.js';
+import { useBlockPhase, useItemResult, useResponse, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 
@@ -19,11 +19,11 @@ export default function SelfExplanation({
   block,
   mode = 'screen',
 }: BlockComponentProps<SelfExplanationBlock>) {
-  const { store, state, phaseOf, resultFor } = useViewer();
+  const { store } = useViewer();
   const fieldId = useId();
-  const value = state.responses.freeText[block.id] ?? '';
-  const phase = phaseOf(block.id);
-  const result = resultFor(block.id);
+  const value = useResponse('freeText', block.id) ?? '';
+  const phase = useBlockPhase(block.id);
+  const result = useItemResult(block.id);
 
   return (
     <div
