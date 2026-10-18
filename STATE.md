@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE (2026-10-13).**
 
-**OWED: apply 0064** ([audit](https://github.com/ZanReed/activity-platform/pull/3) fixes): `db push`, verify-0064/0050/0051/0061/0036, push.
+**0064 LIVE** ([audit](https://github.com/ZanReed/activity-platform/pull/3) fixes), verified live. Owed: push.
 
 **Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 
