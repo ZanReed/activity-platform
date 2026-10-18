@@ -141,7 +141,10 @@ the queue. An entry's own Priority line below does not outrank it.**
 6. **D43 builds — IN PROGRESS**: fluency + diagnostics LIVE (slice 1, the
    check, 2026-10-05; slice 2, the daily practice, 2026-10-06);
    mixed practice + scheduler gated on TWO chains with ratified §17 banks;
-   period assembly last.
+   period assembly last. **Mixed practice DESIGN PASS opened early 2026-10-19
+   (author: design only, build waits for the gate; one chain ratified live):
+   [mixed-practice.md](docs/design/mixed-practice.md), MP-1…MP-15 unruled, its
+   "Hand-off" section is the next chat's order of work.**
 
 **The intake rule (ruled the same day; the standing copy is CLAUDE.md → Working
 style):** a new wish is filed with a TRIGGER, not a slot. It enters this queue
