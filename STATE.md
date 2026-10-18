@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **701 place-value LIVE (2026-10-13).**
 
-**0064 + function pin LIVE** (sha256-verified). **OWED:** push, then curl `/assets/`.
+**0064, function pin, `/assets/` immutable header LIVE** (verified 2026-10-18).
 
 **Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 
