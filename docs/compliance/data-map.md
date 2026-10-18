@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-18-draft-30`. Mirrors migrations 0001–**0063**, verified
+> Version `2026-10-18-draft-31`. Mirrors migrations 0001–**0064**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-31` (2026-10-18) — 0064 adds NO personal data.** It rewrites five existing reads to do less work (the student's best practice score, the class progress grid, one activity's progress, the misconceptions panel, activity analytics) and adds two indexes on `section_checks`. Each read returns exactly what it returned before, to the same callers (verify-0064, and the agreement rows of verify-0050/0061/0036). The range moves to 0064 on that basis.
 >
 > **`draft-30` (2026-10-18) — 0063 adds NO personal data.** `iana_zone_names` holds the timezone database's zone names (seeded from `pg_timezone_names`), so checking a teacher's stored zone is a table lookup instead of an ~820 ms scan. It references no person; the three re-created functions (`fact_class_zone`, `users_timezone_guard`, `recompute_check_rollup_days`) read and write exactly what they did before. The range moves to 0063 on that basis.
 >
