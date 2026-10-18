@@ -44,9 +44,16 @@ function documentWith(stimulus: unknown[]): { document: ReturnType<typeof served
   return { document, id };
 }
 
+// Each served document gets ITS OWN version id: a version's content never
+// changes in production, and since audit #9 the viewer reuses the copy it
+// saved for (version, serve revision) — re-serving a different document under
+// the same version would (correctly) show the saved one.
+let versionCounter = 0;
 async function boardOf(page: import('@playwright/test').Page, stimulus: unknown[]) {
   const { document, id } = documentWith(stimulus);
-  await stubActivityApi(page, { document });
+  versionCounter += 1;
+  const versionId = `dddddddd-0000-4000-8000-${String(versionCounter).padStart(12, '0')}`;
+  await stubActivityApi(page, { document, versionId });
   await signInAs(page);
   await page.goto(activityUrl());
   const board = page.locator(`[data-block-id="${id}"] [data-graph-canvas]`);

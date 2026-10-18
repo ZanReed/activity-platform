@@ -49,6 +49,7 @@ import {
   indexDocument,
   loadAnyCachedDocument,
   loadCachedDocument,
+  reusableCachedDocument,
   saveCachedDocument,
   sweepForeignStorage,
   sweepOrphanVersions,
@@ -220,7 +221,19 @@ export default function StudentViewer() {
     const userId = sessionUserId;
 
     void readClient
-      .load(activityId)
+      .load(activityId, {
+        // Reopening: the device already holds this exact served document
+        // (same version, same serve revision) — show it without downloading
+        // it again (efficiency audit #9). Per student, so a seeded activity's
+        // copy is this student's own numbers.
+        reuse: (versionId, serveRev) => {
+          const storage = safeStorage();
+          // A CachedDocument IS a served activity plus bookkeeping fields.
+          return storage
+            ? (reusableCachedDocument(storage, userId, activityId, versionId, serveRev) as ServedActivity | null)
+            : null;
+        },
+      })
       .then((served) => {
         if (cancelled) return;
 

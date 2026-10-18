@@ -29,6 +29,8 @@ import { STUB_LANE_SUPABASE_URL } from './e2eOrigins';
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { CHECK_ACTIVITY_FUNCTION, MY_CHECKED_SECTION_IDS_RPC } from '../../src/lib/edgeFunctions';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
+// P2: the stub serves the PRODUCTION served-form revision, never a retyped one.
+import { SERVE_REV } from '../../../viewer/src/server/serveRev';
 
 export const E2E_STUDENT_ID = 'dddddddd-0000-4000-8000-00000000e2e1';
 export const E2E_OTHER_STUDENT_ID = 'dddddddd-0000-4000-8000-00000000e2e2';
@@ -198,6 +200,10 @@ export interface ActivityApi {
   setOffline(offline: boolean): void;
   /** Make the next check return this status instead of a verdict. */
   failCheckWith(status: number | null): void;
+  /** Content (version_id) requests seen — the download a reopen may skip. */
+  readonly contentRequests: number;
+  /** Serve a different served-form revision from now on (a server-side rule change). */
+  setServeRev(rev: string): void;
 }
 
 export async function stubActivityApi(
@@ -215,6 +221,8 @@ export async function stubActivityApi(
     checkRequests: [] as unknown[],
     restoreRequests: [] as unknown[],
     remembered: new Map<string, { responses: unknown; result: unknown }>(),
+    serveRev: SERVE_REV,
+    contentRequests: 0,
   };
 
   // The student's own checked section ids (restore D5; 0060). The path derives
@@ -259,14 +267,15 @@ export async function stubActivityApi(
     }
 
     if (params.get('version_id')) {
+      state.contentRequests += 1;
       await route.fulfill({
-        json: { activity: document, title, version: { id: versionId, num: 1 } },
+        json: { activity: document, title, version: { id: versionId, num: 1 }, serve_rev: state.serveRev },
       });
       return;
     }
 
     await route.fulfill({
-      json: { version_id: versionId, version_num: 1, title },
+      json: { version_id: versionId, version_num: 1, title, serve_rev: state.serveRev },
     });
   });
 
@@ -350,6 +359,12 @@ export async function stubActivityApi(
     },
     failCheckWith(status: number | null) {
       state.failStatus = status;
+    },
+    get contentRequests() {
+      return state.contentRequests;
+    },
+    setServeRev(rev: string) {
+      state.serveRev = rev;
     },
   };
 }

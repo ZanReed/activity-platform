@@ -61,6 +61,29 @@ export interface ServedActivity {
   versionNum: number;
   title: string;
   document: SanitizedActivityDocument;
+  /**
+   * How the server served this document (server/serveRev.ts), when it said.
+   * Opaque: a saved copy is reused only when it equals the current one.
+   */
+  serveRev?: string;
+}
+
+/** What resolve says about the activity's current version. */
+export interface ResolvedVersion {
+  versionId: string;
+  versionNum: number;
+  title: string;
+  /** Absent from a server older than the served-form revision. */
+  serveRev?: string;
+}
+
+export interface LoadOptions {
+  /**
+   * The device's saved copy of (version, serve revision), or null. Called
+   * only when resolve reported a serve revision; a hit skips the content
+   * request entirely (efficiency audit #9). Omit it and load always downloads.
+   */
+  reuse?: (versionId: string, serveRev: string) => ServedActivity | null;
 }
 
 export interface ReadClientOptions {
@@ -74,10 +97,10 @@ export interface ReadClientOptions {
 
 export interface ViewerReadClient {
   fetchMeta(activityId: string): Promise<ActivityMeta>;
-  resolve(activityId: string): Promise<{ versionId: string; versionNum: number; title: string }>;
-  fetchContent(activityId: string, versionId: string): Promise<ServedActivity>;
-  /** resolve + fetchContent, following one stale-version redirect. */
-  load(activityId: string): Promise<ServedActivity>;
+  resolve(activityId: string): Promise<ResolvedVersion>;
+  fetchContent(activityId: string, versionId: string, serveRev?: string): Promise<ServedActivity>;
+  /** resolve + (the device copy, or fetchContent), following one stale-version redirect. */
+  load(activityId: string, options?: LoadOptions): Promise<ServedActivity>;
 }
 
 interface ErrorBody {
@@ -157,7 +180,7 @@ export function createReadClient(options: ReadClientOptions): ViewerReadClient {
     async resolve(activityId) {
       const data = (await request(url({ activity_id: activityId }), {
         authenticated: true,
-      })) as { version_id?: unknown; version_num?: unknown; title?: unknown };
+      })) as { version_id?: unknown; version_num?: unknown; title?: unknown; serve_rev?: unknown };
       if (typeof data.version_id !== 'string') {
         throw new ViewerLoadError('unknown', 'Malformed resolve response');
       }
@@ -165,17 +188,26 @@ export function createReadClient(options: ReadClientOptions): ViewerReadClient {
         versionId: data.version_id,
         versionNum: typeof data.version_num === 'number' ? data.version_num : 0,
         title: typeof data.title === 'string' ? data.title : '',
+        ...(typeof data.serve_rev === 'string' ? { serveRev: data.serve_rev } : {}),
       };
     },
 
-    async fetchContent(activityId, versionId) {
+    async fetchContent(activityId, versionId, serveRev) {
       const data = (await request(
-        url({ activity_id: activityId, version_id: versionId }),
+        // serve_rev is IGNORED by the server; it is in the URL so the browser's
+        // year-long HTTP cache can never hand back a copy served under older
+        // rules (the URL used to be version-keyed only).
+        url({
+          activity_id: activityId,
+          version_id: versionId,
+          ...(serveRev ? { serve_rev: serveRev } : {}),
+        }),
         { authenticated: true },
       )) as {
         activity?: unknown;
         title?: unknown;
         version?: { id?: unknown; num?: unknown };
+        serve_rev?: unknown;
       };
       if (!data.activity || typeof data.activity !== 'object') {
         throw new ViewerLoadError('unknown', 'Malformed content response');
@@ -186,13 +218,28 @@ export function createReadClient(options: ReadClientOptions): ViewerReadClient {
         versionNum: typeof data.version?.num === 'number' ? data.version.num : 0,
         title: typeof data.title === 'string' ? data.title : '',
         document: data.activity as SanitizedActivityDocument,
+        ...(typeof data.serve_rev === 'string' ? { serveRev: data.serve_rev } : {}),
       };
     },
 
-    async load(activityId) {
+    async load(activityId, options = {}) {
       const resolved = await this.resolve(activityId);
+      // The device already holds this exact served document: no download.
+      if (resolved.serveRev && options.reuse) {
+        const saved = options.reuse(resolved.versionId, resolved.serveRev);
+        // The title (and number) are the activity's CURRENT ones from resolve:
+        // a teacher can rename without republishing, and the content response
+        // would have carried the new title.
+        if (saved) {
+          return {
+            ...saved,
+            title: resolved.title || saved.title,
+            versionNum: resolved.versionNum || saved.versionNum,
+          };
+        }
+      }
       try {
-        return await this.fetchContent(activityId, resolved.versionId);
+        return await this.fetchContent(activityId, resolved.versionId, resolved.serveRev);
       } catch (err) {
         // The teacher republished between our resolve and our fetch. The
         // server told us the new id; take it rather than showing an error for
@@ -204,7 +251,7 @@ export function createReadClient(options: ReadClientOptions): ViewerReadClient {
           body?.details?.code === 'stale_version' &&
           typeof current === 'string'
         ) {
-          return await this.fetchContent(activityId, current);
+          return await this.fetchContent(activityId, current, resolved.serveRev);
         }
         throw err;
       }

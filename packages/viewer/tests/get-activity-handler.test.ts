@@ -32,6 +32,10 @@ import {
   createMetaRateLimiter,
 } from '../src/server/get-activity-handler.js';
 import { jwtSub } from '../src/server/jwt.js';
+import { SERVE_REV, SERVE_TRANSFORM_REV } from '../src/server/serveRev.js';
+import { createHash } from 'node:crypto';
+import { mulberry32, seedFrom } from '../src/sanitize/prng.js';
+import { serveSeed } from '../src/sanitize/serveSeed.js';
 import { censusOfDocument } from '../src/census/census.js';
 import type {
   CorsKit,
@@ -581,6 +585,9 @@ describe('auth gate + RESOLVE branch', () => {
       version_id: VERSION_ID,
       version_num: 3,
       title: 'Linear Systems',
+      // The served-form revision (audit #9): a device copy is reused only
+      // under the same one.
+      serve_rev: SERVE_REV,
     });
   });
 });
@@ -663,6 +670,8 @@ describe('CONTENT branch', () => {
     expect(db.readCache).toHaveBeenCalledWith(VERSION_ID, SANITIZER_REV);
     expect(db.readVersion).not.toHaveBeenCalled();
     expect(db.upsertCache).not.toHaveBeenCalled();
+    // The device-copy key (audit #9): the content says how it was served.
+    expect(b.serve_rev).toBe(SERVE_REV);
   });
 
   it('shuffle seed glue: same student reloads identically; another student differs; authored order not served', async () => {
@@ -814,6 +823,114 @@ describe('CONTENT branch', () => {
 // The ordering ruling (S7-9) is the load-bearing pin here: a cache row written
 // after a failed census would shadow that version's analytics forever, because
 // every later read is a HIT that does no analytics work at all.
+
+/** The serve transforms' remaining branches, for the golden row below: a
+ * `list` seed variable (with a decimal value), prose with a known AND an
+ * unknown placeholder, and a TWO-item ordering nested inside a worked
+ * example — the childBlocks recursion and the identity-rotation guard (a fair
+ * two-item shuffle lands on the authored order half the time). */
+function cachedTransformEdgesDoc(): SanitizedActivityDocument {
+  return {
+    schemaVersion: 2,
+    meta: {
+      title: 'T',
+      seedVars: [
+        { name: 'b', spec: { kind: 'list', values: [3, 5, 7.5, 12] } },
+        { name: 'n', spec: { kind: 'int', min: 1, max: 4 } },
+      ],
+    },
+    sections: [
+      {
+        id: 's1',
+        rows: [
+          {
+            id: 'r1',
+            columns: [
+              {
+                id: 'c1',
+                blocks: [
+                  {
+                    id: 'p-2',
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Take {b} of {n} groups; {unknown} stays.' }],
+                  },
+                  {
+                    id: 'we-1',
+                    type: 'worked_example',
+                    content: [
+                      {
+                        id: 'ord-2',
+                        type: 'ordering',
+                        prompt: [{ type: 'text', text: 'order {b}' }],
+                        items: ['up', 'down'].map((text, i) => ({
+                          id: `two-${i}`,
+                          content: [{ type: 'text', text }],
+                        })),
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as SanitizedActivityDocument;
+}
+
+// ---- The serve transforms' golden output (audit #9) ------------------------
+// A student's device reuses a served document while SERVE_REV is unchanged.
+// SERVE_REV covers the sanitizer and the schema by construction, but the
+// per-student transforms (shuffle, seed values, substitution) run outside
+// SANITIZER_REV (R10), so they are covered by a hand-bumped
+// SERVE_TRANSFORM_REV — and THIS row is what notices when it should move.
+describe('serve transforms vs SERVE_TRANSFORM_REV', () => {
+  /** A student whose RAW two-item shuffle of ord-2 is the authored order, so
+   * the identity-rotation guard has to fire for them (found, not hard-coded:
+   * the guard row must not depend on a lucky student name). */
+  function studentWhoseShuffleIsIdentity(): string {
+    for (let i = 0; i < 200; i++) {
+      const student = `student-guard-${i}`;
+      const next = mulberry32(seedFrom(`${serveSeed(VERSION_ID, student)}:ord-2:items`));
+      const out = [0, 1];
+      const j = Math.floor(next() * 2);
+      [out[1], out[j]] = [out[j]!, out[1]!];
+      if (out[0] === 0) return student;
+    }
+    throw new Error('no identity-shuffle student in 200 tries');
+  }
+
+  it('a change to a serve transform\'s output fails here until SERVE_TRANSFORM_REV is bumped', async () => {
+    const served: unknown[] = [];
+    const guardStudent = studentWhoseShuffleIsIdentity();
+    for (const doc of [cachedOrderingDoc(), cachedSeededDoc(), cachedTransformEdgesDoc()]) {
+      const db = contentDb({ readCache: vi.fn(async () => ({ data: { content: doc }, error: null })) });
+      const handler = createGetActivityHandler({ db, cors });
+      for (const student of ['student-a', 'student-b', guardStudent]) {
+        served.push((await body(await handler(authedRequest(contentQuery, student)))).activity);
+      }
+    }
+    // Not vacuous: the edge fixture really reaches the branches it is for.
+    for (const doc of served.slice(6) as { sections: { rows: { columns: { blocks: Record<string, unknown>[] }[] }[] }[] }[]) {
+      const [para, worked] = doc.sections[0]!.rows[0]!.columns[0]!.blocks as [
+        { content: { text: string }[] },
+        { content: { items: { id: string }[] }[] },
+      ];
+      expect(para.content[0]!.text).toMatch(/^Take (3|5|7\.5|12) of [1-4] groups; \{unknown\} stays\.$/);
+      // childBlocks recursion + rotation guard: never the authored order.
+      expect(worked.content[0]!.items.map((i) => i.id)).toEqual(['two-1', 'two-0']);
+    }
+    const fingerprint = createHash('sha256').update(JSON.stringify(served)).digest('hex').slice(0, 16);
+    // If this fails: a serve transform's OUTPUT changed. Bump
+    // SERVE_TRANSFORM_REV in src/server/serveRev.ts (so every device copy is
+    // downloaded again), then record the new fingerprint against the new rev.
+    expect({ rev: SERVE_TRANSFORM_REV, fingerprint }).toEqual({
+      rev: 1,
+      fingerprint: '21caa950b7bb3f99',
+    });
+  });
+});
 
 describe('CONTENT branch — census + cache GC (S7)', () => {
   it('writes the census for the served version on a cache miss', async () => {

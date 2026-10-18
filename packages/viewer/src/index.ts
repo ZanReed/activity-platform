@@ -207,6 +207,7 @@ export {
   documentKey,
   loadAnyCachedDocument,
   loadCachedDocument,
+  reusableCachedDocument,
   saveCachedDocument,
 } from './store/documentCache.js';
 export type { CachedDocument } from './store/documentCache.js';

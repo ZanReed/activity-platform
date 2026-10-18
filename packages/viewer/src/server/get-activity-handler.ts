@@ -85,6 +85,7 @@ import { UpgradeError, upgradeActivityDocument } from '@activity/schema';
 import { censusOfDocument } from '../census/census.js';
 import type { VersionCensus } from '../census/census.js';
 import { SANITIZER_REV, sanitizeActivityDocument } from '../sanitize/sanitize.js';
+import { API_VERSION, SERVE_REV } from './serveRev.js';
 import { serveSeed } from '../sanitize/serveSeed.js';
 import { jwtSub } from './jwt.js';
 import { UUID_RE } from './uuid.js';
@@ -96,7 +97,7 @@ import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
 
 /** Bump when the response envelope changes shape (the doc INSIDE it is
  * versioned by the schema + SANITIZER_REV, not by this). */
-export const API_VERSION = 1;
+export { API_VERSION } from './serveRev.js';
 
 // UUID_RE is imported (server/uuid.ts, G2): this file's loose local copy
 // accepted ids the check API rejected — one shape rule now, strict.
@@ -386,6 +387,9 @@ export function createGetActivityHandler(
           version_id: row.version_id,
           version_num: row.version_num,
           title: row.title,
+          // How this version's document is served right now (serveRev.ts): a
+          // device copy is reused only when it was served under the same one.
+          serve_rev: SERVE_REV,
         },
         { headers: { 'Cache-Control': 'no-cache' } },
       );
@@ -531,6 +535,7 @@ export function createGetActivityHandler(
           schema_version: served.schemaVersion,
         },
         title: row.title,
+        serve_rev: SERVE_REV,
         activity: served,
       }),
       {

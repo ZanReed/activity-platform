@@ -335,3 +335,26 @@ describe('the document-cache byte budget (D5)', () => {
     expect(loadCachedDocument(storage, TEST_USER_ID, A2, V1)).not.toBeNull();
   });
 });
+
+describe('reusableCachedDocument (audit #9)', () => {
+  it('returns a copy only for the same version AND serve revision', async () => {
+    const { saveCachedDocument, reusableCachedDocument } = await import('../src/index.js');
+    const mem = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => mem.get(k) ?? null,
+      setItem: (k: string, v: string) => void mem.set(k, v),
+      removeItem: (k: string) => void mem.delete(k),
+      key: (i: number) => [...mem.keys()][i] ?? null,
+      get length() {
+        return mem.size;
+      },
+    };
+    const base = { activityId: 'a1', versionId: 'v1', versionNum: 1, title: 'T', document: { sections: [] } };
+    saveCachedDocument(storage, 'u1', { ...base, serveRev: 'r1' });
+    expect(reusableCachedDocument(storage, 'u1', 'a1', 'v1', 'r1')?.serveRev).toBe('r1');
+    expect(reusableCachedDocument(storage, 'u1', 'a1', 'v1', 'r2')).toBeNull();
+    expect(reusableCachedDocument(storage, 'u2', 'a1', 'v1', 'r1')).toBeNull(); // another student
+    saveCachedDocument(storage, 'u1', { ...base, versionId: 'v2' }); // saved before serve revisions
+    expect(reusableCachedDocument(storage, 'u1', 'a1', 'v2', 'r1')).toBeNull();
+  });
+});

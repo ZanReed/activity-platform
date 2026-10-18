@@ -193,3 +193,62 @@ describe('auth wiring', () => {
     expect(seen).toEqual(['Bearer first', 'Bearer second']);
   });
 });
+
+// =============================================================================
+// Reopen without re-downloading (efficiency audit #9; TODOS item 3). The saved
+// device copy is used only when resolve's version AND serve revision both match
+// it; anything else downloads, and the content URL carries the serve revision
+// so the browser's HTTP cache cannot hand back a copy served under older rules.
+// =============================================================================
+describe('reuse of the device copy (serve revision)', () => {
+  const REV = '1.2.1.3-abc';
+  const DOC = { schemaVersion: 2, sections: [] };
+  const savedCopy = (versionId: string) => ({
+    activityId: ACTIVITY,
+    versionId,
+    versionNum: 1,
+    title: 'Old title',
+    document: DOC as never,
+    serveRev: REV,
+  });
+  const server = (serveRev: string | undefined) => async (url: string) =>
+    url.includes('version_id=')
+      ? json(200, { activity: DOC, title: 'T', version: { id: V1, num: 1 }, ...(serveRev ? { serve_rev: serveRev } : {}) })
+      : json(200, { version_id: V1, version_num: 3, title: 'New title', ...(serveRev ? { serve_rev: serveRev } : {}) });
+
+  it('same version + same serve revision: no content request, current title', async () => {
+    const reuse = vi.fn((v: string, r: string) => (v === V1 && r === REV ? savedCopy(V1) : null));
+    const { api, calls } = client(server(REV));
+    const served = await api.load(ACTIVITY, { reuse });
+    expect(reuse).toHaveBeenCalledWith(V1, REV);
+    expect(calls).toHaveLength(1); // resolve only
+    expect(served.document).toBe(DOC);
+    expect(served.title).toBe('New title'); // renamed without a republish
+    expect(served.versionNum).toBe(3);
+  });
+
+  it('a different serve revision downloads, and the URL carries the new one', async () => {
+    const reuse = vi.fn(() => null); // the hook only matches REV-other
+    const { api, calls } = client(server('9.9.9.new'));
+    const served = await api.load(ACTIVITY, { reuse });
+    expect(reuse).toHaveBeenCalledWith(V1, '9.9.9.new');
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toContain('serve_rev=9.9.9.new');
+    expect(served.serveRev).toBe('9.9.9.new');
+  });
+
+  it('a server without serve revisions never reuses, and the URL is unchanged', async () => {
+    const reuse = vi.fn(() => savedCopy(V1));
+    const { api, calls } = client(server(undefined));
+    await api.load(ACTIVITY, { reuse });
+    expect(reuse).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).not.toContain('serve_rev');
+  });
+
+  it('no hook (the Bank preview): always downloads', async () => {
+    const { api, calls } = client(server(REV));
+    await api.load(ACTIVITY);
+    expect(calls).toHaveLength(2);
+  });
+});

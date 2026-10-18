@@ -70,6 +70,12 @@ export interface CachedDocument {
   versionNum: number;
   title: string;
   document: unknown;
+  /**
+   * The served-form revision this copy was served under (server/serveRev.ts).
+   * Absent on copies saved before it existed — those are never reused for an
+   * online open, only for the offline and republish paths, as before.
+   */
+  serveRev?: string;
   /** Last save time (ms) — the LRU order. Absent on pre-D5 blobs, which makes
    * them the OLDEST candidates, which is correct: nothing has touched them
    * since before the bound existed. */
@@ -258,6 +264,34 @@ export function loadCachedDocument(
       typeof candidate.versionNum === 'number' ? candidate.versionNum : 0,
     title: candidate.title,
     document: candidate.document,
+    ...(typeof candidate.serveRev === 'string' ? { serveRev: candidate.serveRev } : {}),
+  };
+}
+
+/**
+ * The saved copy of (version, serve revision) for an ONLINE open, or null —
+ * readClient.load's `reuse` hook (efficiency audit #9). Exact match on both:
+ * a copy served under different rules, or saved before serve revisions
+ * existed, is downloaded again rather than shown.
+ */
+export function reusableCachedDocument(
+  storage: StorageLike,
+  userId: string,
+  activityId: string,
+  versionId: string,
+  serveRev: string,
+): Omit<CachedDocument, 'touchedAt'> | null {
+  const saved = loadCachedDocument(storage, userId, activityId, versionId);
+  if (!saved || saved.serveRev !== serveRev) return null;
+  // Exactly the served fields — never the cache's bookkeeping — so nothing
+  // a future CachedDocument field adds can reach the store or be saved back.
+  return {
+    activityId: saved.activityId,
+    versionId: saved.versionId,
+    versionNum: saved.versionNum,
+    title: saved.title,
+    document: saved.document,
+    serveRev,
   };
 }
 
