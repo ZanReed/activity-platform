@@ -189,7 +189,7 @@ HISTORY, not re-argued here.)*
 **`SHELL_JS_GZ_KIB` 172 → 158 and `SHELL_CSS_GZ_KIB` 14 → 15 (2026-08-23).**
 P1A's target is met for the first time. **Passed again since (glossary arc,
 measured 2026-09-30), and rung 2 ran 2026-10-04 (auth-js's never-executed
-modules stubbed); the stop line for eager additions stays 156.5.** (This line pinned "about 4.7 KiB free" — the shell has grown since, and the 2026-10-07 audit read about half that.) **Read the real numbers from
+modules stubbed); rung 3 ran 2026-10-18; the 156.5 stop line is RETIRED (author, 2026-10-18): eager additions are judged against the 158 cap itself.** **Read the real numbers from
 `node scripts/check-perf-budget.mjs`, never from here** — this line has carried
 a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
 DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,

@@ -156,6 +156,15 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * build for `vite build` (−0.5) and the signed-out landing + pending
  * onboarding made lazy from Home (−1.1): 157.9 → 156.3 KiB gz. Cap unchanged
  * (158); stop line unchanged (156.5).
+ *
+ * ⚖ THE STOP LINE IS RETIRED — author ruling 2026-10-18. The reopen reuse
+ * (audit #9) took the shell to 156.6, 0.1 over 156.5, with no cheap rung left
+ * (TODOS → the size ladder: what remains is React, auth-js's one client
+ * class and the router). The author accepted it and moved the working limit
+ * TO THE CAP: eager additions are now judged against 158 itself. That means
+ * there is no early-warning margin any more — the next addition that crosses
+ * 158 fails this budget outright, and the answer then is a rung (or a
+ * deliberate cap ruling), never a quiet raise.
  */
 export const SHELL_JS_GZ_KIB = 158;
 

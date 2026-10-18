@@ -1,8 +1,8 @@
 // =============================================================================
 // blocks/SuperscriptTray.tsx — the ² ³ keys beside a focused blank (LAZY chunk)
 // -----------------------------------------------------------------------------
-// Loaded by BlankInput on demand (the shell is past its stop line; see that
-// file's header). Rulings, all in docs/design/superscript-units.md:
+// Loaded by BlankInput on demand (the shell was past its 156.5 stop line when
+// this landed; see that file's header). Rulings, all in docs/design/superscript-units.md:
 //
 //   DR-1  BESIDE the input on the same line, vertically centred on it. Below
 //         is where the blank's own feedback line ("write the unit, m²") and a
