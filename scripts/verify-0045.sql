@@ -62,7 +62,7 @@ select 'probe_functions_definer_pinned',
        'all ten are SECURITY DEFINER with a pinned search_path (0009)';
 select 'probe_internals_not_client_callable',
        not has_function_privilege('authenticated', 'fact_probe_allocate(text,integer,integer)', 'execute')
-       and not has_function_privilege('authenticated', 'fact_probe_judged(uuid)', 'execute')
+       and not has_function_privilege('authenticated', 'fact_probe_judged(uuid, uuid)', 'execute') -- (uuid, uuid) since 0065
        and not has_function_privilege('authenticated', 'fact_probe_stat(uuid)', 'execute')
        and not has_function_privilege('authenticated', 'finalise_fact_probe(uuid,boolean)', 'execute'),
        'a student must never call the statistic or the finalise directly';

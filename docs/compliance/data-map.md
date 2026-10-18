@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-18-draft-31`. Mirrors migrations 0001–**0064**, verified
+> Version `2026-10-18-draft-32`. Mirrors migrations 0001–**0065**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-32` (2026-10-18) — 0065 adds NO personal data.** The number-facts judging function takes an optional student, so a student's own practice reads judge only that student's answers instead of the whole class's. Same callers, same results (verify-0065), no table or column. The range moves to 0065 on that basis.
 >
 > **`draft-31` (2026-10-18) — 0064 adds NO personal data.** It rewrites five existing reads to do less work (the student's best practice score, the class progress grid, one activity's progress, the misconceptions panel, activity analytics) and adds two indexes on `section_checks`. Each read returns exactly what it returned before, to the same callers (verify-0064, and the agreement rows of verify-0050/0061/0036). The range moves to 0064 on that basis.
 >
