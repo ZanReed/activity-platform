@@ -633,8 +633,10 @@ ER-1…ER-14 ruled. What remains:
    Their registry PR #74 (head `fcdf68d`, graph v0.17.26) VERIFIED and passed
    2026-10-20 (B-187): the seven keys match C-145; check L bounds them (all or
    none; intervals strictly increasing; wrong drop ≤ steps; caps ≤ items per
-   session; min right ≤ window). After it merges: refresh the boundary page's
-   repo stamp. Next letters C-146 / B-188.
+   session; min right ≤ window). A second commit `4e7ae50` (their D43
+   amendment 2026-10-20 + §17 edits; keys and check L byte-identical) checked
+   against this record, no corrections (B-188). After it merges: refresh the
+   boundary page's repo stamp. Next letters C-146 / B-189.
 2. **Fold their answers** (graph keys, discrimination credit, the taught
    signal) into MP-3/MP-4/MP-8/MP-10/ER-10/ER-11 here.
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where
