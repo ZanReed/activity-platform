@@ -630,8 +630,11 @@ ER-1…ER-14 ruled. What remains:
 
 1. ~~Send B-184 then B-185~~ SENT 2026-10-20. C-145 RECEIVED and ACCEPTED
    2026-10-20 (section above). B-186 SENT 2026-10-20 (receipt + go-ahead).
-   Next: verify their seven-key registry PR against C-145 points 2 and 8
-   before it merges; next letters C-146 / B-187.
+   Their registry PR #74 (head `fcdf68d`, graph v0.17.26) VERIFIED and passed
+   2026-10-20 (B-187): the seven keys match C-145; check L bounds them (all or
+   none; intervals strictly increasing; wrong drop ≤ steps; caps ≤ items per
+   session; min right ≤ window). After it merges: refresh the boundary page's
+   repo stamp. Next letters C-146 / B-188.
 2. **Fold their answers** (graph keys, discrimination credit, the taught
    signal) into MP-3/MP-4/MP-8/MP-10/ER-10/ER-11 here.
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where
