@@ -112,6 +112,23 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - **Charts — per-series colour.** Dropped from the schema (no authoring surface). Trigger: an activity whose text refers to a series by colour.
 - **Shell — live sign-out.** The auth-js stubs are proven by the lanes; one live Google sign-in and sign-out on the deployed app is the remaining check.
 
+## Mixed practice: three items filed by its eng review (2026-10-19; [mixed-practice.md](docs/design/mixed-practice.md))
+
+- **Gradebook export (ER-8).** No grades export exists for anything. Mixed
+  practice v1 records and shows graded scores only. **Trigger:** the first
+  grades export is designed — then design it once for activity grades
+  (`check_grades`) AND graded practice scores together.
+- **"Mark as taught" for paper-only lessons (ER-10).** Taught = the class's
+  first check on an activity, so a lesson run on paper never enters the pool.
+  **Trigger:** a teacher reports a paper-only lesson missing from practice.
+- **The sprint's practice day moves with the teacher's timezone (ER-12).**
+  `fact_sprint_log` (0050) derives the day as `(saved_at at time zone <current
+  zone>)::date`, so changing `users.timezone` moves past attempts between days
+  and can change steps retroactively; mixed practice stores `practice_day` on
+  the session instead. **Trigger:** the first teacher timezone change on a class
+  with sprint history, or the sprint's next migration (whichever first) —
+  derive from `sprint_sessions.practice_day`, which already exists.
+
 ## BUILD ORDER — ruled by the author 2026-10-02 (sequencing review)
 
 The author asked for a ranking of every open arc "to stop reacting to whichever
@@ -141,10 +158,12 @@ the queue. An entry's own Priority line below does not outrank it.**
 6. **D43 builds — IN PROGRESS**: fluency + diagnostics LIVE (slice 1, the
    check, 2026-10-05; slice 2, the daily practice, 2026-10-06);
    mixed practice + scheduler gated on TWO chains with ratified §17 banks;
-   period assembly last. **Mixed practice DESIGN PASS opened early 2026-10-19
-   (author: design only, build waits for the gate; one chain ratified live):
-   [mixed-practice.md](docs/design/mixed-practice.md), MP-1…MP-15 unruled, its
-   "Hand-off" section is the next chat's order of work.**
+   period assembly last. **Mixed practice DESIGN RULED + ENG-CLEARED 2026-10-19
+   (author: design only; [mixed-practice.md](docs/design/mixed-practice.md):
+   MP-1…MP-15 + ER-1…ER-14 ruled, 0 unresolved). BUILD STILL GATED on a second
+   ratified chain bank (one live). Letter B-185 drafted, HELD behind B-184 until
+   a curriculum session runs. The doc's "Hand-off" is the order of work; a
+   `/plan-design-review` of the runner + teacher view comes before any build.**
 
 **The intake rule (ruled the same day; the standing copy is CLAUDE.md → Working
 style):** a new wish is filed with a TRIGGER, not a slot. It enters this queue
