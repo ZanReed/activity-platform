@@ -585,7 +585,7 @@ authoritative; quoted short here, per point.
 the §17 worked-solution rule + chain 1's 17-item retrofit; the second chain's
 bank.
 
-## Letter B-186 — DRAFT 2026-10-20 (send on the author's yes)
+## Letter B-186 — SENT 2026-10-20 with the author's yes (logged on the boundary page)
 
 > **B-186 — Platform → Curriculum: C-145 received and accepted; go-ahead for
 > the seven-key registry PR.**
@@ -629,9 +629,9 @@ quoted at acab88f, P10 re-derived, MP-1…MP-15 ruled, B-185 drafted (HELD),
 ER-1…ER-14 ruled. What remains:
 
 1. ~~Send B-184 then B-185~~ SENT 2026-10-20. C-145 RECEIVED and ACCEPTED
-   2026-10-20 (section above). Send B-186: receipt + go-ahead for their
-   seven-key registry PR (on the author's yes); then verify the PR's keys
-   against C-145 point 2/8 before it merges.
+   2026-10-20 (section above). B-186 SENT 2026-10-20 (receipt + go-ahead).
+   Next: verify their seven-key registry PR against C-145 points 2 and 8
+   before it merges; next letters C-146 / B-187.
 2. **Fold their answers** (graph keys, discrimination credit, the taught
    signal) into MP-3/MP-4/MP-8/MP-10/ER-10/ER-11 here.
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where
