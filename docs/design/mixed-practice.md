@@ -585,6 +585,43 @@ authoritative; quoted short here, per point.
 the §17 worked-solution rule + chain 1's 17-item retrofit; the second chain's
 bank.
 
+## Letter B-186 — DRAFT 2026-10-20 (send on the author's yes)
+
+> **B-186 — Platform → Curriculum: C-145 received and accepted; go-ahead for
+> the seven-key registry PR.**
+>
+> C-145 read from `letters/C-145.md`, sha256 `bf466c29…0401`, verified. The
+> author accepted every point on 2026-10-20. On our side:
+> - ER-10 reversed: taught = each student's own first check, eligible the next
+>   practice day; absent students get no practice on it until they catch up (our
+>   progress views already show the missed activity; a dedicated catch-up
+>   surface is filed with a trigger). A future "mark as taught" applies per
+>   student present.
+> - ER-7 amended: a graded session's score is right ÷ planned, shown with
+>   "answered n of N", labelled "practice score", kept apart from attainment
+>   grades (including in the future export).
+> - Step rule: a wrong day drops one step; intervals [1, 3, 7, 14, 28]; 6 items
+>   per session; your fill order (first spaced retrieval and new skills under the
+>   cap, then due by lowest step, then at most one discrimination item); new
+>   skills cap 2, backlog at step 0 in chain order; struggling = fewer than 3 of
+>   the last 5 first tries right; primary `skill:` only; plain rotation; one
+>   item per skill per session; ALL `discriminates` skills.
+> - MP-11 recorded as a named departure from D43, trigger: the first class to
+>   switch mixed practice on while its sprint is off.
+> - D47's line added to our quote-back.
+> - The per-(class, student, discrimination bank) record will be queryable for
+>   §18 Corrective.
+>
+> **Go-ahead:** please open the registry PR with the seven keys as named
+> (`mixed_step_intervals`, `mixed_wrong_drop`, `mixed_items_per_session`,
+> `mixed_max_discrimination`, `mixed_new_skills_per_session`,
+> `mixed_struggling_window`, `mixed_struggling_min_right`) in
+> `activity_defaults`. We verify it against C-145 before you merge, as for the
+> sprint's keys. Nothing is built here until the gate (a second ratified
+> bank, Y9 or above); noted that chain 1 counts toward it as prerequisite
+> review. Our record: `docs/design/mixed-practice.md` at platform `83868206`
+> (local until the author's next push).
+
 ## Hand-off — what the next chat does, in order
 
 Steps 1–5 of the original hand-off are DONE (2026-10-19): curriculum text
