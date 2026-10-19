@@ -118,9 +118,17 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
   practice v1 records and shows graded scores only. **Trigger:** the first
   grades export is designed — then design it once for activity grades
   (`check_grades`) AND graded practice scores together.
-- **"Mark as taught" for paper-only lessons (ER-10).** Taught = the class's
-  first check on an activity, so a lesson run on paper never enters the pool.
+- **"Mark as taught" for paper-only lessons (ER-10, reversed by C-145).**
+  Taught = EACH STUDENT'S own first check, so a lesson run on paper never
+  enters anyone's pool. A mark applies to the students present, never the roll.
   **Trigger:** a teacher reports a paper-only lesson missing from practice.
+- **A catch-up surface for missed activities (C-145 point 4).** An absent
+  student gets no practice on a skill until they check its activity; v1 relies
+  on the existing progress views. **Trigger:** a teacher asks where an absent
+  student's practice went, or the first late joiner is enrolled.
+- **MP-11 — a NAMED DEPARTURE from D43.** Mixed v1 carries no fluency facts, so a
+  below-criterion student in a class with the sprint off gets no fluency work.
+  **Trigger:** the first class to switch mixed practice on while its sprint is off.
 - **The sprint's practice day moves with the teacher's timezone (ER-12).**
   `fact_sprint_log` (0050) derives the day as `(saved_at at time zone <current
   zone>)::date`, so changing `users.timezone` moves past attempts between days

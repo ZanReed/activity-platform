@@ -61,6 +61,10 @@ stored as a judgement. A met attempt moves it up one step, at most once a
 practice day"; step n is due again `sprint_step_intervals`[n] "CALENDAR days
 later, in the class teacher's timezone".
 
+**D47, added at the curriculum side's request (C-145 point 1):** "Spacing
+needs initial learning first. Spaced and interleaved practice pay off after a
+student has reached criterion once (Rawson & Dunlosky, successive relearning)."
+
 **The activity-length ruling (`activity_defaults.duration_min` is now 32, not
 24):** "At 35 the 50-minute period leaves about 5 minutes of mixed practice with
 the sprint on: 3–5 items at 60–90 seconds each, too few to do the spacing job.
@@ -281,7 +285,7 @@ Walked one by one (numbered yes/no, recommendation first).
 | # | Ruling |
 |---|---|
 | MP-1 | **(a)** new `mixed_sessions` + `mixed_attempts`. |
-| MP-2 | ⚠ **Part 1 AMENDED by ER-10 (eng review, same day): taught = the class's FIRST CHECK on the activity, not the teacher's add.** As first ruled — **all three:** teacher's add = taught; eligible from the NEXT practice day; persist `activities.primary_skill` (importer-written, read through `copied_from_activity_id`, served from the source owner's bank). Ask the curriculum side whether Q2 means more. |
+| MP-2 | ⚠ **Part 1 AMENDED twice: by ER-10 (class's first check), then by C-145 (2026-10-20): taught = EACH STUDENT'S OWN first check.** As first ruled — **all three:** teacher's add = taught; eligible from the NEXT practice day; persist `activities.primary_skill` (importer-written, read through `copied_from_activity_id`, served from the source owner's bank). Ask the curriculum side whether Q2 means more. |
 | MP-3 | **(a)** per (student, skill), step derived from the attempt log, never stored; calendar intervals in the teacher's timezone; intervals + step rule as graph keys; Leitner-style. |
 | MP-4 | **As recommended;** mix and overflow order asked as graph keys. |
 | MP-5 | **As recommended:** `practice:<sessionId>:<itemId>` → value-table row; attempt stores row index + item fingerprint. ⚠ The doc's claim that this stops a re-import changing the key was FALSE (the fingerprint only detects it; OV-1) — **ER-4 adds a snapshot of each served item**, which is what makes it true. |
@@ -290,7 +294,7 @@ Walked one by one (numbered yes/no, recommendation first).
 | MP-8 | **(a)** fixed item count from a graph key (~6–8 for the 50-minute shape), teacher may change per class; partial work counts; longer sessions = larger count. |
 | MP-9 | **AMENDED.** Feedback as recommended (one attempt → verdict, mistake feedback, solution; the first try moves the step). PLUS a **per-class "graded" toggle, default OFF**: when on, each session records a **score** (first tries right / items) shown to the teacher per student and to the student, and the score goes to the **gradebook export** (⚠ ER-8: no export exists; v1 RECORDS and SHOWS scores, the export is filed in TODOS with a trigger). The author's words: "allow teachers to toggle on grading if they want it. While I dont agree with the mentality many teachers grade everything to give students feedback." The scheduler ignores the toggle. ⚠ P10: **no gradebook export exists in the app today** (teacher grades live in `check_grades`, 0034, read in the grading queue; nothing exports them) — the export's scope is an eng-review question (ER below). ⚠ Curriculum: their grading default is "Practice is never graded"; it is a DEFAULT ("How a school grades is its own call"), so default-off honours it — told to them in the letter, not asked. |
 | MP-10 | **(a)** log only, per (student, consolidation); ask them. |
-| MP-11 | **(a)** not in v1; attempts carry an item `kind`. |
+| MP-11 | **(a)** not in v1; attempts carry an item `kind`. ⚠ **Recorded 2026-10-20 as a NAMED DEPARTURE from D43** (C-145 point 0, author yes): D43 says below-criterion students "still get fluency items, inside their own mixed practice"; until this lands, such a student in a class with the sprint off gets no fluency work. **Trigger:** the first class to switch mixed practice on while its sprint is off (TODOS). |
 | MP-12 | **As recommended:** per-class on/off + per-skill class summary (due / struggling / success rate vs 80%); per-student detail and the printable record later on their own trigger. |
 | MP-13 | **As recommended:** `keep_until` + disarmed, unscheduled prune; compliance docs in the migration's commit. ⚠ With MP-9's toggle, a graded session's SCORE is a grade record, not raw practice — the prune must keep it (eng review). |
 | MP-14 | **(a)** no "two chains" check in code; the launch is the author's switch. |
@@ -379,11 +383,11 @@ in-host subagent (Codex CLI not installed — native coverage, not external).
 | ER-3 [D5] | **`primary_skill` is an identity write**: `classifyUpdates` sends a row whose `primary_skill` differs from the file's `skill:` to `pathOnly` (a "needs identity" like `adoptsKey`), which writes it with `source_path`/`source_key` and never a draft. The first run after the migration backfills the 52 live rows (dry run shows them); a later `skill:` edit is caught the same way. |
 | ER-4 [D4] | **Snapshot served items**: `mixed_session_items (session, seq, owner_id, item_id, fingerprint, row index, document, row values)`, RLS on with NO policies (answer-key class; read only by the RPCs and the Edge service role). Grading and the teacher's later view read the snapshot. Data-map entry. |
 | ER-5 [D6] | **History is per (class, student, skill)**, as the sprint. A student who changes class starts fresh; carry-forward across classes/years joins the sprint's existing year-end design pass. With `keep_until` = class end + 30 days, the prune never resets steps mid-year. |
-| ER-6 [D7] | **The step rule judges the whole practice day**: per (class, student, skill, practice day), any wrong first try → step 0, else all right → up one. A second session the same day prefers skills not yet practised today unless nothing else is due. |
-| ER-7 [D8] | **Graded integrity:** the class's graded flag is copied onto the session at start; `score_right`, `score_answered`, `planned` are stored on the session at every save; score = right ÷ answered, shown as "answered n of N" (no zeros averaged in). Scores follow check grades' retention, NOT the practice prune; data-map + retention-policy updated. |
+| ER-6 [D7] | ⚠ **AMENDED 2026-10-20 (C-145 2a, author yes): a wrong day drops ONE step (`mixed_wrong_drop` = 1), not to 0; intervals `mixed_step_intervals` = [1, 3, 7, 14, 28]; the top step recurs every 28 days to year end.** As first ruled — **the step rule judges the whole practice day**: per (class, student, skill, practice day), any wrong first try → step 0, else all right → up one. A second session the same day prefers skills not yet practised today unless nothing else is due. |
+| ER-7 [D8] | ⚠ **AMENDED 2026-10-20 (C-145 point 6, author yes): score = right ÷ PLANNED, still showing "answered n of N", labelled "practice score" and kept apart from attainment grades (including in ER-8's future export).** As first ruled — **Graded integrity:** the class's graded flag is copied onto the session at start; `score_right`, `score_answered`, `planned` are stored on the session at every save; score = right ÷ answered, shown as "answered n of N" (no zeros averaged in). Scores follow check grades' retention, NOT the practice prune; data-map + retention-policy updated. |
 | ER-8 [D1] | **Export later, on a trigger.** v1 records and shows scores; the gradebook export (activity grades + practice scores together) is filed in TODOS with trigger "the first grades export is designed". (Feature-scope question of the complexity gate; no scope reduction of the ruled behaviour beyond deferring the export.) |
 | ER-9 [D9] | **Record first, then answer**: the attempt row (unique per session, seq) is inserted before the verdict leaves; a replay returns the stored verdict, never a re-grade. Start returns the open session if one exists (unique class, student, practice day, ordinal). |
-| ER-10 [D10] | **Taught = the class's first check** (amends MP-2 part 1): a skill is taught on the practice day any student of the class first checks the activity (any version). Not-same-day still applies; absent students still get it; adding activities ahead cannot pollute the pool. A paper-only lesson never counts until a "mark as taught" control exists (filed with a trigger). Asked of the curriculum side in B-185. |
+| ER-10 [D10] | ⚠ **REVERSED 2026-10-20 (C-145 point 4, author yes): taught = EACH STUDENT'S OWN first check on the activity, eligible from that student's next practice day. An absent student gets no practice on it until they catch up; existing progress views already show the missed activity (a dedicated catch-up surface is filed in TODOS). A future "mark as taught" applies to students present, never the whole roll.** As first ruled — **Taught = the class's first check** (amends MP-2 part 1): a skill is taught on the practice day any student of the class first checks the activity (any version). Not-same-day still applies; absent students still get it; adding activities ahead cannot pollute the pool. A paper-only lesson never counts until a "mark as taught" control exists (filed with a trigger). Asked of the curriculum side in B-185. |
 | ER-11 [D11] | **Discrimination banks get their own derived step** per (class, student, discrimination bank), same intervals and day rule unless the curriculum sets separate keys; this is also MP-10's per-consolidation record. |
 | ER-12 [D12] | **`practice_day` is fixed on the session at start**, and every derivation reads it. The sprint's derive-from-`saved_at`-in-the-current-zone has the same latent issue: filed in TODOS. |
 | ER-13 [D13] | **Full guard set**, each mutation-tested once: a `verify-00xx.sql` (pool: not-same-day across zones, first-check taught, copy lineage, draft/retired excluded, discrimination needs all skills; day rule; idempotent start; prune unscheduled), handler tests (foreign/closed session and item-not-in-plan → the one 404; no document read before authorization, by spy; served payload carries no answers/mistakes/value table; replay returns the stored verdict), importer test (pathOnly backfill writes no draft), step-rule vectors. |
@@ -397,8 +401,8 @@ student taps "Mixed practice"            (class has mixed on; MP-12)
         └─► rpc start_mixed_session(class)  AS CALLER     (ER-1)
               membership · class live · mixed on
               open session today? → return it               (ER-9)
-              pool = ratified items whose skill(s) were first
-                     checked by the class BEFORE today      (MP-2, ER-10)
+              pool = ratified items whose skill(s) THIS student
+                     first checked BEFORE today             (MP-2, ER-10 as reversed)
               steps = derived per (class,student,skill|bank)
                       from attempts by stored practice_day  (ER-2/5/6/11/12)
               plan N items, interleaved, rows by
@@ -555,14 +559,42 @@ acab88f, re-read the quoted files and amend the letter, never send it stale).
 > Nothing is owed by either side from this letter except answers; no pin
 > bump (the capability row lands only when serving ships, PB-12).
 
+## C-145 — Curriculum → Platform, received 2026-10-20 (answers to B-185) — ALL ACCEPTED by the author 2026-10-20
+
+Read from `/Users/user/Project folder/curriculum/letters/C-145.md`, sha256
+`bf466c2913fa400761ef8f88b51def2007f042d9ebde6a8cf30ac1ed871e0401` (verified on
+receipt). Shas at sending: curriculum `main` acab88f, platform `main` 86ca2f6c.
+They say every point was ruled by the author on 2026-10-19. The file is
+authoritative; quoted short here, per point.
+
+| # | Their answer | Effect here |
+|---|---|---|
+| 0 | MP-11 accepted for v1, but must be "recorded as a named departure from D43, with a trigger"; suggested trigger "the first class to switch mixed practice on while its sprint is off". | ACCEPTED 2026-10-20: MP-11 row. |
+| 1 | Quote-back confirmed; add D47: "Spacing needs initial learning first. Spaced and interleaved practice pay off after a student has reached criterion once (Rawson & Dunlosky, successive relearning)." | Added to the quoted text. |
+| 2a | `mixed_step_intervals` = [1, 3, 7, 14, 28] calendar days; top step is maintenance (recurs every 28 days to year end). Day rule as ER-6, but a wrong day drops ONE step (`mixed_wrong_drop` = 1), not to 0. Discrimination banks share intervals and rule. | ACCEPTED 2026-10-20: ER-6 amended. |
+| 2b | `mixed_items_per_session` = 6 (50-minute shape); longer shapes raise it via MP-8's per-class setting. | Fills MP-8. |
+| 2c | Fill order: (1) skills on their first spaced retrieval (taught the previous practice day) and new skills under the cap, previous day's first; (2) due skills, lowest step first, ties to most overdue; (3) at most one discrimination item (`mixed_max_discrimination` = 1) when eligible and due. Then order so confusable skills sit together, never two in a row from one skill where avoidable. | Fills MP-4. |
+| 3 | MP-10(a) agreed; no format change. Make the per-(class, student, discrimination bank) record queryable for §18's Corrective pass. | Confirms ER-11. |
+| 4 | **Reverses ER-10:** taught = EACH STUDENT'S OWN first check, eligible the next practice day. One student working ahead must not open a skill for the class. Absent students get no practice on it; the missed activity is shown to student and teacher as catch-up. A future "mark as taught" applies per student present, never the roll. Q2 means skills actually taught; skipped skills do not enter. Primary `skill:` is the right join; ER-3 fine. | ACCEPTED 2026-10-20: ER-10 reversed. |
+| 5 | Gate deferred: the author's classes are Y9+, 55-minute periods; the second bank will be a Y9-or-above chain, named later. Chain 1 (Y8) still counts toward the gate, as prerequisite review. 55 minutes ≈ 13–15 mixed minutes ≈ 9–10 items, via MP-8's per-class count; no new key. | Context; gate unchanged. |
+| 6 | Toggle noted. Label it "practice score", apart from attainment grades (matters for ER-8's export). **Request: ER-7 scores against items PLANNED**, with "answered n of N" still shown, because right ÷ answered "rewards leaving hard items unanswered". | ACCEPTED 2026-10-20: ER-7 amended. |
+| 7 | MP-9 and MP-14 endorsed. | — |
+| 8 | Ask 7: every procedural item owes a 2–4-line worked solution with seeded values, fixed items the answer + one line; they retrofit chain 1's 17 before the gate. Ask 8: `mixed_new_skills_per_session` = 2, backlog enters at step 0 in chain order. Ask 9: struggling = fewer than 3 of the last 5 first tries right (`mixed_struggling_window` = 5, `mixed_struggling_min_right` = 3). Ask 10: primary `skill:` only; no earlier-year skills in v1. Ask 11: plain rotation skipping the last-seen template; misconception weighting is for §18 Corrective. Ask 12: one item per skill per session (a short session ends early, as the sprint's); ALL `discriminates` skills required. | Fills MP-12's "struggling", MP-4, MP-8. |
+
+**Owed by them:** a registry PR with the seven keys AFTER our go-ahead letter;
+the §17 worked-solution rule + chain 1's 17-item retrofit; the second chain's
+bank.
+
 ## Hand-off — what the next chat does, in order
 
 Steps 1–5 of the original hand-off are DONE (2026-10-19): curriculum text
 quoted at acab88f, P10 re-derived, MP-1…MP-15 ruled, B-185 drafted (HELD),
 ER-1…ER-14 ruled. What remains:
 
-1. ~~Send B-184 then B-185~~ SENT 2026-10-20 (their `main` still `acab88f`).
-   Await C-145.
+1. ~~Send B-184 then B-185~~ SENT 2026-10-20. C-145 RECEIVED and ACCEPTED
+   2026-10-20 (section above). Send B-186: receipt + go-ahead for their
+   seven-key registry PR (on the author's yes); then verify the PR's keys
+   against C-145 point 2/8 before it merges.
 2. **Fold their answers** (graph keys, discrimination credit, the taught
    signal) into MP-3/MP-4/MP-8/MP-10/ER-10/ER-11 here.
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where
