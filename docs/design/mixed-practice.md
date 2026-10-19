@@ -471,11 +471,13 @@ acab88f, re-read the quoted files and amend the letter, never send it stale).
 > calendar intervals, teacher's timezone); §18 Review = the same scheduler with
 > a longer session. Anything newer that supersedes these?
 >
-> **2. What the author ruled (MP-1…MP-15, 2026-10-19), in brief.** A mixed
-> session draws ratified bank items for skills taught to the class (the
-> teacher's add of an activity whose `skill:` is that skill; eligible from the
-> next practice day). Scheduling is per (student, skill), modelled on the
-> sprint: the step is derived from first-try results, never stored. Fresh
+> **2. What the author ruled (MP-1…MP-15 and the eng review's ER-1…ER-14,
+> 2026-10-19), in brief.** A mixed session draws ratified bank items for skills
+> taught to the class: a skill counts as taught on the day any student in the
+> class first checks an activity whose `skill:` is that skill (ER-10, replacing
+> the teacher's add), and is eligible from the next practice day. Scheduling is
+> per (class, student, skill), modelled on the sprint: the step is derived from
+> first-try results over the whole practice day, never stored. Fresh
 > numbers each session (a value-table row per session). One attempt per item,
 > then the verdict, the mistake feedback and the solution. A discrimination item
 > appears when all its skills are in the student's pool. Fixed item count per
