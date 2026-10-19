@@ -635,8 +635,10 @@ ER-1…ER-14 ruled. What remains:
    none; intervals strictly increasing; wrong drop ≤ steps; caps ≤ items per
    session; min right ≤ window). A second commit `4e7ae50` (their D43
    amendment 2026-10-20 + §17 edits; keys and check L byte-identical) checked
-   against this record, no corrections (B-188). After it merges: refresh the
-   boundary page's repo stamp. Next letters C-146 / B-189.
+   against this record, no corrections (B-188). MERGED at their `4f8f08c`
+   (graph v0.17.26, sha256 `47d1a884…ad7c`, re-derived); boundary stamp
+   refreshed 2026-10-20 (B-189). The keys are mirrored when serving is built.
+   Next letters C-146 / B-190.
 2. **Fold their answers** (graph keys, discrimination credit, the taught
    signal) into MP-3/MP-4/MP-8/MP-10/ER-10/ER-11 here.
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where
