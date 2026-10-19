@@ -308,6 +308,13 @@ Walked one by one (numbered yes/no, recommendation first).
    "taught" signal Q2 means, and is the activity's primary `skill:` the right
    join (MP-2)? The platform will persist it on the activity row.
 5. Which chain is their second ratified bank, and when (the gate).
+6. Worked solutions: 4 of 21 live chain 1 items carry one (MP-9).
+7. Backlog entry when a bank lands after its chain is taught (new skills per
+   session; order).
+8. A definition of "struggling" for the teacher view (MP-12), as graph keys.
+9. Pool scope: `supporting_skills:`, and earlier-year skills not taught here.
+10. Item choice within a skill: plain rotation vs misconception weighting.
+11. Confirm one item per skill per session, and ALL-skills for discrimination.
 
 ## Eng review — 2026-10-19 (`/plan-eng-review`) — ER-1…ER-14 ALL RULED AS RECOMMENDED by the author 2026-10-19
 
@@ -505,6 +512,36 @@ acab88f, re-read the quoted files and amend the letter, never send it stale).
 >
 > **6. Ask — the gate.** Which chain will be the second ratified bank, and
 > roughly when?
+>
+> **7. Ask — worked solutions.** After each answer we show the verdict, the
+> mistake feedback and the solution. In chain 1's ratified bank, 4 of 21 items
+> carry a `solution`, 14 carry `feedback` and 10 carry mistake feedback (live
+> read 2026-10-19). Does every bank item owe a short worked solution, or is
+> showing the correct answer enough after a wrong first try?
+>
+> **8. Ask — a backlog when a bank lands late.** If a chain is taught before its
+> bank is ratified, every taught skill becomes due on the same day. The sprint
+> caps this with `sprint_new_facts_per_session`. Do you want a "new skills per
+> session" key, and in what order should backlogged skills enter?
+>
+> **9. Ask — "struggling".** The teacher's class view shows a struggling count
+> against §17's 80% target. We propose: first-try success below a threshold
+> over a skill's last N attempts, with N and the threshold as graph keys. Agree,
+> or define it differently?
+>
+> **10. Ask — which skills join the pool.** We use only the activity's primary
+> `skill:`. Should `supporting_skills:` join the pool too? And should a class
+> practise earlier-year skills it was never taught here (e.g. Y7/8 skills for a
+> Y9 class), or is that the diagnostic's job (out of our v1)?
+>
+> **11. Ask — picking items within a skill.** We plan to rotate a skill's 4–6
+> templates in order, skipping any the student saw last time. Do you want
+> weighting, e.g. towards items tagged with a misconception the student has
+> shown, or is that only for the Corrective period (§18)?
+>
+> **12. Two confirmations.** (a) One item per skill per session, or can a due
+> skill appear twice? (b) A discrimination item appears only when ALL its
+> `discriminates` skills are in the student's pool (our ruling), not any two?
 >
 > Nothing is owed by either side from this letter except answers; no pin
 > bump (the capability row lands only when serving ships, PB-12).
