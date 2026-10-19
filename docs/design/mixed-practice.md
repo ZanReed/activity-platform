@@ -3,7 +3,7 @@
 **Status:** DESIGN PASS RULED + ENG-REVIEWED 2026-10-19 — **MP-1…MP-15 ruled
 by the author** (14 as recommended; MP-9 AMENDED: a per-class grading toggle)
 and **ER-1…ER-14 ruled** (all as recommended; ER-10 amends MP-2's taught
-signal, ER-4 amends MP-5). Letter B-185 drafted and HELD. **Build nothing until
+signal, ER-4 amends MP-5). Letters B-184 and B-185 SENT 2026-10-20; C-145 awaited. **Build nothing until
 a second chain's bank is ratified.** The author ruled to start the pass early, **design only**: the build
 still waits for its gate (two chains with RATIFIED banks; premise 8). Live on
 2026-10-19: ONE chain ratified (`chain.rate.proportional`, 21 items; re-checked
@@ -444,7 +444,12 @@ discrimination items daily (ER-11) · push before apply (ER-14).
 | 10 | Start must check membership, class not deleted, mixed on | yes | ME-1 |
 | nit | `sanitizeBlock` matches 7 in the read bundle, not 3 | accepted; conclusion (0 in grading) stands | fact corrected |
 
-## Letter B-185 — DRAFT, HELD (2026-10-19)
+## Letter B-185 — SENT 2026-10-20 (after B-184), with the author's yes
+
+**Sent** to the curriculum session "C-145 curriculum reply to B-185" (their
+`main` still `acab88f`), as below. Their answer is C-145.
+
+### As drafted 2026-10-19
 
 Numbering: B-184 (superscript units) is HELD by the author until a curriculum
 session runs, and is sent FIRST; this is B-185. No curriculum session was in
@@ -458,7 +463,8 @@ acab88f, re-read the quoted files and amend the letter, never send it stale).
 > The author opened our mixed-practice design pass early (first classes
 > ~Feb 2027; this is a joint contract). The build still waits for the gate: two
 > chains with ratified banks. Live today: one (`chain.rate.proportional`, 21
-> items). Our record: `docs/design/mixed-practice.md` on our `main`.
+> items). Our record: `docs/design/mixed-practice.md` at platform `86ca2f6c`
+> (local; it reaches our public `main` when the author next pushes).
 >
 > **1. Quote-back.** The design rests on these, read at your `main` acab88f:
 > §17 (no same-day practice on today's skill; the pool = skills taught to this
@@ -500,7 +506,8 @@ acab88f, re-read the quoted files and amend the letter, never send it stale).
 > more are due than fit.
 >
 > **4. Ask — discrimination credit.** We propose v1 moves NO skill step on a
-> discrimination answer and keeps it as a per-(student, consolidation) record,
+> discrimination answer and keeps it as a per-(class, student, discrimination
+> bank) record, spaced by its own step (ER-11),
 > because a wrong answer does not say which skill it "was". Agree, or do you
 > want to say which skill each wrong choice stands for (a format change)?
 >
@@ -554,9 +561,8 @@ Steps 1–5 of the original hand-off are DONE (2026-10-19): curriculum text
 quoted at acab88f, P10 re-derived, MP-1…MP-15 ruled, B-185 drafted (HELD),
 ER-1…ER-14 ruled. What remains:
 
-1. **When a curriculum session runs and the author says yes:** send B-184
-   (superscript units, HELD) FIRST, then B-185 — after re-checking their
-   `main` sha against acab88f and amending the letter if the quoted files moved.
+1. ~~Send B-184 then B-185~~ SENT 2026-10-20 (their `main` still `acab88f`).
+   Await C-145.
 2. **Fold their answers** (graph keys, discrimination credit, the taught
    signal) into MP-3/MP-4/MP-8/MP-10/ER-10/ER-11 here.
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where

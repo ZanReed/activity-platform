@@ -161,8 +161,8 @@ the queue. An entry's own Priority line below does not outrank it.**
    period assembly last. **Mixed practice DESIGN RULED + ENG-CLEARED 2026-10-19
    (author: design only; [mixed-practice.md](docs/design/mixed-practice.md):
    MP-1…MP-15 + ER-1…ER-14 ruled, 0 unresolved). BUILD STILL GATED on a second
-   ratified chain bank (one live). Letter B-185 drafted, HELD behind B-184 until
-   a curriculum session runs. The doc's "Hand-off" is the order of work; a
+   ratified chain bank (one live). Letters B-184 + B-185 SENT 2026-10-20;
+   C-145 awaited. The doc's "Hand-off" is the order of work; a
    `/plan-design-review` of the runner + teacher view comes before any build.**
 
 **The intake rule (ruled the same day; the standing copy is CLAUDE.md → Working
