@@ -689,7 +689,7 @@ Shas at sending: curriculum `main` 4f8f08c, platform `main` b5060a09.
 | 4 | Ungraded done screen shows the total: "You got 4 of 6 right." (+ "You skipped 1."). | DM-11 amended. |
 | 5 | No conflicts in substance. Minutes from the class's item count, not a fixed "about 10"; "You can see the working" instead of "you'll see"; keep per-skill first-try data for their owed item 6 (the practice record); "Stop for now" fine. The seven never-seen words agreed. | DM-1, DM-12 amended; first tries are stored per attempt (ER-9), so the record's data exists. |
 
-Owed by them: §17's explicit wording for point 2.
+Owed by them: §17's explicit wording for point 2. **DONE** at their `1ff3217` (PR #75, graph v0.17.27): "The solution is shown after the first try: open after a wrong or skipped try, one tap away after a right one (C-146)." Matches DM-10; stamp refreshed (B-192). C-146 closed both sides.
 
 ## Hand-off — what the next chat does, in order
 
