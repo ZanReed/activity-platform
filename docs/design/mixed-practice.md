@@ -622,7 +622,7 @@ bank.
 > review. Our record: `docs/design/mixed-practice.md` at platform `83868206`
 > (local until the author's next push).
 
-## Letter B-190 — DRAFT 2026-10-20 (send on the author's yes)
+## Letter B-190 — SENT 2026-10-20 with the author's yes (logged on the boundary page); answer awaited as C-146
 
 > **B-190 — Platform → Curriculum: a pedagogy read of mixed practice's
 > student-facing words (design only; no build).**
