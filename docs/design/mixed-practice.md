@@ -675,6 +675,22 @@ bank.
 > Nothing is owed by either side except answers; nothing is built before the
 > gate.
 
+## C-146 — Curriculum → Platform, received 2026-10-20 (answers to B-190) — ACCEPTED by the author 2026-10-20
+
+Read from `/Users/user/Project folder/curriculum/letters/C-146.md`, sha256
+`bd6b3bb65deb765f971505d08284447a235fb34a635fca50bdd0cf876fa36529` (verified).
+Shas at sending: curriculum `main` 4f8f08c, platform `main` b5060a09.
+
+| # | Their answer | Effect here |
+|---|---|---|
+| 1 | Keep "Not this time." (about the answer, not the student). | DM-10 unchanged. |
+| 2 | Keep the working collapsed behind "See the working" after a right answer; they make §17's wording explicit in their next principles change. | DM-10 unchanged. |
+| 3 | Skip allowed, counts as a wrong first try. Add to the start card: "Have a go even if you're unsure. A wrong try still helps you remember." Add a skips column per skill for the teacher. | DM-12 and DM-3 amended. |
+| 4 | Ungraded done screen shows the total: "You got 4 of 6 right." (+ "You skipped 1."). | DM-11 amended. |
+| 5 | No conflicts in substance. Minutes from the class's item count, not a fixed "about 10"; "You can see the working" instead of "you'll see"; keep per-skill first-try data for their owed item 6 (the practice record); "Stop for now" fine. The seven never-seen words agreed. | DM-1, DM-12 amended; first tries are stored per attempt (ER-9), so the record's data exists. |
+
+Owed by them: §17's explicit wording for point 2.
+
 ## Hand-off — what the next chat does, in order
 
 Steps 1–5 of the original hand-off are DONE (2026-10-19): curriculum text
@@ -716,9 +732,9 @@ is the existing CSS (DM-15).
 
 | DM | Ruling |
 |---|---|
-| DM-1 | **One link.** The class link `/facts/:CODE` stays the student's only practice link (SP-1/DR-1). When both the sprint and mixed practice are on, it shows a chooser: "Number facts · about 5 min" then "Practice · about 10 min"; when one is on it goes straight there. A neutral alias `/practice/:CODE` resolves the same, and Home's class link points at it. |
+| DM-1 | **One link.** The class link `/facts/:CODE` stays the student's only practice link (SP-1/DR-1). When both the sprint and mixed practice are on, it shows a chooser: "Number facts · about 5 min" then "Practice · about 6–9 min" (⚠ C-146: the minutes come from the class's item count, items × 60–90 s rounded to whole minutes, not a fixed "about 10"); when one is on it goes straight there. A neutral alias `/practice/:CODE` resolves the same, and Home's class link points at it. |
 | DM-2 | **Item hierarchy.** (1) the question and its answer box, (2) Check, (3) a thin unlabelled progress bar and a quiet "Stop for now" at the top. After Check: verdict, mistake note, worked solution, Next. No score, timer or counter on screen. |
-| DM-3 | **Teacher panel in the sprint's shape**, as a second panel on the class's practice page (heading becomes "Practice"): (1) On/Off + since, or why not, in words; (2) settings: items per session, "Record a practice score" (off); (3) practised today / this week; (4) per-skill table: Students practising · Struggling · First tries right (last 5); (5) names behind "Show students". |
+| DM-3 | **Teacher panel in the sprint's shape**, as a second panel on the class's practice page (heading becomes "Practice"): (1) On/Off + since, or why not, in words; (2) settings: items per session, "Record a practice score" (off); (3) practised today / this week; (4) per-skill table: Students practising · Struggling · First tries right (last 5) · Skips (⚠ added by C-146: a skip and a wrong answer need different teacher responses); (5) names behind "Show students". |
 | DM-4 | **Empty states (student).** Nothing taught: "Nothing to practise yet. It starts the day after you check your first activity." Nothing due: "Nothing is due today. Come back next lesson." Done today: "You've done today's practice." (+ DM-7). Off: never shown (the chooser hides it). A link back to the class's activities; never a blank page; never names a missed activity. |
 | DM-5 | **A Check that can't reach the server** keeps the item and the typed answer; the button reads "Checking…"; after 10 s a quiet line "Not connected. Keep this page open; we'll keep trying." and "Try again"; signed out → "Sign in again", returning to the same item. A typed answer is never lost. |
 | DM-6 | **Resume.** Reopening the same practice day shows "You stopped at question 4 of 6" with "Carry on" / "Finish here"; a checked item returns with its stored verdict, never re-gradable (ER-9). A new practice day starts fresh. |
@@ -726,8 +742,8 @@ is the existing CSS (DM-15).
 | DM-8 | **Teacher switches off mid-session:** open sessions can finish and count; Off stops new sessions only; the panel says "Students already practising can finish." |
 | DM-9 | **Teacher states in words.** No school-year end date → asked for in the panel. No ratified bank for any checked skill → "None of the skills your class has worked on has a practice bank yet." (the switch still works, MP-14). On, no one yet → "No one has practised yet. Students start from the class link." + the link. Loading / failed → the panel's quiet spinner and "Try again". |
 | DM-10 | **Feedback.** Wrong: "✕ Not this time. The answer is 5 cups." (icon + words, never colour alone), the mistake note if one matched, the worked solution open. Right: "✓ Right." with the working behind "See the working". A Skip button exists; a skip counts as a wrong first try and reads "Skipped. The answer is 5 cups." The student always presses Next (no auto-advance). |
-| DM-11 | **Done screen.** Ungraded: "You got 4 right." (+ "You skipped 1." when any) + "See you next lesson." — no "out of N" (DR-3). Graded adds one line: "Practice score: 4 of 6 (you answered 5 of 6)." The score appears only here. |
-| DM-12 | **Start card.** "Practice · 6 questions · about 10 minutes. One try each; you'll see the working after every answer." + "Your teacher is recording a practice score today." when graded + Start. Nothing is painted until Start (DR-10). |
+| DM-11 | ⚠ **AMENDED by C-146 (author yes, 2026-10-20): ungraded shows the total too, "You got 4 of 6 right."** As first ruled — **Done screen.** Ungraded: "You got 4 right." (+ "You skipped 1." when any) + "See you next lesson." — no "out of N" (DR-3). Graded adds one line: "Practice score: 4 of 6 (you answered 5 of 6)." The score appears only here. |
+| DM-12 | ⚠ **AMENDED by C-146 (author yes, 2026-10-20): "Practice · 6 questions · about 6–9 minutes. One try each. Have a go even if you're unsure. A wrong try still helps you remember. You can see the working after every answer."** (minutes from the item count). As first ruled — **Start card.** "Practice · 6 questions · about 10 minutes. One try each; you'll see the working after every answer." + "Your teacher is recording a practice score today." when graded + Start. Nothing is painted until Start (DR-10). |
 | DM-13 | **Words.** Students: "Practice", "question", "Check", "Next", "Stop for now", "practice score"; never "mixed", "session", "discrimination", "step", "due", "planned", "graded". Teachers: "Mixed practice", "items per session", "Record a practice score", "struggling", "first tries right"; never "step" or "discrimination". A test greps the student routes for the banned words (as DR-5's does). |
 | DM-14 | **Visual.** Items render with the viewer's own block components and styles, as in an activity, in the viewer's reading column, with no card chrome. Feedback is one plain inline panel under the answer (icon + verdict in body type, mistake note, working): no coloured left border, no confetti, no motion beyond the viewer's existing reveal. Runner chrome reuses `practice.css`. |
 | DM-15 | **Design system.** No new tokens or components beyond the runner shell; the system is `viewer.css`, `practice.css`, `factsTeacher.css`, `progress.css`; the per-skill table reuses ClassProgress's table styles. A DESIGN.md is filed in TODOS with a trigger. |
@@ -764,7 +780,7 @@ TEACHER  class › Practice page
     On · since 12 Feb            [Turn off]        (or why not, in words)
     Items per session [6]   Record a practice score [off]
     Practised today 18 · this week 24
-    Skill | Students practising | Struggling | First tries right (last 5)
+    Skill | Students practising | Struggling | First tries right (last 5) | Skips
     Show students ▸   (names, days, struggling skills, score if graded)
 ```
 
@@ -787,16 +803,16 @@ TEACHER  class › Practice page
 | 4 | Gets Q2 wrong | discouraged | no running score (DM-2), no colour-only red, Skip available |
 | 5 | Gets Q3 right | relief | "✓ Right." fast; working one tap away |
 | 6 | Bell rings at Q4 | worried it's lost | Stop for now; partial counts; DM-6 resume |
-| 7 | Done | "I got 3 right" | DM-11 counts what went right; no denominator unless graded and disclosed |
+| 7 | Done | "I got 3 of 6 right" | DM-11 as amended by C-146: the total is shown, graded or not |
 
 ### Copy table
 
 | Where | Student sees | Never |
 |---|---|---|
-| Chooser | "Number facts · about 5 min", "Practice · about 10 min" | "mixed", "session" |
-| Start | "Practice · 6 questions · about 10 minutes. One try each; you'll see the working after every answer." | "step", "due" |
+| Chooser | "Number facts · about 5 min", "Practice · about 6–9 min" (from the item count) | "mixed", "session" |
+| Start | "Practice · 6 questions · about 6–9 minutes. One try each. Have a go even if you're unsure. A wrong try still helps you remember. You can see the working after every answer." | "step", "due" |
 | Feedback | "✓ Right." / "✕ Not this time. The answer is …" / "Skipped. The answer is …" | "wrong!", colour alone |
-| Done | "You got 4 right." "You skipped 1." "Practice score: 4 of 6 (you answered 5 of 6)." | "planned", "graded" |
+| Done | "You got 4 of 6 right." "You skipped 1." "Practice score: 4 of 6 (you answered 5 of 6)." | "planned", "graded" |
 | Empty | DM-4's three lines | the name of a missed activity |
 
 ### What already exists (reuse)
