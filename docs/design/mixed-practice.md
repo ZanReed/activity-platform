@@ -805,6 +805,14 @@ asked for as B-193.** The contract (built and tested here):
 **Live steps (author), in order:** see STATE → Pending author actions. A Fable
 review of 0066 is offered before any of them (precedent).
 
+## Letter B-193 — SENT 2026-10-20 with the author's yes (logged on the boundary page)
+
+Asked the curriculum side to generate `practice-registry.json` (the contract in
+"Slice 1 — as built" → "The practice registry"; body revision `75b67ae9…628e`
+at their `1ff3217`, derived independently twice). Our B-187 had verified the
+seven values but not that they reached a generated registry. Awaiting their PR;
+verify it before merge, then `pnpm import:batch … --practice-registry`.
+
 ## Hand-off — what the next chat does, in order
 
 Steps 1–5 of the original hand-off are DONE (2026-10-19): curriculum text
