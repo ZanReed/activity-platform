@@ -622,6 +622,59 @@ bank.
 > review. Our record: `docs/design/mixed-practice.md` at platform `83868206`
 > (local until the author's next push).
 
+## Letter B-190 — DRAFT 2026-10-20 (send on the author's yes)
+
+> **B-190 — Platform → Curriculum: a pedagogy read of mixed practice's
+> student-facing words (design only; no build).**
+>
+> Our design review (DM-1…DM-20, 2026-10-20) fixed what students and teachers
+> see. The screens are ours; we would like your read on whether the WORDS fit
+> §17, D43 and your grading defaults. Our record: `docs/design/mixed-practice.md`
+> → "Design review", at platform `a0e774f8` (public after the author's next
+> push).
+>
+> **What a student sees, in order:**
+> 1. *The class link* (unchanged) shows, when both are on: "Number facts · about
+>    5 min" then "Practice · about 10 min".
+> 2. *Start:* "Practice · 6 questions · about 10 minutes. One try each; you'll
+>    see the working after every answer." In a graded class, also: "Your teacher
+>    is recording a practice score today."
+> 3. *Each question* renders as in an activity; no score, timer or counter.
+>    Buttons: Check, then Next; "Skip" and "Stop for now" are always there.
+> 4. *After a wrong first try:* "✕ Not this time. The answer is 5 cups." then the
+>    matched mistake note, then the worked solution, open. *After a right one:*
+>    "✓ Right." with the working behind "See the working". *After a skip:*
+>    "Skipped. The answer is 5 cups." A skip counts as a wrong first try.
+> 5. *Done:* "You got 4 right." (+ "You skipped 1.") + "See you next lesson." No
+>    "out of N". Graded classes add one line: "Practice score: 4 of 6 (you
+>    answered 5 of 6)."
+> 6. *Nothing to do:* "Nothing to practise yet. It starts the day after you
+>    check your first activity." / "Nothing is due today. Come back next lesson."
+>    / "You've done today's practice." (+ "Practise again" only when there is
+>    work).
+>
+> **Words students never see:** mixed, session, discrimination, step, due,
+> planned, graded.
+>
+> **The teacher sees** "Mixed practice", "Items per session", "Record a practice
+> score" (off), and per skill: "Students practising · Struggling · First tries
+> right (last 5)", with names behind "Show students".
+>
+> **Our questions:**
+> 1. Is "Not this time." the right register after a wrong first try for a
+>    14-year-old, or do you want different words?
+> 2. A right answer hides the working behind "See the working". Does §17's
+>    worked-solution rule want it open after right answers too?
+> 3. Skip is allowed and counts as a wrong first try. Fine, or should practice
+>    require an attempt?
+> 4. The ungraded done screen counts only what went right, with no "out of N"
+>    (our number-facts precedent). Agree for skill practice?
+> 5. Anything in the copy that conflicts with your grading defaults (ruling 10)
+>    or the link between practice and quiz results (ruling 11)?
+>
+> Nothing is owed by either side except answers; nothing is built before the
+> gate.
+
 ## Hand-off — what the next chat does, in order
 
 Steps 1–5 of the original hand-off are DONE (2026-10-19): curriculum text
