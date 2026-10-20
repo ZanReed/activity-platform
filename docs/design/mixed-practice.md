@@ -835,8 +835,9 @@ seven values but not that they reached a generated registry. Their PR #76
 (head `9abcec7`, on `1ff3217`) VERIFIED 2026-10-20 (B-194): three files only,
 header as fact-scope's, body the seven keys, revision `75b67ae9…628e`
 re-derived, and our own `planPracticeRegistry` accepts it (ok, no errors).
-After it merges: refresh the stamp; mirror at the next import after 0066 is
-live.
+MERGED at their `2990ba1` (file sha256 `c70a2dac…43c1`, re-derived);
+stamp refreshed 2026-10-20. B-193 closed both sides. Mirror at the next import
+after 0066 is live (`--practice-registry`).
 
 ## Hand-off — what the next chat does, in order
 
