@@ -802,8 +802,29 @@ asked for as B-193.** The contract (built and tested here):
 - Until a revision is mirrored, `set_mixed_practice` refuses with
   `mixed_settings_not_mirrored` ("settings not loaded yet" in slice 4's words).
 
-**Live steps (author), in order:** see STATE → Pending author actions. A Fable
-review of 0066 is offered before any of them (precedent).
+**Fable review — RUN 2026-10-20 (author's yes), before anything is live.** No
+P0; security posture found clean (no client path to a document, a row's
+values, another student's rows or a verdict write; purge v7 = v6 + the mixed
+deletes, diffed). Performance measured on a synthetic class (30 students × 50
+skills × 180 days): class summary 29 ms, student rows 29 ms, one student's
+steps 6.7 ms. Dispositions:
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | P1: the class's items-per-session below the curriculum caps was not honoured (cap 2 new skills in a 1-item class planned 2) | FIXED: every tier held under the class's count; verify-0066 B6 vector, mutation-tested |
+| 2 | P1: backlog drained NEWEST-taught first; C-145 ask 8 says "oldest-taught first (chain order) … the previous day's skills go first" | FIXED: the most recent taught day first, then chain order; B6 vector with two taught days, mutation-tested |
+| 3 | P2: the importer against a pre-0066 database failed with a raw 400 | FIXED: named refusal ("Apply migration 0066"), before any write; test |
+| 4 | P2: `record_mixed_attempt` relied on the handler to refuse a closed session | FIXED: backstop refusal of a NEW try on a finished or expired session (a replay still returns the stored row); B15, mutation-tested |
+| 5 | P2: a discrimination item needs every one of its skills to have a ratified SKILL bank, not merely be taught | KEPT as built (moot on chain 1, fully ratified); a reading for the curriculum side, raised with B-193 |
+| 6 | P2: a check made before the activity was added to this class still sets the taught day | KEPT: ER-10 as reversed says "the student's own first check"; tightening (`created_at >= added_at`) is the author's call |
+| 7–8 | importer path-only arm and the registry check vs `mixed_settings_ok` | clean, no change |
+
+The reviewer agreed with all seven readings above. It asked that live
+`purge_soft_deleted` be confirmed to match 0050's body before 0066 replaces it:
+DONE 2026-10-20, read-only — live `prosrc` md5 `620db575a94219c681685a8e275a9150`
+= 0050's body byte for byte, one overload.
+
+**Live steps (author), in order:** see STATE → Pending author actions.
 
 ## Letter B-193 — SENT 2026-10-20 with the author's yes (logged on the boundary page)
 

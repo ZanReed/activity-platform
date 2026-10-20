@@ -305,6 +305,25 @@ begin
      or exists (select 1 from mixed_sessions where student_id = v_s1) then
     raise exception 'FAIL B6: the preview %', v_res;
   end if;
+  -- The CLASS's item count bounds every tier, even below the curriculum caps
+  -- (Fable review finding 1): one item, three new skills → one.
+  select count(*) into v_n
+    from mixed_plan(v_k, v_s1, gen_random_uuid(), v_today, 1, v_set, 1, v_zone);
+  if v_n <> 1 then raise exception 'FAIL B6: a 1-item class planned % items', v_n; end if;
+  -- C-145 ask 8: the most recent taught day first, then the backlog
+  -- OLDEST-taught first in chain order (finding 2). s2 checks a 10 days ago,
+  -- b 5 days ago, g today; tomorrow, with the cap of 2: g, then a (not b).
+  insert into section_checks (student_id, activity_id, activity_version_id, section_id,
+                              attempt_number, responses, verdicts, created_at)
+  values (v_s2, v_act[1], v_ver[1], 's1', 1, '{}', '{}', now() - interval '10 days'),
+         (v_s2, v_act[2], v_ver[2], 's1', 1, '{}', '{}', now() - interval '5 days'),
+         (v_s2, v_act[7], v_ver[7], 's1', 1, '{}', '{}', v_mid + interval '1 minute');
+  select string_agg(bank_key, ',' order by bank_key) into v_got
+    from mixed_plan(v_k, v_s2, gen_random_uuid(), v_today + 1, 1, v_set, 6, v_zone)
+   where kind = 'skill';
+  if v_got is distinct from 'skill.vfy0066.a,skill.vfy0066.g' then
+    raise exception 'FAIL B6: the backlog order gave % (want a and g)', v_got;
+  end if;
   n := n + 1;
 
   -- B7 start: plan, snapshot, seeding, confusables together ----------------
@@ -510,6 +529,14 @@ begin
      or (select graded from mixed_sessions where id = v_sess) then
     raise exception 'FAIL B15: the graded flag %', v_res;
   end if;
+  -- A finished session takes no NEW try, even from the service role (the
+  -- backstop behind slice 2's check authorization; finding 4).
+  v_sess2 := (v_res->'session'->>'session_id')::uuid;
+  perform finish_mixed_session(v_sess2);
+  v_raised := false;
+  begin perform record_mixed_attempt(v_s1, v_sess2, 1, true, false, '{}', '{}');
+  exception when others then v_raised := sqlerrm like '%session closed%'; end;
+  if not v_raised then raise exception 'FAIL B15: a try was recorded into a finished session'; end if;
   n := n + 1;
 
   -- B16 the teacher reads ---------------------------------------------------

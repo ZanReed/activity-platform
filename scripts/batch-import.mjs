@@ -3131,6 +3131,17 @@ async function main() {
             );
             return;
         }
+        // 0066: primary_skill is read to decide the path-only skill backfill.
+        // Refused before any write, like the two above.
+        if (missingColumn === 'primary_skill') {
+            usage(
+                'The database is missing `activities.primary_skill`, which this importer\n' +
+                    '  writes from each file\'s `skill:` (mixed practice\'s "taught" pool).\n\n' +
+                    '  Apply migration 0066 and re-run:\n' +
+                    '    supabase db push',
+            );
+            return;
+        }
         throw err;
     }
 

@@ -566,10 +566,16 @@ begin
     left join st on st.kind = 'discrimination' and st.bank_key = d.stem
     where (select coalesce(array_agg(skill_id), '{}') from pool) @> d.skills
   ),
+  -- C-145 ask 8: the most recent taught day's skills first (the first spaced
+  -- retrieval), then the backlog oldest-taught first in chain order, so a
+  -- skill's prerequisites come back before it does.
   t1 as (
     select 'skill'::text as kind, sk.skill_id as key, sk.owners, 1 as tier,
-           row_number() over (order by sk.taught_day desc, sk.chain_order, sk.skill_id) as r
-    from sk where sk.step is null
+           row_number() over (
+             order by (sk.taught_day = sk.latest) desc,
+                      sk.chain_order, sk.taught_day, sk.skill_id) as r
+    from (select sk.*, max(sk.taught_day) over () as latest
+            from sk where sk.step is null) sk
   ),
   t2 as (
     select 'skill'::text as kind, sk.skill_id as key, sk.owners, 2 as tier,
@@ -583,10 +589,12 @@ begin
     where d.step is null or (d.due_on <= p_today and d.last_day < p_today)
   ),
   picked as (
-    select * from (select * from t1 where t1.r <= v_new_cap) a
+    -- Every cap is also held under the CLASS's item count, which may be
+    -- smaller than the curriculum caps were bounded against.
+    select * from (select * from t1 where t1.r <= least(v_new_cap, p_items)) a
     union all
     select * from (select * from t2
-                    where t2.r <= p_items - least(v_new_cap, (select count(*) from t1))) b
+                    where t2.r <= p_items - least(v_new_cap, p_items, (select count(*) from t1))) b
   ),
   picked_all as (
     select * from picked
@@ -867,7 +875,9 @@ $$;
 -- record_check). Called by slice 2's handler AFTER mixed_item_for_check and
 -- grading, BEFORE the verdict leaves (ER-9). First write wins: a replay
 -- returns the stored row with replayed = true and changes nothing. Refuses a
--- student who is not the session's, or a seq not in the plan.
+-- student who is not the session's, a seq not in the plan, and a NEW try on
+-- a finished or expired session (the handler's mixed_item_for_check refuses
+-- those first; this is the backstop, so a stray try never counts in a day).
 create or replace function record_mixed_attempt(
   p_student_id uuid, p_session_id uuid, p_seq integer, p_correct boolean,
   p_skipped boolean, p_responses jsonb, p_verdicts jsonb)
@@ -888,6 +898,10 @@ begin
   if v_s.id is null or v_i.session_id is null or v_s.student_id is distinct from p_student_id
      or p_correct is null or (coalesce(p_skipped, false) and p_correct) then
     raise exception 'record_mixed_attempt: refused';
+  end if;
+  if not exists (select 1 from mixed_attempts where session_id = p_session_id and seq = p_seq)
+     and (v_s.finished_at is not null or now() > v_s.started_at + interval '1 day') then
+    raise exception 'record_mixed_attempt: refused (session closed)';
   end if;
 
   insert into mixed_attempts (session_id, seq, student_id, class_id, practice_day, kind,

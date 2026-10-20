@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**MIXED PRACTICE SLICE 1 BUILT 2026-10-20, UNPUSHED, NOT LIVE** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 1 — as built"). A Fable review of 0066 is offered first. Then: (1) apply 0066 live; (2) `pnpm verify:auth --target live --only verify-0066`, and verify-0050 (purge v7); (3) `pnpm import:batch` DRY RUN — every catalogue row `path … skill (none) → <skill>`, NO `update` lines (ER-3) — then the real run; (4) when their `practice-registry.json` lands (B-193), import with `--practice-registry`; until then no class can switch mixed practice on. Push after (1).
+**MIXED PRACTICE SLICE 1 BUILT 2026-10-20, UNPUSHED, NOT LIVE** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 1 — as built"). Fable-reviewed (no P0; two P1s fixed). Then: (1) apply 0066 live; (2) `pnpm verify:auth --target live --only verify-0066`, and verify-0050 (purge v7); (3) `pnpm import:batch` DRY RUN — every catalogue row `path … skill (none) → <skill>`, NO `update` lines (ER-3) — then the real run; (4) when their `practice-registry.json` lands (B-193), import with `--practice-registry`; until then no class can switch mixed practice on. Push after (1).
 
 **701 place-value LIVE (2026-10-13).**
 

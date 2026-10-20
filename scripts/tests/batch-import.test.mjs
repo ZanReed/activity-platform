@@ -2113,6 +2113,12 @@ test('§K the missing-column refusal routes on what the DATABASE named', () => {
     const other = real.replace('source_key does not exist', 'source_fingerprint does not exist');
     assert.equal(missingColumnFrom(other), 'source_fingerprint');
 
+    // 0066: a database without primary_skill is named, not a raw 400.
+    const pre66 = real.replace('source_key does not exist', 'primary_skill does not exist');
+    assert.equal(missingColumnFrom(pre66), 'primary_skill');
+    assert.match(readFileSync(new URL('../batch-import.mjs', import.meta.url), 'utf8'),
+        /missingColumn === 'primary_skill'[\s\S]{0,400}Apply migration 0066/);
+
     assert.equal(missingColumnFrom('GET /activities → 401: bad key'), null);
     assert.equal(missingColumnFrom(undefined), null);
 });
