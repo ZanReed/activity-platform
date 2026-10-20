@@ -3,7 +3,7 @@
 **Status:** DESIGN PASS RULED + ENG-REVIEWED 2026-10-19 — **MP-1…MP-15 ruled
 by the author** (14 as recommended; MP-9 AMENDED: a per-class grading toggle)
 and **ER-1…ER-14 ruled** (all as recommended; ER-10 amends MP-2's taught
-signal, ER-4 amends MP-5). Letters B-184 and B-185 SENT 2026-10-20; C-145 awaited. **Build nothing until
+signal, ER-4 amends MP-5). **Design-reviewed 2026-10-20 (DM-1…DM-20).** Letters B-184 and B-185 SENT 2026-10-20; C-145 awaited. **Build nothing until
 a second chain's bank is ratified.** The author ruled to start the pass early, **design only**: the build
 still waits for its gate (two chains with RATIFIED banks; premise 8). Live on
 2026-10-19: ONE chain ratified (`chain.rate.proportional`, 21 items; re-checked
@@ -644,20 +644,171 @@ ER-1…ER-14 ruled. What remains:
 3. **Watch the gate:** `select chain_id, count(*) from practice_item where
    status = 'ratified' and retired_at is null group by 1` — two chains.
 4. **When the gate fires:** P10 again (this doc's "What exists" will be stale),
-   `/plan-design-review` on the student runner and the teacher view, then build
-   in ER-14's release order. **Build nothing before that.**
+   then build in ER-14's release order, with the design rulings DM-1…DM-20
+   (design review DONE 2026-10-20; tasks T1–T7 in that section). **Build
+   nothing before that.**
+
+## Design review — 2026-10-20 (`/plan-design-review`) — DM-1…DM-20 ALL RULED AS RECOMMENDED by the author
+
+Target: this doc's two screens: the student's practice session and the
+teacher's class panel. Evidence: static reads of the plan, the sprint's design
+rulings (practice-blocks.md DR-1…DR-24, SP-1…SP-14), `SprintPanel.tsx`,
+`FactRunner.tsx`, `FactsEntry.tsx`, `ClassProgress.tsx`, and
+`viewer/src/container/checkGroups.ts`. No mockups: the designer has no OpenAI
+key on this machine (text-only review). Outside voice: a Fable subagent (11
+findings, all folded into the rulings below). No DESIGN.md exists; the system
+is the existing CSS (DM-15).
+
+### Rulings (author, 2026-10-20; one question each)
+
+| DM | Ruling |
+|---|---|
+| DM-1 | **One link.** The class link `/facts/:CODE` stays the student's only practice link (SP-1/DR-1). When both the sprint and mixed practice are on, it shows a chooser: "Number facts · about 5 min" then "Practice · about 10 min"; when one is on it goes straight there. A neutral alias `/practice/:CODE` resolves the same, and Home's class link points at it. |
+| DM-2 | **Item hierarchy.** (1) the question and its answer box, (2) Check, (3) a thin unlabelled progress bar and a quiet "Stop for now" at the top. After Check: verdict, mistake note, worked solution, Next. No score, timer or counter on screen. |
+| DM-3 | **Teacher panel in the sprint's shape**, as a second panel on the class's practice page (heading becomes "Practice"): (1) On/Off + since, or why not, in words; (2) settings: items per session, "Record a practice score" (off); (3) practised today / this week; (4) per-skill table: Students practising · Struggling · First tries right (last 5); (5) names behind "Show students". |
+| DM-4 | **Empty states (student).** Nothing taught: "Nothing to practise yet. It starts the day after you check your first activity." Nothing due: "Nothing is due today. Come back next lesson." Done today: "You've done today's practice." (+ DM-7). Off: never shown (the chooser hides it). A link back to the class's activities; never a blank page; never names a missed activity. |
+| DM-5 | **A Check that can't reach the server** keeps the item and the typed answer; the button reads "Checking…"; after 10 s a quiet line "Not connected. Keep this page open; we'll keep trying." and "Try again"; signed out → "Sign in again", returning to the same item. A typed answer is never lost. |
+| DM-6 | **Resume.** Reopening the same practice day shows "You stopped at question 4 of 6" with "Carry on" / "Finish here"; a checked item returns with its stored verdict, never re-gradable (ER-9). A new practice day starts fresh. |
+| DM-7 | **"Practise again"** shows on the done screen and the done-today state only when the server can plan at least one item; else "That's everything for today." It runs a normal session; students are never told about schedules. |
+| DM-8 | **Teacher switches off mid-session:** open sessions can finish and count; Off stops new sessions only; the panel says "Students already practising can finish." |
+| DM-9 | **Teacher states in words.** No school-year end date → asked for in the panel. No ratified bank for any checked skill → "None of the skills your class has worked on has a practice bank yet." (the switch still works, MP-14). On, no one yet → "No one has practised yet. Students start from the class link." + the link. Loading / failed → the panel's quiet spinner and "Try again". |
+| DM-10 | **Feedback.** Wrong: "✕ Not this time. The answer is 5 cups." (icon + words, never colour alone), the mistake note if one matched, the worked solution open. Right: "✓ Right." with the working behind "See the working". A Skip button exists; a skip counts as a wrong first try and reads "Skipped. The answer is 5 cups." The student always presses Next (no auto-advance). |
+| DM-11 | **Done screen.** Ungraded: "You got 4 right." (+ "You skipped 1." when any) + "See you next lesson." — no "out of N" (DR-3). Graded adds one line: "Practice score: 4 of 6 (you answered 5 of 6)." The score appears only here. |
+| DM-12 | **Start card.** "Practice · 6 questions · about 10 minutes. One try each; you'll see the working after every answer." + "Your teacher is recording a practice score today." when graded + Start. Nothing is painted until Start (DR-10). |
+| DM-13 | **Words.** Students: "Practice", "question", "Check", "Next", "Stop for now", "practice score"; never "mixed", "session", "discrimination", "step", "due", "planned", "graded". Teachers: "Mixed practice", "items per session", "Record a practice score", "struggling", "first tries right"; never "step" or "discrimination". A test greps the student routes for the banned words (as DR-5's does). |
+| DM-14 | **Visual.** Items render with the viewer's own block components and styles, as in an activity, in the viewer's reading column, with no card chrome. Feedback is one plain inline panel under the answer (icon + verdict in body type, mistake note, working): no coloured left border, no confetti, no motion beyond the viewer's existing reveal. Runner chrome reuses `practice.css`. |
+| DM-15 | **Design system.** No new tokens or components beyond the runner shell; the system is `viewer.css`, `practice.css`, `factsTeacher.css`, `progress.css`; the per-skill table reuses ClassProgress's table styles. A DESIGN.md is filed in TODOS with a trigger. |
+| DM-16 | **Phones and Chromebooks.** One item per screen at every width; on narrow screens Check/Next is pinned to the bottom above the keyboard and the input scrolls into view on focus; figures and tables keep the viewer's narrow-screen behaviour (tables scroll in their own frame); 44 px targets; "Stop for now" at the top bar's right. At 1366×768 a typical item fits above the fold. |
+| DM-17 | **Keyboard and screen reader.** Keyboard-only throughout (Tab to the answer, Enter checks, Enter on Next; math input keeps the viewer's support); the verdict is announced in a polite live region and focus moves to the verdict heading, then Next; the bar carries "Question 3 of 6" for screen readers only (DR-9); "See the working" is a button with `aria-expanded`; teacher table is a real `<table>` with header cells. |
+| DM-18 | **Projector safety.** The per-skill table shows counts only; names, and in graded classes each student's scores, are behind "Show students" and absent from the page until opened; nothing ranks students (DR-19/DR-22). |
+| DM-19 | **One question at a time** (verified: the viewer's Check covers every section since the previous checkpoint, `checkGroups.ts`): the runner hands the viewer a one-section document per item with a checkpoint, so the existing Check checks exactly one item, wired to `mode: 'practice'`. Bank items hold only PB-9's auto-scored blocks; essay, free drawing and self-rated blocks are refused at import with a named error. |
+| DM-20 | **Student rows** behind "Show students": name order only; days practised this week, struggling skills by name (the 3-of-5 rule), and in graded classes the latest practice score as "n of N". No rates, times, ranking or colour-only flags. |
+
+### Screen structure
+
+```
+STUDENT  /practice/:CODE  (= /facts/:CODE)
+  chooser (both on) ─► Practice ─► start card ─► item 1..N ─► done
+                                      │            │  Check → feedback panel → Next
+                                      │            └ Stop for now ─► done (partial)
+                                      └ resume card (same day) / empty states (DM-4)
+
+  ┌ Practice ▬▬▬▬▬▬░░░░░░░░░░░░                  Stop for now ┐
+  │                                                            │
+  │  [question, rendered by the viewer's own blocks]           │
+  │  [answer box]                                              │
+  │                                                 [ Check ]  │
+  │  ─ after Check ──────────────────────────────────────────  │
+  │  ✕ Not this time. The answer is 5 cups.                    │
+  │  It looks like you added 8 instead of scaling.  (mistake)  │
+  │  1 muffin: 3 ÷ 12 = 0.25 cups … (working, 2–4 lines)       │
+  │                                                 [ Next ]   │
+  └────────────────────────────────────────────────────────────┘
+
+TEACHER  class › Practice page
+  Daily facts practice   (existing SprintPanel)
+  Mixed practice
+    On · since 12 Feb            [Turn off]        (or why not, in words)
+    Items per session [6]   Record a practice score [off]
+    Practised today 18 · this week 24
+    Skill | Students practising | Struggling | First tries right (last 5)
+    Show students ▸   (names, days, struggling skills, score if graded)
+```
+
+### State table
+
+| Feature | Loading | Empty | Error | Success | Partial |
+|---|---|---|---|---|---|
+| Entry / chooser | spinner on the class link | DM-4's three messages; off hidden | not a member → "Join the class and start" (DR-1); teacher → "This link is for students" (DR-16) | chooser or start card | resume card (DM-6) |
+| Item | item painted after Start/Next only | — | DM-5 (hold, retry, sign in again) | DM-10 feedback panel | Stop for now → done for answered items |
+| Done | — | — | save of the finish retried silently; one line after 10 s (DR-14) | DM-11 | partial counts (MP-8); DM-7 |
+| Teacher panel | quiet spinner | DM-9 | "Try again" | DM-3 | switch-off with open sessions (DM-8) |
+
+### Storyboard (student, first two wrong)
+
+| Step | Student does | Feels | Specified by |
+|---|---|---|---|
+| 1 | Taps the class link at the end of the lesson | "how long is this?" | DM-1 chooser times, DM-12 start card |
+| 2 | Starts | oriented | DM-12, DM-2 |
+| 3 | Gets Q1 wrong | stung | DM-10: answer first, mistake note, working, Next at own pace |
+| 4 | Gets Q2 wrong | discouraged | no running score (DM-2), no colour-only red, Skip available |
+| 5 | Gets Q3 right | relief | "✓ Right." fast; working one tap away |
+| 6 | Bell rings at Q4 | worried it's lost | Stop for now; partial counts; DM-6 resume |
+| 7 | Done | "I got 3 right" | DM-11 counts what went right; no denominator unless graded and disclosed |
+
+### Copy table
+
+| Where | Student sees | Never |
+|---|---|---|
+| Chooser | "Number facts · about 5 min", "Practice · about 10 min" | "mixed", "session" |
+| Start | "Practice · 6 questions · about 10 minutes. One try each; you'll see the working after every answer." | "step", "due" |
+| Feedback | "✓ Right." / "✕ Not this time. The answer is …" / "Skipped. The answer is …" | "wrong!", colour alone |
+| Done | "You got 4 right." "You skipped 1." "Practice score: 4 of 6 (you answered 5 of 6)." | "planned", "graded" |
+| Empty | DM-4's three lines | the name of a missed activity |
+
+### What already exists (reuse)
+`/facts/:code` route and `FactsEntry`'s view states; `FactRunner`'s start
+card, painted-by-action and silent-save patterns; `practice.css` (runner
+chrome, thin bar); `SprintPanel` (switch, why-not words, end-date ask, "Show
+students"); `ClassProgress` / `progress.css` (tables); the viewer's block
+components, checkpoint sections and Check button.
+
+### NOT in scope (design)
+Mockups (no designer key; revisit with `/design-shotgun` once a key exists);
+a DESIGN.md (TODO, DM-15); the catch-up surface and "mark as taught" (filed
+TODOs); per-student detail beyond DM-20; any Home card beyond the existing
+class link.
+
+### Implementation tasks (for the build, after the gate)
+
+- [ ] **T1 (P1, human ~1 d / CC ~1 h)** — entry — `/practice/:CODE` alias, chooser, Home link target (DM-1). Verify: route tests for both-on / one-on / none-on.
+- [ ] **T2 (P1, human ~3 d / CC ~3 h)** — runner — start card, one-section-per-item viewer docs, feedback panel, Skip, Stop for now, resume card, done screen, practise again (DM-2, 6, 7, 10, 11, 12, 14, 19). Verify: component tests per state; a rendered-output guard that an item doc has exactly one checkpoint.
+- [ ] **T3 (P1, human ~1 d / CC ~1 h)** — runner — offline/sign-out hold-and-retry (DM-5). Verify: e2e stub lane with the connection refused (the offline rows' pattern).
+- [ ] **T4 (P1, human ~2 d / CC ~2 h)** — teacher — Mixed practice panel, states, settings, per-skill table, Show students rows (DM-3, 8, 9, 18, 20). Verify: panel tests; names absent from the DOM until opened.
+- [ ] **T5 (P1, human ~1 d / CC ~1 h)** — a11y + phones — keyboard path, live region, focus moves, pinned action on narrow screens (DM-16, 17). Verify: keyboard-only e2e; 375 px viewport check.
+- [ ] **T6 (P2, human ~2 h / CC ~10 min)** — copy — banned-word test over the student routes (DM-13).
+- [ ] **T7 (P2, human ~2 h / CC ~15 min)** — importer — refuse non-auto-scored blocks in bank items with a named error (DM-19).
+
+## Design Review Completion Summary
+
+```
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | no DESIGN.md; UI scope: 2 screens           |
+  | Step 0               | 2/10; focus: all 7, both screens            |
+  | Pass 1  (Info Arch)  | 2/10 → 9/10 after fixes                     |
+  | Pass 2  (States)     | 1/10 → 9/10 after fixes                     |
+  | Pass 3  (Journey)    | 3/10 → 9/10 after fixes                     |
+  | Pass 4  (AI Slop)    | 4/10 → 8/10 after fixes                     |
+  | Pass 5  (Design Sys) | 5/10 → 8/10 after fixes                     |
+  | Pass 6  (Responsive) | 1/10 → 9/10 after fixes                     |
+  | Pass 7  (Decisions)  | 2 resolved, 0 deferred                      |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (5 items)                           |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | 1 item (DESIGN.md, approved in DM-15)       |
+  | Approved Mockups     | 0 generated (no designer key)               |
+  | Decisions made       | 20 added to plan                            |
+  | Decisions deferred   | 0                                           |
+  | Overall design score | 1/10 → 8/10                                 |
+  +====================================================================+
+```
+
+Passes 4 and 5 stop at 8 because the remaining risk is in rendered pixels:
+run `/design-review` on the built screens. No unresolved decisions.
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run for this pass (scope set by D43 + the parent's CEO review) |
-| Outside Review | in-host subagent (Codex CLI not installed) | Independent 2nd opinion | 1 | issues_found (native, not external) | 10 claims: 8 verified and ruled, 1 partly (OV-4), 1 false (OV-9) |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 15 issues, 0 critical gaps; ER-1…ER-14 all ruled as recommended |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | owed before the student runner and teacher view are built |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run (scope set by D43) |
+| Outside Review | in-host subagents (Codex CLI not installed) | Independent 2nd opinion | 2 | issues_found (native, not external) | eng: 10 claims (8 ruled, 1 partial, 1 false); design (Fable): 11 findings, all folded into DM-1…DM-20 |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 15 issues, 0 critical gaps; ER-1…ER-14 ruled (ER-6, ER-7, ER-10 since amended by C-145) |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 1/10 → 8/10, 20 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | n/a |
 
-- **OUTSIDE COVERAGE:** Codex plan-review phase unavailable (CLI not installed); a native in-host subagent ran instead. No external coverage.
-- **VERDICT:** ENG CLEARED for the design. The build stays GATED on a second ratified chain bank (live 2026-10-19: one, `chain.rate.proportional`, 21 items); run `/plan-design-review` on the student runner and teacher view before building them.
+- **OUTSIDE COVERAGE:** Codex unavailable for both phases (CLI not installed); native in-host subagents ran instead (eng: general-purpose; design: Fable). No external coverage.
+- **VERDICT:** ENG + DESIGN CLEARED for the design. The build stays GATED on a second ratified chain bank (Y9 or above, to be named by the curriculum side); run `/design-review` on the built screens.
 
 NO UNRESOLVED DECISIONS

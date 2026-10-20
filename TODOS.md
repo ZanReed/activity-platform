@@ -126,6 +126,10 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
   student gets no practice on a skill until they check its activity; v1 relies
   on the existing progress views. **Trigger:** a teacher asks where an absent
   student's practice went, or the first late joiner is enrolled.
+- **A DESIGN.md for the app (design review DM-15).** The design system lives
+  only in `viewer.css`, `practice.css`, `factsTeacher.css` and `progress.css`;
+  mixed practice reuses them. **Trigger:** a new surface needs a token that
+  does not exist yet — then run `/design-consultation` and write DESIGN.md.
 - **MP-11 — a NAMED DEPARTURE from D43.** Mixed v1 carries no fluency facts, so a
   below-criterion student in a class with the sprint off gets no fluency work.
   **Trigger:** the first class to switch mixed practice on while its sprint is off.
