@@ -192,6 +192,76 @@ export function checkFactRegistryRevision(registry) {
     return { ok: stated !== null && stated === derived, stated, derived };
 }
 
+/** The seven mixed-practice keys (C-145; their activity_defaults), in order. */
+export const MIXED_KEYS = [
+    'mixed_step_intervals',
+    'mixed_wrong_drop',
+    'mixed_items_per_session',
+    'mixed_max_discrimination',
+    'mixed_new_skills_per_session',
+    'mixed_struggling_window',
+    'mixed_struggling_min_right',
+];
+
+/**
+ * The curriculum side's practice-registry.json (0066; mixed-practice.md →
+ * "The practice registry"), turned into the payload `sync_mixed_settings`
+ * takes: { revision, graph_version, settings }.
+ *
+ * Shape: { header: { generated_from, revision, revision_rule, note },
+ *          body: { <the seven keys, flat, nothing else> } }
+ * — fact-scope-registry.json's header and revision rule, so the caller checks
+ * the revision with checkFactRegistryRevision first. The bounds are their
+ * check L's (B-187) and 0066's mixed_settings_ok: this is the importer's
+ * copy, so a bad file is refused by name before the database's CHECK would
+ * refuse it opaquely. graph_version is read from `generated_from`
+ * ("curriculum-graph.json v0.17.27" → "0.17.27"), null if it names none.
+ */
+export function planPracticeRegistry(json, { path = 'practice registry' } = {}) {
+    const errors = [];
+    const body = json?.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return { ok: false, errors: [`${path}: no body object`] };
+    }
+    const keys = Object.keys(body);
+    const missing = MIXED_KEYS.filter((k) => !(k in body));
+    const extra = keys.filter((k) => !MIXED_KEYS.includes(k));
+    if (missing.length) errors.push(`${path}: body is missing ${missing.join(', ')} (all seven or none)`);
+    if (extra.length) errors.push(`${path}: body has keys outside the agreed seven: ${extra.join(', ')}`);
+    const int = (v) => typeof v === 'number' && Number.isInteger(v);
+    const iv = body.mixed_step_intervals;
+    if ('mixed_step_intervals' in body) {
+        if (!Array.isArray(iv) || iv.length < 1 || iv.length > 50 || !iv.every((v) => int(v) && v >= 1)) {
+            errors.push(`${path}: mixed_step_intervals must be 1–50 whole numbers of days, each ≥ 1`);
+        } else if (iv.some((v, i) => i > 0 && v <= iv[i - 1])) {
+            errors.push(`${path}: mixed_step_intervals must be strictly increasing`);
+        }
+    }
+    for (const k of MIXED_KEYS.slice(1)) {
+        if (k in body && !(int(body[k]) && body[k] >= 0)) errors.push(`${path}: ${k} must be a whole number ≥ 0`);
+    }
+    if (errors.length === 0) {
+        const n = body.mixed_items_per_session;
+        if (n < 1 || n > 50) errors.push(`${path}: mixed_items_per_session must be 1–50`);
+        if (body.mixed_wrong_drop >= iv.length) errors.push(`${path}: mixed_wrong_drop must be less than the number of steps (${iv.length})`);
+        if (body.mixed_max_discrimination > n) errors.push(`${path}: mixed_max_discrimination exceeds mixed_items_per_session`);
+        if (body.mixed_new_skills_per_session > n) errors.push(`${path}: mixed_new_skills_per_session exceeds mixed_items_per_session`);
+        if (body.mixed_struggling_window < 1) errors.push(`${path}: mixed_struggling_window must be ≥ 1`);
+        if (body.mixed_struggling_min_right > body.mixed_struggling_window) errors.push(`${path}: mixed_struggling_min_right exceeds mixed_struggling_window`);
+    }
+    if (errors.length) return { ok: false, errors };
+    const generated = String(json?.header?.generated_from ?? '');
+    return {
+        ok: true,
+        errors: [],
+        mirror: {
+            revision: json.header.revision,
+            graph_version: generated.match(/\bv(\d[\w.-]*)/)?.[1] ?? null,
+            settings: Object.fromEntries(MIXED_KEYS.map((k) => [k, body[k]])),
+        },
+    };
+}
+
 /** A hook id and a chain id, as the C-97 contract writes them (and 0057's CHECKs). */
 export const HOOK_ID_RE = /^hook\.[a-z0-9][a-z0-9.-]*$/;
 export const CHAIN_ID_RE = /^chain\.[a-z0-9][a-z0-9.-]*$/;
@@ -299,12 +369,28 @@ export function updatePayload(file, converted, now = new Date().toISOString()) {
         // reads it as the teaching order, so a stale one would sort the outline
         // by where files USED to be.
         source_path: file.sourcePath,
+        // primary_skill (0066, ER-3): the file's `skill:`, the join mixed
+        // practice's "taught" pool reads. IDENTITY, like source_path: it never
+        // decides "unchanged", so a backfill or a `skill:` edit alone goes to
+        // pathOnly and never writes a draft onto a published activity.
+        primary_skill: primarySkillOf(converted),
         updated_at: now,
     };
 }
 
+/** The file's `skill:` as the row stores it (NULL when the file has none). */
+export function primarySkillOf(converted) {
+    return converted.primarySkill ?? null;
+}
+
 /** Fields that never decide "unchanged": identity, bookkeeping, the clock. */
-const NOT_CONTENT = new Set(['source_path', 'source_key', 'source_fingerprint', 'updated_at']);
+const NOT_CONTENT = new Set([
+    'source_path',
+    'source_key',
+    'source_fingerprint',
+    'primary_skill',
+    'updated_at',
+]);
 
 const MINTED_ID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\bg[0-9a-f]{32}\b/g;
 
@@ -344,8 +430,10 @@ export function contentKey(fields, documentSchema) {
  * Split planned updates by what they would actually change.
  *
  *   pathOnly  — content unchanged but the row needs identity written (the
- *               file MOVED, or the row ADOPTS its key): write source_path /
- *               source_key only. Ruling (b): a renamed chain folder must not
+ *               file MOVED, the row ADOPTS its key, or its primary_skill
+ *               differs from the file's `skill:` — 0066's backfill and any later
+ *               `skill:` edit, ER-3): write source_path / source_key /
+ *               primary_skill only. Ruling (b): a renamed chain folder must not
  *               put identical drafts on published activities.
  *   unchanged — content unchanged, same path, nothing to adopt: write NOTHING
  *               (the agreed extension; retires the empty-folder workaround
@@ -357,6 +445,24 @@ export function contentKey(fields, documentSchema) {
  * Fails SAFE: no current content, or a row whose fingerprint was never written
  * (the guard arms only on a full write), always goes to `full`.
  */
+/**
+ * What a path-only write sends: identity and nothing else — not the draft, not
+ * the fingerprint (the stored one still describes the stored draft), not
+ * updated_at (a move is not an edit; the recency strip must not move).
+ */
+export function pathOnlyPayload(file, converted) {
+    return {
+        source_path: file.sourcePath,
+        ...(file.key ? { source_key: file.key } : {}),
+        primary_skill: primarySkillOf(converted),
+    };
+}
+
+/** Does the row's stored primary_skill differ from the file's `skill:`? */
+export function needsSkill({ row, converted }) {
+    return (row.primary_skill ?? null) !== primarySkillOf(converted);
+}
+
 export function classifyUpdates(planned, currentContentFor, documentSchema) {
     const pathOnly = [];
     const unchanged = [];
@@ -378,7 +484,7 @@ export function classifyUpdates(planned, currentContentFor, documentSchema) {
             contentKey(updatePayload(file, converted), documentSchema) ===
             contentKey(now, documentSchema);
         if (!same) full.push(entry);
-        else if (entry.moved || entry.adoptsKey) pathOnly.push(entry);
+        else if (entry.moved || entry.adoptsKey || needsSkill(entry)) pathOnly.push(entry);
         else unchanged.push(entry);
     }
     return { pathOnly, unchanged, full };
@@ -2338,7 +2444,7 @@ export function makeDb(url, key) {
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
                     '&select=id,source_path,source_key,status,title,tags,' +
                     'pedagogical_role,course,unit,draft_content,' +
-                    'source_fingerprint,current_version_id',
+                    'source_fingerprint,current_version_id,primary_skill',
             );
         },
 
@@ -2464,6 +2570,19 @@ export function makeDb(url, key) {
          * The hook mirror (0057 CH-3/CH-5): ONE atomic service RPC, the glossary's
          * shape. apply=false computes the identical report and writes nothing.
          */
+        /**
+         * The mixed-practice settings mirror (0066): ONE service RPC,
+         * insert-only. apply=false reports and writes nothing; an identical
+         * revision is `unchanged`; the same revision with different settings
+         * raises.
+         */
+        syncMixedSettings(mirror, apply) {
+            return call('/rpc/sync_mixed_settings', {
+                method: 'POST',
+                body: JSON.stringify({ p_mirror: mirror, p_apply: apply }),
+            });
+        },
+
         syncChainHooks(ownerId, hooks, apply) {
             return call('/rpc/sync_chain_hooks', {
                 method: 'POST',
@@ -2525,6 +2644,7 @@ export function parseArgs(argv) {
     let glossary = null;
     let factRegistry = null;
     let hookRegistry = null;
+    let practiceRegistry = null;
     let allowMassRetire = false;
     let allowUnretire = false;
 
@@ -2569,6 +2689,9 @@ export function parseArgs(argv) {
         else if (arg === '--hook-registry') hookRegistry = argv[++i] ?? null;
         else if (arg.startsWith('--hook-registry='))
             hookRegistry = arg.slice('--hook-registry='.length);
+        else if (arg === '--practice-registry') practiceRegistry = argv[++i] ?? null;
+        else if (arg.startsWith('--practice-registry='))
+            practiceRegistry = arg.slice('--practice-registry='.length);
         else if (arg === '--allow-mass-retire') allowMassRetire = true;
         else if (arg === '--allow-unretire') allowUnretire = true;
         else if (arg.startsWith('--')) throw new Error(`unknown flag ${arg}`);
@@ -2587,6 +2710,7 @@ export function parseArgs(argv) {
         glossary,
         factRegistry,
         hookRegistry,
+        practiceRegistry,
         allowMassRetire,
         allowUnretire,
     };
@@ -2601,6 +2725,7 @@ export function usageText() {
                              [--skills-registry <file>]
                              [--chain-registry <file>] [--glossary <file>]
                              [--fact-registry <file>] [--hook-registry <file>]
+                             [--practice-registry <file>]
                              [--allow-mass-retire] [--allow-unretire] [--strict]
 
   <folder>     the catalogue folder; every .md under it is imported, keyed on
@@ -2649,6 +2774,14 @@ export function usageText() {
                run MIRRORS the pools into the hook store: new and changed hooks
                are written, hooks no longer in the file are RETIRED (never
                deleted). --dry-run --hook-registry checks and reports, writes nothing
+  --practice-registry
+               the curriculum side's practice-registry.json (0066): the seven
+               mixed-practice settings. Its revision is re-derived and must
+               match; a body that is not exactly the seven keys, in range, stops
+               the run before any write. The run MIRRORS the settings,
+               insert-only: an identical revision writes nothing. A class's
+               mixed practice cannot be switched on until one is mirrored.
+               --dry-run --practice-registry checks and reports, writes nothing
   --allow-mass-retire
                let a live --glossary or --hook-registry run retire more than 25
                entries, or more than 20% of the active ones (and more than 5).
@@ -2862,6 +2995,38 @@ async function main() {
             process.exit(1);
         }
         hookFile = { path: args.hookRegistry, revision: revision.derived, ...plan };
+    }
+
+    // The practice registry (0066), read, REVISION-CHECKED and shape-checked
+    // up front, like the hook registry: a refused file stops the run.
+    let practiceFile = null;
+    if (args.practiceRegistry) {
+        const path = resolve(args.practiceRegistry);
+        const text = await readFile(path, 'utf8').catch(() => null);
+        if (text === null) usage(`--practice-registry ${path} could not be read.`);
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (err) {
+            usage(`--practice-registry ${path} is not JSON (${err.message}).`);
+        }
+        const revision = checkFactRegistryRevision(parsed);
+        if (!revision.ok) {
+            usage(
+                `--practice-registry ${path}: the stated revision does not match its body.\n\n` +
+                    `  stated : ${revision.stated}\n  derived: ${revision.derived}\n\n` +
+                    '  The revision is the sha256 of the canonical body. A file that disagrees\n' +
+                    '  was edited by hand or truncated; read it from the curriculum repo\'s main.',
+            );
+        }
+        const plan = planPracticeRegistry(parsed, { path: args.practiceRegistry });
+        if (!plan.ok) {
+            console.error(`\nREFUSED — ${args.practiceRegistry} cannot be mirrored. Nothing was written.\n`);
+            for (const e of plan.errors) console.error(`  ${e}`);
+            console.error('\n  The shape is the B-193 contract; a file outside it is an ask-back to the\n  curriculum side, not a fix in this file.\n');
+            process.exit(1);
+        }
+        practiceFile = { path: args.practiceRegistry, mirror: plan.mirror };
     }
 
     try {
@@ -3439,6 +3604,24 @@ async function main() {
     // database that predates 0057, loudly, and --strict fails the run.
     let hookPlan = null;
     let hookMirrorFailed = null;
+    // The practice-settings plan (0066), from the database's own dry run. The
+    // same revision with DIFFERENT settings is not a warning: the run stops.
+    let practicePlan = null;
+    let practiceMirrorFailed = null;
+    if (practiceFile) {
+        try {
+            practicePlan = await db.syncMixedSettings(practiceFile.mirror, false);
+        } catch (err) {
+            if (!isMissingRelation(err.message)) {
+                console.error(`\nREFUSED — the practice-settings mirror: ${err.message}\nNothing was written.\n`);
+                process.exit(1);
+            }
+            practiceMirrorFailed =
+                'sync_mixed_settings is missing (migration 0066 not applied) — the file was ' +
+                'checked but not mirrored. Apply 0066 and re-run.';
+        }
+    }
+
     if (hookFile) {
         try {
             hookPlan = await db.syncChainHooks(owner.id, hookFile.hooks, false);
@@ -3553,12 +3736,14 @@ async function main() {
     for (const { file, converted } of plannedCreates) {
         console.log(`  create  ${file.sourcePath}  →  “${converted.title}”`);
     }
-    for (const { file, row } of pathOnly) {
-        // Content identical to what the row holds now; only where the file sits
-        // (or its key) is written — no draft lands on a published activity.
+    for (const entry of pathOnly) {
+        const { file, row } = entry;
+        // Content identical to what the row holds now; only where the file sits,
+        // its key, or its skill is written — no draft lands on a published activity.
         console.log(
             `  path    ${file.sourcePath}  (content unchanged — path only` +
-                `${row.source_path && row.source_path !== file.sourcePath ? `, was ${row.source_path}` : ''})`,
+                `${row.source_path && row.source_path !== file.sourcePath ? `, was ${row.source_path}` : ''}` +
+                `${needsSkill(entry) ? `, skill ${row.primary_skill ?? '(none)'} → ${primarySkillOf(entry.converted) ?? '(none)'}` : ''})`,
         );
     }
     for (const { file } of unchanged) {
@@ -3839,6 +4024,33 @@ async function main() {
         }
     }
 
+    // ---- the practice-settings report (0066) --------------------------------
+    if (practiceFile) {
+        const m = practiceFile.mirror;
+        console.log('\nmixed practice settings:');
+        console.log(
+            `  file     : ${practiceFile.path} · revision ${m.revision.slice(0, 8)}… · ` +
+                `graph v${m.graph_version ?? '?'}`,
+        );
+        for (const k of MIXED_KEYS) console.log(`    ${k.padEnd(30)} ${JSON.stringify(m.settings[k])}`);
+        if (practicePlan) {
+            const latest = practicePlan.latest_before;
+            console.log(
+                `  store    : ${
+                    practicePlan.status === 'unchanged'
+                        ? 'unchanged — this revision is already mirrored; nothing to write'
+                        : `NEW revision — ${args.dryRun ? 'would be' : 'to be'} mirrored`
+                }${
+                    latest && practicePlan.status !== 'unchanged'
+                        ? ` (latest mirrored: ${String(latest.revision).slice(0, 8)}…)`
+                        : ''
+                }`,
+            );
+        } else if (practiceMirrorFailed) {
+            console.log(`  store    : ⚠ ${practiceMirrorFailed}`);
+        }
+    }
+
     // ---- the x_ receipt -----------------------------------------------------
     // The reserved namespace is unvalidated BY DESIGN — it carries the
     // curriculum builder's own item-level data, which this platform stores
@@ -3936,6 +4148,7 @@ async function main() {
                         glossaryMirrorFailed !== null ||
                         factScopeMirrorFailed !== null ||
                         hookMirrorFailed !== null ||
+                        practiceMirrorFailed !== null ||
                         bankMirrorFailed !== null))
                 ? 1
                 : 0,
@@ -4068,6 +4281,23 @@ async function main() {
         }
     }
 
+    // The practice-settings mirror (0066): one RPC, before any activity write.
+    if (practicePlan && practicePlan.status === 'new') {
+        try {
+            const mirrored = await db.syncMixedSettings(practiceFile.mirror, true);
+            // From the database's echo, never from the plan.
+            console.log(
+                `practice  : ${mirrored.status} — revision ${practiceFile.mirror.revision.slice(0, 8)}…`,
+            );
+        } catch (err) {
+            practiceMirrorFailed = err.message;
+            console.warn(
+                `⚠ practice-settings mirror FAILED (${err.message}).\n` +
+                    '  Nothing was written to the settings store. The import itself continues.',
+            );
+        }
+    }
+
     // The hook mirror (0057): one atomic RPC, before any activity write.
     // Fail-soft and loud, like the glossary's; --strict fails the run.
     if (hookFile && hookPlan && hookMirrorFailed === null) {
@@ -4131,12 +4361,9 @@ async function main() {
     // fingerprint (the stored one still describes the stored draft), not
     // updated_at (a move is not an edit; the recency strip must not move).
     let pathOnlyWritten = 0;
-    for (const { file, row, adoptsKey, moved: didMove } of pathOnly) {
+    for (const { file, row, converted, adoptsKey, moved: didMove } of pathOnly) {
         try {
-            await db.update(row.id, {
-                source_path: file.sourcePath,
-                ...(file.key ? { source_key: file.key } : {}),
-            });
+            await db.update(row.id, pathOnlyPayload(file, converted));
             pathOnlyWritten++;
             if (adoptsKey) adopted++;
             if (didMove) moved++;
@@ -4161,6 +4388,7 @@ async function main() {
                         slug: pipeline.slugWithSuffix(base, attempt),
                         source_path: file.sourcePath,
                         source_key: file.key ?? null,
+                        primary_skill: primarySkillOf(converted),
                         draft_content: converted.document,
                         tags: converted.tags,
                         pedagogical_role: converted.pedagogicalRole,
@@ -4232,6 +4460,7 @@ async function main() {
                     glossaryMirrorFailed !== null ||
                     factScopeMirrorFailed !== null ||
                     hookMirrorFailed !== null ||
+                    practiceMirrorFailed !== null ||
                     bankMirrorFailed !== null ||
                     registryMirrorFailed))
             ? 1

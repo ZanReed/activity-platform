@@ -141,6 +141,23 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
   with sprint history, or the sprint's next migration (whichever first) —
   derive from `sprint_sessions.practice_day`, which already exists.
 
+- **⚠ `prune_mixed_practice` (0066) — the ARMING checklist; do NOT arm without
+  the author's explicit yes.** It deletes students' practice answers (and, for
+  unscored sessions, the session rows). Held back only by being unscheduled and
+  dry-run by default (verify-0066's `prune_is_unscheduled` row fails if a cron
+  job names it). Steps, in order, the cron row last: (1) a counsel question
+  (a Q12 in counsel-review-packet.md: the mixed-practice window, and the
+  ER-7 rule that a recorded practice score outlives its answers); (2) 0066
+  applied live and verify-0066 green live; (3) two dry-run reports a week apart,
+  each explained session by session; (4) every class with mixed practice on has
+  a real end date (the switch already refuses without one); (5) the author's
+  yes; (6) the cron row.
+- **Mixed practice's "taught" day is read from `section_checks.created_at` in
+  the CURRENT class zone (0066 `mixed_taught`).** A check stores no practice
+  day, so a teacher's timezone change can move a first check across midnight —
+  the same latent issue as the sprint's (ER-12, the row above); attempts are
+  safe (they store `practice_day`). **Trigger:** the same as the row above.
+
 ## BUILD ORDER — ruled by the author 2026-10-02 (sequencing review)
 
 The author asked for a ranking of every open arc "to stop reacting to whichever
@@ -172,7 +189,8 @@ the queue. An entry's own Priority line below does not outrank it.**
    mixed practice + scheduler gated on TWO chains with ratified §17 banks;
    period assembly last. **Mixed practice GATE LIFTED by the author 2026-10-20
    ("build now, test on chain 1, launch is my switch"); BUILD IN PROGRESS in
-   four slices (mixed-practice.md → "Build slices"). Mixed practice DESIGN RULED + ENG-CLEARED 2026-10-19
+   four slices (mixed-practice.md → "Build slices"); slice 1 (data + engine,
+   0066) BUILT 2026-10-20, unpushed, not live. Mixed practice DESIGN RULED + ENG-CLEARED 2026-10-19
    (author: design only; [mixed-practice.md](docs/design/mixed-practice.md):
    MP-1…MP-15 + ER-1…ER-14 ruled, 0 unresolved). BUILD STILL GATED on a second
    ratified chain bank (one live). Letters B-184 + B-185 SENT 2026-10-20;

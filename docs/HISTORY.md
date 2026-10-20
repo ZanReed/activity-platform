@@ -1,5 +1,13 @@
 # HISTORY.md
 
+**▶ Moved out of STATE 2026-10-20 (closed records, nothing owed).** Kept verbatim:
+
+**Closed 2026-10-10…12, nothing owed:** arrowhead Drops 1+2 (graded free vectors) live; 714 transformations + 715 nets imported, PUBLISHED and Bank-listed; figure grammar published as data (pinned at their `f0309d0`); shown-segment open/closed refused; number-line tolerance follows the tick step (`2d0a2886`).
+
+**Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06.
+
+**Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
+
 **▶ Moved out of STATE 2026-10-12 (closed record, nothing owed).** Kept verbatim:
 
 **CHAIN HOOK VIEW is LIVE (2026-10-08):** 0057 applied (verify-0057 12/12 live; 0054/0055/0056/0043 still green), pushed at `c9f9eedc` (CI green), 13 hooks mirrored from the curriculum `71dd581` file and read back live (5 chains; Zan's account sees rate, triangles, parallel-lines). Nothing owed. Re-mirror with `--hook-registry` on any import; from an EMPTY folder it also rewrites the docs manifests — restore them with `git checkout -- docs/*manifest* docs/skill-coverage.json` ([chain-hooks-view.md](docs/design/chain-hooks-view.md)).

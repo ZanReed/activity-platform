@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
+**MIXED PRACTICE SLICE 1 BUILT 2026-10-20, UNPUSHED, NOT LIVE** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 1 — as built"). A Fable review of 0066 is offered first. Then: (1) apply 0066 live; (2) `pnpm verify:auth --target live --only verify-0066`, and verify-0050 (purge v7); (3) `pnpm import:batch` DRY RUN — every catalogue row `path … skill (none) → <skill>`, NO `update` lines (ER-3) — then the real run; (4) when their `practice-registry.json` lands (B-193), import with `--practice-registry`; until then no class can switch mixed practice on. Push after (1).
+
 **701 place-value LIVE (2026-10-13).**
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin BUILT, unpushed:** app-only, live on push (no deploy); then confirm in logs (TODOS item 4).
@@ -30,14 +32,11 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
 
-**D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled. Mixed practice: [building](docs/design/mixed-practice.md). Liaison: B-192 sent; C-147 next.
-**Closed 2026-10-10…12, nothing owed:** arrowhead Drops 1+2 (graded free vectors) live; 714 transformations + 715 nets imported, PUBLISHED and Bank-listed; figure grammar published as data (pinned at their `f0309d0`); shown-segment open/closed refused; number-line tolerance follows the tick step (`2d0a2886`).
+**D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled. Mixed practice: slice 1 built (above). Liaison: B-192 sent; C-147 next.
 
-**Closed 2026-10-07, nothing owed:** teacher guides (D50), quiz/exam types (D51), the Activity Bank (0054) and its filters + opt-in authors (0055) — all LIVE and verified; records in [HISTORY.md](docs/HISTORY.md) → "Moved out of STATE 2026-10-08". Bank: 8 listed (three units), design in [activity-bank.md](docs/design/activity-bank.md).
 
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
-**Y7 charts, graded stimuli and side-by-side figures are LIVE (2026-10-04)**, each redeployed and verified by hash; nothing owed. The three records moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-06.
 
 **The daily facts practice (D43 slice 2, LIVE 2026-10-06) and the 0048 apply (prune DISARMED)** are closed records, moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-07; what is still owed on the prune is the D24 paragraph below and TODOS → the ARMING checklist.
 

@@ -86,8 +86,12 @@ export interface BankFileResult {
 
 const KNOWN_META = new Set(['kind', 'status', 'skill', 'role', 'chain', 'discriminates', 'title', 'course']);
 
-/** Blocks a bank item may not contain (PB-9): ungradable responses and
- *  teaching blocks. Prose, maths, glossary marks and display stimuli are fine. */
+/** Blocks a bank item may not contain (PB-9, and DM-19 for mixed practice:
+ *  one auto-scored item at a time): ungradable responses and teaching blocks.
+ *  Prose, maths, glossary marks and display stimuli are fine. The grader
+ *  RECORDS free text and never marks it (FREE_TEXT_TYPES in the viewer's
+ *  grading/walk.ts), so every one of those is here; the schema has no
+ *  free-drawing or self-rated block today — a future one joins this list. */
 const REFUSED_BLOCKS: Record<string, string> = {
     short_answer: 'a short-answer response (not auto-scorable)',
     essay: 'an essay response (not auto-scorable)',
@@ -304,7 +308,11 @@ function blockCensus(doc: ActivityDocument): { refused: string[]; graded: number
         const o = node as Record<string, unknown>;
         const t = typeof o.type === 'string' ? o.type : '';
         if (t in REFUSED_BLOCKS) refused.add(REFUSED_BLOCKS[t]!);
-        if (GRADED_BLOCKS.has(t) || t === 'blank') graded++;
+        // A graph-family block drawn only from `show:` lines has interaction
+        // `display`: a stimulus the grader returns no verdict for, so it marks
+        // nothing (DM-19) and must not satisfy "at least one graded response".
+        const interaction = (o.interaction as { type?: unknown } | undefined)?.type;
+        if ((GRADED_BLOCKS.has(t) && interaction !== 'display') || t === 'blank') graded++;
         if (Array.isArray(o.prompts) && typeof o.latex === 'string') graded += o.prompts.length;
         for (const v of Object.values(o)) if (v !== null && typeof v === 'object') visit(v);
     };
@@ -455,8 +463,8 @@ export function parseBankFile(markdown: string, options: ParseBankFileOptions): 
         const doc = parsed.data;
 
         const census = blockCensus(doc);
-        for (const r of census.refused) problems.push(`${where} ${r} — a bank item is auto-scorable only (PB-9).`);
-        if (census.graded === 0) problems.push(`${where} no graded response — every bank item asks for at least one (PB-9).`);
+        for (const r of census.refused) problems.push(`${where} ${r} — a bank item is auto-scorable only (PB-9, DM-19).`);
+        if (census.graded === 0) problems.push(`${where} no graded response — every bank item asks for at least one (PB-9, DM-19).`);
 
         const refs = collectRefs(doc);
         if (refs.unparsedBlank) {

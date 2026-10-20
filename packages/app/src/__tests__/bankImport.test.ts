@@ -213,6 +213,21 @@ describe('PB-1/2/3/7/9/10 and BE-6/BE-7', () => {
         expect(r.problems.join()).toMatch(/t1: no graded response/);
     });
 
+    it('DM-19: every free-text response is refused by name; a display-only graph grades nothing', () => {
+        for (const [fence, name] of [
+            ['essay', /an essay response \(not auto-scorable\) — a bank item is auto-scorable only \(PB-9, DM-19\)/],
+            ['shortanswer', /a short-answer response \(not auto-scorable\)/],
+            ['explain', /an explain\/self-explanation response \(not auto-scorable\)/],
+        ] as const) {
+            const r = parse(bank('a: list 1', `## t1\n\n{{=a}} {a}\n\n\`\`\`${fence}\nprompt: Why?\n\`\`\``));
+            expect(r.problems.join(), fence).toMatch(name);
+        }
+        const shown = parse(bank('a: list 1', '## t1\n\n{a} is shown.\n\n```graph\nshow: point (1, 1)\n```\n\n## t2\n\n{{=1}}'));
+        expect(shown.problems.join()).toMatch(/t1: no graded response/);
+        const asked = parse(bank('a: list 1', '## t1\n\n{a}: plot it.\n\n```graph\nanswer: (1, 1)\n```\n\n## t2\n\n{{=1}}'));
+        expect(asked.problems.join()).not.toMatch(/t1: no graded response/);
+    });
+
     it('a {name} inside maths is refused (R2), an undeclared {name} is refused', () => {
         const r = parse(bank('a: list 2', '## t1\n\nSolve $x = {a}$ for {a}: {{=a}}\n\n## t2\n\n{ghost} {{=1}}'));
         expect(r.problems.join()).toMatch(/\{a\} is inside maths/);

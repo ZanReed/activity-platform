@@ -40,6 +40,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 
 import {
     bindingWarningsFor,
@@ -48,6 +49,9 @@ import {
     checkFactRegistryRevision,
     chainFolderOf,
     classifyUpdates,
+    pathOnlyPayload,
+    planPracticeRegistry,
+    MIXED_KEYS,
     contentKey,
     updatePayload,
     coverageJson,
@@ -460,6 +464,53 @@ test('§A3 classify: moved+unchanged → PATH ONLY; same path → UNCHANGED; ado
     assert.deepEqual([r.pathOnly.length, r.unchanged.length, r.full.length], [2, 1, 0]);
     assert.equal(r.pathOnly[0], moved);
     assert.equal(r.unchanged[0], still);
+});
+
+// ER-3 (0066): primary_skill is IDENTITY. The first run after 0066 backfills
+// every catalogue row that predates the column; that run must not put a draft
+// on a single published activity.
+const SKILLED = SAMPLE.replace('role: practice', 'role: practice\nskill: rate.unit-rate');
+
+test('§A3 ER-3 a primary_skill BACKFILL on a published row is PATH ONLY and writes no draft', () => {
+    const row = storedRowFor(SKILLED);
+    const published = { ...row, draft_content: null, current_version_id: 'v-9', primary_skill: null };
+    const out = convertOne(pipeline, SKILLED, published, PATH);
+    assert.equal(out.primarySkill, 'rate.unit-rate', 'the fixture must carry a skill: line');
+    const versions = new Map([['v-9', row.draft_content]]);
+    const r = classifyUpdates(
+        [{ file: fileAt(PATH, 'act.x'), row: published, converted: out, moved: false, adoptsKey: false }],
+        (rw) => versions.get(rw.current_version_id) ?? null,
+        SCHEMA,
+    );
+    assert.deepEqual([r.pathOnly.length, r.unchanged.length, r.full.length], [1, 0, 0]);
+    // Bound to what is WRITTEN: identity only — no draft, no fingerprint, no clock.
+    assert.deepEqual(pathOnlyPayload(fileAt(PATH, 'act.x'), out), {
+        source_path: PATH,
+        source_key: 'act.x',
+        primary_skill: 'rate.unit-rate',
+    });
+});
+
+test('§A3 ER-3 a row already holding its skill is UNCHANGED; a `skill:` edit alone is PATH ONLY', () => {
+    const row = storedRowFor(SKILLED, { primary_skill: 'rate.unit-rate' });
+    const out = convertOne(pipeline, SKILLED, row, PATH);
+    const same = classifyUpdates([{ file: fileAt(PATH), row, converted: out, moved: false, adoptsKey: false }], () => null, SCHEMA);
+    assert.equal(same.unchanged.length, 1, 'a re-run after the backfill writes nothing');
+    const edited = SKILLED.replace('skill: rate.unit-rate', 'skill: rate.proportional-graph');
+    const out2 = convertOne(pipeline, edited, row, PATH);
+    const moved = classifyUpdates([{ file: fileAt(PATH), row, converted: out2, moved: false, adoptsKey: false }], () => null, SCHEMA);
+    assert.equal(moved.pathOnly.length, 1, 'a skill edit is identity, never a draft');
+    assert.equal(pathOnlyPayload(fileAt(PATH), out2).primary_skill, 'rate.proportional-graph');
+});
+
+test('§A3 ER-3 a CONTENT edit takes the full update and carries the skill with it', () => {
+    const row = storedRowFor(SKILLED);
+    const out = convertOne(pipeline, SKILLED.replace('mitochondria', 'mitochondrion'), row, PATH);
+    const r = classifyUpdates([{ file: fileAt(PATH), row, converted: out, moved: false, adoptsKey: false }], () => null, SCHEMA);
+    assert.equal(r.full.length, 1);
+    assert.equal(updatePayload(fileAt(PATH), out).primary_skill, 'rate.unit-rate');
+    // A file with no skill: writes NULL (an app-authored activity's value).
+    assert.equal(updatePayload(fileAt(PATH), convertOne(pipeline, SAMPLE, null, PATH)).primary_skill, null);
 });
 
 test('§A3 classify compares a PUBLISHED row (no draft) against its current version', () => {
@@ -1686,6 +1737,7 @@ test('§I --strict and --misconception-registry parse, in either form', () => {
             glossary: null,
             factRegistry: null,
             hookRegistry: null,
+            practiceRegistry: null,
             allowMassRetire: false,
             allowUnretire: false,
         },
@@ -3068,4 +3120,68 @@ test('banks review fixes: CRLF / indented-position meta, duplicate ids skip, --a
     // #8 its own flag, independent of --force.
     assert.equal(parseArgs(['f', '--owner', 'o', '--allow-unretire']).allowUnretire, true);
     assert.equal(parseArgs(['f', '--owner', 'o', '--force']).allowUnretire, false);
+});
+
+// =============================================================================
+// The practice registry (0066; mixed-practice.md → "The practice registry")
+// =============================================================================
+
+const MIXED_BODY = {
+    mixed_step_intervals: [1, 3, 7, 14, 28],
+    mixed_wrong_drop: 1,
+    mixed_items_per_session: 6,
+    mixed_max_discrimination: 1,
+    mixed_new_skills_per_session: 2,
+    mixed_struggling_window: 5,
+    mixed_struggling_min_right: 3,
+};
+function practiceRegistry(body) {
+    return {
+        header: {
+            generated_from: 'curriculum-graph.json v0.17.27',
+            revision: createHash('sha256').update(canonicalJson(body), 'utf8').digest('hex'),
+            revision_rule: 'sha256 of the canonical JSON body (sort_keys, no whitespace, UTF-8), header excluded',
+            note: 'GENERATED',
+        },
+        body,
+    };
+}
+
+test('practice registry: the agreed file plans the exact sync_mixed_settings payload', () => {
+    const file = practiceRegistry(MIXED_BODY);
+    assert.equal(checkFactRegistryRevision(file).ok, true, 'same header + revision rule as the fact scope');
+    const plan = planPracticeRegistry(file);
+    assert.equal(plan.ok, true, plan.errors.join('; '));
+    assert.deepEqual(plan.mirror, {
+        revision: file.header.revision,
+        graph_version: '0.17.27',
+        settings: MIXED_BODY,
+    });
+    assert.deepEqual(MIXED_KEYS.slice().sort(), Object.keys(MIXED_BODY).sort());
+});
+
+test('practice registry: all seven or none, nothing else, and check L\'s bounds — each refused by name', () => {
+    const refuse = (body, re) => {
+        const plan = planPracticeRegistry(practiceRegistry(body));
+        assert.equal(plan.ok, false, `accepted ${JSON.stringify(body)}`);
+        assert.match(plan.errors.join('; '), re);
+    };
+    const { mixed_wrong_drop: _drop, ...six } = MIXED_BODY;
+    refuse(six, /missing mixed_wrong_drop/);
+    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed seven: mixed_extra/);
+    refuse({ ...MIXED_BODY, mixed_step_intervals: [1, 3, 3] }, /strictly increasing/);
+    refuse({ ...MIXED_BODY, mixed_step_intervals: [0, 3] }, /each ≥ 1/);
+    refuse({ ...MIXED_BODY, mixed_wrong_drop: 5 }, /less than the number of steps/);
+    refuse({ ...MIXED_BODY, mixed_new_skills_per_session: 7 }, /new_skills_per_session exceeds/);
+    refuse({ ...MIXED_BODY, mixed_max_discrimination: 7 }, /max_discrimination exceeds/);
+    refuse({ ...MIXED_BODY, mixed_struggling_min_right: 6 }, /min_right exceeds/);
+    refuse({ ...MIXED_BODY, mixed_items_per_session: 0 }, /1–50/);
+    refuse({ ...MIXED_BODY, mixed_wrong_drop: 1.5 }, /whole number/);
+    assert.equal(planPracticeRegistry({ header: {} }).ok, false);
+});
+
+test('practice registry: --practice-registry parses in either form', () => {
+    assert.equal(parseArgs(['~/cat', '--practice-registry', 'p.json']).practiceRegistry, 'p.json');
+    assert.equal(parseArgs(['~/cat', '--practice-registry=p.json']).practiceRegistry, 'p.json');
+    assert.equal(parseArgs(['~/cat']).practiceRegistry, null);
 });
