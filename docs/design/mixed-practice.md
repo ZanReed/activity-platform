@@ -1,16 +1,12 @@
 # Mixed practice — the session, the pool, the scheduler (D43, design pass)
 
-**Status:** DESIGN PASS RULED + ENG-REVIEWED 2026-10-19 — **MP-1…MP-15 ruled
-by the author** (14 as recommended; MP-9 AMENDED: a per-class grading toggle)
-and **ER-1…ER-14 ruled** (all as recommended; ER-10 amends MP-2's taught
-signal, ER-4 amends MP-5). **Design-reviewed 2026-10-20 (DM-1…DM-20).** Letters B-184 and B-185 SENT 2026-10-20; C-145 awaited. **Build nothing until
-a second chain's bank is ratified.** The author ruled to start the pass early, **design only**: the build
-still waits for its gate (two chains with RATIFIED banks; premise 8). Live on
-2026-10-19: ONE chain ratified (`chain.rate.proportional`, 21 items; re-checked
-live the same day with the query in the Hand-off). Reason for starting early:
-first classes are ~early February 2027 and this is a joint contract with the
-curriculum side, the case CLAUDE.md's intake rule names ("a wish with a
-long-lead joint contract gets its DESIGN pass early and nothing else").
+**Status:** **GATE LIFTED by the author 2026-10-20: "I lift the gate (build now,
+test on chain 1, launch is my switch)."** The build starts now and is tested
+against chain 1's ratified bank; switching mixed practice on for a real class
+stays the author's call (MP-14). Design RULED + ENG-REVIEWED 2026-10-19
+(MP-1…MP-15, ER-1…ER-14) and DESIGN-REVIEWED 2026-10-20 (DM-1…DM-20), as
+amended by C-145 and C-146 (both accepted, both closed). Build in four slices
+(see "Build slices"), Opus builds, a Fable review before each slice goes live.
 
 Parents: [practice-blocks.md](practice-blocks.md) (premises 1–8; "Mixed
 practice, the diagnostic's skill half, period assembly" — deferred to this pass)
@@ -690,6 +686,33 @@ Shas at sending: curriculum `main` 4f8f08c, platform `main` b5060a09.
 | 5 | No conflicts in substance. Minutes from the class's item count, not a fixed "about 10"; "You can see the working" instead of "you'll see"; keep per-skill first-try data for their owed item 6 (the practice record); "Stop for now" fine. The seven never-seen words agreed. | DM-1, DM-12 amended; first tries are stored per attempt (ER-9), so the record's data exists. |
 
 Owed by them: §17's explicit wording for point 2. **DONE** at their `1ff3217` (PR #75, graph v0.17.27): "The solution is shown after the first try: open after a wrong or skipped try, one tap away after a right one (C-146)." Matches DM-10; stamp refreshed (B-192). C-146 closed both sides.
+
+## Build slices — ruled 2026-10-20 (gate lifted)
+
+Each slice is its own session; each is live before the next one calls it
+(CLAUDE.md: migration before function, function before SPA push). Every slice
+starts with a P10 re-derive against the code and ends with a Fable review
+before its live step.
+
+1. **Data + engine.** One migration: `activities.primary_skill`;
+   `mixed_sessions`, `mixed_attempts`, `mixed_session_items` (ER-4); the
+   class switch + settings (items per session, graded); a mirror of the seven
+   `mixed_*` keys; the SQL scheduler (ER-2/5/6/11/12, C-145 fill order,
+   wrong-day drop 1, new-skills cap 2); `start_mixed_session` and
+   `mixed_item_for_check` as the caller (ER-1, ER-9); the teacher's class
+   summary read (incl. skips, DM-3/C-146); the disarmed, unscheduled prune
+   (MP-13) + `data-map.md` / `retention-policy.md` in the same commit.
+   Importer: `primary_skill` as an identity write (ER-3), the `mixed_*` keys
+   mirrored, non-auto-scored blocks refused in bank items (DM-19). A
+   `verify-00xx.sql` (ER-13). Live step (author): apply, verify, import
+   backfill.
+2. **Serving + grading.** `check-activity` modes `practice-start` and
+   `practice` (MP-6/7), the sanitizer into the grading bundle, handler security
+   tests (ER-13), bundle. Live step: `deploy:check`, hash-verify.
+3. **Student screens.** DM-1, 2, 4–7, 10–14, 16, 17, 19 (as amended by C-146).
+   Live step: push.
+4. **Teacher panel.** DM-3, 8, 9, 15, 18, 20. Live step: push; then the
+   capability row + pin bump (MP-15) and `/design-review` on the built screens.
 
 ## Hand-off — what the next chat does, in order
 

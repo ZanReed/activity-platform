@@ -170,7 +170,9 @@ the queue. An entry's own Priority line below does not outrank it.**
 6. **D43 builds — IN PROGRESS**: fluency + diagnostics LIVE (slice 1, the
    check, 2026-10-05; slice 2, the daily practice, 2026-10-06);
    mixed practice + scheduler gated on TWO chains with ratified §17 banks;
-   period assembly last. **Mixed practice DESIGN RULED + ENG-CLEARED 2026-10-19
+   period assembly last. **Mixed practice GATE LIFTED by the author 2026-10-20
+   ("build now, test on chain 1, launch is my switch"); BUILD IN PROGRESS in
+   four slices (mixed-practice.md → "Build slices"). Mixed practice DESIGN RULED + ENG-CLEARED 2026-10-19
    (author: design only; [mixed-practice.md](docs/design/mixed-practice.md):
    MP-1…MP-15 + ER-1…ER-14 ruled, 0 unresolved). BUILD STILL GATED on a second
    ratified chain bank (one live). Letters B-184 + B-185 SENT 2026-10-20;
