@@ -831,8 +831,12 @@ DONE 2026-10-20, read-only — live `prosrc` md5 `620db575a94219c681685a8e275a91
 Asked the curriculum side to generate `practice-registry.json` (the contract in
 "Slice 1 — as built" → "The practice registry"; body revision `75b67ae9…628e`
 at their `1ff3217`, derived independently twice). Our B-187 had verified the
-seven values but not that they reached a generated registry. Awaiting their PR;
-verify it before merge, then `pnpm import:batch … --practice-registry`.
+seven values but not that they reached a generated registry. Their PR #76
+(head `9abcec7`, on `1ff3217`) VERIFIED 2026-10-20 (B-194): three files only,
+header as fact-scope's, body the seven keys, revision `75b67ae9…628e`
+re-derived, and our own `planPracticeRegistry` accepts it (ok, no errors).
+After it merges: refresh the stamp; mirror at the next import after 0066 is
+live.
 
 ## Hand-off — what the next chat does, in order
 
