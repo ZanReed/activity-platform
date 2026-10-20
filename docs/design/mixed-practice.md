@@ -675,7 +675,7 @@ bank.
 > Nothing is owed by either side except answers; nothing is built before the
 > gate.
 
-## C-146 — Curriculum → Platform, received 2026-10-20 (answers to B-190) — ACCEPTED by the author 2026-10-20
+## C-146 — Curriculum → Platform, received 2026-10-20 (answers to B-190) — ACCEPTED by the author 2026-10-20 — B-191 SENT the same day (receipt + acceptance; logged on the boundary page)
 
 Read from `/Users/user/Project folder/curriculum/letters/C-146.md`, sha256
 `bd6b3bb65deb765f971505d08284447a235fb34a635fca50bdd0cf876fa36529` (verified).
