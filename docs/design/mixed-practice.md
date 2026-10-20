@@ -815,7 +815,7 @@ steps 6.7 ms. Dispositions:
 | 2 | P1: backlog drained NEWEST-taught first; C-145 ask 8 says "oldest-taught first (chain order) … the previous day's skills go first" | FIXED: the most recent taught day first, then chain order; B6 vector with two taught days, mutation-tested |
 | 3 | P2: the importer against a pre-0066 database failed with a raw 400 | FIXED: named refusal ("Apply migration 0066"), before any write; test |
 | 4 | P2: `record_mixed_attempt` relied on the handler to refuse a closed session | FIXED: backstop refusal of a NEW try on a finished or expired session (a replay still returns the stored row); B15, mutation-tested |
-| 5 | P2: a discrimination item needs every one of its skills to have a ratified SKILL bank, not merely be taught | KEPT as built (moot on chain 1, fully ratified); a reading for the curriculum side, for the next letter (B-193 had already gone) |
+| 5 | P2: a discrimination item needs every one of its skills to have a ratified SKILL bank, not merely be taught | CHANGED after C-148 (author ruling 2026-10-20: TAUGHT is enough, which matches D43 amendment items 3–4): `disc_ok` now tests the taught set, not the banked pool; verify-0066 B4 row ({a, d}, d taught with no bank), mutation-tested |
 | 6 | P2: a check made before the activity was added to this class still sets the taught day | KEPT: ER-10 as reversed says "the student's own first check"; tightening (`created_at >= added_at`) is the author's call |
 | 7–8 | importer path-only arm and the registry check vs `mixed_settings_ok` | clean, no change |
 

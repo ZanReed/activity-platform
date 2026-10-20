@@ -13,7 +13,7 @@
 --   §B — the engine (ER-13): the settings check; the switch; primary_skill is
 --        not client-writable; the pool (not the same day ACROSS TIMEZONES,
 --        per-student taught, copy lineage, draft / retired / bankless
---        excluded, discrimination needs ALL its skills); the fill order and
+--        excluded, discrimination needs ALL its skills taught); the fill order and
 --        caps; start (snapshot, seeding, idempotent resume, the graded flag);
 --        the caller checks (one error); record-before-verdict replays; the
 --        day rule and the one-step drop; lowest step first; rotation; the
@@ -285,6 +285,19 @@ begin
   if v_got is distinct from 'skill.vfy0066.a,skill.vfy0066.b,skill.vfy0066.c,vfy0066-disc-ab' then
     raise exception 'FAIL B4: the pool is %', v_got;
   end if;
+  -- C-148: a discrimination bank needs its skills TAUGHT, not banked. d is
+  -- taught with no bank of its own, so a bank on {a, d} is eligible.
+  insert into practice_item (owner_id, item_id, bank_path, role, skill_id, chain_id,
+                             discriminates, status, position, document, seed_spec,
+                             value_table, fingerprint, retired_at)
+  values (v_o, 'vfy0066-disc-ad#one', 'banks/vfy/disc-ad.md', 'discrimination', null, 'chain.vfy0066',
+          array['skill.vfy0066.a', 'skill.vfy0066.d'], 'ratified', 0, '{"t":"dad"}', '{}', v_table, repeat('c', 64), null);
+  if not exists (select 1 from mixed_plan(v_k, v_s1, gen_random_uuid(), v_today, 1,
+                                          v_wide || '{"mixed_max_discrimination": 2}', 6, v_zone)
+                  where bank_key = 'vfy0066-disc-ad') then
+    raise exception 'FAIL B4: a bank on {a, d} (d taught, unbanked) was not eligible';
+  end if;
+  delete from practice_item where owner_id = v_o and item_id = 'vfy0066-disc-ad#one';
   -- g IS in tomorrow's pool: the same-day rule only holds it back a day.
   if not exists (select 1 from mixed_plan(v_k, v_s1, gen_random_uuid(), v_today + 1, 1, v_wide, 6, v_zone)
                   where bank_key = 'skill.vfy0066.g') then

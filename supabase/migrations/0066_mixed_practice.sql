@@ -507,7 +507,8 @@ $$;
 -- order (a late bank's backlog enters at step 0 in chain order, C-145 ask 8);
 -- tier 2 = due skills not practised today, lowest step first then most
 -- overdue; tier 3 = at most mixed_max_discrimination discrimination banks
--- whose skills are ALL in the pool, never tried or due. ER-6: a LATER session
+-- whose skills are ALL taught (C-148: a covered skill needs no bank of
+-- its own), never tried or due. ER-6: a LATER session
 -- the same day that finds nothing in the three tiers falls back to skills
 -- already practised today. One item per key; a short session ends early.
 --
@@ -564,7 +565,9 @@ begin
     select d.*, st.step, st.last_day, st.due_on
     from disc d
     left join st on st.kind = 'discrimination' and st.bank_key = d.stem
-    where (select coalesce(array_agg(skill_id), '{}') from pool) @> d.skills
+    -- C-148 (author ruling 2026-10-20): every covered skill TAUGHT, not every
+    -- covered skill banked; a skill with no bank of its own still counts.
+    where (select coalesce(array_agg(distinct t.skill_id), '{}') from taught t) @> d.skills
   ),
   -- C-145 ask 8: the most recent taught day's skills first (the first spaced
   -- retrieval), then the backlog oldest-taught first in chain order, so a
@@ -1447,7 +1450,7 @@ grant  execute on function mixed_class_students(uuid)                       to a
 -- Verification lives in scripts/verify-0066.sql (registered in the verify
 -- runner): catalog posture; the settings mirror; the switch; the pool (not the
 -- same day, across timezones; per-student taught; copy lineage; draft and
--- retired items excluded; discrimination needs ALL its skills); the day rule
+-- retired items excluded; discrimination needs ALL its skills taught); the day rule
 -- and the one-step drop; the fill order and caps; the seeding; idempotent
 -- start; the caller checks; record-before-verdict replays; the teacher reads;
 -- the prune (disarmed, unscheduled, keeps graded scores) and the purge.
