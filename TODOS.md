@@ -158,6 +158,25 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
   the same latent issue as the sprint's (ER-12, the row above); attempts are
   safe (they store `practice_day`). **Trigger:** the same as the row above.
 
+## Curriculum overhaul feature wishes, D64–D68 (C-149…C-154, answered B-197/B-198, 2026-10-21) — UNRANKED, the author orders them
+
+Zan rates platform features above activity authoring right now (C-149 item 4). Each wish below gets its own design pass before code. One build arc and one design arc run at a time. B-198 suggested this order for the author to rule on; he has not ruled.
+
+1. **D68 "who needs me" live teacher view.** Fold into mixed-practice slice T4 (the teacher UI). New work: a per-session misconception count over `mixed_attempts.verdicts`, 5 s polling (realtime is stubbed). Ordering rule (2) applies to mixed practice only, because sprint answers carry no `mis.*`. TRIGGER: the T4 design pass.
+2. **D65 DoL retake + the per-(student, skill) "DoL passed" signal.** It also unlocks D66 tier SELECTION (the tier is parsed since 0590aa27, not stored) and the tracker's "passed" state. New work:
+   - an authored DoL section marker (capability entry, then their pin bump);
+   - a one-retake check mode next to free and locked;
+   - a seed draw per attempt (today the draw is per version and student);
+   - lifting BE-2 for activities (derived values and `where`; B-198 leans this way over a DoL bank file);
+   - the pass rule: the primary item right, counting the best attempt (C-151);
+   - rubric items re-asked on a retake with the first answer hidden;
+   - targeted practice from the skill bank, filtered by a `mis.*` column extracted at import.
+   TRIGGER: the first Y9 DoL drafted with a parallel form.
+3. **D67 student unit tracker.** Rows keyed by skill and grouped by `activities.unit`. New work: a skill-label mirror (we store no labels today) and a private teacher-wording table keyed by (teacher, skill). Tier letters derive from the stored D66 tags. Statuses: taught (0066 pool), passed (D65), struggling (0066, mixed tries only). TRIGGER: D65 live.
+4. **D64 pause-point video player.** No embed block exists. Lean: a ```video fence whose pause points name faded steps; staleness bound to the published version plus a hash of the faded block. ⚠ BLOCKER BEFORE BUILD: embedding YouTube for students, some under 13, is a data-map, compliance and counsel question. TRIGGER: the author's ranking plus that question answered. Pilot: 1–2 live activities (701 or Y7 geometry).
+
+NOT sent yet, do not act until a letter asks: their form-sensitive grading wish ("equivalent AND in a stated form").
+
 ## BUILD ORDER — ruled by the author 2026-10-02 (sequencing review)
 
 The author asked for a ranking of every open arc "to stop reacting to whichever
