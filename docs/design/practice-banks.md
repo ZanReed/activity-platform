@@ -478,3 +478,25 @@ follow-up commit, each with a regression test:**
 
 **Not built (by ruling):** student serving, per-session seeds, mixed practice,
 the capability row (PB-12), derived/`where` in activities (BE-2's trigger).
+
+## The optional tier line — D66 (C-149, 2026-10-21)
+
+The curriculum side ruled D66: each template may carry ONE optional line,
+`tier: D | C | P | E` (the school's Developing / Consolidating / Proficient /
+Exceeding), as the **first line under its `## <heading>`**. It works the same in
+skill and discrimination banks. Untagged templates stay valid, so chain 1's
+ratified bank is untouched. Their check_bank.py requires the tag from the Y9
+unit on; that is their authoring gate, and this importer accepts both.
+
+**Author ruling 2026-10-21 — read now, use later.** `takeTier` in
+`lib/bankImport.ts` reads the line, refuses anything but one of the four
+letters, refuses a `tier:` line anywhere else in the template (it would render
+as prose), and strips it. The tier is **NOT stored**. Storing it and selecting
+on it (D and C before the skill's DoL is passed, then P and E added; an
+untagged template is always eligible; the DoL-passed criterion counts the BEST
+attempt, C-150/C-151) land together in one later slice, so no stored field
+exists that nothing reads. **That slice must add `tier` to
+`fingerprintBankItem` (scripts/batch-import.mjs):** today the line sits outside
+the document, so the fingerprint cannot see it and a tagged file imports as
+unchanged. With `tier` in the fingerprint, every tagged item counts as changed
+on its next run, and the tiers reach the database without a forced import.

@@ -236,6 +236,43 @@ function parseBankMeta(src: string | null, problems: string[], warnings: string[
     };
 }
 
+// ---- the tier line (D66, C-149) -------------------------------------------------
+
+/** The school's tiers: Developing, Consolidating, Proficient, Exceeding. */
+const TIER_LINE = /^tier:\s*(.*)$/i;
+const TIERS = new Set(['D', 'C', 'P', 'E']);
+
+/** A template's OPTIONAL `tier: D | C | P | E`, the first line under its
+ *  heading (D66). Read and checked, then stripped so it never reaches the
+ *  student as prose. NOT stored yet (author ruling 2026-10-21): storing waits
+ *  for the slice that selects on it, so the field is never an orphan. That
+ *  slice must re-import tagged banks — the line is outside the document, so
+ *  the fingerprint does not see it. A `tier:` line anywhere else is refused,
+ *  because it would otherwise render as text. */
+export function takeTier(body: string): { tier: string | null; body: string; problems: string[] } {
+    const lines = body.split('\n');
+    const problems: string[] = [];
+    let tier: string | null = null;
+    const first = lines.findIndex((l) => l.trim() !== '');
+    if (first >= 0) {
+        const m = TIER_LINE.exec(lines[first]!.trim());
+        if (m) {
+            const v = m[1]!.trim();
+            if (TIERS.has(v)) tier = v;
+            else problems.push(`\`tier: ${v}\` — a tier is exactly one of D, C, P, E (D66).`);
+            lines.splice(first, 1);
+        }
+    }
+    let inFence = false;
+    for (const l of lines) {
+        if (/^\s*```/.test(l)) inFence = !inFence;
+        else if (!inFence && TIER_LINE.test(l.trim())) {
+            problems.push('a `tier:` line below the first line — the tier goes on the first line under the heading, once (D66).');
+        }
+    }
+    return { tier, body: lines.join('\n'), problems };
+}
+
 // ---- references (BE-5) -------------------------------------------------------
 
 interface Refs {
@@ -435,7 +472,9 @@ export function parseBankFile(markdown: string, options: ParseBankFileOptions): 
     for (const section of split.sections) {
         const h = section.heading;
         const where = `${h}:`;
-        const result = importer(section.body, glossary ? { glossary, bankSection: true } : { bankSection: true });
+        const tiered = takeTier(section.body);
+        for (const p of tiered.problems) problems.push(`${where} ${p}`);
+        const result = importer(tiered.body, glossary ? { glossary, bankSection: true } : { bankSection: true });
         for (const p of result.seedProblems ?? []) problems.push(`${where} ${p}`);
         for (const p of result.figureProblems ?? []) problems.push(`${where} ${p}`);
         if (result.meta) problems.push(`${where} a \`\`\`meta fence inside a template — the bank's meta goes at the top.`);

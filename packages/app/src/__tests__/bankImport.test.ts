@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getMarkdownImporter, type MarkdownImporter } from '../lib/markdownToTiptap';
-import { parseBankFile, type BankFileResult } from '../lib/bankImport';
+import { parseBankFile, takeTier, type BankFileResult } from '../lib/bankImport';
 import { enumerateTemplate, parseBankSeedFence } from '../lib/bankSeed';
 import { bankRowValues, BankValueTable } from '@activity/schema/bank-seed';
 
@@ -298,5 +298,44 @@ describe('review fixes (Fable review of 0a5dc56c)', () => {
         const r = parse(bank('a: list 1', '## t1\n\n{a}: {{=a}}', 'kind: bank\nstatus: draft\nrole: skill\nskill: rate.unit-rate'));
         expect(r.problems).toEqual([]);
         expect(r.meta?.role).toBe('skill');
+    });
+});
+
+describe('the optional tier line (D66, C-149)', () => {
+    // Block ids are minted fresh per parse; compare everything else.
+    const noIds = (d: unknown) => JSON.stringify(d).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<id>');
+    const plain = '## t1\n\n{a} doubled: {{=2*a}}';
+    const tagged = (v: string) => `## t1\n\ntier: ${v}\n\n{a} doubled: {{=2*a}}`;
+
+    it('each of D, C, P, E is accepted and stripped: the item equals the untagged one', () => {
+        const base = parse(bank('a: list 2, 3', plain));
+        expect(base.problems).toEqual([]);
+        for (const v of ['D', 'C', 'P', 'E']) {
+            const r = parse(bank('a: list 2, 3', tagged(v)));
+            expect(r.problems).toEqual([]);
+            expect(noIds(r.items[0]!.document)).toBe(noIds(base.items[0]!.document));
+        }
+        expect(takeTier('\ntier: P\n\nText').tier).toBe('P');
+        expect(takeTier('Text').tier).toBeNull();
+    });
+
+    it('anything but one of the four letters is refused', () => {
+        for (const v of ['X', 'd', 'D, C', 'DC', '']) {
+            expect(parse(bank('a: list 2, 3', tagged(v))).problems.join()).toMatch(/exactly one of D, C, P, E/);
+        }
+    });
+
+    it('a tier line anywhere but first is refused (it would render as text); one inside a fence is not a tier line', () => {
+        expect(parse(bank('a: list 2, 3', '## t1\n\n{a} doubled: {{=2*a}}\n\ntier: D')).problems.join())
+            .toMatch(/goes on the first line under the heading/);
+        expect(parse(bank('a: list 2, 3', '## t1\n\ntier: D\n\ntier: C\n\n{a} doubled: {{=2*a}}')).problems.join())
+            .toMatch(/goes on the first line under the heading/);
+        expect(takeTier('Text\n```\ntier: D\n```').problems).toEqual([]);
+    });
+
+    it('a discrimination bank takes the same line', () => {
+        const meta = 'kind: bank\nstatus: draft\nrole: discrimination\nchain: chain.rate.proportional\ndiscriminates: rate.unit-rate, rate.proportional-graph';
+        const r = parse(bank('a: list 1', '## d1\n\ntier: E\n\n{{=a}} {a}', meta), 'chain.rate.proportional.discrimination');
+        expect(r.problems).toEqual([]);
     });
 });
