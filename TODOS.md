@@ -158,9 +158,9 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
   the same latent issue as the sprint's (ER-12, the row above); attempts are
   safe (they store `practice_day`). **Trigger:** the same as the row above.
 
-## Curriculum overhaul feature wishes, D64–D68 (C-149…C-154, answered B-197/B-198, 2026-10-21) — UNRANKED, the author orders them
+## Curriculum overhaul feature wishes, D64–D68 (C-149…C-154, answered B-197/B-198, 2026-10-21) — ORDER RULED by the author 2026-10-21 (confirmed in chat, after C-157 relayed it): 1 D68, 2 D65, 3 D67, 4 D64
 
-Zan rates platform features above activity authoring right now (C-149 item 4). Each wish below gets its own design pass before code. One build arc and one design arc run at a time. B-198 suggested this order for the author to rule on; he has not ruled.
+Zan rates platform features above activity authoring right now (C-149 item 4). Each wish below gets its own design pass before code. One build arc and one design arc run at a time. B-198 suggested this order, and the author ruled it as written (2026-10-21). Each item still gets its own design pass and his rulings before code.
 
 1. **D68 "who needs me" live teacher view.** Fold into mixed-practice slice T4 (the teacher UI). New work: a per-session misconception count over `mixed_attempts.verdicts`, 5 s polling (realtime is stubbed). Ordering rule (2) applies to mixed practice only, because sprint answers carry no `mis.*`. TRIGGER: the T4 design pass.
 2. **D65 DoL retake + the per-(student, skill) "DoL passed" signal.** It also unlocks D66 tier SELECTION (the tier is parsed since 0590aa27, not stored) and the tracker's "passed" state. New work:
