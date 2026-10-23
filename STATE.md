@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**MIXED PRACTICE SLICE 1 BUILT 2026-10-20, UNPUSHED, NOT LIVE** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 1 — as built"). Fable-reviewed (no P0; two P1s fixed). Then: (1) apply 0066 live; (2) `pnpm verify:auth --target live --only verify-0066`, and verify-0050 (purge v7); (3) `pnpm import:batch` DRY RUN — every catalogue row `path … skill (none) → <skill>`, NO `update` lines (ER-3) — then the real run; (4) when their `practice-registry.json` lands (B-193), import with `--practice-registry`; until then no class can switch mixed practice on. Push after (1).
+**MIXED PRACTICE: slice 1 LIVE (0066, 2026-10-23); SLICE 2 BUILT 2026-10-23, UNPUSHED, NOT LIVE** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 2 — as built"). In order: (1) apply 0067 live; (2) `pnpm verify:auth --target live --only verify-0067`, then verify-0066; (3) `pnpm deploy:check` (NEVER `--no-verify-jwt`), `list_edge_functions` for `verify_jwt: true`, then hash-verify: `supabase functions download check-activity` from a temp dir holding only a copy of `supabase/config.toml`, `shasum -a 256` its `_shared/grading-server.bundle.js` against the repo's; (4) push. Slice 3 waits on (3).
 
 **701 place-value LIVE (2026-10-13).**
 
@@ -32,7 +32,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
 
-**D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled. Mixed practice: slice 1 built (above). Liaison: B-194 sent; C-147 next.
+**D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled.
 
 
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*

@@ -1048,3 +1048,86 @@ Mid-chain consolidations (D24 as amended, D70) need nothing: no code reads a con
 - **DM-18 (W-2):** one exception, the deliberately opened "Who to see first" list (curriculum D68). It has groups, not a rank, and never appears on a full-screen view.
 - **Slice 2 (W-5):** also writes `mixed_attempts.misconception_ids`.
 - **Slice 4 (W-6):** includes a skill-label mirror.
+
+## Slice 2 — as built 2026-10-23 (serving + grading; migration 0067; unpushed, NOT live)
+
+**P10 re-derived first**, against the code and the live database (read-only):
+0066 live (max migration 0066, 0 sessions); 21 ratified items on chain 1,
+every one a ONE-section document with no `seedVars` (its numbers are the
+slot's `row_values`) and no shuffled blocks; blocks used: fill_in_blank,
+multiple_choice, interactive_graph, table, paragraph. C-148 (taught, not
+banked) and D71 (`consolidates_chain`) live entirely inside 0066's SQL; neither
+changes the handler. **Two contradictions, put to the author and RULED
+2026-10-23 as recommended:**
+1. **Answers on a recorded try.** DM-10 reads "The answer is 5 cups", but no
+   response carried the answer, and only 4 of the 21 items have a worked
+   solution. Ruled: a recorded try returns `answers` (each blank's first
+   accepted answer with the slot's numbers filled in, plus its unit; the
+   correct choice ids for multiple choice). They leave only AFTER the attempt
+   row is written (the one try is spent), and on resume only for tried slots.
+   Other block types state no answer in words.
+2. **An empty Check.** Ruled: a Check with no graded part answered is refused
+   (400 `nothing_answered`) and records nothing; Skip is the way to spend the
+   try without answering. A partly answered item is recorded, and its blank
+   parts make it not right.
+
+**Built:**
+- `check-activity` modes in `server/practice-handler.ts` (MP-6/MP-7), routed
+  from `check-activity-handler.ts`; the wire in `check/wire.ts`
+  (`PracticeStartRequest/Result`, `PracticeCheckRequest/Result`,
+  `PracticeAnswers`), same wire version (additive).
+  - `practice-start {classId, start}` → `start_mixed_session` AS THE CALLER →
+    the states pass through; for `started`/`resume` only, the snapshots and
+    stored tries of the session THE RPC NAMED, service role → each slot
+    sanitized (the read path's sanitizer, now in the grading bundle), shuffled
+    under `practiceServeKey(session, seq)`, numbers filled in. A tried slot
+    carries its stored try + solutions + answers (DM-6).
+  - `practice {sessionId, seq, responses | skip}` → `mixed_item_for_check` AS
+    THE CALLER (and its student must be the token's) → the slot's snapshot →
+    grade → `record_mixed_attempt` → the STORED try back (ER-9). A replay
+    neither grades nor writes; a concurrent winner's try is the one returned;
+    the backstop's "session closed" is the same 404.
+  - `correct` = every graded part right. A snapshot that is not one section
+    (DM-19) is a 500 `malformed_document`, never a guess.
+- **0067 (W-5):** `mixed_attempts.misconception_ids text[]`, DERIVED by
+  `record_mixed_attempt` v2 from the verdicts it stores
+  (`mixed_misconceptions_of`: distinct, sorted, `mis.*`, ≤ 200 chars; a right
+  try carries none), so the handler cannot send ids that disagree with the
+  verdicts. Index `(class_id, practice_day)`. C-162: a form-skill blank
+  carries no id by design. data-map draft-34, retention-policy draft-17.
+- Deno wiring: `PracticeDb` against supabase-js (caller client for the two
+  RPCs, service role for snapshots, tries and the write).
+
+**Guards, each mutation-tested once:** `practice-handler.test.ts` (25 tests;
+12 handler mutations, all caught (the 12th is Fable #1, below): read before authorize, no student match,
+the empty-Check refusal, respond before record, replay re-grades, stored try
+not returned, refused-as-500, no sanitize, answers on untried slots, serve-key
+drift, some-not-every). `verify-0067.sql` (A 3 rows, B 4 proofs; 9 mutations,
+all caught but one EQUIVALENT one: dropping `order by` under
+`array_agg(distinct …)`, which sorts anyway). The shared secret-bearing leak
+fixture is scanned on the practice-start wire.
+
+**Proven end to end on the local stack** (the committed bundle + real
+supabase-js, wired as the Deno file; fixture removed after): preview → start
+("Twice 5", nothing leaked) → empty Check 400 → wrong try (feedback,
+`mis.e2e.adds`, answer "10") → replay (`replayed: true`, still wrong) → foreign
+session 404 → the row's `misconception_ids = {mis.e2e.adds}`.
+
+**Readings (flag any you disagree with):**
+1. All planned slots are served at start (one round trip; DM-2's "painted on
+   Start/Next" is the runner's job in slice 3).
+2. A skip carries no responses (a skip with an answer is a 400).
+3. A student checking a seq outside the plan gets the one 404 (the RPC's).
+
+**Fable review — RUN 2026-10-23, before anything is live.** No P0. Answer-key
+leaks, authorization ordering, ER-9 (including two tabs on one slot, a lost
+response, and a session closing between authorize and record), the shuffle
+key, the seeding and the migration diff (v1 → v2: only the column, its `case`
+and one return key) were all found clean. Dispositions:
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | P1: an item with a display-only graph stimulus could never be `correct` (every graph block was a "part", and a display one never gets a verdict), so a right answer would be recorded as wrong and drop a step | FIXED: one predicate `graphTakesInput` (grading/graphs.ts), read by the scorer and by the "every part right" rule; regression test (display graph + right blank ⇒ right), mutation-tested |
+| 2 | P3: `mixed_item_for_check` (0066, live) returns `owner_id`, `item_id`, `fingerprint`, `row_index` to any signed-in caller; none answer-bearing, the handler ignores them | FILED in TODOS: shrink the return in the next mixed migration |
+| 3 | P3: verify-0067 B3's "a skip carries none" held only because the handler sends `{}` for a skip | FIXED in 0067: a skip stores none whatever its verdicts; B3 now records a skip with id-bearing verdicts, mutation-tested |
+| 4 | P3: the 401 branch echoes the auth error's message | KEPT: inherited from the section path, same behaviour; not new |

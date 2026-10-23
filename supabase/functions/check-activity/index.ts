@@ -8,7 +8,8 @@
 // suite there and by CI's bundle drift guard). This file only:
 //
 //   - reads the auto-injected env (no new secrets),
-//   - implements CheckActivityDb against real supabase-js clients,
+//   - implements CheckActivityDb and PracticeDb (mixed practice, 0066)
+//     against real supabase-js clients,
 //   - passes _shared/cors.ts through the CorsKit port,
 //   - recomputes this student's serve-time `ordering` permutation,
 //   - serves the handler.
@@ -37,6 +38,7 @@ import {
   computeServedOrderings,
   createCheckActivityHandler,
   type CheckActivityDb,
+  type PracticeDb,
 } from '../_shared/grading-server.bundle.js';
 import {
   corsHeaders,
@@ -55,6 +57,14 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+/** A client that carries the caller's JWT, so the RPC runs AS the caller. */
+function asCaller(authHeader: string) {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
+}
 
 const db: CheckActivityDb = {
   async versionForCheck(authHeader, activityId, versionId) {
@@ -122,9 +132,59 @@ const db: CheckActivityDb = {
   },
 };
 
+// MIXED PRACTICE (0066, D43 slice 2). The same two-client split: the
+// session's authorization RPCs run AS THE CALLER; the snapshots (answer-key
+// class, ER-4) and the verdict write are service role, and the handler reaches
+// them only with a session id one of the caller RPCs has just authorized.
+const practice: PracticeDb = {
+  async startMixedSession(authHeader, classId, start) {
+    return await asCaller(authHeader).rpc('start_mixed_session', {
+      p_class_id: classId,
+      p_start: start,
+    });
+  },
+
+  async mixedItemForCheck(authHeader, sessionId, seq) {
+    return await asCaller(authHeader).rpc('mixed_item_for_check', {
+      p_session_id: sessionId,
+      p_seq: seq,
+    });
+  },
+
+  async readSnapshots(sessionId, seq) {
+    let q = admin
+      .from('mixed_session_items')
+      .select('seq, document, row_values')
+      .eq('session_id', sessionId);
+    if (seq !== undefined) q = q.eq('seq', seq);
+    return await q.order('seq');
+  },
+
+  async readAttempts(sessionId) {
+    return await admin
+      .from('mixed_attempts')
+      .select('seq, correct, skipped, verdicts')
+      .eq('session_id', sessionId);
+  },
+
+  async recordAttempt(args) {
+    return await admin
+      .rpc('record_mixed_attempt', {
+        p_student_id: args.studentId,
+        p_session_id: args.sessionId,
+        p_seq: args.seq,
+        p_correct: args.correct,
+        p_skipped: args.skipped,
+        p_responses: args.responses,
+        p_verdicts: args.verdicts,
+      });
+  },
+};
+
 Deno.serve(
   createCheckActivityHandler({
     db,
+    practice,
     cors: { corsHeaders, errorResponse, handlePreflight, jsonResponse },
     // `ordering` is served permuted per student, and the wire carries no
     // `moved` flag — so the grader recomputes the permutation this student was

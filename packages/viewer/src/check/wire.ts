@@ -37,7 +37,10 @@
 // WORK ONLY. Verdicts travel the other way, in CheckItemResult.
 // =============================================================================
 
-import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
+import type {
+  SanitizedActivityDocument,
+  SanitizedInlineNode,
+} from '../sanitize/sanitized-types.js';
 
 /** Bump on any incompatible change to the request/result shapes. S4's RPC
  * must accept the version it was built against — the mock and the store stamp
@@ -240,6 +243,110 @@ export interface SectionCheckResult {
    * server after this section check (Q2B unlock). Only blocks in this section
    * appear; absence = that block has no solution or it stays locked. */
   solutions: Record<string, SanitizedInlineNode[]>;
+}
+
+// ---- Mixed practice (D43; mixed-practice.md MP-6/MP-7, slice 2) ------------
+// Two more request shapes on the same endpoint, told apart by `mode`, same
+// wire version (additive). The session, its items and their numbers are the
+// SERVER's choice (ER-1): a client names a class to start, and a session id +
+// slot to check, never an item or a row.
+
+/** Plan (or resume) today's session. `start: false` is the start card's
+ * preview: it says how many questions a session would hold and writes
+ * nothing; `start: true` writes the session (DM-12: nothing is painted until
+ * Start). */
+export interface PracticeStartRequest {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  mode: 'practice-start';
+  classId: string;
+  start: boolean;
+}
+
+/** One try at one planned question (MP-9: the first try is the only try).
+ * `skip: true` records a skipped question (DM-10) and carries no responses. */
+export interface PracticeCheckRequest {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  mode: 'practice';
+  sessionId: string;
+  seq: number;
+  responses: SectionResponses;
+  skip?: boolean;
+}
+
+/**
+ * The correct answers, released ONLY with a recorded try (author ruling
+ * 2026-10-23, slice 2): DM-10's "The answer is 5 cups" needs them, and most
+ * bank items carry no worked solution. The one try is already spent when
+ * these leave (ER-9), so they reveal nothing a student could still use.
+ * Blanks: the first accepted answer with the student's numbers filled in, and
+ * its unit. Multiple choice: the correct choice ids. Other block types state
+ * no answer in words; the client shows the working instead.
+ */
+export interface PracticeAnswers {
+  blanks: Record<string, { answer: string; unit?: string }>;
+  choices: Record<string, string[]>;
+}
+
+/** What a checked question shows (DM-10), at check time and on resume. */
+export interface PracticeItemResult {
+  /** Every graded part right on the first try. */
+  correct: boolean;
+  skipped: boolean;
+  /** The verdicts AS RECORDED (a replay never re-grades, ER-9). */
+  items: Record<string, CheckItemResult>;
+  solutions: Record<string, SanitizedInlineNode[]>;
+  answers: PracticeAnswers;
+}
+
+export interface PracticeCheckResult extends PracticeItemResult {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  seq: number;
+  /** true ⇒ this slot was already tried; this is that try, not a new one. */
+  replayed: boolean;
+}
+
+/** One planned question as served: sanitized, the student's numbers filled
+ * in, choices and orderings shuffled for this slot. One section (DM-19).
+ * `result` is present only for a question already tried (DM-6 resume). */
+export interface PracticeServedItem {
+  seq: number;
+  document: SanitizedActivityDocument;
+  result?: PracticeItemResult;
+}
+
+export interface PracticeSession {
+  sessionId: string;
+  practiceDay: string;
+  planned: number;
+  graded: boolean;
+  scoreRight: number;
+  scoreAnswered: number;
+  finished: boolean;
+  items: PracticeServedItem[];
+}
+
+/** start_mixed_session's states (0066 G1), passed through. */
+export type PracticeStartState =
+  | 'resume'
+  | 'ready'
+  | 'started'
+  | 'nothing_taught'
+  | 'nothing_due'
+  | 'done_today';
+
+export interface PracticeStartResult {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  state: PracticeStartState;
+  /** Sessions finished today before this one (DM-7). */
+  doneToday: number;
+  /** The class's "Record a practice score" switch (DM-12). For a session in
+   * hand, `session.graded` is the one fixed at its start (ER-7). */
+  graded: boolean;
+  itemsPerSession: number;
+  /** `ready` only: how many questions a session would hold. */
+  planned?: number;
+  /** `resume` and `started` only. */
+  session?: PracticeSession;
 }
 
 // ---- Released teacher feedback (recorded family, D15) -----------------------

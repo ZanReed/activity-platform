@@ -94,6 +94,15 @@ function isUntouched(work: GraphWork): boolean {
   return true;
 }
 
+/** Does this graph-family block take an answer? A `display` variant (or none)
+ * is a stimulus: it never gets a verdict. The ONE predicate: scoring and
+ * mixed practice's "every graded part right" both read it, so a display
+ * stimulus can never count as an unanswered part (Fable review, slice 2). */
+export function graphTakesInput(block: RawGraphBlock): boolean {
+  const type = block.interaction?.type;
+  return typeof type === 'string' && type !== 'display';
+}
+
 /**
  * Score one graph-family block.
  *
@@ -107,7 +116,7 @@ export function scoreGraphBlock(
 ): ItemVerdict {
   const interaction = block.interaction;
   const type = interaction?.type;
-  if (!interaction || !type || type === 'display') return null;
+  if (!interaction || !type || !graphTakesInput(block)) return null;
 
   // The served interaction is the authority. A payload naming a different
   // interaction than the block was served with is a malformed request, not a

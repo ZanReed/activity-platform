@@ -90,6 +90,17 @@ const cors: CorsKit = {
     ),
 };
 
+const unreachable = async (): Promise<never> => {
+  throw new Error('a section check reached a practice port');
+};
+const practiceUnreachable = {
+  startMixedSession: unreachable,
+  mixedItemForCheck: unreachable,
+  readSnapshots: unreachable,
+  readAttempts: unreachable,
+  recordAttempt: unreachable,
+};
+
 interface Harness {
   handler: (req: Request) => Promise<Response>;
   authorizationRan: () => boolean;
@@ -146,7 +157,9 @@ function harness(
   };
 
   return {
-    handler: createCheckActivityHandler({ db, cors }),
+    // Section checks never touch the practice ports (practice-handler.test.ts
+    // owns those); a call here is a routing bug, so it throws.
+    handler: createCheckActivityHandler({ db, cors, practice: practiceUnreachable }),
     authorizationRan: () => authRan,
     documentWasRead: () => docRead,
     recorded: () => records,

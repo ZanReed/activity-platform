@@ -49,6 +49,7 @@ import { deriveSeedValues, type SeedValues } from '../sanitize/seedValues.js';
 import { substituteSeedValues } from '../sanitize/substitute.js';
 import type { SeedVar } from '@activity/schema';
 import { UUID_RE } from './uuid.js';
+import { createPracticeHandlers, type PracticeDb } from './practice-handler.js';
 
 // UUID_RE is imported (server/uuid.ts, G2): this file's strict shape is now
 // THE shape — the read handler adopted it rather than staying looser.
@@ -151,6 +152,8 @@ export interface OwnCheckRow {
 
 export interface CheckActivityHandlerDeps {
   db: CheckActivityDb;
+  /** Mixed practice's ports (D43 slice 2, practice-handler.ts). */
+  practice: PracticeDb;
   cors: CorsKit;
   /** Recomputes the serve-time `ordering` permutation for this student, so the
    * grader can tell an untouched list from a deliberate arrangement. Injected
@@ -223,41 +226,13 @@ function isDoublyNestedStringRecord(
   return Object.values(value).every(isNestedStringRecord);
 }
 
-/** Validate a parsed body into a CheckRequest, or explain why not. */
-export function validateCheckRequest(
-  body: unknown,
-): { ok: true; request: CheckRequest } | { ok: false; failure: ValidationFailure } {
+/** Validate the item-id-keyed response maps of a check (shared by a section
+ * check and a practice check: one shape, one set of ceilings). */
+export function validateResponses(
+  r: unknown,
+): { ok: true; responses: SectionResponses } | { ok: false; failure: ValidationFailure } {
   const fail = (message: string, code: string) =>
     ({ ok: false as const, failure: { message, code } });
-
-  if (body === null || typeof body !== 'object') {
-    return fail('Body must be a JSON object', 'malformed_body');
-  }
-  const b = body as Record<string, unknown>;
-
-  // The wire version is checked FIRST and reported distinctly: a mismatch means
-  // a stale open tab, not a broken client, and the viewer maps this code to
-  // "refresh to continue" rather than its generic failure state.
-  if (b.wireVersion !== CHECK_WIRE_VERSION) {
-    return fail(
-      `Unsupported wire version ${String(b.wireVersion)}; expected ${CHECK_WIRE_VERSION}`,
-      'wire_version_mismatch',
-    );
-  }
-  if (typeof b.activityId !== 'string' || !UUID_RE.test(b.activityId)) {
-    return fail('activityId must be a UUID', 'bad_activity_id');
-  }
-  if (typeof b.versionId !== 'string' || !UUID_RE.test(b.versionId)) {
-    return fail('versionId must be a UUID', 'bad_version_id');
-  }
-  if (typeof b.sectionId !== 'string' || b.sectionId.length === 0) {
-    return fail('sectionId is required', 'bad_section_id');
-  }
-  if (b.idempotencyKey !== undefined && typeof b.idempotencyKey !== 'string') {
-    return fail('idempotencyKey must be a string', 'bad_idempotency_key');
-  }
-
-  const r = b.responses;
   if (r === null || typeof r !== 'object' || Array.isArray(r)) {
     return fail('responses must be an object', 'bad_responses');
   }
@@ -329,6 +304,47 @@ export function validateCheckRequest(
   if (countItems(responses) > MAX_ITEMS) {
     return fail('Too many items in one check', 'too_many_items');
   }
+
+  return { ok: true, responses };
+}
+
+/** Validate a parsed body into a CheckRequest, or explain why not. */
+export function validateCheckRequest(
+  body: unknown,
+): { ok: true; request: CheckRequest } | { ok: false; failure: ValidationFailure } {
+  const fail = (message: string, code: string) =>
+    ({ ok: false as const, failure: { message, code } });
+
+  if (body === null || typeof body !== 'object') {
+    return fail('Body must be a JSON object', 'malformed_body');
+  }
+  const b = body as Record<string, unknown>;
+
+  // The wire version is checked FIRST and reported distinctly: a mismatch means
+  // a stale open tab, not a broken client, and the viewer maps this code to
+  // "refresh to continue" rather than its generic failure state.
+  if (b.wireVersion !== CHECK_WIRE_VERSION) {
+    return fail(
+      `Unsupported wire version ${String(b.wireVersion)}; expected ${CHECK_WIRE_VERSION}`,
+      'wire_version_mismatch',
+    );
+  }
+  if (typeof b.activityId !== 'string' || !UUID_RE.test(b.activityId)) {
+    return fail('activityId must be a UUID', 'bad_activity_id');
+  }
+  if (typeof b.versionId !== 'string' || !UUID_RE.test(b.versionId)) {
+    return fail('versionId must be a UUID', 'bad_version_id');
+  }
+  if (typeof b.sectionId !== 'string' || b.sectionId.length === 0) {
+    return fail('sectionId is required', 'bad_section_id');
+  }
+  if (b.idempotencyKey !== undefined && typeof b.idempotencyKey !== 'string') {
+    return fail('idempotencyKey must be a string', 'bad_idempotency_key');
+  }
+
+  const checked = validateResponses(b.responses);
+  if (!checked.ok) return checked;
+  const responses = checked.responses;
 
   return {
     ok: true,
@@ -411,6 +427,11 @@ export function createCheckActivityHandler(
   deps: CheckActivityHandlerDeps,
 ): (req: Request) => Promise<Response> {
   const { db, cors } = deps;
+  const practice = createPracticeHandlers({
+    practice: deps.practice,
+    cors,
+    servedOrderings: deps.servedOrderings,
+  });
 
   /**
    * RESTORE (student-experience review S3; eng review findings 1–2, D4–D7).
@@ -590,6 +611,16 @@ export function createCheckActivityHandler(
       (body as { mode?: unknown }).mode === 'restore'
     ) {
       return handleRestore(req, authHeader, body);
+    }
+    // MIXED PRACTICE (D43 slice 2, MP-6/MP-7): the session's own authorization
+    // RPCs, then the same read-after-authorize order (practice-handler.ts).
+    const mode =
+      body !== null && typeof body === 'object' ? (body as { mode?: unknown }).mode : undefined;
+    if (mode === 'practice-start') {
+      return practice.handlePracticeStart(req, authHeader, body);
+    }
+    if (mode === 'practice') {
+      return practice.handlePracticeCheck(req, authHeader, body, validateResponses);
     }
 
     const validated = validateCheckRequest(body);

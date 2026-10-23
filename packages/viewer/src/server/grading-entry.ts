@@ -20,6 +20,12 @@ export {
   validateRestoreRequest,
 } from './check-activity-handler.js';
 export type {
+  PracticeAttemptRow,
+  PracticeDb,
+  PracticeSnapshotRow,
+  RecordPracticeResult,
+} from './practice-handler.js';
+export type {
   CheckActivityDb,
   OwnCheckRow,
   CheckActivityHandlerDeps,
@@ -41,6 +47,10 @@ export { computeServedOrderings } from './grading/servedOrder.js';
 export { CHECK_WIRE_VERSION } from '../check/wire.js';
 export type {
   CheckRequest,
+  PracticeCheckRequest,
+  PracticeCheckResult,
+  PracticeStartRequest,
+  PracticeStartResult,
   RestoreRequest,
   RestoreResult,
   SectionCheckResult,
