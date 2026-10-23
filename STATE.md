@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**MIXED PRACTICE: slice 1 LIVE (0066, 2026-10-23); SLICE 2 BUILT 2026-10-23, 0067 APPLIED + VERIFIED LIVE 2026-10-23, function NOT deployed** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 2 — as built"). Remaining, in order: (3) `pnpm deploy:check` (NEVER `--no-verify-jwt`), `list_edge_functions` for `verify_jwt: true`, then hash-verify: `supabase functions download check-activity` from a temp dir holding only a copy of `supabase/config.toml`, `shasum -a 256` its `_shared/grading-server.bundle.js` against the repo's; (4) push. Slice 3 waits on (3).
+**MIXED PRACTICE: slices 1 + 2 LIVE (2026-10-23)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 2 — as built"): 0067 applied + verified; check-activity deployed, `verify_jwt: true`, bundle hash-verified `fd497fbd…`. **Owed: push** (commits through `417abffb`). Next build: slice 3 (student screens).
 
 **701 place-value LIVE (2026-10-13).**
 
