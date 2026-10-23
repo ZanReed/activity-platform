@@ -162,7 +162,7 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 
 Zan rates platform features above activity authoring right now (C-149 item 4). Each wish below gets its own design pass before code. One build arc and one design arc run at a time. B-198 suggested this order, and the author ruled it as written (2026-10-21). Each item still gets its own design pass and his rulings before code.
 
-1. **D68 "who needs me" live teacher view.** Fold into mixed-practice slice T4 (the teacher UI). New work: a per-session misconception count over `mixed_attempts.verdicts`, 5 s polling (realtime is stubbed). Ordering rule (2) applies to mixed practice only, because sprint answers carry no `mis.*`. TRIGGER: the T4 design pass.
+1. **D68 "who needs me" live teacher view.** DESIGN RULED 2026-10-23 ([mixed-practice-teacher-panel.md](docs/design/mixed-practice-teacher-panel.md), W-1…W-11). Built in slice 4, which waits on slices 2 (serving + grading, now the NEXT BUILD ARC, carrying W-5's misconception_ids) and 3 (student screens). Fold into mixed-practice slice T4 (the teacher UI). New work: a per-session misconception count over `mixed_attempts.verdicts`, 5 s polling (realtime is stubbed). Ordering rule (2) applies to mixed practice only, because sprint answers carry no `mis.*`. TRIGGER: the T4 design pass.
 2. **D65 DoL retake + the per-(student, skill) "DoL passed" signal.** It also unlocks D66 tier SELECTION (the tier is parsed since 0590aa27, not stored) and the tracker's "passed" state. New work:
    - an authored DoL section marker (capability entry, then their pin bump);
    - a one-retake check mode next to free and locked;

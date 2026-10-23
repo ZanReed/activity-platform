@@ -1041,3 +1041,10 @@ Curriculum D71 (author-ruled 2026-10-21) amends the pool rule. When a student ch
 - The importer tests cover the backfill as a path-only write and an unchanged re-run.
 
 Mid-chain consolidations (D24 as amended, D70) need nothing: no code reads a consolidation's position.
+
+## Amended 2026-10-23 by the slice 4 design pass (mixed-practice-teacher-panel.md)
+
+- **DM-3 / DM-13 / DM-20, wording (W-9):** the teacher-facing word "struggling" becomes "Getting stuck" (the per-skill column) and "getting stuck on" (the student rows). Internal names are unchanged.
+- **DM-18 (W-2):** one exception, the deliberately opened "Who to see first" list (curriculum D68). It has groups, not a rank, and never appears on a full-screen view.
+- **Slice 2 (W-5):** also writes `mixed_attempts.misconception_ids`.
+- **Slice 4 (W-6):** includes a skill-label mirror.
