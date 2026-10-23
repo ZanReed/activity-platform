@@ -175,6 +175,14 @@ Zan rates platform features above activity authoring right now (C-149 item 4). E
 3. **D67 student unit tracker.** Rows keyed by skill and grouped by `activities.unit`. New work: a skill-label mirror (we store no labels today) and a private teacher-wording table keyed by (teacher, skill). Tier letters derive from the stored D66 tags. Statuses: taught (0066 pool), passed (D65), struggling (0066, mixed tries only). TRIGGER: D65 live.
 4. **D64 pause-point video player.** No embed block exists. Lean: a ```video fence whose pause points name faded steps; staleness bound to the published version plus a hash of the faded block. ⚠ BLOCKER BEFORE BUILD: embedding YouTube for students, some under 13, is a data-map, compliance and counsel question. TRIGGER: the author's ranking plus that question answered. Pilot: 1–2 live activities (701 or Y7 geometry).
 
+5. **D74 school unit test + assignment (C-160, 2026-10-23).** NOT in the ruled order; filed with a trigger (author ruling 2026-10-23).
+   - `type:` becomes quiz | test | assignment, replacing exam. Today 'quiz' and 'exam' are live LABELS (ACTIVITY_TYPES), and the Bank hides both from listing and sharing (0054–0056). New labels need that hiding too, in a migration.
+   - Paper meta: `cutoffs: a, b, c, d` (four ascending percentages, the lower bounds of D/C/P/E, per paper) and `track: basic` (a second paper capped at Consolidating, with its own cutoffs).
+   - A test has 4 seeded forms, each with its own key. An assignment has 1 form and is rubric-marked.
+   - Results are reported per unit and per band; the 70/30 term weighting is gone.
+   - Defaults live in their graph's activity_defaults.assessment; whether to generate a registry for them is decided in the design pass.
+   - TRIGGER: the first `test` or `assignment` file drafted. Labels, Bank hiding, the cutoffs/track keys and the forms all wait for it.
+
 NOT sent yet, do not act until a letter asks: their form-sensitive grading wish ("equivalent AND in a stated form").
 
 ## BUILD ORDER — ruled by the author 2026-10-02 (sequencing review)
