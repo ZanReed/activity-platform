@@ -259,9 +259,12 @@ export interface JoinedClass {
     classId: string;
     name: string;
     joinedAt: string;
-    /** The class's join code when its daily number-facts practice is switched
-     *  on (migration 0050, SP-1) — the student's link is /facts/CODE. */
+    /** The class's join code when its daily number-facts practice (0050,
+     *  SP-1) or its mixed practice (0066, DM-1) is on — the student's link is
+     *  /practice/CODE (= /facts/CODE). */
     factsCode?: string | null;
+    /** The class has mixed practice on (0066, DM-1): the link reads "Practice". */
+    mixedOn?: boolean;
 }
 
 /**
@@ -324,7 +327,7 @@ export async function listMyClasses(): Promise<JoinedClass[]> {
     if (!uid) return [];
     const { data, error } = await supabase
         .from('class_members')
-        .select('class_id, joined_at, classes(name, join_code, fact_sprint_on_at)')
+        .select('class_id, joined_at, classes(name, join_code, fact_sprint_on_at, mixed_on_at)')
         .eq('student_id', uid)
         .is('removed_at', null)
         .order('joined_at', { ascending: true });
@@ -338,6 +341,7 @@ export async function listMyClasses(): Promise<JoinedClass[]> {
         name: string;
         join_code?: string | null;
         fact_sprint_on_at?: string | null;
+        mixed_on_at?: string | null;
     }
     return ((data ?? []) as MembershipRow[]).map((r) => {
         const cls = Array.isArray(r.classes) ? r.classes[0] : r.classes;
@@ -345,7 +349,8 @@ export async function listMyClasses(): Promise<JoinedClass[]> {
             classId: r.class_id,
             name: cls?.name ?? '(class)',
             joinedAt: r.joined_at,
-            factsCode: cls?.fact_sprint_on_at ? cls.join_code ?? null : null,
+            factsCode: cls?.fact_sprint_on_at || cls?.mixed_on_at ? cls.join_code ?? null : null,
+            mixedOn: Boolean(cls?.mixed_on_at),
         };
     });
 }

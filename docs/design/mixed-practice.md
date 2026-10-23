@@ -1131,3 +1131,117 @@ and one return key) were all found clean. Dispositions:
 | 2 | P3: `mixed_item_for_check` (0066, live) returns `owner_id`, `item_id`, `fingerprint`, `row_index` to any signed-in caller; none answer-bearing, the handler ignores them | FILED in TODOS: shrink the return in the next mixed migration |
 | 3 | P3: verify-0067 B3's "a skip carries none" held only because the handler sends `{}` for a skip | FIXED in 0067: a skip stores none whatever its verdicts; B3 now records a skip with id-bearing verdicts, mutation-tested |
 | 4 | P3: the 401 branch echoes the auth error's message | KEPT: inherited from the section path, same behaviour; not new |
+
+## Slice 3 — as built 2026-10-23 (student screens; app-only, unpushed, NOT live)
+
+**P10 re-derived first** (code at `fc545eab`, live state as recorded by slice 2).
+No migration, no deploy:
+- `start_mixed_session(p_start = false)` is granted to `authenticated` and
+  writes nothing, so the ENTRY reads it directly over PostgREST (no
+  check-activity cold start on every open of the link). Only Start / Carry on
+  go through `practice-start`. "Off" and "not a member" are the same
+  `Not available`; the probe entry has already told membership apart, so after
+  it that error means off.
+- Neither entry RPC returns the class id: the client reads `classes` by
+  `join_code` under `classes_select_member` (no column grants), which also
+  carries `mixed_on_at` for Home.
+- `finish_mixed_session` is a direct RPC; `record_mixed_attempt` finishes the
+  session itself on the last planned try. `ready` with `done_today > 0` is
+  DM-7's "can plan another" — no new signal.
+- The viewer's `locked` flow mode freezes a section at Check but asks "Check
+  and lock?" and words its status for locking — hence ruling 1.
+
+**Rulings — author, 2026-10-23 ("yes to all, pass it on"; relayed by the
+platform liaison session, quoting the author):**
+
+| # | Ruling |
+|---|---|
+| S3-1 | The runner draws Check / Skip / Next in one bar (pinned on phones, DM-16); the viewer's own Check is hidden by a new `ViewerContainer` prop `externalCheck`. Checking still goes through the viewer store's `checkSection`, whose `CheckService` is `mode: 'practice'` for that slot. The served item is rendered as `locked`, the viewer's existing freeze. |
+| S3-2 | The mistake note stays inline at the blank (the viewer's own rendering). The panel holds the verdict, "The answer is …" and the working, which is taken OUT of the store's result so the block does not show it too: open after a wrong try or a skip, behind "See the working" (`aria-expanded`) after a right one. |
+| S3-3 | Stop for now leaves the session open and shows counts of what was tried ("You got 2 of 3 right." + skips + "You can carry on later today."), with no score line and no Practise again. Reopening shows the resume card: "You stopped at question 4 of 6" with Carry on / Finish here. The score line shows only for a finished session. |
+| S3-4 | Minutes (chooser + start card) come from the questions the server actually plans (`planned`), 60–90 s each, not from the class setting. |
+| S3-5 | Home's class row reads "Practice" when mixed practice is on and links `/practice/CODE`; sprint-only keeps "Number facts practice", also on `/practice/CODE`. The chooser shows whenever both are on, whatever state each is in. |
+
+**Built:**
+- `lib/mixedPractice.ts` (+ `mixedPracticeRpc.ts`, the P2 constants module):
+  `lookupPracticeClass` (with `.retry(false)`: an optional read on the entry
+  path must fail fast — supabase-js otherwise retries a failed GET for 7 s,
+  found by the e2e lane), `previewMixed`, `startMixed`, `checkPracticeItem`
+  (typed `CheckError`s, `nothing_answered` → the student sentence),
+  `finishMixed`, `practiceMinutes`.
+- `routes/FactsEntry.tsx`: the mixed read beside the sprint read (in parallel
+  on re-entry, audit #13); the chooser (DM-1); `MixedEntryCard` (start card
+  DM-12 as amended, resume card DM-6, the DM-4 empty states); Finish here →
+  the done screen. `/practice/:code` in `App.tsx`. The waiting room never
+  shows under a practice card.
+- `practice/MixedRunner.tsx` — a LAZY chunk of its own (+ `mixed.css`): one
+  question per screen, the thin bar + "Stop for now", sr-only "Question n of
+  N", Enter checks (a form), focus to the question then the verdict (DM-17),
+  the feedback panel (S3-2), the typed answer held in sessionStorage per
+  slot until its try is recorded (DM-5's sign-in round trip), and
+  `retryLoop.ts` (only `offline` retries; "Checking…", the 10-s quiet line,
+  "Try again"). `MixedDone.tsx`: DM-11 as amended + S3-3 + DM-7.
+- `ViewerContainer` `externalCheck` (S3-1). Consumer: MixedRunner; guard:
+  `container.test.tsx` (no footer, the store still checks, `locked` freezes).
+- Home + `listMyClasses` (`mixed_on_at`), S3-5.
+
+**Readings (flag any you disagree with):**
+1. DM-4's "Nothing is due today." contains "due", which DM-13 bans; the test
+   enforces DM-13, so the card reads "Nothing to practise today. Come back
+   next lesson."
+2. A failed or off mixed read reads as "not on" (the sprint's posture).
+3. The chooser's facts line uses the sprint preview's minutes when `ready`,
+   else 5.
+4. Practise again is a secondary link-style button under the done lines.
+
+**Guards, each mutation-tested once:** `MixedRunner.test.tsx` (16; mutations:
+working shown twice, the viewer's Check drawn, a skip sending the typed
+answer, a score line when ungraded, no freeze, the StrictMode retry stop —
+all caught), `mixedPracticeWords.test.tsx` (DM-13 over 18 named screens,
+caught a planted "Session"), `mixedPractice.test.ts`, `retryLoop.test.ts`,
+`FactsEntry.test.tsx` (+6), the viewer container test, and the student e2e
+lane `mixed-practice.e2e.ts` (walk, keyboard-only, 375 px phone, offline),
+and an axe row in the a11y lane (start card, question, feedback, done: no
+violations). Whole student + a11y lanes green (111 rows) on the final tree.
+
+**Found in the build:** React StrictMode runs an effect's cleanup once on
+mount in dev; the runner's `loop.stop()` cleanup left the retry loop
+stopped, so an offline Check failed instead of retrying (the e2e offline row
+caught it; unit tests do not use StrictMode). Fixed with `start()` in the
+same effect; regression test under `<StrictMode>`, mutation-tested.
+
+**Found in the browser** (local stack: a seeded class, a real
+`start_mixed_session`, check-activity served locally; stored rows read back
+and matching the screen):
+- Every question is its own one-question document, so the viewer numbered
+  each "1." (shown AND the block's group name) — a counter DM-2 rules out.
+  The runner sets each block's `label` to `none`, the schema's own "show
+  nothing, take no number" (`practiceDocument`); test, mutation-tested.
+- Chromium fires no `blur` when a focused input becomes disabled, so Enter
+  in a blank left its ² ³ tray up beside the frozen answer. The runner moves
+  focus to the question heading before Check; the e2e row presses Enter and
+  asserts the tray is gone (mutation-tested; a mouse click hid the bug, which
+  made the first version of the row vacuous). The same gap in the viewer's
+  own `locked` mode is filed in TODOS with a trigger.
+
+**Fable review — RUN 2026-10-23, before the live step.** No P0. Clean:
+answer-key posture (the client names only a class, or a session + slot;
+answers and working arrive only with a recorded try; the store never gets the
+working), adapter re-entrancy, DM-5 (retry, hydrate keys, `.retry(false)`),
+the tally against 0066's score columns, the no-reload rule, `externalCheck`
+(bound to output both sides), every viewer button is `type="button"` inside
+the runner's form, DM-13, DM-16/17, shell size. Dispositions:
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | P1: "Practise again" (and "This practice has ended") could do nothing: `activeRef` is written during render, so the entry read straight after clearing the run still saw it on screen and returned | FIXED: `leaveRun()` clears it at once; regression tests for both paths, mutation-tested |
+| 2 | P2: the chooser was one-way: after either practice the page never offered the other | FIXED: `leaveRun()` and the sprint's close reset the choice; test, mutation-tested |
+| 3 | P3: Stop for now was live while a try was out | FIXED: disabled while checking (as Skip is); test, mutation-tested |
+| 4 | P3: DM-4's "Nothing is due today." breaks DM-13 | RECORDED: reading 1 above (DM-13 wins; the test enforces it) |
+| 5 | P3: `role="status"`/`"alert"` nested in the polite region | FIXED: inner roles dropped |
+| 6 | P3: "off" covered only implicitly | FIXED: explicit test (class read, preview never asked) |
+
+**Shell:** JS 156.8 / 158 KiB gz (was ~156.4: the viewer prop, the alias
+route, Home's label and the barrel's `checkErrorFor`); CSS 15.4 / 16.5.
+
+**Live step (author): push.** Nothing to apply or deploy.

@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**MIXED PRACTICE: slices 1 + 2 LIVE (2026-10-23)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 2 — as built"): 0067 applied + verified; check-activity deployed, `verify_jwt: true`, bundle hash-verified `fd497fbd…`. **Owed: push** (commits through `417abffb`). Next build: slice 3 (student screens).
+**MIXED PRACTICE: slices 1 + 2 LIVE; slice 3 (student screens) BUILT, unpushed (2026-10-23)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 3 — as built"; rulings S3-1..5). App-only: **owed: push** (slices 1–2 already pushed). No migration, no deploy. Next build: slice 4 (teacher panel).
 
 **701 place-value LIVE (2026-10-13).**
 

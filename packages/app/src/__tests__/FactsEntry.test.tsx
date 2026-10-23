@@ -27,6 +27,17 @@ vi.mock('../lib/factProbe', async (orig) => ({
 const sprintApi = vi.hoisted(() => ({ fetchSprintEntry: vi.fn(), saveSprintAttempts: vi.fn() }));
 vi.mock('../lib/factSprint', () => sprintApi);
 vi.mock('../lib/classes', () => ({ joinClass: vi.fn(), redeemJoinCode: vi.fn() }));
+const mixedApi = vi.hoisted(() => ({
+    lookupPracticeClass: vi.fn(),
+    previewMixed: vi.fn(),
+    startMixed: vi.fn(),
+    finishMixed: vi.fn(),
+    checkPracticeItem: vi.fn(),
+}));
+vi.mock('../lib/mixedPractice', async (orig) => ({
+    ...(await orig<typeof import('../lib/mixedPractice')>()),
+    ...mixedApi,
+}));
 vi.mock('../lib/auth', () => ({ signInWithGoogle: vi.fn() }));
 vi.mock('../lib/studentAuth', () => ({ signOutEverything: vi.fn(async () => {}) }));
 
@@ -56,6 +67,11 @@ beforeEach(() => {
     api.fetchEntry.mockReset().mockResolvedValue(READY);
     api.saveAttempts.mockReset().mockResolvedValue({ state: 'saved', saved: 1, finished: false });
     sprintApi.fetchSprintEntry.mockReset().mockResolvedValue({ state: 'off' });
+    // Mixed practice off unless a test turns it on.
+    mixedApi.lookupPracticeClass.mockReset().mockResolvedValue({ id: 'class-1', mixedOn: false });
+    mixedApi.previewMixed.mockReset().mockResolvedValue({ state: 'off' });
+    mixedApi.startMixed.mockReset();
+    mixedApi.finishMixed.mockReset();
     sprintApi.saveSprintAttempts.mockReset().mockResolvedValue({ state: 'saved', saved: 1, finished: false, quick_right: 1, best_before: null });
     session.value = { ...session.value, role: 'student', roleStatus: 'ready', loading: false };
 });
@@ -239,4 +255,149 @@ describe('FactsEntry', () => {
         await screen.findByTestId('fx-answer');
         expect(screen.getByText('9 × 6 = __')).toBeTruthy();
     });
+
+    // ---- mixed practice at the same link (D43 mixed practice slice 3, DM-1) ------
+    const MIXED_READY = { state: 'ready', doneToday: 0, graded: false, itemsPerSession: 6, planned: 6 } as const;
+    function practicePage() {
+        return render(
+            <MemoryRouter initialEntries={['/practice/ABC234']}>
+                <Routes>
+                    <Route path="/practice/:code" element={<FactsEntry />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+    }
+    function mixedOn(preview: object = MIXED_READY) {
+        api.fetchEntry.mockResolvedValue({ state: 'none_open' });
+        mixedApi.lookupPracticeClass.mockResolvedValue({ id: 'class-1', mixedOn: true });
+        mixedApi.previewMixed.mockResolvedValue(preview);
+    }
+
+    it('mixed practice alone: straight to its start card, minutes from the questions planned; asking writes nothing (DM-1, DM-12)', async () => {
+        mixedOn({ ...MIXED_READY, planned: 3 });
+        const { container } = practicePage();
+        await screen.findByRole('heading', { name: 'Practice' });
+        expect(container.textContent).toContain('3 questions · about 3–5 minutes.');
+        expect(container.textContent).toContain(
+            'One try each. Have a go even if you’re unsure. A wrong try still helps you remember. You can see the working after every answer.',
+        );
+        expect(container.textContent).not.toContain('recording a practice score');
+        expect(mixedApi.lookupPracticeClass).toHaveBeenCalledWith('ABC234');
+        expect(mixedApi.previewMixed).toHaveBeenCalledWith('class-1');
+        expect(mixedApi.startMixed).not.toHaveBeenCalled();
+        // No waiting room under a practice card.
+        expect(screen.queryByRole('heading', { name: 'Nothing to do yet' })).toBeNull();
+    });
+
+    it('a class recording a score says so on the start card, and Start opens question 1', async () => {
+        const { pxStartResult, pxSession } = await import('../test/practiceFixtures');
+        mixedOn({ ...MIXED_READY, graded: true, planned: 2 });
+        mixedApi.startMixed.mockResolvedValue(pxStartResult(pxSession({ graded: true })));
+        practicePage();
+        await screen.findByText('Your teacher is recording a practice score today.');
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+        });
+        expect(mixedApi.startMixed).toHaveBeenCalledWith('class-1');
+        await screen.findByRole('heading', { name: 'Question 1 of 2' });
+    });
+
+    it('both on: the chooser first, each line with about how long; each leads to its own card (DM-1)', async () => {
+        mixedOn();
+        sprintApi.fetchSprintEntry.mockResolvedValue({ ...COMMON, state: 'ready', due: 3, minutes: 5 });
+        page();
+        await screen.findByRole('heading', { name: 'Practice' });
+        expect(screen.getByRole('button', { name: 'Number facts · about 5 min' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Practice · about 6–9 min' }));
+        await screen.findByText('6 questions · about 6–9 minutes.');
+        cleanup();
+        page();
+        fireEvent.click(await screen.findByRole('button', { name: 'Number facts · about 5 min' }));
+        await screen.findByRole('heading', { name: 'Number facts practice' });
+    });
+
+    it('the resume card: where they stopped, Carry on, and Finish here with the server\'s counts (DM-6)', async () => {
+        mixedOn({ state: 'resume', doneToday: 0, graded: true, itemsPerSession: 6, planned: 6, nextSeq: 4, sessionId: 'sess-9' });
+        mixedApi.finishMixed.mockResolvedValue({ planned: 6, right: 2, answered: 3, skipped: 0, graded: true });
+        practicePage();
+        await screen.findByText('You stopped at question 4 of 6.');
+        expect(screen.getByRole('button', { name: 'Carry on' })).toBeTruthy();
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Finish here' }));
+        });
+        expect(mixedApi.finishMixed).toHaveBeenCalledWith('sess-9');
+        await screen.findByRole('heading', { name: 'Practice done' });
+        expect(screen.getByTestId('mx-done-right').textContent).toBe('You got 2 of 6 right.');
+        expect(screen.getByTestId('mx-done-score').textContent).toBe('Practice score: 2 of 6 (you answered 3 of 6).');
+    });
+
+    it('the empty states each say what to do, with a way back to the classes (DM-4)', async () => {
+        for (const [state, heading, line] of [
+            ['nothing_taught', 'Nothing to practise yet', 'It starts the day after you check your first activity.'],
+            ['nothing_due', 'Nothing to practise today', 'Come back next lesson.'],
+            ['done_today', 'You’ve done today’s practice', 'That’s everything for today.'],
+        ] as const) {
+            mixedOn({ state, doneToday: 1, graded: false, itemsPerSession: 6, planned: 0 });
+            const { container } = practicePage();
+            await screen.findByRole('heading', { name: heading });
+            expect(container.textContent).toContain(line);
+            expect(screen.getByRole('link', { name: 'Go to your classes' }).getAttribute('href')).toBe('/');
+            cleanup();
+        }
+    });
+
+    it('mixed practice off, or its read failing, leaves the check\'s own screens', async () => {
+        api.fetchEntry.mockResolvedValue({ state: 'none_open' });
+        mixedApi.lookupPracticeClass.mockResolvedValue({ id: 'class-1', mixedOn: true });
+        mixedApi.previewMixed.mockRejectedValue(new Error('network'));
+        page();
+        await screen.findByRole('heading', { name: 'Nothing to do yet' });
+    });
+
+    // ---- Fable review 2026-10-23 regressions ---------------------------------------
+    it('P1: "Practise again" that fails shows the failure, not the done screen it was pressed on', async () => {
+        const { pxStartResult, pxSession, pxCheckResult } = await import('../test/practiceFixtures');
+        mixedOn({ ...MIXED_READY, planned: 1 });
+        const one = pxSession({ planned: 1, items: [pxSession().items[1]!] });
+        mixedApi.startMixed.mockResolvedValueOnce(pxStartResult(one)).mockRejectedValueOnce(new Error('Not available'));
+        mixedApi.checkPracticeItem.mockResolvedValue(pxCheckResult(2, 'skipped'));
+        mixedApi.previewMixed.mockResolvedValue({ ...MIXED_READY, planned: 1 }); // the done screen may offer again
+        practicePage();
+        const start = await screen.findByRole('button', { name: 'Start' });
+        await act(async () => fireEvent.click(start));
+        fireEvent.click(await screen.findByRole('button', { name: 'Skip' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+        const again = await screen.findByRole('button', { name: 'Practise again' });
+        await act(async () => fireEvent.click(again));
+        await screen.findByRole('heading', { name: 'That did not load' });
+        expect(screen.queryByRole('heading', { name: 'Practice done' })).toBeNull();
+    });
+
+    it('P1 + P2: a practice that ends under the student reads the entry again and offers the chooser again', async () => {
+        const { CheckError } = await import('@activity/viewer');
+        const { pxStartResult, pxSession } = await import('../test/practiceFixtures');
+        mixedOn();
+        sprintApi.fetchSprintEntry.mockResolvedValue({ ...COMMON, state: 'ready', due: 3, minutes: 5 });
+        mixedApi.startMixed.mockResolvedValue(pxStartResult(pxSession()));
+        mixedApi.checkPracticeItem.mockRejectedValue(new CheckError('unavailable', 'Not available'));
+        page();
+        fireEvent.click(await screen.findByRole('button', { name: 'Practice · about 6–9 min' }));
+        const start = await screen.findByRole('button', { name: 'Start' });
+        await act(async () => fireEvent.click(start));
+        fireEvent.click(await screen.findByRole('button', { name: 'Skip' }));
+        const ended = await screen.findByRole('button', { name: 'See what is next' });
+        const reads = api.fetchEntry.mock.calls.length;
+        await act(async () => fireEvent.click(ended));
+        await screen.findByRole('button', { name: 'Number facts · about 5 min' });
+        expect(api.fetchEntry.mock.calls.length).toBe(reads + 1);
+    });
+
+    it('mixed practice switched off: the class is read, the preview is never asked', async () => {
+        api.fetchEntry.mockResolvedValue({ state: 'none_open' });
+        page();
+        await screen.findByRole('heading', { name: 'Nothing to do yet' });
+        expect(mixedApi.lookupPracticeClass).toHaveBeenCalledWith('ABC234');
+        expect(mixedApi.previewMixed).not.toHaveBeenCalled();
+    });
 });
+

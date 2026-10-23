@@ -1,0 +1,131 @@
+/* =============================================================================
+   mixed.css — the practice runner's chrome (D43 mixed practice, slice 3)
+   -----------------------------------------------------------------------------
+   Imported by the LAZY MixedRunner module only, so none of it reaches the
+   shell. The question itself is the viewer's own document and styles (DM-14):
+   this file draws only the top bar, the action bar, the feedback panel and its
+   lines. No card chrome round the question, no coloured left border, no
+   motion (DM-14). `mx-` classes only, which no Tailwind utility name matches.
+   ========================================================================== */
+
+/* The question reads from the top, not from the middle of the screen. */
+.fx-stage:has(.mx-runner) {
+  justify-content: flex-start;
+}
+
+.mx-runner {
+  max-width: 44rem;
+  width: 100%;
+}
+
+/* The thin bar, and "Stop for now" at its right (DM-2, DM-16). */
+.mx-top {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.mx-bar {
+  flex: 1;
+}
+
+.mx-stop,
+.mx-skip,
+.mx-link {
+  background: none;
+  border: 0;
+  color: var(--color-strong);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mx-stop,
+.mx-skip {
+  font-size: 15px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.mx-link {
+  font-size: inherit;
+  padding: 0;
+}
+
+.mx-stop:focus-visible,
+.mx-skip:focus-visible,
+.mx-link:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.mx-stop:disabled,
+.mx-skip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* A frozen question's graph cannot be dragged either: the fieldset's disabled
+   reaches form controls only. */
+.mx-item [data-section-frozen] [data-graph-canvas] {
+  pointer-events: none;
+}
+
+/* Check / Skip, then Next: one bar under the question. On a narrow screen it
+   is pinned to the bottom, above the keyboard (DM-16). */
+.mx-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+@media (max-width: 639px) {
+  .mx-actions {
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-line);
+    bottom: 0;
+    margin: 16px -16px 0;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    position: sticky;
+  }
+
+  .mx-actions > button:last-child {
+    flex: 1;
+  }
+}
+
+.mx-note {
+  color: var(--color-strong);
+  font-size: 15px;
+  margin-top: 12px;
+}
+
+/* One plain panel under the answer: the verdict in body type, then the
+   working (DM-14). The icon carries no colour of its own: the words say it. */
+.mx-feedback {
+  border-top: 1px solid var(--color-line);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.mx-verdict {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  outline: none;
+}
+
+.mx-working {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.mx-working > div + div {
+  margin-top: 8px;
+}

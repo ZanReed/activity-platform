@@ -122,6 +122,8 @@ export default function App() {
             RequireAuth: the route runs its own gate, like /join/:code. A join
             code never contains the letter O, so "demo" above is never a code. */}
         <Route path="/facts/:code" element={<FactsEntry />} />
+        {/* The same page under a neutral name (mixed practice DM-1); Home links here. */}
+        <Route path="/practice/:code" element={<FactsEntry />} />
         <Route
         path="/activities"
         element={

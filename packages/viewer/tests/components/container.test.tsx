@@ -74,6 +74,7 @@ function setup(
     onCrash?: (crash: BlockCrash) => void;
     readOnly?: boolean;
     onTakeOver?: () => void;
+    externalCheck?: boolean;
   } = {},
 ) {
   const service = createMockCheckService();
@@ -471,6 +472,30 @@ describe('read-only tab (ruling 2.3A / S6-4)', () => {
   it('hides the takeover button when no handler is wired', () => {
     setup(docOf(blocksOf('paragraph')[0]), { readOnly: true });
     expect(screen.queryByRole('button', { name: /use it here/i })).toBeNull();
+  });
+});
+
+describe('externalCheck (mixed practice slice 3, ruling 1)', () => {
+  it('draws no Check and no status line; the caller checks through the same store, and `locked` still freezes', async () => {
+    const blank = blocksOf('fill_in_blank')[0];
+    const doc = { ...docOf(blank), meta: { ...fullDoc.meta, submissionMode: 'locked' } } as SanitizedActivityDocument;
+    const { container, store, service } = setup(doc, { externalCheck: true });
+    expect(screen.queryByRole('button', { name: /check/i })).toBeNull();
+    expect(container.querySelector('.viewer-check-group__footer')).toBeNull();
+    expect(container.querySelector('.viewer-section__status')).toBeNull();
+
+    const section = indexDocument(doc).sections[0]!;
+    await act(async () => {
+      await store.checkSection(section.sectionId, section.items);
+    });
+    expect(service.calls.length).toBe(1);
+    expect(container.querySelector('[data-section-frozen="true"]')).not.toBeNull();
+    expect(container.querySelector('fieldset.viewer-section__inputs')?.matches(':disabled')).toBe(true);
+  });
+
+  it('without it, the footer is still drawn', () => {
+    setup(docOf(blocksOf('paragraph')[0]));
+    expect(screen.getByRole('button', { name: 'Check' })).toBeTruthy();
   });
 });
 

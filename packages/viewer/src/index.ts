@@ -158,6 +158,13 @@ export type {
   ReleasedFeedbackResult,
   SectionCheckResult,
   SectionResponses,
+  PracticeAnswers,
+  PracticeCheckResult,
+  PracticeItemResult,
+  PracticeServedItem,
+  PracticeSession,
+  PracticeStartResult,
+  PracticeStartState,
 } from './check/wire.js';
 export { createMockCheckService } from './check/mock.js';
 export type { MockCheckScript, MockCheckService } from './check/mock.js';
@@ -365,7 +372,7 @@ export type {
   ViewerErrorKind,
   ViewerReadClient,
 } from './client/readClient.js';
-export { CheckError, createHttpCheckService } from './client/httpCheckService.js';
+export { CheckError, checkErrorFor, createHttpCheckService } from './client/httpCheckService.js';
 export type {
   CheckErrorKind,
   HttpCheckServiceOptions,

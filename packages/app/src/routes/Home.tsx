@@ -326,16 +326,19 @@ function StudentHome({ email }: { email: string }) {
                 <p className="text-xs text-muted">
                   Joined {formatListDate(c.joinedAt)}
                 </p>
-                {/* The class's daily number-facts practice, when its teacher
-                    has it on (SP-1). The page itself is a lazy route. */}
+                {/* The class's practice link, when its teacher has number
+                    facts (SP-1) or mixed practice (DM-1) on. One link; the
+                    page chooses when both are on. A lazy route. */}
                 {c.factsCode ? (
                   // S8: its own row, set apart from the activity list — it is a
                   // daily practice, not one more worksheet to finish.
                   <Link
-                    to={`/facts/${c.factsCode}`}
+                    to={`/practice/${c.factsCode}`}
                     className="mt-2 flex min-h-[44px] items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-2"
                   >
-                    <span className="underline underline-offset-2">Number facts practice</span>
+                    <span className="underline underline-offset-2">
+                      {c.mixedOn ? 'Practice' : 'Number facts practice'}
+                    </span>
                     <span className="text-xs text-muted">Daily</span>
                   </Link>
                 ) : null}

@@ -405,7 +405,7 @@ export interface IdentityStubOptions {
   /** The users-row answer for the role select; 'none' = zero rows (E-11). */
   role: 'teacher' | 'student' | 'none';
   /** Active memberships served to listMyClasses. */
-  classes?: { classId: string; name: string; joinedAt: string; joinCode?: string; factsOn?: boolean }[];
+  classes?: { classId: string; name: string; joinedAt: string; joinCode?: string; factsOn?: boolean; mixedOn?: boolean }[];
   /** join_class outcome: 'ok' or the wire-error key to refuse with. */
   join?: 'ok' | keyof typeof JOIN_WIRE;
   /** Joined-class payload for the 'ok' case. */
@@ -489,6 +489,7 @@ export async function stubIdentityApi(
           name: c.name,
           join_code: c.joinCode ?? null,
           fact_sprint_on_at: c.factsOn ? '2027-02-10T00:00:00Z' : null,
+          mixed_on_at: c.mixedOn ? '2027-02-10T00:00:00Z' : null,
         },
       })),
     });

@@ -79,12 +79,13 @@ test('no check open: the practice card, a strategy, a miss with its answer and o
   await expect(page.locator('body')).not.toContainText(/probe|sprint/i);
 });
 
-test('Home shows the practice link only under a class that has it switched on (SP-1)', async ({ page }) => {
+test('Home shows the practice link only under a class that has a practice switched on (SP-1, DM-1)', async ({ page }) => {
   await stubIdentityApi(page, {
     role: 'student',
     classes: [
       { classId: 'c1', name: '9 Maths B', joinedAt: '2027-02-01T00:00:00Z', joinCode: CODE, factsOn: true },
       { classId: 'c2', name: '9 Science', joinedAt: '2027-02-02T00:00:00Z', joinCode: 'XYZ789', factsOn: false },
+      { classId: 'c3', name: '9 Maths C', joinedAt: '2027-02-03T00:00:00Z', joinCode: 'MXP789', mixedOn: true },
     ],
   });
   await signInAs(page);
@@ -93,7 +94,9 @@ test('Home shows the practice link only under a class that has it switched on (S
   await expect(page.getByRole('heading', { name: '9 Science' })).toBeVisible();
   const links = page.getByRole('link', { name: 'Number facts practice' });
   await expect(links).toHaveCount(1);
-  await expect(links).toHaveAttribute('href', `/facts/${CODE}`);
+  // One link, the neutral alias (DM-1); a class with mixed practice says "Practice".
+  await expect(links).toHaveAttribute('href', `/practice/${CODE}`);
+  await expect(page.getByRole('link', { name: /^Practice/ })).toHaveAttribute('href', '/practice/MXP789');
   await links.click();
   await expect(page.getByRole('heading', { name: 'Number facts practice' })).toBeVisible();
 });

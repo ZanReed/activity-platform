@@ -135,6 +135,13 @@ export interface ViewerContainerProps {
    * passes it only when the answer key is on. Rendered in print mode only.
    */
   teacherGuide?: TeacherGuide;
+  /**
+   * The CALLER draws the Check control (mixed practice, slice 3 ruling 1): no
+   * group footer renders, and the caller checks through the same store with
+   * `indexDocument`'s section items. The practice runner pins its Check, Skip
+   * and Next to one bar, which a footer inside the section cannot join.
+   */
+  externalCheck?: boolean;
 }
 
 /** Registry-driven resolution honoring the D16 eager/lazy split — the SHARED
@@ -235,6 +242,7 @@ export function ViewerContainer({
   onTakeOver,
   glossary,
   teacherGuide,
+  externalCheck = false,
 }: ViewerContainerProps) {
   // Only the check statuses (efficiency audit 2026-10 #5): the container used
   // to subscribe to the WHOLE store, so every keystroke re-rendered it and
@@ -511,7 +519,7 @@ export function ViewerContainer({
         <CheckGroupRegion
           key={group.id}
           group={group}
-          mode={mode}
+          footer={mode === 'screen' && !externalCheck}
           locked={locked}
           sections={sections}
           crashedIn={crashedGradableIn}
@@ -656,7 +664,9 @@ function GlossaryScope({
 
 interface CheckGroupRegionProps {
   group: CheckGroup;
-  mode: 'screen' | 'print';
+  /** The Check button and status line (absent in print and under
+   * `externalCheck`). */
+  footer: boolean;
   locked: boolean;
   sections: Record<string, SectionStatus>;
   crashedIn: (section: SectionIndex) => string[];
@@ -669,7 +679,7 @@ interface CheckGroupRegionProps {
 
 function CheckGroupRegion({
   group,
-  mode,
+  footer,
   locked,
   sections,
   crashedIn,
@@ -730,7 +740,7 @@ function CheckGroupRegion({
       {...(frozen ? { 'data-group-frozen': 'true' } : {})}
     >
       {children}
-      {mode === 'screen' ? (
+      {footer ? (
         <div className="viewer-section__footer viewer-check-group__footer">
           {showButton && !confirming ? (
             <button

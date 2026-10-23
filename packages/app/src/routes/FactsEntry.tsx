@@ -29,6 +29,20 @@
 //   practice resume    "Welcome back" for today's unfinished session
 //   nothing to do      "Nothing to practise right now"
 //
+// MIXED PRACTICE (D43 mixed practice slice 3, DM-1) lives here too, read beside
+// the number facts: the class behind the code, then start_mixed_session's
+// PREVIEW (it writes nothing). When both are on, a chooser comes first
+// ("Number facts · about 5 min" / "Practice · about 6–9 min"); when one is on
+// the link goes straight there. /practice/:code is the same page. Its screens:
+//
+//   ready              the start card (DM-12 as amended by C-146), then Start
+//   resume             "You stopped at question 4 of 6": Carry on / Finish here
+//   nothing_taught     "Nothing to practise yet. …" (DM-4)
+//   nothing_due        "Nothing to practise today. …"
+//   done_today         "You've done today's practice." (DM-7)
+//
+// The runner itself (practice/MixedRunner.tsx) is a LAZY chunk of its own.
+//
 // SAVING (G1, ER-19, DR-14) is silent: one queue (practice/saveQueue.ts) saves
 // after every item and when the page is hidden. One quiet line appears under
 // the keypad after 10 s of failure; a retry state appears only on the done
@@ -40,9 +54,9 @@
 // user id, never on the session object.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { VIEWER_STORAGE_PREFIX } from '@activity/viewer';
+import { VIEWER_STORAGE_PREFIX, type PracticeSession } from '@activity/viewer';
 import {
     AccountUnavailableCard,
     BTN_PRIMARY,
@@ -62,13 +76,25 @@ import {
     type SprintSaveResult,
     type SprintSession,
 } from '../lib/factSprint';
+import {
+    finishMixed,
+    lookupPracticeClass,
+    practiceMinutes,
+    previewMixed,
+    startMixed,
+    type MixedPreview,
+} from '../lib/mixedPractice';
 import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
 import { signOutEverything } from '../lib/studentAuth';
 import FactRunner from '../practice/FactRunner';
+import MixedDone, { type MixedTally } from '../practice/MixedDone';
+import { CARD, Card } from '../practice/PracticeCard';
 import { FactSaveQueue, heldKey } from '../practice/saveQueue';
 
-const CARD = 'mx-auto max-w-sm rounded-lg border border-line bg-canvas p-6 text-center shadow-sm';
+// Its own chunk: only a student who presses Start or Carry on loads it.
+const MixedRunner = lazy(() => import('../practice/MixedRunner'));
+
 export const WAIT_POLL_MS = 10_000;
 export const WAIT_LIMIT_MS = 10 * 60_000;
 export const OFFLINE_NOTICE_MS = 10_000;
@@ -76,25 +102,23 @@ export const OFFLINE_NOTICE_MS = 10_000;
 type Runnable = Extract<EntryState, { state: 'ready' | 'resume' }>;
 /** The practice states that have a screen of their own. */
 type SprintPractice = Extract<SprintEntry, { state: 'ready' | 'resume' | 'nothing_due' }>;
+/** Mixed practice, when the class has it on: its class and the preview. */
+interface MixedEntry {
+    classId: string;
+    preview: Exclude<MixedPreview, { state: 'off' }>;
+}
 
 type View =
     | { kind: 'loading' }
     | { kind: 'failed' }
     /** `sprint` is set when no check is open and the class's practice is on. */
-    | { kind: 'entry'; entry: EntryState; sprint?: SprintPractice }
+    | { kind: 'entry'; entry: EntryState; sprint?: SprintPractice; mixed?: MixedEntry }
     | { kind: 'sprintClosed'; saved: number }
     | { kind: 'joining' }
     | { kind: 'joinFailed'; copy: string }
-    | { kind: 'closed'; saved: number };
-
-function Card({ title, children }: { title: string; children: ReactNode }) {
-    return (
-        <div className={CARD}>
-            <h1 className="text-2xl font-bold text-ink">{title}</h1>
-            {children}
-        </div>
-    );
-}
+    | { kind: 'closed'; saved: number }
+    /** Finish here (DM-6): the server's counts for the session just closed. */
+    | { kind: 'mixedFinished'; tally: MixedTally; graded: boolean; classId: string };
 
 export default function FactsEntry() {
     const { code: rawCode } = useParams();
@@ -115,9 +139,13 @@ export default function FactsEntry() {
             : null;
     // The practice session on screen, if any: the same rule.
     const [sprintRun, setSprintRun] = useState<SprintSession | null>(null);
+    // A mixed practice on screen: the same rule.
+    const [mixedRun, setMixedRun] = useState<{ session: PracticeSession; classId: string } | null>(null);
+    // DM-1: which practice the chooser picked, when both are on.
+    const [choice, setChoice] = useState<'facts' | 'practice' | null>(null);
     const [starting, setStarting] = useState(false);
     const activeRef = useRef(false);
-    activeRef.current = active !== null || sprintRun !== null;
+    activeRef.current = active !== null || sprintRun !== null || mixedRun !== null;
 
     // ---- the entry read ---------------------------------------------------------
     // The last entry state seen. When it was one that leads to the practice
@@ -138,20 +166,36 @@ export default function FactsEntry() {
                 // check's own screens are still right.
                 () => undefined,
             );
+        // Mixed practice: the class behind the code, then the preview. Off, or
+        // any failure, reads as "not on" (the sprint's posture above).
+        const mixedRead = async (): Promise<MixedEntry | undefined> => {
+            try {
+                const cls = await lookupPracticeClass(code);
+                if (!cls?.mixedOn) return undefined;
+                const preview = await previewMixed(cls.id);
+                return preview.state === 'off' ? undefined : { classId: cls.id, preview };
+            } catch {
+                return undefined;
+            }
+        };
+        const bothReads = () => Promise.all([sprintRead(), mixedRead()]);
         try {
             let entry: Awaited<ReturnType<typeof fetchEntry>>;
             let sprint: SprintPractice | undefined;
+            let mixed: MixedEntry | undefined;
             if (lastStateRef.current !== null && leadsToSprint(lastStateRef.current)) {
-                const [e, s] = await Promise.all([fetchEntry(code), sprintRead()]);
+                const [e, [s, m]] = await Promise.all([fetchEntry(code), bothReads()]);
                 entry = e;
-                sprint = leadsToSprint(e.state) ? s : undefined;
+                [sprint, mixed] = leadsToSprint(e.state) ? [s, m] : [undefined, undefined];
             } else {
                 entry = await fetchEntry(code);
-                // No check to do: is the class's daily practice on?
-                sprint = leadsToSprint(entry.state) ? await sprintRead() : undefined;
+                // No check to do: is either practice on?
+                [sprint, mixed] = leadsToSprint(entry.state) ? await bothReads() : [undefined, undefined];
             }
             lastStateRef.current = entry.state;
-            if (!activeRef.current) setView({ kind: 'entry', entry, ...(sprint ? { sprint } : {}) });
+            if (!activeRef.current) {
+                setView({ kind: 'entry', entry, ...(sprint ? { sprint } : {}), ...(mixed ? { mixed } : {}) });
+            }
             return entry;
         } catch {
             if (!activeRef.current) setView({ kind: 'failed' });
@@ -169,7 +213,7 @@ export default function FactsEntry() {
     }, [userId, roleReady, enter]);
 
     // ---- the waiting room (DR-15) -----------------------------------------------
-    const waiting = view.kind === 'entry' && view.entry.state === 'none_open' && !view.sprint;
+    const waiting = view.kind === 'entry' && view.entry.state === 'none_open' && !view.sprint && !view.mixed;
     const [waitExpired, setWaitExpired] = useState(false);
     useEffect(() => {
         if (!waiting) return;
@@ -214,9 +258,74 @@ export default function FactsEntry() {
         }
     };
 
+    // ---- mixed practice: Start / Carry on / Finish here ----------------------------
+    // Leave a practice run for the resting screens. `activeRef` is written
+    // during render, so it is cleared HERE too: otherwise the entry read that
+    // follows sees the run still "on screen" and returns without reading
+    // (Fable review 2026-10-23, P1). The chooser is offered again (P2).
+    const leaveRun = () => {
+        setMixedRun(null);
+        setChoice(null);
+        activeRef.current = active !== null || sprintRun !== null;
+    };
+    const startPractice = async (classId: string) => {
+        setStarting(true);
+        try {
+            const r = await startMixed(classId);
+            if ((r.state === 'started' || r.state === 'resume') && r.session) {
+                setMixedRun({ session: r.session, classId });
+            } else {
+                leaveRun();
+                setView({ kind: 'loading' });
+                await enter();
+            }
+        } catch {
+            // From the runner's done screen (Practise again) too: a failure
+            // must show, never leave the done screen up as if nothing happened.
+            leaveRun();
+            setView({ kind: 'failed' });
+        } finally {
+            setStarting(false);
+        }
+    };
+    const finishPractice = async (classId: string, sessionId: string) => {
+        setStarting(true);
+        try {
+            const f = await finishMixed(sessionId);
+            setView({
+                kind: 'mixedFinished',
+                classId,
+                graded: f.graded,
+                tally: { of: f.planned, right: f.right, answered: f.answered, skipped: f.skipped },
+            });
+        } catch {
+            setView({ kind: 'failed' });
+        } finally {
+            setStarting(false);
+        }
+    };
+    const reenter = () => {
+        leaveRun();
+        setView({ kind: 'loading' });
+        void enter();
+    };
+
     // ---- screens ---------------------------------------------------------------
     let body: ReactNode;
-    if (sprintRun && userId) {
+    if (mixedRun && userId) {
+        body = (
+            <Suspense fallback={<div className={CARD} role="status"><p className="text-muted">Getting things ready…</p></div>}>
+                <MixedRunner
+                    key={mixedRun.session.sessionId}
+                    session={mixedRun.session}
+                    userId={userId}
+                    classId={mixedRun.classId}
+                    onAgain={() => void startPractice(mixedRun.classId)}
+                    onEnded={reenter}
+                />
+            </Suspense>
+        );
+    } else if (sprintRun && userId) {
         body = (
             <SprintRun
                 key={sprintRun.session_id}
@@ -224,6 +333,7 @@ export default function FactsEntry() {
                 userId={userId}
                 onClosed={(saved) => {
                     setSprintRun(null);
+                    setChoice(null);
                     setView({ kind: 'sprintClosed', saved });
                 }}
             />
@@ -311,6 +421,16 @@ export default function FactsEntry() {
         );
     } else if (view.kind === 'closed') {
         body = <ClosedCard saved={view.saved} />;
+    } else if (view.kind === 'mixedFinished') {
+        body = (
+            <MixedDone
+                kind="finished"
+                tally={view.tally}
+                graded={view.graded}
+                classId={view.classId}
+                onAgain={() => void startPractice(view.classId)}
+            />
+        );
     } else if (view.kind === 'sprintClosed') {
         body = (
             <Card title="That session has ended">
@@ -321,6 +441,29 @@ export default function FactsEntry() {
                     See what is next
                 </button>
             </Card>
+        );
+    } else if (view.mixed && view.sprint && choice === null) {
+        // DM-1: both on, so the student chooses. Each line says about how long.
+        const sprint = view.sprint;
+        const planned = view.mixed.preview.planned;
+        body = (
+            <Card title="Practice">
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => setChoice('facts')} autoFocus>
+                    Number facts · about {sprint.state === 'ready' ? (sprint.minutes ?? 5) : 5} min
+                </button>
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => setChoice('practice')}>
+                    Practice{planned > 0 ? ` · about ${practiceMinutes(planned)} min` : ''}
+                </button>
+            </Card>
+        );
+    } else if (view.mixed && (!view.sprint || choice === 'practice')) {
+        body = (
+            <MixedEntryCard
+                mixed={view.mixed}
+                starting={starting}
+                onStart={() => void startPractice(view.mixed!.classId)}
+                onFinish={(sessionId) => void finishPractice(view.mixed!.classId, sessionId)}
+            />
         );
     } else if (view.sprint) {
         const sprint = view.sprint;
@@ -444,6 +587,93 @@ export default function FactsEntry() {
     }
 
     return <main className="fx-stage">{body}</main>;
+}
+
+/** Mixed practice's resting screens (DM-4, DM-6, DM-12 as amended by C-146).
+ * The words never say "mixed", "session", "due" or "planned" (DM-13). */
+function MixedEntryCard({
+    mixed,
+    starting,
+    onStart,
+    onFinish,
+}: {
+    mixed: MixedEntry;
+    starting: boolean;
+    onStart: () => void;
+    onFinish: (sessionId: string) => void;
+}) {
+    const p = mixed.preview;
+    const home = (
+        <Link to="/" className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}>
+            Go to your classes
+        </Link>
+    );
+    if (p.state === 'nothing_taught') {
+        return (
+            <Card title="Nothing to practise yet">
+                <p className="mt-2 text-base text-muted">
+                    It starts the day after you check your first activity.
+                </p>
+                {home}
+            </Card>
+        );
+    }
+    if (p.state === 'nothing_due') {
+        return (
+            <Card title="Nothing to practise today">
+                <p className="mt-2 text-base text-muted">Come back next lesson.</p>
+                {home}
+            </Card>
+        );
+    }
+    if (p.state === 'done_today') {
+        return (
+            <Card title="You’ve done today’s practice">
+                <p className="mt-2 text-base text-muted">That’s everything for today.</p>
+                {home}
+            </Card>
+        );
+    }
+    if (p.state === 'resume') {
+        return (
+            <Card title="Welcome back">
+                <p className="mt-2 text-base text-strong">
+                    You stopped at question {p.nextSeq ?? 1} of {p.planned}.
+                </p>
+                <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} disabled={starting} onClick={onStart} autoFocus>
+                    {starting ? 'Starting…' : 'Carry on'}
+                </button>
+                {p.sessionId ? (
+                    <button
+                        type="button"
+                        className="mt-2 min-h-11 text-sm font-medium text-strong underline"
+                        disabled={starting}
+                        onClick={() => onFinish(p.sessionId!)}
+                    >
+                        Finish here
+                    </button>
+                ) : null}
+            </Card>
+        );
+    }
+    // ready (the first today, or DM-7's again)
+    return (
+        <Card title="Practice">
+            <p className="mt-2 text-base text-strong">
+                {p.planned} question{p.planned === 1 ? '' : 's'} · about {practiceMinutes(p.planned)} minutes.
+            </p>
+            <p className="mt-2 text-base text-muted">
+                One try each. Have a go even if you’re unsure. A wrong try still helps you remember.
+                You can see the working after every answer.
+            </p>
+            {p.graded ? (
+                <p className="mt-2 text-base text-strong">Your teacher is recording a practice score today.</p>
+            ) : null}
+            <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} disabled={starting} onClick={onStart} autoFocus>
+                {starting ? 'Starting…' : 'Start'}
+            </button>
+        </Card>
+    );
 }
 
 function ClosedCard({ saved }: { saved: number }) {
