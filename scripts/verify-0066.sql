@@ -274,6 +274,14 @@ begin
   end;
   execute 'reset role';
   if not v_raised then raise exception 'FAIL B3: a teacher wrote primary_skill on their own row'; end if;
+  v_raised := false;
+  begin
+    execute 'set local role authenticated';
+    update activities set consolidates_chain = 'chain.vfy0066' where id = v_copy;
+  exception when others then v_raised := sqlerrm like '%consolidates_chain is not client-writable%';
+  end;
+  execute 'reset role';
+  if not v_raised then raise exception 'FAIL B3: a teacher wrote consolidates_chain on their own row'; end if;
   n := n + 1;
 
   -- B4 the pool (ER-13): s1, every new skill admitted (cap 6) --------------
@@ -309,6 +317,27 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', v_s2)::text, true);
   v_res := start_mixed_session(v_k, false);
   if v_res->>'state' <> 'nothing_taught' then raise exception 'FAIL B5: s2 got %', v_res; end if;
+  -- D71: s2 checks ONLY a consolidation of chain.vfy0066 (no primary skill of
+  -- its own here). Every skill the chain's discrimination banks discriminate
+  -- enters s2's taught set: a, b (disc-ab) and z (disc-az). Undone after.
+  insert into activities (owner_id, title, slug, status, source_path, consolidates_chain)
+  values (v_o, 'vfy consolidation', 'vfy-0066-cons', 'published', 'p/09.md', 'chain.vfy0066')
+  returning id into v_id;
+  insert into class_activities (class_id, activity_id, added_by) values (v_k, v_id, v_t);
+  with av as (insert into activity_versions (activity_id, version_num, content, created_by)
+              values (v_id, 1, v_doc, v_o) returning id)
+  insert into section_checks (student_id, activity_id, activity_version_id, section_id,
+                              attempt_number, responses, verdicts, created_at)
+  select v_s2, v_id, av.id, 's1', 1, '{}', '{}', now() - interval '3 days' from av;
+  select string_agg(t.skill_id, ',' order by t.skill_id) into v_got
+    from mixed_taught(v_k, v_s2, v_zone) t;
+  if v_got is distinct from 'skill.vfy0066.a,skill.vfy0066.b,skill.vfy0066.z' then
+    raise exception 'FAIL B5: a checked consolidation taught %', v_got;
+  end if;
+  delete from section_checks where activity_id = v_id;
+  delete from class_activities where activity_id = v_id;
+  delete from activity_versions where activity_id = v_id;
+  delete from activities where id = v_id;
   n := n + 1;
 
   -- B6 the fill order and caps: two new skills (chain order), one discrimination

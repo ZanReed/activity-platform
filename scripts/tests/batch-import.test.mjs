@@ -50,6 +50,7 @@ import {
     chainFolderOf,
     classifyUpdates,
     pathOnlyPayload,
+    consolidatesChainOf,
     planPracticeRegistry,
     MIXED_KEYS,
     contentKey,
@@ -488,6 +489,7 @@ test('§A3 ER-3 a primary_skill BACKFILL on a published row is PATH ONLY and wri
         source_path: PATH,
         source_key: 'act.x',
         primary_skill: 'rate.unit-rate',
+        consolidates_chain: null,
     });
 });
 
@@ -511,6 +513,31 @@ test('§A3 ER-3 a CONTENT edit takes the full update and carries the skill with 
     assert.equal(updatePayload(fileAt(PATH), out).primary_skill, 'rate.unit-rate');
     // A file with no skill: writes NULL (an app-authored activity's value).
     assert.equal(updatePayload(fileAt(PATH), convertOne(pipeline, SAMPLE, null, PATH)).primary_skill, null);
+});
+
+// D71 (0066): a consolidation's chain id is IDENTITY, like primary_skill.
+const CONSOLIDATION = SKILLED.replace('role: practice', 'role: practice\nchain_role: consolidation');
+const CHAIN_PATH = '904-chain.algebra.manipulation/03-collect-or-multiply.md';
+
+test('§A3 D71 consolidates_chain: a consolidation\'s folder chain; NULL for a part or outside a chain folder', () => {
+    const cons = convertOne(pipeline, CONSOLIDATION, null, CHAIN_PATH);
+    assert.equal(cons.chainRole, 'consolidation', 'the fixture must carry chain_role');
+    assert.equal(updatePayload(fileAt(CHAIN_PATH), cons).consolidates_chain, 'chain.algebra.manipulation');
+    assert.equal(consolidatesChainOf(fileAt(PATH), cons), null, 'unit-3/ is not a chain folder');
+    const part = convertOne(pipeline, SKILLED, null, CHAIN_PATH);
+    assert.equal(updatePayload(fileAt(CHAIN_PATH), part).consolidates_chain, null);
+});
+
+test('§A3 D71 a consolidates_chain BACKFILL is PATH ONLY; once held, UNCHANGED', () => {
+    const base = storedRowFor(CONSOLIDATION, { primary_skill: 'rate.unit-rate' });
+    const row = { ...base, source_path: CHAIN_PATH };
+    const out = convertOne(pipeline, CONSOLIDATION, row, CHAIN_PATH);
+    const entry = (r) => ({ file: fileAt(CHAIN_PATH), row: r, converted: out, moved: false, adoptsKey: false });
+    const backfill = classifyUpdates([entry(row)], () => null, SCHEMA);
+    assert.deepEqual([backfill.pathOnly.length, backfill.unchanged.length, backfill.full.length], [1, 0, 0]);
+    assert.equal(pathOnlyPayload(fileAt(CHAIN_PATH), out).consolidates_chain, 'chain.algebra.manipulation');
+    const held = classifyUpdates([entry({ ...row, consolidates_chain: 'chain.algebra.manipulation' })], () => null, SCHEMA);
+    assert.equal(held.unchanged.length, 1, 'a re-run after the backfill writes nothing');
 });
 
 test('§A3 classify compares a PUBLISHED row (no draft) against its current version', () => {

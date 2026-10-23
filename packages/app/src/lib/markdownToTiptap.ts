@@ -290,9 +290,11 @@ export interface ImportedMeta {
      * it is day-of-teaching content.
      *
      * Why the platform reads it at all, when the curriculum function is
-     * otherwise none of its business: coverage. A consolidation names its
-     * chain's TERMINAL skill as primary but does not teach it, so counting it
-     * as a part would report a fully-taught skill as "1 of 2".
+     * otherwise none of its business: coverage, and since D71 the practice
+     * pool. A consolidation names the last skill it discriminates as primary
+     * (its chain's terminal skill, or mid-chain under D24 as amended) but does
+     * not teach it, so counting it as a part would report a fully-taught skill
+     * as "1 of 2". Position in the chain is never read.
      */
     chainRole?: 'part' | 'consolidation';
     /**

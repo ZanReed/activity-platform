@@ -11,7 +11,8 @@
 --   §A  audit actions
 --   §B  activities.primary_skill — the activity's `skill:`, written ONLY by the
 --       service-role importer as an IDENTITY write (ER-3); the provenance
---       guard gains it
+--       guard gains it. Also activities.consolidates_chain (D71): a
+--       consolidation's chain id, written and guarded the same way
 --   §C  mixed_settings_revision + sync_mixed_settings — the mirror of the
 --       seven curriculum keys (insert-only, like fact_scope_revision)
 --   §D  classes.mixed_on_at / mixed_items_per_session / mixed_graded — the
@@ -85,6 +86,18 @@ alter table activities
 comment on column activities.primary_skill is
   'The catalogue file''s primary `skill:` (0066, MP-2). Written ONLY by the service-role batch importer as an identity write (ER-3); a Bank copy carries NULL and is read through coalesce(copied_from_activity_id, id). Feeds mixed practice''s "taught" pool.';
 
+-- D71 (curriculum C-160, author-ruled 2026-10-21; build ruled here 2026-10-23):
+-- checking a CONSOLIDATION puts every skill it discriminates into the pool.
+-- The row stores only WHICH chain it consolidates; the skills are read from
+-- that chain's discrimination bank, so the list lives in one place.
+alter table activities
+  add column consolidates_chain text
+    check (consolidates_chain is null
+           or (consolidates_chain ~ '^chain\.[a-z0-9][a-z0-9.-]*$' and length(consolidates_chain) <= 120));
+
+comment on column activities.consolidates_chain is
+  'For a catalogue file with `chain_role: consolidation`, its chain id (the folder minus its ordinal); NULL otherwise (0066, D71). Written ONLY by the service-role batch importer, like primary_skill. mixed_taught reads the discriminates of that chain''s discrimination bank from it.';
+
 -- 0057's guard, plus primary_skill: before it, a teacher could write any skill
 -- onto their own row. Only a non-client role (the importer) sets it.
 create or replace function activities_provenance_guard()
@@ -101,6 +114,9 @@ begin
       if new.primary_skill is not null then
         raise exception 'primary_skill is not client-writable';
       end if;
+      if new.consolidates_chain is not null then
+        raise exception 'consolidates_chain is not client-writable';
+      end if;
     else
       if new.copied_from_activity_id is distinct from old.copied_from_activity_id
          or new.copied_from_version_id is distinct from old.copied_from_version_id then
@@ -108,6 +124,9 @@ begin
       end if;
       if new.primary_skill is distinct from old.primary_skill then
         raise exception 'primary_skill is not client-writable';
+      end if;
+      if new.consolidates_chain is distinct from old.consolidates_chain then
+        raise exception 'consolidates_chain is not client-writable';
       end if;
     end if;
   end if;
@@ -444,6 +463,10 @@ alter table mixed_attempts      force row level security;
 -- owner, with the practice day of their first check (ER-10 as reversed).
 -- The day is the check's created_at in the class zone: a check row stores no
 -- practice day (the latent ER-12 issue, filed in TODOS for the sprint too).
+-- D71: checking a consolidation also teaches every skill its chain's
+-- discrimination bank discriminates (any non-retired bank, draft or ratified:
+-- the list is the authored truth; serving still needs ratified items), on the
+-- consolidation's day, ordered at the consolidation's place.
 create or replace function mixed_taught(p_class_id uuid, p_student_id uuid, p_zone text)
 returns table (skill_id text, owner_id uuid, taught_day date, chain_order text)
 language sql
@@ -451,16 +474,30 @@ stable
 security definer
 set search_path = public
 as $$
-  select src.primary_skill, src.owner_id,
-         min((sc.created_at at time zone p_zone)::date),
-         min(coalesce(src.source_path, src.title))
-  from class_activities ca
-  join activities a   on a.id = ca.activity_id
-  join activities src on src.id = coalesce(a.copied_from_activity_id, a.id)
-  join section_checks sc on sc.activity_id = a.id and sc.student_id = p_student_id
-  where ca.class_id = p_class_id
-    and src.primary_skill is not null
-  group by src.primary_skill, src.owner_id;
+  with checked as (
+    select src.owner_id, src.primary_skill, src.consolidates_chain,
+           min((sc.created_at at time zone p_zone)::date) as day,
+           min(coalesce(src.source_path, src.title)) as ord
+    from class_activities ca
+    join activities a   on a.id = ca.activity_id
+    join activities src on src.id = coalesce(a.copied_from_activity_id, a.id)
+    join section_checks sc on sc.activity_id = a.id and sc.student_id = p_student_id
+    where ca.class_id = p_class_id
+      and (src.primary_skill is not null or src.consolidates_chain is not null)
+    group by src.id, src.owner_id, src.primary_skill, src.consolidates_chain
+  ), skills as (
+    select c.primary_skill as skill_id, c.owner_id, c.day, c.ord
+    from checked c where c.primary_skill is not null
+    union all
+    select d.skill, c.owner_id, c.day, c.ord
+    from checked c
+    join practice_item p on p.owner_id = c.owner_id and p.role = 'discrimination'
+                        and p.chain_id = c.consolidates_chain and p.retired_at is null
+    cross join lateral unnest(p.discriminates) as d(skill)
+  )
+  select s.skill_id, s.owner_id, min(s.day), min(s.ord)
+  from skills s
+  group by s.skill_id, s.owner_id;
 $$;
 
 -- F2. Each key's step, derived (ER-2/5/6/11/12 + C-145 2a). One row per

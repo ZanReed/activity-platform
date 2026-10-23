@@ -1029,3 +1029,15 @@ run `/design-review` on the built screens. No unresolved decisions.
 - **VERDICT:** ENG + DESIGN CLEARED for the design. The build stays GATED on a second ratified chain bank (Y9 or above, to be named by the curriculum side); run `/design-review` on the built screens.
 
 NO UNRESOLVED DECISIONS
+
+## D71: a checked consolidation teaches what it discriminates (C-160, 2026-10-23)
+
+Curriculum D71 (author-ruled 2026-10-21) amends the pool rule. When a student checks a consolidation activity, each skill it discriminates that is not yet in their pool enters it on the next practice day, as if its own activity had been checked. The reason is D55: a Y7 skill reviewed inside Y9 work may never be taught by its own activity.
+
+**Build, author-ruled 2026-10-23: store the chain, read the bank.**
+- `activities.consolidates_chain` holds a `chain_role: consolidation` file's chain id (its folder minus the ordinal). Only the importer writes it, as an identity write next to `primary_skill`. The provenance guard refuses a client write.
+- `mixed_taught` adds the `discriminates` of every non-retired discrimination bank on that chain, from the same bank owner, dated by the consolidation's first check. The list lives only in the bank.
+- verify-0066 gained two rows: B3 (the guard) and B5 (a student who checked only a consolidation is taught a, b and z). Both were mutation-tested: each goes red on the old code.
+- The importer tests cover the backfill as a path-only write and an unchanged re-run.
+
+Mid-chain consolidations (D24 as amended, D70) need nothing: no code reads a consolidation's position.

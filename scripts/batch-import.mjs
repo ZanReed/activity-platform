@@ -374,6 +374,8 @@ export function updatePayload(file, converted, now = new Date().toISOString()) {
         // decides "unchanged", so a backfill or a `skill:` edit alone goes to
         // pathOnly and never writes a draft onto a published activity.
         primary_skill: primarySkillOf(converted),
+        // consolidates_chain (0066, D71): identity too, same reasons.
+        consolidates_chain: consolidatesChainOf(file, converted),
         updated_at: now,
     };
 }
@@ -383,12 +385,23 @@ export function primarySkillOf(converted) {
     return converted.primarySkill ?? null;
 }
 
+/** D71: a `chain_role: consolidation` file's chain id — its chain folder
+ *  minus the ordinal, the same derivation a bank's `chain:` is checked
+ *  against (PB-7). NULL for a part, or a file outside a chain folder. */
+export function consolidatesChainOf(file, converted) {
+    if (converted.chainRole !== 'consolidation') return null;
+    const folder = file.sourcePath.split('/').slice(-2, -1)[0] ?? '';
+    const chainId = folder.replace(/^\d+-/, '');
+    return /^chain\.[a-z0-9][a-z0-9.-]*$/.test(chainId) ? chainId : null;
+}
+
 /** Fields that never decide "unchanged": identity, bookkeeping, the clock. */
 const NOT_CONTENT = new Set([
     'source_path',
     'source_key',
     'source_fingerprint',
     'primary_skill',
+    'consolidates_chain',
     'updated_at',
 ]);
 
@@ -455,12 +468,18 @@ export function pathOnlyPayload(file, converted) {
         source_path: file.sourcePath,
         ...(file.key ? { source_key: file.key } : {}),
         primary_skill: primarySkillOf(converted),
+        consolidates_chain: consolidatesChainOf(file, converted),
     };
 }
 
 /** Does the row's stored primary_skill differ from the file's `skill:`? */
 export function needsSkill({ row, converted }) {
     return (row.primary_skill ?? null) !== primarySkillOf(converted);
+}
+
+/** Does the row's stored consolidates_chain differ from the file's (D71)? */
+export function needsChain({ file, row, converted }) {
+    return (row.consolidates_chain ?? null) !== consolidatesChainOf(file, converted);
 }
 
 export function classifyUpdates(planned, currentContentFor, documentSchema) {
@@ -484,7 +503,7 @@ export function classifyUpdates(planned, currentContentFor, documentSchema) {
             contentKey(updatePayload(file, converted), documentSchema) ===
             contentKey(now, documentSchema);
         if (!same) full.push(entry);
-        else if (entry.moved || entry.adoptsKey || needsSkill(entry)) pathOnly.push(entry);
+        else if (entry.moved || entry.adoptsKey || needsSkill(entry) || needsChain(entry)) pathOnly.push(entry);
         else unchanged.push(entry);
     }
     return { pathOnly, unchanged, full };
@@ -1666,9 +1685,11 @@ export function summarizeCoverage(perFile, registry) {
     for (const file of perFile) {
         if (file.primarySkill) {
             const entry = touch(file.primarySkill);
-            // ⚠ THE CONSOLIDATION CARVE-OUT, and the whole reason chain_role
-            // reaches this script. A consolidation names its chain's TERMINAL
-            // skill as primary but does not teach it — an earlier activity did.
+            // ⚠ THE CONSOLIDATION CARVE-OUT, one of the two reasons chain_role
+            // reaches this script (the other is D71's consolidates_chain). A
+            // consolidation names the last skill it discriminates as primary
+            // (usually its chain's terminal skill; mid-chain under D24 as
+            // amended) but does not teach it — an earlier activity did.
             // Counting it as a part would report a fully-taught 1-part skill as
             // "1 of 2" forever, and would fire the exceeds-declared-parts
             // warning on every well-formed chain.
@@ -2444,7 +2465,7 @@ export function makeDb(url, key) {
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
                     '&select=id,source_path,source_key,status,title,tags,' +
                     'pedagogical_role,course,unit,draft_content,' +
-                    'source_fingerprint,current_version_id,primary_skill',
+                    'source_fingerprint,current_version_id,primary_skill,consolidates_chain',
             );
         },
 
@@ -3133,10 +3154,10 @@ async function main() {
         }
         // 0066: primary_skill is read to decide the path-only skill backfill.
         // Refused before any write, like the two above.
-        if (missingColumn === 'primary_skill') {
+        if (missingColumn === 'primary_skill' || missingColumn === 'consolidates_chain') {
             usage(
-                'The database is missing `activities.primary_skill`, which this importer\n' +
-                    '  writes from each file\'s `skill:` (mixed practice\'s "taught" pool).\n\n' +
+                `The database is missing \`activities.${missingColumn}\`, which this importer\n` +
+                    '  writes from each file\'s `skill:` and `chain_role:` (mixed practice\'s "taught" pool).\n\n' +
                     '  Apply migration 0066 and re-run:\n' +
                     '    supabase db push',
             );
@@ -3754,7 +3775,8 @@ async function main() {
         console.log(
             `  path    ${file.sourcePath}  (content unchanged — path only` +
                 `${row.source_path && row.source_path !== file.sourcePath ? `, was ${row.source_path}` : ''}` +
-                `${needsSkill(entry) ? `, skill ${row.primary_skill ?? '(none)'} → ${primarySkillOf(entry.converted) ?? '(none)'}` : ''})`,
+                `${needsSkill(entry) ? `, skill ${row.primary_skill ?? '(none)'} → ${primarySkillOf(entry.converted) ?? '(none)'}` : ''}` +
+                `${needsChain(entry) ? `, consolidates ${row.consolidates_chain ?? '(none)'} → ${consolidatesChainOf(file, entry.converted) ?? '(none)'}` : ''})`,
         );
     }
     for (const { file } of unchanged) {
@@ -4400,6 +4422,7 @@ async function main() {
                         source_path: file.sourcePath,
                         source_key: file.key ?? null,
                         primary_skill: primarySkillOf(converted),
+                        consolidates_chain: consolidatesChainOf(file, converted),
                         draft_content: converted.document,
                         tags: converted.tags,
                         pedagogical_role: converted.pedagogicalRole,
