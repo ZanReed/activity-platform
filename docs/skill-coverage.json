@@ -1,14 +1,14 @@
 {
   "schema": "activity-platform/skill-coverage@1",
-  "registrySize": 96,
+  "registrySize": 108,
   "counts": {
     "activities": 21,
     "covered": 18,
-    "coveredPublished": 15,
+    "coveredPublished": 18,
     "partial": 0,
-    "uncovered": 78,
+    "uncovered": 90,
     "partsAuthored": 18,
-    "partsDeclared": 102
+    "partsDeclared": 114
   },
   "multiPartSkills": {
     "function.repr.correspondence": 3,
@@ -180,7 +180,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "701-chain.number.place-value/01-decimals.md"
       ],
@@ -192,7 +192,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "701-chain.number.place-value/02-powers-of-ten.md"
       ],
@@ -204,7 +204,7 @@
       "registered": true,
       "declaredParts": 1,
       "complete": true,
-      "published": false,
+      "published": true,
       "parts": [
         "701-chain.number.place-value/03-rounding-cash.md"
       ],
@@ -256,12 +256,24 @@
   ],
   "partial": [],
   "uncovered": [
+    "algebra.equations.both-sides",
+    "algebra.equations.brackets",
+    "algebra.equations.form-from-words",
+    "algebra.equations.fraction-coefficients",
     "algebra.equations.one-step",
     "algebra.equations.two-step",
+    "algebra.expand.negative",
+    "algebra.expand.single",
     "algebra.expressions.like-terms",
     "algebra.expressions.substitute",
+    "algebra.factorise.common-factor",
     "algebra.formulae.rearrange",
+    "algebra.formulae.rearrange-two-step",
+    "algebra.inequations.negative-coefficient",
+    "algebra.inequations.solve",
     "algebra.notation.write",
+    "algebra.terms.divide",
+    "algebra.terms.multiply",
     "coord.four-quadrant",
     "deriv.definition.at-a-point",
     "deriv.f-prime-as-function",

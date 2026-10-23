@@ -12,9 +12,9 @@
   docs/skill-coverage.json carries the same data for machines.
 -->
 
-**18 of 96 skills covered** (15 published, 3 draft only) · 0 partly covered · 21 activities
+**18 of 108 skills covered** (18 published, 0 draft only) · 0 partly covered · 21 activities
 
-**18 of 102 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
+**18 of 114 parts authored.** This is the number that moves while a multi-part skill is half-written; the skill count above stays flat until its last part lands.
 
 ## Covered
 
@@ -32,9 +32,9 @@
 | `measure.area.rect-triangle` | published | `710-chain.measure.area-volume/02-area-rect-triangle.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
 | `measure.perimeter.polygons` | published | `710-chain.measure.area-volume/01-perimeter.md` | — | `710-chain.measure.area-volume/05-perimeter-area-volume.md` |
 | `measure.volume.cuboid` | published | `710-chain.measure.area-volume/04-volume-cuboid.md` | `710-chain.measure.area-volume/05-perimeter-area-volume.md` | — |
-| `number.place-value.decimals` | draft only | `701-chain.number.place-value/01-decimals.md` | — | — |
-| `number.place-value.powers-of-ten` | draft only | `701-chain.number.place-value/02-powers-of-ten.md` | — | — |
-| `number.round.cash` | draft only | `701-chain.number.place-value/03-rounding-cash.md` | — | — |
+| `number.place-value.decimals` | published | `701-chain.number.place-value/01-decimals.md` | — | — |
+| `number.place-value.powers-of-ten` | published | `701-chain.number.place-value/02-powers-of-ten.md` | — | — |
+| `number.round.cash` | published | `701-chain.number.place-value/03-rounding-cash.md` | — | — |
 | `rate.constant-of-proportionality` | published | `801-chain.rate.proportional/02-constant-of-proportionality.md` | — | `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `rate.proportional-graph` | published | `801-chain.rate.proportional/03-proportional-graph.md` | `801-chain.rate.proportional/04-proportional-consolidation.md` | — |
 | `rate.unit-rate` | published | `801-chain.rate.proportional/01-unit-rate.md` | — | `801-chain.rate.proportional/04-proportional-consolidation.md` |
@@ -44,12 +44,24 @@
 Registered skills no activity targets. This list is the artifact's
 reason for existing — a count alone cannot be acted on.
 
+- `algebra.equations.both-sides`
+- `algebra.equations.brackets`
+- `algebra.equations.form-from-words`
+- `algebra.equations.fraction-coefficients`
 - `algebra.equations.one-step`
 - `algebra.equations.two-step`
+- `algebra.expand.negative`
+- `algebra.expand.single`
 - `algebra.expressions.like-terms`
 - `algebra.expressions.substitute`
+- `algebra.factorise.common-factor`
 - `algebra.formulae.rearrange`
+- `algebra.formulae.rearrange-two-step`
+- `algebra.inequations.negative-coefficient`
+- `algebra.inequations.solve`
 - `algebra.notation.write`
+- `algebra.terms.divide`
+- `algebra.terms.multiply`
 - `coord.four-quadrant`
 - `deriv.definition.at-a-point`
 - `deriv.f-prime-as-function`
