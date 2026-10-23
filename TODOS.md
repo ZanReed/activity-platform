@@ -158,7 +158,7 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
   the same latent issue as the sprint's (ER-12, the row above); attempts are
   safe (they store `practice_day`). **Trigger:** the same as the row above.
 
-## Curriculum overhaul feature wishes, D64–D68 (C-149…C-154, answered B-197/B-198, 2026-10-21) — ORDER RULED by the author 2026-10-21 (confirmed in chat, after C-157 relayed it): 1 D68, 2 D65, 3 D67, 4 D64
+## Curriculum overhaul feature wishes, D64–D68 (C-149…C-154, answered B-197/B-198, 2026-10-21) — ORDER RULED by the author 2026-10-21, RE-RULED 2026-10-23 (D73: build the player earlier; students see video only once the school clears hosting): 1 D68, 2 D65, 3 D64 player, 4 D67
 
 Zan rates platform features above activity authoring right now (C-149 item 4). Each wish below gets its own design pass before code. One build arc and one design arc run at a time. B-198 suggested this order, and the author ruled it as written (2026-10-21). Each item still gets its own design pass and his rulings before code.
 
@@ -173,7 +173,7 @@ Zan rates platform features above activity authoring right now (C-149 item 4). E
    - targeted practice from the skill bank, filtered by a `mis.*` column extracted at import.
    TRIGGER: the first Y9 DoL drafted with a parallel form.
 3. **D67 student unit tracker.** Rows keyed by skill and grouped by `activities.unit`. New work: a skill-label mirror (we store no labels today) and a private teacher-wording table keyed by (teacher, skill). Tier letters derive from the stored D66 tags. Statuses: taught (0066 pool), passed (D65), struggling (0066, mixed tries only). TRIGGER: D65 live.
-4. **D64 pause-point video player.** No embed block exists. Lean: a ```video fence whose pause points name faded steps; staleness bound to the published version plus a hash of the faded block. ⚠ BLOCKER BEFORE BUILD: embedding YouTube for students, some under 13, is a data-map, compliance and counsel question. TRIGGER: the author's ranking plus that question answered. Pilot: 1–2 live activities (701 or Y7 geometry).
+4. **D64 pause-point video player.** No embed block exists. Lean: a ```video fence whose pause points name faded steps; staleness bound to the published version plus a hash of the faded block. ⚠ Since D73 (re-ruled 2026-10-23) the PLAYER is built third, after D65, and pilot clips are recorded. Students see video only once the school clears hosting: embedding YouTube for students, some under 13, is still a data-map, compliance and counsel question, so it gates student exposure, not the build. Pilot: 1–2 live activities (701 or Y7 geometry).
 
 5. **D74 school unit test + assignment (C-160, 2026-10-23).** NOT in the ruled order; filed with a trigger (author ruling 2026-10-23).
    - `type:` becomes quiz | test | assignment, replacing exam. Today 'quiz' and 'exam' are live LABELS (ACTIVITY_TYPES), and the Bank hides both from listing and sharing (0054–0056). New labels need that hiding too, in a migration.
