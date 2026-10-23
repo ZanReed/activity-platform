@@ -603,7 +603,10 @@ begin
   end if;
   v_res := mixed_class_students(v_k);
   if jsonb_array_length(v_res) <> 3
-     or (select r->'struggling' from jsonb_array_elements(v_res) r where (r->>'student_id')::uuid = v_s3)
+     -- 0068 v2: each skill is {id, label} (label NULL until mirrored); the
+     -- latest score reads finished graded sessions only (verify-0068 B8).
+     or (select jsonb_agg(x->>'id') from jsonb_array_elements(v_res) r,
+                jsonb_array_elements(r->'struggling') x where (r->>'student_id')::uuid = v_s3)
           <> '["skill.vfy0066.b"]'::jsonb
      or (select (r->'latest_score'->>'planned')::int from jsonb_array_elements(v_res) r
           where (r->>'student_id')::uuid = v_s1) <> 3

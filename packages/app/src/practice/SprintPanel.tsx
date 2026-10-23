@@ -42,11 +42,14 @@ export default function SprintPanel({
     /** The latest closed snapshot's verdict, to say when it was recommended. */
     latestVerdict,
     onYearEndSaved,
+    onState,
 }: {
     classId: string;
     latestVerdict: 'below' | 'at_or_above' | 'not_enough' | null;
     /** The class's school-year end was saved here: the page re-reads it. */
     onYearEndSaved?: () => void;
+    /** Whether daily practice is on, for the page's "Who to see first". */
+    onState?: (on: boolean) => void;
 }) {
     const [data, setData] = useState<SprintOverview | null>(null);
     const [failed, setFailed] = useState(false);
@@ -60,12 +63,14 @@ export default function SprintPanel({
 
     const load = useCallback(async () => {
         try {
-            setData(await fetchSprintOverview(classId));
+            const next = await fetchSprintOverview(classId);
+            setData(next);
             setFailed(false);
+            onState?.(next.on);
         } catch {
             setFailed(true);
         }
-    }, [classId]);
+    }, [classId, onState]);
     useEffect(() => {
         void load();
     }, [load]);

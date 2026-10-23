@@ -1,6 +1,6 @@
 # Mixed practice slice 4 — the teacher panel, with D68 "who needs me" (design pass)
 
-**Status:** RULED by the author 2026-10-23 (W-1…W-11 as recommended, with C-162's W-3/W-4 revisions; W-9 = "Getting stuck on"). Build waits on slices 2 and 3 (W-1).
+**Status:** RULED by the author 2026-10-23 (W-1…W-11 as recommended, with C-162's W-3/W-4 revisions; W-9 = "Getting stuck on"). BUILT 2026-10-23 (0068, unpushed) — see mixed-practice.md → "Slice 4 — as built" (S4-1 amends W-2's placement).
 Parent: [mixed-practice.md](mixed-practice.md). Slice 4 is "Teacher panel. DM-3, 8, 9, 15, 18, 20".
 Wish: curriculum D68 (C-154). In the author's ruled order it is built inside T4 (TODOS, 2026-10-21; re-ruled 2026-10-23).
 

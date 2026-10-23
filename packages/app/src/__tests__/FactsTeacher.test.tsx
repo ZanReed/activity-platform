@@ -24,6 +24,20 @@ vi.mock('../lib/factSprint', () => sprintApi);
 vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
+// Mixed practice's panel (slice 4) shares the page; its own suite is
+// MixedPanel.test.tsx. Here it is present, off, and quiet.
+const mixedApi = vi.hoisted(() => ({
+    fetchMixedSummary: vi.fn(),
+    fetchMixedStudents: vi.fn(),
+    fetchWhoFirst: vi.fn(),
+    fetchStudentRecent: vi.fn(),
+    setMixedPractice: vi.fn(),
+    setMixedSettings: vi.fn(),
+}));
+vi.mock('../lib/mixedTeacher', async (orig) => ({
+    ...(await orig<typeof import('../lib/mixedTeacher')>()),
+    ...mixedApi,
+}));
 
 import FactsTeacher, { familySummary, guessYearEnd, LIVE_POLL_MS, yearLength, yearLine } from '../routes/FactsTeacher';
 
@@ -75,6 +89,12 @@ const results = (over: Partial<ProbeResults['probe']>, cls: Partial<ProbeResults
     students,
 });
 
+const mixedSummary = (over: Record<string, unknown> = {}) => ({
+    on_at: null, reason: null, items_per_session: null, default_items: 6, graded: false,
+    school_year_ends_on: '2099-12-17', has_bank: true, in_class: 28,
+    practised_today: 0, practised_week: 0, skills: [], ...over,
+});
+
 function page() {
     return render(
         <MemoryRouter initialEntries={['/classes/class-1/facts']}>
@@ -94,6 +114,8 @@ beforeEach(() => {
     Object.values(api).forEach((f) => f.mockReset());
     sprintApi.fetchSprintOverview.mockReset().mockResolvedValue(sprintOverview({ blocked_by: 'no_closed_check' }));
     sprintApi.setFactSprint.mockReset().mockResolvedValue({ on: true, on_at: '2027-02-10T00:00:00Z' });
+    Object.values(mixedApi).forEach((f) => f.mockReset());
+    mixedApi.fetchMixedSummary.mockResolvedValue(mixedSummary());
 });
 afterEach(() => {
     cleanup();

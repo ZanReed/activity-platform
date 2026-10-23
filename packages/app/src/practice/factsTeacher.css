@@ -290,3 +290,103 @@
 .ft-date[aria-invalid='true'] {
   border-color: var(--color-strong);
 }
+
+/* ---- mixed practice: settings, labels, "Who to see first" (slice 4) -------- */
+
+.ft-sr {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.ft-settings {
+  align-items: center;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.ft-setting {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.ft-items {
+  width: 5rem;
+}
+
+/* A long skill label truncates in the table; the full text stays in the DOM
+   (the accessible name) and in the tooltip (W-6). */
+.ft-trunc {
+  display: inline-block;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.ft-who-group h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 16px 0 4px;
+}
+
+.ft-who-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ft-who-row {
+  border-top: 1px solid var(--color-line);
+}
+
+.ft-who-open {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.ft-who-open,
+.ft-who-row > .ft-who-name {
+  min-height: 44px;
+}
+
+.ft-who-open,
+.ft-who-row:not(:has(.ft-who-open)) {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 4px;
+}
+
+.ft-who-open:hover {
+  background: var(--color-surface-2);
+}
+
+.ft-who-open:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.ft-who-name {
+  font-weight: 600;
+}
+
+.ft-who-detail {
+  color: var(--color-muted);
+}

@@ -670,10 +670,11 @@ function ClassCard({
         >
         Activities ({activityCount})
         </button>
-        {/* The number-facts snapshot lives on its own lazy page (D43 slice 1,
-            DR-17 / S-4): its live view goes on a projector. */}
+        {/* The class's practice page (number-facts snapshot, daily facts,
+            mixed practice) is its own lazy page (D43 slice 1, DR-17 / S-4;
+            mixed practice S4-2): a snapshot's live view goes on a projector. */}
         {/* Each student's checked work on what this class was set (0061,
-            class-progress-view.md CP-1): beside Number facts. */}
+            class-progress-view.md CP-1): beside Practice. */}
         <Link
         to={`/classes/${info.id}/progress`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
@@ -684,7 +685,7 @@ function ClassCard({
         to={`/classes/${info.id}/facts`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
-        Number facts
+        Practice
         </Link>
         <button
         type="button"

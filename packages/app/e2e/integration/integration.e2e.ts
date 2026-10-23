@@ -782,7 +782,8 @@ test('number facts: what the server computes is what the teacher sees (open → 
   // -- the teacher opens it, through the end-date step ----------------------
   await useSession(page, teacher.session);
   await page.goto(`/classes/${classId}/facts`);
-  await expect(page.getByRole('heading', { name: 'Number facts snapshot' })).toBeVisible({
+  // The class's practice page is "Practice" until a snapshot is on screen (S4-2).
+  await expect(page.getByRole('heading', { level: 1, name: 'Practice' })).toBeVisible({
     timeout: 20_000,
   });
   const yearEnd = page.getByLabel('When does this class’s school year end?');

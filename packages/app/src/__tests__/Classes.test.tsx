@@ -252,7 +252,7 @@ describe('join link', () => {
         await waitFor(() => expect(writeText).toHaveBeenLastCalledWith('QX7M2P'));
     });
 
-    it('each class links to its progress page, beside Number facts (class progress CP-1)', async () => {
+    it('each class links to its progress page, beside Practice (class progress CP-1; mixed practice S4-2)', async () => {
         h.listResult.current = {
             data: [{ id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
                      age_assertion_at: '2026-08-12T00:00:00Z', created_at: '2026-08-12T00:00:00Z' }],
@@ -261,7 +261,7 @@ describe('join link', () => {
         renderClasses();
         const link = await screen.findByRole('link', { name: 'Progress' });
         expect(link.getAttribute('href')).toBe('/classes/class-1/progress');
-        expect(screen.getByRole('link', { name: 'Number facts' }).getAttribute('href')).toBe('/classes/class-1/facts');
+        expect(screen.getByRole('link', { name: 'Practice' }).getAttribute('href')).toBe('/classes/class-1/facts');
     });
 
     it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {

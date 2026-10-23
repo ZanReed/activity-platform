@@ -19,8 +19,9 @@ test('open with a year, watch the counts, close, and read the verdict', async ({
   const api = await stubFactsTeacherApi(page);
   await page.goto(`/classes/${FT_CLASS_ID}/facts`);
 
-  // OPEN: nothing picked, so nothing can be opened.
-  await expect(page.getByRole('heading', { name: 'Number facts snapshot' })).toBeVisible();
+  // OPEN: nothing picked, so nothing can be opened. The page is "Practice"
+  // (mixed practice S4-2) until a snapshot is on screen.
+  await expect(page.getByRole('heading', { level: 1, name: 'Practice' })).toBeVisible();
   await expect(page.getByText('/ 9 Maths B')).toBeVisible();
   const open = page.getByRole('button', { name: 'Open the snapshot' });
   await expect(open).toBeDisabled();

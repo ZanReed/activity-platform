@@ -1245,3 +1245,93 @@ the runner's form, DM-13, DM-16/17, shell size. Dispositions:
 route, Home's label and the barrel's `checkErrorFor`); CSS 15.4 / 16.5.
 
 **Live step (author): push.** Nothing to apply or deploy.
+
+## Slice 4 — as built 2026-10-23 (teacher panel + "Who to see first"; migration 0068; unpushed, NOT live)
+
+Design: [mixed-practice-teacher-panel.md](mixed-practice-teacher-panel.md)
+(W-1…W-11) with DM-3, 8, 9, 15, 18, 20.
+
+**P10 re-derived first.** Not app-only: the rulings need database objects
+(the label mirror, two new teacher reads, labels in 0066's two reads). The
+labels are the `# …` comment after each id in the curriculum's
+`skill-registry.txt` (108 skills, longest ~170 characters); the importer read
+the ids and dropped the comments. The sprint's "needs strategy" is a
+per-family label from the latest snapshot, read per student through
+`fact_sprint_families`. Sprint families are whole families ("Multiplication
+to 12 × 12"), so W-3's "(×7)" example names the family instead. MP-15's
+capability row has no format for a bank (`capability-facts.json` describes
+importer fences; PB-12 said "agreed by letter").
+
+**Rulings — author, 2026-10-23 ("yes to all"):**
+
+| # | Ruling |
+|---|---|
+| S4-1 | One "Who to see first" list at the TOP of the class's practice page, shown when either practice is on; number-facts rows only when the sprint is on, mixed rows only when mixed practice is on. (Amends W-2's "next to Show students".) |
+| S4-2 | The page heading becomes "Practice"; a snapshot on screen keeps "Number facts snapshot"; the class list's link reads "Practice"; the mixed panel sits under the sprint panel; both practice panels stay hidden while a snapshot is open or being viewed. |
+| S4-3 | A number-facts row: a family whose snapshot label is `needs_strategy` AND still in strategy mode, for a student who practised number facts today. One row per student naming the families. Never "slow". |
+| S4-4 | MP-15 (the capability row) is NOT in this slice: after slice 4 is live, the liaison proposes `reached_by: {bank: …}` by letter; the row and their pin bump follow agreement. |
+| S4-5 | "Show students" shows the latest FINISHED graded score; "In progress" when the only graded session today is open. |
+
+**Built:**
+- `0068_mixed_teacher_panel.sql`: `skill_label` (RLS forced; signed-in
+  read; service-role write); `mixed_roster` (internal); `mixed_who_first`
+  (one read: stuck / facts / same_mistake / everyone_else count /
+  started_today); `mixed_student_recent` (the drawer, last 10, current
+  member only); `mixed_class_summary` v2 (+ `label`, `in_class`) and
+  `mixed_class_students` v2 (`struggling` as {id, label}, finished-only
+  `latest_score`, `score_in_progress`). No personal-data column
+  (data-map draft-35).
+- Importer: `parseSkillRegistry` keeps the `# …` label; a write run with
+  `--skills-registry` upserts `skill_label` (insert-or-update, never deleted;
+  >500 characters is a named warning; fail-soft, fails `--strict`). Proven on
+  the local stack against their registry: dry run reports 108 and writes
+  nothing; write mirrors 108.
+- `practice/MixedPanel.tsx`, `practice/WhoFirst.tsx`, `lib/mixedTeacher.ts`;
+  `FactsTeacher` heading + order; `SprintPanel` reports on/off; Classes
+  link "Practice".
+
+**Readings:** group 2's window is per (student, skill or discrimination
+bank), the same window 0066's getting-stuck rule uses; a student in both
+groups appears in both; the per-skill table keeps 0066's id order; the
+drawer covers mixed practice only, so number-facts rows open nothing.
+
+**Guards, each mutation-tested once:** `verify-0068.sql` (A 3 rows, B 8
+proofs; 11 SQL mutations incl. the review's discrimination label — guard, drawer membership, practised-today join,
+served-today join, window, "twice", needs_strategy, strategy mode,
+finished-only score, untried session counted as started — all caught after
+the fixture gained Golf, Hotel and Beta's untried session; the first pass
+missed four and was strengthened). `MixedPanel.test.tsx` (15; 8 mutations,
+7 caught; the 8th — keeping the list's data after closing — is EQUIVALENT
+for the ruled property, since the list renders only while open). Importer
+tests (+2). e2e `mixed-teacher.e2e.ts` + an axe row. verify-0066 B16
+updated to 0068's v2 student rows (found by running the whole local verify
+set: 366 pass; the one red is verify-0036 §C row E, filed in TODOS
+2026-10-18, unrelated).
+
+**Browser (local stack):** a seeded class read through the real RPCs
+showed the expected groups, the drawer with full labels, the panel with
+mirrored labels and "(another in progress)". Seed and labels removed after.
+
+**Fable review — RUN 2026-10-23, before the live step.** No P0/P1. Clean:
+the privacy boundary (names only through `mixed_roster`, service-role only,
+inside definer reads that check `is_class_teacher`; the drawer's membership
+check with the same error; nothing fetched until a list is opened; no
+ranking), the grants and `search_path`, `mixed_who_first` against every
+ruling, the v2 reads (no consumer of 0066's old shapes left), polling and
+a11y, no new shell utilities, the importer. Dispositions:
+
+| # | Finding | Disposition |
+|---|---|---|
+| P2-1 | A discrimination bank's key (`<chain>.discrimination`) would show in the drawer and group 2 — the word DM-13 bans | FIXED in 0068: `mixed_key_label` — a discrimination key reads "Choosing between skills"; verify-0068 gained India (B3, B7), mutation-tested |
+| P2-2 | Group 2 rows dropped the skill W-8 rules | FIXED: "Same mistake: <label> (<skill>)"; test, mutation-tested |
+| P3-1 | An unsaved items number was wiped by the score toggle's re-read | FIXED: the field follows the SAVED value only when it moves; test, mutation-tested |
+| P3-2 | A late poll could land after "Hide the list" (a stale flash on reopen) | FIXED: a read generation; test, mutation-tested |
+| P3-3 | An over-long label did not fail `--strict` though the record said so | FIXED: `planSkillLabels().strictFailure`; test, mutation-tested |
+| P3-4 | Poll cost scales with number-facts practisers (`fact_sprint_families` per student, ≈15 ms each) | NOTED: ≈0.5 s per poll at 30; look at `pg_stat_statements` once a class has a term of data |
+| P3-5 | `score_in_progress` is today-only | KEPT: S4-5's wording ("today") |
+
+**Live steps (author), in order:** apply 0068 → `pnpm verify:auth --target
+live --only verify-0068` and `--only verify-0066` (its B16 now reads 0068's
+v2 student rows, so it goes red BEFORE the apply, green after) → push → one `pnpm import:batch … --skills-registry
+<their skill-registry.txt>` run (mirrors the labels) → `/design-review` on
+the built screens. Then S4-4's letter (MP-15).

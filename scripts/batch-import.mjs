@@ -1456,26 +1456,48 @@ export function parseRegistryDescriptions(text) {
 export function parseSkillRegistry(text) {
     const ids = new Set();
     const parts = new Map();
+    // The `# …` text after an id is its LABEL (0068, W-6): the curriculum
+    // side's wording, mirrored into skill_label for the teacher panel. A
+    // comment on a line of its own (headers, chain lines) labels nothing.
+    const labels = new Map();
     const malformed = [];
     for (const raw of text.split('\n')) {
-        const line = raw.replace(/#.*$/, '').trim();
+        const hash = raw.indexOf('#');
+        const line = (hash === -1 ? raw : raw.slice(0, hash)).trim();
         if (line === '') continue;
+        const label = hash === -1 ? '' : raw.slice(hash + 1).trim();
         const eq = line.indexOf('=');
         if (eq === -1) {
             ids.add(line);
+            if (label) labels.set(line, label);
             continue;
         }
         const id = line.slice(0, eq).trim();
         const count = line.slice(eq + 1).trim();
         if (id === '') continue;
         ids.add(id);
+        if (label) labels.set(id, label);
         if (!/^[1-9]\d*$/.test(count)) {
             malformed.push({ id, count });
             continue;
         }
         parts.set(id, Number(count));
     }
-    return { ids, parts, malformed };
+    return { ids, parts, labels, malformed };
+}
+
+/** The labels a write run mirrors (0068): the schema's 500-character cap is
+ * enforced HERE, so one over-long label is a named warning, not a failed
+ * upsert of all of them — and a FAILED MIRROR for --strict (Fable review
+ * 2026-10-23, P3-3): the rest still go in. */
+export function planSkillLabels(labels) {
+    const rows = [];
+    const tooLong = [];
+    for (const [id, label] of labels) {
+        if (label.length > 500) tooLong.push(id);
+        else rows.push({ id, label });
+    }
+    return { rows, tooLong, strictFailure: tooLong.length > 0 };
 }
 
 /**
@@ -2628,6 +2650,20 @@ export function makeDb(url, key) {
             });
         },
 
+        syncSkillLabels(rows) {
+            // Insert-or-update, never deleted (0068, W-6). return=representation
+            // for the same reason as the misconception mirror below: the count
+            // printed comes from the server's echo.
+            const now = new Date().toISOString();
+            return call('/skill_label?on_conflict=id', {
+                method: 'POST',
+                headers: {
+                    Prefer: 'resolution=merge-duplicates,return=representation',
+                },
+                body: JSON.stringify(rows.map((row) => ({ ...row, updated_at: now }))),
+            });
+        },
+
         syncMisconceptionRegistry(ids, descriptions = new Map()) {
             // return=representation is LOAD-BEARING, not verbosity: a bare
             // upsert answers 201 with an EMPTY body, and call() JSON-parses
@@ -3083,7 +3119,8 @@ async function main() {
         `skills    : ${
             skills
                 ? `${skills.path} (${skills.ids.size} ids` +
-                  `${skills.parts.size > 0 ? `, ${skills.parts.size} multi-part` : ''})`
+                  `${skills.parts.size > 0 ? `, ${skills.parts.size} multi-part` : ''}` +
+                  `, ${skills.labels.size} labels${args.dryRun ? ' — would be mirrored' : ''})`
                 : 'none supplied'
         }`,
     );
@@ -4259,6 +4296,29 @@ async function main() {
         }
     }
 
+    // The skill-label mirror (0068, W-6): with --skills-registry. Fail-soft and
+    // loud like the registry mirror above, except under --strict.
+    let skillLabelMirrorFailed = false;
+    if (skills && skills.labels.size > 0) {
+        const { rows, tooLong, strictFailure } = planSkillLabels(skills.labels);
+        skillLabelMirrorFailed = strictFailure;
+        if (tooLong.length > 0) {
+            console.warn(`⚠ ${tooLong.length} skill label(s) over 500 characters, not mirrored: ${tooLong.join(', ')}`);
+        }
+        try {
+            const mirrored = await db.syncSkillLabels(rows);
+            console.log(`labels    : ${Array.isArray(mirrored) ? mirrored.length : 0} skill labels mirrored`);
+        } catch (err) {
+            skillLabelMirrorFailed = true;
+            console.warn(
+                `⚠ skill_label mirror FAILED (${err.message}).\n` +
+                    '  If the table does not exist, migration 0068 has not been applied to\n' +
+                    '  this database yet; the teacher panel shows skill ids until it is.\n' +
+                    '  The import itself continues.',
+            );
+        }
+    }
+
     // The glossary mirror (R8): one atomic RPC, before any activity write, and
     // only with --glossary. Fail-soft and LOUD like the registry mirror —
     // except under --strict, where a failed mirror fails the run (W-4). Over
@@ -4496,7 +4556,8 @@ async function main() {
                     hookMirrorFailed !== null ||
                     practiceMirrorFailed !== null ||
                     bankMirrorFailed !== null ||
-                    registryMirrorFailed))
+                    registryMirrorFailed ||
+                    skillLabelMirrorFailed))
             ? 1
             : 0,
     );

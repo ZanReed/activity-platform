@@ -82,6 +82,7 @@ import {
     readChainRegistry,
     parseNumericValue,
     parseSkillRegistry,
+    planSkillLabels,
     parseRegistry,
     parseRegistryDescriptions,
     planIdentity,
@@ -2160,6 +2161,31 @@ test('§K parseSkillRegistry reads bare ids and `id = n` part counts', () => {
     assert.equal(parts.get('rate.proportional-graph'), 2);
     assert.equal(parts.has('rate.unit-rate'), false, 'absence means one part');
     assert.deepEqual(malformed, [{ id: 'rate.bad', count: 'many' }]);
+});
+
+test('§K parseSkillRegistry keeps the `# …` text after an id as its label (0068, W-6)', () => {
+    const { ids, labels } = parseSkillRegistry(
+        '# Skill registry — header, labels nothing\n' +
+            '# chain.rate.proportional  (3 skills)\n' +
+            'rate.unit-rate                 # Compute a unit rate from a ratio\n' +
+            'linear.slope.two-points = 2    # Compute the gradient from two points\n' +
+            'rate.no-label\n' +
+            'rate.empty-label   #   \n',
+    );
+    assert.equal(ids.size, 4);
+    assert.deepEqual(Object.fromEntries(labels), {
+        'rate.unit-rate': 'Compute a unit rate from a ratio',
+        'linear.slope.two-points': 'Compute the gradient from two points',
+    });
+});
+
+test('§K planSkillLabels keeps the 500-character cap out of the upsert', () => {
+    const plan = planSkillLabels(new Map([['a.ok', 'Fine'], ['a.long', 'x'.repeat(501)]]));
+    assert.deepEqual(plan.rows, [{ id: 'a.ok', label: 'Fine' }]);
+    assert.deepEqual(plan.tooLong, ['a.long']);
+    // An unmirrorable label fails a --strict run (Fable review P3-3).
+    assert.equal(plan.strictFailure, true);
+    assert.equal(planSkillLabels(new Map([['a.ok', 'Fine']])).strictFailure, false);
 });
 
 test('§K a CONSOLIDATION does not count as a part of the skill it names', () => {

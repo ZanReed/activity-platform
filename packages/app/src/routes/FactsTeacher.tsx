@@ -49,7 +49,9 @@ import {
     type YearOption,
 } from '../lib/factProbe';
 import { aboutMinutes } from '../practice/minutes';
+import MixedPanel from '../practice/MixedPanel';
 import SprintPanel from '../practice/SprintPanel';
+import WhoFirst from '../practice/WhoFirst';
 import { guessYearEnd, longDay, yearEndBounds } from '../practice/yearEnd';
 
 export { guessYearEnd, longDay, YEAR_END_MAX_DAYS } from '../practice/yearEnd';
@@ -125,6 +127,10 @@ export default function FactsTeacher() {
     const [overview, setOverview] = useState<ProbeOverview | null>(null);
     const [className, setClassName] = useState<string | null>(null);
     const [error, setError] = useState(false);
+    // Which practices are on, as their panels report them: "Who to see first"
+    // shows when either is (mixed practice slice 4, S4-1).
+    const [sprintOn, setSprintOn] = useState(false);
+    const [mixedOn, setMixedOn] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -179,6 +185,7 @@ export default function FactsTeacher() {
     } else {
         body = (
             <>
+                {sprintOn || mixedOn ? <WhoFirst classId={classId} /> : null}
                 <OpenScreen
                     // Remounted when the class's end date changes (it can be
                     // saved from the practice panel below).
@@ -194,6 +201,13 @@ export default function FactsTeacher() {
                     classId={classId}
                     latestVerdict={overview.probes.find((p) => p.state === 'closed')?.verdict ?? null}
                     onYearEndSaved={() => void load()}
+                    onState={setSprintOn}
+                />
+                <MixedPanel
+                    classId={classId}
+                    joinCode={overview.join_code}
+                    onState={setMixedOn}
+                    onYearEndSaved={() => void load()}
                 />
                 <Earlier overview={overview} onPick={(id) => setParams({ snapshot: id })} />
             </>
@@ -207,7 +221,9 @@ export default function FactsTeacher() {
                     <Link to="/classes">Classes</Link>
                     {className ? ` / ${className}` : ''}
                 </p>
-                <h1 className="ft-h1">Number facts snapshot</h1>
+                {/* "Practice" (mixed practice DM-3, S4-2); a snapshot on screen
+                    keeps its own name — it is what goes on the projector. */}
+                <h1 className="ft-h1">{shownId ? 'Number facts snapshot' : 'Practice'}</h1>
                 {body}
             </div>
         </main>
