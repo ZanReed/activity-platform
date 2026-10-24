@@ -59,6 +59,10 @@ export const RubricCriterion = z.object({
   label: z.string().min(1),
   maxPoints: z.number().positive().finite(),
   description: z.string().optional(),
+  // The level this line evidences, from a DoL's `dol_rubric_levels:` (e.g.
+  // A/M/E for nz-ncea; curriculum §8, D65 DL-11). Read by the grading view to
+  // prefill "DoL passed" when every BASE-level line is at full marks.
+  level: z.string().min(1).max(8).optional(),
 });
 export type RubricCriterion = z.infer<typeof RubricCriterion>;
 

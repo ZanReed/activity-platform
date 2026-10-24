@@ -856,6 +856,17 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         );
     }
 
+    // D65 (docs/design/dol-retake.md): a wrong `{checkpoint dol}` section —
+    // an item/skill count mismatch, a DoL seed that can't be enumerated, a
+    // variable crossing the DoL boundary — skips the file in every run, the
+    // figure and seed posture. A wrong DoL would record wrong passes.
+    if (result.dolProblems && result.dolProblems.length > 0) {
+        throw new Error(
+            `DoL problem${result.dolProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
+                result.dolProblems.join('\n      '),
+        );
+    }
+
     const fence = result.meta ?? {};
     const changes = [];
     let meta;

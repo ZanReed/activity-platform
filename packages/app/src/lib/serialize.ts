@@ -83,6 +83,7 @@ import type {
     TeacherGuide,
 } from '@activity/schema';
 import {
+    SectionDol,
     GUIDE_BLOCK_TYPES,
     // The runtime union, aliased because `Block` is already imported as a type
     // above. LABELED_BLOCK_TYPES is computed from its options — see below.
@@ -336,6 +337,11 @@ function sectionFromBreak(node: JSONContent): Section {
     if (typeof rawTitle === 'string' && rawTitle.length > 0) {
         section.title = rawTitle;
     }
+    // The DoL marker (D65): carried verbatim on the break. A PENDING marker
+    // (the importer's, before dolImport finalized it) never reaches a stored
+    // Section — only a value the schema accepts does.
+    const dol = SectionDol.safeParse(node.attrs?.dol);
+    if (dol.success) section.dol = dol.data;
     return section;
 }
 
@@ -399,7 +405,7 @@ function applyLabelToNode(block: Block, node: JSONContent): void {
     node.attrs.label = label;
 }
 
-function tiptapBlockToActivity(node: JSONContent): Block | null {
+export function tiptapBlockToActivity(node: JSONContent): Block | null {
     const block = tiptapBlockToActivityRaw(node);
     if (block) applyLabelFromNode(block, node);
     return block;
@@ -1554,7 +1560,8 @@ function emitSectionsAsTiptapBlocks(sections: Section[]): JSONContent[] {
     sections.forEach((section, index) => {
         const hasMetadata =
         (section.title !== undefined && section.title !== '') ||
-        section.isCheckpoint;
+        section.isCheckpoint ||
+        section.dol !== undefined;
         const isFirst = index === 0;
         if (!isFirst || hasMetadata) {
             out.push(sectionBreakNode(section));
@@ -1577,6 +1584,7 @@ function sectionBreakNode(section: Section): JSONContent {
         attrs: {
             title: section.title ?? null,
             isCheckpoint: section.isCheckpoint,
+            ...(section.dol ? { dol: section.dol } : {}),
         },
     };
 }

@@ -20,6 +20,7 @@
 
 import { z } from 'zod';
 import { SeedVars } from './seed-vars.js';
+import { BankValueTable } from './bank-seed.js';
 import {
   Block,
   BulletListBlock,
@@ -47,10 +48,32 @@ import { Row } from './layout.js';
 // packages/viewer/src/container/checkGroups.ts; the guard that binds it to
 // rendered output is tests/components/check-groups.test.tsx (a Check button
 // exists in the DOM for every section, in every mode).
+// The DoL marker (`{checkpoint dol}` + `dol_skills:`; curriculum D65,
+// docs/design/dol-retake.md). Optional with NO default, like seedVars (R11): a
+// default would materialize on every parse→save and trip the batch importer's
+// hand-edit fingerprint on every file.
+//   skills   `dol_skills:` in order — item i (the i-th gradable block of the
+//            section) assesses skills[i]; skills[0] is the PRIMARY item, the
+//            only one the pass rule reads (C-151, DL-2).
+//   seed     the section's OWN variables (DL-4), redrawn per attempt (DL-6):
+//            one valid-row table per group of linked variables, enumerated at
+//            import exactly as a bank template is (DL-3, BE-3). Answer-bearing:
+//            the read path strips it (DE-6) and serves only the drawn row.
+//   retake   whether a second attempt is offered, decided at import: the DoL
+//            is seeded, a seed variable reaches the primary block, and some
+//            group it uses has 2+ rows (DL-5, DE-8, DE-13).
+export const SectionDol = z.object({
+  skills: z.array(z.string().min(1).max(120)).min(1),
+  seed: z.object({ tables: z.array(BankValueTable).min(1) }).optional(),
+  retake: z.boolean(),
+});
+export type SectionDol = z.infer<typeof SectionDol>;
+
 export const Section = z.object({
   id: z.string().uuid(),
                                 title: z.string().optional(),
                                 isCheckpoint: z.boolean().default(false),
+                                dol: SectionDol.optional(),
                                 rows: z.array(Row),
 });
 export type Section = z.infer<typeof Section>;

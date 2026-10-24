@@ -149,6 +149,7 @@ export {
   ActivityMeta,
   ACTIVITY_TYPES,
   ActivityDocument,
+  SectionDol,
   ReferencePanel,
   RegressionModel,
   CalculatorRestrictions,

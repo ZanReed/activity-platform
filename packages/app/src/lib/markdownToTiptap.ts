@@ -84,6 +84,7 @@ import {
     tiptapToDefinitionContent,
 } from './serialize';
 import { toCurveDomain } from './graphDomain';
+import { DOL_PENDING, finalizeDol } from './dolImport';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
 import {
@@ -176,6 +177,12 @@ export interface ImportResult {
     // typed channel and SKIPS the file in every run, strict or not — a
     // dropped constraint would serve numbers the author ruled out.
     seedProblems?: string[];
+    // Present ONLY when the `{checkpoint dol}` section is wrong (D65,
+    // lib/dolImport.ts): an item/skill count mismatch, a DoL seed that can't be
+    // enumerated, a variable crossing the DoL boundary. Also in `warnings`;
+    // the batch importer reads this typed channel and SKIPS the file in every
+    // run — a wrong DoL would record wrong passes.
+    dolProblems?: string[];
 }
 
 /**
@@ -275,6 +282,11 @@ export interface ImportedMeta {
     primarySkill?: string;
     /** Additional skills the activity touches (`supporting_skills:`). */
     supportingSkills?: string[];
+    /** The DoL's skills in item order (`dol_skills:`, D65). Finalized onto the
+     *  `{checkpoint dol}` section by dolImport — never reaches ActivityMeta. */
+    dolSkills?: string[];
+    /** One level per primary-rubric line (`dol_rubric_levels:`, D65 DL-11). */
+    dolRubricLevels?: string[];
     /**
      * The activity's role WITHIN ITS CHAIN (`chain_role:`) — `part` (default)
      * or `consolidation`.
@@ -846,7 +858,7 @@ const SOLE_DISPLAY_RE = new RegExp(`^${MATH_OPEN}(\\d+)${MATH_CLOSE}$`);
 
 // A trailing {checkpoint} marker on a heading promotes it to a checkpoint
 // section break. Case-insensitive, tolerant of surrounding whitespace.
-const CHECKPOINT_RE = /\s*\{checkpoint\}\s*$/i;
+const CHECKPOINT_RE = /\s*\{checkpoint(\s+dol)?\}\s*$/i;
 
 // =============================================================================
 // Block mapping
@@ -858,6 +870,10 @@ interface Ctx {
     figureProblems: string[];
     // ```seed forms activities refuse (see ImportResult.seedProblems).
     seedProblems: string[];
+    // The DoL section's own ```seed fence source (D65 DL-4), found by the
+    // pre-pass: a seed fence after a `{checkpoint dol}` heading and before the
+    // next checkpoint heading. Parsed with the BANK grammar by dolImport.
+    dolSeedSrc?: string;
     // The bank importer's per-section conversion (ImportOptions.bankSection).
     bankSection?: true;
     // Math spans lifted from the raw source (see extractMath), indexed by the
@@ -1043,9 +1059,26 @@ function tokensToBlocks(
     // The ```meta fence rides the SAME pre-pass, for a different reason than
     // definitions: metadata describes the whole activity, so it must not depend
     // on where in the paste the author happened to put the fence.
-    for (const token of tokens) {
+    let inDol = false;
+    for (let t = 0; t < tokens.length; t++) {
+        const token = tokens[t]!;
+        if (token.type === 'heading_open') {
+            // Track whether the fences that follow sit inside the DoL section:
+            // sections open ONLY at `{checkpoint}` headings, so a plain heading
+            // changes nothing.
+            const cp = CHECKPOINT_RE.exec((tokens[t + 1]?.content ?? '').trim());
+            if (cp) inDol = Boolean(cp[1]);
+            continue;
+        }
         const info = (token.info ?? '').trim();
         if (token.type !== 'fence') continue;
+        if (info === 'seed' && inDol && !ctx.bankSection) {
+            if (ctx.dolSeedSrc !== undefined) {
+                ctx.seedProblems.push('the DoL section has two ```seed fences — declare its variables in one.');
+            }
+            ctx.dolSeedSrc = token.content;
+            continue;
+        }
         if (info === 'definitions') parseDefinitionsFence(token.content, ctx);
         else if (info === 'meta') parseMetaFence(token.content, ctx);
         // ```seed rides the same pre-pass as ```meta and for the same reason —
@@ -1058,8 +1091,28 @@ function tokensToBlocks(
     }
     if (options?.glossary) glossaryPrePass(tokens, ctx, options.glossary);
     const blocks = mapBlocks(nest(tokens), ctx);
-    if (!ctx.bankSection) validateSeedReferences(blocks, ctx);
+    let dolProblems: string[] = [];
+    if (!ctx.bankSection) {
+        const activityVars = new Set((ctx.meta?.seedVars ?? []).map((v) => v.name));
+        const dol = finalizeDol({
+            blocks,
+            skills: ctx.meta?.dolSkills,
+            rubricLevels: ctx.meta?.dolRubricLevels,
+            primarySkill: ctx.meta?.primarySkill,
+            seedSrc: ctx.dolSeedSrc,
+            activityVars,
+        });
+        dolProblems = dol.problems;
+        for (const w of [...dol.problems, ...dol.warnings]) ctx.warnings.add(w);
+        // The activity-level checks skip the DoL section when it carries its
+        // own seed: its names are checked against ITS fence by dolImport.
+        const scoped = dol.dolRange && dol.dolVars.size > 0
+            ? [...blocks.slice(0, dol.dolRange[0]), ...blocks.slice(dol.dolRange[1])]
+            : blocks;
+        validateSeedReferences(scoped, ctx);
+    }
     const result: ImportResult = { blocks, warnings: [...ctx.warnings] };
+    if (dolProblems.length > 0) result.dolProblems = dolProblems;
     if (ctx.figureProblems.length > 0) result.figureProblems = [...ctx.figureProblems];
     if (ctx.seedProblems.length > 0) result.seedProblems = [...ctx.seedProblems];
     if (ctx.refPanelBlocks.length > 0) {
@@ -1212,6 +1265,9 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 // Already consumed by the pre-pass (a ```meta-class side
                 // channel — it declares variables, contributes no blocks).
                 // Degrade to plain text only when nothing parsed at all.
+                // The DoL's own fence (D65) is answer-bearing: it must NEVER
+                // degrade into a visible paragraph.
+                if (ctx.dolSeedSrc !== undefined && node.token.content === ctx.dolSeedSrc) return [];
                 return ctx.meta?.seedVars && ctx.meta.seedVars.length > 0
                     ? []
                     : [rawTextParagraph(node.token.content)];
@@ -1337,8 +1393,12 @@ function mapHeading(node: TokNode, ctx: Ctx): JSONContent {
     const plain = inline ? plainText(inline.children ?? []) : '';
 
     // Trailing {checkpoint} → a checkpoint section break, not a heading block.
-    if (CHECKPOINT_RE.test(plain)) {
-        return sectionBreakNode(plain.replace(CHECKPOINT_RE, '').trim(), true);
+    const cp = CHECKPOINT_RE.exec(plain);
+    if (cp) {
+        const node = sectionBreakNode(plain.replace(CHECKPOINT_RE, '').trim(), true);
+        // `{checkpoint dol}` (D65): a pending marker dolImport finalizes.
+        if (cp[1]) node.attrs = { ...node.attrs, dol: { ...DOL_PENDING } };
+        return node;
     }
 
     return {
@@ -3728,6 +3788,8 @@ function parseSeedFence(src: string, ctx: Ctx): void {
 // used, no reference hides inside latex, and seeded blanks don't carry
 // literal numeric mistake matchers (seed-dependent noise). Warnings only —
 // the batch importer's --strict turns them into failures, which is the fence.
+const SEED_MACRO_RE = /\\seed\{([a-z][a-z0-9_]*)\}/g;
+
 function validateSeedReferences(blocks: JSONContent[], ctx: Ctx): void {
     const declared = new Set((ctx.meta?.seedVars ?? []).map((v) => v.name));
     const braceRefs = new Set<string>();
@@ -3745,7 +3807,11 @@ function validateSeedReferences(blocks: JSONContent[], ctx: Ctx): void {
             for (const m of obj.text.matchAll(BRACE)) braceRefs.add(m[1]!);
         }
         if (typeof obj.latex === 'string') {
-            for (const m of obj.latex.matchAll(BRACE)) {
+            // `\seed{name}` is the maths spelling (D65 DL-17) and substitutes
+            // at serve; a BARE `{name}` in latex is a brace group and doesn't.
+            for (const m of obj.latex.matchAll(SEED_MACRO_RE)) braceRefs.add(m[1]!);
+            const bare = obj.latex.replace(SEED_MACRO_RE, '');
+            for (const m of bare.matchAll(BRACE)) {
                 if (declared.has(m[1]!)) latexRefs.add(m[1]!);
             }
         }
@@ -3805,7 +3871,7 @@ function validateSeedReferences(blocks: JSONContent[], ctx: Ctx): void {
         // R2: latex is OUT of v1's substitution surfaces \u2014 {a} inside math
         // is a brace group, so the letter would render, not the value.
         ctx.warnings.add(
-            `Seed: {${name}} appears inside math ($\u2026$) \u2014 seeded values don\u2019t substitute into math yet, so students would see the letter. Move it into plain text.`,
+            `Seed: {${name}} appears inside math ($\u2026$) \u2014 a bare {name} in maths is a brace group, so students would see the letter. Write \\seed{${name}} inside the dollars instead.`,
         );
     }
     const referenced = new Set([...braceRefs, ...exprRefs, ...dataVarRefs]);
@@ -3893,6 +3959,19 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                     ['part', 'consolidation'] as const, ctx,
                 );
                 if (v) meta.chainRole = v;
+                break;
+            }
+            case 'dol_skills': {
+                // D65 DL-1: the DoL's skills, in item order; the first is the
+                // primary item's and must equal `skill:` (dolImport checks).
+                const ids = value.split(',').map((s) => s.trim()).filter((s) => s !== '');
+                if (ids.length > 0) meta.dolSkills = ids;
+                break;
+            }
+            case 'dol_rubric_levels': {
+                // D65 DL-11: one level per primary-rubric line, in order.
+                const levels = value.split(',').map((s) => s.trim()).filter((s) => s !== '');
+                if (levels.length > 0) meta.dolRubricLevels = levels;
                 break;
             }
             case 'supporting_skills': {

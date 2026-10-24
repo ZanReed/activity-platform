@@ -49,6 +49,15 @@ export const SectionBreak = Node.create({
                                         renderHTML: (attrs) =>
                                         attrs.title ? { 'data-title': attrs.title } : {},
             },
+            // The DoL marker (D65, docs/design/dol-retake.md): an authored
+            // value the editor never edits, only carries — Tiptap drops any
+            // attr not declared here, which would silently delete a Bank
+            // copy's DoL on its first save (DE-18).
+            dol: {
+                default: null as unknown,
+                parseHTML: () => null,
+                renderHTML: () => ({}),
+            },
             isCheckpoint: {
                 default: false,
                     parseHTML: (el) => el.getAttribute('data-is-checkpoint') === 'true',
