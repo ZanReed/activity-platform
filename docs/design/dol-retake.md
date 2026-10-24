@@ -1,11 +1,31 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). NOT RULED. Nothing is built. DL-1…DL-18 below are waiting on the author's yes or no, one by one.
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). PARTLY RULED: 11 of 17 decisions ruled 2026-10-24 (see Author rulings). Nothing is built.
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
 **The sample:** the curriculum side has drafted `proposals/d65-sample-dol.md` in their checkout (untracked, "not for import, and not ruled"; 904 activity 06, factorise by the HCF). This doc is checked against it. Their letter answering B-208 is still to arrive, so read their sample as their position, not an agreement.
 **Also unlocks:** D66 tier SELECTION (the `tier:` line has been parsed since 0590aa27 and is not stored) and D67's "passed" status.
+
+## Author rulings (2026-10-24)
+
+Given one at a time to the parent session and relayed here. Each is the option he picked, quoted:
+
+| DL | Ruling |
+|---|---|
+| DL-1 | "Flag + skills line (Recommended)" |
+| DL-3 | "Work out at import (Recommended)" |
+| DL-6 | "Yes, as written (Recommended)" |
+| DL-7 | "Yes, as written (Recommended)", so no teacher retake grant in v1 |
+| DL-9 | "Yes, as written (Recommended)" |
+| DL-10 | "Yes, as written (Recommended)" |
+| DL-12 | "Store passes (Recommended)" |
+| DL-13 | "All three (Recommended)" |
+| DL-14 | "Second slice, optional (Recommended)" |
+| DL-15 | "Yes, one letter (Recommended)", to be sent once every DL is ruled |
+| DL-16 | "Yes, as written (Recommended)" |
+
+**Still OPEN:** DL-2, DL-4, DL-5, DL-8 (as amended by C-163), DL-11 (as amended by C-163), and **DL-17** (new, from C-163). C-163 has arrived, so these can now be ruled. DL-18 is a note, not a decision. **Nothing is built until every DL is ruled.**
 
 ## C-163 (curriculum answers to B-209, 2026-10-24; Zan wrote them)
 
