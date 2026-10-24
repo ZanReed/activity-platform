@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-25-draft-36`. Mirrors migrations 0001–**0070**, verified
+> Version `2026-10-25-draft-37`. Mirrors migrations 0001–**0071**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-37` (2026-10-25) — 0071 adds NO personal data.** It changes how one teacher-only read (`mixed_who_first`, "Who to see first") counts a repeated misconception: across a student's skills rather than within one. It reads the same `mixed_attempts.misconception_ids` already mapped at 0067, and stores nothing new. The range moves to 0071 on that basis.
 >
 > **`draft-36` (2026-10-25) — 0069 adds NO personal data; 0070 adds STUDENT-DERIVED personal data: a per-skill "DoL passed" record.** 0069 only narrows what one mixed-practice function returns (less, never more). 0070 (curriculum D65, the end-of-lesson check's one retake) adds `dol_pass`: one row per student per skill they have passed — which activity, version and check it came from, whether the server marked it (the key item right) or a teacher ticked it, who ticked it and when. A student reads their own rows; teachers read them only for their own activities' students (`dol_pass_status`). It is used to unlock harder practice items for that skill (D66) and to show "Passed". A retake writes a SECOND `section_checks` row for the same section, the same kind of data `free` mode already stores without limit, so it adds no category. `skill_part_count` (the curriculum's part counts) and `practice_item.tier` (a template's D/C/P/E level) identify no one. The range moves to 0070 on that basis.
 >

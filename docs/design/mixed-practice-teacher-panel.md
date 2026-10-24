@@ -121,3 +121,7 @@ Each answer came with its evidence and how strong it is (Rosenshine 2012; Black 
 ## Fable
 
 **Recommend:** no Fable for the design pass itself; the decisions above are product rulings for the author. Use Fable where the standing practice already puts it: the end-of-slice review before the live step, for slice 2 (W-5's column and the grading path) and for slice 4 (W-2's privacy boundary and W-11's guard). If the author wants an outside voice on W-2 specifically (names, ranking, projector), that is the one place a pre-build Fable read would earn its cost.
+
+## Amended 2026-10-25: group 2 counts across skills (C-164 item 3, migration 0071)
+
+As built in 0068, group 2 counted a repeated misconception within ONE skill, so a misconception attached to several skills (C-162's reason for W-4, e.g. mis.expand.first-term-only on three skills) never combined. The author ruled the fix on 2026-10-25. `mixed_who_first` now counts the same id across ALL of a student's skills and discrimination banks. Each try must still fall inside its own skill's last `mixed_struggling_window` first tries, and the student must have practised today. The row lists every skill the id fired on. verify-0071 is mutation-tested: it fails on 0068's function. verify-0068 still passes 4/4.
