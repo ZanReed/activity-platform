@@ -58,6 +58,13 @@ export interface SectionItemIds {
   orderings?: string[];
   freeText?: string[];
   graphs?: string[];
+  /**
+   * The DoL form this page was served (D65; container/blockIndex.ts sets it
+   * on the DoL section only). Sent with the check (`CheckRequest.form`), and
+   * the marker that tells answers from an OLDER form apart from this one's —
+   * a retake starts empty (DL-9: the first answer hidden).
+   */
+  dolForm?: number;
 }
 
 export interface ViewerStoreState {
@@ -139,6 +146,15 @@ export interface ViewerStore {
   checkSection(sectionId: string, items: SectionItemIds): Promise<void>;
 
   /**
+   * D65: the page was served DoL form `items.dolForm`. If what the store holds
+   * for that section (buffered answers, a checked result, a queued or
+   * in-flight check) belongs to an EARLIER form, drop it: a retake starts with
+   * empty inputs and no verdicts (DL-9). A no-op otherwise, so it is safe to
+   * call on every render of the index.
+   */
+  startDolForm(sectionId: string, items: SectionItemIds): void;
+
+  /**
    * Check a CHECK GROUP: every section since the previous checkpoint (R1).
    *
    * N RPCs, not one (ruling 3A) — `section_checks` is per-section and the
@@ -213,7 +229,7 @@ export function isUnauthenticatedError(err: unknown): boolean {
   return (err as { kind?: unknown } | null)?.kind === 'unauthenticated';
 }
 
-const RESPONSE_CATEGORIES = [
+export const RESPONSE_CATEGORIES = [
   'blanks',
   'choices',
   'matches',
@@ -410,6 +426,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         sectionId,
         idempotencyKey,
         responses: firedResponses,
+        ...(items.dolForm !== undefined ? { form: items.dolForm } : {}),
       };
       // The key and what it was fired against are recorded BEFORE the await:
       // if the tab dies mid-request, the buffer already holds enough to make
@@ -525,6 +542,33 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       }
     },
 
+    startDolForm(sectionId, items) {
+      const form = items.dolForm;
+      if (form === undefined) return;
+      const status = state.sections[sectionId];
+      const done = status?.phase === 'checked' ? status.result.dol?.attempts : undefined;
+      // The section holds an EARLIER form's work exactly when its checked
+      // result records fewer attempts than this form's number. (A check still
+      // queued is left alone: it is sent with this page's form, and
+      // record_check refuses it if that is not the student's next attempt.)
+      if (done === undefined || done >= form) return;
+      const responses = { ...state.responses };
+      for (const category of RESPONSE_CATEGORIES) {
+        const ids = items[category] ?? [];
+        if (ids.length === 0) continue;
+        const next = { ...((responses[category] ?? {}) as Record<string, unknown>) };
+        for (const id of ids) delete next[id];
+        (responses as Record<string, unknown>)[category] = next;
+      }
+      const sections = { ...state.sections };
+      delete sections[sectionId];
+      const pending = { ...state.pending };
+      delete pending[sectionId];
+      const inFlight = { ...state.inFlight };
+      delete inFlight[sectionId];
+      commit({ ...state, responses, sections, pending, inFlight });
+    },
+
     async checkGroup(sectionIds, itemsBySection) {
       // Promise.all over the SAME per-section path: no second code path for
       // grouped checks means idempotency keys, the offline queue, the 2.2A
@@ -587,6 +631,10 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         if (!sectionIds.includes(restored.sectionId)) continue;
         const items = itemsBySection[restored.sectionId];
         if (!items || !isSectionUntouched(state, restored.sectionId, items)) continue;
+        // D65: an attempt of an EARLIER DoL form never fills this form's
+        // inputs (DL-9) — the retake starts empty.
+        const doneAttempts = restored.result.dol?.attempts;
+        if (items.dolForm !== undefined && doneAttempts !== undefined && doneAttempts < items.dolForm) continue;
         // Only ids this document declares for this section: a stored row can
         // never smuggle an answer into another section's input.
         for (const category of RESPONSE_CATEGORIES) {

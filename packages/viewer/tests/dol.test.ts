@@ -125,7 +125,7 @@ describe('the read path serves the DoL (DE-1, DE-6)', () => {
     expect(raw).not.toContain('"columns":["a","k"]');
     expect(raw).not.toContain('s.vfy.one');
     const sec = body.activity.sections.find((s) => s.id === DOL)!;
-    expect(sec.dol).toEqual({ allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false });
+    expect(sec.dol).toEqual({ allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false, markFirst: false });
     // The student's own numbers are in: prose and \seed{} in maths (DL-17).
     expect(dolText(body)).not.toContain('{a}');
     expect(dolText(body)).not.toContain('\\\\seed{a}');

@@ -52,6 +52,15 @@ export type CheckErrorKind =
    */
   | 'locked'
   /**
+   * D65: the DoL form this page shows is no longer the student's next attempt
+   * (another device took it, or the retake opened since). Only a reload
+   * helps; never "try again".
+   */
+  | 'dol_form_stale'
+  /** D65: the DoL retake is not open yet (next practice day; a rubric primary
+   *  also waits for its mark). Never "try again" now. */
+  | 'dol_retake_not_yet'
+  /**
    * THE STORED ACTIVITY IS BROKEN (B8/D10). The server's walk integrity gate
    * refused to grade a structurally broken document. Nothing the student does
    * fixes it — not retrying, not reloading — so this must never fall into the
@@ -191,6 +200,12 @@ export function checkErrorFor(status: number, body: ErrorBody): CheckError {
   // Matched on CODE, not on 409 alone: the code is what the RPC raises, and a
   // bare status would fold any future conflict into a message that promises no
   // retry will ever work.
+  if (code === 'dol_form_stale') {
+    return new CheckError('dol_form_stale', 'This check has changed.', status);
+  }
+  if (code === 'dol_retake_not_yet') {
+    return new CheckError('dol_retake_not_yet', 'The retake is not open yet.', status);
+  }
   if (code === 'section_locked') {
     return new CheckError(
       'locked',

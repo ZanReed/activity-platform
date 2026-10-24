@@ -28,6 +28,7 @@
 import type { CheckErrorKind } from '../client/httpCheckService.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { DocumentIndex, SectionIndex } from './blockIndex.js';
+import type { DolServedState } from '../sanitize/dolForm.js';
 
 /** The authored flow mode. Mirrors ActivityMeta.submissionMode; `revisionMode`
  * and `gradingMode` were deleted in this slice (R4). */
@@ -220,6 +221,33 @@ export function groupStatus(
  * student with work they cannot resubmit. The 'locked' refusal is the opposite
  * and stays frozen — it is the second device learning the lock exists.
  */
+/**
+ * D65 — the DoL section freezes once THIS FORM's attempt is pressed, queued or
+ * recorded, or once the DoL is passed. Served `attempts >= form` covers the
+ * reload (form 1 shown frozen until the retake opens, DE-1); the phase covers
+ * the press on this page. A refusal that wrote nothing stays frozen only when
+ * it is final for this form (the allowance used, the form stale, the retake
+ * not open).
+ */
+export function isDolFrozen(dol: DolServedState, status: SectionStatus | undefined): boolean {
+  if (dol.passed || dol.attempts >= dol.form) return true;
+  if (!status) return false;
+  if (status.phase === 'error') {
+    return status.kind === 'locked' || status.kind === 'dol_form_stale' || status.kind === 'dol_retake_not_yet';
+  }
+  return isSectionFrozen(status);
+}
+
+/** The DoL's state as it stands now: the latest check's answer when this page
+ *  has one, else the served state. */
+export function currentDolState(
+  dol: DolServedState,
+  status: SectionStatus | undefined,
+): { attempts: number; allowance: 1 | 2; passed: boolean } {
+  if (status?.phase === 'checked' && status.result.dol) return status.result.dol;
+  return { attempts: dol.attempts, allowance: dol.allowance, passed: dol.passed };
+}
+
 export function isSectionFrozen(status: SectionStatus | undefined): boolean {
   if (!status) return false;
   switch (status.phase) {

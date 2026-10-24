@@ -109,6 +109,9 @@ export interface DolServedState {
   readonly retakeOpen: boolean;
   /** The student holds the pass for this DoL's skill. */
   readonly passed: boolean;
+  /** The primary item is teacher-marked: the retake also waits for the
+   *  first try's mark to be released (DE-9). Copy only. */
+  readonly markFirst: boolean;
 }
 
 /** The form to serve (DE-1): form 1 until attempt 1; still form 1 — frozen —

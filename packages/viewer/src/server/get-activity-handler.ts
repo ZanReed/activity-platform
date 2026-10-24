@@ -548,6 +548,7 @@ export function createGetActivityHandler(
         form: formToServe(allowance, state.attempts, state.retake_open),
         retakeOpen: state.retake_open,
         passed: state.passed,
+        markFirst: primary?.rubric === true,
       };
     }
     // serveSeed, imported (G1): the grading side recomputes this student's

@@ -211,7 +211,9 @@ export function indexDocument(doc: SanitizedActivityDocument): DocumentIndex {
       ...(isDolState((section as { dol?: unknown }).dol)
         ? { dol: (section as unknown as { dol: import('../sanitize/dolForm.js').DolServedState }).dol }
         : {}),
-      items: {},
+      items: isDolState((section as { dol?: unknown }).dol)
+        ? { dolForm: (section as unknown as { dol: import('../sanitize/dolForm.js').DolServedState }).dol.form }
+        : {},
       blockIds: [],
       unsupported: [],
     };

@@ -146,7 +146,7 @@ describe('sectionsInGroup', () => {
 describe('D65 DE-2 — the DoL is always its own group', () => {
   const dol = (id: string): SectionIndex => ({
     ...section(id, true),
-    dol: { allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false },
+    dol: { allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false, markFirst: false },
   });
 
   it.each(['free', 'locked', 'single'] as const)('in %s mode, plain sections before it never share its Check', (mode) => {

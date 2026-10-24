@@ -52,6 +52,8 @@ import type {
 } from '../sanitize/sanitized-types.js';
 import type { ViewerStore } from '../store/store.js';
 import type { SectionStatus } from '../store/persistence.js';
+import type { DolServedState } from '../sanitize/dolForm.js';
+import { RESPONSE_CATEGORIES } from '../store/store.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
@@ -59,6 +61,8 @@ import {
   checkGroups,
   groupStatus,
   isSectionFrozen,
+  isDolFrozen,
+  currentDolState,
   sectionsInGroup,
   type CheckGroup,
   type GroupStatus,
@@ -221,6 +225,37 @@ function groupStatusLabel(status: GroupStatus, locked: boolean): string {
   }
 }
 
+/**
+ * The DoL's status line (D65), or null to fall back to groupStatusLabel. The
+ * same doctrine: the state decides the sentence, and a student is never told
+ * to try again when nothing they do now can work.
+ */
+function dolStatusLabel(dol: DolServedState, status: SectionStatus | undefined): string | null {
+  if (status?.phase === 'error' && status.kind === 'dol_form_stale') {
+    return 'This check has changed — reload the page to see your new version.';
+  }
+  if (status?.phase === 'error' && status.kind === 'dol_retake_not_yet') {
+    return 'Your new version isn’t open yet.';
+  }
+  if (status?.phase === 'checking' || status?.phase === 'pending') return null;
+  const now = currentDolState(dol, status);
+  if (now.passed) return 'Passed.';
+  if (now.attempts === 0 || now.attempts < dol.form) return null;
+  if (now.attempts >= now.allowance) {
+    return now.allowance > 1 ? 'Checked. That was your last try.' : 'Checked.';
+  }
+  return dol.markFirst
+    ? 'Checked. You can try a new version once your teacher has marked this, on a later day.'
+    : 'Checked. You can try a new version on your next practice day.';
+}
+
+/** The DoL confirm (DE-14): which try this is, and what is still blank. */
+function dolConfirmText(dol: DolServedState, unanswered: number): string {
+  const which = dol.allowance > 1 ? `This is try ${dol.form} of ${dol.allowance}.` : 'You get one try.';
+  const blank = unanswered === 0 ? '' : unanswered === 1 ? ' One question is still blank.' : ` ${unanswered} questions are still blank.`;
+  return `Check your answers now? ${which}${blank} You won’t be able to change them after this.`;
+}
+
 /** The button's words. It NAMES ITS SCOPE (D1) so the visible region and the
  * label agree — a student who sees three sections inside one rule and a button
  * that says only "Check" has to guess which of the three it covers. */
@@ -326,6 +361,33 @@ export function ViewerContainer({
     },
     [shortfallFor, store, onCheckShortfall],
   );
+
+  // D65 DE-14: questions with no answer yet, read from the store at the
+  // moment of the confirm (not a subscription — nothing renders from it).
+  const unansweredIn = useCallback(
+    (secs: readonly SectionIndex[]) => {
+      const responses = store.getState().responses as unknown as Record<string, Record<string, unknown> | undefined>;
+      let n = 0;
+      for (const s of secs) {
+        for (const category of RESPONSE_CATEGORIES) {
+          for (const id of s.items[category] ?? []) {
+            const v = responses[category]?.[id];
+            if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) n += 1;
+          }
+        }
+      }
+      return n;
+    },
+    [store],
+  );
+
+  // D65 DL-9: a retake starts empty — answers and verdicts from an earlier
+  // DoL form (the buffer, a restore) never fill this form's inputs.
+  useEffect(() => {
+    for (const s of index.sections) {
+      if (s.dol) store.startDolForm(s.sectionId, s.items);
+    }
+  }, [index, store]);
 
   // blockId → sectionId, so a component can find its own section's phase
   // without knowing the document shape.
@@ -521,6 +583,8 @@ export function ViewerContainer({
           group={group}
           footer={mode === 'screen' && !externalCheck}
           locked={locked}
+          dol={group.sections.length === 1 ? group.sections[0]!.dol : undefined}
+          unansweredIn={unansweredIn}
           sections={sections}
           crashedIn={crashedGradableIn}
           onCheck={handleCheckGroup}
@@ -529,7 +593,9 @@ export function ViewerContainer({
             const section = sectionById[sectionIndex.sectionId];
             if (!section) return null;
             const status = sections[section.id];
-            const frozen = locked && isSectionFrozen(status);
+            const frozen = sectionIndex.dol
+              ? isDolFrozen(sectionIndex.dol, status)
+              : locked && isSectionFrozen(status);
             return (
               <section
                 key={section.id}
@@ -668,6 +734,12 @@ interface CheckGroupRegionProps {
    * `externalCheck`). */
   footer: boolean;
   locked: boolean;
+  /** D65: the DoL's served state when this group IS the DoL (DE-2 makes it
+   *  a group of its own). */
+  dol?: DolServedState;
+  /** Unanswered questions in these sections, read at the moment of the
+   *  confirm (DE-14). */
+  unansweredIn: (sections: readonly SectionIndex[]) => number;
   sections: Record<string, SectionStatus>;
   crashedIn: (section: SectionIndex) => string[];
   onCheck: (
@@ -681,6 +753,8 @@ function CheckGroupRegion({
   group,
   footer,
   locked,
+  dol,
+  unansweredIn,
   sections,
   crashedIn,
   onCheck,
@@ -688,7 +762,10 @@ function CheckGroupRegion({
 }: CheckGroupRegionProps) {
   const ids = group.sections.map((s) => s.sectionId);
   const status = groupStatus(ids, sections);
-  const frozen = locked && group.sections.every((s) => isSectionFrozen(sections[s.sectionId]));
+  const frozen = dol
+    ? isDolFrozen(dol, sections[ids[0]!])
+    : locked && group.sections.every((s) => isSectionFrozen(sections[s.sectionId]));
+  const [unanswered, setUnanswered] = useState(0);
   // The confirm step is INLINE rather than window.confirm (D3): a native
   // dialog is unstyleable, untestable without stubbing a global, and on a
   // Chromebook it steals focus to a surface the a11y lane cannot scan.
@@ -720,7 +797,9 @@ function CheckGroupRegion({
   const retrying = status.phase === 'partial';
   const label = retrying
     ? 'Retry'
-    : checkButtonLabel(group.sections.length, locked);
+    : dol && dol.allowance > 1
+      ? `Check — try ${dol.form} of ${dol.allowance}`
+      : checkButtonLabel(group.sections.length, locked);
 
   const fire = () => {
     setConfirming(false);
@@ -753,8 +832,12 @@ function CheckGroupRegion({
                 // action and a one-way door: there is no unlock in v1, not for
                 // the student and not for the teacher, and a republish is the
                 // only one there is — which resets every student.
-                if (locked && !retrying) setConfirming(true);
-                else fire();
+                // D65 DE-14: a DoL press spends an attempt, so it asks first
+                // too — and says how many questions are still blank.
+                if ((locked || dol) && !retrying) {
+                  setUnanswered(unansweredIn(group.sections));
+                  setConfirming(true);
+                } else fire();
               }}
             >
               {label}
@@ -763,9 +846,11 @@ function CheckGroupRegion({
           {confirming ? (
             <div className="viewer-check-group__confirm" role="group">
               <p className="viewer-check-group__confirm-text">
-                {group.sections.length > 1
-                  ? `Check and lock these ${group.sections.length} sections? You won’t be able to change your answers after this.`
-                  : 'Check and lock this section? You won’t be able to change your answers after this.'}
+                {dol
+                  ? dolConfirmText(dol, unanswered)
+                  : group.sections.length > 1
+                    ? `Check and lock these ${group.sections.length} sections? You won’t be able to change your answers after this.`
+                    : 'Check and lock this section? You won’t be able to change your answers after this.'}
               </p>
               <button
                 type="button"
@@ -783,7 +868,7 @@ function CheckGroupRegion({
                 className="viewer-section__check viewer-check-group__confirm-fire"
                 onClick={fire}
               >
-                Check and lock
+                {dol ? 'Check' : 'Check and lock'}
               </button>
             </div>
           ) : null}
@@ -795,7 +880,7 @@ function CheckGroupRegion({
           >
             {blockedByCrash
               ? 'One question can’t be checked yet.'
-              : groupStatusLabel(status, locked)}
+              : (dol ? dolStatusLabel(dol, sections[ids[0]!]) : null) ?? groupStatusLabel(status, locked)}
           </p>
           {uncovered > 0 && !blockedByCrash ? (
             <p
