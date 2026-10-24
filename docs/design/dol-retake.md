@@ -1,6 +1,6 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). PARTLY RULED: 11 of 17 decisions ruled 2026-10-24 (see Author rulings). Nothing is built.
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built.
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
@@ -25,7 +25,14 @@ Given one at a time to the parent session and relayed here. Each is the option h
 | DL-15 | "Yes, one letter (Recommended)", to be sent once every DL is ruled |
 | DL-16 | "Yes, as written (Recommended)" |
 
-**Still OPEN:** DL-2, DL-4, DL-5, DL-8 (as amended by C-163), DL-11 (as amended by C-163), and **DL-17** (new, from C-163). C-163 has arrived, so these can now be ruled. DL-18 is a note, not a decision. **Nothing is built until every DL is ruled.**
+| DL-2 | "Yes, as written (Recommended)" |
+| DL-4 | "Yes, as written (Recommended)" |
+| DL-5 | "No retake, one attempt (Recommended)" |
+| DL-8 | as amended by C-163: "Yes, next day (Recommended)" |
+| DL-11 | as amended by C-163: "Teacher ticks, base-level prefill (Recommended)" |
+| DL-17 | "\seed{p} spelling (Recommended)" |
+
+**ALL 17 DECISIONS RULED 2026-10-24** (DL-18 is a note). Next comes the author's call on the next step, e.g. `/plan-eng-review` before building, and the DL-15 letter, which goes out only with his yes. Nothing is built.
 
 ## C-163 (curriculum answers to B-209, 2026-10-24; Zan wrote them)
 
