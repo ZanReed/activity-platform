@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**D65 DoL RETAKE slice 1 BUILT 2026-10-25, unpushed** ([dol-retake.md](docs/design/dol-retake.md) → As built; verify green; 0069/0070 verified LOCAL only). **Owed, in order:** apply 0069 + 0070 live → verify-0070, re-run verify-0066/0040/0059 → `pnpm deploy:get-activity` + `pnpm deploy:check`, hash-verify both bundles → push (the SPA calls 0070's RPCs) → import with `--skills-registry` (mirrors part counts; no DoL passes until then) → B14 pin-bump letter (facts changed). Shell 157.8/158 KiB.
+**D65 DoL RETAKE slice 1: 0069 + 0070 LIVE 2026-10-25** (verify-0070 7/7, -0066 11/11, -0040, -0059 8/8 live); get-activity v40 + check-activity v38 deployed, bundles HASH-VERIFIED (`1920dd8d…`, `0cde6ba1…`; verify_jwt false/true) ([dol-retake.md](docs/design/dol-retake.md) → As built). **Owed:** push → import with `--skills-registry` (part counts; no DoL passes until then) → B14 pin-bump letter. Shell 157.8/158 KiB.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). **Owed:** the `--skills-registry` import (labels; folds into D65's run) → `/design-review` → MP-15's capability-row letter (S4-4).
 
