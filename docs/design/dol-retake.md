@@ -31,6 +31,7 @@ Given one at a time to the parent session and relayed here. Each is the option h
 | DL-8 | as amended by C-163: "Yes, next day (Recommended)" |
 | DL-11 | as amended by C-163: "Teacher ticks, base-level prefill (Recommended)" |
 | DL-17 | "\seed{p} spelling (Recommended)" |
+| DL-10 amended | C-164 item 2, ruled 2026-10-24 in this session: "Final part only (Recommended)" |
 
 **ALL 17 DECISIONS RULED 2026-10-24** (DL-18 is a note). Next comes the author's call on the next step, e.g. `/plan-eng-review` before building, and the DL-15 letter, which goes out only with his yes. Nothing is built.
 
@@ -192,6 +193,13 @@ Options:
 ### The pass signal
 
 **DL-10 The pass rule for an AUTO-graded primary item.** Primary block correct, meaning every blank in it is `correct`, on ANY attempt in any version of an activity whose `primary_skill` = the skill. **Recommend as written.** A pass is a fact about the student, not the version, so a republish never takes it back.
+**AMENDED by C-164 item 2 (ruled 2026-10-24): only the skill's FINAL part grants the pass.** A non-final part's DoL covers only the ideas taught so far (D48 ruling 6), so a pass there would open D66's P–E templates early. Four skills have more than one part today: linear.slope.two-points (2), linear.model.contextual (3), function.repr.correspondence (3), number.divisibility.rules (2).
+- The platform stores neither part counts (skill registry `id = n`, import-time only) nor `chain_role`. So the importer computes it and writes a service-role flag `activities.dol_grants_pass boolean`, guarded against client writes like `primary_skill` (0066), in 0069.
+- The flag is true for the last `chain_role: part` activity of its `primary_skill` in teaching order (`source_path`), and for a one-part skill's only part.
+- It is false for a consolidation.
+- It is true for a teacher-made activity with no chain info, which is treated as one part.
+- If the registry declares more parts than are imported, the importer warns, and no activity of that skill grants a pass until the final part exists.
+- `record_check` writes `dol_pass` only when the flag is true. The flag is identity data (`NOT_CONTENT`), so moving files rewrites it path-only.
 
 **DL-11 The pass rule for a RUBRIC primary item (7 of the 21 live DoLs).** The handler can't decide it; a teacher must grade first.
 Options:
