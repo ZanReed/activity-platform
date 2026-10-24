@@ -1,6 +1,6 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **ENG-REVIEWED 2026-10-24: DE-1…DE-19 all ruled as recommended** (they amend the DL texts; the DE item wins; see the Eng review at the bottom).
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **SLICE 1 BUILT 2026-10-25 (unpushed; see As built).** **ENG-REVIEWED 2026-10-24: DE-1…DE-19 all ruled as recommended** (they amend the DL texts; the DE item wins; see the Eng review at the bottom).
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
@@ -475,6 +475,31 @@ Lane A: schema + importer (packages/schema, packages/app/src/lib, scripts). Then
 ### Unresolved decisions
 
 None. All 19 were ruled 2026-10-24.
+
+## As built — slice 1 (2026-10-25; bdb2f347 … 7b685b58, unpushed)
+
+T1–T7 are built, and `pnpm verify` is green. 0069 and 0070 are verified on the LOCAL stack (verify-0070 7/7, verify-0066 10/10, verify-0040/0058/0059/0067/0068 green). The live steps are in STATE.md.
+
+Each guard written in this slice was mutation-tested: red on the reverted code, green on the fix.
+- verify-0066 B9: the 0069 key set.
+- verify-0070: the next-day rule.
+- The response-bound strip of the DoL table (DE-6).
+- Withheld solutions, on check and on restore (DL-8).
+- The fresh-start clear on a retake (DL-9).
+- The auto-pass guard on the teacher tick (DE-15).
+
+**Where it differs from the text above:**
+- **DE-12 is computed by the DATABASE, not stamped by the importer.** `dol_pass_skill(activity)` reads the live parts of the skill plus `skill_part_count` (the registry's `= n`, which `--skills-registry` mirrors for every id). A stored flag goes stale whenever a sibling part is imported; a computed one cannot. There is no `activities.dol_grants_pass` column.
+- **Groups are linked-variable components, finer than items.** The sample enumerates as three groups (primary 140/252; `{c, r, k}`; `{d}`), not the curriculum checker's two. It yields the same set of forms (15 × 8 = 120).
+- **The wire's DoL state** is `{ allowance, attempts, form, retakeOpen, passed, markFirst }` on the served section. `markFirst` drives the "once your teacher has marked this" copy. Skill ids and the seed table never reach the student.
+- **The prefill's base level is `A`** (`DOL_BASE_LEVELS`, lib/dolPass.ts), the base level of the one locale that has level tags today.
+- **Teacher-side DoL code lives in lib/dolPass.ts,** not lib/grading.ts, which reaches the student shell. The shell is at 157.8 of its 158 KiB cap.
+- **The read bundle is 1,127 KiB** (cap 1,500). The growth is mostly its inline sourcemap; the code grew ~5 KiB, and the grader stays out of the read path (server/dolPrimary.ts).
+
+**Not done here:**
+- The catalogue-authoring prompt does not teach the DoL grammar yet. The curriculum side drafts with `x_dol_skills` until their pin bump (B-211), and teaching it is the author's call.
+- Slice 2 (targeted practice, DL-14).
+- A teacher "grant a retake" (DL-7).
 
 ## GSTACK REVIEW REPORT
 
