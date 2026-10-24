@@ -14,7 +14,10 @@
 // "10.5", never "a*p". Runs on the AUTHORED document before extractAnswerKey.
 // =============================================================================
 
-import type { SeedValues } from '../sanitize/seedValues.js';
+import { deriveSeedValues, type SeedValues } from '../sanitize/seedValues.js';
+import type { SeedVar } from '@activity/schema';
+import { substituteBySection } from '../sanitize/substitute.js';
+import { deriveDolValues, findDolSection } from '../sanitize/dolForm.js';
 import { resolveSeededEntry } from '../seeded/resolveEntry.js';
 
 type AnswerType = 'text' | 'numeric' | 'math';
@@ -86,4 +89,33 @@ function walk(node: unknown, values: SeedValues): unknown {
     out[k] = w;
   }
   return changed ? out : obj;
+}
+
+// ---- The DoL's forms on the client surfaces (D65, DE-18) --------------------
+// The teacher's print page (printSeed, form 1 — the sheet a class sits) and
+// the teacher's view of a student's answers (serveSeed, the form of the
+// attempt on screen) rebuild a seeded document the way the read path serves
+// it: the DoL section with ITS form's numbers, every other section with the
+// activity's (sanitize/dolForm.ts — the one seam the server uses too).
+
+
+/** `served`: prose, data and `\seed{}` substituted; `keyed`: the answer-key
+ *  strings resolved too (for extractAnswerKey). */
+export function seedForForm<T>(doc: T, baseSeed: string, dolForm = 1): { served: T; keyed: T } {
+  const vars = ((doc as { meta?: { seedVars?: SeedVar[] } }).meta?.seedVars) ?? [];
+  const activityValues: SeedValues = vars.length > 0 ? deriveSeedValues(vars, baseSeed) : {};
+  const dol = findDolSection(doc);
+  const dolValues = dol ? deriveDolValues(dol.dol, baseSeed, dolForm) : undefined;
+  const scope = dol && dolValues ? { id: dol.id, values: dolValues } : undefined;
+  const served = substituteBySection(doc, activityValues, scope);
+  const d = served as unknown as { sections?: unknown[] } & Record<string, unknown>;
+  const keyed = {
+    ...substituteSeededAnswers(d, activityValues),
+    sections: (d.sections ?? []).map((s) =>
+      scope && (s as { id?: unknown }).id === scope.id
+        ? substituteSeededAnswers(s, scope.values)
+        : substituteSeededAnswers(s, activityValues),
+    ),
+  } as unknown as T;
+  return { served, keyed };
 }

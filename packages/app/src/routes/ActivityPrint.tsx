@@ -51,13 +51,11 @@ import {
   ViewerContainer,
   applyPrintShuffles,
   createViewerStore,
-  deriveSeedValues,
   extractAnswerKey,
   printSeed,
   sanitizeActivityDocument,
-  substituteSeedValues,
 } from '@activity/viewer';
-import { substituteSeededAnswers } from '@activity/viewer/seeded-print';
+import { seedForForm } from '@activity/viewer/seeded-print';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { supabase } from '../lib/supabase';
@@ -222,10 +220,12 @@ export default function ActivityPrint() {
     // CLIENT-side — substitution surface, seeded with printSeed so the
     // existing "Version 2, 3, …" selector doubles as the A/B mechanism (D6):
     // each version prints ITS OWN numbers and the matching key.
-    const printValues = useMemo(() => {
-        const vars = authoredDoc?.meta.seedVars ?? [];
-        if (vars.length === 0 || !id) return {};
-        return deriveSeedValues(vars, printSeed(id, version));
+    // D65 (DE-18): one seam for the whole printing — activity values AND the
+    // DoL section's own (form 1: the sheet a class sits), so a printed DoL
+    // never shows `{p}` or `\seed{p}`. Each "Version N" draws its own.
+    const seeded = useMemo(() => {
+        if (!authoredDoc || !id) return null;
+        return seedForForm(authoredDoc, printSeed(id, version), 1);
     }, [authoredDoc, id, version]);
 
     // What the components actually render: the REAL sanitizer, then the print
@@ -235,15 +235,12 @@ export default function ActivityPrint() {
     // D15A — an ordering question printed in authored order is a printed
     // answer key.
     const servedDoc = useMemo(() => {
-        if (!authoredDoc || !id) return null;
-        return substituteSeedValues(
-            applyPrintShuffles(
-                sanitizeActivityDocument(authoredDoc),
-                printSeed(id, version),
-            ),
-            printValues,
+        if (!seeded || !id) return null;
+        return applyPrintShuffles(
+            sanitizeActivityDocument(seeded.served),
+            printSeed(id, version),
         );
-    }, [authoredDoc, id, version, printValues]);
+    }, [seeded, id, version]);
 
     // The teacher's answers, extracted from the AUTHORED document and carried
     // beside the served one. Only mounted while Show answers is on.
@@ -251,16 +248,8 @@ export default function ActivityPrint() {
     // plot's key is computed from this printing's dataset) and the answer-key
     // strings (so the key sheet reads "10.5", never "a*p").
     const answerKey = useMemo(
-        () =>
-            authoredDoc
-                ? extractAnswerKey(
-                      substituteSeededAnswers(
-                          substituteSeedValues(authoredDoc, printValues),
-                          printValues,
-                      ),
-                  )
-                : null,
-        [authoredDoc, printValues],
+        () => (seeded ? extractAnswerKey(seeded.keyed) : null),
+        [seeded],
     );
 
     // An INERT store (finding F3). ViewerContainer needs one, but nothing on

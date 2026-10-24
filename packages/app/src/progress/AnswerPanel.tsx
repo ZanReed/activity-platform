@@ -15,7 +15,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
-import { sectionAnswerLines, servedDocument, type AnswerLine, type ServedDoc } from '../lib/answerText';
+import { dolSectionId, sectionAnswerLines, servedDocument, type AnswerLine, type ServedDoc } from '../lib/answerText';
+
+/** The docs-map key of a version's DoL form-2 rebuild (D65). */
+const dolForm2Key = (versionId: string) => `${versionId}#dol-form-2`;
 import {
     fetchMisconceptionDescriptions,
     fetchStudentWork,
@@ -53,7 +56,14 @@ export default function AnswerPanel() {
                 for (const v of work.versions) {
                     const c = contents.get(v.version_id);
                     try {
-                        docs.set(v.version_id, c ? servedDocument(c.content, v.version_id, studentId) : null);
+                        const served = c ? servedDocument(c.content, v.version_id, studentId) : null;
+                        docs.set(v.version_id, served);
+                        // D65: a DoL retake was served FORM 2's numbers, so its
+                        // answers read against form 2 (a DoL attempt's form is
+                        // its attempt number).
+                        if (c && served && dolSectionId(served)) {
+                            docs.set(dolForm2Key(v.version_id), servedDocument(c.content, v.version_id, studentId, 2));
+                        }
                     } catch {
                         docs.set(v.version_id, null);
                     }
@@ -163,6 +173,13 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                 const canSwitch = Boolean(s.first) && s.attempts > 1;
                                 const showFirst = canSwitch && firstShown.has(key);
                                 const shown = showFirst && s.first ? s.first : s;
+                                // D65: each DoL attempt against its own form.
+                                const formDoc = (attempt: number) =>
+                                    s.section_id === dolSectionId(served) && attempt >= 2
+                                        ? (docs.get(dolForm2Key(v.version_id)) ?? served)
+                                        : served;
+                                const latestDoc = formDoc(s.attempts);
+                                const shownDoc = formDoc(showFirst ? 1 : s.attempts);
                                 const handGradedLine = (itemId: string) => {
                                     const block = served.index.byItem[itemId]?.block;
                                     return block?.type === 'short_answer' || block?.type === 'essay';
@@ -170,10 +187,10 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                 // "N to grade" is always the LATEST attempt's, whatever is on screen.
                                 // A blank or omitted essay has NO verdict (the grader writes none),
                                 // yet Responses queues it and the grid counts it: so does this.
-                                for (const line of sectionAnswerLines(served, s.section_id, s.responses, s.verdicts)) {
+                                for (const line of sectionAnswerLines(latestDoc, s.section_id, s.responses, s.verdicts)) {
                                     if (handGradedLine(line.itemId) && !s.graded_block_ids.includes(line.itemId)) toGrade += 1;
                                 }
-                                const lines = sectionAnswerLines(served, s.section_id, shown.responses, shown.verdicts);
+                                const lines = sectionAnswerLines(shownDoc, s.section_id, shown.responses, shown.verdicts);
                                 const rows = lines.map((line) => {
                                     // Grades belong to the LATEST attempt: on a first try, no badge.
                                     const handGraded = !showFirst && handGradedLine(line.itemId);

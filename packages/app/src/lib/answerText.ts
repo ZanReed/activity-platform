@@ -25,15 +25,13 @@ import {
     type Block,
 } from '@activity/schema';
 import {
-    deriveSeedValues,
     extractAnswerKey,
     serveSeed,
-    substituteSeedValues,
     type AnswerKeyMap,
     type CheckItemResult,
     type SectionResponses,
 } from '@activity/viewer';
-import { substituteSeededAnswers } from '@activity/viewer/seeded-print';
+import { seedForForm } from '@activity/viewer/seeded-print';
 
 export const ANSWER_NOT_SHOWN = '(answer not shown)';
 export const NO_ANSWER = '(no answer)';
@@ -63,17 +61,26 @@ export interface ServedDoc {
  * studentId NULL = no student (the common-wrong-answers panel groups many
  * students' answers): a seeded activity then keeps its `{name}` templates
  * rather than showing one student's numbers as everyone's. */
-export function servedDocument(content: unknown, versionId: string, studentId: string | null): ServedDoc {
+export function servedDocument(
+    content: unknown,
+    versionId: string,
+    studentId: string | null,
+    /** D65: the DoL form to rebuild — the attempt number of the DoL attempt
+     *  on screen (a DoL attempt's form IS its attempt number). */
+    dolForm = 1,
+): ServedDoc {
     const { doc } = upgradeActivityDocument(content);
-    const vars = doc.meta.seedVars ?? [];
     let served: ActivityDocument = doc;
     let keyed: ActivityDocument = doc;
-    if (vars.length > 0 && studentId !== null) {
-        const values = deriveSeedValues(vars, serveSeed(versionId, studentId));
-        served = substituteSeedValues(doc, values);
-        keyed = substituteSeededAnswers(served, values);
+    if (studentId !== null) {
+        ({ served, keyed } = seedForForm(doc, serveSeed(versionId, studentId), dolForm));
     }
     return { doc: served, key: extractAnswerKey(keyed), index: indexDoc(served) };
+}
+
+/** The DoL section's id in a served document, or null (D65). */
+export function dolSectionId(served: ServedDoc): string | null {
+    return served.doc.sections.find((s) => s.dol !== undefined)?.id ?? null;
 }
 
 // ---- Plain text --------------------------------------------------------------

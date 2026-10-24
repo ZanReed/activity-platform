@@ -21,6 +21,7 @@ import { sanitizeActivityDocument } from '../src/sanitize/sanitize.js';
 import { serveSeed } from '../src/sanitize/serveSeed.js';
 import { deriveDolValues, dolRowIndex, formToServe } from '../src/sanitize/dolForm.js';
 import { substituteLatex } from '../src/sanitize/substitute.js';
+import { seedForForm } from '../src/print/seededPrint.js';
 import { CHECK_WIRE_VERSION, emptySectionResponses } from '../src/check/wire.js';
 
 const ACTIVITY = '11111111-2222-4333-8444-555555555555';
@@ -293,5 +294,19 @@ describe('the units (DE-13, DL-17, DL-8)', () => {
     expect(withholdSolutions({ attempts: 1, allowance: 2, passed: true })).toBe(false);
     expect(withholdSolutions({ attempts: 2, allowance: 2, passed: false })).toBe(false);
     expect(withholdSolutions({ attempts: 1, allowance: 1, passed: false })).toBe(false);
+  });
+});
+
+describe('seedForForm — the client surfaces (DE-18)', () => {
+  it('the DoL section gets its form’s numbers in prose, \\seed{} and the key; form 2 differs', () => {
+    const base = 'print:act:v1';
+    const f1 = seedForForm(storedDoc(), base, 1);
+    const f2 = seedForForm(storedDoc(), base, 2);
+    const v1 = deriveDolValues({ seed: { tables: [TABLE] } }, base, 1) as { a: number; k: number };
+    const text = JSON.stringify(f1.served.sections[1]!.rows);
+    expect(text).toContain(`Double ${v1.a}: `);
+    expect(text).toContain(`${v1.a} \\\\times 2`);
+    expect(JSON.stringify(f1.keyed.sections[1]!.rows)).toContain(`"answer":"${v1.k}"`);
+    expect(JSON.stringify(f2.served.sections[1]!.rows)).not.toBe(text);
   });
 });
