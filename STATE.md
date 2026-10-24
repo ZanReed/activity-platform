@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**MIXED PRACTICE: slices 1–3 LIVE (slice 3 pushed + CI green 2026-10-23); slice 4 (teacher panel, "Who to see first") BUILT, unpushed** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). **Owed, in order:** apply 0068 → `pnpm verify:auth --target live --only verify-0068`, then `--only verify-0066` (B16 reads 0068's v2 rows) → push → one import run with `--skills-registry` (mirrors the skill labels) → `/design-review` on the built screens. Then MP-15's capability-row letter (S4-4).
+**MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). **Owed, in order:** push → one import run with `--skills-registry` (mirrors the skill labels; the panel shows ids until then) → `/design-review` on the built screens. Then MP-15's capability-row letter (S4-4).
 
 **701 place-value LIVE (2026-10-13).**
 

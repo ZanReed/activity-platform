@@ -1246,7 +1246,7 @@ route, Home's label and the barrel's `checkErrorFor`); CSS 15.4 / 16.5.
 
 **Live step (author): push.** Nothing to apply or deploy.
 
-## Slice 4 — as built 2026-10-23 (teacher panel + "Who to see first"; migration 0068; unpushed, NOT live)
+## Slice 4 — as built 2026-10-23 (teacher panel + "Who to see first"; migration 0068 APPLIED + VERIFIED live 2026-10-24: verify-0068 4/4, verify-0066 11/11; app unpushed)
 
 Design: [mixed-practice-teacher-panel.md](mixed-practice-teacher-panel.md)
 (W-1…W-11) with DM-3, 8, 9, 15, 18, 20.
