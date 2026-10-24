@@ -1,11 +1,28 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24. NOT RULED. Nothing is built. DL-1…DL-16 below are waiting on the author's yes or no, one by one.
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). NOT RULED. Nothing is built. DL-1…DL-18 below are waiting on the author's yes or no, one by one.
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
 **The sample:** the curriculum side has drafted `proposals/d65-sample-dol.md` in their checkout (untracked, "not for import, and not ruled"; 904 activity 06, factorise by the HCF). This doc is checked against it. Their letter answering B-208 is still to arrive, so read their sample as their position, not an agreement.
 **Also unlocks:** D66 tier SELECTION (the `tier:` line has been parsed since 0590aa27 and is not stored) and D67's "passed" status.
+
+## C-163 (curriculum answers to B-209, 2026-10-24; Zan wrote them)
+
+C-163 frames D65 as Bloom's mastery loop as Guskey describes it: a check, then correctives, then a parallel second check. It sent the sample on record.
+- **DL-2 yes.** Their authoring rule: a DoL's primary block carries 2–3 blanks or parts on the skill, so the pass rests on more than one observation.
+- **DL-4 yes.** `where dol:` is the only spelling, and they retract C-123's unscoped `where:` for activities. Their rule: `where` must remove the cases that change difficulty, so the two forms are equally hard.
+- **DL-5 yes, option (a).** Every Y9 DoL is written seeded. The live Y7–8 DoLs get seeded as each file is next touched, not in a sweep.
+- **DL-8 agreed, plus a delay:** the retake opens on the student's NEXT PRACTICE DAY (Soderstrom & Bjork 2015). They would accept same-day with an intervening activity, recorded as a departure, if next-day is much costlier. → DL-8 amended below.
+- **DL-11 (c), but prefilled from the BASE-LEVEL lines, not full marks.** The level tags exist: `x_dol_rubric_levels: A, M, E` in rubric-line order. They don't want option (b)'s `pass:` threshold. → DL-11 amended below.
+- **gap_equation:** they will correct §7's wording. Until it supports seeded answers, a form-skill primary item is either a seeded fill_blank with exact-match alternates, or a seeded mc. They asked us to confirm both. **Only the mc half holds**, see DL-17. Wish filed: seeded answers + `!mistake` in gap_equation, triggered by 904 activity 01.
+
+**Facts checked for the reply (B-210):**
+- **Seeded mc: YES.** The substitution walk covers every prose text run, choices included (`sanitize/substitute.ts:9-12`). `misconceptionId` binds per choice.
+- **Seeded fill_blank with an exact-FORM text answer: NO.** A text answer is bound to parenthesised literals and then EVALUATED (`seeded/resolveEntry.ts`). `g(ax-b)` with g=6, a=2, b=5 becomes `(6)((2)x-(5))` and then a number. A math blank `{{==…}}` stays an expression but grades by EQUIVALENCE, not form. What does work is their sample's own shape: NUMERIC blanks for each coefficient, placed inside the target form.
+- **`{name}` inside `$…$` is NOT substituted** (`substitute.ts:18-20`; the importer warns, and `--strict` fails, at `markdownToTiptap.ts:3808`). The sample's prompts `${p}x - {q}$` and `${c}m + {d}n - {r}m$` would show students the letters. → DL-17.
+- **DL-2 dry run, heuristic** (a script over the DoL sections, not the importer): **all 21 live DoLs have exactly 2 gradable blocks.** 712/02 and 713/01 have a third block, a `columns` fence, but it holds only choice figures. So the importer must count a `columns` block as gradable only when it holds a gradable child.
+- **Rubric levels:** 6 of the 7 rubric DoLs carry `x_dol_rubric_levels: A, M, E`, one level per line. **801/04 carries none.** The importer drops the key today (`x_*`).
 
 ## The wish (C-150 / C-151 and the curriculum D65 record, in substance)
 
@@ -120,7 +137,13 @@ After attempt 1, the student sees:
 
 After attempt 2, or once the DoL is passed: solutions as today (D8).
 
-**Recommend as written.** ⚠ This amends flow-modes D8 ("a locked group DOES reveal its solutions") for DoL sections only. Today the server returns `solutions` on every check, so this is **server-side withholding** (the handler omits them while attempts remain and the DoL is not passed), not a client-side hide.
+**AMENDED by C-163: the retake opens on the student's NEXT PRACTICE DAY**, not straight away.
+- The day is computed in the **activity owner's timezone** (`users.timezone`, else the platform default, the same fallback as `fact_class_zone`, 0050). A section check has no class context, and the owner is the class teacher in the ordinary case, including Bank copies.
+- The server enforces it: check-activity refuses form 2 before that day (409 `dol_retake_not_yet`), and get-activity serves the button state as "available tomorrow".
+- Next-day is NOT much costlier than same-day: one date comparison on `section_checks.created_at`. So no departure is needed.
+- It carries the same latent risk as ER-12: a teacher's timezone change can move the boundary.
+
+**Recommend as amended.** ⚠ This amends flow-modes D8 ("a locked group DOES reveal its solutions") for DoL sections only. Today the server returns `solutions` on every check, so this is **server-side withholding** (the handler omits them while attempts remain and the DoL is not passed), not a client-side hide.
 
 **DL-9 Rubric items on a retake (C-151 b).**
 - On form 2 the shortanswer is re-asked unchanged, with empty inputs. Restore must NOT prefill a DoL from the latest attempt while a retake is in progress, so `my_latest_checks` restore skips a DoL that has a form-2 row pending.
@@ -128,6 +151,16 @@ After attempt 2, or once the DoL is passed: solutions as today (D8).
 - The teacher's grading view shows both attempts, labelled "First try" and "Retake".
 
 **Recommend as written.**
+
+**DL-17 Seeded values inside maths (their sample depends on it).** `{name}` inside `$…$` is not substituted today, because in LaTeX `x^{a}` is a brace group (R2). A Y9 algebra DoL writes its numbers in maths (`${p}x - {q}$`).
+Options:
+- (a) the curriculum side keeps references in plain text: "Factorise fully: {p}x − {q}". This works today, but the algebra is typeset as prose;
+- (b) a maths-only reference spelling, e.g. `\seed{p}`, which nobody would write by accident. It is substituted into `latex` at serve time (get-activity), and the importer accepts it only for a declared variable. The print answer key and the editor preview substitute the same way;
+- (c) substitute a bare `{name}` inside maths when `name` is declared. This is ambiguous with `x^{a}` when `a` is declared, and that ambiguity is the reason R2 exists.
+
+**Recommend (b), in slice 1.** Every algebra DoL needs it, and the curriculum side's sample already assumes it. It touches the read path, so the get-activity bundle changes anyway under DL-3. ⚠ It needs a letter: one more spelling for them to learn and lint.
+
+**DL-18 Order of D60-shaped items.** No decision: the seeded-answer `gap_equation` wish is filed in TODOS with the trigger "904 activity 01 drafted", next to D60's held "equivalent and in a stated form" letter.
 
 ### The pass signal
 
@@ -139,7 +172,13 @@ Options:
 - (b) an authored threshold (`pass: 4` of 6), which is a new key for the curriculum side;
 - (c) the teacher ticks "DoL passed" explicitly in the grading view, prefilled from (a).
 
-**Recommend (c).** The teacher is already making a judgement there, the prefill keeps the common case to one click, and no new authored key is needed. ⚠ This is an author call. Send the curriculum side the question of whether they want (b) later.
+**Recommend (c).** The teacher is already making a judgement there, the prefill keeps the common case to one click, and no new authored key is needed.
+**AMENDED by C-163: prefill from the BASE-LEVEL lines.** "Passed" is prefilled when every rubric line tagged at the locale's base level (`A` for nz-ncea) is at full marks. Full marks would set the pass bar at Excellence.
+- The level tags are authored today as `x_dol_rubric_levels: A, M, E` (rubric-line order), and the importer drops them. So this needs `dol_rubric_levels:` promoted, and an optional `RubricCriterion.level` written by the importer.
+- The importer refuses a count that differs from the rubric's line count.
+- The orphan rule applies: the field's reader is the grading view's prefill, guarded on its rendered output.
+- With no tags (801/04 today), there is no prefill and the teacher ticks unaided.
+- One more authored key, so it joins DL-15's capability row.
 
 **DL-12 Where the pass is stored.**
 Options:
@@ -175,7 +214,7 @@ Options:
 
 ### The boundary, migrations and compliance
 
-**DL-15 Letters to the curriculum side (one letter, after the rulings).**
+**DL-15 Letters to the curriculum side (one letter, after the rulings). B-209 and C-163 already settled items 1, 3 and 4 below in substance; item 5 is amended.**
 1. Receipt of the sample. Agreement on `{checkpoint dol}` + `dol_skills:` (DL-1) and on block = item with the count rule (DL-2).
 2. BE-2 lifted for DoL seed fences only, enumerated at import, with per-group caps (DL-3).
 3. `where dol:` as the only spelling in an activity (DL-4), retracting C-123's unscoped form for activities.
@@ -198,7 +237,7 @@ Compliance: `dol_pass` is a new student-derived table, so data-map + retention-p
 
 ## Slices (if ruled)
 
-1. **Retake + pass + D66 selection:** DL-1…13, DL-15, DL-16. One migration, two redeploys, the importer, the viewer.
+1. **Retake + pass + D66 selection:** DL-1…13, DL-15…17. One migration, two redeploys, the importer, the viewer.
 2. **Targeted practice** (DL-14 b), on the mixed runner.
 
 ## Not in scope
