@@ -1,6 +1,6 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **ENG-REVIEWED 2026-10-24: DE-1…DE-19 are waiting on the author** (5 P1 amendments to DL-6/7/8/12/16; see the Eng review at the bottom).
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **ENG-REVIEWED 2026-10-24: DE-1…DE-19 all ruled as recommended** (they amend the DL texts; the DE item wins; see the Eng review at the bottom).
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
@@ -284,9 +284,16 @@ Compliance: `dol_pass` is a new student-derived table, so data-map + retention-p
 - Video (D64).
 - Any change to `free`/`locked` outside a DoL section.
 
-## Eng review — 2026-10-24 (`/plan-eng-review`): DE-1…DE-20 WAITING ON THE AUTHOR
+## Eng review — 2026-10-24 (`/plan-eng-review`): DE-1…DE-19 ALL RULED AS RECOMMENDED by the author, 2026-10-24
 
 Reviewed against code at main 72ba14e6. There are two passes: this session's own, plus an outside voice (a Plan subagent; Codex isn't installed). The outside voice's three critical claims were each verified against the code before they were adopted (cited inline). **Five P1s change the ruled design itself** (DE-1…DE-5). They are amendments to DL-6, DL-7, DL-8, DL-12 and DL-16, not implementation detail. Nothing is built.
+
+**Rulings (author, 2026-10-24, in this session):**
+- DE-9: "Day + grade (Recommended)".
+- DE-11: "Copies use source (Recommended)".
+- DE-1…8, DE-10, DE-12…19: "All as recommended".
+
+Where a DE item conflicts with a DL text above, **the DE item wins**: it amends DL-1, DL-6, DL-7, DL-8, DL-10, DL-12, DL-13 and DL-16 as stated. The curriculum side needs a letter for DE-8, DE-9, DE-12 and DE-13, because they change which DoLs get a retake and when.
 
 ### Architecture
 
@@ -467,7 +474,7 @@ Lane A: schema + importer (packages/schema, packages/app/src/lib, scripts). Then
 
 ### Unresolved decisions
 
-DE-1…DE-19 each need the author's yes or no. DE-9 and DE-11 are genuine author calls; the rest are recommended fixes.
+None. All 19 were ruled 2026-10-24. Filed to TODOS: 0066 `mixed_taught` ignores Bank copies (DE-11's sibling gap).
 
 ## GSTACK REVIEW REPORT
 
@@ -475,12 +482,11 @@ DE-1…DE-19 each need the author's yes or no. DE-9 and DE-11 are genuine author
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Outside Review | native fallback (Plan subagent; Codex not installed) | Independent 2nd opinion | 1 | unavailable (outside); in-host completed | 17 findings, 3 critical (all verified), 10 adopted as DE items |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_open | 19 issues, 2 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_open → all ruled | 19 issues (all ruled as recommended 2026-10-24), 2 critical gaps (each with a ruled guard) |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
 - **OUTSIDE COVERAGE:** Codex is not installed, so there is no external provider. The native in-host fallback completed within its 5-minute window: 17 findings. Its three critical claims were verified against `checkGroups.ts:8-11`, `get-activity-handler.ts:554` and `check-activity/index.ts:107`.
-- **VERDICT:** NOT CLEARED. 5 P1 amendments (DE-1…DE-5) wait on the author. Eng review is required before building.
+- **VERDICT:** ENG REVIEWED. All 19 findings were ruled as recommended (2026-10-24), so the design is ready to build as amended. The issues are mapped to tasks T1–T7, not left open.
 
-**UNRESOLVED DECISIONS:**
-- DE-1…DE-19: the author's yes or no on each, with DE-9 (rubric retake waits for a released grade) and DE-11 (Bank copies grant passes through their source) as genuine calls
+NO UNRESOLVED DECISIONS
