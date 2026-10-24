@@ -74,6 +74,9 @@ export function seededShuffle<T>(items: readonly T[], seedKey: string): T[] {
 export function applyServeShuffles(
   doc: SanitizedActivityDocument,
   seedKey: string,
+  // D65: a section shuffled with its OWN key — the DoL's form (dolForm.ts),
+  // so a retake re-orders its choices and the grader can recompute it.
+  sectionSeedKeys?: Readonly<Record<string, string>>,
 ): SanitizedActivityDocument {
   const clone = structuredClone(doc) as unknown as {
     sections: Array<{
@@ -81,6 +84,7 @@ export function applyServeShuffles(
     }>;
   };
 
+  let key = seedKey;
   const shuffleBlock = (block: Record<string, unknown>): void => {
     const type = block.type;
     const entry =
@@ -93,7 +97,7 @@ export function applyServeShuffles(
       if (Array.isArray(arr)) {
         block[field] = seededShuffle(
           arr,
-          `${seedKey}:${String(block.id ?? '')}:${field}`,
+          `${key}:${String(block.id ?? '')}:${field}`,
         );
       }
     }
@@ -111,6 +115,7 @@ export function applyServeShuffles(
   };
 
   for (const section of clone.sections) {
+    key = sectionSeedKeys?.[(section as { id?: string }).id ?? ''] ?? seedKey;
     for (const row of section.rows) {
       for (const column of row.columns) {
         for (const block of column.blocks) {

@@ -142,3 +142,20 @@ describe('sectionsInGroup', () => {
     expect(map.c).toEqual(['c']);
   });
 });
+
+describe('D65 DE-2 — the DoL is always its own group', () => {
+  const dol = (id: string): SectionIndex => ({
+    ...section(id, true),
+    dol: { allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false },
+  });
+
+  it.each(['free', 'locked', 'single'] as const)('in %s mode, plain sections before it never share its Check', (mode) => {
+    const index = indexOf(section('a'), section('b'), dol('d'), section('e'));
+    expect(idsOf(checkGroups(index, mode))).toEqual([['a', 'b'], ['d'], ['e']]);
+  });
+
+  it('a DoL right after a checkpoint is alone; one at the end closes the activity', () => {
+    const index = indexOf(section('a', true), dol('d'));
+    expect(idsOf(checkGroups(index, 'free'))).toEqual([['a'], ['d']]);
+  });
+});

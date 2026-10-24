@@ -49,6 +49,12 @@ export interface SectionIndex {
    * of the document to answer "does checking stop here?" (5A).
    */
   isCheckpoint: boolean;
+  /**
+   * The served DoL state (D65) when this section is the `{checkpoint dol}`
+   * section, else absent. The fold makes the DoL its own group in every mode
+   * (DE-2), and the container reads the state for the retake UI.
+   */
+  dol?: import('../sanitize/dolForm.js').DolServedState;
   /** Ids to send when checking this section. */
   items: SectionItemIds;
   /** Block ids present in this section, document order (containers included). */
@@ -202,6 +208,9 @@ export function indexDocument(doc: SanitizedActivityDocument): DocumentIndex {
     const index: SectionIndex = {
       sectionId: section.id,
       isCheckpoint: section.isCheckpoint === true,
+      ...(isDolState((section as { dol?: unknown }).dol)
+        ? { dol: (section as unknown as { dol: import('../sanitize/dolForm.js').DolServedState }).dol }
+        : {}),
       items: {},
       blockIds: [],
       unsupported: [],
@@ -218,4 +227,12 @@ export function indexDocument(doc: SanitizedActivityDocument): DocumentIndex {
     bySection: Object.fromEntries(sections.map((s) => [s.sectionId, s])),
     unsupported: sections.flatMap((s) => s.unsupported),
   };
+}
+
+/** The read path's served DoL state (sanitize/dolForm.ts DolServedState) —
+ *  never the authored Section.dol, which the server strips (DE-6). */
+function isDolState(v: unknown): boolean {
+  return v !== null && typeof v === 'object'
+    && typeof (v as { allowance?: unknown }).allowance === 'number'
+    && typeof (v as { form?: unknown }).form === 'number';
 }

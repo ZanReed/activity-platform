@@ -108,6 +108,17 @@ const db: CheckActivityDb = {
         // 0059. The checked version's section count, derived by the handler
         // from the stored document (student-experience review D3).
         p_section_total: args.sectionTotal,
+        // 0070 (D65). The DoL section's rules, derived by the handler from the
+        // stored document; omitted for every other section so the defaults
+        // (unlimited, no pass) apply.
+        ...(args.dol
+          ? {
+              p_max_attempts: args.dol.maxAttempts,
+              p_expected_attempt: args.dol.expectedAttempt,
+              p_rubric_primary: args.dol.rubricPrimary,
+              p_dol_primary_correct: args.dol.primaryCorrect,
+            }
+          : {}),
       })
       .single();
   },
@@ -128,6 +139,16 @@ const db: CheckActivityDb = {
     return await userClient.rpc('my_latest_checks', {
       p_version_id: versionId,
       p_section_ids: sectionIds,
+    });
+  },
+
+  async dolState(authHeader, args) {
+    // 0070 (D65, DE-1): AS THE CALLER — keyed on auth.uid(), never the sub.
+    return await asCaller(authHeader).rpc('my_dol_state', {
+      p_activity_id: args.activityId,
+      p_version_id: args.versionId,
+      p_section_id: args.sectionId,
+      p_rubric_primary: args.rubricPrimary,
     });
   },
 };
@@ -189,12 +210,13 @@ Deno.serve(
     // `ordering` is served permuted per student, and the wire carries no
     // `moved` flag — so the grader recomputes the permutation this student was
     // handed and reads "unchanged from what we served" as an untouched list.
-    servedOrderings: ({ document, versionId, studentId, sectionId }) =>
+    servedOrderings: ({ document, versionId, studentId, sectionId, seedKey }) =>
       computeServedOrderings(
         document as { sections?: unknown[] },
         sectionId,
         versionId,
         studentId,
+        seedKey,
       ),
   }),
 );

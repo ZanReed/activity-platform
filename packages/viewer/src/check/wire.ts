@@ -173,6 +173,14 @@ export interface CheckRequest {
    * attempt.
    */
   idempotencyKey?: string;
+  /**
+   * The DoL form this page was served (D65, DL-6): 1, or 2 on a retake.
+   * ADDITIVE and optional — absent means 1, so a client from before the
+   * retake still checks. Never trusted for the answer key: the server grades
+   * against the form it names and `record_check` refuses a form that is not
+   * the student's next attempt (`dol_form_stale`, DE-4).
+   */
+  form?: number;
 }
 
 /**
@@ -243,6 +251,22 @@ export interface SectionCheckResult {
    * server after this section check (Q2B unlock). Only blocks in this section
    * appear; absence = that block has no solution or it stays locked. */
   solutions: Record<string, SanitizedInlineNode[]>;
+  /**
+   * Present only on the DoL section (D65). `solutions` is EMPTY while a
+   * retake is still possible and the DoL is not passed (DL-8): form 1's worked
+   * solution is the method for form 2.
+   */
+  dol?: DolCheckState;
+}
+
+/** The DoL's state after a check or restore (D65). */
+export interface DolCheckState {
+  /** Attempts recorded on this version, this one included. */
+  attempts: number;
+  /** 1, or 2 when the DoL offers a retake. */
+  allowance: 1 | 2;
+  /** The student holds the pass for this DoL's skill. */
+  passed: boolean;
 }
 
 // ---- Mixed practice (D43; mixed-practice.md MP-6/MP-7, slice 2) ------------

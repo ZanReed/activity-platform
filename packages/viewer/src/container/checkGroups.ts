@@ -69,13 +69,21 @@ export function checkGroups(
   let run: SectionIndex[] = [];
 
   index.sections.forEach((section, i) => {
+    // D65 DE-2: the DoL is ALWAYS its own group, in every mode — its allowance,
+    // its form and its withheld solutions belong to it alone. So it closes the
+    // run before it…
+    if (section.dol && run.length > 0) {
+      groups.push({ id: run[run.length - 1]!.sectionId, sections: run });
+      run = [];
+    }
     run.push(section);
     const isLast = i === index.sections.length - 1;
     // 'single' ignores every authored marker; the end of the document closes
     // the run in every mode, which is what makes "no section is ever
     // un-checkable" true by construction here and provable in the DOM.
+    // …and closes itself.
     const closes =
-      isLast || (submissionMode !== 'single' && section.isCheckpoint);
+      isLast || section.dol !== undefined || (submissionMode !== 'single' && section.isCheckpoint);
     if (!closes) return;
     groups.push({ id: section.sectionId, sections: run });
     run = [];

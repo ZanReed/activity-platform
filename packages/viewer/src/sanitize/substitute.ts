@@ -14,11 +14,12 @@
 //   - `data_plot.data` — spliced from the block's `dataVar` when that names a
 //     derived sample (R4). The literal `data` stays when the name doesn't
 //     resolve (fail-safe: the representative dataset serves).
-//   - NOTHING ELSE. `latex` strings are structurally out (R2): `{a}` in LaTeX
-//     is a brace group (`x^{a}`), so substitution there corrupts authored
-//     math — the importer warns at import time instead. Answer keys are not
-//     walked here (they are stripped from serve; grading evaluates them as
-//     EXPRESSIONS, not string templates).
+//   - `\seed{name}` inside a `latex` string (D65 DL-17) — the maths-only
+//     spelling, which nobody writes by accident. A BARE `{a}` in LaTeX is
+//     still never touched (R2: it is a brace group, `x^{a}`), and the
+//     importer warns on it.
+//   - NOTHING ELSE. Answer keys are not walked here (they are stripped from
+//     serve; grading evaluates them as EXPRESSIONS, not string templates).
 //
 // An unresolvable `{name}` stays LITERAL — the read path fails safe; the
 // importer's strict gate is the real fence (carried open item).
@@ -28,6 +29,7 @@ import type { SeedValues } from './seedValues.js';
 import { formatSeedValue } from './seedValues.js';
 
 const REF_RE = /\{([a-z][a-z0-9_]*)\}/g;
+const SEED_MACRO_RE = /\\seed\{([a-z][a-z0-9_]*)\}/g;
 
 // A bare identifier (not preceded by a word character, greedy through the
 // name) — the grammar of the EXPRESSION surfaces: blank answer keys and
@@ -58,6 +60,15 @@ export function substituteText(text: string, values: SeedValues): string {
   });
 }
 
+/** Replace `\seed{name}` in one latex string (DL-17). Undeclared names stay
+ *  as written; a bare `{name}` is never touched. */
+export function substituteLatex(latex: string, values: SeedValues): string {
+  return latex.replace(SEED_MACRO_RE, (whole, name: string) => {
+    const v = values[name];
+    return v === undefined || Array.isArray(v) ? whole : formatSeedValue(v);
+  });
+}
+
 /**
  * Walk any document-shaped JSON (raw or sanitized — the walk is structural)
  * and substitute the surfaces above. Pure: returns a new tree; the input is
@@ -66,6 +77,32 @@ export function substituteText(text: string, values: SeedValues): string {
 export function substituteSeedValues<T>(doc: T, values: SeedValues): T {
   if (Object.keys(values).length === 0) return doc;
   return walk(doc, values) as T;
+}
+
+/**
+ * Substitute section by section (D65): the DoL section with ITS form's values,
+ * every other section — and everything outside sections (the reference panel)
+ * — with the activity's. A DoL variable never reaches another section, and an
+ * activity variable never reaches the DoL (the importer refuses both, DL-4).
+ * Pure, like substituteSeedValues.
+ */
+export function substituteBySection<T>(
+  doc: T,
+  activityValues: SeedValues,
+  dol?: { id: string; values: SeedValues },
+): T {
+  if (!dol) return substituteSeedValues(doc, activityValues);
+  const d = doc as unknown as { sections?: unknown[] } & Record<string, unknown>;
+  const { sections, ...rest } = d;
+  const outer = substituteSeedValues(rest, activityValues);
+  return {
+    ...outer,
+    sections: (sections ?? []).map((s) =>
+      (s as { id?: unknown }).id === dol.id
+        ? substituteSeedValues(s, dol.values)
+        : substituteSeedValues(s, activityValues),
+    ),
+  } as unknown as T;
 }
 
 function walk(node: unknown, values: SeedValues): unknown {
@@ -99,6 +136,12 @@ function walk(node: unknown, values: SeedValues): unknown {
   let changed = false;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
+    if (k === 'latex' && typeof v === 'string') {
+      const swapped = substituteLatex(v, values);
+      if (swapped !== v) changed = true;
+      out[k] = swapped;
+      continue;
+    }
     const w = walk(v, values);
     if (w !== v) changed = true;
     out[k] = w;

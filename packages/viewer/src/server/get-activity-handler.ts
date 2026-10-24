@@ -91,7 +91,17 @@ import { jwtSub } from './jwt.js';
 import { UUID_RE } from './uuid.js';
 import { applyServeShuffles } from '../sanitize/shuffle.js';
 import { deriveSeedValues } from '../sanitize/seedValues.js';
-import { substituteSeedValues } from '../sanitize/substitute.js';
+import { substituteBySection } from '../sanitize/substitute.js';
+import {
+  deriveDolValues,
+  dolAllowance,
+  dolSeedKey,
+  findDolSection,
+  formToServe,
+  servedDol,
+  type DolServedState,
+} from '../sanitize/dolForm.js';
+import { dolPrimary } from './dolPrimary.js';
 import type { SeedVar } from '@activity/schema';
 import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
 
@@ -166,6 +176,14 @@ export interface GetActivityDb {
     versionId: string,
     keepRev: string,
   ): Promise<{ error: { message?: string } | null }>;
+  /** `my_dol_state` (0070, D65) AS THE CALLER — the student's attempts on the
+   * DoL, whether the retake is open, whether they hold the pass. Keyed on
+   * auth.uid() in the SQL, never on the unverified sub (DE-1). Called only for
+   * a document that HAS a DoL. */
+  dolState(
+    authHeader: string,
+    args: { activityId: string; versionId: string; sectionId: string; rubricPrimary: boolean },
+  ): Promise<DbResult<{ attempts: number; retake_open: boolean; passed: boolean }>>;
 }
 
 /** The _shared/cors.ts helper surface (env-reading, so it stays Deno-side). */
@@ -500,10 +518,46 @@ export function createGetActivityHandler(
     }
 
     const userId = jwtSub(authHeader) ?? 'anonymous';
+    const baseSeed = serveSeed(versionId, userId);
+
+    // ---- The DoL (D65, DE-1) ----------------------------------------------
+    // The form a student sees is decided HERE, from their own state read as
+    // the caller: form 1 until attempt 1; form 1, FROZEN, until the retake
+    // opens; form 2 after. The DoL section shuffles and draws with that
+    // form's key; the grader recomputes the same (server/dol.ts).
+    const dol = findDolSection(sanitized);
+    let dolServed: DolServedState | null = null;
+    if (dol) {
+      const primary = dolPrimary(sanitized, dol.id);
+      const { data: state, error: stateErr } = await db.dolState(authHeader, {
+        activityId,
+        versionId,
+        sectionId: dol.id,
+        rubricPrimary: primary?.rubric === true,
+      });
+      if (stateErr || !state) {
+        // Serving a guessed form could show form 2 a day early or hide a
+        // student's recorded attempt; a retryable error is the honest answer.
+        console.error('[get-activity] my_dol_state failed:', stateErr);
+        return cors.errorResponse(req, 500, 'Could not load your check', { code: 'dol_state_failed' });
+      }
+      const allowance = dolAllowance(dol.dol);
+      dolServed = {
+        allowance,
+        attempts: state.attempts,
+        form: formToServe(allowance, state.attempts, state.retake_open),
+        retakeOpen: state.retake_open,
+        passed: state.passed,
+      };
+    }
     // serveSeed, imported (G1): the grading side recomputes this student's
     // arrangement from the SAME symbol — two spellings agreeing by luck was
     // the s2 retro's sharpest seam finding.
-    let served = applyServeShuffles(sanitized, serveSeed(versionId, userId));
+    let served = applyServeShuffles(
+      sanitized,
+      baseSeed,
+      dol && dolServed ? { [dol.id]: dolSeedKey(baseSeed, dolServed.form) } : undefined,
+    );
 
     // Seeded values (wishlist #6, D4): the cached artifact is the TEMPLATE
     // (meta passes through sanitize untouched, so its seedVars survive the
@@ -512,10 +566,18 @@ export function createGetActivityHandler(
     // grader re-derives from the SAME serveSeed symbol.
     const seedVars =
       (served.meta as { seedVars?: SeedVar[] } | undefined)?.seedVars ?? [];
-    const isSeeded = seedVars.length > 0;
+    // Every DoL document is per-student and time-varying (its form, its
+    // retake state), so it is never cacheable either (DE-1b).
+    const isSeeded = seedVars.length > 0 || dol !== null;
     if (isSeeded) {
-      const values = deriveSeedValues(seedVars, serveSeed(versionId, userId));
-      served = substituteSeedValues(served, values);
+      const values = seedVars.length > 0 ? deriveSeedValues(seedVars, baseSeed) : {};
+      served = substituteBySection(
+        served,
+        values,
+        dol && dolServed
+          ? { id: dol.id, values: deriveDolValues(dol.dol, baseSeed, dolServed.form) }
+          : undefined,
+      );
       // R8 as built: the SPECS never reach a client — a list variable's
       // values enumerate candidate answers. Stripped here at serve time (the
       // cache needs them; the student does not), guarded by a response-bound
@@ -523,6 +585,18 @@ export function createGetActivityHandler(
       const restMeta = { ...(served.meta as Record<string, unknown>) };
       delete restMeta.seedVars;
       served = { ...served, meta: restMeta } as typeof served;
+      // DE-6: the DoL's seed table holds every answer value, and its skill
+      // ids stay off the student wire — the section carries only the
+      // student's DoL state.
+      if (dol && dolServed) {
+        const state = dolServed;
+        served = {
+          ...served,
+          sections: served.sections.map((sec) =>
+            (sec as { id?: string }).id === dol.id ? servedDol(sec as { dol?: unknown }, state) : sec,
+          ),
+        } as typeof served;
+      }
     }
 
     return new Response(

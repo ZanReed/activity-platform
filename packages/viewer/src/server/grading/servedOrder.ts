@@ -42,10 +42,12 @@ export function computeServedOrderings(
   sectionId: string,
   versionId: string,
   studentId: string,
+  // D65: the DoL section's form key (dolSeedKey), when the section is the DoL.
+  seedKey?: string,
 ): Record<string, string[]> {
   const shuffled = applyServeShuffles(
     document as unknown as SanitizedActivityDocument,
-    serveSeed(versionId, studentId),
+    seedKey ?? serveSeed(versionId, studentId),
   ) as unknown as { sections?: RawSection[] };
 
   const out: Record<string, string[]> = {};

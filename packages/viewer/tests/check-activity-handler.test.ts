@@ -141,6 +141,7 @@ function harness(
       };
     },
     ownLatestChecks: async () => ({ data: [], error: null }),
+    dolState: async () => ({ data: { attempts: 0, retake_open: false, passed: false }, error: null }),
     recordCheck: async (args) => {
       records.push(args);
       return {

@@ -133,6 +133,21 @@ const db: GetActivityDb = {
       .neq('sanitizer_rev', keepRev);
     return { error };
   },
+
+  async dolState(authHeader, args) {
+    // 0070 (D65, DE-1): AS THE CALLER — the student's own DoL state, keyed on
+    // auth.uid() in the SQL. Only reached for a document that has a DoL.
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    return await userClient.rpc('my_dol_state', {
+      p_activity_id: args.activityId,
+      p_version_id: args.versionId,
+      p_section_id: args.sectionId,
+      p_rubric_primary: args.rubricPrimary,
+    });
+  },
 };
 
 Deno.serve(

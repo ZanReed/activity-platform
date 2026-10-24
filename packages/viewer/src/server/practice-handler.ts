@@ -118,6 +118,7 @@ type ServedOrderings = (args: {
   versionId: string;
   studentId: string;
   sectionId: string;
+  seedKey?: string;
 }) => Record<string, string[]>;
 
 export interface PracticeHandlerDeps {

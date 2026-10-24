@@ -86,6 +86,7 @@ function makeDb(overrides: Partial<GetActivityDb> = {}): GetActivityDb {
     upsertCache: vi.fn(unexpected('upsertCache')),
     writeCensus: vi.fn(unexpected('writeCensus')),
     deleteStaleCache: vi.fn(unexpected('deleteStaleCache')),
+    dolState: vi.fn(unexpected('dolState')),
     ...overrides,
   };
 }

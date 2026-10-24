@@ -65,6 +65,7 @@ const sectionDb: CheckActivityDb = {
   readVersion: async () => { throw new Error('a practice call read an activity version'); },
   recordCheck: async () => { throw new Error('a practice call wrote a section check'); },
   ownLatestChecks: async () => { throw new Error('a practice call read section checks'); },
+  dolState: async () => { throw new Error('a practice call read DoL state'); },
 };
 
 /** "Twice {a}: [blank = 2*a]", seeded by the slot's row. */

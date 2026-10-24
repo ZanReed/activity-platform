@@ -36,6 +36,7 @@ import {
   type RestoreRequest,
   type SectionCheckResult,
   type SectionResponses,
+  type DolCheckState,
 } from '../check/wire.js';
 import {
   gradeSection,
@@ -44,10 +45,8 @@ import {
 } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
 import { jwtSub } from './jwt.js';
-import { serveSeed } from '../sanitize/serveSeed.js';
-import { deriveSeedValues, type SeedValues } from '../sanitize/seedValues.js';
-import { substituteSeedValues } from '../sanitize/substitute.js';
-import type { SeedVar } from '@activity/schema';
+import { dolAllowance, findDolSection } from '../sanitize/dolForm.js';
+import { dolPrimary, primaryCorrect, seedContextFor } from './dol.js';
 import { UUID_RE } from './uuid.js';
 import { createPracticeHandlers, type PracticeDb } from './practice-handler.js';
 
@@ -80,6 +79,8 @@ export interface RecordCheckResult {
   attempt_number: number;
   verdicts: unknown;
   replayed: boolean;
+  /** 0070: the student holds the pass for the skill this DoL can pass. */
+  dol_passed?: boolean;
 }
 
 export interface CheckActivityDb {
@@ -125,6 +126,20 @@ export interface CheckActivityDb {
      * only for a document with no sections (the column refuses 0).
      */
     sectionTotal: number | null;
+    /**
+     * The DoL section's rules (0070, D65), all DERIVED HERE from the stored
+     * document like `locked` — never received from the client. Absent for any
+     * other section.
+     */
+    dol?: {
+      maxAttempts: 1 | 2;
+      /** The form this request was graded against (DE-4). */
+      expectedAttempt: number;
+      /** The primary item is teacher-marked (DE-9). */
+      rubricPrimary: boolean;
+      /** The handler's verdict on the primary block (DE-7). */
+      primaryCorrect: boolean;
+    };
   }): Promise<DbResult<RecordCheckResult>>;
   /**
    * The CALLER's latest check per section on one version (restore, S3): the
@@ -140,6 +155,18 @@ export interface CheckActivityDb {
     versionId: string,
     sectionIds: string[],
   ): Promise<DbResult<OwnCheckRow[]>>;
+  /** `my_dol_state` (0070) AS THE CALLER — restore's DoL state (DE-1). */
+  dolState(
+    authHeader: string,
+    args: { activityId: string; versionId: string; sectionId: string; rubricPrimary: boolean },
+  ): Promise<DbResult<DolStateRow>>;
+}
+
+/** my_dol_state's answer (0070). */
+export interface DolStateRow {
+  attempts: number;
+  retake_open: boolean;
+  passed: boolean;
 }
 
 /** One stored check, as restore reads it back. */
@@ -163,7 +190,16 @@ export interface CheckActivityHandlerDeps {
     versionId: string;
     studentId: string;
     sectionId: string;
+    /** D65: the DoL's form key, when grading the DoL section. */
+    seedKey?: string;
   }) => Record<string, string[]>;
+}
+
+/** DL-8: withhold the DoL's worked solutions while a retake is still
+ *  possible and the DoL is not passed. A failed state read (passed unknown)
+ *  withholds — the safe direction. */
+export function withholdSolutions(dol: DolCheckState): boolean {
+  return !dol.passed && dol.attempts < dol.allowance;
 }
 
 // ---- Request validation -----------------------------------------------------
@@ -341,6 +377,9 @@ export function validateCheckRequest(
   if (b.idempotencyKey !== undefined && typeof b.idempotencyKey !== 'string') {
     return fail('idempotencyKey must be a string', 'bad_idempotency_key');
   }
+  if (b.form !== undefined && (b.form !== 1 && b.form !== 2)) {
+    return fail('form must be 1 or 2', 'bad_form');
+  }
 
   const checked = validateResponses(b.responses);
   if (!checked.ok) return checked;
@@ -354,6 +393,7 @@ export function validateCheckRequest(
       versionId: b.versionId,
       sectionId: b.sectionId,
       responses,
+      ...(b.form === 2 ? { form: 2 } : {}),
     },
   };
 }
@@ -528,30 +568,28 @@ export function createCheckActivityHandler(
       }
       throw err;
     }
-    const seedVars =
-      ((upgraded.doc as { meta?: { seedVars?: SeedVar[] } }).meta?.seedVars) ?? [];
-    let gradedDoc = upgraded.doc;
-    let seedValues: SeedValues = {};
-    if (seedVars.length > 0) {
-      seedValues = deriveSeedValues(seedVars, serveSeed(request.versionId, studentId));
-      gradedDoc = substituteSeedValues(gradedDoc, seedValues);
-    }
+    const dolSection = findDolSection(upgraded.doc);
 
     const sections: RestoredSection[] = [];
     for (const [sectionId, row] of latest) {
       const responses = normalizeStoredResponses(row.responses);
+      // D65 (DE-1d): a DoL row is rebuilt against ITS OWN form — the form of
+      // a DoL attempt is its attempt number.
+      const isDol = dolSection !== null && dolSection.id === sectionId;
+      const ctx = seedContextFor(upgraded.doc, request.versionId, studentId, sectionId, isDol ? row.attempt_number : 1);
       let graded: SectionCheckResult;
       try {
         graded = gradeSection({
-          document: gradedDoc as never,
+          document: ctx.doc as never,
           sectionId,
           responses,
-          seedValues,
+          seedValues: ctx.seedValues,
           servedOrderings: deps.servedOrderings?.({
-            document: gradedDoc,
+            document: ctx.doc,
             versionId: request.versionId,
             studentId,
             sectionId,
+            ...(ctx.seedKey ? { seedKey: ctx.seedKey } : {}),
           }),
         });
       } catch (err) {
@@ -562,12 +600,30 @@ export function createCheckActivityHandler(
         console.error('[check-activity] restore could not rebuild a section', sectionId, err);
         continue;
       }
+      let dol: DolCheckState | undefined;
+      if (isDol) {
+        // The pass and the allowance decide whether restore may show the
+        // worked solutions (DL-8 applies to restore exactly as to a check).
+        const primary = dolPrimary(ctx.doc, sectionId);
+        const { data: state } = await db.dolState(authHeader, {
+          activityId: request.activityId,
+          versionId: request.versionId,
+          sectionId,
+          rubricPrimary: primary?.rubric === true,
+        });
+        dol = {
+          attempts: row.attempt_number,
+          allowance: dolAllowance(dolSection.dol),
+          passed: state?.passed === true,
+        };
+      }
       sections.push({
         sectionId,
         responses,
         result: {
           ...graded,
           items: (row.verdicts ?? {}) as SectionCheckResult['items'],
+          ...(dol ? { dol, solutions: withholdSolutions(dol) ? {} : graded.solutions } : {}),
         },
       });
     }
@@ -697,18 +753,15 @@ export function createCheckActivityHandler(
     // data_plot grader computes its key from the student's own dataset (R4),
     // and outbound feedback/hints/solutions carry values, not templates (R3).
     // Answer-key expressions resolve inside gradeSection via seedValues.
-    const seedVars =
-      ((upgraded.doc as { meta?: { seedVars?: SeedVar[] } }).meta?.seedVars) ??
-      [];
-    let gradedDoc = upgraded.doc;
-    let seedValues: SeedValues = {};
-    if (seedVars.length > 0) {
-      seedValues = deriveSeedValues(
-        seedVars,
-        serveSeed(request.versionId, studentId),
-      );
-      gradedDoc = substituteSeedValues(gradedDoc, seedValues);
-    }
+    // D65: the DoL section is graded against the FORM the page names (1 or
+    // 2); record_check refuses it unless that is the student's next attempt
+    // (dol_form_stale), so a claimed form can never pick an easier key.
+    const form = request.form ?? 1;
+    const ctx = seedContextFor(upgraded.doc, request.versionId, studentId, request.sectionId, form);
+    const gradedDoc = ctx.doc;
+    const seedValues = ctx.seedValues;
+    const dolSection = findDolSection(upgraded.doc);
+    const isDol = dolSection !== null && dolSection.id === request.sectionId;
 
     // ---- Grade -------------------------------------------------------------
     let result: SectionCheckResult;
@@ -723,6 +776,7 @@ export function createCheckActivityHandler(
           versionId: request.versionId,
           studentId,
           sectionId: request.sectionId,
+          ...(ctx.seedKey ? { seedKey: ctx.seedKey } : {}),
         }),
       });
     } catch (err) {
@@ -781,9 +835,14 @@ export function createCheckActivityHandler(
     // locking check must REPLAY, not 409 — otherwise the one failure mode the
     // idempotency key exists for turns into a permanent lockout of work that
     // was already recorded.
+    // The DoL's own allowance overrides the activity's submissionMode for
+    // that one section (DL-7, DE-2).
     const locked =
+      !isDol &&
       (upgraded.doc as { meta?: { submissionMode?: unknown } }).meta
         ?.submissionMode === 'locked';
+    const primary = isDol ? dolPrimary(gradedDoc, request.sectionId) : null;
+    const allowance = isDol ? dolAllowance(dolSection.dol) : 1;
     const { data: recorded, error: recordError } = await db.recordCheck({
       studentId,
       activityId: request.activityId,
@@ -794,6 +853,16 @@ export function createCheckActivityHandler(
       idempotencyKey,
       locked,
       sectionTotal: sectionCountOf(upgraded.doc),
+      ...(isDol
+        ? {
+            dol: {
+              maxAttempts: allowance,
+              expectedAttempt: form,
+              rubricPrimary: primary?.rubric === true,
+              primaryCorrect: primaryCorrect(primary, result.items),
+            },
+          }
+        : {}),
     });
     if (recordError) {
       const msg = recordError.message ?? '';
@@ -809,6 +878,18 @@ export function createCheckActivityHandler(
       if (msg.includes('rate_limited')) {
         return cors.errorResponse(req, 429, 'Too many checks — slow down', {
           code: 'rate_limited',
+        });
+      }
+      // D65: the page is a form behind (another device took the attempt, or
+      // the retake opened since) — reload it; and the retake is not open yet.
+      if (msg.includes('dol_form_stale')) {
+        return cors.errorResponse(req, 409, 'This check has changed — reload the page', {
+          code: 'dol_form_stale',
+        });
+      }
+      if (msg.includes('dol_retake_not_yet')) {
+        return cors.errorResponse(req, 409, 'Your retake isn’t open yet', {
+          code: 'dol_retake_not_yet',
         });
       }
       // Nothing was written, so nothing is half-done; the student retries and
@@ -827,8 +908,14 @@ export function createCheckActivityHandler(
         ? (recorded.verdicts as SectionCheckResult['items'])
         : result.items;
 
+    // DL-8: on the DoL, worked solutions wait until the last attempt or the
+    // pass — form 1's solution is the method for form 2.
+    const attempts = recorded?.attempt_number ?? form;
+    const passed = recorded?.dol_passed === true;
+    const dolState = isDol ? { attempts, allowance, passed } : undefined;
     return cors.jsonResponse(req, {
       ...result,
+      ...(dolState ? { dol: dolState, solutions: withholdSolutions(dolState) ? {} : result.solutions } : {}),
       items,
       attemptNumber: recorded?.attempt_number,
       // The stale-version advisory (ruling S4-T5): the student keeps working
