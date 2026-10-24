@@ -42,6 +42,9 @@ import {
     type Block,
 } from '@activity/schema';
 import { BLANK_MODIFIERS, FENCES } from './importFormatRegistry';
+import { CHECKPOINT_RE } from './markdownToTiptap';
+import { DOL_GRAMMAR } from './dolImport';
+import { BANK_COMBINATION_CAP } from '@activity/schema/bank-seed';
 import {
     FIGURE_FALLBACK_KINDS,
     FIGURE_FLAGS,
@@ -88,6 +91,8 @@ export const EXEMPT_FENCES: Record<string, string> = {
 interface Join {
     fence?: string;
     inline?: string;
+    /** A heading marker the parser reads (D65: `{checkpoint dol}`). */
+    marker?: string;
     schema?: string;
     probe: Record<string, unknown> | null;
     scoring: Scoring;
@@ -145,6 +150,11 @@ export const JOIN: Record<string, Join> = {
     // A data source, like `definition`: the blanks that read its values carry
     // the grading (their ruling on B-30 Q3).
     seeded_data: { fence: 'seed', probe: null, scoring: 'none' },
+    // D65: the DoL retake + "DoL passed" signal. A flow capability, like
+    // `columns`: the items inside carry the grading; the marker makes the
+    // section a DoL (one retake when seeded, the pass from its primary item).
+    // Its grammar is prose_facts.dol_grammar.
+    dol_retake: { marker: DOL_GRAMMAR.heading_marker, probe: null, scoring: 'none' },
 };
 
 // ---- zod introspection ---------------------------------------------------------
@@ -203,7 +213,7 @@ export interface CapabilityFact {
         captures_response: boolean;
         score_shape: ScoreShape;
     };
-    reached_by: { fence?: string; inline?: string; schema?: string };
+    reached_by: { fence?: string; inline?: string; marker?: string; schema?: string };
 }
 
 function derive(join: Join): CapabilityFact {
@@ -216,6 +226,7 @@ function derive(join: Join): CapabilityFact {
     const reachedBy: CapabilityFact['reached_by'] = {};
     if (join.fence) reachedBy.fence = join.fence;
     if (join.inline) reachedBy.inline = join.inline;
+    if (join.marker) reachedBy.marker = join.marker;
     if (join.schema) reachedBy.schema = join.schema;
     return {
         status: 'shipped',
@@ -232,8 +243,10 @@ export function capabilityFactsProblems(): string[] {
     for (const [id, join] of Object.entries(JOIN)) {
         if (join.fence && !fenceTags.has(join.fence))
             problems.push(`capability '${id}' maps to fence '${join.fence}', which the importer no longer registers.`);
-        if (!join.fence && !join.inline)
-            problems.push(`capability '${id}' has neither a fence nor an inline grammar — nothing reaches it.`);
+        if (!join.fence && !join.inline && !join.marker)
+            problems.push(`capability '${id}' has neither a fence, an inline grammar nor a marker — nothing reaches it.`);
+        if (join.marker && !CHECKPOINT_RE.exec(`Title ${join.marker}`)?.[1])
+            problems.push(`capability '${id}' maps to the marker '${join.marker}', which the heading parser no longer reads as a DoL.`);
     }
     const joined = new Set(Object.values(JOIN).map((join) => join.fence));
     for (const fence of FENCES) {
@@ -278,7 +291,15 @@ export function capabilityFacts() {
         vocabulary: { scoring: [...SCORING], score_shape: [...SCORE_SHAPES] },
         capabilities,
         exempt_fences: exempt,
-        prose_facts: { graded_curve_families: gradedCurveFamilies(), figure_grammar: figureGrammar() },
+        prose_facts: {
+            graded_curve_families: gradedCurveFamilies(),
+            figure_grammar: figureGrammar(),
+            dol_grammar: {
+                ...DOL_GRAMMAR,
+                meta_keys: [...DOL_GRAMMAR.meta_keys],
+                combination_cap_per_group: BANK_COMBINATION_CAP,
+            },
+        },
     };
 }
 

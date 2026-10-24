@@ -88,6 +88,17 @@
         "inline": "definition"
       }
     },
+    "dol_retake": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "none",
+        "captures_response": false,
+        "score_shape": "none"
+      },
+      "reached_by": {
+        "marker": "{checkpoint dol}"
+      }
+    },
     "draggable_curve": {
       "status": "shipped",
       "grading": {
@@ -397,6 +408,17 @@
           "arrow"
         ]
       }
+    },
+    "dol_grammar": {
+      "heading_marker": "{checkpoint dol}",
+      "meta_keys": [
+        "dol_skills",
+        "dol_rubric_levels"
+      ],
+      "where_spelling": "where dol:",
+      "math_reference": "\\seed{name}",
+      "rows_stored_per_group": 500,
+      "combination_cap_per_group": 10000
     }
   }
 }

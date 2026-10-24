@@ -858,7 +858,7 @@ const SOLE_DISPLAY_RE = new RegExp(`^${MATH_OPEN}(\\d+)${MATH_CLOSE}$`);
 
 // A trailing {checkpoint} marker on a heading promotes it to a checkpoint
 // section break. Case-insensitive, tolerant of surrounding whitespace.
-const CHECKPOINT_RE = /\s*\{checkpoint(\s+dol)?\}\s*$/i;
+export const CHECKPOINT_RE = /\s*\{checkpoint(\s+dol)?\}\s*$/i;
 
 // =============================================================================
 // Block mapping

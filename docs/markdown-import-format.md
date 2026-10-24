@@ -1369,8 +1369,9 @@ scores: sample 8 of 55..99 (8 DISTINCT whole numbers — a dataset)
 - **Datasets**: a ```dataplot fence may write `data: {scores}` to draw each
   student's dataset from a declared `sample` variable (the stored literal is a
   representative stand-in for previews).
-- **Not in math**: `{a}` inside `$…$` is a LaTeX brace group, not a reference —
-  the importer warns. Keep references in plain text.
+- **In math, write `\seed{a}`**: `$\seed{p}x - \seed{q}$` renders the
+  student's numbers inside the equation. A bare `{a}` inside `$…$` is a LaTeX
+  brace group, not a reference — the importer warns.
 - **Names**: lowercase `[a-z][a-z0-9_]*`; reserved words (math constants and
   functions — `pi`, `e`, `mean`, `min`, … — plus `x`/`y`) are refused.
 - **Validation**: an undeclared `{name}`, a declaration nothing references, a
@@ -1380,6 +1381,62 @@ scores: sample 8 of 55..99 (8 DISTINCT whole numbers — a dataset)
 Teachers should know: **print uses its own seed per version** (Version A/B
 papers), and the editor shows the declared variables read-only — the `.md`
 file is the authoring surface.
+
+## The DoL section (`{checkpoint dol}`, curriculum D65)
+
+The end-of-lesson check (DoL) is a section of its own, marked on its heading,
+with its skills named in ```meta. It records a per-skill **"DoL passed"** and,
+when seeded, offers **one retake** on a fresh draw of its numbers.
+docs/design/dol-retake.md is the full ruling.
+
+```
+```meta
+skill: algebra.factorise.common-factor
+dol_skills: algebra.factorise.common-factor, algebra.expressions.like-terms
+dol_rubric_levels: A, M, E          (only when the primary item has a rubric)
+```⠀
+
+## Check for understanding {checkpoint dol}
+
+```seed
+g: list 4, 6, 8, 9, 10, 12
+a: int 2..7
+b: int 1..7
+p: = g * a
+q: = g * b
+h: = g / 2
+where dol: gcd(a, b) == 1 and mod(g, 2) == 0
+```⠀
+
+Factorise fully: $\seed{p}x - \seed{q}$.
+
+$\seed{p}x - \seed{q} =$ {{=g | !h :: Not the highest. :: mis.factorise.not-highest}} ( {{=a}} x - {{=b}} )
+```
+
+- **One DoL per activity.** `{checkpoint dol}` makes the section its own check
+  group in every submission mode; the rest of the activity keeps its own mode.
+- **Items = gradable blocks, in order.** The DoL holds exactly as many gradable
+  blocks as `dol_skills:` names, and block *i* assesses skill *i*. The FIRST is
+  the **primary item**: the only one the pass reads, and right only when every
+  blank in it is right. `dol_skills:` must start with `skill:`.
+- **The DoL's own ```seed fence** sits inside the section, uses the bank
+  grammar (derived `name: = expr`, constraints `where dol: …` — the only
+  spelling), and is redrawn per attempt. Its variables may not appear outside
+  the DoL, nor reuse an activity variable's name; an activity variable may not
+  appear inside it. Variables linked by a derived value or a `where` form a
+  group; each group's valid combinations are enumerated at import (10,000 cap
+  per group before filtering, at most 500 kept).
+- **The retake** is offered only when a DoL variable reaches the primary item
+  and its group has at least two valid rows (a retake on the same numbers
+  measures memory). It opens on the student's next practice day; for a rubric
+  primary, also only once the first try's mark is released. An unseeded DoL
+  has one attempt.
+- **Passed**: the primary item right on any attempt — and only on the skill's
+  FINAL part (the registry's `= n`). A rubric primary is ticked by the teacher,
+  prefilled when every `A` line (`dol_rubric_levels:`) is at full marks.
+- **Problems skip the file** in every batch run (not only `--strict`): a count
+  that doesn't match, a seed that can't enumerate, a variable crossing the
+  boundary. A DoL with no seed, or with no retake, warns.
 
 ## Activity metadata (```meta fence)
 

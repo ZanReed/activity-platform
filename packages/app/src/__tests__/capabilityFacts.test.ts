@@ -192,3 +192,23 @@ describe('prose_facts.figure_grammar is the parser, not a copy (C-107 (b))', () 
         expect([...read].sort()).toEqual([...own].sort());
     });
 });
+
+describe('prose_facts.dol_grammar (D65) is what the parser reads', () => {
+  it('a DoL written with exactly the published grammar imports with no problem and a retake', async () => {
+    const { getMarkdownImporter } = await import('../lib/markdownToTiptap');
+    const { DOL_GRAMMAR } = await import('../lib/dolImport');
+    const convert = await getMarkdownImporter();
+    const [skills, levels] = DOL_GRAMMAR.meta_keys;
+    const md = [
+      '```meta', 'skill: s.one', `${skills}: s.one`, '```',
+      `## Check ${DOL_GRAMMAR.heading_marker}`,
+      '```seed', 'a: int 2..9', 'b: = a * 2', `${DOL_GRAMMAR.where_spelling} a > 2`, '```',
+      `Double $${DOL_GRAMMAR.math_reference.replace('name', 'a')}$: {{=b}}`,
+    ].join('\n\n');
+    const result = convert(md);
+    expect(result.dolProblems).toBeUndefined();
+    const dol = result.blocks.find((b) => b.type === 'sectionBreak')?.attrs?.dol as { retake?: boolean } | undefined;
+    expect(dol?.retake).toBe(true);
+    expect(levels).toBe('dol_rubric_levels');
+  });
+});

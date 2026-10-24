@@ -37,6 +37,17 @@ import { enumerateTemplate, parseBankSeedFence, type ParsedBankSeed } from './ba
 /** The most valid rows one group stores (DE-17). */
 export const DOL_ROWS_STORED = 500;
 
+/** The DoL grammar as published to the curriculum side (capability facts,
+ *  prose_facts.dol_grammar): what their lint checks a draft against. Every
+ *  entry is asserted against the parser in capabilityFacts.test.ts. */
+export const DOL_GRAMMAR = {
+    heading_marker: '{checkpoint dol}',
+    meta_keys: ['dol_skills', 'dol_rubric_levels'],
+    where_spelling: 'where dol:',
+    math_reference: '\\seed{name}',
+    rows_stored_per_group: DOL_ROWS_STORED,
+} as const;
+
 /** The pending marker mapHeading puts on a `{checkpoint dol}` sectionBreak. */
 export const DOL_PENDING = { pending: true } as const;
 
