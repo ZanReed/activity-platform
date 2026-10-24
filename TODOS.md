@@ -176,7 +176,7 @@ Zan rates platform features above activity authoring right now (C-149 item 4). E
    - the pass rule: the primary item right, counting the best attempt (C-151);
    - rubric items re-asked on a retake with the first answer hidden;
    - targeted practice from the skill bank, filtered by a `mis.*` column extracted at import.
-   TRIGGER: the first Y9 DoL drafted with a parallel form.
+   TRIGGER: the first Y9 DoL drafted with a parallel form. ⚠ NOT fired at 2026-10-24; the author ruled the design pass to run anyway. DESIGN PASS WRITTEN 2026-10-24 ([dol-retake.md](docs/design/dol-retake.md), DL-1…DL-16, against their sample `proposals/d65-sample-dol.md`, asked in B-208); waiting on his rulings.
 3. **D67 student unit tracker.** Rows keyed by skill and grouped by `activities.unit`. New work: a skill-label mirror (we store no labels today) and a private teacher-wording table keyed by (teacher, skill). Tier letters derive from the stored D66 tags. Statuses: taught (0066 pool), passed (D65), struggling (0066, mixed tries only). TRIGGER: D65 live.
 4. **D64 pause-point video player.** No embed block exists. Lean: a ```video fence whose pause points name faded steps; staleness bound to the published version plus a hash of the faded block. ⚠ Since D73 (re-ruled 2026-10-23) the PLAYER is built third, after D65, and pilot clips are recorded. Students see video only once the school clears hosting: embedding YouTube for students, some under 13, is still a data-map, compliance and counsel question, so it gates student exposure, not the build. Pilot: 1–2 live activities (701 or Y7 geometry).
 
