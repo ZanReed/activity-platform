@@ -1,6 +1,6 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built.
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **ENG-REVIEWED 2026-10-24: DE-1…DE-19 are waiting on the author** (5 P1 amendments to DL-6/7/8/12/16; see the Eng review at the bottom).
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
@@ -283,3 +283,204 @@ Compliance: `dol_pass` is a new student-derived table, so data-map + retention-p
 - The D67 tracker.
 - Video (D64).
 - Any change to `free`/`locked` outside a DoL section.
+
+## Eng review — 2026-10-24 (`/plan-eng-review`): DE-1…DE-20 WAITING ON THE AUTHOR
+
+Reviewed against code at main 72ba14e6. There are two passes: this session's own, plus an outside voice (a Plan subagent; Codex isn't installed). The outside voice's three critical claims were each verified against the code before they were adopted (cited inline). **Five P1s change the ruled design itself** (DE-1…DE-5). They are amendments to DL-6, DL-7, DL-8, DL-12 and DL-16, not implementation detail. Nothing is built.
+
+### Architecture
+
+**DE-1 [P1] (confidence 9) The attempt and form state cannot ride on get-activity as DL-6 wrote it.** Four defects share one cause:
+- (a) **Form 2 appears on the same day.** DL-6 serves form n = checks + 1, so a reload straight after attempt 1 shows form 2's numbers a day early, and restore fills them with form 1's answers and verdicts.
+- (b) **A browser keeps form 1 for a year.** get-activity marks a response `no-store` only when `meta.seedVars` is non-empty (`get-activity-handler.ts:554`). An activity whose only seed is the DoL's section seed would be served `private, max-age=31536000, immutable`, so after attempt 1 the browser keeps showing form 1.
+- (c) **A lookup keyed on the token is unsafe.** The token's `sub` is read unverified and is "NEVER an authorization input" (`server/jwt.ts:7`), so a lookup keyed on it would break G2.
+- (d) **Restore uses the wrong seed and leaks solutions.** Restore regrades with the activity-wide `serveSeed` only (`check-activity-handler.ts:529-536`), so an attempt-2 row is rebuilt against form 1's values. Restore also recomputes `solutions`, so a reload after attempt 1 would leak them, which DL-8 forbids.
+
+**Recommend:**
+- A user-scoped RPC `my_dol_state(version_id)` (runs as the caller: attempts, attempt-1 practice day, passed) is called by get-activity for a document with a DoL.
+- **Form served:**
+  - 1 while no attempt exists;
+  - 1, FROZEN, after attempt 1 until the retake day;
+  - 2 from the retake day on;
+  - the attempt-2 form after that.
+- Every DoL document is `no-store`: widen `isSeeded` to "has a DoL".
+- Restore rebuilds each row with **that row's form** (form = `attempt_number`), and applies DL-8's solution rule exactly as a check does.
+
+**DE-2 [P1] (confidence 9) The DoL is not its own check group (DL-1 says it is).** A checkpoint's Check covers every section since the previous checkpoint, INCLUSIVE (`checkGroups.ts:8-11`), and `single` ignores every marker (`checkGroups.ts:72-73`). So a `{checkpoint dol}` after plain sections shares their Check, and under `single` it merges into the one end-of-activity Check.
+The 21 live files happen to put `{checkpoint}` on the Lesson, so their DoL is alone. Nothing makes that so.
+**Recommend:**
+- `dol` closes the run before it (an implicit checkpoint ahead of it).
+- The DoL is its own group in EVERY mode.
+- The DoL's allowance (DL-7) overrides the activity's `submissionMode` for that section only.
+
+**DE-3 [P1] (confidence 10) Swapping `p_locked` for `p_max_attempts` takes checking down for the deploy window.**
+- The live function passes `p_locked` by name (`supabase/functions/check-activity/index.ts:107`), and the migration is applied before the redeploy. Dropping the parameter makes every check fail until the redeploy.
+- 0059 solved exactly this with a DEFAULT (`0059:16-19`).
+
+**Recommend:**
+- ADD `p_max_attempts int default null` and keep `p_locked` (1 still means lock) for one release.
+- The client's new form field is OPTIONAL on the server, because the SPA ships last (OV-7).
+
+**DE-4 [P1] (confidence 9) DL-6's two new 409s, decided in the handler, break replay and race on the attempt number.**
+- **Replay:** a lost-response retry of attempt 1 would get `dol_form_stale` instead of its replay. The handler's own rule is that a lost-response retry must REPLAY, not 409 (`check-activity-handler.ts:779-783`, OV#9).
+- **Race:** two tabs both serving form 1 both grade form 1, and `record_check`'s `max+1` gives the second one attempt 2. The retake is then burned on form-1 numbers and skips the next-day gate.
+
+**Recommend:**
+- The handler passes `p_expected_attempt` (the form it graded) and `p_retake_not_before` (a date).
+- `record_check` refuses AFTER its replay lookup, in the same transaction, with `dol_form_stale` or `dol_retake_not_yet`.
+
+**DE-5 [P1] (confidence 9) `dol_pass.check_id` must not cascade.** `check_grades` cascades from `section_checks` (`0034:78`), and the prune deletes superseded check rows. A cascading FK would delete the pass along with its check, which is the very harm DL-12 exists to prevent.
+**Recommend:**
+- `on delete set null`.
+- The row's own `activity_id`, `version_id` and `passed_at` carry the evidence.
+- verify-0069 pins it by deleting a check under a pass.
+
+**DE-6 [P1] (confidence 8) Two seed scopes need their own plumbing, and the section table is an answer leak if it's served.**
+- get-activity strips only `meta.seedVars` (`get-activity-handler.ts:519-524`). A `Section.dol.seed` holding the row table (which contains answer values such as `k`, `g`, `a`, `b`) would ship to the student.
+- Substitution, grading, `applyServeShuffles` and `servedOrder` all take ONE document-wide seed and value map (`check-activity-handler.ts:705-720`).
+
+**Recommend:**
+- Strip `Section.dol.seed` at serve, with a guard bound to the RESPONSE and mutation-tested.
+- Per-section value maps and a per-section seed override for shuffles, ordering, grading and restore.
+- The importer refuses a section variable that shadows an activity variable's name.
+
+### Code quality
+
+**DE-7 [P2] (confidence 8) Who computes "primary right".** `record_check` is SQL and can't map blocks to blank ids cheaply.
+**Recommend:**
+- The handler computes `primaryCorrect` (every verdict of the primary block `correct`) and passes `p_dol_primary_correct`.
+- `record_check` writes `dol_pass` only when that is true AND the activity's `primary_skill` is set AND `dol_grants_pass` is true.
+
+**DE-8 [P2] (confidence 8) A seeded DoL can earn a retake whose primary item never changes**, for example when the seed reaches only the review item. That measures memory, the reason DL-5 refuses retakes.
+**Recommend:** a retake is granted only when a section-scoped variable reaches the PRIMARY block. Otherwise it gets one attempt, and the importer warns.
+
+**DE-9 [P2] (confidence 7) Rubric-primary DoLs: the retake can open before the teacher has graded attempt 1**, so the student retakes with no correction. That breaks the check → correct → parallel-check loop C-163 cited.
+- (a) For a rubric primary, the retake opens on the retake day AND after a released grade on attempt 1.
+- (b) As ruled: the retake day only.
+
+**Recommend (a).** ⚠ This is an author call, and it goes in the letter.
+
+**DE-10 [P2] (confidence 9) D66 would hide P–E templates with no pass able to exist.** No live file has `{checkpoint dol}` yet, so once tiers are stored, every tagged skill would serve only D–C to every student.
+**Recommend:** filter a skill only when at least one pass-granting DoL activity for it is live.
+
+**DE-11 [P2] (confidence 9) "Teacher-made activity grants the pass" (the DL-10 amendment) can never fire, and Bank copies never grant.**
+- `primary_skill` is importer-only (`0066:101-126`).
+- `copy_bank_activity` copies neither `primary_skill` nor any flag (`0054:296-305`).
+
+So a colleague teaching from a copied DoL produces no passes. 0066's `mixed_taught` has the same gap today.
+**Recommend:**
+- Delete the teacher-made branch: a DoL grants a pass only through a catalogue skill.
+- Resolve a COPY's `primary_skill` and `dol_grants_pass` through `copied_from_activity_id` at record time.
+
+⚠ This is an author call. It also fixes `mixed_taught` for copies only if 0066's reader adopts the same rule (separate scope, which would go in TODOS).
+
+**DE-12 [P2] (confidence 8) `dol_grants_pass` is a cross-file property.**
+**Recommend:**
+- The importer computes it from the SKILL REGISTRY's declared part count, over the DB's rows plus this batch. A batch alone can't see its siblings.
+- Only the part at position = declared count is flagged, so a missing final part flags nothing and an earlier part can never be "last".
+- Recomputed on every run, path-only, and reported in the import summary.
+
+**DE-13 [P2] (confidence 8) A retake can draw attempt 1's row.** A group that filters to 8 rows makes the same form 1 time in 8.
+**Recommend:**
+- Form 2 picks a different row per group.
+- A group with 1 row can't vary. If every group reaching the primary block has 1 row, there is no retake (see DE-8).
+
+**DE-14 [P2] (confidence 8) An empty or half-answered check burns a DoL attempt.** Unanswered items simply have no verdict (`grading/index.ts:8-13`).
+**Recommend:** reuse flow-modes D3's inline confirm, saying "Attempt 1 of 2" and how many items are unanswered.
+
+**DE-15 [P2] (confidence 9) A teacher can't undo a wrong tick.**
+**Recommend:**
+- A `source = 'teacher'` pass can be removed by a teacher of that student, and is audited.
+- An auto pass can't be removed.
+
+**DE-16 [P2] (confidence 7) Teacher views show the WORSE attempt.** A pass on attempt 1 followed by a failed retake shows a fail beside "DoL passed": class progress, first tries and the queue all read the latest attempt.
+**Recommend:** a DoL's cell in class progress reads "Passed" whenever `dol_pass` exists. The other readers are unchanged, and they label DoL rows "First try" or "Retake".
+
+### Tests
+
+The test map, as diagrammed for the review, follows. "Exists" means existing coverage that will be extended.
+```
+IMPORT  dol parse/refusals ........ [GAP] markdownToTiptap.test (DL-1/2/4, DE-2, DE-6 shadow)
+        enumerate per group+cap ... [GAP] bankSeed tests extended (DL-3, DE-13 1-row)
+        dol_grants_pass ........... [GAP] batch-import test: 3-part skill, partial batch (DE-12)
+        live 21 dry run ........... [GAP] --strict dry run (DL-2) — manual, recorded
+SERVE   strip Section.dol.seed .... [GAP][CRITICAL] response-bound guard, mutation-tested (DE-6)
+        form state machine ........ [GAP] handler tests: 0/1-frozen/1-open/2 + no-store (DE-1)
+        \seed{} in latex .......... [GAP] substitute.test + print (DL-17, DE-19)
+CHECK   expected-attempt/replay ... [GAP] verify-0069 + handler: replay wins, race refused (DE-4)
+        deploy window ............. [GAP] verify-0069: old named call still resolves (DE-3)
+        solutions withheld ........ [GAP] check AND restore paths (DL-8, DE-1d)
+        pass write rules .......... [GAP] verify-0069: auto/teacher/untick/flag false/copy (DE-5,7,11,15)
+D66     tier filter gate .......... [GAP] verify: no pass-granting DoL -> unfiltered (DE-10)
+E2E     [->E2E] attempt1 -> frozen -> next day -> form 2 -> pass (clock-faked lane)
+```
+Gaps: 14, of which 1 is CRITICAL (the answer leak). There are no tests to retire.
+
+### Performance
+
+**DE-17 [P2] (confidence 7) Row tables inflate the cached template.** The cache keeps the template, specs included (`get-activity-handler.ts:507-511`), and parses it on every open. At the 10,000 cap × ~6 names that is ~500 KB [estimated]. The sample needs 140 + 120 rows, ~10 KB [estimated].
+**Recommend:** store at most 500 valid rows per group, a deterministic sample at import.
+
+The `my_dol_state` call costs one indexed RPC per open, and only for a DoL document.
+
+### Also found
+
+**DE-18 [P2] (confidence 8) Print and editor.**
+- Print derives values from `print:{activityId}:v{n}`, so it must also derive section seeds and `\seed{}`, or a printed DoL shows letters.
+- Bank copies are editable, so `tiptapToActivity` must round-trip `Section.dol`, its seed fence and `\seed{}`, guarded by a round-trip test.
+
+**DE-19 [P3] (confidence 7) Unbundle 0069.**
+- The `mixed_item_for_check` shrink goes in its OWN migration file, applied in the same sitting, so a regression in one doesn't roll back the other.
+- `practice_item.misconception_ids` moves to slice 2, its real consumer. Slice 1's B-198 import check reads the bank documents directly.
+
+**DE-20 [note] Not re-litigated.** The outside voice's strategic flag (the trigger hasn't fired, and slice 1 is large) was already ruled by the author, so it is recorded only. Its "next practice day" point resolves as C-163 framed it: D43 counts calendar days in the class zone, and C-164 item 4 accepted the owner's zone. So no further departure.
+
+### Failure modes (silent ones flagged)
+
+- **Answer table served** (DE-6): silent, critical. Guarded by the response-bound test.
+- **Prune un-passes students** (DE-5): silent, critical. Guarded by verify-0069.
+- **Deploy-window outage** (DE-3): visible as a check error. Guarded by the default parameter.
+
+The remaining paths fail visibly: a 409 with copy, or an importer error.
+
+### Worktree parallelization
+
+Lane A: schema + importer (packages/schema, packages/app/src/lib, scripts). Then Lane B: server + viewer (packages/viewer). Then Lane C: migration + verify (supabase/). B depends on A's schema. C can start with A. Lanes: 2 parallel, 1 sequential.
+
+### Implementation Tasks (post-ruling; slice 1)
+
+- [ ] **T1 (P1)** — schema: `Section.dol`, the seed scope, `RubricCriterion.level`, plus the importer's parse, refusals, enumeration, row sample and `dol_grants_pass` (DL-1…4, DE-2, DE-6, DE-12, DE-13, DE-17). Verify with the app and importer tests, then the `--strict` dry run on the 21.
+- [ ] **T2 (P1)** — 0069 (shrink only) + 0070 (D65):
+  - `record_check` with `p_max_attempts`, `p_expected_attempt`, `p_retake_not_before` and `p_dol_primary_correct`, all defaulted;
+  - `dol_pass` (`on delete set null`) + RLS + untick;
+  - `my_dol_state`;
+  - `activities.dol_grants_pass` + guard;
+  - `practice_item.tier` + the gated filter;
+  - data-map + retention.
+
+  Verify: verify-0069, verify-0070, re-run verify-0066.
+- [ ] **T3 (P1)** — server: form state, `no-store`, the per-section seeds and strip, restore by form, solution withholding, primary computation, copies resolved through `copied_from_activity_id`. Verify: handler tests, the mutation-tested response guard, then both bundles regenerated.
+- [ ] **T4 (P2)** — viewer: the frozen state, "Try a new version" and "available tomorrow", the D3 confirm, the Passed mark. Verify: an e2e lane with a faked clock.
+- [ ] **T5 (P2)** — teacher: the grading tick with base-level prefill, untick, and the class-progress Passed cell. Verify with app tests.
+- [ ] **T6 (P2)** — print + editor round-trip of `Section.dol` and `\seed{}`. Verify with round-trip and print tests.
+- [ ] **T7 (P2)** — capability facts (heading-marker join) + `pnpm facts:capabilities` + the letter; their pin bump comes after the push.
+
+### Unresolved decisions
+
+DE-1…DE-19 each need the author's yes or no. DE-9 and DE-11 are genuine author calls; the rest are recommended fixes.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Outside Review | native fallback (Plan subagent; Codex not installed) | Independent 2nd opinion | 1 | unavailable (outside); in-host completed | 17 findings, 3 critical (all verified), 10 adopted as DE items |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_open | 19 issues, 2 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **OUTSIDE COVERAGE:** Codex is not installed, so there is no external provider. The native in-host fallback completed within its 5-minute window: 17 findings. Its three critical claims were verified against `checkGroups.ts:8-11`, `get-activity-handler.ts:554` and `check-activity/index.ts:107`.
+- **VERDICT:** NOT CLEARED. 5 P1 amendments (DE-1…DE-5) wait on the author. Eng review is required before building.
+
+**UNRESOLVED DECISIONS:**
+- DE-1…DE-19: the author's yes or no on each, with DE-9 (rubric retake waits for a released grade) and DE-11 (Bank copies grant passes through their source) as genuine calls
