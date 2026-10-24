@@ -28,6 +28,9 @@ const h = vi.hoisted(() => ({
   suggestions: vi.fn(),
   assistStatus: vi.fn(),
   rubrics: vi.fn(),
+  dolPrimaries: vi.fn(),
+  dolPasses: vi.fn(),
+  setDolPass: vi.fn(),
   confirm: vi.fn(),
   reject: vi.fn(),
 }));
@@ -39,11 +42,18 @@ vi.mock('../lib/grading', async (importOriginal) => ({
   releaseGrades: h.release,
 }));
 
+vi.mock('../lib/dolPass', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/dolPass')>()),
+  fetchDolPassStatus: h.dolPasses,
+  setDolPass: h.setDolPass,
+}));
+
 vi.mock('../lib/gradingAssist', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/gradingAssist')>()),
   fetchSuggestions: h.suggestions,
   fetchAssistStatus: h.assistStatus,
   fetchVersionRubrics: h.rubrics,
+  fetchDolPrimaries: h.dolPrimaries,
   confirmSuggestion: h.confirm,
   rejectSuggestion: h.reject,
 }));
@@ -150,6 +160,10 @@ beforeEach(() => {
   h.release.mockResolvedValue(1);
   h.assistStatus.mockResolvedValue({ provider: 'local_worker', last_draft_at: PAST });
   h.rubrics.mockResolvedValue(RUBRIC);
+  // D65: no DoL rows unless a test says so.
+  h.dolPrimaries.mockResolvedValue(new Set());
+  h.dolPasses.mockResolvedValue([]);
+  h.setDolPass.mockResolvedValue(undefined);
   h.confirm.mockResolvedValue('confirmed');
   h.reject.mockResolvedValue(undefined);
 });

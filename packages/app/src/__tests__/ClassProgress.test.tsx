@@ -55,6 +55,13 @@ const net = vi.hoisted(() => {
     };
 });
 vi.mock('../lib/supabase', () => ({ supabase: net.supabase }));
+// D65: the activity page also reads who holds the DoL pass; none unless a
+// test says so.
+const dol = vi.hoisted(() => ({ passes: vi.fn(async (): Promise<unknown[]> => []) }));
+vi.mock('../lib/dolPass', async (orig) => ({
+    ...(await orig<typeof import('../lib/dolPass')>()),
+    fetchDolPassStatus: dol.passes,
+}));
 
 import ClassProgress from '../routes/ClassProgress';
 import ActivityProgressPage from '../routes/ActivityProgress';
@@ -370,6 +377,39 @@ describe('the activity page (D5, DR-2, DR-3, DR-11)', () => {
         const table = screen.getAllByRole('table')[0]!;
         expect(wrongHead.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Ana Lee, Section 1: checked, 0 percent, 1 attempt' })).toBeTruthy();
+    });
+
+    it('D65 DE-16: a DoL cell reads "Passed" for a student holding the pass, whatever the latest score', async () => {
+        const schema = await import('@activity/schema');
+        const doc = schema.createEmptyDocument();
+        doc.sections[0]!.dol = { skills: ['s.one'], retake: false };
+        const vid = 'v-current';
+        const student = (id: string, name: string) => ({
+            student_id: id, name, sections_total: 1, sections_checked: 1, earlier_checked: false, earlier_done: false,
+            shown_version_id: vid, shown_total: 1, shown_checked: 1, to_grade: 0, last_checked_at: null,
+        });
+        api.fetchActivityProgress.mockResolvedValue({
+            activity: { id: A1, title: 'Factorising', current_version_id: vid },
+            classes: [{ class_id: 'c1', name: '9 Maths A', students: [student('s1', 'Ana Lee'), student('s2', 'Ben Carter')] }],
+            sections: [
+                { student_id: 's1', version_id: vid, section_id: doc.sections[0]!.id, attempts: 2, correct: 0, marked: 1, checked_at: '2027-02-09T09:41:00Z' },
+                { student_id: 's2', version_id: vid, section_id: doc.sections[0]!.id, attempts: 1, correct: 0, marked: 1, checked_at: '2027-02-09T09:41:00Z' },
+            ],
+            last_check_at: null,
+        } satisfies ActivityProgress);
+        api.fetchMisconceptions.mockResolvedValue(noMis);
+        api.fetchVersionContents.mockResolvedValue(new Map([[vid, { version_num: 1, content: doc }]]));
+        dol.passes.mockResolvedValueOnce([{ student_id: 's1', source: 'auto', passed_at: 'x' }]);
+        render(
+            <MemoryRouter initialEntries={[`/activity/${A1}/progress`]}>
+                <Routes>
+                    <Route path="/activity/:id/progress" element={<ActivityProgressPage />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        const ana = await screen.findByRole('link', { name: 'Ana Lee, Section 1: DoL passed, 2 attempts' });
+        expect(ana.textContent).toContain('Passed');
+        expect(screen.getByRole('link', { name: 'Ben Carter, Section 1: checked, 0 percent, 1 attempt' })).toBeTruthy();
     });
 });
 

@@ -12,6 +12,7 @@
  */
 import { supabase } from './supabase';
 import { getVersionContents } from './versionContent';
+import { isGradeable, type Block } from '@activity/schema';
 import type { CriterionEntry } from './grading';
 
 /* ---- wire types (0042 §K/§K2) -------------------------------------------- */
@@ -92,6 +93,28 @@ export interface RubricCriterionSpec {
   id: string;
   label: string;
   maxPoints: number;
+  /** The level the line evidences (D65 `dol_rubric_levels:`), when tagged. */
+  level?: string;
+}
+
+/**
+ * `${versionId}:${blockId}` for every version's DoL PRIMARY block (D65) — the
+ * first gradable block of its `{checkpoint dol}` section, the importer's rule
+ * (lib/dolImport.ts) and the server's (viewer server/dolPrimary.ts). The
+ * grading panel offers the "DoL passed" tick on exactly these rows.
+ */
+export async function fetchDolPrimaries(versionIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (versionIds.length === 0) return out;
+  const contents = await getVersionContents(versionIds);
+  for (const [id, version] of contents) {
+    const sections = (version.content as { sections?: Array<{ dol?: unknown; rows?: { columns?: { blocks?: Block[] }[] }[] }> })
+      ?.sections ?? [];
+    const dol = sections.find((s) => s.dol !== undefined && s.dol !== null);
+    const first = dol?.rows?.flatMap((r) => r.columns ?? []).flatMap((c) => c.blocks ?? []).find((b) => isGradeable(b));
+    if (first && typeof first.id === 'string') out.add(`${id}:${first.id}`);
+  }
+  return out;
 }
 
 export async function fetchVersionRubrics(

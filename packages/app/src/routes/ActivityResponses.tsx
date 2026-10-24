@@ -56,6 +56,7 @@ import {
   type CriterionEntry,
   type GradingQueueRow,
 } from '../lib/grading';
+import { DOL_PASS_COPY, baseLevelMet, fetchDolPassStatus, setDolPass, type DolPassRow } from '../lib/dolPass';
 import {
   ASSIST_COPY,
   confirmSuggestion,
@@ -63,6 +64,7 @@ import {
   fetchAssistStatus,
   fetchSuggestions,
   fetchVersionRubrics,
+  fetchDolPrimaries,
   quotaPausedLine,
   rejectSuggestion,
   relativeTime,
@@ -163,6 +165,10 @@ export default function ActivityResponses() {
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
   const [assistStatus, setAssistStatus] = useState<AssistStatus>({ provider: 'off' });
   const [rubrics, setRubrics] = useState<Map<string, RubricCriterionSpec[]>>(new Map());
+  // D65: the DoL's primary blocks (`${version}:${block}`) and who holds the
+  // pass. Background, like the assist layer, and degrading to "no tick".
+  const [dolPrimaries, setDolPrimaries] = useState<ReadonlySet<string>>(new Set());
+  const [dolPasses, setDolPasses] = useState<ReadonlyMap<string, DolPassRow>>(new Map());
   const [error, setError] = useState<string | null>(null);
   // A failed re-read AFTER a save keeps the queue on screen (the save itself
   // succeeded — its own errors show in the panel); only the first load blanks.
@@ -230,6 +236,18 @@ export default function ActivityResponses() {
       setRefreshError(null);
       setLoading(false);
       void hydrateAssist(queue);
+      void (async () => {
+        try {
+          const [primaries, passes] = await Promise.all([
+            fetchDolPrimaries([...new Set(queue.map((r) => r.activity_version_id))]),
+            fetchDolPassStatus(id),
+          ]);
+          setDolPrimaries(primaries);
+          setDolPasses(new Map(passes.map((p) => [p.student_id, p])));
+        } catch {
+          setDolPrimaries(new Set());
+        }
+      })();
     },
     [id, hydrateAssist],
   );
@@ -470,6 +488,11 @@ export default function ActivityResponses() {
                     rubric={
                       rubrics.get(`${current.activity_version_id}:${current.block_id}`) ?? null
                     }
+                    dol={
+                      dolPrimaries.has(`${current.activity_version_id}:${current.block_id}`)
+                        ? { pass: dolPasses.get(current.student_id) ?? null }
+                        : null
+                    }
                     onSaved={refresh}
                   />
                 ) : (
@@ -533,12 +556,15 @@ function GradePanel({
   activityId,
   suggestion,
   rubric,
+  dol,
   onSaved,
 }: {
   row: GradingQueueRow;
   activityId: string;
   suggestion: SuggestionRow | undefined;
   rubric: RubricCriterionSpec[] | null;
+  /** D65: this row is the DoL's primary item; the student's current pass. */
+  dol: { pass: DolPassRow | null } | null;
   onSaved: () => Promise<void>;
 }) {
   const display = deriveAssistDisplay(suggestion, row.graded);
@@ -586,6 +612,13 @@ function GradePanel({
   const [outcome, setOutcome] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
   const [evidenceFor, setEvidenceFor] = useState<string | null>(null);
+  // D65 DL-11: the "DoL passed" tick. Untouched (null) it FOLLOWS the
+  // prefill — every base-level line at full marks — so the common case is the
+  // one Save; a teacher's touch takes over. An auto pass is fixed.
+  const [tickTouched, setTickTouched] = useState<boolean | null>(null);
+  const storedPass = dol?.pass ?? null;
+  const prefillTick = storedPass === null && baseLevelMet(spec, entries);
+  const ticked = tickTouched ?? (storedPass !== null || prefillTick);
 
   const touch = (mark: string) =>
     setDrafted((prev) => {
@@ -633,6 +666,12 @@ function GradePanel({
           criteria: entries,
           generalFeedback: general,
         });
+      }
+      // The pass rides the same Save (DL-11): set it when ticked and absent,
+      // clear it when unticked and the pass is a TEACHER's (an auto one stands).
+      if (dol && storedPass?.source !== 'auto') {
+        if (ticked && storedPass === null) await setDolPass(row.check_id, true);
+        else if (!ticked && storedPass?.source === 'teacher') await setDolPass(row.check_id, false);
       }
       await onSaved();
     } catch (err) {
@@ -862,6 +901,27 @@ function GradePanel({
         }`}
         rows={3}
       />
+
+      {dol && (
+        <div className="mt-3 rounded-md border border-line px-3 py-2" data-dol-pass>
+          <label className="flex min-h-[44px] items-center gap-2 text-sm font-medium text-strong">
+            <input
+              type="checkbox"
+              checked={ticked}
+              disabled={storedPass?.source === 'auto'}
+              onChange={(e) => setTickTouched(e.target.checked)}
+            />
+            {DOL_PASS_COPY.label}
+          </label>
+          <p className="text-xs text-muted">
+            {storedPass?.source === 'auto'
+              ? DOL_PASS_COPY.auto
+              : tickTouched === null && prefillTick
+                ? DOL_PASS_COPY.prefill
+                : DOL_PASS_COPY.hint}
+          </p>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button

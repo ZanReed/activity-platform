@@ -30,6 +30,9 @@ const h = vi.hoisted(() => ({
   suggestions: vi.fn(),
   assistStatus: vi.fn(),
   rubrics: vi.fn(),
+  dolPrimaries: vi.fn(),
+  dolPasses: vi.fn(),
+  setDolPass: vi.fn(),
 }));
 
 vi.mock('../lib/grading', async (importOriginal) => ({
@@ -37,6 +40,12 @@ vi.mock('../lib/grading', async (importOriginal) => ({
   fetchGradingQueue: h.queue,
   saveCheckGrade: h.save,
   releaseGrades: h.release,
+}));
+
+vi.mock('../lib/dolPass', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/dolPass')>()),
+  fetchDolPassStatus: h.dolPasses,
+  setDolPass: h.setDolPass,
 }));
 
 // The assist layer (0042) is mocked to its quiet defaults here — these rows
@@ -48,10 +57,12 @@ vi.mock('../lib/gradingAssist', async (importOriginal) => ({
   fetchSuggestions: h.suggestions,
   fetchAssistStatus: h.assistStatus,
   fetchVersionRubrics: h.rubrics,
+  fetchDolPrimaries: h.dolPrimaries,
 }));
 
 import ActivityResponses from '../routes/ActivityResponses';
 import { RESPONSES_COPY as COPY, type GradingQueueRow } from '../lib/grading';
+import { DOL_PASS_COPY } from '../lib/dolPass';
 
 const BASE: GradingQueueRow = {
   check_id: 'chk-1',
@@ -107,6 +118,10 @@ beforeEach(() => {
   h.suggestions.mockResolvedValue([]);
   h.assistStatus.mockResolvedValue({ provider: 'off' });
   h.rubrics.mockResolvedValue(new Map());
+  // D65: no DoL rows unless a test says so.
+  h.dolPrimaries.mockResolvedValue(new Set());
+  h.dolPasses.mockResolvedValue([]);
+  h.setDolPass.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -283,5 +298,70 @@ describe('bulk release (D10)', () => {
     await waitFor(() => expect(h.release).toHaveBeenCalledTimes(2));
     expect(h.release).toHaveBeenCalledWith('a1', 'stu-1');
     expect(h.release).toHaveBeenCalledWith('a1', 'stu-2');
+  });
+});
+
+describe('the DoL pass tick (D65 DL-11, DE-15)', () => {
+  const SPEC = [
+    { id: 'c-a', label: 'Describes it', maxPoints: 2, level: 'A' },
+    { id: 'c-m', label: 'Justifies it', maxPoints: 2, level: 'M' },
+  ];
+
+  async function openDolPanel(passes: Array<{ student_id: string; source: 'auto' | 'teacher'; passed_at: string }> = []) {
+    h.setDolPass.mockClear();
+    h.save.mockClear();
+    h.rubrics.mockResolvedValue(new Map([['v1:blk-1', SPEC]]));
+    h.dolPrimaries.mockResolvedValue(new Set(['v1:blk-1']));
+    h.dolPasses.mockResolvedValue(passes);
+    setup([row()]);
+    const rowButton = await waitFor(() => {
+      const el = document.querySelector('[data-chip]')?.closest('button');
+      if (!el) throw new Error('no queue row');
+      return el as HTMLElement;
+    });
+    fireEvent.click(rowButton);
+    return waitFor(() => screen.getByRole('checkbox', { name: DOL_PASS_COPY.label }) as HTMLInputElement);
+  }
+
+  it('prefills from the BASE-level lines and saves the pass with the grade', async () => {
+    const box = await openDolPanel();
+    expect(box.checked).toBe(false);
+    fireEvent.change(screen.getByLabelText('Describes it'), { target: { value: '2' } });
+    expect((screen.getByRole('checkbox', { name: DOL_PASS_COPY.label }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(DOL_PASS_COPY.prefill)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.setDolPass).toHaveBeenCalledWith('chk-1', true));
+    expect(h.save).toHaveBeenCalled();
+  });
+
+  it('a teacher’s untick removes THEIR pass on save', async () => {
+    const box = await openDolPanel([{ student_id: 'stu-1', source: 'teacher', passed_at: 'x' }]);
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.setDolPass).toHaveBeenCalledWith('chk-1', false));
+  });
+
+  it('an auto pass is fixed: the box is disabled and save never touches it', async () => {
+    const box = await openDolPanel([{ student_id: 'stu-1', source: 'auto', passed_at: 'x' }]);
+    expect(box.checked).toBe(true);
+    expect(box.disabled).toBe(true);
+    expect(screen.getByText(DOL_PASS_COPY.auto)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.save).toHaveBeenCalled());
+    expect(h.setDolPass).not.toHaveBeenCalled();
+  });
+
+  it('a row that is not the DoL primary shows no tick', async () => {
+    h.dolPrimaries.mockResolvedValue(new Set());
+    setup([row()]);
+    const rowButton = await waitFor(() => {
+      const el = document.querySelector('[data-chip]')?.closest('button');
+      if (!el) throw new Error('no queue row');
+      return el as HTMLElement;
+    });
+    fireEvent.click(rowButton);
+    await waitFor(() => expect(screen.getByRole('button', { name: COPY.save })).toBeTruthy());
+    expect(screen.queryByRole('checkbox', { name: DOL_PASS_COPY.label })).toBeNull();
   });
 });

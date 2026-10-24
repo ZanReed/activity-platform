@@ -14,7 +14,8 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
-import { servedDocument, type ServedDoc } from '../lib/answerText';
+import { dolSectionId, servedDocument, type ServedDoc } from '../lib/answerText';
+import { fetchDolPassStatus } from '../lib/dolPass';
 import {
     cellStatus,
     cellWords,
@@ -60,6 +61,8 @@ interface Loaded {
     descriptions: Map<string, string | null>;
     /** version id → unseeded document; the current version is always tried. */
     docs: Map<string, ServedDoc>;
+    /** D65 DE-16: students holding the pass this activity's DoL grants. */
+    dolPassed: ReadonlySet<string>;
 }
 
 export default function ActivityProgress() {
@@ -67,11 +70,13 @@ export default function ActivityProgress() {
     const location = useLocation();
     const base = `/activity/${id}/progress`;
     const loaded = useProgressLoad<Loaded>(async () => {
-        const [grid, mis, first] = await Promise.all([
+        const [grid, mis, first, passes] = await Promise.all([
             fetchActivityProgress(id),
             fetchMisconceptions(null, id).catch(() => null),
             fetchFirstTries(id).catch(() => null),
+            fetchDolPassStatus(id).catch(() => []),
         ]);
+        const dolPassed = new Set(passes.map((p) => p.student_id));
         const versionIds = [
             ...(grid.activity.current_version_id ? [grid.activity.current_version_id] : []),
             ...(mis?.wrong_answers.map((w) => w.version_id) ?? []),
@@ -108,7 +113,7 @@ export default function ActivityProgress() {
         } catch {
             // Tags then read as unknown; the counts still show.
         }
-        return { grid, mis, first, descriptions, docs };
+        return { grid, mis, first, descriptions, docs, dolPassed };
     }, [id]);
     const [hideNames, setHideNames] = useHideNames();
     const [leastDone, setLeastDone] = useLeastDoneFirst();
@@ -200,7 +205,7 @@ function Body({
             </p>
         );
     }
-    const { grid, mis, first, descriptions, docs } = loaded.data;
+    const { grid, mis, first, descriptions, docs, dolPassed } = loaded.data;
     const activityId = grid.activity.id;
 
     if (grid.classes.length === 0) {
@@ -224,6 +229,7 @@ function Body({
         ? Object.keys(current.index.bySection)
         : [...new Set(grid.sections.filter((s) => s.version_id === grid.activity.current_version_id).map((s) => s.section_id))];
     const sectionTitle = (sid: string, i: number) => current?.index.sectionTitles[sid] ?? `Section ${i + 1}`;
+    const dolSid = current ? dolSectionId(current) : null;
     const sectionRow = new Map<string, ActivityProgressSection>();
     for (const s of grid.sections) sectionRow.set(`${s.student_id}:${s.version_id}:${s.section_id}`, s);
     const everyone = grid.classes.flatMap((c) => c.students);
@@ -320,6 +326,8 @@ function Body({
                                                 selected={selected === s.student_id}
                                                 gradeHref={responsesHref(activityId, here)}
                                                 activityTitle={grid.activity.title}
+                                                dolSid={dolSid}
+                                                dolPassed={dolPassed.has(s.student_id)}
                                             />
                                         ))}
                                     </tbody>
@@ -349,7 +357,13 @@ function StudentRow({
     selected,
     gradeHref,
     activityTitle,
+    dolSid,
+    dolPassed,
 }: {
+    /** D65: the DoL section's id, and whether this student holds its pass —
+     *  "Passed" outranks the latest attempt's score (DE-16). */
+    dolSid: string | null;
+    dolPassed: boolean;
     s: ActivityProgressStudent;
     name: string;
     fullName: string | null;
@@ -412,17 +426,19 @@ function StudentRow({
                     }
                     const pct = row.marked > 0 ? Math.round((row.correct / row.marked) * 100) : null;
                     const attempts = row.attempts === 1 ? '1 attempt' : `${row.attempts} attempts`;
+                    const passed = dolPassed && sid === dolSid;
                     return (
                         <td key={sid}>
                             <Link
                                 to={href}
                                 className="cp-cell"
                                 data-current={selected ? 'true' : undefined}
-                                aria-label={`${name}, ${sectionTitle(sid, i)}: checked${pct !== null ? `, ${pct} percent` : ''}, ${attempts}`}
+                                {...(passed ? { 'data-dol-passed': 'true' } : {})}
+                                aria-label={`${name}, ${sectionTitle(sid, i)}: ${passed ? 'DoL passed' : `checked${pct !== null ? `, ${pct} percent` : ''}`}, ${attempts}`}
                                 {...linkProps()}
                             >
                                 <span aria-hidden="true">✓</span>
-                                {pct !== null ? ` ${pct}%` : ' Checked'}
+                                {passed ? ' Passed' : pct !== null ? ` ${pct}%` : ' Checked'}
                             </Link>
                         </td>
                     );
