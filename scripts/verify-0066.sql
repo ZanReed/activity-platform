@@ -426,8 +426,12 @@ begin
   perform set_mixed_practice(v_k, false);
   perform set_config('request.jwt.claims', json_build_object('sub', v_s1)::text, true);
   v_res := mixed_item_for_check(v_sess, 1);
-  if (v_res->>'replay')::boolean or v_res->>'item_id' is null then
+  if (v_res->>'replay')::boolean or v_res->>'student_id' is distinct from v_s1::text then
     raise exception 'FAIL B9: the open session after off %', v_res;
+  end if;
+  -- 0069: the non-replay return carries ONLY what the handler reads.
+  if (select array_agg(k order by k) from jsonb_object_keys(v_res) k) <> array['replay', 'student_id'] then
+    raise exception 'FAIL B9 (0069): the non-replay return leaks more than replay + student_id: %', v_res;
   end if;
   v_got := null;
   begin perform start_mixed_session(v_k, false); exception when others then v_got := sqlerrm; end;

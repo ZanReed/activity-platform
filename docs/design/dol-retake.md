@@ -379,7 +379,7 @@ So a colleague teaching from a copied DoL produces no passes. 0066's `mixed_taug
 - Delete the teacher-made branch: a DoL grants a pass only through a catalogue skill.
 - Resolve a COPY's `primary_skill` and `dol_grants_pass` through `copied_from_activity_id` at record time.
 
-⚠ This is an author call. It also fixes `mixed_taught` for copies only if 0066's reader adopts the same rule (separate scope, which would go in TODOS).
+⚠ This is an author call. *(Corrected at build, 2026-10-25: 0066's `mixed_taught` ALREADY resolves copies through `copied_from_activity_id`, so there is no sibling gap; the TODOS entry filed at review was withdrawn.)*
 
 **DE-12 [P2] (confidence 8) `dol_grants_pass` is a cross-file property.**
 **Recommend:**
@@ -474,7 +474,7 @@ Lane A: schema + importer (packages/schema, packages/app/src/lib, scripts). Then
 
 ### Unresolved decisions
 
-None. All 19 were ruled 2026-10-24. Filed to TODOS: 0066 `mixed_taught` ignores Bank copies (DE-11's sibling gap).
+None. All 19 were ruled 2026-10-24.
 
 ## GSTACK REVIEW REPORT
 

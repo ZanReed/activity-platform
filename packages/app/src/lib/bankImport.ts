@@ -70,6 +70,9 @@ export interface BankItem {
     readonly document: ActivityDocument;
     readonly seed: BankSeedSpec;
     readonly table: BankValueTable;
+    /** The template's `tier:` (D66), or null when untagged. Stored on the
+     *  practice_item row (0070) and read by mixed_plan's tier filter. */
+    readonly tier: string | null;
 }
 
 export interface BankFileResult {
@@ -244,11 +247,10 @@ const TIERS = new Set(['D', 'C', 'P', 'E']);
 
 /** A template's OPTIONAL `tier: D | C | P | E`, the first line under its
  *  heading (D66). Read and checked, then stripped so it never reaches the
- *  student as prose. NOT stored yet (author ruling 2026-10-21): storing waits
- *  for the slice that selects on it, so the field is never an orphan. That
- *  slice must re-import tagged banks — the line is outside the document, so
- *  the fingerprint does not see it. A `tier:` line anywhere else is refused,
- *  because it would otherwise render as text. */
+ *  student as prose. STORED since 0070 (practice_item.tier, the slice that
+ *  selects on it: mixed_plan serves P/E only after the student's DoL pass);
+ *  the fingerprint covers it only when present, so an untagged item keeps its
+ *  fingerprint. A `tier:` line anywhere else is refused. */
 export function takeTier(body: string): { tier: string | null; body: string; problems: string[] } {
     const lines = body.split('\n');
     const problems: string[] = [];
@@ -556,7 +558,7 @@ export function parseBankFile(markdown: string, options: ParseBankFileOptions): 
             }
         }
 
-        items.push({ itemId: `${stem}#${h}`, heading: h, document: doc, seed: enumerated.spec, table });
+        items.push({ itemId: `${stem}#${h}`, heading: h, document: doc, seed: enumerated.spec, table, tier: tiered.tier });
     }
 
     const used = new Set(owner.keys());

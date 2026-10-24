@@ -1511,6 +1511,12 @@ export function planSkillLabels(labels) {
     return { rows, tooLong, strictFailure: tooLong.length > 0 };
 }
 
+/** The part counts a write run mirrors (0070): every registry id, with its
+ *  declared count or 1. */
+export function planSkillParts(skills) {
+    return [...skills.ids].sort().map((id) => ({ id, parts: skills.parts.get(id) ?? 1 }));
+}
+
 /**
  * Levenshtein distance, abandoned as soon as it is certain to exceed `max`.
  *
@@ -2111,6 +2117,10 @@ export function fingerprintBankItem(row) {
         document: row.document,
         seed_spec: row.seed_spec,
         value_table: row.value_table,
+        // D66 (0070): the tier decides what a student is served, so it is
+        // fingerprinted — but ONLY when present, so every untagged item (chain
+        // 1's whole ratified bank) keeps the fingerprint it already has.
+        ...(row.tier ? { tier: row.tier } : {}),
     });
     return createHash('sha256').update(key).digest('hex');
 }
@@ -2213,6 +2223,8 @@ export function planBankFiles(pipeline, bankFiles, options = {}) {
                 document: item.document,
                 seed_spec: item.seed,
                 value_table: item.table,
+                // D66 (0070): stored only when the template carries one.
+                ...(item.tier ? { tier: item.tier } : {}),
             };
             rows.push({ ...row, fingerprint: fingerprintBankItem(row) });
         });
@@ -2667,6 +2679,19 @@ export function makeDb(url, key) {
             // printed comes from the server's echo.
             const now = new Date().toISOString();
             return call('/skill_label?on_conflict=id', {
+                method: 'POST',
+                headers: {
+                    Prefer: 'resolution=merge-duplicates,return=representation',
+                },
+                body: JSON.stringify(rows.map((row) => ({ ...row, updated_at: now }))),
+            });
+        },
+
+        syncSkillParts(rows) {
+            // Insert-or-update, never deleted (0070). return=representation so
+            // the printed count is the server's.
+            const now = new Date().toISOString();
+            return call('/skill_part_count?on_conflict=id', {
                 method: 'POST',
                 headers: {
                     Prefer: 'resolution=merge-duplicates,return=representation',
@@ -4325,6 +4350,26 @@ async function main() {
                 `⚠ skill_label mirror FAILED (${err.message}).\n` +
                     '  If the table does not exist, migration 0068 has not been applied to\n' +
                     '  this database yet; the teacher panel shows skill ids until it is.\n' +
+                    '  The import itself continues.',
+            );
+        }
+    }
+
+    // The part-count mirror (0070, D65 DE-12): with --skills-registry, EVERY
+    // id with its count (absence of `= n` is 1, so a count removed from the
+    // registry resets the mirror). dol_pass_skill reads it to find a skill's
+    // FINAL part, so a stale count would let the wrong part grant a pass —
+    // fail-soft and loud like the label mirror, a failure under --strict.
+    if (skills && skills.ids.size > 0) {
+        try {
+            const mirrored = await db.syncSkillParts(planSkillParts(skills));
+            console.log(`parts     : ${Array.isArray(mirrored) ? mirrored.length : 0} skill part counts mirrored`);
+        } catch (err) {
+            skillLabelMirrorFailed = true;
+            console.warn(
+                `⚠ skill_part_count mirror FAILED (${err.message}).\n` +
+                    '  If the table does not exist, migration 0070 has not been applied to\n' +
+                    '  this database yet; until it is, no DoL records a pass.\n' +
                     '  The import itself continues.',
             );
         }

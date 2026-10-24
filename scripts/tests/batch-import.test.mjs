@@ -83,6 +83,7 @@ import {
     parseNumericValue,
     parseSkillRegistry,
     planSkillLabels,
+    planSkillParts,
     parseRegistry,
     parseRegistryDescriptions,
     planIdentity,
@@ -2589,6 +2590,8 @@ function stubSupabase(overrides = {}) {
                     return send(res, 200, plan({ applied: body.p_apply, new: body.p_entries.map((e) => e.term_id) }));
                 case 'POST /rest/v1/misconception_registry':
                     return send(res, 201, body);
+                case 'POST /rest/v1/skill_part_count':
+                    return send(res, 201, body);
                 case 'POST /rest/v1/activities':
                     return send(res, 201, body);
                 default:
@@ -3154,6 +3157,25 @@ test('banks: fingerprintBankItem ignores minted ids but sees the table', () => {
         fingerprintBankItem(base),
         fingerprintBankItem({ ...base, value_table: { columns: ['a'], rows: [[2]], total: 1 } }),
     );
+});
+
+test('banks D66 (0070): the tier is fingerprinted only when present', () => {
+    const base = {
+        role: 'skill', skill_id: 's', chain_id: 'chain.x', discriminates: [], status: 'ratified',
+        document: { x: 1 },
+        seed_spec: { drawn: [], derived: [], where: [] },
+        value_table: { columns: [], rows: [[]], total: 1 },
+    };
+    // An untagged item keeps the fingerprint it had before tiers were stored
+    // (chain 1's ratified bank must re-import as "unchanged").
+    assert.equal(fingerprintBankItem(base), fingerprintBankItem({ ...base, tier: undefined }));
+    assert.notEqual(fingerprintBankItem(base), fingerprintBankItem({ ...base, tier: 'P' }));
+    assert.notEqual(fingerprintBankItem({ ...base, tier: 'D' }), fingerprintBankItem({ ...base, tier: 'P' }));
+});
+
+test('§K planSkillParts (0070) mirrors EVERY registry id, 1 when undeclared', () => {
+    const skills = parseSkillRegistry('a.one\nb.two = 3  # Two\n# header\n');
+    assert.deepEqual(planSkillParts(skills), [{ id: 'a.one', parts: 1 }, { id: 'b.two', parts: 3 }]);
 });
 
 test('banks review fixes: CRLF / indented-position meta, duplicate ids skip, --allow-unretire', () => {
