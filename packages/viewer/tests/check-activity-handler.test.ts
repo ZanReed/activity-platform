@@ -99,6 +99,11 @@ const practiceUnreachable = {
   readSnapshots: unreachable,
   readAttempts: unreachable,
   recordAttempt: unreachable,
+  startDolPractice: unreachable,
+  dolItemForCheck: unreachable,
+  readDolSnapshots: unreachable,
+  readDolAttempts: unreachable,
+  recordDolAttempt: unreachable,
 };
 
 interface Harness {

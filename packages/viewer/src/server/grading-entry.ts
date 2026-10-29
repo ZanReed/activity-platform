@@ -21,6 +21,7 @@ export {
 } from './check-activity-handler.js';
 export type {
   PracticeAttemptRow,
+  DolPracticeDb,
   PracticeDb,
   PracticeSnapshotRow,
   RecordPracticeResult,

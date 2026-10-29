@@ -373,6 +373,39 @@ export interface PracticeStartResult {
   session?: PracticeSession;
 }
 
+// ---- DoL targeted practice (D65 slice 2; dol-targeted-practice.md) -----------
+// Two more modes, the practice pair's shapes. The session belongs to a DoL
+// version, not a class; it is never scored (TP-5), so no score fields.
+
+/** Start (or resume) the targeted practice for one DoL version. */
+export interface DolPracticeStartRequest {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  mode: 'dol-practice-start';
+  activityId: string;
+  versionId: string;
+}
+
+/** start_dol_practice's states (0072 §C), passed through. */
+export type DolPracticeStartState = 'resume' | 'started' | 'nothing_to_practise';
+
+export interface DolPracticeSession {
+  sessionId: string;
+  planned: number;
+  finished: boolean;
+  items: PracticeServedItem[];
+}
+
+export interface DolPracticeStartResult {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  state: DolPracticeStartState;
+  session?: DolPracticeSession;
+}
+
+/** One try at a targeted-practice slot: the practice check's shape. */
+export interface DolPracticeCheckRequest extends Omit<PracticeCheckRequest, 'mode'> {
+  mode: 'dol-practice';
+}
+
 // ---- Released teacher feedback (recorded family, D15) -----------------------
 
 /** One scored rubric criterion, as the student sees it. */

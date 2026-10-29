@@ -41,6 +41,9 @@ import {
   type PracticeSession,
   type PracticeStartRequest,
   type PracticeStartState,
+  type DolPracticeSession,
+  type DolPracticeStartRequest,
+  type DolPracticeStartState,
   type SectionCheckResult,
   type SectionResponses,
 } from '../check/wire.js';
@@ -113,6 +116,24 @@ export interface PracticeDb {
   }): Promise<DbResult<RecordPracticeResult>>;
 }
 
+/**
+ * D65 slice 2 — targeted practice between DoL attempts (0072). The same
+ * contract as the mixed pair above, on its own tables: the caller RPCs
+ * authorize, the service-role reads only follow them.
+ */
+export interface DolPracticeDb {
+  /** `start_dol_practice` AS THE CALLER (0072 §C). */
+  startDolPractice(authHeader: string, activityId: string, versionId: string): Promise<DbResult<unknown>>;
+  /** `dol_practice_item_for_check` AS THE CALLER (0072 §D). */
+  dolItemForCheck(authHeader: string, sessionId: string, seq: number): Promise<DbResult<unknown>>;
+  /** dol_practice_items, SERVICE ROLE, after an authorizing RPC. */
+  readDolSnapshots(sessionId: string, seq?: number): Promise<DbResult<PracticeSnapshotRow[]>>;
+  /** dol_practice_attempts, SERVICE ROLE, under the same rule. */
+  readDolAttempts(sessionId: string): Promise<DbResult<PracticeAttemptRow[]>>;
+  /** `record_dol_practice_attempt`, SERVICE ROLE. */
+  recordDolAttempt(args: Parameters<PracticeDb['recordAttempt']>[0]): Promise<DbResult<RecordPracticeResult>>;
+}
+
 type ServedOrderings = (args: {
   document: unknown;
   versionId: string;
@@ -121,8 +142,17 @@ type ServedOrderings = (args: {
   seedKey?: string;
 }) => Record<string, string[]>;
 
+/** The two flavours' ports: mixed practice (0066) and DoL practice (0072). */
+export interface SlotPorts {
+  label: string;
+  itemForCheck: (authHeader: string, sessionId: string, seq: number) => Promise<DbResult<unknown>>;
+  readSnapshots: (sessionId: string, seq?: number) => Promise<DbResult<PracticeSnapshotRow[]>>;
+  readAttempts: (sessionId: string) => Promise<DbResult<PracticeAttemptRow[]>>;
+  recordAttempt: PracticeDb['recordAttempt'];
+}
+
 export interface PracticeHandlerDeps {
-  practice: PracticeDb;
+  practice: PracticeDb & DolPracticeDb;
   cors: CorsKit;
   servedOrderings?: ServedOrderings;
 }
@@ -158,6 +188,30 @@ export function validatePracticeStartRequest(
   return {
     ok: true,
     request: { wireVersion: CHECK_WIRE_VERSION, mode: 'practice-start', classId: b.classId, start: b.start === true },
+  };
+}
+
+export function validateDolPracticeStartRequest(
+  body: unknown,
+): { ok: true; request: DolPracticeStartRequest } | { ok: false; failure: Failure } {
+  const fail = (message: string, code: string) => ({ ok: false as const, failure: { message, code } });
+  if (body === null || typeof body !== 'object') return fail('Body must be a JSON object', 'malformed_body');
+  const b = body as Record<string, unknown>;
+  if (b.wireVersion !== CHECK_WIRE_VERSION) {
+    return fail(
+      `Unsupported wire version ${String(b.wireVersion)}; expected ${CHECK_WIRE_VERSION}`,
+      'wire_version_mismatch',
+    );
+  }
+  if (typeof b.activityId !== 'string' || !UUID_RE.test(b.activityId)) {
+    return fail('activityId must be a UUID', 'bad_activity_id');
+  }
+  if (typeof b.versionId !== 'string' || !UUID_RE.test(b.versionId)) {
+    return fail('versionId must be a UUID', 'bad_version_id');
+  }
+  return {
+    ok: true,
+    request: { wireVersion: CHECK_WIRE_VERSION, mode: 'dol-practice-start', activityId: b.activityId, versionId: b.versionId },
   };
 }
 
@@ -417,39 +471,8 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     const s = out.session;
 
     // ---- Only now: the snapshots (service role), the session the RPC named
-    const [snaps, tries] = await Promise.all([
-      practice.readSnapshots(s.session_id),
-      practice.readAttempts(s.session_id),
-    ]);
-    if (snaps.error || !snaps.data || tries.error || !tries.data) {
-      console.error('[check-activity] practice snapshot read failed:', snaps.error ?? tries.error);
-      return cors.errorResponse(req, 500, 'Could not load practice', { code: 'practice_read_failed' });
-    }
-    const bySeq = new Map(snaps.data.map((r) => [r.seq, r]));
-    const tried = new Map(tries.data.map((a) => [a.seq, a]));
-
-    const items: PracticeServedItem[] = [];
-    try {
-      for (const planned of s.items) {
-        const row = bySeq.get(planned.seq);
-        if (!row) throw new SnapshotError(`slot ${planned.seq}: no snapshot`);
-        const served: PracticeServedItem = {
-          seq: planned.seq,
-          document: servedDocument(row, s.session_id, studentId),
-        };
-        const attempt = tried.get(planned.seq);
-        if (attempt) {
-          const slot = slotOf(row);
-          const graded = gradeSlot(slot, emptySectionResponses(), s.session_id, planned.seq, studentId, deps.servedOrderings);
-          served.result = resultOf(slot, graded, attempt);
-        }
-        items.push(served);
-      }
-    } catch (err) {
-      if (!(err instanceof SnapshotError)) throw err;
-      console.error('[check-activity] practice snapshot cannot be served:', err.message);
-      return cors.errorResponse(req, 500, 'This practice question is broken', { code: 'malformed_document' });
-    }
+    const items = await serveItems(req, s.session_id, s.items, studentId, mixedPorts);
+    if (items instanceof Response) return items;
 
     const session: PracticeSession = {
       sessionId: s.session_id,
@@ -464,11 +487,109 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     return cors.jsonResponse(req, { ...head, session });
   }
 
+  const mixedPorts: SlotPorts = {
+    label: 'mixed_item_for_check',
+    itemForCheck: (a, s, q) => practice.mixedItemForCheck(a, s, q),
+    readSnapshots: (s, q) => practice.readSnapshots(s, q),
+    readAttempts: (s) => practice.readAttempts(s),
+    recordAttempt: (args) => practice.recordAttempt(args),
+  };
+  const dolPorts: SlotPorts = {
+    label: 'dol_practice_item_for_check',
+    itemForCheck: (a, s, q) => practice.dolItemForCheck(a, s, q),
+    readSnapshots: (s, q) => practice.readDolSnapshots(s, q),
+    readAttempts: (s) => practice.readDolAttempts(s),
+    recordAttempt: (args) => practice.recordDolAttempt(args),
+  };
+
+  /** A session's served items (sanitized documents; a tried slot carries its
+   *  stored result), or the error response. SERVICE ROLE reads — only ever
+   *  for a session an authorizing caller RPC has just named. */
+  async function serveItems(
+    req: Request,
+    sessionId: string,
+    planned: ReadonlyArray<{ seq: number }>,
+    studentId: string,
+    ports: SlotPorts,
+  ): Promise<PracticeServedItem[] | Response> {
+    const [snaps, tries] = await Promise.all([ports.readSnapshots(sessionId), ports.readAttempts(sessionId)]);
+    if (snaps.error || !snaps.data || tries.error || !tries.data) {
+      console.error('[check-activity] practice snapshot read failed:', snaps.error ?? tries.error);
+      return cors.errorResponse(req, 500, 'Could not load practice', { code: 'practice_read_failed' });
+    }
+    const bySeq = new Map(snaps.data.map((r) => [r.seq, r]));
+    const tried = new Map(tries.data.map((a) => [a.seq, a]));
+    const items: PracticeServedItem[] = [];
+    try {
+      for (const slotPlan of planned) {
+        const row = bySeq.get(slotPlan.seq);
+        if (!row) throw new SnapshotError(`slot ${slotPlan.seq}: no snapshot`);
+        const served: PracticeServedItem = {
+          seq: slotPlan.seq,
+          document: servedDocument(row, sessionId, studentId),
+        };
+        const attempt = tried.get(slotPlan.seq);
+        if (attempt) {
+          const slot = slotOf(row);
+          const graded = gradeSlot(slot, emptySectionResponses(), sessionId, slotPlan.seq, studentId, deps.servedOrderings);
+          served.result = resultOf(slot, graded, attempt);
+        }
+        items.push(served);
+      }
+    } catch (err) {
+      if (!(err instanceof SnapshotError)) throw err;
+      console.error('[check-activity] practice snapshot cannot be served:', err.message);
+      return cors.errorResponse(req, 500, 'This practice question is broken', { code: 'malformed_document' });
+    }
+    return items;
+  }
+
+  async function handleDolPracticeStart(req: Request, authHeader: string, body: unknown): Promise<Response> {
+    const validated = validateDolPracticeStartRequest(body);
+    if (!validated.ok) {
+      return cors.errorResponse(req, 400, validated.failure.message, { code: validated.failure.code });
+    }
+    const { activityId, versionId } = validated.request;
+    // ---- As the CALLER: a first DoL try recorded, not passed, a retake left
+    const { data, error } = await practice.startDolPractice(authHeader, activityId, versionId);
+    if (error) {
+      const status = rpcStatus(error.message ?? '');
+      if (status === 500) console.error('[check-activity] start_dol_practice error:', error);
+      return cors.errorResponse(req, status, status === 404 ? 'Not available' : (error.message ?? ''));
+    }
+    const out = data as {
+      state?: string;
+      session?: { session_id: string; planned: number; finished: boolean; items: Array<{ seq: number }> };
+    } | null;
+    const STATES: DolPracticeStartState[] = ['resume', 'started', 'nothing_to_practise'];
+    if (!out || !STATES.includes(out.state as DolPracticeStartState)) {
+      console.error('[check-activity] start_dol_practice returned an unknown shape');
+      return cors.errorResponse(req, 500, 'Could not start practice', { code: 'practice_start_failed' });
+    }
+    const head = { wireVersion: CHECK_WIRE_VERSION, state: out.state as DolPracticeStartState };
+    if (!out.session) return cors.jsonResponse(req, head);
+    const studentId = jwtSub(authHeader);
+    if (!studentId) {
+      console.error('[check-activity] authorized DoL practice start carried no sub claim');
+      return cors.errorResponse(req, 500, 'Could not identify the student');
+    }
+    const items = await serveItems(req, out.session.session_id, out.session.items, studentId, dolPorts);
+    if (items instanceof Response) return items;
+    const session: DolPracticeSession = {
+      sessionId: out.session.session_id,
+      planned: out.session.planned,
+      finished: out.session.finished,
+      items,
+    };
+    return cors.jsonResponse(req, { ...head, session });
+  }
+
   async function handlePracticeCheck(
     req: Request,
     authHeader: string,
     body: unknown,
     validateResponses: Parameters<typeof validatePracticeCheckRequest>[1],
+    ports: SlotPorts = mixedPorts,
   ): Promise<Response> {
     const validated = validatePracticeCheckRequest(body, validateResponses);
     if (!validated.ok) {
@@ -478,10 +599,10 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     const skip = validated.request.skip === true;
 
     // ---- As the CALLER: the session is theirs, live, and the slot planned --
-    const { data, error } = await practice.mixedItemForCheck(authHeader, sessionId, seq);
+    const { data, error } = await ports.itemForCheck(authHeader, sessionId, seq);
     if (error) {
       const status = rpcStatus(error.message ?? '');
-      if (status === 500) console.error('[check-activity] mixed_item_for_check error:', error);
+      if (status === 500) console.error(`[check-activity] ${ports.label} error:`, error);
       return cors.errorResponse(req, status, status === 404 ? 'Not available' : (error.message ?? ''));
     }
     const auth = data as {
@@ -501,7 +622,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     if (auth.student_id !== studentId) return cors.errorResponse(req, 404, 'Not available');
 
     // ---- Only now: this slot's snapshot (service role) ----------------------
-    const snap = await practice.readSnapshots(sessionId, seq);
+    const snap = await ports.readSnapshots(sessionId, seq);
     const row = snap.data?.find((r) => r.seq === seq);
     if (snap.error || !row) {
       console.error('[check-activity] practice snapshot read failed:', snap.error);
@@ -554,7 +675,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     }
 
     // ---- Record, BEFORE anything about the try leaves (ER-9) ---------------
-    const { data: recorded, error: recordError } = await practice.recordAttempt({
+    const { data: recorded, error: recordError } = await ports.recordAttempt({
       studentId,
       sessionId,
       seq,
@@ -568,7 +689,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
       // Closed between the authorization and the write (finished on another
       // tab, or past its day): the backstop refused it. Same no-oracle 404.
       if (msg.includes('refused')) return cors.errorResponse(req, 404, 'Not available');
-      console.error('[check-activity] record_mixed_attempt failed:', recordError);
+      console.error('[check-activity] practice attempt record failed:', recordError);
       return cors.errorResponse(req, 500, 'Could not save this answer', { code: 'record_failed' });
     }
     // A concurrent request for the same slot won: return ITS try, not ours.
@@ -578,5 +699,15 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     );
   }
 
-  return { handlePracticeStart, handlePracticeCheck };
+  /** A DoL targeted-practice try: the practice check on 0072's ports. */
+  function handleDolPracticeCheck(
+    req: Request,
+    authHeader: string,
+    body: unknown,
+    validateResponses: Parameters<typeof validatePracticeCheckRequest>[1],
+  ): Promise<Response> {
+    return handlePracticeCheck(req, authHeader, body, validateResponses, dolPorts);
+  }
+
+  return { handlePracticeStart, handlePracticeCheck, handleDolPracticeStart, handleDolPracticeCheck };
 }

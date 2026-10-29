@@ -22,6 +22,7 @@ import {
   practiceServeKey,
   type PracticeAttemptRow,
   type PracticeDb,
+  type DolPracticeDb,
   type PracticeSnapshotRow,
 } from '../src/server/practice-handler.js';
 import type { CorsKit } from '../src/server/get-activity-handler.js';
@@ -114,7 +115,7 @@ interface Calls {
   records: Array<Parameters<PracticeDb['recordAttempt']>[0]>;
 }
 
-function harness(over: Partial<PracticeDb> = {}, opts: {
+function harness(over: Partial<PracticeDb & DolPracticeDb> = {}, opts: {
   snapshots?: PracticeSnapshotRow[];
   attempts?: PracticeAttemptRow[];
   start?: unknown;
@@ -123,7 +124,7 @@ function harness(over: Partial<PracticeDb> = {}, opts: {
 } = {}) {
   const calls: Calls = { order: [], snapshotArgs: [], records: [] };
   const snapshots = opts.snapshots ?? [{ seq: 1, document: seededItem(), row_values: { a: 3, hidden: HIDDEN } }];
-  const practice: PracticeDb = {
+  const practice: PracticeDb & DolPracticeDb = {
     startMixedSession: async () => {
       calls.order.push('start');
       return {
@@ -159,6 +160,33 @@ function harness(over: Partial<PracticeDb> = {}, opts: {
     },
     recordAttempt: async (args) => {
       calls.order.push('record');
+      calls.records.push(args);
+      return { data: { replayed: false, correct: args.correct, skipped: args.skipped, verdicts: args.verdicts }, error: null };
+    },
+    // D65 slice 2: the DoL pair, logged under its own names so a test proves
+    // a DoL mode never reaches mixed practice's tables (TP-2).
+    startDolPractice: async () => {
+      calls.order.push('dol-start');
+      return {
+        data: { state: 'started', session: { session_id: SESSION, planned: snapshots.length, finished: false,
+          items: snapshots.map((x) => ({ seq: x.seq, answered: false })) } },
+        error: null,
+      };
+    },
+    dolItemForCheck: async () => {
+      calls.order.push('dol-authorize');
+      return { data: opts.check ?? { replay: false, student_id: STUDENT }, error: null };
+    },
+    readDolSnapshots: async (_sessionId, seq) => {
+      calls.order.push('dol-snapshots');
+      return { data: snapshots.filter((x) => seq === undefined || x.seq === seq), error: null };
+    },
+    readDolAttempts: async () => {
+      calls.order.push('dol-attempts');
+      return { data: opts.attempts ?? [], error: null };
+    },
+    recordDolAttempt: async (args) => {
+      calls.order.push('dol-record');
       calls.records.push(args);
       return { data: { replayed: false, correct: args.correct, skipped: args.skipped, verdicts: args.verdicts }, error: null };
     },
@@ -484,5 +512,54 @@ describe('practice', () => {
     expect(untouched.status).toBe(400);
     const right = await (await h.handler(post(checkBody({ responses: { orderings: { [ORDER]: authored } } })))).json();
     expect(right.correct).toBe(true);
+  });
+});
+
+// ---- DoL targeted practice (D65 slice 2, 0072) --------------------------------
+
+describe('dol-practice (D65 slice 2)', () => {
+  const dolStart = { wireVersion: CHECK_WIRE_VERSION, mode: 'dol-practice-start', activityId: CLASS, versionId: SESSION };
+  const dolCheck = (over: Record<string, unknown> = {}) => ({ ...checkBody(over), mode: 'dol-practice' });
+
+  it('start: the caller RPC first, then ITS OWN snapshots — never mixed practice\'s tables (TP-2)', async () => {
+    const h = harness();
+    const res = await h.handler(post(dolStart));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.state).toBe('started');
+    expect(body.session.items).toHaveLength(1);
+    expect(h.calls.order[0]).toBe('dol-start');
+    expect(h.calls.order).not.toContain('snapshots');
+    expect(h.calls.order).not.toContain('start');
+    // The served item leaks no row value (the shared leak rule).
+    expect(JSON.stringify(body)).not.toContain(HIDDEN);
+  });
+
+  it('start: a refusal is the one 404 and nothing is read', async () => {
+    const h = harness({ startDolPractice: async () => { h.calls.order.push('dol-start'); return notAvailable(); } });
+    const res = await h.handler(post(dolStart));
+    expect(res.status).toBe(404);
+    expect(h.calls.order).toEqual(['dol-start']);
+  });
+
+  it('start: nothing to practise comes back with no session', async () => {
+    const h = harness({ startDolPractice: async () => ({ data: { state: 'nothing_to_practise' }, error: null }) });
+    const body = await (await h.handler(post(dolStart))).json();
+    expect(body).toEqual({ wireVersion: CHECK_WIRE_VERSION, state: 'nothing_to_practise' });
+  });
+
+  it('start: a malformed request never reaches the RPC', async () => {
+    const h = harness();
+    const res = await h.handler(post({ ...dolStart, versionId: 'nope' }));
+    expect(res.status).toBe(400);
+    expect(h.calls.order).toEqual([]);
+  });
+
+  it('check: authorize, read, grade, RECORD on the DoL ports, in that order', async () => {
+    const h = harness();
+    const res = await h.handler(post(dolCheck()));
+    expect(res.status).toBe(200);
+    expect(h.calls.order).toEqual(['dol-authorize', 'dol-snapshots', 'dol-record']);
+    expect((await res.json()).correct).toBe(true);
   });
 });

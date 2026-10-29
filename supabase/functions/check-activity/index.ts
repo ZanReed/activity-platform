@@ -8,7 +8,8 @@
 // suite there and by CI's bundle drift guard). This file only:
 //
 //   - reads the auto-injected env (no new secrets),
-//   - implements CheckActivityDb and PracticeDb (mixed practice, 0066)
+//   - implements CheckActivityDb, PracticeDb (mixed practice, 0066) and
+//     DolPracticeDb (DoL targeted practice, 0072)
 //     against real supabase-js clients,
 //   - passes _shared/cors.ts through the CorsKit port,
 //   - recomputes this student's serve-time `ordering` permutation,
@@ -38,6 +39,7 @@ import {
   computeServedOrderings,
   createCheckActivityHandler,
   type CheckActivityDb,
+  type DolPracticeDb,
   type PracticeDb,
 } from '../_shared/grading-server.bundle.js';
 import {
@@ -157,7 +159,7 @@ const db: CheckActivityDb = {
 // session's authorization RPCs run AS THE CALLER; the snapshots (answer-key
 // class, ER-4) and the verdict write are service role, and the handler reaches
 // them only with a session id one of the caller RPCs has just authorized.
-const practice: PracticeDb = {
+const practice: PracticeDb & DolPracticeDb = {
   async startMixedSession(authHeader, classId, start) {
     return await asCaller(authHeader).rpc('start_mixed_session', {
       p_class_id: classId,
@@ -191,6 +193,51 @@ const practice: PracticeDb = {
   async recordAttempt(args) {
     return await admin
       .rpc('record_mixed_attempt', {
+        p_student_id: args.studentId,
+        p_session_id: args.sessionId,
+        p_seq: args.seq,
+        p_correct: args.correct,
+        p_skipped: args.skipped,
+        p_responses: args.responses,
+        p_verdicts: args.verdicts,
+      });
+  },
+
+  // D65 slice 2 (0072): the DoL pair on its own tables, the same split — the
+  // caller RPCs authorize, the service-role reads only follow them.
+  async startDolPractice(authHeader, activityId, versionId) {
+    return await asCaller(authHeader).rpc('start_dol_practice', {
+      p_activity_id: activityId,
+      p_version_id: versionId,
+    });
+  },
+
+  async dolItemForCheck(authHeader, sessionId, seq) {
+    return await asCaller(authHeader).rpc('dol_practice_item_for_check', {
+      p_session_id: sessionId,
+      p_seq: seq,
+    });
+  },
+
+  async readDolSnapshots(sessionId, seq) {
+    let q = admin
+      .from('dol_practice_items')
+      .select('seq, document, row_values')
+      .eq('session_id', sessionId);
+    if (seq !== undefined) q = q.eq('seq', seq);
+    return await q.order('seq');
+  },
+
+  async readDolAttempts(sessionId) {
+    return await admin
+      .from('dol_practice_attempts')
+      .select('seq, correct, skipped, verdicts')
+      .eq('session_id', sessionId);
+  },
+
+  async recordDolAttempt(args) {
+    return await admin
+      .rpc('record_dol_practice_attempt', {
         p_student_id: args.studentId,
         p_session_id: args.sessionId,
         p_seq: args.seq,

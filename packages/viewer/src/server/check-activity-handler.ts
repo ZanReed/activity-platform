@@ -48,7 +48,7 @@ import { jwtSub } from './jwt.js';
 import { dolAllowance, findDolSection } from '../sanitize/dolForm.js';
 import { dolPrimary, primaryCorrect, seedContextFor } from './dol.js';
 import { UUID_RE } from './uuid.js';
-import { createPracticeHandlers, type PracticeDb } from './practice-handler.js';
+import { createPracticeHandlers, type DolPracticeDb, type PracticeDb } from './practice-handler.js';
 
 // UUID_RE is imported (server/uuid.ts, G2): this file's strict shape is now
 // THE shape — the read handler adopted it rather than staying looser.
@@ -180,7 +180,7 @@ export interface OwnCheckRow {
 export interface CheckActivityHandlerDeps {
   db: CheckActivityDb;
   /** Mixed practice's ports (D43 slice 2, practice-handler.ts). */
-  practice: PracticeDb;
+  practice: PracticeDb & DolPracticeDb;
   cors: CorsKit;
   /** Recomputes the serve-time `ordering` permutation for this student, so the
    * grader can tell an untouched list from a deliberate arrangement. Injected
@@ -677,6 +677,13 @@ export function createCheckActivityHandler(
     }
     if (mode === 'practice') {
       return practice.handlePracticeCheck(req, authHeader, body, validateResponses);
+    }
+    // DoL TARGETED PRACTICE (D65 slice 2, 0072): the same pair on its own tables.
+    if (mode === 'dol-practice-start') {
+      return practice.handleDolPracticeStart(req, authHeader, body);
+    }
+    if (mode === 'dol-practice') {
+      return practice.handleDolPracticeCheck(req, authHeader, body, validateResponses);
     }
 
     const validated = validateCheckRequest(body);

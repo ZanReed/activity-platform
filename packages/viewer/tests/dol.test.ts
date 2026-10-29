@@ -172,7 +172,7 @@ function checkHarness(record: { attempt_number: number; dol_passed: boolean } | 
   const handler = createCheckActivityHandler({
     db,
     cors,
-    practice: { startMixedSession: unreachable, mixedItemForCheck: unreachable, readSnapshots: unreachable, readAttempts: unreachable, recordAttempt: unreachable },
+    practice: { startMixedSession: unreachable, mixedItemForCheck: unreachable, readSnapshots: unreachable, readAttempts: unreachable, recordAttempt: unreachable, startDolPractice: unreachable, dolItemForCheck: unreachable, readDolSnapshots: unreachable, readDolAttempts: unreachable, recordDolAttempt: unreachable },
   });
   return { handler, calls };
 }
@@ -247,7 +247,7 @@ describe('restore (DE-1d, DL-8)', () => {
         recordCheck: async () => { throw new Error('restore never records'); },
       },
       cors,
-      practice: { startMixedSession: unreachable, mixedItemForCheck: unreachable, readSnapshots: unreachable, readAttempts: unreachable, recordAttempt: unreachable },
+      practice: { startMixedSession: unreachable, mixedItemForCheck: unreachable, readSnapshots: unreachable, readAttempts: unreachable, recordAttempt: unreachable, startDolPractice: unreachable, dolItemForCheck: unreachable, readDolSnapshots: unreachable, readDolAttempts: unreachable, recordDolAttempt: unreachable },
     });
     const res = await handler(new Request('https://edge.test/check-activity', {
       method: 'POST',
