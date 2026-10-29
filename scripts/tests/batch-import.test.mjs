@@ -84,6 +84,8 @@ import {
     parseSkillRegistry,
     planSkillLabels,
     planSkillParts,
+    dolBankGaps,
+    dolMisconceptionsOf,
     parseRegistry,
     parseRegistryDescriptions,
     planIdentity,
@@ -3265,4 +3267,31 @@ test('practice registry: --practice-registry parses in either form', () => {
     assert.equal(parseArgs(['~/cat', '--practice-registry', 'p.json']).practiceRegistry, 'p.json');
     assert.equal(parseArgs(['~/cat', '--practice-registry=p.json']).practiceRegistry, 'p.json');
     assert.equal(parseArgs(['~/cat']).practiceRegistry, null);
+});
+
+test('§K B-198 / TP-8 (D65): a DoL misconception the skill\'s ratified bank never binds warns', () => {
+    const blank = (id) => ({ type: 'blank', id: 'b', answer: '1', mistakeFeedback: [{ match: '2', misconceptionId: id }] });
+    const doc = {
+        sections: [
+            { id: 'l', rows: [{ columns: [{ blocks: [{ type: 'fill_in_blank', content: [blank('mis.lesson.only')] }] }] }] },
+            { id: 'd', dol: { skills: ['s.one'], retake: true }, rows: [{ columns: [{ blocks: [
+                { type: 'fill_in_blank', content: [blank('mis.a'), blank('mis.b')] },
+            ] }] }] },
+        ],
+    };
+    // Only the DoL's own bindings count, never the lesson's.
+    assert.deepEqual(dolMisconceptionsOf(doc), ['mis.a', 'mis.b']);
+    assert.deepEqual(dolMisconceptionsOf({ sections: [] }), []);
+    const entry = { sourcePath: 'c/01.md', primarySkill: 's.one', dolMisconceptions: ['mis.a', 'mis.b'] };
+    const bankDoc = { sections: [{ rows: [{ columns: [{ blocks: [{ type: 'fill_in_blank', content: [blank('mis.a')] }] }] }] }] };
+    const ratified = { role: 'skill', skill_id: 's.one', status: 'ratified', document: bankDoc };
+    const warnings = dolBankGaps([entry], [ratified]);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /mis\.b, which no ratified template of the s\.one bank binds/);
+    // Silent with no ratified bank for the skill (banks lag activities), or a draft one.
+    assert.deepEqual(dolBankGaps([entry], []), []);
+    assert.deepEqual(dolBankGaps([entry], [{ ...ratified, status: 'draft' }]), []);
+    // Clean when the bank binds every one.
+    const full = { ...ratified, document: { sections: [{ rows: [{ columns: [{ blocks: [{ type: 'fill_in_blank', content: [blank('mis.a'), blank('mis.b')] }] }] }] }] } };
+    assert.deepEqual(dolBankGaps([entry], [full]), []);
 });

@@ -1314,6 +1314,43 @@ export function canNeverFire(blank, match) {
     return null;
 }
 
+/** The distinct `mis.*` ids the `{checkpoint dol}` section of a converted
+ *  document binds (D65), or [] when it has no DoL. */
+export function dolMisconceptionsOf(document) {
+    const dol = (document?.sections ?? []).find((s) => s && s.dol);
+    if (!dol) return [];
+    return [...new Set(collectBindings({ sections: [dol] }).bindings.map((b) => b.id))].sort();
+}
+
+/**
+ * B-198 / TP-8 (docs/design/dol-targeted-practice.md): every `mis.*` a DoL binds
+ * must be bound by at least one RATIFIED template of its primary skill's bank,
+ * or targeted practice can never offer that mistake. Silent when the skill has
+ * no ratified bank yet (banks lag activities); one warning per gap otherwise
+ * (--strict fails). Reads the bank rows this same run planned.
+ */
+export function dolBankGaps(entries, bankRows) {
+    const warnings = [];
+    for (const entry of entries) {
+        const want = entry.dolMisconceptions ?? [];
+        if (want.length === 0 || !entry.primarySkill) continue;
+        const items = bankRows.filter(
+            (r) => r.role === 'skill' && r.skill_id === entry.primarySkill && r.status === 'ratified',
+        );
+        if (items.length === 0) continue;
+        const bound = new Set(items.flatMap((r) => collectBindings(r.document).bindings.map((b) => b.id)));
+        const missing = want.filter((id) => !bound.has(id));
+        if (missing.length > 0) {
+            warnings.push(
+                `${entry.sourcePath}: its DoL can show ${missing.join(', ')}, which no ratified ` +
+                    `template of the ${entry.primarySkill} bank binds — targeted practice could ` +
+                    'never offer it (B-198). Bind it in the bank, or drop it from the DoL.',
+            );
+        }
+    }
+    return warnings;
+}
+
 /**
  * Every misconception binding in one converted document, with the site it sits
  * at, plus the bindings that can never fire.
@@ -3410,6 +3447,7 @@ async function main() {
             reservedKeys: converted.reservedKeys,
             unitOverride: converted.unitOverride,
             published: row?.status === 'published',
+            dolMisconceptions: dolMisconceptionsOf(converted.document),
         });
         // The pre-pass and the real parser must agree about identity. They read
         // the same syntax by two routes (see scanSourceKey), and a divergence
@@ -3519,6 +3557,10 @@ async function main() {
     const perFileCatalogue = files
         .filter((f) => catalogue.has(f.sourcePath))
         .map((f) => catalogue.get(f.sourcePath));
+
+    // B-198 / TP-8 (D65 slice 2): a misconception a DoL can show must be one
+    // its skill's bank can practise — targeted practice draws from that bank.
+    catalogueWarnings.push(...dolBankGaps(perFileCatalogue, bankRun.rows ?? []));
 
     for (const entry of perFileCatalogue) {
         const file = files.find((f) => f.sourcePath === entry.sourcePath);
