@@ -81,7 +81,7 @@ Building.
 - **Compliance:** STUDENT-DERIVED (answers to practice items). Retention is the DoL's activity window: the account path, as `section_checks`. Prune built, disarmed, mixed practice's posture. data-map + retention-policy change in the same commit.
 - **Shell budget:** the student route reuses the lazy practice runner chunk, so nothing is added eagerly (157.8/158 KiB).
 
-## As built (2026-10-30, main 355f4768; NOT LIVE)
+## As built (2026-10-30, main 355f4768; LIVE 2026-10-30 — 0072 applied, live verify 382/0, get-activity v41 + check-activity v39 hash-verified)
 
 - **0072** as above, with two deviations from this doc, both deliberate: **no prune** (the attempts follow the account path, kept for the account's lifetime and removed by the `users` cascade, like `dol_pass`; data-map draft-38, retention-policy draft-19 say so), and **`my_dol_state` v2** adds `practice_available` so the read path can offer practice only when the ratified bank has something for the skill (TP-6). `verify-0072` 4/4 and `verify-0070` 7/7 on the local stack.
 - **check-activity:** modes `dol-practice-start` and `dol-practice`, sharing mixed practice's authorize → read → grade → record path through `SlotPorts` (`practice-handler.ts`). **get-activity:** serves `practiceAvailable` in the DoL state. Both bundles changed (viewer-server `81cf4533…`, grading-server `4129e037…`).
