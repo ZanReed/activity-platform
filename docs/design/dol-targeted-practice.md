@@ -81,6 +81,14 @@ Building.
 - **Compliance:** STUDENT-DERIVED (answers to practice items). Retention is the DoL's activity window: the account path, as `section_checks`. Prune built, disarmed, mixed practice's posture. data-map + retention-policy change in the same commit.
 - **Shell budget:** the student route reuses the lazy practice runner chunk, so nothing is added eagerly (157.8/158 KiB).
 
+## As built (2026-10-30, main 355f4768; NOT LIVE)
+
+- **0072** as above, with two deviations from this doc, both deliberate: **no prune** (the attempts follow the account path, kept for the account's lifetime and removed by the `users` cascade, like `dol_pass`; data-map draft-38, retention-policy draft-19 say so), and **`my_dol_state` v2** adds `practice_available` so the read path can offer practice only when the ratified bank has something for the skill (TP-6). `verify-0072` 4/4 and `verify-0070` 7/7 on the local stack.
+- **check-activity:** modes `dol-practice-start` and `dol-practice`, sharing mixed practice's authorize → read → grade → record path through `SlotPorts` (`practice-handler.ts`). **get-activity:** serves `practiceAvailable` in the DoL state. Both bundles changed (viewer-server `81cf4533…`, grading-server `4129e037…`).
+- **Screens:** the DoL shows "Practise this skill first" between tries (attempt 1 in, not passed, a retake left, `practiceAvailable`, and a host that routes it; never in print or the teacher preview). It opens the lazy `/a/:activityId/practice/:versionId` (`routes/DolPractice.tsx`), which runs mixed practice's `MixedRunner` on the `dol-practice` mode with no score and its own done screen.
+- **Shell budget — the doc's "nothing eager" was wrong:** the offer + DoL state (~0.14) and the lazy route (~0.12) took the shell to **158.063 KiB**. No cheap rung; **the author raised the cap 158 → 158.5** (2026-10-30, recorded in `scripts/perf-budgets.mjs` and TODOS → the size ladder).
+- **Owed (author):** apply 0072 live → `verify-0072` + `verify-0070` live → `pnpm deploy:get-activity` + `pnpm deploy:check` → hash-verify both bundles → push.
+
 ## Not in scope
 
 - Practice for the review item's skill.

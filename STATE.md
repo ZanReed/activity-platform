@@ -20,7 +20,9 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**D65 DoL RETAKE slice 1: 0069 + 0070 LIVE 2026-10-25** (verify-0070 7/7, -0066 11/11, -0040, -0059 8/8 live); get-activity v40 + check-activity v38 deployed, bundles HASH-VERIFIED (`1920dd8d…`, `0cde6ba1…`; verify_jwt false/true) ([dol-retake.md](docs/design/dol-retake.md) → As built). Pushed; import ran 2026-10-25 (108 part counts + 108 labels mirrored, read back live). B-214 sent (pin bump requested at facts commit 7b685b58). Shell 157.8/158 KiB.
+**D65 slice 2 (targeted practice) BUILT 2026-10-30 at 355f4768, NOT LIVE:** apply 0072 → `verify-0072` + `-0070` live → `pnpm deploy:get-activity` + `pnpm deploy:check` → hash-verify (viewer `81cf4533…`, grading `4129e037…`) → push ([dol-targeted-practice.md](docs/design/dol-targeted-practice.md) → As built).
+
+**D65 slice 1 LIVE 2026-10-25, CLOSED** (pin bump merged at curriculum d0b94a4); the record is [dol-retake.md](docs/design/dol-retake.md) → As built.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. **Owed:** `/design-review` → MP-15's capability-row letter (S4-4).
 
