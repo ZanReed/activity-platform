@@ -79,6 +79,8 @@ describe('every catalogue key it teaches is one the parser accepts', () => {
         ['key', 'key: act.rate.unit-rate'],
         ['skill', 'skill: rate.unit-rate'],
         ['supporting_skills', 'supporting_skills: ratio.equivalent-ratios'],
+        ['dol_skills', 'dol_skills: rate.unit-rate'],
+        ['dol_rubric_levels', 'dol_rubric_levels: A, M'],
     ];
 
     for (const [name, line] of cases) {
@@ -122,6 +124,22 @@ describe('the two rules the prompt exists to enforce', () => {
         expect(CATALOGUE_AUTHORING_PROMPT).toMatch(/NEVER PUT A BLANK INSIDE MATHS/);
         const { warnings } = convert('Find $k = {{=8}}$ today.');
         expect(warnings.join(' ')).toMatch(/inside the equation/i);
+    });
+
+    it('teaches the DoL grammar (D65), and a DoL written exactly as taught imports with a retake', () => {
+        expect(CATALOGUE_AUTHORING_PROMPT).toContain('{checkpoint dol}');
+        expect(CATALOGUE_AUTHORING_PROMPT).toContain('where dol:');
+        expect(CATALOGUE_AUTHORING_PROMPT).toContain('\\seed{p}');
+        const result = convert([
+            '```meta', 'title: T', 'skill: s.one', 'dol_skills: s.one', '```',
+            '## Check for understanding {checkpoint dol}',
+            '```seed', 'g: list 2, 3, 5', 'a: int 2..4', 'p: = g * a', 'where dol: a > 2', '```',
+            'Factorise $\\seed{p}x$: {{=g}} ( {{=a}} x )',
+        ].join('\n\n'));
+        expect(result.dolProblems).toBeUndefined();
+        expect(result.warnings.join(' ')).not.toMatch(/inside math/);
+        const dol = result.blocks.find((b) => b.type === 'sectionBreak')?.attrs?.dol as { retake?: boolean } | undefined;
+        expect(dol?.retake).toBe(true);
     });
 
     it('teaches \\gap{} as the in-maths alternative, and it still works', () => {

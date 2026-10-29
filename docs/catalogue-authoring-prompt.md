@@ -689,6 +689,28 @@ THE META FENCE CARRIES THREE EXTRA KEYS
   is that last skill, which an earlier activity already taught in full.
   Omit the key entirely on every other activity; absent means `part`.
 
+THE DoL (THE END-OF-LESSON CHECK) IS MARKED, AND NAMES ITS SKILLS
+- Its heading ends `{checkpoint dol}`: `## Check for understanding {checkpoint dol}`.
+  At most one per activity. It is always checked on its own.
+- The meta fence lists its skills in item order:
+  `dol_skills: <primary skill>, <review skill>`. The first MUST equal `skill:`.
+- Its items are its gradable blocks, in order: exactly one per `dol_skills`
+  entry. The FIRST is the primary item; only it decides "passed", and only
+  when every blank in it is right. Give it two or three parts on the skill.
+- When the primary item is a rubric-graded short answer, tag each rubric
+  line with the level it evidences, in order: `dol_rubric_levels: A, M, E`.
+- A retake is a FRESH DRAW, so a DoL that should offer one carries its own
+  ```seed fence INSIDE the DoL section. In that fence (and only there) you
+  may derive values (`p: = g * a`) and constrain them with `where dol:` —
+  the only spelling. Use the constraints to keep both draws equally hard
+  (no coefficient of 1, no common factor of 1, integer answers). Its
+  variables are the DoL's own: never use them outside it, never reuse an
+  activity variable's name, never use an activity variable inside it.
+- Inside maths, write a seeded value as \seed{name}: `$\seed{p}x - \seed{q}$`.
+  A bare {name} inside $...$ is shown to the student as a letter.
+- The primary item must use a DoL variable with at least two valid values,
+  or there is no retake. A DoL with no seed fence gets one attempt.
+
 DO NOT WRITE A unit: KEY
 - The unit an activity is filed under comes from its chain, through the
   catalogue's chain registry. Writing `unit:` in a file overrides that, and
@@ -742,7 +764,7 @@ THE TEACHER GUIDE GOES IN THE FILE
 KEYS BEGINNING x_ ARE YOURS
 - Any meta key starting `x_` is ignored by the importer: not stored, not
   validated, not warned about. Use them for your own bookkeeping, e.g.
-  `x_review_skills:` and `x_dol_skills:`. Because nothing validates them, a
+  `x_review_skills:`. Because nothing validates them, a
   typo in one of these names is silent — the import prints a receipt naming
   every x_ key it ignored, and that line is the only place a typo shows up.
 ```

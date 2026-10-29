@@ -32,6 +32,7 @@ Given one at a time to the parent session and relayed here. Each is the option h
 | DL-11 | as amended by C-163: "Teacher ticks, base-level prefill (Recommended)" |
 | DL-17 | "\seed{p} spelling (Recommended)" |
 | DL-10 amended | C-164 item 2, ruled 2026-10-24 in this session: "Final part only (Recommended)" |
+| DL-10, consolidations | ruled 2026-10-30 in this session: "agree that consolidation never grants a pass" (B-211's question; built that way, `dol_pass_skill` excludes `consolidates_chain`) |
 
 **ALL 17 DECISIONS RULED 2026-10-24** (DL-18 is a note). Next comes the author's call on the next step, e.g. `/plan-eng-review` before building, and the DL-15 letter, which goes out only with his yes. Nothing is built.
 
@@ -497,7 +498,7 @@ Each guard written in this slice was mutation-tested: red on the reverted code, 
 - **The read bundle is 1,127 KiB** (cap 1,500). The growth is mostly its inline sourcemap; the code grew ~5 KiB, and the grader stays out of the read path (server/dolPrimary.ts).
 
 **Not done here:**
-- The catalogue-authoring prompt does not teach the DoL grammar yet. The curriculum side drafts with `x_dol_skills` until their pin bump (B-211), and teaching it is the author's call.
+- *(Done 2026-10-30, author's yes after the pin landed:)* the catalogue-authoring prompt teaches the DoL grammar, with a test that imports a DoL written exactly as taught.
 - Slice 2 (targeted practice, DL-14).
 - A teacher "grant a retake" (DL-7).
 
