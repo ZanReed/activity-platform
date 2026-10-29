@@ -1,6 +1,11 @@
 # D65 slice 2 — targeted practice between DoL attempts (design pass)
 
-**Status:** DESIGN PASS 2026-10-30. NOT RULED; nothing is built. TP-1…TP-9 are waiting on the author's yes or no, one by one.
+**Status:** RULED 2026-10-30, every item as recommended. The author's answers in this session:
+- TP-2 "Separate tables (Recommended)";
+- TP-3 "4, mistakes first (Recommended)";
+- TP-1 and TP-4…TP-9 "All as recommended".
+
+Building.
 **Parent:** [dol-retake.md](dol-retake.md), DL-14 ("Second slice, optional", ruled 2026-10-24): after a failed attempt 1, offer "Practise first": up to N items from the primary skill's ratified bank whose `mis.*` intersect the misconceptions attempt 1 showed, falling back to any items of that skill. It is offered, never required. Slice 1 is live (0069/0070, 2026-10-25).
 **Evidence (C-163):** Guskey's loop is check → correctives → parallel check. The authored mistake feedback is the corrective today; this slice adds practice on the same skill, chosen by the mistakes the student actually made.
 
