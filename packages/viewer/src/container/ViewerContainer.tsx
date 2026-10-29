@@ -109,6 +109,9 @@ export interface ViewerContainerProps {
   onCrash?: (crash: BlockCrash) => void;
   /** Fires after every check whose coverage was incomplete. */
   onCheckShortfall?: (shortfall: CheckShortfall) => void;
+  /** D65 slice 2: where the DoL's "Practise this skill first" goes. The
+   *  offer shows only when the host passes this (the student route does). */
+  onDolPractice?: () => void;
   mode?: 'screen' | 'print';
   /**
    * Which printed arrangement this is (1-based), when a teacher asked for more
@@ -249,6 +252,13 @@ function dolStatusLabel(dol: DolServedState, status: SectionStatus | undefined):
     : 'Checked. You can try a new version on your next practice day.';
 }
 
+/** TP-1: the offer shows between the tries — a first try in, not passed, a
+ *  retake left — and only when there is something to practise (TP-6). */
+function dolPracticeOffered(dol: DolServedState, status: SectionStatus | undefined): boolean {
+  const now = currentDolState(dol, status);
+  return dol.practiceAvailable && !now.passed && now.attempts >= 1 && now.attempts < now.allowance;
+}
+
 /** The DoL confirm (DE-14): which try this is, and what is still blank. */
 function dolConfirmText(dol: DolServedState, unanswered: number): string {
   const which = dol.allowance > 1 ? `This is try ${dol.form} of ${dol.allowance}.` : 'You get one try.';
@@ -271,6 +281,7 @@ export function ViewerContainer({
   resolveComponent = defaultResolve,
   onCrash,
   onCheckShortfall,
+  onDolPractice,
   mode = 'screen',
   printVersion,
   readOnly = false,
@@ -584,6 +595,7 @@ export function ViewerContainer({
           footer={mode === 'screen' && !externalCheck}
           locked={locked}
           dol={group.sections.length === 1 ? group.sections[0]!.dol : undefined}
+          onDolPractice={onDolPractice}
           unansweredIn={unansweredIn}
           sections={sections}
           crashedIn={crashedGradableIn}
@@ -737,6 +749,8 @@ interface CheckGroupRegionProps {
   /** D65: the DoL's served state when this group IS the DoL (DE-2 makes it
    *  a group of its own). */
   dol?: DolServedState;
+  /** D65 slice 2: open targeted practice (the host app routes it). */
+  onDolPractice?: () => void;
   /** Unanswered questions in these sections, read at the moment of the
    *  confirm (DE-14). */
   unansweredIn: (sections: readonly SectionIndex[]) => number;
@@ -754,6 +768,7 @@ function CheckGroupRegion({
   footer,
   locked,
   dol,
+  onDolPractice,
   unansweredIn,
   sections,
   crashedIn,
@@ -882,6 +897,11 @@ function CheckGroupRegion({
               ? 'One question can’t be checked yet.'
               : (dol ? dolStatusLabel(dol, sections[ids[0]!]) : null) ?? groupStatusLabel(status, locked)}
           </p>
+          {dol && onDolPractice && dolPracticeOffered(dol, sections[ids[0]!]) ? (
+            <button type="button" className="viewer-dol__practice" onClick={onDolPractice}>
+              Practise this skill first
+            </button>
+          ) : null}
           {uncovered > 0 && !blockedByCrash ? (
             <p
               className="viewer-section__shortfall"

@@ -124,6 +124,10 @@ begin
   if (v_res->'session') ? 'items' and jsonb_path_exists(v_res, '$.**.document') then
     raise exception 'FAIL B2: the payload carries a document';
   end if;
+  -- TP-6: the read path's offer flag (my_dol_state v2).
+  if not (my_dol_state(v_a, v_v, 'dol-sec', false)->>'practice_available')::boolean then
+    raise exception 'FAIL B2: practice_available false with a ratified bank';
+  end if;
   -- Resume, not a second session.
   if start_dol_practice(v_a, v_v)->>'state' <> 'resume' then raise exception 'FAIL B2: no resume'; end if;
 
@@ -161,6 +165,9 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', v_s2)::text, true);
   if start_dol_practice(v_a, v_v)->>'state' <> 'nothing_to_practise' then
     raise exception 'FAIL B4: an empty bank still offered practice';
+  end if;
+  if (my_dol_state(v_a, v_v, 'dol-sec', false)->>'practice_available')::boolean then
+    raise exception 'FAIL B4: practice_available true with no ratified bank';
   end if;
 
   -- ---- the users cascade ----------------------------------------------------------

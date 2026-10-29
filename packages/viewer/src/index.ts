@@ -164,6 +164,9 @@ export type {
   PracticeServedItem,
   PracticeSession,
   PracticeStartResult,
+  DolPracticeSession,
+  DolPracticeStartResult,
+  DolPracticeStartState,
   PracticeStartState,
 } from './check/wire.js';
 export { createMockCheckService } from './check/mock.js';

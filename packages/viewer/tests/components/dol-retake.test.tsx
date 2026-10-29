@@ -42,7 +42,7 @@ function dolDoc(dol: DolServedState): SanitizedActivityDocument {
 }
 
 const state = (over: Partial<DolServedState> = {}): DolServedState => ({
-  allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false, markFirst: false, ...over,
+  allowance: 2, attempts: 0, form: 1, retakeOpen: false, passed: false, markFirst: false, practiceAvailable: false, ...over,
 });
 
 function service(result: Partial<SectionCheckResult> = {}) {
@@ -129,5 +129,39 @@ describe('the DoL on screen (D65)', () => {
     await act(async () => { fireEvent.click(button(container)!); });
     await act(async () => { fireEvent.click(container.querySelector('.viewer-check-group__confirm-fire')!); });
     expect(status(container)).toBe('Checked. That was your last try.');
+  });
+});
+
+describe('targeted practice offer (D65 slice 2, TP-1/TP-6)', () => {
+  const offer = (c: HTMLElement) => c.querySelector<HTMLButtonElement>('.viewer-dol__practice');
+  function setupWith(dol: DolServedState, onDolPractice?: () => void) {
+    const store = createViewerStore({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION, checkService: service() });
+    return render(<ViewerContainer document={dolDoc(dol)} store={store} versionId={VERSION} onDolPractice={onDolPractice} />);
+  }
+
+  it('shows between the tries when there is something to practise, and calls the host', () => {
+    let opened = 0;
+    const { container } = setupWith(state({ attempts: 1, form: 1, practiceAvailable: true }), () => { opened += 1; });
+    expect(offer(container)!.textContent).toBe('Practise this skill first');
+    fireEvent.click(offer(container)!);
+    expect(opened).toBe(1);
+    // It is not a Check button (no guard counting those counts it).
+    expect(button(container)).toBeNull();
+  });
+
+  it.each([
+    ['nothing to practise', state({ attempts: 1, form: 1, practiceAvailable: false })],
+    ['before the first try', state({ attempts: 0, form: 1, practiceAvailable: true })],
+    ['passed', state({ attempts: 1, form: 1, passed: true, practiceAvailable: true })],
+    ['the retake used', state({ attempts: 2, form: 2, retakeOpen: true, practiceAvailable: true })],
+    ['no retake at all', state({ allowance: 1, attempts: 1, form: 1, practiceAvailable: true })],
+  ])('is absent: %s', (_label, dol) => {
+    const { container } = setupWith(dol, () => {});
+    expect(offer(container)).toBeNull();
+  });
+
+  it('is absent when the host does not route it (print, the teacher preview)', () => {
+    const { container } = setupWith(state({ attempts: 1, form: 1, practiceAvailable: true }));
+    expect(offer(container)).toBeNull();
   });
 });

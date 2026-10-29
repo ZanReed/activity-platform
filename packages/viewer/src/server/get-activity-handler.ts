@@ -183,7 +183,7 @@ export interface GetActivityDb {
   dolState(
     authHeader: string,
     args: { activityId: string; versionId: string; sectionId: string; rubricPrimary: boolean },
-  ): Promise<DbResult<{ attempts: number; retake_open: boolean; passed: boolean }>>;
+  ): Promise<DbResult<{ attempts: number; retake_open: boolean; passed: boolean; practice_available?: boolean }>>;
 }
 
 /** The _shared/cors.ts helper surface (env-reading, so it stays Deno-side). */
@@ -549,6 +549,7 @@ export function createGetActivityHandler(
         retakeOpen: state.retake_open,
         passed: state.passed,
         markFirst: primary?.rubric === true,
+        practiceAvailable: state.practice_available === true,
       };
     }
     // serveSeed, imported (G1): the grading side recomputes this student's

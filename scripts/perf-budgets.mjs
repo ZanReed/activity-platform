@@ -165,8 +165,17 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * there is no early-warning margin any more — the next addition that crosses
  * 158 fails this budget outright, and the answer then is a rung (or a
  * deliberate cap ruling), never a quiet raise.
+ *
+ * ⚖ CAP RULING 158 → 158.5 — author, 2026-10-30. D65 slice 2 (targeted
+ * practice between DoL tries) measured 158.063: the viewer's offer + DoL
+ * state ~0.14 and the lazy /a/:id/practice/:versionId route ~0.12 (its lazy
+ * declaration, the Route, and the chunk's preload list). A per-module byte
+ * attribution of the entry found no cheap rung — what remains is first-paint
+ * code (StudentViewer, ViewerContainer, registry, Home, JoinClass) plus the
+ * libraries rung 3 already named. The rule is unchanged: the next addition
+ * that crosses 158.5 gets a rung or another explicit ruling.
  */
-export const SHELL_JS_GZ_KIB = 158;
+export const SHELL_JS_GZ_KIB = 158.5;
 
 /**
  * The student shell's CSS, gzipped — a SEPARATE row on purpose.

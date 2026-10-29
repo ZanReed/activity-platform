@@ -30,6 +30,7 @@ import {
     lookupPracticeClass,
     practiceMinutes,
     previewMixed,
+    startDolPractice,
 } from '../lib/mixedPractice';
 
 beforeEach(() => {
@@ -132,5 +133,23 @@ describe('checkPracticeItem — check-activity `practice`', () => {
         const error = await checkPracticeItem(request, fetchImpl as unknown as typeof fetch).catch((e: unknown) => e);
         expect((error as CheckError).kind).toBe('unauthenticated');
         expect(fetchImpl).not.toHaveBeenCalled();
+    });
+});
+
+describe('D65 slice 2 — the DoL practice calls', () => {
+    it('startDolPractice names the activity and version, never an item', async () => {
+        const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ wireVersion: CHECK_WIRE_VERSION, state: 'nothing_to_practise' })));
+        await startDolPractice('act-1', 'ver-1', fetchImpl as unknown as typeof fetch);
+        const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+        expect(JSON.parse(init.body as string)).toEqual({
+            wireVersion: CHECK_WIRE_VERSION, mode: 'dol-practice-start', activityId: 'act-1', versionId: 'ver-1',
+        });
+    });
+
+    it('checkPracticeItem with mode dol-practice sends that mode', async () => {
+        const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ wireVersion: CHECK_WIRE_VERSION, seq: 1 })));
+        await checkPracticeItem({ sessionId: 's1', seq: 1, responses: emptySectionResponses(), mode: 'dol-practice' }, fetchImpl as unknown as typeof fetch);
+        const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+        expect(JSON.parse(init.body as string).mode).toBe('dol-practice');
     });
 });

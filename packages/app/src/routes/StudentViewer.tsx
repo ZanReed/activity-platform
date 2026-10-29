@@ -30,7 +30,7 @@ import {
   useMemo,
   useState, useRef, useSyncExternalStore } from 'react';
 import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   PrintButton,
   activityTypeLabel,
@@ -126,6 +126,7 @@ type LoadState =
 
 export default function StudentViewer() {
   const { activityId = '' } = useParams();
+  const navigate = useNavigate();
   const { session, loading: sessionLoading } = useSession();
   // WHO is signed in, as a string: the only thing about the session the
   // effects below should react to.
@@ -800,6 +801,8 @@ export default function StudentViewer() {
         // D13: an under-covered check is RECORDABLE, not just visible — the
         // container's banner says it to the student; this says it to the log
         // and the store (where the grading-UX era can act on it).
+        // D65 slice 2: the DoL's "Practise this skill first" (TP-1).
+        onDolPractice={() => navigate(`/a/${activityId}/practice/${state.served.versionId}`)}
         onCheckShortfall={(shortfall) => {
           console.error(
             '[viewer] check shortfall — crashed gradable blocks went unchecked',

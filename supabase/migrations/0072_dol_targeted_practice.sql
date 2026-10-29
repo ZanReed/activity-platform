@@ -14,6 +14,7 @@
 --       left (TP-1). Picks 4 ratified templates of the primary skill's bank:
 --       those binding a misconception the first try showed first, then the
 --       rest, the D66 tier filter applied (TP-3); snapshots them (TP-4).
+--   §E  my_dol_state v2 — `practice_available` for the offer (TP-6).
 --   §D  dol_practice_item_for_check (AS THE CALLER) and
 --       record_dol_practice_attempt (SERVICE ROLE) — mixed practice's G2/G3,
 --       first try only, record before verdict.
@@ -308,6 +309,73 @@ begin
   select * into v_a from dol_practice_attempts where session_id = p_session_id and seq = p_seq;
   return jsonb_build_object('replayed', not v_new, 'correct', v_a.correct,
                             'skipped', v_a.skipped, 'verdicts', v_a.verdicts);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- §E. my_dol_state v2 (0070 §F + `practice_available`, TP-6)
+-- -----------------------------------------------------------------------------
+-- Same signature and grants; one more key, so the read path can show the
+-- "Practise this skill" offer only when there is something to practise.
+create or replace function my_dol_state(
+  p_activity_id    uuid,
+  p_version_id     uuid,
+  p_section_id     text,
+  p_rubric_primary boolean default false
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_attempts integer;
+  v_first    section_checks%rowtype;
+  v_zone     text;
+  v_skill    text;
+  v_open     boolean := false;
+  v_src      activities%rowtype;
+  v_practice boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in first' using errcode = '42501';
+  end if;
+  select count(*) into v_attempts
+  from section_checks
+  where student_id = auth.uid() and activity_version_id = p_version_id
+    and section_id = p_section_id;
+  if v_attempts >= 1 then
+    select * into v_first
+    from section_checks
+    where student_id = auth.uid() and activity_version_id = p_version_id
+      and section_id = p_section_id
+    order by attempt_number limit 1;
+    v_zone := dol_zone(p_activity_id);
+    v_open := (v_first.created_at at time zone v_zone)::date < (now() at time zone v_zone)::date
+      and (not p_rubric_primary or exists (
+             select 1 from check_grades g
+             where g.check_id = v_first.id and g.released_at is not null));
+  end if;
+  v_skill := dol_pass_skill(p_activity_id);
+  -- 0072 TP-6: targeted practice can be offered only when the primary skill's
+  -- bank (the SOURCE owner's, DE-11) has a ratified template the tier filter
+  -- lets this student see.
+  select src.* into v_src
+  from activities a join activities src on src.id = coalesce(a.copied_from_activity_id, a.id)
+  where a.id = p_activity_id;
+  v_practice := v_src.primary_skill is not null and exists (
+    select 1 from practice_item p
+    where p.owner_id = v_src.owner_id and p.role = 'skill' and p.skill_id = v_src.primary_skill
+      and p.status = 'ratified' and p.retired_at is null
+      and mixed_tier_ok(p.tier, auth.uid(), p.skill_id));
+  return jsonb_build_object(
+    'attempts',    v_attempts,
+    'retake_open', v_open,
+    'passed',      v_skill is not null and exists (
+                     select 1 from dol_pass dp
+                     where dp.student_id = auth.uid() and dp.skill_id = v_skill),
+    'practice_available', v_practice);
 end;
 $$;
 

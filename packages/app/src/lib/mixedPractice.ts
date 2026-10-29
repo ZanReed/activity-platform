@@ -22,6 +22,7 @@ import {
     CHECK_WIRE_VERSION,
     CheckError,
     checkErrorFor,
+    type DolPracticeStartResult,
     type PracticeCheckResult,
     type PracticeStartResult,
     type PracticeStartState,
@@ -172,6 +173,18 @@ async function post<T>(body: unknown, fetchImpl: typeof fetch = fetch): Promise<
 /** The student-facing words for an empty Check (the server refuses it). */
 export const NOTHING_ANSWERED = 'Answer the question, or skip it.';
 
+/** D65 slice 2: start (or resume) the targeted practice for one DoL version. */
+export function startDolPractice(
+    activityId: string,
+    versionId: string,
+    fetchImpl?: typeof fetch,
+): Promise<DolPracticeStartResult> {
+    return post<DolPracticeStartResult>(
+        { wireVersion: CHECK_WIRE_VERSION, mode: 'dol-practice-start', activityId, versionId },
+        fetchImpl,
+    );
+}
+
 export function startMixed(classId: string, fetchImpl?: typeof fetch): Promise<PracticeStartResult> {
     return post<PracticeStartResult>(
         { wireVersion: CHECK_WIRE_VERSION, mode: 'practice-start', classId, start: true },
@@ -180,13 +193,20 @@ export function startMixed(classId: string, fetchImpl?: typeof fetch): Promise<P
 }
 
 export function checkPracticeItem(
-    request: { sessionId: string; seq: number; responses: SectionResponses; skip?: boolean },
+    request: {
+        sessionId: string;
+        seq: number;
+        responses: SectionResponses;
+        skip?: boolean;
+        /** D65 slice 2: `dol-practice` checks a targeted-practice slot (0072). */
+        mode?: 'practice' | 'dol-practice';
+    },
     fetchImpl?: typeof fetch,
 ): Promise<PracticeCheckResult> {
     return post<PracticeCheckResult>(
         {
             wireVersion: CHECK_WIRE_VERSION,
-            mode: 'practice',
+            mode: request.mode ?? 'practice',
             sessionId: request.sessionId,
             seq: request.seq,
             responses: request.responses,

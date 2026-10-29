@@ -314,7 +314,10 @@
   padding-top: var(--space-4);
 }
 
-.viewer-section__check {
+.viewer-section__check,
+/* D65 slice 2: the DoL's "Practise this skill first" — a Check button's look,
+ * NOT its class, so no guard counting Check buttons ever counts it. */
+.viewer-dol__practice {
   background: var(--vw-color-accent);
   border: 1px solid var(--vw-color-accent);
   border-radius: var(--vw-radius-lg);
@@ -326,7 +329,8 @@
   padding: var(--space-2) var(--space-6);
 }
 
-.viewer-section__check:hover:not(:disabled) {
+.viewer-section__check:hover:not(:disabled),
+.viewer-dol__practice:hover {
   background: var(--vw-color-accent-strong);
   border-color: var(--vw-color-accent-strong);
 }

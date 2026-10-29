@@ -55,6 +55,8 @@ const ActivityResponses = lazy(() => import('./routes/ActivityResponses'));
 // Class progress (0061, docs/design/class-progress-view.md): teacher-only, lazy.
 const ClassProgress = lazy(() => import('./routes/ClassProgress'));
 const ActivityProgress = lazy(() => import('./routes/ActivityProgress'));
+// D65 slice 2: targeted practice between DoL tries — lazy, reached only from the DoL.
+const DolPractice = lazy(() => import('./routes/DolPractice'));
 const AnswerPanel = lazy(() => import('./progress/AnswerPanel'));
 const Privacy = lazy(() => import('./routes/Privacy'));
 // The number-facts demo (D43 slice 1): public, lazy, saves nothing.
@@ -110,6 +112,16 @@ export default function App() {
             route itself shows the pre-auth screen (ruling 3.2A) so a signed-out
             student sees WHAT they were sent before being asked who they are. */}
         <Route path="/a/:activityId" element={<StudentViewer />} />
+        {/* D65 slice 2: targeted practice between a DoL's two tries. Signed-in
+            only (the server's start_dol_practice decides everything else). */}
+        <Route
+        path="/a/:activityId/practice/:versionId"
+        element={
+            <RequireAuth>
+            <DolPractice />
+            </RequireAuth>
+        }
+        />
         {/* The shareable join deep link (identity slice B12). Static import —
             it is a student first-paint surface like StudentViewer/Home, and
             it shares their chunk anyway (same shell components). Not

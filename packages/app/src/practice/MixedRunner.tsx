@@ -83,6 +83,10 @@ export interface MixedRunnerProps {
     /** The practice ended under the student (its day passed, or they left the
      * class): read the entry again. */
     onEnded: () => void;
+    /** D65 slice 2: the same runner for a DoL's targeted practice — its own
+     * check mode, and its own done screen (TP-5: never scored). */
+    checkMode?: 'practice' | 'dol-practice';
+    done?: (tally: MixedTally) => ReactNode;
 }
 
 /** The counts the done screen shows, from the tries seen (all of them are
@@ -99,7 +103,7 @@ export function tallyOf(results: Iterable<PracticeItemResult>, of: number | null
     return { of: of ?? tried, right, skipped, answered: tried - skipped };
 }
 
-export default function MixedRunner({ session, userId, classId, onAgain, onEnded }: MixedRunnerProps) {
+export default function MixedRunner({ session, userId, classId, onAgain, onEnded, checkMode, done }: MixedRunnerProps) {
     const items = session.items;
     const [results, setResults] = useState<Map<number, PracticeItemResult>>(
         () => new Map(items.flatMap((i) => (i.result ? [[i.seq, i.result] as const] : []))),
@@ -119,10 +123,12 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
     }, [items]);
 
     if (stopped) {
+        if (done) return <>{done(tallyOf(results.values(), null))}</>;
         return <MixedDone kind="stopped" tally={tallyOf(results.values(), null)} />;
     }
     const item = items[index];
     if (!item) {
+        if (done) return <>{done(tallyOf(results.values(), session.planned))}</>;
         return (
             <MixedDone
                 kind="finished"
@@ -142,6 +148,7 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
             tried={results.size}
             sessionId={session.sessionId}
             userId={userId}
+            checkMode={checkMode}
             onResult={(r) => setResults((m) => new Map(m).set(item.seq, r))}
             onNext={() => setIndex((i) => i + 1)}
             onStop={() => setStopped(true)}
@@ -179,6 +186,7 @@ interface PracticeItemProps {
     tried: number;
     sessionId: string;
     userId: string;
+    checkMode?: 'practice' | 'dol-practice';
     onResult: (result: PracticeItemResult) => void;
     onNext: () => void;
     onStop: () => void;
@@ -200,6 +208,7 @@ function PracticeItem({
     tried,
     sessionId,
     userId,
+    checkMode,
     onResult,
     onNext,
     onStop,
@@ -238,6 +247,7 @@ function PracticeItem({
                         seq: item.seq,
                         responses: skip ? emptySectionResponses() : request.responses,
                         ...(skip ? { skip: true } : {}),
+                        ...(checkMode ? { mode: checkMode } : {}),
                     }),
                 );
                 setResult(stored);
@@ -253,7 +263,7 @@ function PracticeItem({
             versionId: `${sessionId}:${item.seq}`,
             checkService: service,
         });
-    }, [userId, sessionId, item.seq, loop]);
+    }, [userId, sessionId, item.seq, loop, checkMode]);
 
     // DM-5: the typed answer survives a sign-in round trip (sessionStorage is
     // per tab, and the sign-in returns to this tab).

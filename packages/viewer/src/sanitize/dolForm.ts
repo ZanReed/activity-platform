@@ -112,6 +112,9 @@ export interface DolServedState {
   /** The primary item is teacher-marked: the retake also waits for the
    *  first try's mark to be released (DE-9). Copy only. */
   readonly markFirst: boolean;
+  /** The skill's ratified bank has something this student may practise, so
+   *  the "Practise this skill" offer can show (D65 slice 2, TP-6). */
+  readonly practiceAvailable: boolean;
 }
 
 /** The form to serve (DE-1): form 1 until attempt 1; still form 1 — frozen —
