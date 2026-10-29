@@ -190,7 +190,7 @@ begin
   -- C2 apply writes both, discrimination row with its skills
   v_res := sync_practice_items(v_teacher, jsonb_build_array(v_a, v_d), true);
   if (select count(*) from practice_item where owner_id = v_teacher and retired_at is null) <> 2
-     or (select discriminates from practice_item where item_id = 'chain.rate.proportional.discrimination#d1')
+     or (select discriminates from practice_item where owner_id = v_teacher and item_id = 'chain.rate.proportional.discrimination#d1')
         <> array['rate.unit-rate', 'rate.proportional-graph'] then
     raise exception 'FAIL C2: apply %', v_res;
   end if;
@@ -209,7 +209,7 @@ begin
   v_res := sync_practice_items(v_teacher,
     jsonb_build_array(v_a || jsonb_build_object('fingerprint', repeat('b', 64), 'status', 'ratified'), v_d), true);
   if v_res->'changed' <> '["rate.unit-rate#t1"]'::jsonb
-     or (select status from practice_item where item_id = 'rate.unit-rate#t1') <> 'ratified' then
+     or (select status from practice_item where owner_id = v_teacher and item_id = 'rate.unit-rate#t1') <> 'ratified' then
     raise exception 'FAIL C4: change %', v_res;
   end if;
   n := n + 1;
@@ -217,7 +217,7 @@ begin
   -- C5 an item missing from the file RETIRES (the row stays)
   v_res := sync_practice_items(v_teacher, jsonb_build_array(v_d), true);
   if v_res->'retired' <> '["rate.unit-rate#t1"]'::jsonb
-     or (select retired_at from practice_item where item_id = 'rate.unit-rate#t1') is null then
+     or (select retired_at from practice_item where owner_id = v_teacher and item_id = 'rate.unit-rate#t1') is null then
     raise exception 'FAIL C5: retire %', v_res;
   end if;
   n := n + 1;
@@ -236,7 +236,7 @@ begin
   exception when others then
     v_raised := sqlerrm like '%never reused%';
   end;
-  if not v_raised or (select retired_at from practice_item where item_id = 'rate.unit-rate#t1') is null then
+  if not v_raised or (select retired_at from practice_item where owner_id = v_teacher and item_id = 'rate.unit-rate#t1') is null then
     raise exception 'FAIL C7: a returning retired id was not refused';
   end if;
   n := n + 1;
@@ -244,7 +244,7 @@ begin
   -- C8 … and only p_allow_unretire (--force) writes it
   v_res := sync_practice_items(v_teacher, jsonb_build_array(v_a, v_d), true, true);
   if v_res->'unretired' <> '["rate.unit-rate#t1"]'::jsonb
-     or (select retired_at from practice_item where item_id = 'rate.unit-rate#t1') is not null then
+     or (select retired_at from practice_item where owner_id = v_teacher and item_id = 'rate.unit-rate#t1') is not null then
     raise exception 'FAIL C8: forced un-retire %', v_res;
   end if;
   n := n + 1;
