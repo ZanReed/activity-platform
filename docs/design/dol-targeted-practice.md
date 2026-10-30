@@ -89,7 +89,7 @@ Building.
 - **Shell budget — the doc's "nothing eager" was wrong:** the offer + DoL state (~0.14) and the lazy route (~0.12) took the shell to **158.063 KiB**. No cheap rung; **the author raised the cap 158 → 158.5** (2026-10-30, recorded in `scripts/perf-budgets.mjs` and TODOS → the size ladder).
 - **Owed (author):** apply 0072 live → `verify-0072` + `verify-0070` live → `pnpm deploy:get-activity` + `pnpm deploy:check` → hash-verify both bundles → push.
 
-- **TP-9 follow-up (0073, APPLIED 2026-10-30, live verify 384/0; mirrored on the next import):** the 4 becomes the curriculum graph's `dol_practice_items` (C-167/C-168), mirrored with the mixed settings; `start_dol_practice` reads `dol_practice_cap()`, 4 until a revision names it.
+- **TP-9 follow-up (0073, LIVE 2026-10-30, live verify 384/0; revision 481cd3bf imported, `dol_practice_items` 4):** the 4 becomes the curriculum graph's `dol_practice_items` (C-167/C-168), mirrored with the mixed settings; `start_dol_practice` reads `dol_practice_cap()`, 4 until a revision names it.
 
 ## Not in scope
 
