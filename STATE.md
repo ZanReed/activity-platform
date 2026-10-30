@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**D65 slice 2 (targeted practice) LIVE 2026-10-30;** its dose as a graph key (0073, C-168) is BUILT, not live: apply 0073 → `verify-0073` live → push → curriculum merges PR #81 → import with `--practice-registry`.
+**D65 slice 2 (targeted practice) LIVE 2026-10-30;** its dose as a graph key (0073, C-168) is BUILT, not live: apply 0073 → `verify-0073` live → push → import with `--practice-registry` (their #81 merged at 3514210).
 
 **D65 slice 1 LIVE 2026-10-25, CLOSED** (pin bump merged at curriculum d0b94a4); the record is [dol-retake.md](docs/design/dol-retake.md) → As built.
 
