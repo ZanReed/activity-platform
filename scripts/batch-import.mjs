@@ -204,6 +204,13 @@ export const MIXED_KEYS = [
 ];
 
 /**
+ * The OPTIONAL eighth key (C-167/C-168, 0073): targeted practice's dose
+ * between DoL tries, a whole number 2–8 (their check 4 L). Optional so a
+ * seven-key registry still imports; absent, start_dol_practice uses 4.
+ */
+export const DOL_PRACTICE_KEY = 'dol_practice_items';
+
+/**
  * The curriculum side's practice-registry.json (0066; mixed-practice.md →
  * "The practice registry"), turned into the payload `sync_mixed_settings`
  * takes: { revision, graph_version, settings }.
@@ -225,9 +232,9 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     }
     const keys = Object.keys(body);
     const missing = MIXED_KEYS.filter((k) => !(k in body));
-    const extra = keys.filter((k) => !MIXED_KEYS.includes(k));
+    const extra = keys.filter((k) => !MIXED_KEYS.includes(k) && k !== DOL_PRACTICE_KEY);
     if (missing.length) errors.push(`${path}: body is missing ${missing.join(', ')} (all seven or none)`);
-    if (extra.length) errors.push(`${path}: body has keys outside the agreed seven: ${extra.join(', ')}`);
+    if (extra.length) errors.push(`${path}: body has keys outside the agreed eight: ${extra.join(', ')}`);
     const int = (v) => typeof v === 'number' && Number.isInteger(v);
     const iv = body.mixed_step_intervals;
     if ('mixed_step_intervals' in body) {
@@ -239,6 +246,10 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     }
     for (const k of MIXED_KEYS.slice(1)) {
         if (k in body && !(int(body[k]) && body[k] >= 0)) errors.push(`${path}: ${k} must be a whole number ≥ 0`);
+    }
+    const dol = body[DOL_PRACTICE_KEY];
+    if (DOL_PRACTICE_KEY in body && !(int(dol) && dol >= 2 && dol <= 8)) {
+        errors.push(`${path}: ${DOL_PRACTICE_KEY} must be a whole number 2–8`);
     }
     if (errors.length === 0) {
         const n = body.mixed_items_per_session;
@@ -257,7 +268,9 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
         mirror: {
             revision: json.header.revision,
             graph_version: generated.match(/\bv(\d[\w.-]*)/)?.[1] ?? null,
-            settings: Object.fromEntries(MIXED_KEYS.map((k) => [k, body[k]])),
+            settings: Object.fromEntries(
+                [...MIXED_KEYS, ...(DOL_PRACTICE_KEY in body ? [DOL_PRACTICE_KEY] : [])].map((k) => [k, body[k]]),
+            ),
         },
     };
 }
@@ -4180,7 +4193,7 @@ async function main() {
             `  file     : ${practiceFile.path} · revision ${m.revision.slice(0, 8)}… · ` +
                 `graph v${m.graph_version ?? '?'}`,
         );
-        for (const k of MIXED_KEYS) console.log(`    ${k.padEnd(30)} ${JSON.stringify(m.settings[k])}`);
+        for (const k of Object.keys(m.settings)) console.log(`    ${k.padEnd(30)} ${JSON.stringify(m.settings[k])}`);
         if (practicePlan) {
             const latest = practicePlan.latest_before;
             console.log(

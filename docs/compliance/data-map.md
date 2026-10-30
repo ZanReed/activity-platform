@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-30-draft-38`. Mirrors migrations 0001–**0072**, verified
+> Version `2026-10-30-draft-39`. Mirrors migrations 0001–**0073**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-39` (2026-10-30) — 0073 adds NO personal data.** It lets the mirrored mixed-practice settings carry one more curriculum number, `dol_practice_items` (how many questions targeted practice serves between DoL tries), and has `start_dol_practice` read it. No table, column or grant changes. The range moves to 0073 on that basis.
 >
 > **`draft-38` (2026-10-30) — 0072 adds STUDENT-DERIVED personal data: targeted practice between the end-of-lesson check's two tries.** Curriculum D65 slice 2. After a first DoL try that did not pass, a student may practise 4 questions on the skill from the curriculum's ratified bank, chosen by the misconceptions the first try showed. Three new tables, each with a `student_id`: `dol_practice_sessions` (one per student per DoL version: the activity, the skill, how many questions, when started and finished), `dol_practice_items` (the exact questions served with their numbers — curriculum content, answer-key class, no answer of the student's) and `dol_practice_attempts` (one per question: the answer, whether it was right, whether it was skipped). No client role can read them; every access is a function that takes the student from the signed-in session. They are never scored, never shown to the teacher, and never read by mixed practice. Kept for the account's lifetime and removed with the account (the `users` cascade), like `dol_pass`. The range moves to 0072 on that basis.
 >

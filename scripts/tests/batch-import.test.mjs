@@ -3251,7 +3251,7 @@ test('practice registry: all seven or none, nothing else, and check L\'s bounds 
     };
     const { mixed_wrong_drop: _drop, ...six } = MIXED_BODY;
     refuse(six, /missing mixed_wrong_drop/);
-    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed seven: mixed_extra/);
+    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed eight: mixed_extra/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [1, 3, 3] }, /strictly increasing/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [0, 3] }, /each ≥ 1/);
     refuse({ ...MIXED_BODY, mixed_wrong_drop: 5 }, /less than the number of steps/);
@@ -3261,6 +3261,20 @@ test('practice registry: all seven or none, nothing else, and check L\'s bounds 
     refuse({ ...MIXED_BODY, mixed_items_per_session: 0 }, /1–50/);
     refuse({ ...MIXED_BODY, mixed_wrong_drop: 1.5 }, /whole number/);
     assert.equal(planPracticeRegistry({ header: {} }).ok, false);
+});
+
+test('practice registry: the optional eighth key, dol_practice_items (C-168, 0073), mirrors when present, 2–8', () => {
+    const file = practiceRegistry({ ...MIXED_BODY, dol_practice_items: 4 });
+    const plan = planPracticeRegistry(file);
+    assert.equal(plan.ok, true, plan.errors.join('; '));
+    assert.deepEqual(plan.mirror.settings, { ...MIXED_BODY, dol_practice_items: 4 });
+    // Absent: the seven alone, exactly as before (start_dol_practice falls back to 4).
+    assert.equal('dol_practice_items' in planPracticeRegistry(practiceRegistry(MIXED_BODY)).mirror.settings, false);
+    for (const bad of [1, 9, 4.5, '4']) {
+        const p = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, dol_practice_items: bad }));
+        assert.equal(p.ok, false, `accepted ${bad}`);
+        assert.match(p.errors.join('; '), /dol_practice_items must be a whole number 2–8/);
+    }
 });
 
 test('practice registry: --practice-registry parses in either form', () => {
