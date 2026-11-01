@@ -1,6 +1,6 @@
 # Student unit tracker (D67) — design pass
 
-**Status:** DESIGN PASS WRITTEN 2026-11-01. UT-1…UT-11 await the author's rulings. No code before them.
+**Status:** ALL RULED by the author 2026-11-01: UT-1…UT-11 as recommended, plus UT-12 and the two filed items under UT-10. The curriculum side agreed (C-172). Each item below keeps its recommendation text; read "Recommend" as the ruling.
 **Source:** the curriculum side's D67, ratified 2026-10-21 (C-153), as restated in C-171 (2026-10-31). It digitises the school's student overview of a unit.
 **Order:** third in the D64–D68 queue, after D68 ✅ and D65 ✅ (re-ruled 2026-10-31, C-171).
 
@@ -108,7 +108,18 @@ So the genuinely new pieces are:
 - that labels keep coming from the registry comments.
 - *Recommend:* yes, sent after your rulings.
 
-## Rough shape of the build (after rulings)
+**UT-12 · Skills with no pass-granting DoL (added 2026-11-01, ruled).** Checked live on 2026-11-01: none of the 21 published activities with a primary skill has a DoL section, so nobody can reach Passed yet. Without this rule, UT-8 would keep pointing students at checks that can't grant a pass.
+- A row's skill counts as *passable* when a published activity in the unit carries its final part with a `dol` section. (A teacher's tick on a rubric primary needs that same DoL, so it adds no other route.)
+- A skill that isn't passable can still show Not started, Learning or Keep practising. It doesn't count for UT-8's next-row choice, and it doesn't hold back or trigger "Everything you've been taught here is passed". That line needs at least one passable row, with every taught passable row passed.
+- With no passable row to name, the next line becomes "Next up: ⟨activity⟩", the first activity given to the class that this student hasn't checked, in teaching order. With none of those either, the unit shows no next line.
+- Consequence, accepted: on today's catalogue the tracker shows Not started, Learning and Keep practising only. Passed appears when the first DoL file is published.
+
+## Filed under UT-10 by C-172 (the author's notes, ruled 2026-11-01)
+
+- **School-unit grouping.** In v1 a tracker unit is `activities.unit`, which is one chain. Grouping rows under the school's own wider units is filed, not built. TRIGGER: the school wants rows grouped by its own units.
+- **Skills admitted only by a consolidation.** Under D71 a consolidation admits its discrimination bank's skills to the pool. A skill with no activity of its own in the unit (904's consolidation admits `algebra.expressions.like-terms`) appears in mixed practice but gets no tracker row. TRIGGER: 904 drafted. When built, such a row can never reach Passed, so it needs its own review statuses and must not count toward UT-8's next-row choice or the "everything passed" line.
+
+## Rough shape of the build
 
 1. **Migration 007x:**
    - the `tracker_wording` table;
