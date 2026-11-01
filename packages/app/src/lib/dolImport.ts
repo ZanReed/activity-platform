@@ -69,7 +69,7 @@ export interface DolImportInput {
 export interface DolImportResult {
     /** Hard problems: the batch importer skips the file in every run. */
     readonly problems: string[];
-    /** Soft notes (warnings; --strict fails on them). */
+    /** Soft notes: printed per file by the batch importer. --strict does NOT fail on them. */
     readonly warnings: string[];
     /** Names declared by the DoL's seed (empty when unseeded). */
     readonly dolVars: ReadonlySet<string>;
@@ -83,8 +83,17 @@ const SEED_MACRO = /\\seed\{([a-z][a-z0-9_]*)\}/g;
 /** Every seed-variable name a subtree references: `{name}` in prose,
  *  `\seed{name}` in latex, free names in blank answers / acceptable answers /
  *  mistake matchers, and a data plot's `dataVar`. Reads both the Tiptap shape
- *  (a blank's fields under `attrs`) and the schema shape (flat). */
-export function collectSeedRefs(node: unknown, into: Set<string> = new Set()): Set<string> {
+ *  (a blank's fields under `attrs`) and the schema shape (flat).
+ *
+ *  `skipTextBlanks` leaves out a TEXT blank's answers. There a bare word is
+ *  either a declared name or the literal answer ({{no | !yes}}):
+ *  resolveSeededEntry only binds names the seed declares, and an unbound word
+ *  grades as itself. So a text blank's word can't be called undeclared. */
+export function collectSeedRefs(
+    node: unknown,
+    into: Set<string> = new Set(),
+    { skipTextBlanks = false }: { skipTextBlanks?: boolean } = {},
+): Set<string> {
     const exprOf = (s: unknown): void => {
         if (typeof s === 'string') for (const v of freeVariables(s)) into.add(v);
     };
@@ -103,7 +112,9 @@ export function collectSeedRefs(node: unknown, into: Set<string> = new Set()): S
         }
         if (typeof o.dataVar === 'string') into.add(o.dataVar);
         const blank = o.type === 'blank' ? ((o.attrs as Record<string, unknown> | undefined) ?? o) : null;
-        if (blank) {
+        // A blank with no answerType is a text blank (blankSyntax's default).
+        const isText = blank !== null && (blank.answerType === undefined || blank.answerType === 'text');
+        if (blank && !(skipTextBlanks && isText)) {
             exprOf(blank.answer);
             if (Array.isArray(blank.acceptableAnswers)) blank.acceptableAnswers.forEach(exprOf);
             if (Array.isArray(blank.mistakeFeedback)) {
@@ -240,6 +251,7 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
     // ---- the seed (DL-3, DL-4, DE-6, DE-8, DE-13, DE-17) ----------------------
     const dolRefs = collectSeedRefs(dolNodes);
     const outsideRefs = collectSeedRefs(outsideNodes);
+    const mustBeDeclared = collectSeedRefs(dolNodes, new Set(), { skipTextBlanks: true });
     let tables: BankValueTable[] | undefined;
     let retake = false;
     let dolVars = new Set<string>();
@@ -249,7 +261,7 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
     for (const name of dolRefs) {
         if (input.activityVars.has(name) && !dolVars.has(name)) {
             problems.push(`DoL: {${name}} is an activity-level seed variable used inside the DoL — it would not redraw on a retake. Declare the DoL’s numbers in a \`\`\`seed fence inside the DoL section (DL-4).`);
-        } else if (seed && !dolVars.has(name)) {
+        } else if (seed && !dolVars.has(name) && mustBeDeclared.has(name)) {
             problems.push(`DoL: {${name}} isn’t declared in the DoL’s \`\`\`seed fence.`);
         }
     }

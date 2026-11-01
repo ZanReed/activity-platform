@@ -158,6 +158,36 @@ describe('the `{checkpoint dol}` section (D65)', () => {
         expect(result.warnings.some((w) => w.includes('one attempt, no retake'))).toBe(true);
     });
 
+    // 801/03's yes/no item (C-174): a text blank's word is the answer, not a name.
+    const seeded = (blank: string) =>
+        [
+            '```meta',
+            'skill: s.one',
+            'dol_skills: s.one',
+            '```',
+            '',
+            '## Check {checkpoint dol}',
+            '',
+            '```seed',
+            'a: int 2..9',
+            '```',
+            '',
+            `For {a}: ${blank}`,
+        ].join('\n');
+
+    it('a text blank’s literal word in a seeded DoL is the answer, not an undeclared name', () => {
+        const { doc, result } = toDoc(seeded('{{no | !yes :: Check the origin.}}'));
+        expect(result.dolProblems).toBeUndefined();
+        expect(dolOf(doc)?.seed?.tables).toHaveLength(1);
+    });
+
+    it('a numeric blank’s undeclared name is still refused', () => {
+        const { result } = toDoc(seeded('{{=b}}'));
+        expect(result.dolProblems?.join(' ')).toContain('{b} isn’t declared');
+        const mistake = toDoc(seeded('{{=a | !c :: No.}}')).result;
+        expect(mistake.dolProblems?.join(' ')).toContain('{c} isn’t declared');
+    });
+
     it('DE-8: a seed that reaches only the review item gives no retake', () => {
         const md = ['```meta', 'skill: s.one', 'dol_skills: s.one, s.two', '```',
             '## Check {checkpoint dol}',
