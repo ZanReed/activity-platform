@@ -5,8 +5,8 @@
 --
 --   §A — dol_optional_block private.
 --   §B — the rule's truth table, then to_grade end to end: an explanation after
---        an auto primary doesn't count, a rubric primary and a plain section's
---        short answer do, and class and activity reads agree.
+--        an auto primary doesn't count; a rubric primary and a plain section's
+--        LATER short answer do; class and activity reads agree.
 
 -- @section A-posture
 -- @expect-rows
@@ -44,7 +44,11 @@ begin
     raise exception 'FAIL B1: a later rubric item is not optional';
   end if;
   if dol_optional_block(function_sec, 'fib') then raise exception 'FAIL B1: an auto item is optional'; end if;
-  if dol_optional_block(function_sec - 'dol', 'expl') then raise exception 'FAIL B1: optional outside a DoL'; end if;
+  -- IS DISTINCT FROM, not a bare IF: 0075 returned NULL here, IF read it as "no",
+  -- and a NULL in the reads' NOT dropped real answers from to_grade (fixed by 0076).
+  if dol_optional_block(function_sec - 'dol', 'expl') is distinct from false then
+    raise exception 'FAIL B1: not a plain false outside a DoL';
+  end if;
 
   -- ---- to_grade end to end -------------------------------------------------
   insert into auth.users (id, email, raw_user_meta_data)
@@ -61,6 +65,7 @@ begin
       'rows', jsonb_build_array(jsonb_build_object('columns', jsonb_build_array(jsonb_build_object('blocks', jsonb_build_array(
         jsonb_build_object('id', p1, 'type', 'fill_in_blank'), jsonb_build_object('id', e1, 'type', 'short_answer'))))))),
     jsonb_build_object('id', 'plain', 'rows', jsonb_build_array(jsonb_build_object('columns', jsonb_build_array(jsonb_build_object('blocks', jsonb_build_array(
+        jsonb_build_object('id', gen_random_uuid(), 'type', 'fill_in_blank'),
         jsonb_build_object('id', pl, 'type', 'short_answer')))))))));
   v_rub := jsonb_build_object('schemaVersion', 2, 'meta', '{}'::jsonb, 'sections', jsonb_build_array(
     jsonb_build_object('id', 'dol', 'isCheckpoint', true, 'dol', '{"skills":["s"],"retake":false}'::jsonb,
