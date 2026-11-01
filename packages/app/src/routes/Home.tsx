@@ -342,6 +342,13 @@ function StudentHome({ email }: { email: string }) {
                     <span className="text-xs text-muted">Daily</span>
                   </Link>
                 ) : null}
+                {/* The unit tracker (D67, UT-1): a lazy route. */}
+                <Link
+                  to={`/progress/${c.classId}`}
+                  className="mt-1 flex min-h-[44px] items-center rounded-md px-3 py-1.5 text-sm font-medium text-ink underline underline-offset-2 hover:bg-surface"
+                >
+                  Your progress
+                </Link>
                 {activities.phase === 'ready' &&
                   (rows.length === 0 ? (
                     <p className="ml-5 py-1.5 text-sm text-muted">

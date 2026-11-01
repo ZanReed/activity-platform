@@ -119,20 +119,13 @@ So the genuinely new pieces are:
 - **School-unit grouping.** In v1 a tracker unit is `activities.unit`, which is one chain. Grouping rows under the school's own wider units is filed, not built. TRIGGER: the school wants rows grouped by its own units.
 - **Skills admitted only by a consolidation.** Under D71 a consolidation admits its discrimination bank's skills to the pool. A skill with no activity of its own in the unit (904's consolidation admits `algebra.expressions.like-terms`) appears in mixed practice but gets no tracker row. TRIGGER: 904 drafted. When built, such a row can never reach Passed, so it needs its own review statuses and must not count toward UT-8's next-row choice or the "everything passed" line.
 
-## Rough shape of the build
+## As built (2026-11-01, migration 0074)
 
-1. **Migration 007x:**
-   - the `tracker_wording` table;
-   - `set_tracker_wording`;
-   - `my_unit_tracker` and `class_unit_tracker`;
-   - `verify-007x`: posture, every status, precedence, the wording privacy across teachers, the fallback letters, a non-member refused;
-   - the data-map entry;
-   - the retention-policy line.
-2. **App:**
-   - the lazy `/progress/:classId` route (student and teacher modes);
-   - the Home link;
-   - the Classes link;
-   - tests bound to rendered output for each status word and the next line.
-3. **Viewer:** none.
-4. **Edge Functions:** none, unless UT-8 adds an in-activity link (cut under UT-10).
-5. **e2e:** a student row walks from Not started to Passed on the local stack.
+- **Routes.** Student `/progress/:classId`, teacher `/classes/:classId/tracker`, both lazy, one file (`routes/UnitTracker.tsx`). UT-6's "same page" is the same layout and rows on a second address, because the role decides the read. Links: "Your progress" under each class on Home, "Unit tracker" on the Classes row. Shell 158.1 of 158.5 KiB.
+- **No chain header.** C-172 note 1 ruled a tracker unit is one chain in v1, so grouping by chain inside a unit isn't built.
+- **Next kinds:** `check`, `practice`, `retake`, `wait`, `all_passed`, `up_next`. Two follow from the walk and aren't spelled out in UT-8:
+  - `wait` ("Your new version of the check opens on your next practice day."): a first try is in, practice is done or unavailable, and the day hasn't moved on.
+  - A row with its tries used up has no step, so the walk moves to the next row, and "all passed" can't fire.
+- **Practice comes first:** when targeted practice and the retake are both open, the line offers practice until a practice session is finished.
+- **Known imprecision, filed in TODOS:** the retake test can't see a rubric primary, so it can say "Try the check again" before the mark is released. The activity's frozen copy still tells the truth. No live file has a DoL yet.
+- **Guards.** `verify-0074` covers posture, every status, precedence, letters, wording privacy, UT-12 and each next kind; mutation-tested 2026-11-01 (swapping precedence went red at B3, restored). `UnitTracker.test.tsx` and `e2e/student/unit-tracker.e2e.ts` bind the words, wording and next lines to rendered output.

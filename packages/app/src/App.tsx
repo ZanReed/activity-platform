@@ -64,6 +64,9 @@ const FactsDemo = lazy(() => import('./routes/FactsDemo'));
 // The student's class link and the teacher's number-facts page (D43 slice 1).
 const FactsEntry = lazy(() => import('./routes/FactsEntry'));
 const FactsTeacher = lazy(() => import('./routes/FactsTeacher'));
+// The unit tracker (curriculum D67): the student's page and the teacher's.
+const StudentTracker = lazy(() => import('./routes/UnitTracker').then((m) => ({ default: m.StudentTracker })));
+const TeacherTracker = lazy(() => import('./routes/UnitTracker').then((m) => ({ default: m.TeacherTracker })));
 
 const Playground = lazy(() => import('./routes/Playground'));
 const DevFoldableColumns = lazy(() => import('./routes/DevFoldableColumns'));
@@ -183,6 +186,23 @@ export default function App() {
         {/* A teacher's per-student view of checked work (class-progress-view.md
             CP-1, D5). The answer panel is a CHILD route so the grid stays
             mounted under it (DR-5: its own address, Back closes it). */}
+        {/* The unit tracker (0074, student-unit-tracker.md UT-1, UT-6). */}
+        <Route
+        path="/progress/:classId"
+        element={
+            <RequireAuth>
+            <StudentTracker />
+            </RequireAuth>
+        }
+        />
+        <Route
+        path="/classes/:classId/tracker"
+        element={
+            <RequireAuth>
+            <TeacherTracker />
+            </RequireAuth>
+        }
+        />
         <Route
         path="/classes/:classId/progress"
         element={

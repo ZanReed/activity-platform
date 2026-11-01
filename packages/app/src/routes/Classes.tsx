@@ -682,6 +682,12 @@ function ClassCard({
         Progress
         </Link>
         <Link
+        to={`/classes/${info.id}/tracker`}
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+        >
+        Unit tracker
+        </Link>
+        <Link
         to={`/classes/${info.id}/facts`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >

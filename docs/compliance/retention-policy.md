@@ -1,10 +1,12 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-10-30-draft-19`. Windows below are the author-ruled S1 defaults
+> Version `2026-11-01-draft-20`. Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-20` (2026-11-01) adds the **unit tracker's row wording** (migration 0074): `tracker_wording`, teacher-written text keyed to its teacher (kept for the account lifetime, removed by the `users` cascade). No student data; the tracker's statuses are derived on read and not stored.
 >
 > `draft-19` (2026-10-30) adds **targeted practice between DoL tries** (migration 0072): `dol_practice_sessions` / `_items` / `_attempts`. **Kept for the student's account lifetime** and removed with the account (CASCADE when the purge deletes the user row), the `dol_pass` and `section_checks` posture; no separate removal job.
 >

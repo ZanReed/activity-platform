@@ -61,6 +61,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  */
 export const AUTH_VERIFY_SET = [
   'verify-0073.sql',
+  'verify-0074.sql',
   'verify-0071.sql',
   'verify-0072.sql',
   'verify-0070.sql',
