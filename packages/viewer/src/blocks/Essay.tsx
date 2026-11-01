@@ -17,14 +17,14 @@ import { useBlockPhase, useBlockSolution, useBlockFeedback, useItemResult, useRe
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
-import { REVIEWED_LABEL } from './ShortAnswer.js';
+import { OPTIONAL_LABEL, REVIEWED_LABEL } from './ShortAnswer.js';
 import { FreeResponseAnswerKey } from './FreeResponseAnswerKey.js';
 
 export default function Essay({
   block,
   mode = 'screen',
 }: BlockComponentProps<EssayBlock>) {
-  const { store } = useViewer();
+  const { store, isOptionalMarking } = useViewer();
   const fieldId = useId();
   const value = useResponse('freeText', block.id) ?? '';
   const servedVersionId = useServedVersionId();
@@ -72,7 +72,10 @@ export default function Essay({
 
       {phase === 'checking' ? <StatePill state="pending" label="Saving…" /> : null}
       {result ? (
-        <StatePill state="recorded" label={feedback ? REVIEWED_LABEL : undefined} />
+        <StatePill
+          state="recorded"
+          label={feedback ? REVIEWED_LABEL : isOptionalMarking(block.id) ? OPTIONAL_LABEL : undefined}
+        />
       ) : null}
 
       {feedback ? (

@@ -13,6 +13,7 @@
 // grader attached, and under a wrong answer only, "Answer: …" (DR-6).
 // =============================================================================
 
+import { dolOptionalBlockIds } from '@activity/viewer';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import { dolSectionId, sectionAnswerLines, servedDocument, type AnswerLine, type ServedDoc } from '../lib/answerText';
@@ -188,7 +189,7 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                 // A blank or omitted essay has NO verdict (the grader writes none),
                                 // yet Responses queues it and the grid counts it: so does this.
                                 for (const line of sectionAnswerLines(latestDoc, s.section_id, s.responses, s.verdicts)) {
-                                    if (handGradedLine(line.itemId) && !s.graded_block_ids.includes(line.itemId)) toGrade += 1;
+                                    if (handGradedLine(line.itemId) && !dolOptionalBlockIds(served.doc).has(line.itemId) && !s.graded_block_ids.includes(line.itemId)) toGrade += 1;
                                 }
                                 const lines = sectionAnswerLines(shownDoc, s.section_id, shown.responses, shown.verdicts);
                                 const rows = lines.map((line) => {

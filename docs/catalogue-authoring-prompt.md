@@ -697,6 +697,12 @@ THE DoL (THE END-OF-LESSON CHECK) IS MARKED, AND NAMES ITS SKILLS
 - Its items are its gradable blocks, in order: exactly one per `dol_skills`
   entry. The FIRST is the primary item; only it decides "passed", and only
   when every blank in it is right. Give it two or three parts on the skill.
+- After the auto-scored items, end the DoL with one written explanation: a
+  `shortanswer` on the primary skill asking why, with a one- or two-line rubric
+  and an `answer:`. List the primary skill again as its `dol_skills` entry:
+  `dol_skills: <primary skill>, <review skill>, <primary skill>`. It never decides
+  "passed", and marking it is optional. Leave it out when the primary item is
+  already a rubric-graded short answer.
 - When the primary item is a rubric-graded short answer, tag each rubric
   line with the level it evidences, in order: `dol_rubric_levels: A, M, E`.
 - A retake is a FRESH DRAW, so a DoL that should offer one carries its own

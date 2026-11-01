@@ -29,6 +29,7 @@ const h = vi.hoisted(() => ({
   assistStatus: vi.fn(),
   rubrics: vi.fn(),
   dolPrimaries: vi.fn(),
+  dolOptionals: vi.fn(async () => new Set<string>()),
   dolPasses: vi.fn(),
   setDolPass: vi.fn(),
   confirm: vi.fn(),
@@ -54,6 +55,7 @@ vi.mock('../lib/gradingAssist', async (importOriginal) => ({
   fetchAssistStatus: h.assistStatus,
   fetchVersionRubrics: h.rubrics,
   fetchDolPrimaries: h.dolPrimaries,
+  fetchDolOptionals: h.dolOptionals,
   confirmSuggestion: h.confirm,
   rejectSuggestion: h.reject,
 }));

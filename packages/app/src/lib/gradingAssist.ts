@@ -10,6 +10,7 @@
  * DR-2 edit diff THERE. The client never decides confirmed-vs-edited; it only
  * reports chip strikes.
  */
+import { dolOptionalBlockIds } from '@activity/viewer';
 import { supabase } from './supabase';
 import { getVersionContents } from './versionContent';
 import { isGradeable, type Block } from '@activity/schema';
@@ -113,6 +114,19 @@ export async function fetchDolPrimaries(versionIds: string[]): Promise<Set<strin
     const dol = sections.find((s) => s.dol !== undefined && s.dol !== null);
     const first = dol?.rows?.flatMap((r) => r.columns ?? []).flatMap((c) => c.blocks ?? []).find((b) => isGradeable(b));
     if (first && typeof first.id === 'string') out.add(`${id}:${first.id}`);
+  }
+  return out;
+}
+
+/** `${versionId}:${blockId}` for every version's optional DoL answers (D77). */
+export async function fetchDolOptionals(versionIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (versionIds.length === 0) return out;
+  const contents = await getVersionContents(versionIds);
+  for (const [id, version] of contents) {
+    for (const blockId of dolOptionalBlockIds(version.content as Parameters<typeof dolOptionalBlockIds>[0])) {
+      out.add(`${id}:${blockId}`);
+    }
   }
   return out;
 }

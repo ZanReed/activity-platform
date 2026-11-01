@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Things only the author does (pushes, deploys, migrations), queued and waiting.
 
-**D65 slice 2 + its dose key LIVE 2026-10-30,** CLOSED (receipt B-220). **D67 tracker BUILT 2026-11-01 ([doc](docs/design/student-unit-tracker.md)):** apply 0074 live, `verify-0074`, THEN push (OV-7). No deploy.
+**D65 slice 2 + its dose key LIVE 2026-10-30,** CLOSED. **D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation BUILT:** apply 0075, `verify-0075`, THEN push; refresh the prompt stamp.
 
 **D65 slice 1 LIVE 2026-10-25, CLOSED** (pin bump merged at curriculum d0b94a4); the record is [dol-retake.md](docs/design/dol-retake.md) → As built.
 

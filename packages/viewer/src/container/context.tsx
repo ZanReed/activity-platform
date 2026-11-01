@@ -46,6 +46,8 @@ export interface ViewerContextValue {
   sectionOf(blockId: string): string | undefined;
   /** sectionId → every section its CHECK GROUP covers (R1/OV#14). */
   groupOf(sectionId: string): string[] | undefined;
+  /** A DoL's optional written explanation (D77): recorded, marking not promised. */
+  isOptionalMarking(blockId: string): boolean;
 }
 
 // WHAT CHANGED, AND WHY (efficiency audit 2026-10 #5, decisions 1–8 ruled
@@ -77,17 +79,21 @@ export interface ViewerProviderProps {
   /** Fallback section for blocks absent from the map — the single-section
    * case tests and /dev/viewer use. */
   defaultSectionId?: string;
+  /** The DoL's optional blocks (D77). Omitted means none. */
+  optionalMarking?: ReadonlySet<string>;
   children: ReactNode;
 }
 
 const NO_SECTIONS: Record<string, string> = {};
 const NO_GROUPS: Record<string, string[]> = {};
+const NO_OPTIONAL: ReadonlySet<string> = new Set();
 
 export function ViewerProvider({
   store,
   sectionByBlock = NO_SECTIONS,
   groupSections = NO_GROUPS,
   defaultSectionId,
+  optionalMarking = NO_OPTIONAL,
   children,
 }: ViewerProviderProps) {
   const value = useMemo<ViewerContextValue>(
@@ -95,8 +101,9 @@ export function ViewerProvider({
       store,
       sectionOf: (blockId) => sectionByBlock[blockId] ?? defaultSectionId,
       groupOf: (sectionId) => groupSections[sectionId],
+      isOptionalMarking: (blockId) => optionalMarking.has(blockId),
     }),
-    [store, sectionByBlock, groupSections, defaultSectionId],
+    [store, sectionByBlock, groupSections, defaultSectionId, optionalMarking],
   );
 
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;

@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-01-draft-40`. Mirrors migrations 0001–**0074**, verified
+> Version `2026-11-02-draft-41`. Mirrors migrations 0001–**0075**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-41` (2026-11-02) — 0075 adds NO personal data.** Two teacher reads stop counting a DoL's optional written explanation as marking owed. Same rows, same callers; no table or column. The range moves to 0075 on that basis.
 >
 > **`draft-40` (2026-11-01) — 0074 adds one TEACHER-keyed table, no student data.** `tracker_wording` holds a teacher's own wording for a row of the student unit tracker (curriculum D67), keyed by teacher and skill. No client role can read it; a student sees only their class teacher's wording through a function that checks membership. Removed with the teacher's account. The tracker's student statuses are worked out on each read from rows already listed here (`section_checks`, `dol_pass`, `mixed_attempts`); nothing new is stored about students. The range moves to 0074 on that basis.
 >

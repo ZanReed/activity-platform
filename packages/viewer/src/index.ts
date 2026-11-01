@@ -407,3 +407,5 @@ export type {
   GlossaryReadCause,
 } from './glossary/service.js';
 export type { GlossarySource } from './glossary/GlossaryHost.js';
+
+export { dolOptionalBlockIds } from './container/dolOptional.js';

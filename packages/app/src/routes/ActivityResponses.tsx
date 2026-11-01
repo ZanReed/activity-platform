@@ -64,6 +64,7 @@ import {
   fetchAssistStatus,
   fetchSuggestions,
   fetchVersionRubrics,
+  fetchDolOptionals,
   fetchDolPrimaries,
   quotaPausedLine,
   rejectSuggestion,
@@ -168,6 +169,8 @@ export default function ActivityResponses() {
   // D65: the DoL's primary blocks (`${version}:${block}`) and who holds the
   // pass. Background, like the assist layer, and degrading to "no tick".
   const [dolPrimaries, setDolPrimaries] = useState<ReadonlySet<string>>(new Set());
+  // D77: answers never owed. Empty until read, so a failed read over-counts rather than hides.
+  const [dolOptionals, setDolOptionals] = useState<ReadonlySet<string>>(new Set());
   const [dolPasses, setDolPasses] = useState<ReadonlyMap<string, DolPassRow>>(new Map());
   const [error, setError] = useState<string | null>(null);
   // A failed re-read AFTER a save keeps the queue on screen (the save itself
@@ -238,8 +241,10 @@ export default function ActivityResponses() {
       void hydrateAssist(queue);
       void (async () => {
         try {
+          const versions = [...new Set(queue.map((r) => r.activity_version_id))];
+          void fetchDolOptionals(versions).then(setDolOptionals, () => setDolOptionals(new Set()));
           const [primaries, passes] = await Promise.all([
-            fetchDolPrimaries([...new Set(queue.map((r) => r.activity_version_id))]),
+            fetchDolPrimaries(versions),
             fetchDolPassStatus(id),
           ]);
           setDolPrimaries(primaries);
@@ -263,9 +268,14 @@ export default function ActivityResponses() {
     return map;
   }, [suggestions]);
 
+  const owed = useCallback(
+    (row: GradingQueueRow) =>
+      needsGrading(row) && !dolOptionals.has(`${row.activity_version_id}:${row.block_id}`),
+    [dolOptionals],
+  );
   const visible = useMemo(
-    () => (rows ?? []).filter((row) => (needsOnly ? needsGrading(row) : true)),
-    [rows, needsOnly],
+    () => (rows ?? []).filter((row) => (needsOnly ? owed(row) : true)),
+    [rows, needsOnly, owed],
   );
 
   /** Section → question → rows. Insertion order follows the RPC's ordering
@@ -295,7 +305,10 @@ export default function ActivityResponses() {
     [rows, selected],
   );
 
-  const outstanding = (rows ?? []).filter(needsGrading).length;
+  const outstanding = (rows ?? []).filter(owed).length;
+  const optionalUnmarked = (rows ?? []).filter(
+    (row) => !row.graded && dolOptionals.has(`${row.activity_version_id}:${row.block_id}`),
+  ).length;
   // Only students whose identity this teacher may see can be named in a
   // release action, so the bulk affordance counts exactly those.
   const unreleasedByStudent = useMemo(() => {
@@ -373,6 +386,12 @@ export default function ActivityResponses() {
               />
               {COPY.needsGrading}
             </label>
+            {optionalUnmarked > 0 && (
+              <p className="text-sm text-muted" data-optional-unmarked={optionalUnmarked}>
+                {optionalUnmarked === 1 ? '1 optional explanation' : `${optionalUnmarked} optional explanations`}: marking
+                is up to you. Turn off the filter to read them.
+              </p>
+            )}
             {totalUnreleased > 0 && (
               <button
                 type="button"

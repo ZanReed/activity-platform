@@ -55,6 +55,7 @@ import type { SectionStatus } from '../store/persistence.js';
 import type { DolServedState } from '../sanitize/dolForm.js';
 import { RESPONSE_CATEGORIES } from '../store/store.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
+import { dolOptionalBlockIds } from './dolOptional.js';
 import { ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
 import {
@@ -432,12 +433,14 @@ export function ViewerContainer({
     [doc],
   );
   const groupSections = useMemo(() => sectionsInGroup(groups), [groups]);
+  const optionalMarking = useMemo(() => dolOptionalBlockIds(doc), [doc]);
 
   return (
     <ViewerProvider
       store={store}
       sectionByBlock={sectionByBlock}
       groupSections={groupSections}
+      optionalMarking={optionalMarking}
     >
     {/* The glossary (D1/D6) is a SCREEN surface only: print mode — and so the
         print preview and ActivityPrint — renders no host, which keeps every

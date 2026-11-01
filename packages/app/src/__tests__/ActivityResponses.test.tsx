@@ -31,6 +31,7 @@ const h = vi.hoisted(() => ({
   assistStatus: vi.fn(),
   rubrics: vi.fn(),
   dolPrimaries: vi.fn(),
+  dolOptionals: vi.fn(async () => new Set<string>()),
   dolPasses: vi.fn(),
   setDolPass: vi.fn(),
 }));
@@ -58,6 +59,7 @@ vi.mock('../lib/gradingAssist', async (importOriginal) => ({
   fetchAssistStatus: h.assistStatus,
   fetchVersionRubrics: h.rubrics,
   fetchDolPrimaries: h.dolPrimaries,
+  fetchDolOptionals: h.dolOptionals,
 }));
 
 import ActivityResponses from '../routes/ActivityResponses';
@@ -141,6 +143,17 @@ describe('the queue', () => {
     // A current-version row carries no version tag: in the common one-version
     // case the queue shows no version chrome at all.
     expect(screen.queryByText('v2')).toBeNull();
+  });
+
+  it('an optional DoL explanation is never owed, and stays reachable (D77)', async () => {
+    const base = row();
+    h.dolOptionals.mockResolvedValueOnce(new Set([`${base.activity_version_id}:${base.block_id}`]));
+    setup([base]);
+    await waitFor(() => expect(screen.getByText(/1 optional explanation/)).toBeTruthy());
+    expect(screen.queryByText(/need grading/)).toBeNull();
+    expect(screen.queryByText(base.student_label as string)).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox'));
+    await waitFor(() => expect(screen.getByText(base.student_label as string)).toBeTruthy());
   });
 
   it('tags rows from an earlier version instead of grouping by version', async () => {

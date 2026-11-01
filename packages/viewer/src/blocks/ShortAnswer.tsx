@@ -40,12 +40,14 @@ import { FreeResponseAnswerKey } from './FreeResponseAnswerKey.js';
 /** The released-feedback label override (design ruling D11). Exported so the
  *  a11y lane and the essay twin assert the same string rather than retyping it. */
 export const REVIEWED_LABEL = 'Reviewed by your teacher';
+// D77: marking a DoL's explanation is optional, so promise no review.
+export const OPTIONAL_LABEL = 'Recorded';
 
 export default function ShortAnswer({
   block,
   mode = 'screen',
 }: BlockComponentProps<ShortAnswerBlock>) {
-  const { store } = useViewer();
+  const { store, isOptionalMarking } = useViewer();
   const fieldId = useId();
 
   const value = useResponse('freeText', block.id) ?? '';
@@ -89,7 +91,10 @@ export default function ShortAnswer({
           — this is the label override StatePill already supports, used for the
           one thing it was meant for. */}
       {result ? (
-        <StatePill state="recorded" label={feedback ? REVIEWED_LABEL : undefined} />
+        <StatePill
+          state="recorded"
+          label={feedback ? REVIEWED_LABEL : isOptionalMarking(block.id) ? OPTIONAL_LABEL : undefined}
+        />
       ) : null}
 
       {feedback ? (

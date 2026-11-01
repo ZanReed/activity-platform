@@ -165,3 +165,48 @@ describe('targeted practice offer (D65 slice 2, TP-1/TP-6)', () => {
     expect(offer(container)).toBeNull();
   });
 });
+
+describe('a DoL explanation is optional to mark (D77)', () => {
+  const pill = (c: HTMLElement, id: string) =>
+    c.querySelector(`[data-block-id="${id}"]`)?.textContent ?? '';
+  const multipleChoice = fullDoc.sections
+    .flatMap((s) => s.rows).flatMap((r) => r.columns).flatMap((c) => c.blocks)
+    .find((b) => (b as { type?: string }).type === 'multiple_choice')!;
+
+  function withBlocks(blocks: unknown[]) {
+    const base = dolDoc(state());
+    return {
+      ...base,
+      sections: base.sections.map((s) => ({
+        ...s,
+        rows: [{ id: 'r', gridLines: 'inherit', columns: [{ id: 'c', blocks }] }],
+      })),
+    } as unknown as SanitizedActivityDocument;
+  }
+
+  async function checked(blocks: unknown[], items: Record<string, unknown>) {
+    const svc = service({ items } as Partial<SectionCheckResult>);
+    const store = createViewerStore({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION, checkService: svc });
+    const { container } = render(<ViewerContainer document={withBlocks(blocks)} store={store} versionId={VERSION} />);
+    await act(async () => { fireEvent.click(button(container)!); });
+    await act(async () => { fireEvent.click(container.querySelector('.viewer-check-group__confirm-fire')!); });
+    return container;
+  }
+
+  it('after an auto-scored primary, it says "Recorded" and promises no review', async () => {
+    const c = await checked(
+      [{ ...(multipleChoice as object), id: 'blk-primary' }, { ...(shortAnswer as object), id: 'blk-expl' }],
+      { 'blk-expl': { verdict: 'recorded' } },
+    );
+    expect(pill(c, 'blk-expl')).toContain('Recorded');
+    expect(pill(c, 'blk-expl')).not.toContain('your teacher will review');
+  });
+
+  it('a rubric primary keeps the promise: its mark decides the pass', async () => {
+    const c = await checked(
+      [{ ...(shortAnswer as object), id: 'blk-primary' }],
+      { 'blk-primary': { verdict: 'recorded' } },
+    );
+    expect(pill(c, 'blk-primary')).toContain('your teacher will review');
+  });
+});
