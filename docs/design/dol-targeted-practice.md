@@ -39,7 +39,7 @@ Building.
 - Order of choice:
   1. ratified skill-bank templates of the primary skill that bind a `mis.*` attempt 1 showed (ranked by how many of those they bind);
   2. then the skill's other ratified templates, in bank order.
-- One item per template.
+- One item per template, with one exception (amended 2026-11-02, 0077, their C-167 wish): when exactly one template the student may be served binds a misconception the first try showed, and it has two or more rows, it's served first and again last, with a different row. The dose stays the same, so it replaces one other template. A bank of one such template gives 2 items, not 1.
 - Tier filter: the same `mixed_tier_ok` as mixed practice. Before a pass that means D–C plus untagged.
 
 **Recommend as written.** ⚠ The curriculum side may want N as a graph key. Ask in the letter (TP-9).

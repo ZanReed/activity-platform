@@ -83,6 +83,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0074_unit_tracker.sql` | The student unit tracker (curriculum D67, docs/design/student-unit-tracker.md UT-1…UT-12): `tracker_wording` (a teacher's private row wording per skill; no policy, no client grant), `set_tracker_wording`, and two derived reads, `my_unit_tracker` (statuses and the next line) and `class_unit_tracker` (the teacher's, no statuses). Nothing new is stored about students. Verify: `scripts/verify-0074.sql`. |
 | `0075_dol_optional_explanation.sql` | Curriculum D77: in a DoL, a short answer or essay that isn't the primary item is optional to mark. `dol_optional_block` (the rule, derived from the document) and `class_progress` + `activity_progress` leaving such answers out of `to_grade`. No table, no personal data. Verify: `scripts/verify-0075.sql`. |
 | `0076_dol_optional_null_fix.sql` | `dol_optional_block` returned NULL outside a DoL, and the reads' NOT dropped later short answers from `to_grade`. It now returns false. Verify: `scripts/verify-0075.sql`, `scripts/verify-0061.sql`. |
+| `0077_dol_practice_repeat.sql` | Targeted practice serves the one template binding a shown misconception first and last, with a different row, when it has two or more rows. Verify: `scripts/verify-0077.sql`. |
 
 ## Regression re-runs (the DB has no CI harness)
 
