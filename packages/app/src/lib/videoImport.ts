@@ -34,6 +34,7 @@ function stripNested(nodes: JSONContent[], problems: string[]): void {
 export function finalizeVideos(
     blocks: JSONContent[],
     activityType: string | undefined,
+    submissionMode: string | undefined,
     sideChannels: JSONContent[][],
 ): string[] {
     const problems: string[] = [];
@@ -64,6 +65,8 @@ export function finalizeVideos(
         let problem: string | null = null;
         if (activityType === 'quiz' || activityType === 'exam') {
             problem = `Video: a ${activityType} can't have a clip, because a pause gives a verdict before the check.`;
+        } else if (submissionMode === 'locked') {
+            problem = "Video: a locked activity can't have a clip, because a pause gives a verdict before a check that can't be redone.";
         } else if (heading?.attrs?.dol != null) {
             problem = "Video: a DoL section can't have a clip, because a pause gives a verdict before the check.";
         } else if (String(heading?.attrs?.title ?? '').trim().toLowerCase() !== 'lesson') {

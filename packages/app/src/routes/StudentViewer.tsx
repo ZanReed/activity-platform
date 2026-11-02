@@ -36,6 +36,7 @@ import {
   activityTypeLabel,
   ToolCluster,
   ViewerContainer,
+  setVideoSourceRpc,
   ViewerLoadError,
   createBrowserConnectivity,
   createCheckQueue,
@@ -74,6 +75,10 @@ import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
 import { SLOW_LOAD_MS } from '../lib/slowLoad';
 import { studentGlossaryCache } from '../lib/glossaryService';
 import { SignInFailedCard, useAuthCallbackError } from '../components/AuthScreens';
+
+// D64 VP-7: the served document has no URL, so the clip's chunk asks the server's
+// gate through this. It is all the shell pays, and it has no room for more.
+setVideoSourceRpc((name, args) => supabase.rpc(name, args));
 
 // functionsBase comes from lib/supabase (A21) — the one env-read site, so
 // this route's tests stay env-independent by mocking that module.

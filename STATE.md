@@ -22,7 +22,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **D65 slice 2 + its dose key LIVE 2026-10-30,** CLOSED. **D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
 
-**D64 slice 1:** both functions redeployed, hash-verified 2026-11-02. Push, then B-231 (pin bump), prompt stamp. [video-pause-points.md](docs/design/video-pause-points.md).
+**D64:** slice 1 live. Slice 2: apply 0078, verify, push (carries the baseline); green CI, then B-231, prompt stamp. [video-pause-points.md](docs/design/video-pause-points.md).
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. **Owed:** `/design-review` → MP-15's capability-row letter (S4-4).
 

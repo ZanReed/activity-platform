@@ -104,8 +104,12 @@ describe('stampVideoStaleness', () => {
     expect(dol.video.stale).toBe(true);
 
     const quiz = stampedClip();
-    stampVideoStaleness([quiz.section], 'quiz');
+    stampVideoStaleness([quiz.section], { activityType: 'quiz' });
     expect(quiz.video.stale).toBe(true);
+
+    const locked = stampedClip();
+    stampVideoStaleness([locked.section], { submissionMode: 'locked' });
+    expect(locked.video.stale).toBe(true);
 
     const copied = stampedClip();
     const twin = { ...copied.video, id: id() };

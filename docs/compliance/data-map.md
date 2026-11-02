@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-02-draft-43`. Mirrors migrations 0001–**0077**, verified
+> Version `2026-11-02-draft-44`. Mirrors migrations 0001–**0078**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-44` (2026-11-02) — 0078 adds NO personal data.** One setting (`video_clearance`) and one read of a clip's URL; no column names a person and nothing is logged about who asked. A clip's third-party host is not named here yet, because no student can reach one until the VP-8 checklist is done, and that checklist includes naming it.
 >
 > **`draft-43` (2026-11-02) — 0077 adds NO personal data.** It changes which questions targeted practice picks, and adds one internal row-draw function; no table or column. The range moves to 0077 on that basis.
 >

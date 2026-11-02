@@ -1099,7 +1099,7 @@ function tokensToBlocks(
     const blocks = mapBlocks(nest(tokens), ctx);
     let dolProblems: string[] = [];
     if (!ctx.bankSection) {
-        for (const p of finalizeVideos(blocks, ctx.meta?.activityType, [ctx.refPanelBlocks, ctx.teacherGuideBlocks ?? []])) {
+        for (const p of finalizeVideos(blocks, ctx.meta?.activityType, ctx.meta?.submissionMode, [ctx.refPanelBlocks, ctx.teacherGuideBlocks ?? []])) {
             ctx.warnings.add(p);
             ctx.figureProblems.push(p);
         }

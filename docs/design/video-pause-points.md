@@ -138,6 +138,18 @@ pause: 6:30
 
 ## As built
 
+**Slice 2 (2026-11-02): player and gate.** Migration 0078. Teachers who own the activity only, because `video_clearance` is off.
+- **Gate:** `video_source` as VP-7. Reached through `setVideoSourceRpc`, a one-call seam set when the app boots. Print never calls it. A preview on any other surface does, and the gate returns nothing unless the caller owns a real published clip.
+- **Locked activities are refused (from the Fable review, not in VP-1):** by the importer and on save. A locked section's check can't be redone, so a pause must not give a verdict before it, and its frozen fieldset would disable the card's buttons. No catalogue file is locked today.
+- **Shell:** exactly at the 158.5 cap after moving the read into the clip's chunk, with zero headroom. Slice 3 must add nothing eager.
+- **Interim at a pause:** the clip stops, the page scrolls to the faded block, and a "Keep going" button sits in that block through a portal. Slice 3 puts the check there. Nothing is recorded yet.
+- **The faded blocks are found in the rendered section,** because the shell has no room for another context field. The order matches `videoPauseTargets`.
+- **Opening the card starts the player,** so "Watch" is the one tap VP-6 asks for. The tap is also the gesture a browser needs for sound.
+- **VP-9 gap, accepted:** a failed read of `video_source` shows nothing, not "isn't available", because the client can't tell a failed read from a refusal and a student who isn't cleared must see nothing. The message shows when the student is offline at the tap, or the host fails after a URL arrived.
+- **For counsel:** the YouTube iframe API script loads from `www.youtube.com`, even though the player itself is on `youtube-nocookie.com`. It loads only after the tap. The new packet question must say so.
+- **Review fixes (Fable):** the hide rule now names the viewer's wrapper, because the bare attribute hid the editor's card, which slice 1 had shipped. The stop sits in the block's content column. A hung YouTube script ends in "isn't available" after 15 seconds. The card can close, and reopening retries.
+- **Not proven yet:** the YouTube host has only a unit test with a fake player. The file host is proven in a real browser with a real recorded clip. The author's first real clip is the YouTube proof.
+
 **Slice 1 (2026-11-02): fence and schema.** No migration.
 - `VideoBlock`, `video-beat.ts` (hash, staleness, host check), `videoFence.ts` (grammar), `videoImport.ts` (placement).
 - **Catalogue only, enforced:** `ImportOptions.catalogue` is set by the batch importer alone, so a teacher's paste drops the fence with a warning (VP-10). The fence is taught in the catalogue prompt and not the teacher's.

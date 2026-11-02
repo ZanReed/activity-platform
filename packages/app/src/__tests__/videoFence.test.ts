@@ -85,6 +85,12 @@ describe('where a clip may sit (VP-1)', () => {
         expect(hasVideo(md)).toBe(false);
     });
 
+    it('refuses a locked activity', () => {
+        const md = ['```meta', 'submission: locked', '```', '', lesson(CLIP, FADED)].join('\n');
+        expect(catalogue(md).figureProblems?.join(' ')).toMatch(/locked activity/);
+        expect(hasVideo(md)).toBe(false);
+    });
+
     it('refuses a clip inside columns', () => {
         const md = lesson(['```columns', CLIP.replace(/```video\n|\n```/g, ''), '```'].join('\n'), FADED);
         expect(hasVideo(md)).toBe(false);

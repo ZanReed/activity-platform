@@ -121,6 +121,8 @@ export interface CheckOutcome {
 }
 
 export interface ActivityApiOptions {
+  /** What video_source returns. Omitted = a URL; null = the server says no. */
+  videoSource?: { url: string; captions: string | null } | null;
   document?: unknown;
   activityId?: string;
   versionId?: string;
@@ -228,6 +230,16 @@ export async function stubActivityApi(
     contentRequests: 0,
     functionUrls: [] as string[],
   };
+
+  // D64 VP-7: the fixture document has a clip, so this read fires on every open.
+  await page.route('**/rest/v1/rpc/video_source', async (route) => {
+    if (await abortIfOffline(route)) return;
+    const source =
+      options.videoSource === undefined
+        ? { url: 'https://clips.example.org/fixture.webm', captions: null }
+        : options.videoSource;
+    await route.fulfill({ json: source ? [source] : [] });
+  });
 
   // The student's own checked section ids (restore D5; 0060). The path derives
   // from the production constant (P2), never a retyped literal.

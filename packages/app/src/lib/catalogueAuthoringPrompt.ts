@@ -50,7 +50,7 @@ const VIDEO_SECTION = [
     'Write one `pause:` per ```faded block after the fence, ascending: each stops',
     'the clip at the next faded block. A video file needs `captions:` with an https',
     '.vtt file. `recorded_against:` is the hash a dry run prints. A section has one',
-    'clip at most, and a DoL section, quiz or exam has none.',
+    'clip at most, and a DoL section, quiz, exam or `submission: locked` file has none.',
 ].join('\n');
 
 const CATALOGUE_SECTION = [

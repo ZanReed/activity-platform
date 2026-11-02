@@ -31,10 +31,61 @@
   padding: var(--space-6) var(--space-4);
 }
 
-/* D64: no player until slice 2, so a clip's frame takes no room on screen. The
-   print half of this rule outlives it (video/prints-nothing, VP-9). */
-[data-block-type='video'] {
+/* D64: a clip with no URL takes no room, whether it is still loading or the
+   server said no. There is no placeholder (VP-7). Scoped to the viewer's wrapper:
+   the editor's card has the same attribute and must stay visible. */
+.viewer-block[data-block-type='video']:not(:has(.viewer-video)) {
   display: none;
+}
+
+.viewer-video__open {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.viewer-video__frame {
+  margin-top: 0.5rem;
+}
+
+.viewer-video__media,
+.viewer-video__frame iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.viewer-video__stale,
+.viewer-video__unavailable,
+.viewer-video__jumps {
+  margin: 0.5rem 0 0;
+}
+
+/* A numbered block's wrapper is a grid with a number gutter. */
+.viewer-video-stop {
+  grid-column: 2;
+}
+
+.viewer-video__button,
+.viewer-video__jump {
+  min-height: 44px;
+  min-width: 44px;
+  margin: 0.5rem 0.5rem 0 0;
+  padding: 0 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .viewer-section {
@@ -1834,6 +1885,11 @@
 :where([data-viewer-mode='print']) .viewer-data-plot__canvas,
 :where([data-viewer-mode='print']) .tool-corner,
 :where([data-viewer-mode='print']) .tool-mount,
+:where([data-viewer-mode='print']) .viewer-block[data-block-type='video'],
+:where([data-viewer-mode='print']) .viewer-video-stop {
+  display: none;
+}
+
 :where([data-viewer-mode='print']) .viewer-reference-float {
   display: none;
 }
@@ -1873,6 +1929,12 @@
      the worksheet heading below. Its screen job ends at the dialog. */
   .viewer-banner,
   .viewer-topbar {
+    display: none;
+  }
+
+  /* A clip never prints: its faded blocks are on the paper (VP-9). */
+  .viewer-block[data-block-type='video'],
+  .viewer-video-stop {
     display: none;
   }
 

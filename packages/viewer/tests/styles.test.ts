@@ -569,3 +569,12 @@ describe('the reference panel’s floating form — stylesheet-only facts', () =
     );
   });
 });
+
+describe('the clip rule (D64)', () => {
+  it("is scoped to the viewer's wrapper, so the editor's card stays visible", () => {
+    const code = readFileSync(new URL('../src/styles/viewer.css', import.meta.url), 'utf8');
+    expect(code).toContain(".viewer-block[data-block-type='video']:not(:has(.viewer-video))");
+    // Any bare form would also match the editor's div[data-block-type="video"].
+    expect(code.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/(^|[\s,)])\[data-block-type='video'\]/m);
+  });
+});

@@ -93,10 +93,18 @@ export function videoBeatHash(section: SectionLike, video: VideoBlock): string {
 // The importer refuses a clip that breaks these (videoImport.ts), but the editor
 // can copy, paste or drag its card anywhere. So the save rule is the same, and it
 // fails closed: a clip in the wrong place is stale, and students don't get it.
-function clipIsPlaced(section: SectionLike, video: VideoBlock, activityType: string | undefined): boolean {
+// A locked activity is refused too: its check can't be redone, so a pause must not
+// give a verdict before it, and its frozen section would disable the card's buttons.
+export interface VideoDocMeta {
+  activityType?: string;
+  submissionMode?: string;
+}
+
+function clipIsPlaced(section: SectionLike, video: VideoBlock, meta: VideoDocMeta): boolean {
   return (
-    activityType !== 'quiz' &&
-    activityType !== 'exam' &&
+    meta.activityType !== 'quiz' &&
+    meta.activityType !== 'exam' &&
+    meta.submissionMode !== 'locked' &&
     section.dol == null &&
     section.title?.trim().toLowerCase() === 'lesson' &&
     blocksOf(section).filter((block) => block.type === 'video').length === 1 &&
@@ -104,15 +112,15 @@ function clipIsPlaced(section: SectionLike, video: VideoBlock, activityType: str
   );
 }
 
-function clipIsCurrent(section: SectionLike, video: VideoBlock, activityType: string | undefined): boolean {
-  return clipIsPlaced(section, video, activityType) && video.recordedAgainst === videoBeatHash(section, video);
+function clipIsCurrent(section: SectionLike, video: VideoBlock, meta: VideoDocMeta): boolean {
+  return clipIsPlaced(section, video, meta) && video.recordedAgainst === videoBeatHash(section, video);
 }
 
 /** Set `stale` on every clip in these sections. Called on every save. */
-export function stampVideoStaleness(sections: readonly SectionLike[], activityType?: string): void {
+export function stampVideoStaleness(sections: readonly SectionLike[], meta: VideoDocMeta = {}): void {
   for (const section of sections) {
     for (const block of blocksOf(section)) {
-      if (block.type === 'video') block.stale = !clipIsCurrent(section, block, activityType);
+      if (block.type === 'video') block.stale = !clipIsCurrent(section, block, meta);
     }
   }
 }
@@ -120,14 +128,14 @@ export function stampVideoStaleness(sections: readonly SectionLike[], activityTy
 /** Each clip's state, for the importer's report: a dry run prints the hash. */
 export function videoBeats(
   sections: readonly SectionLike[],
-  activityType?: string,
+  meta: VideoDocMeta = {},
 ): { title: string; hash: string; recordedAgainst: string | null; stale: boolean }[] {
   return sections.flatMap((section) =>
     blocksOf(section).flatMap((block) => {
       if (block.type !== 'video') return [];
       const hash = videoBeatHash(section, block);
       const recordedAgainst = block.recordedAgainst ?? null;
-      return [{ title: block.title, hash, recordedAgainst, stale: !clipIsCurrent(section, block, activityType) }];
+      return [{ title: block.title, hash, recordedAgainst, stale: !clipIsCurrent(section, block, meta) }];
     }),
   );
 }
@@ -136,24 +144,39 @@ export type VideoHost = 'youtube' | 'file';
 
 const YOUTUBE_ID = /^[\w-]{6,}$/;
 
-/** Which player a URL needs, or null for a host the platform refuses (VP-6). */
-export function videoHostOf(url: string): VideoHost | null {
-  let parsed: URL;
+function httpsUrl(url: string): URL | null {
   try {
-    parsed = new URL(url);
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' ? parsed : null;
   } catch {
     return null;
   }
-  if (parsed.protocol !== 'https:') return null;
+}
+
+function youtubeHostName(parsed: URL): string | null {
   const host = parsed.hostname.replace(/^(www|m)\./, '');
+  return host === 'youtu.be' || host === 'youtube.com' || host === 'youtube-nocookie.com' ? host : null;
+}
+
+/** The video id of a YouTube URL, or null. */
+export function youtubeIdOf(url: string): string | null {
+  const parsed = httpsUrl(url);
+  const host = parsed && youtubeHostName(parsed);
+  if (!parsed || !host) return null;
   const path = parsed.pathname;
-  if (host === 'youtu.be') return YOUTUBE_ID.test(path.slice(1)) ? 'youtube' : null;
-  if (host === 'youtube.com' && path === '/watch') {
-    return YOUTUBE_ID.test(parsed.searchParams.get('v') ?? '') ? 'youtube' : null;
-  }
-  if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
-    const embed = /^\/embed\/([^/]+)$/.exec(path);
-    return embed && YOUTUBE_ID.test(embed[1]!) ? 'youtube' : null;
-  }
-  return /\.(mp4|webm)$/i.test(path) ? 'file' : null;
+  const id =
+    host === 'youtu.be'
+      ? path.slice(1)
+      : host === 'youtube.com' && path === '/watch'
+        ? parsed.searchParams.get('v')
+        : /^\/embed\/([^/]+)$/.exec(path)?.[1];
+  return id && YOUTUBE_ID.test(id) ? id : null;
+}
+
+/** Which player a URL needs, or null for a host the platform refuses (VP-6). */
+export function videoHostOf(url: string): VideoHost | null {
+  const parsed = httpsUrl(url);
+  if (!parsed) return null;
+  if (youtubeHostName(parsed)) return youtubeIdOf(url) ? 'youtube' : null;
+  return /\.(mp4|webm)$/i.test(parsed.pathname) ? 'file' : null;
 }

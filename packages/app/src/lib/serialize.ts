@@ -276,7 +276,7 @@ export function tiptapToActivity(
         meta,
         sections: splitTiptapRowsIntoSections(tiptap.content ?? []),
     };
-    stampVideoStaleness(doc.sections, meta.activityType);
+    stampVideoStaleness(doc.sections, meta);
     // The reference panel is authored on its own surface (Drop C) and carried
     // as separate state, NOT encoded in the main editor's Tiptap doc — so it
     // arrives here as an argument, not parsed out of `tiptap`. Pass it through

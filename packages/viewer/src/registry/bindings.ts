@@ -41,7 +41,6 @@ import Correspondence from '../blocks/Correspondence.js';
 import WorkedExample from '../blocks/WorkedExample.js';
 import Table from '../blocks/Table.js';
 import FadedWorkedExample from '../blocks/FadedWorkedExample.js';
-import Video from '../blocks/Video.js';
 
 /**
  * How each built block reaches the page. Unlisted types have no component yet
@@ -77,7 +76,6 @@ export const blockBindings: Partial<
   // weight worth a lazy boundary, and it sits inline with prose where a
   // Suspense fallback would flash.
   table: { loading: 'eager', component: Table as never },
-  video: { loading: 'eager', component: Video as never },
   // The lazy tier: every canvas block pulls graph-kit (and JSXGraph) behind
   // it, which is exactly the weight that tier exists for.
   interactive_graph: {
@@ -98,6 +96,11 @@ export const blockBindings: Partial<
   chart: {
     loading: 'lazy',
     load: () => import('../blocks/Chart.js') as never,
+  },
+  // Lazy for the shell's sake, and because most activities have no clip.
+  video: {
+    loading: 'lazy',
+    load: () => import('../blocks/Video.js') as never,
   },
   // math_block is lazy for a different reason than the canvas blocks: a
   // GAP-BEARING equation mounts MathLive, the heaviest dependency in the

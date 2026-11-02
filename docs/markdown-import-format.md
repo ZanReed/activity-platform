@@ -1770,13 +1770,13 @@ pause: 6:30
 |---|---|
 | `title:` | Required. The name on the student's card. |
 | `url:` | Required. YouTube, or any `https` `.mp4` or `.webm` file. |
-| `captions:` | An `https` `.vtt` file. Required for a video file, refused for YouTube, which uses its own captions. |
+| `captions:` | An `https` `.vtt` file. Required for a video file, refused for YouTube, which uses its own captions. A file host must send CORS headers for the video and the captions, or they won't load. |
 | `recorded_against:` | The beat hash the clip was recorded against. A dry run prints the current one under `clips:`. |
 | `pause:` | At least one, ascending, as `m:ss` or `h:mm:ss`. Each maps to the next ```faded block after the fence, in order. `| rewind m:ss` sets where "Rewind" goes; without it, Rewind goes to the previous pause or the start. |
 
 A problem with a clip skips the file in every run. The importer refuses a clip:
 
-- in a section whose heading isn't `## Lesson`, in a DoL section, or in a quiz or exam;
+- in a section whose heading isn't `## Lesson`, in a DoL section, in a quiz or exam, or in an activity with `submission: locked`;
 - inside another block, a reference panel or a teacher guide;
 - when its section already has a clip;
 - when its pause count differs from the number of faded blocks after it in the section.

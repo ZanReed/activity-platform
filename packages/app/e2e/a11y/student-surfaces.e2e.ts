@@ -52,6 +52,8 @@ const LAZY_MOUNT_MARKERS: Record<string, string> = {
   // The chart draws a static SVG once its chunk is in; `svg.chart-paper` is
   // the engine's own root, so a Suspense fallback cannot satisfy it.
   chart: '[data-block-type="chart"] svg.chart-paper',
+  // The card appears once the (stubbed) gate returns a URL.
+  video: '[data-block-type="video"] .viewer-video',
 };
 
 /** The registry's lazy tier, derived — never retyped (P2). */

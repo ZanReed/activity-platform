@@ -409,3 +409,5 @@ export type {
 export type { GlossarySource } from './glossary/GlossaryHost.js';
 
 export { dolOptionalBlockIds } from './container/dolOptional.js';
+
+export { setVideoSourceRpc } from './blocks/videoSourceSeam.js';

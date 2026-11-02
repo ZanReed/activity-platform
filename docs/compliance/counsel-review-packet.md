@@ -255,6 +255,29 @@ fact for counsel is the FREQUENCY. Please read (a) and (b) as covering both.
 The author also placed the first classes as Years 7–10, so Q4 and D7's
 under-13 questions are no longer hypothetical.)*
 
+**Q13 — DRAFT, not yet sent. Third-party video on students' devices (curriculum
+D64 and D73).** The platform has a catch-up video player that no student can
+reach yet. A server setting keeps it off, and a student's device doesn't receive
+the video's address while it is off. Before turning it on, the author needs an
+answer to this: **may a student, some of them under 13, watch a teacher-recorded
+clip embedded from a third-party host?**
+
+What would happen on a student's device, only after the student opens the clip's
+card, and nothing before that:
+- **YouTube, unlisted.** The player comes from `www.youtube-nocookie.com`, and its
+  control script loads from `www.youtube.com`. Both are Google hosts and receive
+  the device's IP address and browser details. The clips hold no student data.
+- **A plain video file on a host the school chooses.** That host receives the same
+  device details, and no Google service is involved.
+
+The platform keeps no record of who played what. It would record a student's first
+answer at each pause against the skill, like any other first try.
+
+Please say which host, if either, is acceptable, what the school authorization and
+privacy page must say first, and whether the answer differs for students under 13.
+*(Numbered Q13 because TODOS earmarks Q12 for the mixed-practice window. Renumber
+if that one isn't sent first.)*
+
 ## 6. What this packet deliberately does not do
 
 - It does not ask counsel to review code, and no answer above depends on

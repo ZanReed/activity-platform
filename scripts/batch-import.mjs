@@ -1064,7 +1064,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         // passed) — the reference gate and the glossary report read it.
         glossary: result.glossary ?? null,
         // D64 VP-5: every clip's beat hash, for the report and the stale warning.
-        videos: pipeline.videoBeats(parsed.data.sections, parsed.data.meta.activityType),
+        videos: pipeline.videoBeats(parsed.data.sections, parsed.data.meta),
         sourceKey: fence.sourceKey ?? null,
         primarySkill: fence.primarySkill ?? null,
         supportingSkills: fence.supportingSkills ?? [],
