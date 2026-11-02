@@ -13,7 +13,7 @@
   not a build failure.
 -->
 
-195 bindings · 30 distinct ids · 21 files
+196 bindings · 30 distinct ids · 21 files
 
 ## By id
 
@@ -35,9 +35,9 @@
 | `mis.place-value.append-zero` | 4 | `701-chain.number.place-value/02-powers-of-ten.md`, `701-chain.number.place-value/03-rounding-cash.md` |
 | `mis.place-value.longer-is-larger` | 8 | `701-chain.number.place-value/01-decimals.md`, `701-chain.number.place-value/02-powers-of-ten.md` |
 | `mis.proportional.line-misses-origin` | 7 | `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
-| `mis.proportional.one-pair-assumed-constant` | 4 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.proportional.one-pair-assumed-constant` | 3 | `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/03-proportional-graph.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.rate.compares-totals` | 2 | `801-chain.rate.proportional/01-unit-rate.md` |
-| `mis.rate.ratio-inverted` | 6 | `801-chain.rate.proportional/01-unit-rate.md`, `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
+| `mis.rate.ratio-inverted` | 8 | `801-chain.rate.proportional/01-unit-rate.md`, `801-chain.rate.proportional/02-constant-of-proportionality.md`, `801-chain.rate.proportional/04-proportional-consolidation.md` |
 | `mis.reflect.diagonal-as-vertical` | 7 | `714-chain.geom.transformations/02-reflect.md` |
 | `mis.reflect.half-turn-confused` | 8 | `714-chain.geom.transformations/04-which-transformation.md` |
 | `mis.reflect.translates` | 6 | `714-chain.geom.transformations/02-reflect.md`, `714-chain.geom.transformations/04-which-transformation.md` |
@@ -115,9 +115,9 @@
 - `801-chain.rate.proportional/01-unit-rate.md` — 4 bindings
     - `mis.rate.compares-totals` ×2
     - `mis.rate.ratio-inverted` ×2
-- `801-chain.rate.proportional/02-constant-of-proportionality.md` — 5 bindings
-    - `mis.proportional.one-pair-assumed-constant` ×2
-    - `mis.rate.ratio-inverted` ×3
+- `801-chain.rate.proportional/02-constant-of-proportionality.md` — 6 bindings
+    - `mis.proportional.one-pair-assumed-constant` ×1
+    - `mis.rate.ratio-inverted` ×5
 - `801-chain.rate.proportional/03-proportional-graph.md` — 5 bindings
     - `mis.proportional.line-misses-origin` ×4
     - `mis.proportional.one-pair-assumed-constant` ×1
