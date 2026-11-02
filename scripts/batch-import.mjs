@@ -831,7 +831,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
             'declares `kind: bank` but is not under banks/ — move it to banks/<chain folder>/ (PB-1, PB-2)',
         );
     }
-    const result = pipeline.importer(markdown, glossary ? { glossary } : undefined);
+    const result = pipeline.importer(markdown, { catalogue: true, ...(glossary ? { glossary } : {}) });
 
     if (
         result.blocks.length === 0 &&
@@ -854,7 +854,7 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
     // typed channel, never by matching warning text.
     if (result.figureProblems && result.figureProblems.length > 0) {
         throw new Error(
-            `figure or chart problem${result.figureProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
+            `figure, chart or video problem${result.figureProblems.length === 1 ? '' : 's'} — fix and re-run:\n      ` +
                 result.figureProblems.join('\n      '),
         );
     }
@@ -1063,6 +1063,8 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         // How every [[term]] resolved (present only when a glossary source was
         // passed) — the reference gate and the glossary report read it.
         glossary: result.glossary ?? null,
+        // D64 VP-5: every clip's beat hash, for the report and the stale warning.
+        videos: pipeline.videoBeats(parsed.data.sections, parsed.data.meta.activityType),
         sourceKey: fence.sourceKey ?? null,
         primarySkill: fence.primarySkill ?? null,
         supportingSkills: fence.supportingSkills ?? [],
@@ -2344,6 +2346,7 @@ export async function loadPipeline() {
         GLOSSARY_MAX_ENTRIES: mod.GLOSSARY_MAX_ENTRIES,
         wrapBlocksStrict: mod.wrapBlocksStrict,
         tiptapToActivity: mod.tiptapToActivity,
+        videoBeats: mod.videoBeats,
         // The load half of the round trip. Only the TEST uses it (the script
         // never reloads what it just wrote) — it is here so §A can prove
         // import → save → reload → resave, the leg where fields die silently.
@@ -3501,6 +3504,27 @@ async function main() {
         } catch (err) {
             skipped.push({ file, error: err.message });
         }
+    }
+
+    // D64 VP-5: a stale clip warns, so --strict fails; a student wouldn't get it.
+    // Every clip's hash prints, since a dry run is where recorded_against comes
+    // from. It prints here because the registry guards below can exit the run.
+    const videoLines = [];
+    for (const { file, converted } of [...plannedCreates, ...plannedUpdates]) {
+        for (const video of converted.videos) {
+            videoLines.push(`${file.sourcePath}: “${video.title}” · beat ${video.hash}${video.stale ? ' · OUT OF DATE' : ' · current'}`);
+            if (video.stale) {
+                catalogueWarnings.push(
+                    `${file.sourcePath}: the clip “${video.title}” is out of date, so students won't get it. ` +
+                        `recorded_against is ${video.recordedAgainst ?? 'missing'} and the beat is ${video.hash}. ` +
+                        'Review the clip, then paste the new hash.',
+                );
+            }
+        }
+    }
+    if (videoLines.length) {
+        console.log('\nclips:');
+        for (const line of videoLines) console.log(`  ${line}`);
     }
 
     // Would each update actually change anything? (ruling (b) + the agreed

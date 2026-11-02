@@ -298,6 +298,15 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     },
   ],
 
+  'off-paper': [
+    {
+      id: 'video/prints-nothing',
+      rule: 'A clip prints nothing: the faded blocks it pauses at are already on the paper.',
+      target: BLOCK_ROOT,
+      expect: { kind: 'hidden' },
+    },
+  ],
+
   'data-table': [
     {
       id: 'table/grid-ruled',

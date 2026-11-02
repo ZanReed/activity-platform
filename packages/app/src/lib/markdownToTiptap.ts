@@ -85,6 +85,8 @@ import {
 } from './serialize';
 import { toCurveDomain } from './graphDomain';
 import { DOL_PENDING, finalizeDol } from './dolImport';
+import { parseVideoFence } from './videoFence';
+import { finalizeVideos } from './videoImport';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
 import {
@@ -213,6 +215,8 @@ export interface ImportOptions {
      * is itself a seed problem.
      */
     readonly bankSection?: true;
+    /** Set by the batch importer. A ```video fence is refused without it (VP-10). */
+    readonly catalogue?: true;
 }
 
 export interface GlossaryReference {
@@ -876,6 +880,7 @@ interface Ctx {
     dolSeedSrc?: string;
     // The bank importer's per-section conversion (ImportOptions.bankSection).
     bankSection?: true;
+    catalogue?: true;
     // Math spans lifted from the raw source (see extractMath), indexed by the
     // placeholder number the mapper re-expands.
     spans: MathSpan[];
@@ -1047,6 +1052,7 @@ function tokensToBlocks(
         figureProblems: [],
         seedProblems: [],
         ...(options?.bankSection ? { bankSection: true as const } : {}),
+        ...(options?.catalogue ? { catalogue: true as const } : {}),
         definitions: new Map(),
         definitionTerms: new Map(),
         inline,
@@ -1093,6 +1099,10 @@ function tokensToBlocks(
     const blocks = mapBlocks(nest(tokens), ctx);
     let dolProblems: string[] = [];
     if (!ctx.bankSection) {
+        for (const p of finalizeVideos(blocks, ctx.meta?.activityType, [ctx.refPanelBlocks, ctx.teacherGuideBlocks ?? []])) {
+            ctx.warnings.add(p);
+            ctx.figureProblems.push(p);
+        }
         const activityVars = new Set((ctx.meta?.seedVars ?? []).map((v) => v.name));
         const dol = finalizeDol({
             blocks,
@@ -1300,6 +1310,23 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 }
                 if (!parsed.attrs) return [];
                 return [{ type: 'chart', attrs: { id: crypto.randomUUID(), data: parsed.attrs } }];
+            }
+            if ((node.token.info ?? '').trim() === 'video') {
+                // D64 catch-up clip. Its problems ride the figure channel, so a
+                // batch run skips the file: a wrong pause map stops a student
+                // at the wrong moment. finalizeVideos checks where it sits.
+                const refusal = ctx.bankSection
+                    ? 'Video: a practice bank can\'t have a clip.'
+                    : ctx.catalogue
+                      ? null
+                      : 'Video: clips can only be added through the catalogue importer, so this one was left out.';
+                const parsed = refusal ? { attrs: null, problems: [refusal] } : parseVideoFence(node.token.content);
+                for (const p of parsed.problems) {
+                    ctx.warnings.add(p);
+                    ctx.figureProblems.push(p);
+                }
+                if (!parsed.attrs) return [];
+                return [{ type: 'video', attrs: { id: crypto.randomUUID(), data: parsed.attrs } }];
             }
             if ((node.token.info ?? '').trim() === 'teacher-guide') {
                 // Side channel, consumed in the pre-pass: zero body blocks,

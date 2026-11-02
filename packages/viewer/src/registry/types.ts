@@ -138,6 +138,7 @@ export type PrintTreatment =
   | 'number-boxes' /* ordering: write-in sequence box per row */
   | 'static-svg' /* interactive canvas prints its server-rendered fallback SVG */
   | 'writing-box' /* free text: bordered hand-writing area */
+  | 'off-paper' /* screen only: the block prints nothing at all */
   | 'data-table'; /* table: ruled grid; blank cells neutralize to writing lines */
 
 export interface PrintSpec {

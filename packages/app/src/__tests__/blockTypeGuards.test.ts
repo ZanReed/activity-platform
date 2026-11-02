@@ -47,6 +47,7 @@ import {
     createFadedWorkedExampleBlock,
     createGraphFigureBlock,
     createChartBlock,
+    createVideoBlock,
     createSelfExplanationBlock,
     createShortAnswerBlock,
     createEssayBlock,
@@ -154,6 +155,8 @@ function representativeBlock(type: string): Block {
         }
         case 'chart':
             return createChartBlock();
+        case 'video':
+            return createVideoBlock();
         case 'self_explanation': {
             const block = createSelfExplanationBlock();
             block.prompt = [

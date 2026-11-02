@@ -106,11 +106,11 @@ pause: 6:30
 
 **VP-8 · What must happen before the gate opens.** A TODOS checklist with an owner, not prose (P8):
 1. The HoD confirms the school's policy on teacher-recorded, student-facing video.
-2. Counsel answers a new **Q12** in the packet: a third-party embed on under-13 devices, by host. Q1–Q11 don't reach it.
+2. Counsel answers a new question in the packet, under its next free number: a third-party embed on under-13 devices, by host. Q1–Q11 don't reach it, and TODOS already earmarks Q12 for the mixed-practice window.
 3. The privacy page and data map name the host.
 4. The author's explicit yes.
 - A file host would change question 2's answer, so ask about both.
-- *Recommend:* yes. I'd draft Q12 at build time; you take it to the school and counsel.
+- *Recommend:* yes. I'd draft that question at build time; you take it to the school and counsel.
 
 **VP-9 · Print and offline.** On paper the card prints nothing, because the faded blocks are there anyway. Offline, or if the host fails, the card says "The video isn't available right now" and the activity carries on.
 - *Recommend:* yes.
@@ -135,3 +135,17 @@ pause: 6:30
 - Pilot: 701/01. All three faded blocks have mistake feedback (checked in the file), fading from 1 blank to 4.
 - No objection to the rest.
 - B-230 carries the rulings, including that `recorded_against` is all a re-stamp needs and that no double count exists.
+
+## As built
+
+**Slice 1 (2026-11-02): fence and schema.** No migration.
+- `VideoBlock`, `video-beat.ts` (hash, staleness, host check), `videoFence.ts` (grammar), `videoImport.ts` (placement).
+- **Catalogue only, enforced:** `ImportOptions.catalogue` is set by the batch importer alone, so a teacher's paste drops the fence with a warning (VP-10). The fence is taught in the catalogue prompt and not the teacher's.
+- **Added to VP-1's refusals:** one clip per section, and none inside another block, a reference panel, a teacher guide or a practice bank.
+- **VP-6 detail:** a video file must have `captions:` (D64's "captions on"), and `captions:` is refused on YouTube.
+- **Until slice 2** the viewer's `Video` renders an empty hidden element, and a stylesheet rule hides the frame, so an early import leaves no gap or placeholder. `title`, `pauses` and `stale` have no viewer consumer until then: `stale` and the title are read by the editor card and the importer, and the pause times by nothing yet. Slice 2 owes that wiring.
+- **Save-time placement (from the Fable review):** the editor can copy, paste or drag a card past the importer's rules, and a Bank copy has no file fingerprint to stop it. So `stampVideoStaleness` applies the same rules on every save and fails closed: a clip in the wrong place is stale whatever its hash. Pasting a card is still possible, so VP-10's "can't add" holds for students, not for the editor surface.
+- **Shell budget:** 158.4 of 158.5 KiB after this slice. The player is lazy, and slice 2 can't add an eager byte without a rung or a cap ruling.
+- **Stale in the editor** shows what the last save computed, so an edit appears on the card after the next open.
+- **Proof:** a strict dry run of the real pipeline, on a copy of the catalogue with a clip added to 701/01, failed unstamped and passed once the printed hash was pasted. Guards mutation-tested six ways (each strip, the stamp call, answer keys in the hash, the catalogue gate, the card's chip).
+

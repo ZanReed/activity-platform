@@ -583,6 +583,21 @@ export const blockRegistry: BlockRegistry = {
     sanitize: { strip: [] },
     print: { breakInside: 'avoid', treatment: 'figure' },
   },
+
+  // D64 (video-pause-points.md): display-only. The URL and everything that
+  // leads to it are removed for everyone; a separate server read hands the URL
+  // over (VP-7), and recordedAgainst is a hash over answer keys. Nothing prints,
+  // because the faded blocks are on the paper anyway (VP-9).
+  video: {
+    type: 'video',
+    family: 'static',
+    interactivity: 'container',
+    category: 'content',
+    numbered: 'never',
+    analyticsKey: 'video',
+    sanitize: { strip: ['url', 'captions', 'recordedAgainst'] },
+    print: { breakInside: 'auto', treatment: 'off-paper' },
+  },
 };
 
 /** Every registered type, in registry declaration order. */

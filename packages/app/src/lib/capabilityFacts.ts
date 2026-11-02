@@ -147,6 +147,9 @@ export const JOIN: Record<string, Join> = {
     // curriculum side (C-45). Graded chart drawing (D8 slice 2) will be a
     // SEPARATE capability with its own id.
     chart: { fence: 'chart', probe: { type: 'chart' }, scoring: 'none' },
+    // D64: display-only like `chart`. The faded blocks it pauses at carry the
+    // grading; the curriculum side writes the row's prose in the pin bump.
+    video: { fence: 'video', probe: { type: 'video' }, scoring: 'none' },
     // A data source, like `definition`: the blanks that read its values carry
     // the grading (their ruling on B-30 Q3).
     seeded_data: { fence: 'seed', probe: null, scoring: 'none' },

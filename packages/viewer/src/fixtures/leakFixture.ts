@@ -510,6 +510,16 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     categories: ['a', 'b'],
     series: [{ values: [1, 2] }],
   });
+  put('video', {
+    id: uuid(),
+    type: 'video',
+    title: 'clip',
+    url: STR,
+    captions: STR,
+    recordedAgainst: STR,
+    pauses: [{ at: 1 }],
+    stale: false,
+  });
   put('graph_figure', {
     id: uuid(),
     type: 'graph_figure',

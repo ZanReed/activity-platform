@@ -2256,6 +2256,28 @@ img.mc-block__figure-preview {
     border-radius: 4px;
     border: 1px solid var(--ed-border); /* slate-200 */
 }
+.block-video {
+    margin: 0.5rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border, #d4d4d8);
+    border-radius: 6px;
+}
+.block-video p {
+    margin: 0;
+}
+.block-video__title {
+    font-weight: 600;
+}
+.block-video__url,
+.block-video__pauses {
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+.block-video__stale {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
 .chart-view__preview {
     max-width: 34rem;
 }

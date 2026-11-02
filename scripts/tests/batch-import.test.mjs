@@ -252,14 +252,51 @@ test('§A2 a ```figure imports as a plane-less graph_figure with its marks, alt 
 test('§A2 a figure with no alt: SKIPS the file in a plain (non-strict) run', () => {
     assert.throws(
         () => convertOne(pipeline, FIGURE_MD(TRIANGLE.slice(1)), null, 'geom/triangles.md'),
-        /figure or chart problem[\s\S]*alt:/,
+        /figure, chart or video problem[\s\S]*alt:/,
     );
 });
 
 test('§A2 a mark that names an unknown point SKIPS the file — a dropped mark is a wrong question', () => {
     assert.throws(
         () => convertOne(pipeline, FIGURE_MD([...TRIANGLE, 'ticks AX 1']), null, 'geom/triangles.md'),
-        /figure or chart problem[\s\S]*"ticks AX 1"/,
+        /figure, chart or video problem[\s\S]*"ticks AX 1"/,
+    );
+});
+
+// ---- ```video (D64) through the node bundle --------------------------------
+// The batch path is the only one that takes a clip (VP-10), and a problem skips
+// the file in every run (VP-1).
+const withVideo = (videoLines, fadedBlocks = 1) =>
+    [
+        '```meta', 'title: Decimals', 'course: Year 7', '```', '',
+        '## Lesson {checkpoint}', '',
+        '```video', 'title: Catch-up', 'url: https://youtu.be/abc123', ...videoLines, '```', '',
+        '```worked', 'title: Example', 'Line up the points.', '```', '',
+        ...Array.from({ length: fadedBlocks }, () => ['```faded', 'title: You', 'x = {{4}}', '```', '']).flat(),
+    ].join('\n');
+
+test('§A3 a ```video imports, is schema-valid, and reports the hash a dry run prints', () => {
+    const out = convertOne(pipeline, withVideo(['pause: 1:00']), null, 'unit/a.md');
+    assert.equal(out.videos.length, 1);
+    assert.match(out.videos[0].hash, /^[0-9a-f]{8}$/);
+    assert.equal(out.videos[0].stale, true);
+    const again = convertOne(
+        pipeline,
+        withVideo([`recorded_against: ${out.videos[0].hash}`, 'pause: 1:00']),
+        null,
+        'unit/a.md',
+    );
+    assert.equal(again.videos[0].stale, false);
+    const clip = again.document.sections
+        .flatMap((s) => s.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)))
+        .find((b) => b.type === 'video');
+    assert.equal(clip.stale, false);
+});
+
+test('§A3 a ```video whose pauses do not match its faded blocks skips the file', () => {
+    assert.throws(
+        () => convertOne(pipeline, withVideo(['pause: 1:00'], 2), null, 'unit/a.md'),
+        /figure, chart or video problem[\s\S]*1 pause, but 2 faded/,
     );
 });
 
@@ -298,14 +335,14 @@ test('§A3 a ```chart imports as a chart block with its series, and the document
 test('§A3 a series of the wrong length SKIPS the file — a dropped series is a wrong chart', () => {
     assert.throws(
         () => convertOne(pipeline, CHART_MD([...CHART, 'series: Car = 1, 2']), null, 'stats/travel.md'),
-        /figure or chart problem[\s\S]*"series: Car = 1, 2"/,
+        /figure, chart or video problem[\s\S]*"series: Car = 1, 2"/,
     );
 });
 
 test('§A3 a chart with no title: SKIPS the file in a plain (non-strict) run', () => {
     assert.throws(
         () => convertOne(pipeline, CHART_MD(CHART.filter((l) => !l.startsWith('title:'))), null, 'stats/travel.md'),
-        /figure or chart problem[\s\S]*title:/,
+        /figure, chart or video problem[\s\S]*title:/,
     );
 });
 
@@ -326,14 +363,14 @@ test('§A2 figure columns: three per row imports; FIVE columns SKIPS the file (s
     assert.ok(convertOne(pipeline, COLUMNS_MD(['figure: A', ...TRIANGLE], ['figure: B', ...TRIANGLE], ['Which one?']), null, 'geom/t.md'));
     assert.throws(
         () => convertOne(pipeline, COLUMNS_MD(['figure:', ...TRIANGLE], ['a'], ['b'], ['c'], ['d']), null, 'geom/t.md'),
-        /figure or chart problem[\s\S]*at most 4 columns/,
+        /figure, chart or video problem[\s\S]*at most 4 columns/,
     );
 });
 
 test('§A2 two figures with the same caption in one row SKIPS the file (curriculum C-50)', () => {
     assert.throws(
         () => convertOne(pipeline, COLUMNS_MD(['figure: A', ...TRIANGLE], ['figure: A', ...TRIANGLE]), null, 'geom/t.md'),
-        /figure or chart problem[\s\S]*both captioned "A"/,
+        /figure, chart or video problem[\s\S]*both captioned "A"/,
     );
 });
 

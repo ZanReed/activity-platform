@@ -773,4 +773,19 @@ KEYS BEGINNING x_ ARE YOURS
   `x_review_skills:`. Because nothing validates them, a
   typo in one of these names is silent — the import prints a receipt naming
   every x_ key it ignored, and that line is the only place a typo shows up.
+
+PAUSE-POINT CLIPS — the ```video fence
+Only when a clip has been recorded for the activity. Never invent a URL.
+Put it in the `## Lesson` section, above the worked examples:
+  ```video
+  title: Comparing decimals
+  url: https://youtu.be/abc123
+  recorded_against: 3fa9c1d2
+  pause: 3:20
+  pause: 5:05 | rewind 3:40
+  ```
+Write one `pause:` per ```faded block after the fence, ascending: each stops
+the clip at the next faded block. A video file needs `captions:` with an https
+.vtt file. `recorded_against:` is the hash a dry run prints. A section has one
+clip at most, and a DoL section, quiz or exam has none.
 ```

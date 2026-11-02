@@ -767,6 +767,13 @@ function authoredRawByType(
       { name: 'Bus', values: [4, 6, 3] },
     ],
   });
+  put('video', {
+    id: fid(),
+    type: 'video',
+    title: 'Comparing decimals',
+    pauses: [{ at: 200 }, { at: 305, rewindTo: 220 }],
+    stale: false,
+  });
   put('graph_figure', {
     id: fid(),
     type: 'graph_figure',

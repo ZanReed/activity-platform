@@ -30,6 +30,7 @@ import {
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
 import { MARKDOWN_IMPORT_AI_PROMPT } from '../lib/markdownImportPrompt';
+import { CATALOGUE_AUTHORING_PROMPT } from '../lib/catalogueAuthoringPrompt';
 import { FENCES, BLANK_MODIFIERS } from '../lib/importFormatRegistry';
 
 let convert: MarkdownImporter;
@@ -128,6 +129,16 @@ describe('registry ↔ converter (behavioral)', () => {
     it.each(FENCES)(
         '$tag: the example imports to $blockType with no warnings',
         (f) => {
+            // A catalogue-only fence has its own conversion: see the VP-10 row.
+            if (f.catalogueOnly) {
+                const result = convert(
+                    `## Lesson {checkpoint}\n\n${fence(f.tag, f.example)}\n\n${fence('faded', 'title: One\nx = {{4}}')}`,
+                    { catalogue: true },
+                );
+                expect(hasType(result.blocks, f.blockType)).toBe(true);
+                expect(result.warnings).toEqual([]);
+                return;
+            }
             // The definitions fence contributes NO blocks anywhere — its
             // content reaches the document only through a [[term]] mark, so
             // probe it by referencing the term from a body paragraph.
@@ -257,15 +268,25 @@ const DOC_QUICK_REFERENCE = slice(
 );
 
 describe('registry ↔ prompt + doc (documented)', () => {
-    it.each(FENCES)('$tag fence is taught in the prompt and the doc', (f) => {
+    const TEACHER_FENCES = FENCES.filter((f) => !f.catalogueOnly);
+    const CATALOGUE_FENCES = FENCES.filter((f) => f.catalogueOnly);
+
+    it.each(TEACHER_FENCES)('$tag fence is taught in the prompt and the doc', (f) => {
         const fenced = '```' + f.tag;
         expect(MARKDOWN_IMPORT_AI_PROMPT).toContain(fenced);
         expect(DOC).toContain(fenced);
     });
 
+    it.each(CATALOGUE_FENCES)('$tag is taught to the catalogue, never to a teacher', (f) => {
+        const fenced = '```' + f.tag;
+        expect(CATALOGUE_AUTHORING_PROMPT).toContain(fenced);
+        expect(DOC).toContain(fenced);
+        expect(MARKDOWN_IMPORT_AI_PROMPT).not.toContain(fenced);
+    });
+
     // The three region-scoped bindings. Each would have caught the
     // ```definitions drift that the whole-document assertions above could not.
-    it.each(FENCES)(
+    it.each(TEACHER_FENCES)(
         "$tag is named in the prompt's allowed-fences list",
         (f) => {
             expect(

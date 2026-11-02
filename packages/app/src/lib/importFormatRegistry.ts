@@ -26,6 +26,9 @@
 export interface FenceSpec {
     // The fence info string the parser dispatches on (markdownToTiptap.ts mapBlock).
     tag: string;
+    // True for a fence the batch importer takes and a teacher's paste refuses.
+    // It is taught in the catalogue prompt, not the teacher's.
+    catalogueOnly?: boolean;
     // The Tiptap node type a successful import produces.
     blockType: string;
     // One-line human description (mirrors the prompt/doc intent).
@@ -102,6 +105,16 @@ export const FENCES: FenceSpec[] = [
         summary: 'a statistics chart of category data (bar, stacked or clustered bars, time-series line) — display only',
         example: 'title: Books borrowed\ncategories: Mon, Tue, Wed\nseries: 12, 7, 15',
         options: [],
+    },
+    {
+        // D64 (docs/design/video-pause-points.md): a catch-up clip that pauses
+        // at the section's faded blocks. Catalogue only (VP-10).
+        tag: 'video',
+        blockType: 'video',
+        summary: 'a catch-up clip that stops at each faded block below it (catalogue files only)',
+        example: 'title: Comparing decimals\nurl: https://youtu.be/abc123\npause: 3:20',
+        options: [],
+        catalogueOnly: true,
     },
     {
         tag: 'numberline',

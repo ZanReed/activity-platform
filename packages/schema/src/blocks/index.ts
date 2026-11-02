@@ -28,6 +28,7 @@ import { LearningObjectivesBlock } from './learning-objectives.js';
 import { WorkedExampleBlock } from './worked-example.js';
 import { GraphFigureBlock } from './graph-figure.js';
 import { ChartBlock } from './chart.js';
+import { VideoBlock } from './video.js';
 import { FadedWorkedExampleBlock } from './faded-worked-example.js';
 import { SelfExplanationBlock } from './self-explanation.js';
 import { ShortAnswerBlock, EssayBlock } from './free-response.js';
@@ -59,6 +60,7 @@ export const Block = z.discriminatedUnion('type', [
   GraphFigureBlock,
   ChartBlock,
   TableBlock,
+  VideoBlock,
 ]);
 export type Block = z.infer<typeof Block>;
 
@@ -112,6 +114,7 @@ export { LearningObjectivesBlock } from './learning-objectives.js';
 export { WorkedExampleBlock, WorkedExampleChild } from './worked-example.js';
 export { GraphFigureBlock, GRAPH_FIGURE_CAPTION_MAX } from './graph-figure.js';
 export { ChartBlock, ChartKind, ChartSeries } from './chart.js';
+export { VideoBlock, VideoPause } from './video.js';
 export {
   FadedWorkedExampleBlock,
   FadedWorkedExampleChild,

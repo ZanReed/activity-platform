@@ -28,6 +28,7 @@ import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { GraphFigure } from './extensions/GraphFigure';
 import { Chart } from './extensions/Chart';
+import { Video } from './extensions/Video';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
@@ -150,6 +151,8 @@ export default function ReferencePanelEditor({
             // name fails the whole schema. The reference toolbar does not offer
             // one (the Chart slash item is not referenceSafe).
             Chart,
+            // Same reason as Chart: Column's content expression names `video`.
+            Video,
         ],
         content: initialContent,
         onCreate: ({ editor }) => {

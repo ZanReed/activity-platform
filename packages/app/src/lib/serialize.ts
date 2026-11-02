@@ -79,10 +79,12 @@ import type {
     EssayBlock,
     GraphFigureBlock,
     ChartBlock,
+    VideoBlock,
     GuideBlock,
     TeacherGuide,
 } from '@activity/schema';
 import {
+    stampVideoStaleness,
     SectionDol,
     GUIDE_BLOCK_TYPES,
     // The runtime union, aliased because `Block` is already imported as a type
@@ -113,6 +115,7 @@ import {
     ChoiceImage,
     ChoiceGraph,
 } from '@activity/schema';
+import type { VideoAttrs } from './videoFence';
 import type { JSONContent } from '@tiptap/react';
 import type { ChartAttrs } from './chartFence';
 import { emptyPlaceholders } from '../editor/mathPromptSync';
@@ -273,6 +276,7 @@ export function tiptapToActivity(
         meta,
         sections: splitTiptapRowsIntoSections(tiptap.content ?? []),
     };
+    stampVideoStaleness(doc.sections, meta.activityType);
     // The reference panel is authored on its own surface (Drop C) and carried
     // as separate state, NOT encoded in the main editor's Tiptap doc — so it
     // arrives here as an argument, not parsed out of `tiptap`. Pass it through
@@ -483,6 +487,8 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
             return tiptapGraphFigureToActivity(node);
         case 'chart':
             return tiptapChartToActivity(node);
+        case 'video':
+            return tiptapVideoToActivity(node);
         case 'fadedWorkedExample':
             return tiptapFadedWorkedExampleToActivity(node);
         case 'selfExplanation':
@@ -1225,6 +1231,22 @@ function tiptapGraphFigureToActivity(node: JSONContent): GraphFigureBlock {
 // into the block. A node with no usable data (a hand-crafted payload) is
 // dropped rather than stored: the schema would refuse it at the save boundary
 // and take the whole document's save with it.
+function tiptapVideoToActivity(node: JSONContent): VideoBlock | null {
+    const data = (node.attrs?.data ?? null) as Partial<VideoAttrs> | null;
+    if (!data?.title || !data.url || !data.pauses?.length) return null;
+    return {
+        id: crypto.randomUUID(),
+        type: 'video',
+        title: data.title,
+        url: data.url,
+        ...(data.captions ? { captions: data.captions } : {}),
+        ...(data.recordedAgainst ? { recordedAgainst: data.recordedAgainst } : {}),
+        pauses: data.pauses.map((pause) => ({ ...pause })),
+        // Replaced by stampVideoStaleness once the whole section exists.
+        stale: true,
+    };
+}
+
 function tiptapChartToActivity(node: JSONContent): ChartBlock | null {
     const data = (node.attrs?.data ?? null) as Partial<ChartAttrs> | null;
     if (!data || !Array.isArray(data.categories) || !Array.isArray(data.series)) return null;
@@ -1659,6 +1681,18 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     ...sizingTiptapAttrs(block),
                 },
             };
+
+        case 'video': {
+            const data: VideoAttrs = {
+                title: block.title,
+                url: block.url ?? '',
+                ...(block.captions ? { captions: block.captions } : {}),
+                ...(block.recordedAgainst ? { recordedAgainst: block.recordedAgainst } : {}),
+                pauses: block.pauses.map((pause) => ({ ...pause })),
+                stale: block.stale,
+            };
+            return { type: 'video', attrs: { id: block.id, data } };
+        }
 
         case 'chart': {
             // The reverse of tiptapChartToActivity.

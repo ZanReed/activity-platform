@@ -322,6 +322,17 @@
         "fence": "table"
       }
     },
+    "video": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "none",
+        "captures_response": false,
+        "score_shape": "none"
+      },
+      "reached_by": {
+        "fence": "video"
+      }
+    },
     "worked": {
       "status": "shipped",
       "grading": {

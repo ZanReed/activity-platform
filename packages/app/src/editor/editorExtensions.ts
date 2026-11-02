@@ -45,6 +45,7 @@ import { WorkedExample } from './extensions/WorkedExample';
 import { FadedWorkedExample } from './extensions/FadedWorkedExample';
 import { GraphFigure } from './extensions/GraphFigure';
 import { Chart } from './extensions/Chart';
+import { Video } from './extensions/Video';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
@@ -192,5 +193,7 @@ export function buildEditorExtensions({
         // Chart — a static statistics chart of category data (Y7 charts), from
         // the ```chart fence, with a "Chart source" popover over that text.
         Chart,
+        // D64: the read-only card for a catalogue clip (VP-10). No slash entry.
+        Video,
     ];
 }

@@ -382,7 +382,13 @@ describe('the declaration is where it is for a reason', () => {
     // same commit; the get-activity and check-activity redeploys are pending
     // author actions, and no `answer: vector` file may be imported before they
     // are live (the old functions' schema does not know the variant at all).
-    expect(SANITIZER_REV).toBe('3-1fa22562');
+    //
+    // MOVED 2026-11-02, deliberately: '3-1fa22562' → '3-a76ad77c'. D64 added the
+    // video block, whose strip list removes the URL for everyone (VP-7). Both
+    // bundles regenerate in the same commit; the get-activity and check-activity
+    // redeploys are pending author actions, and no ```video file may be imported
+    // before they are live.
+    expect(SANITIZER_REV).toBe('3-a76ad77c');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

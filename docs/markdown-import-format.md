@@ -59,6 +59,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `[[term]]` alone, in a catalogue file | a word from the **course glossary** (batch import only — see [Course glossary](#course-glossary-batch-import---glossary)) |
 | `\[[…]]` | literal brackets — never a definition |
 | `$$… \gap{answer} …$$` | a gradeable **in-equation gap** the student fills (Model A) |
+| ` ```video ` fenced block | a **catch-up clip** that stops at each faded block below it. Catalogue files only (see below) |
 
 ## Rules that matter
 
@@ -1750,3 +1751,34 @@ Cut practice item 3, then item 4.
 - **Placement** — anywhere in the file (it is read before the body, like `meta`); by convention, **last**. **One per activity**: a second fence is ignored with a warning.
 - **Not checked here** — section names, their order, and the word cap are the curriculum's rules (their `check_guides.py`); this importer checks only what it alone can see.
 
+## Pause-point clips (```video fence)
+
+A catch-up clip for a student who missed the lesson (curriculum D64). It stops at each pause until the student answers the next faded block. **Catalogue files only:** the batch importer takes it, and a teacher's paste leaves it out with a warning.
+
+````
+```video
+title: Comparing decimals
+url: https://youtu.be/abc123
+recorded_against: 3fa9c1d2
+pause: 3:20
+pause: 5:05 | rewind 3:40
+pause: 6:30
+```
+````
+
+| Line | Meaning |
+|---|---|
+| `title:` | Required. The name on the student's card. |
+| `url:` | Required. YouTube, or any `https` `.mp4` or `.webm` file. |
+| `captions:` | An `https` `.vtt` file. Required for a video file, refused for YouTube, which uses its own captions. |
+| `recorded_against:` | The beat hash the clip was recorded against. A dry run prints the current one under `clips:`. |
+| `pause:` | At least one, ascending, as `m:ss` or `h:mm:ss`. Each maps to the next ```faded block after the fence, in order. `| rewind m:ss` sets where "Rewind" goes; without it, Rewind goes to the previous pause or the start. |
+
+A problem with a clip skips the file in every run. The importer refuses a clip:
+
+- in a section whose heading isn't `## Lesson`, in a DoL section, or in a quiz or exam;
+- inside another block, a reference panel or a teacher guide;
+- when its section already has a clip;
+- when its pause count differs from the number of faded blocks after it in the section.
+
+**Out of date.** The beat hash covers the section's worked blocks' text and, for each faded block the clip pauses at, its blank count and answer keys. A typo in a faded block leaves it alone, while changed answers or a changed worked example don't. A clip with a different hash, or none, is out of date: the importer warns (`--strict` fails), a teacher sees "Video is out of date", and students don't get it. To re-stamp, review the clip, paste the new hash, import and publish. Record first, then take the hash from a dry run.

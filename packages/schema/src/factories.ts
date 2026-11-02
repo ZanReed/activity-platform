@@ -48,6 +48,7 @@ import type {
   EssayBlock,
   GraphFigureBlock,
   ChartBlock,
+  VideoBlock,
   TableBlock,
   HeadingLevel,
   CalloutVariant,
@@ -144,6 +145,17 @@ export function createChartBlock(): ChartBlock {
     chart: 'bar',
     categories: ['A', 'B', 'C'],
     series: [{ values: [3, 5, 2] }],
+  };
+}
+
+export function createVideoBlock(): VideoBlock {
+  return {
+    id: uuid(),
+    type: 'video',
+    title: 'Catch-up clip',
+    url: 'https://youtu.be/abc123',
+    pauses: [{ at: 60 }],
+    stale: true,
   };
 }
 

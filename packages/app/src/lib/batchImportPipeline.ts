@@ -54,6 +54,7 @@ export {
 } from '@activity/schema';
 
 export { wrapBlocksStrict } from '../editor/strictGrid';
+export { videoBeats } from '@activity/schema';
 
 export {
     tiptapToActivity,

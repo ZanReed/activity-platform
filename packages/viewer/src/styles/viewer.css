@@ -31,6 +31,12 @@
   padding: var(--space-6) var(--space-4);
 }
 
+/* D64: no player until slice 2, so a clip's frame takes no room on screen. The
+   print half of this rule outlives it (video/prints-nothing, VP-9). */
+[data-block-type='video'] {
+  display: none;
+}
+
 .viewer-section {
   background: var(--vw-color-paper);
   border: 1px solid var(--vw-color-line);
