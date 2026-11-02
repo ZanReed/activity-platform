@@ -1552,8 +1552,6 @@
     background: var(--vw-color-paper);
     border-top: 1px solid var(--vw-color-line-strong);
     bottom: 0;
-    margin-left: calc(var(--space-4) * -1);
-    margin-right: calc(var(--space-4) * -1);
     padding: var(--space-3) var(--space-4);
     position: sticky;
   }
@@ -1561,6 +1559,13 @@
   .viewer-check-group:not([data-group-sections='1']) {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+  }
+
+  /* Bleeds across the group's own padding, and no further: any more and the
+     page scrolls sideways. A one-section group has no padding to bleed across. */
+  .viewer-check-group:not([data-group-sections='1']) .viewer-check-group__footer {
+    margin-left: calc(var(--space-3) * -1);
+    margin-right: calc(var(--space-3) * -1);
   }
 
   .viewer-matching__item {
