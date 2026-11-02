@@ -5,7 +5,7 @@
 // mid-run — which is what really happens after a pending account joins (the
 // route calls retryRole) and what a slow role fetch can do at any time.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
 const session = vi.hoisted(() => ({
@@ -213,8 +213,11 @@ describe('FactsEntry', () => {
             // The first read was sequential: entry, then practice.
             expect(api.fetchEntry).toHaveBeenCalledTimes(1);
             expect(sprintApi.fetchSprintEntry).toHaveBeenCalledTimes(1);
-            const poll = intervals.mock.calls.find(([, ms]) => ms === WAIT_POLL_MS)?.[0];
-            expect(typeof poll).toBe('function');
+            // The interval starts in a passive effect, which can run after the
+            // heading is already on screen (red on CI, run 41511409451).
+            const findPoll = () => intervals.mock.calls.find(([, ms]) => ms === WAIT_POLL_MS)?.[0];
+            await waitFor(() => expect(typeof findPoll()).toBe('function'));
+            const poll = findPoll();
             // The poll's entry read hangs; the practice read must not wait on it.
             let answer: (v: unknown) => void = () => {};
             api.fetchEntry.mockImplementation(() => new Promise((r) => { answer = r; }));
