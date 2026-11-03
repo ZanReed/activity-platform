@@ -270,7 +270,7 @@ chains are ratified.
 **Recommend (a).** "Two chains" is a pedagogy launch rule, not an invariant;
 coding it would block a one-chain pilot the author might want.
 
-**MP-15 — Capability row (PB-12).** Added when serving ships → `pnpm
+**MP-15 — Capability row (PB-12).** BUILT 2026-11-04 as `practice_bank`, `reached_by: {bank: "kind: bank"}`, agreed in C-178. One row for skill and discrimination banks, scoring nothing itself: a bank's items are graded under their own capabilities. As ruled: added when serving ships → `pnpm
 facts:capabilities` → pin-bump PR on the curriculum repo (CLAUDE.md B14 duty).
 **Recommend this.**
 

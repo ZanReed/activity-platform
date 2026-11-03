@@ -180,6 +180,9 @@ function splitBankFile(markdown: string): Split {
     };
 }
 
+/** The `kind:` value that makes a file a bank; capabilityFacts reports it. */
+export const BANK_KIND = 'bank';
+
 function parseBankMeta(src: string | null, problems: string[], warnings: string[]): BankMeta | null {
     if (src === null) {
         problems.push('no ```meta fence — a bank declares `kind: bank` and its `status:` (PB-2, PB-10).');
@@ -200,7 +203,7 @@ function parseBankMeta(src: string | null, problems: string[], warnings: string[
         if (kv.has(key)) problems.push(`meta: \`${key}:\` appears twice.`);
         kv.set(key, (m[2] ?? '').trim());
     }
-    if (kv.get('kind') !== 'bank') {
+    if (kv.get('kind') !== BANK_KIND) {
         problems.push('meta: a file under banks/ declares `kind: bank` (PB-2: the location and the key must agree).');
     }
     const status = kv.get('status');

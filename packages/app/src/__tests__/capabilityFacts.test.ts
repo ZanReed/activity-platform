@@ -212,3 +212,30 @@ describe('prose_facts.dol_grammar (D65) is what the parser reads', () => {
     expect(levels).toBe('dol_rubric_levels');
   });
 });
+
+describe('practice_bank (MP-15) is what the bank parser reads', () => {
+  const kindProblems = async (metaLine: string) => {
+    const { parseBankFile } = await import('../lib/bankImport');
+    const importer = await getMarkdownImporter();
+    const result = parseBankFile(['```meta', metaLine, 'status: draft', 'skill: s.one', '```'].join('\n'), {
+      stem: 's.one',
+      importer,
+    });
+    return result.problems.filter((p: string) => p.includes('kind: bank'));
+  };
+
+  it('the published file kind passes, and any other is refused', async () => {
+    const reachedBy = capabilityFacts().capabilities.practice_bank!.reached_by;
+    expect(reachedBy).toEqual({ bank: 'kind: bank' });
+    expect(await kindProblems(reachedBy.bank!)).toEqual([]);
+    expect((await kindProblems('kind: activity')).length).toBe(1);
+  });
+
+  it('the row scores nothing itself: its items carry the grading', () => {
+    expect(capabilityFacts().capabilities.practice_bank!.grading).toEqual({
+      scoring: 'none',
+      captures_response: false,
+      score_shape: 'none',
+    });
+  });
+});

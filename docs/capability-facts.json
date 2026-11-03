@@ -278,6 +278,17 @@
         "fence": "order"
       }
     },
+    "practice_bank": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "none",
+        "captures_response": false,
+        "score_shape": "none"
+      },
+      "reached_by": {
+        "bank": "kind: bank"
+      }
+    },
     "reference": {
       "status": "shipped",
       "grading": {

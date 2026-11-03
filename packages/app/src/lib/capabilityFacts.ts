@@ -44,6 +44,7 @@ import {
 import { BLANK_MODIFIERS, FENCES } from './importFormatRegistry';
 import { CHECKPOINT_RE } from './markdownToTiptap';
 import { DOL_GRAMMAR } from './dolImport';
+import { BANK_KIND } from './bankImport';
 import { BANK_COMBINATION_CAP } from '@activity/schema/bank-seed';
 import {
     FIGURE_FALLBACK_KINDS,
@@ -93,6 +94,8 @@ interface Join {
     inline?: string;
     /** A heading marker the parser reads (D65: `{checkpoint dol}`). */
     marker?: string;
+    /** A file kind the importer reads from `meta` (MP-15: `kind: bank`). */
+    bank?: string;
     schema?: string;
     probe: Record<string, unknown> | null;
     scoring: Scoring;
@@ -158,6 +161,11 @@ export const JOIN: Record<string, Join> = {
     // section a DoL (one retake when seeded, the pass from its primary item).
     // Its grammar is prose_facts.dol_grammar.
     dol_retake: { marker: DOL_GRAMMAR.heading_marker, probe: null, scoring: 'none' },
+    // MP-15, agreed in C-178: a practice bank, skill or discrimination. Also a
+    // flow capability: a bank's items are ordinary blocks (blanks, mc, match,
+    // order, graph and the rest bankImport admits), graded per item under their
+    // own capabilities (auto-scorable only, PB-9), so the row itself scores nothing.
+    practice_bank: { bank: `kind: ${BANK_KIND}`, probe: null, scoring: 'none' },
 };
 
 // ---- zod introspection ---------------------------------------------------------
@@ -216,7 +224,7 @@ export interface CapabilityFact {
         captures_response: boolean;
         score_shape: ScoreShape;
     };
-    reached_by: { fence?: string; inline?: string; marker?: string; schema?: string };
+    reached_by: { fence?: string; inline?: string; marker?: string; bank?: string; schema?: string };
 }
 
 function derive(join: Join): CapabilityFact {
@@ -230,6 +238,7 @@ function derive(join: Join): CapabilityFact {
     if (join.fence) reachedBy.fence = join.fence;
     if (join.inline) reachedBy.inline = join.inline;
     if (join.marker) reachedBy.marker = join.marker;
+    if (join.bank) reachedBy.bank = join.bank;
     if (join.schema) reachedBy.schema = join.schema;
     return {
         status: 'shipped',
@@ -246,8 +255,8 @@ export function capabilityFactsProblems(): string[] {
     for (const [id, join] of Object.entries(JOIN)) {
         if (join.fence && !fenceTags.has(join.fence))
             problems.push(`capability '${id}' maps to fence '${join.fence}', which the importer no longer registers.`);
-        if (!join.fence && !join.inline && !join.marker)
-            problems.push(`capability '${id}' has neither a fence, an inline grammar nor a marker — nothing reaches it.`);
+        if (!join.fence && !join.inline && !join.marker && !join.bank)
+            problems.push(`capability '${id}' has neither a fence, an inline grammar, a marker nor a file kind — nothing reaches it.`);
         if (join.marker && !CHECKPOINT_RE.exec(`Title ${join.marker}`)?.[1])
             problems.push(`capability '${id}' maps to the marker '${join.marker}', which the heading parser no longer reads as a DoL.`);
     }
