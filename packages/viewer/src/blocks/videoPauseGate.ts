@@ -15,6 +15,11 @@ export function pauseStep(
   return { stop: true, seekTo: time > pause.at + SLOP_SECONDS ? pause.at : null };
 }
 
+/** Where "Rewind" goes: the pause's own time, else the previous pause, else the start. */
+export function rewindTarget(pauses: readonly VideoPause[], index: number): number {
+  return pauses[index]?.rewindTo ?? pauses[index - 1]?.at ?? 0;
+}
+
 export function formatClipTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);

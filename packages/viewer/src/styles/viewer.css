@@ -74,6 +74,15 @@
   grid-column: 2;
 }
 
+.viewer-video-stop__message,
+.viewer-video-stop__feedback {
+  margin: 0.5rem 0 0;
+}
+
+.viewer-video-stop__message {
+  font-weight: 600;
+}
+
 .viewer-video__button,
 .viewer-video__jump {
   min-height: 44px;

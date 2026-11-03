@@ -62,14 +62,10 @@ export function seedContextFor(
 }
 
 /** Every auto-graded item of the primary block correct (DE-7). */
-export function primaryCorrect(
-  primary: DolPrimary | null,
-  items: SectionCheckResult['items'],
-): boolean {
-  if (!primary || primary.rubric) return false;
-  const inv = inventorySection({ rows: [{ columns: [{ blocks: [primary.block] }] }] } as unknown as RawSection);
-  if (inv.freeText.length > 0) return false;
-  const expected = [
+/** Every item in one block the grader can call right or wrong (free text is not). */
+export function autoGradedIds(block: unknown): string[] {
+  const inv = inventorySection({ rows: [{ columns: [{ blocks: [block] }] }] } as unknown as RawSection);
+  return [
     ...inv.blankGroupsByBlock.flatMap((g) => g.keys.map((k) => k.id)),
     ...inv.multipleChoice.map((m) => m.blockId),
     ...inv.matching.map((m) => m.blockId),
@@ -77,5 +73,15 @@ export function primaryCorrect(
     ...inv.ordering.map((o) => o.blockId),
     ...inv.graphs.map((g) => g.blockId),
   ];
+}
+
+export function primaryCorrect(
+  primary: DolPrimary | null,
+  items: SectionCheckResult['items'],
+): boolean {
+  if (!primary || primary.rubric) return false;
+  const inv = inventorySection({ rows: [{ columns: [{ blocks: [primary.block] }] }] } as unknown as RawSection);
+  if (inv.freeText.length > 0) return false;
+  const expected = autoGradedIds(primary.block);
   return expected.length > 0 && expected.every((id) => items[id]?.verdict === 'correct');
 }

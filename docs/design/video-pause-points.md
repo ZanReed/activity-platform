@@ -138,11 +138,29 @@ pause: 6:30
 
 ## As built
 
+**Slice 3 (2026-11-03): pause checks and first tries.** Migration 0079, `check-activity` redeploy.
+- **The mode:** `video-pause` in `server/video-pause-handler.ts`. It grades one block in isolation and returns right or wrong, with mistake feedback and no answers, per-blank verdicts or solutions.
+- **It asks D73's gate first (not spelled out in VP-3).** The handler calls `video_source` as the caller before it grades. Without that, any signed-in student could get a verdict on a clip's faded blocks before the section's check, with clearance off.
+- **The block must be a placed clip's pause:** the same rule as a save (`clipIsPlaced`), so no DoL, quiz, exam or locked file gets a verdict even if a stored `stale` says otherwise.
+- **Recorded before the verdict leaves,** so a failed write returns no verdict. A teacher's own tries record nothing.
+- **Nothing typed is no try (a call VP-3 left open).** It records nothing and says "Type your answer first", and it counts as a miss, so a student who can't answer can still reach "Keep going". A blank left empty in an answered block counts as wrong.
+- **A failed check offers "Keep going" at once,** because the network isn't the student's mistake.
+- **Try ceiling (not in VP-4):** 30 per block, since every retry is a free verdict. Over it returns 429 and no verdict, which the screen reads as a failed check.
+- **A section check landing during a stop** closes the stop. After it the server records nothing and the clip carries on.
+- **What VP-4 reaches:** `mixed_class_students` ("Getting stuck") and the tracker fire from a pause alone (`verify-0079` B5b). "Who to see first" doesn't, because its group 1 also requires mixed practice today on a skill served today, by its own rule. `mixed_class_summary`'s first-try counts now include pauses, and a skill with no bank can appear in it.
+- **Seam:** `setVideoLink` replaced `setVideoSourceRpc`, handing over the client and the check URL. It is a plain `fetch` in the clip's chunk, because `functions.invoke` with a region adds an `x-region` header the function's CORS allow-list refuses. The Fable review caught that; stubbed routes have no preflight, so `video-clip.e2e.ts` now reads the real allow-list.
+- **Known, accepted:**
+  - A republish mints new block ids, so a student's try on the new version is a second "first try" on the skill.
+  - `mixed_class_summary`'s practising count now includes a student who only answered a pause.
+  - The section's Check landing during a stop leaves the clip paused where it is, because the student is reading their result.
+- **Open before students (TODOS, VP-8):** no retention window or prune exists for `video_pause_tries`. No row can exist until clearance is on.
+- **Not proven yet:** a real try on live needs an owner's clip, which records nothing, so a student's row is proven only by `verify-0079`. YouTube is still unproven until the first real clip.
+
 **Slice 2 (2026-11-02): player and gate.** Migration 0078. Teachers who own the activity only, because `video_clearance` is off.
 - **Gate:** `video_source` as VP-7. Reached through `setVideoSourceRpc`, a one-call seam set when the app boots. Print never calls it. A preview on any other surface does, and the gate returns nothing unless the caller owns a real published clip.
 - **Locked activities are refused (from the Fable review, not in VP-1):** by the importer and on save. A locked section's check can't be redone, so a pause must not give a verdict before it, and its frozen fieldset would disable the card's buttons. No catalogue file is locked today.
 - **Shell:** exactly at the 158.5 cap after moving the read into the clip's chunk, with zero headroom. Slice 3 must add nothing eager.
-- **Interim at a pause:** the clip stops, the page scrolls to the faded block, and a "Keep going" button sits in that block through a portal. Slice 3 puts the check there. Nothing is recorded yet.
+- **Interim at a pause:** the clip stops, the page scrolls to the faded block, and a "Keep going" button sits in that block through a portal. Slice 3 replaced this with the check.
 - **The faded blocks are found in the rendered section,** because the shell has no room for another context field. The order matches `videoPauseTargets`.
 - **Opening the card starts the player,** so "Watch" is the one tap VP-6 asks for. The tap is also the gesture a browser needs for sound.
 - **VP-9 gap, accepted:** a failed read of `video_source` shows nothing, not "isn't available", because the client can't tell a failed read from a refusal and a student who isn't cleared must see nothing. The message shows when the student is offline at the tap, or the host fails after a URL arrived.

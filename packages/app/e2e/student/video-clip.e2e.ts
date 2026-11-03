@@ -7,11 +7,14 @@
 // 375px: a phone is the device D64 names.
 // =============================================================================
 
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 import { activityUrl, signInAs, stubActivityApi } from '../helpers/studentSession';
 
 const CLIP_URL = 'https://clips.example.org/clip.webm';
+const FIRST = '33333333-0000-4000-8000-00000000a001';
+const SECOND = '33333333-0000-4000-8000-00000000a002';
 
 function blockOfType(type: string): Record<string, unknown> {
   const found: Record<string, unknown>[] = [];
@@ -49,8 +52,8 @@ function documentWithClip() {
             pauses: [{ at: 1 }, { at: 2 }],
             stale: false,
           }),
-          row('a', { ...faded, id: '33333333-0000-4000-8000-00000000a001', title: 'First' }),
-          row('b', { ...faded, id: '33333333-0000-4000-8000-00000000a002', title: 'Second' }),
+          row('a', { ...faded, id: FIRST, title: 'First' }),
+          row('b', { ...faded, id: SECOND, title: 'Second' }),
         ],
       },
     ],
@@ -111,9 +114,12 @@ test('a real file plays, stops at each faded block in order, and goes on', async
   });
 
   await signInAs(page);
-  await stubActivityApi(page, {
+  const api = await stubActivityApi(page, {
     document: documentWithClip() as never,
     videoSource: { url: CLIP_URL, captions: null },
+    pauseAnswers: [
+      { state: 'wrong', feedback: [[{ type: 'text', text: 'Check the tenths first.', marks: [] }]] },
+    ],
   });
   const hostRequests: string[] = [];
   await page.route(CLIP_URL, (route) => {
@@ -141,24 +147,62 @@ test('a real file plays, stops at each faded block in order, and goes on', async
 
   const stopIn = (blockId: string) =>
     page.locator(`[data-block-id="${blockId}"] .viewer-video-stop`);
-  await expect(stopIn('33333333-0000-4000-8000-00000000a001')).toBeVisible({ timeout: 10_000 });
+  await expect(stopIn(FIRST)).toBeVisible({ timeout: 10_000 });
   expect(await video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(true);
   const stoppedAt = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
   expect(stoppedAt).toBeGreaterThanOrEqual(1);
   expect(stoppedAt).toBeLessThan(2);
-  await expect(stopIn('33333333-0000-4000-8000-00000000a001')).toBeInViewport();
+  await expect(stopIn(FIRST)).toBeInViewport();
+  await expect(stopIn(FIRST)).toContainText('Your turn');
+  // Nothing about a way past or a rewind until there has been a try.
+  await expect(page.getByRole('button', { name: 'Keep going' })).toHaveCount(0);
   // Under the block's content, not squeezed into its number gutter.
-  const stopBox = await page.getByRole('button', { name: 'Keep going' }).boundingBox();
-  const wrapper = await page.locator('.viewer-block[data-block-id="33333333-0000-4000-8000-00000000a001"]').boundingBox();
+  const inFirst = stopIn(FIRST).getByRole('button', { name: /^(Check|Try again)$/ });
+  const stopBox = await inFirst.boundingBox();
+  const wrapper = await page.locator(`.viewer-block[data-block-id="${FIRST}"]`).boundingBox();
   expect(stopBox!.x).toBeGreaterThanOrEqual(wrapper!.x + 40);
   expect(stopBox!.x + stopBox!.width).toBeLessThanOrEqual(375);
 
-  await page.getByRole('button', { name: 'Keep going' }).click();
-  await expect(stopIn('33333333-0000-4000-8000-00000000a002')).toBeVisible({ timeout: 10_000 });
-  expect(await video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThanOrEqual(2);
-  await expect(stopIn('33333333-0000-4000-8000-00000000a001')).toHaveCount(0);
+  // The first field is ready to type in, on the same block every student sees.
+  const field = page.locator(`.viewer-block[data-block-id="${FIRST}"] input`).first();
+  await expect(field).toBeFocused();
+  await field.fill('12');
 
-  await page.getByRole('button', { name: 'Keep going' }).click();
+  // Wrong: the feedback, a rewind and a retry. The typed answer stays.
+  await inFirst.click();
+  await expect(stopIn(FIRST)).toContainText('Check the tenths first.');
+  await expect(field).toHaveValue('12');
+  expect(api.pauseRequests).toHaveLength(1);
+  const sent = api.pauseRequests[0] as { mode: string; blockId: string; responses: { blanks: Record<string, string> } };
+  expect(sent.mode).toBe('video-pause');
+  expect(sent.blockId).toBe(FIRST);
+  expect(Object.values(sent.responses.blanks)).toContain('12');
+  // A pause check is not the section's check.
+  expect(api.checkRequests).toHaveLength(0);
+  // Through the app's region pin, the same as every other call to this function.
+  expect(api.functionUrls.at(-1)).toContain('forceFunctionRegion=us-east-2');
+  // A stubbed route has no preflight, so hold the request to the function's real
+  // allow-list: a header it refuses would pass here and fail on every real check.
+  const cors = readFileSync(new URL('../../../../supabase/functions/_shared/cors.ts', import.meta.url), 'utf8');
+  const allowed = /'Access-Control-Allow-Headers':\s*'([^']+)'/.exec(cors)![1]!.split(/,\s*/);
+  const headers = api.pauseHeaders[0]!;
+  expect(headers['authorization']).toMatch(/^Bearer /);
+  const needPreflight = Object.keys(headers).filter((name) => name === 'authorization' || name === 'apikey' || name === 'content-type' || name.startsWith('x-'));
+  expect(needPreflight.filter((name) => !allowed.includes(name))).toEqual([]);
+
+  // Rewind: back to the start, playing, and it stops at the same block again.
+  await stopIn(FIRST).getByRole('button', { name: 'Rewind to 0:00' }).click();
+  await expect(stopIn(FIRST)).toHaveCount(0);
+  await expect(stopIn(FIRST)).toBeVisible({ timeout: 10_000 });
+  await expect(field).toHaveValue('12');
+
+  // Right: on to the second block, then straight through.
+  await inFirst.click();
+  await expect(stopIn(SECOND)).toBeVisible({ timeout: 10_000 });
+  expect(await video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThanOrEqual(2);
+  await expect(stopIn(FIRST)).toHaveCount(0);
+
+  await stopIn(SECOND).getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page.locator('.viewer-video-stop')).toHaveCount(0);
   await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(2.3);
 });

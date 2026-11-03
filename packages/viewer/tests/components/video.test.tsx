@@ -10,8 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { youtubeIdOf } from '@activity/schema';
 import Video, { VIDEO_COPY } from '../../src/blocks/Video.js';
-import { formatClipTime, pauseStep } from '../../src/blocks/videoPauseGate.js';
-import { setVideoSourceRpc } from '../../src/blocks/videoSourceSeam.js';
+import { formatClipTime, pauseStep, rewindTarget } from '../../src/blocks/videoPauseGate.js';
+import { setVideoLink } from '../../src/blocks/videoSourceSeam.js';
 import { ViewerProvider } from '../../src/container/context.js';
 import type { ViewerStore } from '../../src/store/store.js';
 
@@ -27,9 +27,25 @@ const BLOCK = {
 };
 const ok = (row: unknown) => ({ data: [row], error: null });
 const FILE = { url: 'https://example.org/clip.webm', captions: 'https://example.org/clip.vtt' };
+const RESPONSES = { blanks: { b1: '3' }, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: {} };
+
+type Answer = { data: unknown; error: unknown };
+const pauseSays = (state: string, feedback?: unknown[]): Answer => ({ data: { wireVersion: 3, state, feedback }, error: null });
+const invoke = vi.fn(async (): Promise<Answer> => pauseSays('right'));
+const CHECK_URL = 'https://edge.test/check-activity?forceFunctionRegion=us-east-2';
+const fetchStub = vi.fn<[string, RequestInit], Promise<{ ok: boolean; json: () => Promise<unknown> }>>(async () => {
+  const answer = await invoke();
+  return { ok: !answer.error, json: async () => answer.data };
+});
+function linkWith(rpc: (name: string, args: Record<string, string>) => PromiseLike<Answer>) {
+  return {
+    client: { rpc, auth: { getSession: async () => ({ data: { session: { access_token: 'tok' } } }) } },
+    checkUrl: () => CHECK_URL,
+  } as never;
+}
 
 function makeStore() {
-  return { getState: () => ({ activityId: ACTIVITY, versionId: VERSION, sections: {} }), subscribe: () => () => undefined } as never as ViewerStore;
+  return { getState: () => ({ activityId: ACTIVITY, versionId: VERSION, sections: {}, responses: RESPONSES }), subscribe: () => () => undefined } as never as ViewerStore;
 }
 
 // The shape the container and the block render: the attribute is on the wrapper
@@ -63,6 +79,10 @@ const pause = vi.fn();
 
 beforeEach(() => {
   currentTime = 0;
+  invoke.mockReset();
+  invoke.mockImplementation(async () => pauseSays('right'));
+  fetchStub.mockClear();
+  vi.stubGlobal('fetch', fetchStub);
   play.mockClear();
   pause.mockClear();
   vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(play);
@@ -75,7 +95,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  setVideoSourceRpc(null);
+  setVideoLink(null);
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.useRealTimers();
   delete window.YT;
@@ -90,23 +111,25 @@ describe('the gate, on the client (VP-7)', () => {
   });
 
   it('the server says no: nothing', async () => {
-    setVideoSourceRpc(async () => ({ data: [], error: null }));
+    setVideoLink(linkWith(async () => ({ data: [], error: null })));
     const { container } = mount();
     await act(async () => {});
     expect(container.querySelector('.viewer-video')).toBeNull();
   });
 
   it('the server errors: nothing', async () => {
-    setVideoSourceRpc(async () => ({ data: null, error: { message: 'Not authorized' } }));
+    setVideoLink(linkWith(async () => ({ data: null, error: { message: 'Not authorized' } })));
     const { container } = mount();
     await act(async () => {});
     expect(container.querySelector('.viewer-video')).toBeNull();
   });
 
   it('the read fails: nothing', async () => {
-    setVideoSourceRpc(async () => {
-      throw new Error('offline');
-    });
+    setVideoLink(
+      linkWith(async () => {
+        throw new Error('offline');
+      }),
+    );
     const { container } = mount();
     await act(async () => {});
     expect(container.querySelector('.viewer-video')).toBeNull();
@@ -114,7 +137,7 @@ describe('the gate, on the client (VP-7)', () => {
 
   it('asks for this activity, version and block', async () => {
     const reader = vi.fn(async () => ok(FILE));
-    setVideoSourceRpc(reader);
+    setVideoLink(linkWith(reader));
     mount();
     await screen.findByRole('button', { name: /Missed this lesson/ });
     expect(reader).toHaveBeenCalledWith('video_source', {
@@ -126,7 +149,7 @@ describe('the gate, on the client (VP-7)', () => {
 
   it('print: no card and no read (VP-9)', async () => {
     const reader = vi.fn(async () => ok(FILE));
-    setVideoSourceRpc(reader);
+    setVideoLink(linkWith(reader));
     const { container } = mount({}, 'print');
     await act(async () => {});
     expect(reader).not.toHaveBeenCalled();
@@ -135,7 +158,7 @@ describe('the gate, on the client (VP-7)', () => {
 });
 
 describe('the card (VP-2)', () => {
-  beforeEach(() => setVideoSourceRpc(async () => ok(FILE)));
+  beforeEach(() => setVideoLink(linkWith(async () => ok(FILE))));
 
   it('stays closed, with the title, and loads nothing from the host until tapped', async () => {
     const { container } = mount();
@@ -182,14 +205,14 @@ describe('the card (VP-2)', () => {
     expect(container.querySelector('video')).not.toBeNull();
   });
 
-  it('after Keep going, focus lands on the player, not the page', async () => {
+  it('after a right answer, focus lands on the player, not the page', async () => {
     const { container } = mount();
     const open = await screen.findByRole('button', { name: /Missed/ });
     vi.useFakeTimers();
     fireEvent.click(open);
     currentTime = 10;
     await act(async () => void vi.advanceTimersByTime(300));
-    fireEvent.click(screen.getByRole('button', { name: VIDEO_COPY.keepGoing }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: VIDEO_COPY.check })));
     expect(document.activeElement).toBe(container.querySelector('.viewer-video__frame'));
   });
 
@@ -221,7 +244,7 @@ describe('the card (VP-2)', () => {
 });
 
 describe('stopping at a pause (VP-1, VP-2)', () => {
-  beforeEach(() => setVideoSourceRpc(async () => ok(FILE)));
+  beforeEach(() => setVideoLink(linkWith(async () => ok(FILE))));
 
   async function playing() {
     const view = mount();
@@ -246,12 +269,166 @@ describe('stopping at a pause (VP-1, VP-2)', () => {
     expect(stop.closest('[data-block-id]')!.getAttribute('data-block-id')).toBe('f1');
   });
 
-  it('Keep going moves on to the second block, and plays', async () => {
+  const press = (name: string) => act(async () => fireEvent.click(screen.getByRole('button', { name })));
+  const stoppedIn = (container: HTMLElement) =>
+    container.querySelector('.viewer-video-stop')?.closest('[data-block-id]')?.getAttribute('data-block-id');
+
+  it('a stop says what to do, and offers neither a rewind nor a way past yet', async () => {
+    const { container } = await playing();
+    currentTime = 10;
+    await tick();
+    expect(container.querySelector('.viewer-video-stop [role="status"]')!.textContent).toBe(VIDEO_COPY.prompt);
+    expect(screen.queryByRole('button', { name: VIDEO_COPY.keepGoing })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Rewind/ })).toBeNull();
+  });
+
+  it('sends this block and the typed answers to the app\'s URL, with only headers CORS allows', async () => {
+    await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    const [url, init] = fetchStub.mock.calls[0]!;
+    expect(url).toBe(CHECK_URL);
+    expect(init.headers).toEqual({ Authorization: 'Bearer tok', 'Content-Type': 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual({
+      wireVersion: 3, mode: 'video-pause', activityId: ACTIVITY, versionId: VERSION, blockId: 'f1', responses: RESPONSES,
+    });
+  });
+
+  it('wrong: the feedback, a rewind and a retry; the second miss adds Keep going (VP-3)', async () => {
+    invoke.mockImplementation(async () =>
+      pauseSays('wrong', [[{ type: 'text', text: 'You added instead of multiplied.' }]]),
+    );
+    const { container } = await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    const status = container.querySelector('.viewer-video-stop [role="status"]')!;
+    expect(status.textContent).toContain(VIDEO_COPY.wrong);
+    expect(status.textContent).toContain('You added instead of multiplied.');
+    expect(screen.getByRole('button', { name: `${VIDEO_COPY.rewindTo} 0:00` })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: VIDEO_COPY.keepGoing })).toBeNull();
+    expect(stoppedIn(container)).toBe('f1');
+
+    await press(VIDEO_COPY.tryAgain);
+    expect(screen.getByRole('button', { name: VIDEO_COPY.keepGoing })).toBeTruthy();
+    expect(stoppedIn(container)).toBe('f1');
+  });
+
+  it('wrong with no authored feedback: the words and the buttons only (C-176)', async () => {
+    invoke.mockImplementation(async () => pauseSays('wrong', []));
+    const { container } = await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    expect(container.querySelector('.viewer-video-stop__feedback')).toBeNull();
+    expect(screen.getByRole('button', { name: VIDEO_COPY.tryAgain })).toBeTruthy();
+  });
+
+  it('nothing typed asks for an answer, and still can\'t trap anyone', async () => {
+    invoke.mockImplementation(async () => pauseSays('empty'));
+    const { container } = await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    expect(container.querySelector('.viewer-video-stop [role="status"]')!.textContent).toBe(VIDEO_COPY.empty);
+    await press(VIDEO_COPY.tryAgain);
+    expect(screen.getByRole('button', { name: VIDEO_COPY.keepGoing })).toBeTruthy();
+  });
+
+  it('a failed check offers Keep going at once: the network is not their mistake', async () => {
+    invoke.mockImplementation(async () => ({ data: null, error: { message: 'offline' } }));
+    await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    expect(screen.getByRole('button', { name: VIDEO_COPY.keepGoing })).toBeTruthy();
+  });
+
+  it('an answer this version does not know reads as failed, so it can\'t trap anyone', async () => {
+    invoke.mockImplementation(async () => pauseSays('something_new'));
+    await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    expect(screen.getByRole('button', { name: VIDEO_COPY.keepGoing })).toBeTruthy();
+  });
+
+  it('signed out: failed, and nothing is sent', async () => {
+    setVideoLink({
+      client: { rpc: async () => ok(FILE), auth: { getSession: async () => ({ data: { session: null } }) } },
+      checkUrl: () => CHECK_URL,
+    } as never);
+    await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    expect(fetchStub).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: VIDEO_COPY.keepGoing })).toBeTruthy();
+  });
+
+  it('rewind goes to the previous pause or the authored time, plays, and stops at the same block again', async () => {
+    invoke.mockImplementationOnce(async () => pauseSays('right'));
+    invoke.mockImplementation(async () => pauseSays('wrong', []));
+    const { container } = await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    currentTime = 20;
+    await tick();
+    expect(stoppedIn(container)).toBe('f2');
+    await press(VIDEO_COPY.check);
+    play.mockClear();
+    // BLOCK's second pause authors rewindTo: 5.
+    await press(`${VIDEO_COPY.rewindTo} 0:05`);
+    expect(currentTime).toBe(5);
+    expect(play).toHaveBeenCalled();
+    expect(container.querySelector('.viewer-video-stop')).toBeNull();
+    await tick();
+    expect(container.querySelector('.viewer-video-stop')).toBeNull();
+    currentTime = 20;
+    await tick();
+    expect(stoppedIn(container)).toBe('f2');
+    // The miss from before the rewind still counts toward the way past.
+    await press(VIDEO_COPY.check);
+    expect(screen.getByRole('button', { name: VIDEO_COPY.keepGoing })).toBeTruthy();
+  });
+
+  it('with no authored rewind the first pause goes to the start', () => {
+    expect(rewindTarget([{ at: 10 }, { at: 20 }, { at: 30, rewindTo: 25 }], 0)).toBe(0);
+    expect(rewindTarget([{ at: 10 }, { at: 20 }, { at: 30, rewindTo: 25 }], 1)).toBe(10);
+    expect(rewindTarget([{ at: 10 }, { at: 20 }, { at: 30, rewindTo: 25 }], 2)).toBe(25);
+  });
+
+  it('the section already checked elsewhere: the clip just carries on', async () => {
+    invoke.mockImplementation(async () => pauseSays('already_checked'));
     const { container } = await playing();
     currentTime = 10;
     await tick();
     play.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: VIDEO_COPY.keepGoing }));
+    await press(VIDEO_COPY.check);
+    expect(container.querySelector('.viewer-video-stop')).toBeNull();
+    expect(play).toHaveBeenCalled();
+  });
+
+  it('a press during a slow check sends one try', async () => {
+    let answer: (value: Answer) => void = () => undefined;
+    invoke.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    await playing();
+    currentTime = 10;
+    await tick();
+    await press(VIDEO_COPY.check);
+    await press(VIDEO_COPY.checking);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    await act(async () => answer(pauseSays('right')));
+  });
+
+  it('a right answer moves on to the second block, and plays', async () => {
+    const { container } = await playing();
+    currentTime = 10;
+    await tick();
+    play.mockClear();
+    await press(VIDEO_COPY.check);
     expect(container.querySelector('.viewer-video-stop')).toBeNull();
     expect(play).toHaveBeenCalled();
     currentTime = 15;
@@ -277,10 +454,10 @@ describe('stopping at a pause (VP-1, VP-2)', () => {
     fireEvent.click(open);
     currentTime = 1;
     await tick();
-    fireEvent.click(screen.getByRole('button', { name: VIDEO_COPY.keepGoing }));
+    await press(VIDEO_COPY.check);
     currentTime = 2;
     await tick();
-    fireEvent.click(screen.getByRole('button', { name: VIDEO_COPY.keepGoing }));
+    await press(VIDEO_COPY.check);
     currentTime = 3;
     await tick();
     expect(view.container.querySelector('.viewer-video-stop')).toBeNull();
@@ -328,7 +505,7 @@ describe('the YouTube host (VP-6)', () => {
       destroy = vi.fn();
     }
     window.YT = { Player } as never;
-    setVideoSourceRpc(async () => ok({ url: 'https://youtu.be/abc123', captions: null }));
+    setVideoLink(linkWith(async () => ok({ url: 'https://youtu.be/abc123', captions: null })));
     mount();
     const open = await screen.findByRole('button', { name: /Missed/ });
     expect(created).toEqual([]);

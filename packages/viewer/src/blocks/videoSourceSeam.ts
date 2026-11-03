@@ -1,12 +1,19 @@
-// The one piece of the clip's read the shell pays for (D64 VP-7): the app hands
-// over a way to call the server's gate. videoSource.ts, in the clip's chunk, uses it.
-export type VideoSourceRpc = (
-  name: string,
-  args: Record<string, string>,
-) => PromiseLike<{ data: unknown; error: unknown }>;
+// The one piece of the clip's calls the shell pays for (D64): the app hands over
+// its client and the check function's URL. The clip's chunk does the rest.
+export interface VideoClient {
+  rpc(name: string, args: Record<string, string>): PromiseLike<{ data: unknown; error: unknown }>;
+  auth: {
+    getSession(): Promise<{ data: { session: { access_token: string } | null } }>;
+  };
+}
 
-export let videoSourceRpc: VideoSourceRpc | null = null;
+export interface VideoLink {
+  client: VideoClient;
+  checkUrl: () => string;
+}
 
-export function setVideoSourceRpc(rpc: VideoSourceRpc | null): void {
-  videoSourceRpc = rpc;
+export let videoLink: VideoLink | null = null;
+
+export function setVideoLink(link: VideoLink | null): void {
+  videoLink = link;
 }

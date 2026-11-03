@@ -5,10 +5,11 @@
 // gate (VP-7), and with no URL nothing shows at all: not a card, not a placeholder.
 //
 // VP-2: at a pause the clip stops and the page scrolls to the real faded block,
-// so there is one rendering of blanks, math entry and feedback. The control sits
-// in that block through a portal. It offers "Keep going" until slice 3 adds the
-// check there. Once the section is checked the clip plays straight through, and
-// its pause times become places to jump to (VP-3).
+// so there is one rendering of blanks, math entry and feedback. The Check sits in
+// that block through a portal, and a right answer resumes the clip. VP-3: a wrong
+// answer never traps anyone, because the second miss offers "Keep going". Once the
+// section is checked the clip plays straight through, and its pause times become
+// places to jump to.
 //
 // The faded blocks are found in the rendered section, because the served document
 // holds the same order and the shell has no room for another context field.
@@ -20,13 +21,22 @@ import type { VideoBlock } from '@activity/schema';
 import type { BlockComponentProps } from '../registry/types.js';
 import { useViewer, useViewerSelector } from '../container/context.js';
 import { mountVideoPlayer, type VideoPlayer } from './videoHosts.js';
-import { formatClipTime, pauseStep } from './videoPauseGate.js';
-import { readVideoSource, type VideoSource } from './videoSource.js';
+import { InlineContent } from '../inline/InlineContent.js';
+import { formatClipTime, pauseStep, rewindTarget } from './videoPauseGate.js';
+import { checkPause, readVideoSource, type PauseOutcome, type VideoSource } from './videoSource.js';
 
 export const VIDEO_COPY = {
   open: 'Missed this lesson? Watch the catch-up',
   stale: 'Video is out of date',
   unavailable: "The video isn't available right now",
+  prompt: 'Your turn. Answer this one to keep the video going.',
+  check: 'Check',
+  checking: 'Checking…',
+  tryAgain: 'Try again',
+  wrong: 'Not quite.',
+  empty: 'Type your answer first.',
+  failed: "That didn't go through.",
+  rewindTo: 'Rewind to',
   keepGoing: 'Keep going',
   jump: 'Jump to',
 } as const;
@@ -38,6 +48,96 @@ function fadedBlocksAfter(card: Element): Element[] {
   if (!section) return [];
   return Array.from(section.querySelectorAll(".viewer-block[data-block-type='faded_worked_example']")).filter(
     (el) => card.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+}
+
+// Two misses, whatever kind, and the student may go on (VP-3). A failed read lets
+// them go on at once: the school's network is not their mistake.
+const MISSES_TO_GO_ON = 2;
+
+function PauseStop({
+  blockId,
+  rewindTo,
+  misses,
+  onMiss,
+  onGoOn,
+  onRewind,
+}: {
+  blockId: string;
+  rewindTo: number;
+  misses: number;
+  onMiss: () => void;
+  onGoOn: () => void;
+  onRewind: () => void;
+}) {
+  const { store } = useViewer();
+  const [outcome, setOutcome] = useState<PauseOutcome | null>(null);
+  const [checking, setChecking] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const live = useRef(true);
+
+  useEffect(() => {
+    live.current = true;
+    const block = button.current?.closest('.viewer-block');
+    const field = block?.querySelector<HTMLElement>('input, textarea, select, math-field');
+    (field ?? button.current)?.focus({ preventScroll: true });
+    return () => {
+      live.current = false;
+    };
+  }, []);
+
+  const press = async () => {
+    if (checking) return;
+    setChecking(true);
+    const { activityId, versionId, responses } = store.getState();
+    const result = await checkPause(activityId, versionId, blockId, responses);
+    // The section's own Check closed this stop while the try was in the air.
+    if (!live.current) return;
+    setChecking(false);
+    if (result.state === 'right' || result.state === 'already_checked') {
+      onGoOn();
+      return;
+    }
+    setOutcome(result);
+    if (result.state === 'wrong' || result.state === 'empty') onMiss();
+  };
+
+  const tried = outcome !== null;
+  const canGoOn = misses >= MISSES_TO_GO_ON || outcome?.state === 'failed';
+  return (
+    <div className="viewer-video-stop__body">
+      <div role="status">
+        <p className="viewer-video-stop__message">
+          {outcome?.state === 'wrong'
+            ? VIDEO_COPY.wrong
+            : outcome?.state === 'empty'
+              ? VIDEO_COPY.empty
+              : outcome?.state === 'failed'
+                ? VIDEO_COPY.failed
+                : VIDEO_COPY.prompt}
+        </p>
+        {outcome?.state === 'wrong'
+          ? outcome.feedback.map((nodes, index) => (
+              <p key={index} className="viewer-video-stop__feedback" data-feedback="server">
+                <InlineContent nodes={nodes} />
+              </p>
+            ))
+          : null}
+      </div>
+      <button ref={button} type="button" className="viewer-video__button" aria-busy={checking} onClick={() => void press()}>
+        {checking ? VIDEO_COPY.checking : tried ? VIDEO_COPY.tryAgain : VIDEO_COPY.check}
+      </button>
+      {tried ? (
+        <button type="button" className="viewer-video__button" onClick={onRewind}>
+          {VIDEO_COPY.rewindTo} {formatClipTime(rewindTo)}
+        </button>
+      ) : null}
+      {canGoOn ? (
+        <button type="button" className="viewer-video__button" onClick={onGoOn}>
+          {VIDEO_COPY.keepGoing}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -56,7 +156,8 @@ function ClipPlayer({
   const player = useRef<VideoPlayer | null>(null);
   const nextPause = useRef(0);
   const [stopHost, setStopHost] = useState<HTMLElement | null>(null);
-  const keepGoing = useRef<HTMLButtonElement>(null);
+  const [stopBlockId, setStopBlockId] = useState('');
+  const [misses, setMisses] = useState(0);
 
   useEffect(() => {
     if (!frame.current) return;
@@ -91,6 +192,7 @@ function ClipPlayer({
       const host = document.createElement('div');
       host.className = 'viewer-video-stop';
       target.append(host);
+      setStopBlockId(target.getAttribute('data-block-id') ?? '');
       setStopHost(host);
     }, TICK_MS);
     return () => window.clearInterval(timer);
@@ -99,9 +201,20 @@ function ClipPlayer({
   useEffect(() => {
     if (!stopHost) return;
     stopHost.parentElement?.scrollIntoView?.({ block: 'center' });
-    keepGoing.current?.focus({ preventScroll: true });
     return () => stopHost.remove();
   }, [stopHost]);
+
+  // The section's own Check can land during a stop. Its blocks are locked now.
+  useEffect(() => {
+    if (sectionChecked) setStopHost(null);
+  }, [sectionChecked]);
+
+  const backToClip = () => {
+    setStopHost(null);
+    frame.current?.scrollIntoView?.({ block: 'center' });
+    frame.current?.focus({ preventScroll: true });
+    player.current?.play();
+  };
 
   return (
     <>
@@ -126,20 +239,22 @@ function ClipPlayer({
       ) : null}
       {stopHost
         ? createPortal(
-            <button
-              ref={keepGoing}
-              type="button"
-              className="viewer-video__button"
-              onClick={() => {
+            <PauseStop
+              key={stopBlockId}
+              blockId={stopBlockId}
+              rewindTo={rewindTarget(pauses, nextPause.current)}
+              misses={misses}
+              onMiss={() => setMisses((count) => count + 1)}
+              onGoOn={() => {
                 nextPause.current += 1;
-                setStopHost(null);
-                frame.current?.scrollIntoView?.({ block: 'center' });
-                frame.current?.focus({ preventScroll: true });
-                player.current?.play();
+                setMisses(0);
+                backToClip();
               }}
-            >
-              {VIDEO_COPY.keepGoing}
-            </button>,
+              onRewind={() => {
+                player.current?.seek(rewindTarget(pauses, nextPause.current));
+                backToClip();
+              }}
+            />,
             stopHost,
           )
         : null}

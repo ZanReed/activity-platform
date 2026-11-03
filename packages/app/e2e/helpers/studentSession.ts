@@ -123,6 +123,8 @@ export interface CheckOutcome {
 export interface ActivityApiOptions {
   /** What video_source returns. Omitted = a URL; null = the server says no. */
   videoSource?: { url: string; captions: string | null } | null;
+  /** D64: what each pause check answers, in turn. Then 'right'. */
+  pauseAnswers?: Array<{ state: string; feedback?: unknown[][] }>;
   document?: unknown;
   activityId?: string;
   versionId?: string;
@@ -196,6 +198,9 @@ export async function seedForeignWork(
 export interface ActivityApi {
   /** Requests seen, newest last. Lets a spec assert "exactly one attempt". */
   readonly checkRequests: unknown[];
+  /** D64: a clip's pause checks. Never counted as checks. */
+  readonly pauseRequests: unknown[];
+  readonly pauseHeaders: Record<string, string>[];
   /** Restore-mode requests seen (S3). Never counted as checks. */
   readonly restoreRequests: unknown[];
   /** Simulate no network: matched requests are aborted, as a dead Wi-Fi does. */
@@ -225,10 +230,22 @@ export async function stubActivityApi(
     failStatus: null as number | null,
     checkRequests: [] as unknown[],
     restoreRequests: [] as unknown[],
+    pauseRequests: [] as unknown[],
+    pauseHeaders: [] as Record<string, string>[],
     remembered: new Map<string, { responses: unknown; result: unknown }>(),
     serveRev: SERVE_REV,
     contentRequests: 0,
     functionUrls: [] as string[],
+  };
+
+  // Above every route: a request can land while the next route is being added.
+  const abortIfOffline = async (route: Route): Promise<boolean> => {
+    if (!state.offline) return false;
+    // `abort` makes fetch REJECT, which is what a real transport failure does
+    // — and is what both clients translate into their 'offline' error kind. A
+    // 500 would take a different branch entirely and prove nothing.
+    await route.abort('internetdisconnected');
+    return true;
   };
 
   // D64 VP-7: the fixture document has a clip, so this read fires on every open.
@@ -251,15 +268,6 @@ export async function stubActivityApi(
         : [],
     });
   });
-
-  const abortIfOffline = async (route: Route): Promise<boolean> => {
-    if (!state.offline) return false;
-    // `abort` makes fetch REJECT, which is what a real transport failure does
-    // — and is what both clients translate into their 'offline' error kind. A
-    // 500 would take a different branch entirely and prove nothing.
-    await route.abort('internetdisconnected');
-    return true;
-  };
 
   // Matched by path so the harness is independent of the configured origin.
   await page.route('**/functions/v1/get-activity*', async (route) => {
@@ -325,6 +333,16 @@ export async function stubActivityApi(
         });
         return;
       }
+      // D64: a clip's pause check, never a section check. Each stubbed answer in
+      // turn, then right.
+      if (body.mode === 'video-pause') {
+        state.pauseRequests.push(body);
+        state.pauseHeaders.push(route.request().headers());
+        await route.fulfill({
+          json: { wireVersion: CHECK_WIRE_VERSION, ...(options.pauseAnswers?.shift() ?? { state: 'right' }) },
+        });
+        return;
+      }
       state.checkRequests.push(body);
 
       if (state.failStatus !== null) {
@@ -373,6 +391,12 @@ export async function stubActivityApi(
   return {
     get checkRequests() {
       return state.checkRequests;
+    },
+    get pauseRequests() {
+      return state.pauseRequests;
+    },
+    get pauseHeaders() {
+      return state.pauseHeaders;
     },
     get restoreRequests() {
       return state.restoreRequests;

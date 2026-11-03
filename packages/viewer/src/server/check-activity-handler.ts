@@ -49,6 +49,7 @@ import { dolAllowance, findDolSection } from '../sanitize/dolForm.js';
 import { dolPrimary, primaryCorrect, seedContextFor } from './dol.js';
 import { UUID_RE } from './uuid.js';
 import { createPracticeHandlers, type DolPracticeDb, type PracticeDb } from './practice-handler.js';
+import { createVideoPauseHandler, type VideoPauseDb } from './video-pause-handler.js';
 
 // UUID_RE is imported (server/uuid.ts, G2): this file's strict shape is now
 // THE shape — the read handler adopted it rather than staying looser.
@@ -160,6 +161,10 @@ export interface CheckActivityDb {
     authHeader: string,
     args: { activityId: string; versionId: string; sectionId: string; rubricPrimary: boolean },
   ): Promise<DbResult<DolStateRow>>;
+  /** `video_source` (0078) as the caller: a clip's pause check asks the same gate. */
+  videoSource: VideoPauseDb['videoSource'];
+  /** `record_video_pause_try` (0079), SERVICE ROLE. */
+  recordPauseTry: VideoPauseDb['recordPauseTry'];
 }
 
 /** my_dol_state's answer (0070). */
@@ -472,6 +477,7 @@ export function createCheckActivityHandler(
     cors,
     servedOrderings: deps.servedOrderings,
   });
+  const videoPause = createVideoPauseHandler({ db, cors, servedOrderings: deps.servedOrderings });
 
   /**
    * RESTORE (student-experience review S3; eng review findings 1–2, D4–D7).
@@ -684,6 +690,11 @@ export function createCheckActivityHandler(
     }
     if (mode === 'dol-practice') {
       return practice.handleDolPracticeCheck(req, authHeader, body, validateResponses);
+    }
+
+    // A CLIP'S PAUSE CHECK (D64 VP-3): one block, no section check written.
+    if (mode === 'video-pause') {
+      return videoPause(req, authHeader, body, validateResponses);
     }
 
     const validated = validateCheckRequest(body);

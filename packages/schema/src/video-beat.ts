@@ -100,7 +100,7 @@ export interface VideoDocMeta {
   submissionMode?: string;
 }
 
-function clipIsPlaced(section: SectionLike, video: VideoBlock, meta: VideoDocMeta): boolean {
+export function clipIsPlaced(section: SectionLike, video: VideoBlock, meta: VideoDocMeta): boolean {
   return (
     meta.activityType !== 'quiz' &&
     meta.activityType !== 'exam' &&

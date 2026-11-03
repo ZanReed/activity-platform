@@ -84,6 +84,25 @@ const db: CheckActivityDb = {
       .maybeSingle();
   },
 
+  async videoSource(authHeader, activityId, versionId, videoId) {
+    return await asCaller(authHeader).rpc('video_source', {
+      p_activity_id: activityId,
+      p_version_id: versionId,
+      p_block_id: videoId,
+    });
+  },
+
+  async recordPauseTry(args) {
+    return await admin.rpc('record_video_pause_try', {
+      p_student_id: args.studentId,
+      p_activity_id: args.activityId,
+      p_version_id: args.versionId,
+      p_section_id: args.sectionId,
+      p_block_id: args.blockId,
+      p_correct: args.correct,
+    });
+  },
+
   async readVersion(versionId) {
     // Service role: this is the RAW document. Only reached after the
     // authorization RPC above has succeeded.

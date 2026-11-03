@@ -146,6 +146,8 @@ function harness(
       };
     },
     ownLatestChecks: async () => ({ data: [], error: null }),
+    videoSource: async () => ({ data: [], error: null }),
+    recordPauseTry: async () => ({ data: { recorded: true }, error: null }),
     dolState: async () => ({ data: { attempts: 0, retake_open: false, passed: false }, error: null }),
     recordCheck: async (args) => {
       records.push(args);

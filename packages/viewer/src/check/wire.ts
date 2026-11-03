@@ -406,6 +406,27 @@ export interface DolPracticeCheckRequest extends Omit<PracticeCheckRequest, 'mod
   mode: 'dol-practice';
 }
 
+// ---- A clip's pause check (D64 VP-3) ----------------------------------------
+
+/** One try at the faded block a clip stopped at. It writes no section check. */
+export interface VideoPauseRequest {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  mode: 'video-pause';
+  activityId: string;
+  versionId: string;
+  blockId: string;
+  responses: SectionResponses;
+}
+
+/** Right or wrong for the whole block, and never the answers. `empty`: nothing
+ *  answered, so no try. `already_checked`: the section's check has run. */
+export interface VideoPauseResult {
+  wireVersion: typeof CHECK_WIRE_VERSION;
+  state: 'right' | 'wrong' | 'empty' | 'already_checked';
+  /** One entry per wrong item with mistake feedback. Often empty (VP-3). */
+  feedback?: SanitizedInlineNode[][];
+}
+
 // ---- Released teacher feedback (recorded family, D15) -----------------------
 
 /** One scored rubric criterion, as the student sees it. */

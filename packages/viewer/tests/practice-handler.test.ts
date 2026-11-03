@@ -66,6 +66,8 @@ const sectionDb: CheckActivityDb = {
   readVersion: async () => { throw new Error('a practice call read an activity version'); },
   recordCheck: async () => { throw new Error('a practice call wrote a section check'); },
   ownLatestChecks: async () => { throw new Error('a practice call read section checks'); },
+  videoSource: async () => { throw new Error('a practice call read a clip'); },
+  recordPauseTry: async () => { throw new Error('a practice call wrote a pause try'); },
   dolState: async () => { throw new Error('a practice call read DoL state'); },
 };
 

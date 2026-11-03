@@ -36,7 +36,7 @@ import {
   activityTypeLabel,
   ToolCluster,
   ViewerContainer,
-  setVideoSourceRpc,
+  setVideoLink,
   ViewerLoadError,
   createBrowserConnectivity,
   createCheckQueue,
@@ -78,7 +78,7 @@ import { SignInFailedCard, useAuthCallbackError } from '../components/AuthScreen
 
 // D64 VP-7: the served document has no URL, so the clip's chunk asks the server's
 // gate through this. It is all the shell pays, and it has no room for more.
-setVideoSourceRpc((name, args) => supabase.rpc(name, args));
+setVideoLink({ client: supabase as never, checkUrl: () => edgeFunctionUrl(functionsBase(), CHECK_ACTIVITY_FUNCTION) });
 
 // functionsBase comes from lib/supabase (A21) — the one env-read site, so
 // this route's tests stay env-independent by mocking that module.

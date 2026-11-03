@@ -270,8 +270,9 @@ card, and nothing before that:
 - **A plain video file on a host the school chooses.** That host receives the same
   device details, and no Google service is involved.
 
-The platform keeps no record of who played what. It would record a student's first
-answer at each pause against the skill, like any other first try.
+The platform keeps no watch log. It would record a student's first answer at each
+pause against the skill, like any other first try, so that row does show the student
+reached that pause.
 
 Please say which host, if either, is acceptable, what the school authorization and
 privacy page must say first, and whether the answer differs for students under 13.

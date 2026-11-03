@@ -161,6 +161,8 @@ function checkHarness(record: { attempt_number: number; dol_passed: boolean } | 
     versionForCheck: async () => ({ data: { version_id: VERSION, version_num: 1, is_current: true, current_version_id: VERSION }, error: null }),
     readVersion: async () => ({ data: { content: storedDoc() }, error: null }),
     ownLatestChecks: async () => ({ data: [], error: null }),
+    videoSource: async () => ({ data: [], error: null }),
+    recordPauseTry: async () => ({ data: { recorded: true }, error: null }),
     dolState: async () => ({ data: { attempts: 1, retake_open: false, passed: false }, error: null }),
     recordCheck: async (args) => {
       calls.push(args as unknown as Record<string, unknown>);
@@ -245,6 +247,8 @@ describe('restore (DE-1d, DL-8)', () => {
         ownLatestChecks: async () => ({ data: rows, error: null }),
         dolState: async () => ({ data: { attempts: attempt, retake_open: false, passed }, error: null }),
         recordCheck: async () => { throw new Error('restore never records'); },
+        videoSource: async () => ({ data: [], error: null }),
+        recordPauseTry: async () => ({ data: { recorded: true }, error: null }),
       },
       cors,
       practice: { startMixedSession: unreachable, mixedItemForCheck: unreachable, readSnapshots: unreachable, readAttempts: unreachable, recordAttempt: unreachable, startDolPractice: unreachable, dolItemForCheck: unreachable, readDolSnapshots: unreachable, readDolAttempts: unreachable, recordDolAttempt: unreachable },
