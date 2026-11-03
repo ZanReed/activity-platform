@@ -153,7 +153,7 @@ pause: 6:30
   - A republish mints new block ids, so a student's try on the new version is a second "first try" on the skill.
   - `mixed_class_summary`'s practising count now includes a student who only answered a pause.
   - The section's Check landing during a stop leaves the clip paused where it is, because the student is reading their result.
-- **Retention (author ruling 2026-11-03):** a first try goes 30 days after the first answer, by `prune_video_pause_tries` (0080), built and not armed. Arming is on the VP-8 checklist, before clearance. So a pause stops counting toward "Getting stuck" and "Keep practising" after 30 days, and a mixed-practice try doesn't.
+- **Retention (author ruling 2026-11-03, reading confirmed the same day: not the school year plus 30):** a first try goes 30 days after the first answer, by `prune_video_pause_tries` (0080), built and not armed. Arming is on the VP-8 checklist, before clearance. So a pause stops counting toward "Getting stuck" and "Keep practising" after 30 days, and a mixed-practice try doesn't.
 - **Not proven yet:** a real try on live needs an owner's clip, which records nothing, so a student's row is proven only by `verify-0079`. YouTube is still unproven until the first real clip.
 
 **Slice 2 (2026-11-02): player and gate.** Migration 0078. Teachers who own the activity only, because `video_clearance` is off.
