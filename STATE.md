@@ -24,7 +24,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **D64:** slices 1–3 LIVE, clearance OFF. 0080 prune (30 days) LIVE, disarmed. YouTube unproven. [video-pause-points.md](docs/design/video-pause-points.md).
 
-**MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. **Owed:** `/design-review` → MP-15's capability-row letter (S4-4).
+**MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). **Owed:** MP-15's capability-row letter (S4-4).
 
 **701 place-value LIVE (2026-10-13).**
 

@@ -293,7 +293,7 @@ export default function MixedPanel({
             ) : null}
 
             {data.practised_week > 0 || data.skills.length > 0 ? (
-                <p className="ft-counts" data-testid="ft-mixed-counts">
+                <p className="ft-counts" data-testid="ft-mixed-counts" style={{ marginTop: 16 }}>
                     Practised today {data.practised_today} of {data.in_class} · In the last 7 days{' '}
                     {data.practised_week}
                 </p>
@@ -301,7 +301,7 @@ export default function MixedPanel({
 
             {data.skills.length > 0 ? (
                 <>
-                    <div className="ft-tablewrap">
+                    <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Each skill">
                         <table className="ft-table">
                             <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                 Each skill: students’ last 5 first tries
@@ -349,7 +349,13 @@ export default function MixedPanel({
                 ) : !students ? (
                     <p className="ft-muted" role="status">Loading…</p>
                 ) : (
-                    <div className="ft-tablewrap" data-testid="ft-mixed-students">
+                    <div
+                        className="ft-tablewrap"
+                        data-testid="ft-mixed-students"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Each student"
+                    >
                         <table className="ft-table">
                             <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                 Each student: days practised this week and the skills they are getting

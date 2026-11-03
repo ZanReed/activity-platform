@@ -145,6 +145,7 @@ Chromium fires no `blur` when a focused input becomes disabled, and `BlankInput`
   with sprint history, or the sprint's next migration (whichever first) —
   derive from `sprint_sessions.practice_day`, which already exists.
 
+- **Teacher panel design review, 2026-11-04: open items, awaiting the author.** (1) On a phone the per-skill table shows only the Skill column; the numbers need a sideways scroll with no hint (`MixedPanel.tsx`; the "Each student" table too). (2) A same-mistake row runs its mistakes together as one muted paragraph, though C-162 calls the label the most important field; proposal: one line per mistake, label in ink, skill muted, wording unchanged. (3) "Changes apply to practice started after you save" shows when no Save button is on screen, and the score checkbox saves at once. (4) The list's intro still says names are hidden while the list is open. (5) `.ft-tablewrap` in `SprintPanel` and `FactsTeacher` has the same keyboard gap on a table that overflows; TRIGGER: the same change as (1).
 - **⚠ `prune_mixed_practice` (0066) — the ARMING checklist; do NOT arm without
   the author's explicit yes.** It deletes students' practice answers (and, for
   unscored sessions, the session rows). Held back only by being unscheduled and

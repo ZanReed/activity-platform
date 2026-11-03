@@ -360,8 +360,7 @@
   width: 100%;
 }
 
-.ft-who-open,
-.ft-who-row > .ft-who-name {
+.ft-who-open {
   min-height: 44px;
 }
 
@@ -372,6 +371,25 @@
   flex-wrap: wrap;
   gap: 4px 12px;
   padding: 10px 4px;
+}
+
+/* A row that opens looks like it opens; a number-facts row, which doesn't, has
+   no chevron. The button's aria-label already names it, so this adds no speech. */
+.ft-who-open {
+  padding-right: 28px;
+  position: relative;
+}
+
+.ft-who-open::after {
+  color: var(--color-muted);
+  content: '›';
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+.ft-who-open[aria-expanded='true']::after {
+  transform: rotate(90deg);
 }
 
 .ft-who-open:hover {
@@ -389,4 +407,52 @@
 
 .ft-who-detail {
   color: var(--color-muted);
+}
+
+.ft-who-day,
+.ft-who-try {
+  white-space: nowrap;
+}
+
+/* A phone restacks a drawer row so the mistake, the field a teacher opened it
+   for, is never scrolled out of sight (C-162). */
+@media (max-width: 520px) {
+  .ft-who-tries thead {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    width: 1px;
+  }
+
+  .ft-who-tries tbody tr {
+    border-bottom: 1px solid var(--color-line);
+    display: grid;
+    gap: 2px 12px;
+    grid-template-columns: auto 1fr;
+    padding: 8px 0;
+  }
+
+  .ft-who-tries tbody td {
+    border: 0;
+    padding: 0;
+  }
+
+  .ft-who-tries .ft-who-skill,
+  .ft-who-tries .ft-who-mistake {
+    grid-column: 1 / -1;
+  }
+
+  .ft-who-tries .ft-who-skill {
+    color: var(--color-muted);
+    grid-row: 2;
+  }
+
+  .ft-who-tries .ft-who-mistake {
+    grid-row: 3;
+  }
+
+  .ft-who-tries .ft-who-mistake--none {
+    display: none;
+  }
 }

@@ -129,6 +129,12 @@ export default function WhoFirst({ classId }: { classId: string }) {
             }));
             body = (
                 <>
+                    {/* Above the names: a teacher walks to whoever is listed. */}
+                    {stale && updatedAt ? (
+                        <p className="ft-muted ft-small" role="status">
+                            Not updated since {clock(updatedAt)}.
+                        </p>
+                    ) : null}
                     {data.started_today === 0 ? (
                         <p className="ft-note">Students haven’t started today’s practice.</p>
                     ) : stuck.length === 0 && same.length === 0 ? (
@@ -148,11 +154,6 @@ export default function WhoFirst({ classId }: { classId: string }) {
                     ) : null}
                     {data.started_today > 0 ? (
                         <p className="ft-muted ft-small">Everyone else ({data.everyone_else})</p>
-                    ) : null}
-                    {stale && updatedAt ? (
-                        <p className="ft-muted ft-small" role="status">
-                            Not updated since {clock(updatedAt)}.
-                        </p>
                     ) : null}
                 </>
             );
@@ -248,24 +249,26 @@ function Drawer({ classId, studentId }: { classId: string; studentId: string }) 
     if (tries.length === 0) return <p className="ft-muted ft-small">No practice yet in this class.</p>;
     return (
         <div className="ft-tablewrap" data-testid="ft-who-drawer">
-            <table className="ft-table">
+            {/* The roles are explicit because a phone restacks the rows with
+                CSS, and display: grid drops a table's implicit ones. */}
+            <table className="ft-table ft-who-tries" role="table">
                 <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
-                    Last {tries.length} first tries, newest first
+                    {tries.length === 1 ? 'Last first try' : `Last ${tries.length} first tries, newest first`}
                 </caption>
-                <thead>
-                    <tr>
-                        <th scope="col">Day</th>
-                        <th scope="col">Skill</th>
-                        <th scope="col">First try</th>
-                        <th scope="col">Mistake</th>
+                <thead role="rowgroup">
+                    <tr role="row">
+                        <th scope="col" role="columnheader">Day</th>
+                        <th scope="col" role="columnheader">Skill</th>
+                        <th scope="col" role="columnheader">First try</th>
+                        <th scope="col" role="columnheader">Mistake</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody role="rowgroup">
                     {tries.map((t, i) => (
-                        <tr key={i}>
-                            <td>{longDay(t.practice_day).replace(/,? \d{4}$/, '')}</td>
-                            <td>{t.skill_label ?? t.skill_id}</td>
-                            <td>
+                        <tr key={i} role="row">
+                            <td role="cell" className="ft-who-day">{longDay(t.practice_day).replace(/,? \d{4}$/, '')}</td>
+                            <td role="cell" className="ft-who-skill">{t.skill_label ?? t.skill_id}</td>
+                            <td role="cell" className="ft-who-try">
                                 {t.skipped ? (
                                     'Skipped'
                                 ) : t.correct ? (
@@ -278,7 +281,9 @@ function Drawer({ classId, studentId }: { classId: string; studentId: string }) 
                                     </>
                                 )}
                             </td>
-                            <td>{t.mistakes.length === 0 ? '—' : t.mistakes.map((m) => m.label ?? m.id).join('; ')}</td>
+                            <td role="cell" className={t.mistakes.length === 0 ? 'ft-who-mistake ft-who-mistake--none' : 'ft-who-mistake'}>
+                                {t.mistakes.length === 0 ? '—' : t.mistakes.map((m) => m.label ?? m.id).join('; ')}
+                            </td>
                         </tr>
                     ))}
                 </tbody>
