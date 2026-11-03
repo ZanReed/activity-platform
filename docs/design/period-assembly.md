@@ -74,6 +74,25 @@ So the gap is small: **the pieces exist, and nothing says which activity is toda
 
 Nothing about the file format changes, so no pin bump. **Recommend sending it before the build.**
 
+## C-180: the curriculum side's view (2026-11-04), with recommendations updated
+
+Their author has seen it; the rulings stay with this side's author. Their quotes check: our reading of §17, §18 and D43 was accurate.
+
+| PA | Their view | Recommendation now |
+|---|---|---|
+| 1, 2 | (a) and (b): this is "runs premade", no need to wait for banks | Unchanged |
+| 3, 5, 6 | Keep the order; add a non-link "your teacher's question" row for the hook; up to six rows on a double, one hook only | **Accept.** Stays lazy-route only |
+| 4 | A dated row per period (kind and activity), not a column; a future date is fine under §18 | **Accept the table,** `kind` allowing only `activity` until review ships. The first UI still offers today only; future dates when a teacher asks |
+| 7, 8, 11 | No objection raised | Unchanged |
+| 9 | Review before corrective, but with real rules as graph keys: pull forward stalest first, at most two per skill and never adjacent, more discrimination, no step up on pulled-forward items, a pool floor. About 33 items, so first real use is the lead-up to the week 8 Number test | **Accept; withdraw "two parameters" and "about the fifth period".** Keep it next, on its own pass, after their keys |
+| 10 | (b), with numbers from the key: 50 min about 6, 55 about 9–10, 60 about 12–13, a double about 8 per block, sprint off about 3 more. They add `activity_defaults.period_shapes` | **Accept.** It needs a mirror through the importer before the helper line can read it. Slice 1 doesn't depend on it |
+| 12 | Answered by this letter | Done, apart from the replies below |
+
+Still to settle:
+- **A second Practice on a double.** Today's ER-6 fallback decides what a later session the same day serves. Check it on a real pool before promising two blocks.
+- **Their ask: a log of sessions that end early, without names.** Not in the recommendations. It's a new record of student activity, even aggregated, so it needs its own compliance read. File with a trigger unless the author wants it now.
+- **Coming separately from them:** a skills diagnostic that seeds practice, and a re-teach suggestion. Neither is designed, and neither changes this pass.
+
 ## If ruled as recommended: the slices
 
 1. **Data and teacher:** the column, the RPC, its verify script, the pick control, the Today panel. Migration first, then push (OV-7).
