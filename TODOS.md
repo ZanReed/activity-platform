@@ -188,7 +188,7 @@ Zan rates platform features above activity authoring right now (C-149 item 4). E
      - [ ] The HoD confirms the school's policy on teacher-recorded, student-facing video.
      - [ ] Counsel answers a new packet question (next free number; Q12 is earmarked for mixed practice): a third-party embed on under-13 devices, by host, YouTube and file.
      - [ ] The privacy page and data map name the host.
-     - [ ] A retention window for `video_pause_tries` is ruled and its prune built (found at slice 3; VP-8 named the host, not this. `data-map` and `retention-policy` say it is open).
+     - [ ] `prune_video_pause_tries` (0080, the author's 30-day window) is armed, with Zan's explicit yes. It deletes student work: dry-run by default and unscheduled, and verify-0080's `prune_is_unscheduled` row fails if a cron job names it. Flip that row with the cron row. Before the clearance setting goes on, not after.
      - [ ] Zan's explicit yes.
    - **D64 out of scope, VP-11, each with its trigger:** who-watched view + watch log (a teacher asks; needs its own compliance read) · native fullscreen (a tester finds it missing) · tries after the section is checked (a teacher asks for revision tries) · self-hosting on the platform (the school refuses every outside host) · teacher-attached videos (a teacher asks to attach their own).
 

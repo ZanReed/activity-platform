@@ -153,12 +153,12 @@ pause: 6:30
   - A republish mints new block ids, so a student's try on the new version is a second "first try" on the skill.
   - `mixed_class_summary`'s practising count now includes a student who only answered a pause.
   - The section's Check landing during a stop leaves the clip paused where it is, because the student is reading their result.
-- **Open before students (TODOS, VP-8):** no retention window or prune exists for `video_pause_tries`. No row can exist until clearance is on.
+- **Retention (author ruling 2026-11-03):** a first try goes 30 days after the first answer, by `prune_video_pause_tries` (0080), built and not armed. Arming is on the VP-8 checklist, before clearance. So a pause stops counting toward "Getting stuck" and "Keep practising" after 30 days, and a mixed-practice try doesn't.
 - **Not proven yet:** a real try on live needs an owner's clip, which records nothing, so a student's row is proven only by `verify-0079`. YouTube is still unproven until the first real clip.
 
 **Slice 2 (2026-11-02): player and gate.** Migration 0078. Teachers who own the activity only, because `video_clearance` is off.
 - **Gate:** `video_source` as VP-7. Reached through `setVideoSourceRpc`, a one-call seam set when the app boots. Print never calls it. A preview on any other surface does, and the gate returns nothing unless the caller owns a real published clip.
-- **Locked activities are refused (from the Fable review, not in VP-1):** by the importer and on save. A locked section's check can't be redone, so a pause must not give a verdict before it, and its frozen fieldset would disable the card's buttons. No catalogue file is locked today.
+- **Locked activities are refused (from the Fable review, not in VP-1; author confirmed 2026-11-03, "for now"):** by the importer and on save. A locked section's check can't be redone, so a pause must not give a verdict before it, and its frozen fieldset would disable the card's buttons. No catalogue file is locked today.
 - **Shell:** exactly at the 158.5 cap after moving the read into the clip's chunk, with zero headroom. Slice 3 must add nothing eager.
 - **Interim at a pause:** the clip stops, the page scrolls to the faded block, and a "Keep going" button sits in that block through a portal. Slice 3 replaced this with the check.
 - **The faded blocks are found in the rendered section,** because the shell has no room for another context field. The order matches `videoPauseTargets`.
