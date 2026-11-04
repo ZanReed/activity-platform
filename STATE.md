@@ -26,7 +26,7 @@ Author-only: pushes, deploys, migrations.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**Period assembly LIVE (0081, 0082).** 0083 BUILT: apply, verify, push.
+**Period assembly LIVE (0081–0083).** Push owed; helper line awaits their registry.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin BUILT, unpushed:** app-only, live on push (no deploy); then confirm in logs (TODOS item 4).
 
