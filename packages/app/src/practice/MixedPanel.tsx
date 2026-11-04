@@ -356,7 +356,7 @@ export default function MixedPanel({
                         data-testid="ft-mixed-students"
                         tabIndex={0}
                         role="region"
-                        aria-label="Each student"
+                        aria-label="Mixed practice: each student"
                     >
                         <table className="ft-table ft-stack" role="table">
                             <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>

@@ -237,7 +237,7 @@ export default function SprintPanel({
                         {showStudents ? 'Hide students' : 'Show students'}
                     </button>
                     {showStudents ? (
-                        <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Each student">
+                        <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Number facts: each student">
                             <table className="ft-table">
                                 <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                     Each student: days practised, and how many fact families are in
