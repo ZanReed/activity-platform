@@ -211,6 +211,45 @@ export const MIXED_KEYS = [
 export const DOL_PRACTICE_KEY = 'dol_practice_items';
 
 /**
+ * The OPTIONAL pair behind the "Items per session" helper line (0083, period
+ * assembly PA-10). Both or neither. Nothing about how practice runs reads them.
+ */
+export const PERIOD_KEYS = ['mixed_seconds_per_item', 'period_shapes'];
+const PERIOD_BLOCK_KINDS = ['fluency', 'hook', 'activity', 'mixed'];
+
+/** What is wrong with the pair, by name. Exported for its tests. */
+export function periodKeyErrors(body, path) {
+    const has = PERIOD_KEYS.filter((k) => k in body);
+    if (has.length === 0) return [];
+    if (has.length === 1) return [`${path}: body has ${has[0]} without its pair (${PERIOD_KEYS.join(' + ')})`];
+    const errors = [];
+    const int = (v) => typeof v === 'number' && Number.isInteger(v);
+    const range = (v) => Array.isArray(v) && v.length === 2 && v.every((n) => int(n) && n >= 0) && v[0] <= v[1];
+    const sec = body.mixed_seconds_per_item;
+    if (!range(sec) || sec[0] < 1) errors.push(`${path}: mixed_seconds_per_item must be [fastest, slowest] whole seconds`);
+    const lengths = body.period_shapes?.lengths;
+    if (!lengths || typeof lengths !== 'object' || Array.isArray(lengths) || Object.keys(lengths).length === 0) {
+        errors.push(`${path}: period_shapes.lengths must name at least one period length`);
+        return errors;
+    }
+    for (const [minutes, blocks] of Object.entries(lengths)) {
+        const where = `${path}: period_shapes.lengths.${minutes}`;
+        if (!/^[1-9]\d*$/.test(minutes)) errors.push(`${where}: a length must be whole minutes`);
+        if (!Array.isArray(blocks) || blocks.length === 0) {
+            errors.push(`${where} must be a list of blocks`);
+            continue;
+        }
+        for (const b of blocks) {
+            if (!PERIOD_BLOCK_KINDS.includes(b?.kind)) errors.push(`${where}: unknown block kind ${b?.kind}`);
+            else if (b.kind === 'activity' ? b.minutes !== 'duration_min' : !range(b.minutes)) {
+                errors.push(`${where}: a ${b.kind} block has bad minutes`);
+            }
+        }
+    }
+    return errors;
+}
+
+/**
  * The curriculum side's practice-registry.json (0066; mixed-practice.md →
  * "The practice registry"), turned into the payload `sync_mixed_settings`
  * takes: { revision, graph_version, settings }.
@@ -232,9 +271,11 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     }
     const keys = Object.keys(body);
     const missing = MIXED_KEYS.filter((k) => !(k in body));
-    const extra = keys.filter((k) => !MIXED_KEYS.includes(k) && k !== DOL_PRACTICE_KEY);
+    const extra = keys.filter(
+        (k) => !MIXED_KEYS.includes(k) && k !== DOL_PRACTICE_KEY && !PERIOD_KEYS.includes(k),
+    );
     if (missing.length) errors.push(`${path}: body is missing ${missing.join(', ')} (all seven or none)`);
-    if (extra.length) errors.push(`${path}: body has keys outside the agreed eight: ${extra.join(', ')}`);
+    if (extra.length) errors.push(`${path}: body has keys outside the agreed ten: ${extra.join(', ')}`);
     const int = (v) => typeof v === 'number' && Number.isInteger(v);
     const iv = body.mixed_step_intervals;
     if ('mixed_step_intervals' in body) {
@@ -251,6 +292,7 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     if (DOL_PRACTICE_KEY in body && !(int(dol) && dol >= 2 && dol <= 8)) {
         errors.push(`${path}: ${DOL_PRACTICE_KEY} must be a whole number 2–8`);
     }
+    errors.push(...periodKeyErrors(body, path));
     if (errors.length === 0) {
         const n = body.mixed_items_per_session;
         if (n < 1 || n > 50) errors.push(`${path}: mixed_items_per_session must be 1–50`);
@@ -269,7 +311,11 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
             revision: json.header.revision,
             graph_version: generated.match(/\bv(\d[\w.-]*)/)?.[1] ?? null,
             settings: Object.fromEntries(
-                [...MIXED_KEYS, ...(DOL_PRACTICE_KEY in body ? [DOL_PRACTICE_KEY] : [])].map((k) => [k, body[k]]),
+                [
+                    ...MIXED_KEYS,
+                    ...(DOL_PRACTICE_KEY in body ? [DOL_PRACTICE_KEY] : []),
+                    ...PERIOD_KEYS.filter((k) => k in body),
+                ].map((k) => [k, body[k]]),
             ),
         },
     };

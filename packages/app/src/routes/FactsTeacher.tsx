@@ -209,6 +209,7 @@ export default function FactsTeacher() {
                     classId={classId}
                     joinCode={overview.join_code}
                     onState={setMixedOn}
+                    factsOn={sprintOn}
                     onYearEndSaved={() => void load()}
                 />
                 <Earlier overview={overview} onPick={(id) => setParams({ snapshot: id })} />

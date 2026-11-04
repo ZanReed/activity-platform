@@ -20,11 +20,18 @@ export interface SkillRef {
 
 export type MixedBlockedReason = 'mixed_settings_not_mirrored' | 'school_year_end_missing' | 'school_year_ended';
 
+export interface PeriodShapes {
+    lengths: Record<string, { kind: string; minutes: [number, number] | string }[]>;
+}
+
 export interface MixedSummary {
     on_at: string | null;
     reason: MixedBlockedReason | null;
     items_per_session: number | null;
     default_items: number | null;
+    /** PA-10's helper line. Null until a mirrored registry carries them. */
+    period_shapes?: PeriodShapes | null;
+    seconds_per_item?: [number, number] | null;
     graded: boolean;
     school_year_ends_on: string | null;
     has_bank: boolean;

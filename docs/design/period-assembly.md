@@ -1,6 +1,6 @@
 # Period assembly (D43, last item of the 2026-10-02 BUILD ORDER): design pass
 
-**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slices 1 to 3 are built (0081, 0082, the student list). The helper line and review aren't.
+**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slices 1 to 3 are live (0081, 0082, the student list). Slice 4, the helper line, is built as 0083 and shows nothing until their keys are mirrored. Review isn't built.
 Parent: [practice-blocks.md](practice-blocks.md) ("period assembly … get their own pass"). Neighbours: [mixed-practice.md](mixed-practice.md), [chain-hooks-view.md](chain-hooks-view.md), [teacher-guides.md](teacher-guides.md).
 
 ## The rule being served (read from their `main` at 2b80f96, graph v0.19.6)
@@ -142,6 +142,7 @@ Where this differs from the numbered decisions above, this wins.
 - **PA-8:** a "Today" panel at the top of the class's Practice page, with no student names.
 - **PA-9:** corrective, assessment, transfer and buffer periods keep their triggers. Review is next, on its own pass, after their keys.
 - **PA-10:** "Items per session" stays, with a helper line beside it. The helper line needs `period_shapes` and `mixed_seconds_per_item` mirrored through the importer, so it waits for their PR.
+  As built (0083): the two keys are optional fields in `practice-registry.json`'s body, both or neither, like `dol_practice_items`. A new registry revision is stamped on new sessions only, and the scheduler doesn't read these keys.
 - **PA-11:** no clock.
 - **PA-12:** answered by C-180 to C-183.
 - **Exhausted sessions (changes the live scheduler):** second and later sessions the same day top up to the session's size, one item per skill: due skills, then not-yet-due skills stalest first, then skills already practised today. A right or skipped early item doesn't change the step or the due date. A wrong one drops a step and sets the due date from that day. Every item counts for staleness. The first session of the day can still end early.

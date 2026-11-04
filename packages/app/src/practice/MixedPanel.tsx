@@ -35,6 +35,7 @@ import {
     type MixedSummary,
 } from '../lib/mixedTeacher';
 import { guessYearEnd, longDay, yearEndBounds } from './yearEnd';
+import { periodSizesLine } from './periodSizes';
 
 const BLOCKED: Record<MixedBlockedReason, string> = {
     mixed_settings_not_mirrored:
@@ -52,9 +53,12 @@ export default function MixedPanel({
     joinCode,
     onState,
     onYearEndSaved,
+    factsOn = false,
 }: {
     classId: string;
     joinCode: string;
+    /** Whether number facts are on, for the helper line (PA-10). */
+    factsOn?: boolean;
     /** Whether mixed practice is on, for the page's "Who to see first" (S4-1). */
     onState?: (on: boolean) => void;
     onYearEndSaved?: () => void;
@@ -146,6 +150,7 @@ export default function MixedPanel({
     }
 
     const on = data.on_at !== null;
+    const sizes = periodSizesLine(data.period_shapes, data.seconds_per_item, factsOn);
     const needsDate = data.reason === 'school_year_end_missing' || data.reason === 'school_year_ended';
     const dateValid = endsOn >= bounds.min && endsOn <= bounds.max;
     const itemsValue = items.trim() === '' ? null : Number(items);
@@ -284,6 +289,11 @@ export default function MixedPanel({
                 <p className="ft-muted ft-small" style={{ margin: 0 }}>
                     Changes apply to practice started after this.
                 </p>
+                {sizes ? (
+                    <p className="ft-muted ft-small" style={{ margin: 0 }} data-testid="ft-mixed-sizes">
+                        {sizes}
+                    </p>
+                ) : null}
             </fieldset>
 
             {on && data.practised_week === 0 ? (

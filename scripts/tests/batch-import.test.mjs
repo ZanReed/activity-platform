@@ -3288,7 +3288,7 @@ test('practice registry: all seven or none, nothing else, and check L\'s bounds 
     };
     const { mixed_wrong_drop: _drop, ...six } = MIXED_BODY;
     refuse(six, /missing mixed_wrong_drop/);
-    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed eight: mixed_extra/);
+    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed ten: mixed_extra/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [1, 3, 3] }, /strictly increasing/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [0, 3] }, /each ≥ 1/);
     refuse({ ...MIXED_BODY, mixed_wrong_drop: 5 }, /less than the number of steps/);
@@ -3298,6 +3298,30 @@ test('practice registry: all seven or none, nothing else, and check L\'s bounds 
     refuse({ ...MIXED_BODY, mixed_items_per_session: 0 }, /1–50/);
     refuse({ ...MIXED_BODY, mixed_wrong_drop: 1.5 }, /whole number/);
     assert.equal(planPracticeRegistry({ header: {} }).ok, false);
+    // The helper line's pair (0083): both or neither, and well formed.
+    const PAIR = {
+        mixed_seconds_per_item: [60, 90],
+        period_shapes: {
+            hooks_per_day: 1,
+            lengths: {
+                50: [
+                    { kind: 'fluency', minutes: [5, 5] },
+                    { kind: 'activity', minutes: 'duration_min' },
+                    { kind: 'mixed', minutes: [8, 10] },
+                ],
+            },
+        },
+    };
+    refuse({ ...MIXED_BODY, mixed_seconds_per_item: [60, 90] }, /without its pair/);
+    refuse({ ...MIXED_BODY, period_shapes: PAIR.period_shapes }, /without its pair/);
+    refuse({ ...MIXED_BODY, ...PAIR, mixed_seconds_per_item: [90, 60] }, /fastest, slowest/);
+    refuse({ ...MIXED_BODY, ...PAIR, period_shapes: { lengths: {} } }, /at least one period length/);
+    refuse({ ...MIXED_BODY, ...PAIR, period_shapes: { lengths: { 50: [{ kind: 'lunch', minutes: [1, 2] }] } } }, /unknown block kind lunch/);
+    refuse({ ...MIXED_BODY, ...PAIR, period_shapes: { lengths: { 50: [{ kind: 'activity', minutes: [30, 32] }] } } }, /activity block has bad minutes/);
+    const both = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...PAIR }));
+    assert.equal(both.ok, true, both.errors?.join('; '));
+    assert.deepEqual(both.mirror.settings.mixed_seconds_per_item, [60, 90]);
+    assert.deepEqual(both.mirror.settings.period_shapes, PAIR.period_shapes);
 });
 
 test('practice registry: the optional eighth key, dol_practice_items (C-168, 0073), mirrors when present, 2–8', () => {

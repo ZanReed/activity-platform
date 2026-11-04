@@ -149,6 +149,24 @@ describe('the mixed practice panel', () => {
         expect(line.textContent).toContain('/practice/ABC234');
     });
 
+    it('the helper line shows the suggested sizes, once the keys are mirrored (PA-10)', async () => {
+        api.fetchMixedSummary.mockResolvedValue({
+            ...summary(),
+            period_shapes: { lengths: { '55': [{ kind: 'mixed', minutes: [13, 15] }] } },
+            seconds_per_item: [60, 90],
+        });
+        panel();
+        expect((await screen.findByTestId('ft-mixed-sizes')).textContent).toBe(
+            'Suggested: 9–10 for 55 minutes.',
+        );
+    });
+
+    it('no helper line until then', async () => {
+        panel();
+        await screen.findByRole('checkbox', { name: 'Record a practice score' });
+        expect(screen.queryByTestId('ft-mixed-sizes')).toBeNull();
+    });
+
     it('settings: "Record a practice score" and items per session save through the server', async () => {
         panel();
         const graded = await screen.findByRole('checkbox', { name: 'Record a practice score' });
