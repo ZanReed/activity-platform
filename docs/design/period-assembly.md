@@ -111,6 +111,24 @@ Three things the ruling leaves open, each with a recommendation:
 2. **Top up, or only when nothing is due?** With 2 due skills and 8 items, should the session serve 6 pulled-forward items or end at 2? **Recommend top up, on second and later sessions only,** because a short second block is the case this ruling exists for. The first session of the day stays as it is and can still end early.
 3. **Skills already practised today.** **Recommend they stay as the last resort,** after not-yet-due skills, so a student never meets a repeat while something staler is available.
 
+## C-183: the three open questions answered (2026-11-04)
+
+Their main at 828d121. It reports C-182 and these answers as Zan's rulings. As with C-182, they aren't recorded as rulings here until the author confirms them on this side.
+
+- **Due date:** a right early answer leaves it alone. Early items change the schedule only when wrong.
+- **Top up:** second and later sessions only, up to the session's size, one item per skill. The first session can still end early.
+- **Order:** due skills, then not-yet-due skills stalest first, then skills already practised today.
+- **Addition, two readings per skill:** the last scheduled practice sets the due date, and changes only on a scheduled item or a wrong early one. The last practice of any kind sets staleness, so a skill pulled forward in session 2 is last resort in session 3.
+- **Early-end log:** filed with a trigger. When built, it includes first sessions.
+
+**Their question, can both readings be derived with no new stored date? Yes** (read from 0066, 0067, 0070):
+- The due date comes from carrying the step and its anchor day through `mixed_steps`' recursion past a right early day. Staleness is `max(practice_day)` for the key. `mixed_steps` gains a return column, so it is dropped and recreated; `mixed_plan` is its only migration caller.
+- The early marker goes on `mixed_session_items` and is copied to `mixed_attempts`, as `kind` and `bank_key` are, so the derivation stays one index read (ER-14). The prune and purge delete both tables together, so nothing changes there.
+
+Found while checking:
+1. **Build note:** a skill pulled forward right in session 2 and repeated right in session 3 has one non-early attempt that day, so a plain check would step it up. A day with any early attempt must not step up. A wrong answer still drops one step, once for the day.
+2. **Open question, does a skip on an early item drop a step?** A skip counts as a wrong first try (DM-10), so as written it would. **Recommend it doesn't:** the student wasn't due that skill, and it would punish passing on something the session added to fill itself. The skip still counts for staleness and stays visible as a skip.
+
 ## If ruled as recommended: the slices
 
 1. **Data and teacher:** the column, the RPC, its verify script, the pick control, the Today panel. Migration first, then push (OV-7).
