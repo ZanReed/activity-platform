@@ -477,18 +477,21 @@ begin
 
   -- B11 a later session the same day (ER-6) --------------------------------
   -- a and b were practised today; c is the one new skill left; the
-  -- discrimination bank was tried today. So: c alone.
+  -- discrimination bank was tried today. So c, topped up with a and b as the
+  -- last resort (0081; verify-0081 covers the top-up's order).
   v_res := start_mixed_session(v_k, true);
   v_sess2 := (v_res->'session'->>'session_id')::uuid;
-  select string_agg(bank_key, ',' order by seq) into v_got
+  select string_agg(bank_key, ',' order by bank_key) into v_got
     from mixed_session_items where session_id = v_sess2;
   if v_res->>'state' <> 'started' or (v_res->'session'->>'ordinal')::int <> 2
-     or v_got is distinct from 'skill.vfy0066.c' then
+     or v_got is distinct from 'skill.vfy0066.a,skill.vfy0066.b,skill.vfy0066.c' then
     raise exception 'FAIL B11: the second session % with %', v_res->>'state', v_got;
   end if;
-  perform record_mixed_attempt(v_s1, v_sess2, 1, false, false, '{}', '{}');
+  select seq into v_n from mixed_session_items
+   where session_id = v_sess2 and bank_key = 'skill.vfy0066.c';
+  perform record_mixed_attempt(v_s1, v_sess2, v_n, false, false, '{}', '{}');
   v_res := finish_mixed_session(v_sess2);
-  if (v_res->>'right')::int <> 0 or (v_res->>'planned')::int <> 1 then
+  if (v_res->>'right')::int <> 0 or (v_res->>'planned')::int <> 3 then
     raise exception 'FAIL B11: finish %', v_res;
   end if;
   -- Nothing due is left; the third session falls back to today's skills.
@@ -555,12 +558,21 @@ begin
   end if;
   n := n + 1;
 
-  -- B14 rotation: s1's next session on a serves a's next LIVE RATIFIED
-  -- template (over a draft and a retired one); b wraps
+  -- B14 rotation: s1's second session (B11, topped up since 0081) served a's
+  -- next LIVE RATIFIED template (over a draft and a retired one). After that,
+  -- a wraps round to its first, and b, with one template, stays on it.
+  select item_id into v_got from mixed_session_items
+   where session_id = v_sess2 and bank_key = 'skill.vfy0066.a';
+  if v_got is distinct from 'vfy0066-a#two' then
+    raise exception 'FAIL B14: rotation in the second session gave %', v_got;
+  end if;
+  -- now() doesn't move inside this transaction, so both sessions tie on
+  -- started_at. Real sessions don't.
+  update mixed_sessions set started_at = started_at + interval '1 minute' where id = v_sess2;
   select string_agg(item_id, ',' order by item_id) into v_got
     from mixed_plan(v_k, v_s1, gen_random_uuid(), v_today + 30, 1, v_wide, 6, v_zone)
    where bank_key in ('skill.vfy0066.a', 'skill.vfy0066.b');
-  if v_got is distinct from 'vfy0066-a#two,vfy0066-b#one' then
+  if v_got is distinct from 'vfy0066-a#one,vfy0066-b#one' then
     raise exception 'FAIL B14: rotation gave %', v_got;
   end if;
   n := n + 1;

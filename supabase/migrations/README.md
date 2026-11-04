@@ -87,6 +87,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0078_video_source.sql` | D64 slice 2 (VP-7): `video_clearance` (singleton, zero policies, off) and `video_source`, the read that hands a clip's URL to the owner, or to anyone signed in once it is cleared, published and not stale. Every refusal is an empty result. Full matrix: `scripts/verify-0078.sql`. |
 | `0079_video_pause_tries.sql` | D64 slice 3 (VP-3, VP-4): `video_pause_tries` (one row per student per block; the first answer never changes), `record_video_pause_try` (service role, called before a verdict is returned, with a try ceiling) and `mixed_recent` reading those rows too. Student-derived. Full matrix: `scripts/verify-0079.sql`. |
 | `0080_prune_video_pause_tries.sql` | D64 retention (author ruling 2026-11-03): `prune_video_pause_tries` removes a clip's first tries 30 days after the first answer. Dry-run by default, unscheduled, service role only. Full matrix: `scripts/verify-0080.sql`. |
+| `0081_mixed_exhausted_sessions.sql` | C-182 + C-183 (author rulings 2026-11-04): second and later mixed practice sessions the same day top up: due skills, then not-yet-due skills stalest first, then skills already practised today. A new `early` marker on `mixed_session_items` and `mixed_attempts`: a right or skipped early item leaves the step and due date alone, and a wrong one drops a step. `mixed_steps` and `mixed_plan` are dropped and recreated. No Edge Function change. |
 
 ## Regression re-runs (the DB has no CI harness)
 

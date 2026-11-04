@@ -1,6 +1,6 @@
 # Period assembly (D43, last item of the 2026-10-02 BUILD ORDER): design pass
 
-**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Nothing built yet.
+**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slice 1 (exhausted sessions) is built as 0081; the rest isn't.
 Parent: [practice-blocks.md](practice-blocks.md) ("period assembly … get their own pass"). Neighbours: [mixed-practice.md](mixed-practice.md), [chain-hooks-view.md](chain-hooks-view.md), [teacher-guides.md](teacher-guides.md).
 
 ## The rule being served (read from their `main` at 2b80f96, graph v0.19.6)

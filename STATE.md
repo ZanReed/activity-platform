@@ -18,7 +18,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 ## Pending author actions
 
-Things only the author does (pushes, deploys, migrations), queued and waiting.
+Author-only: pushes, deploys, migrations.
 
 **D65 slice 2 + its dose key LIVE 2026-10-30,** CLOSED. **D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
 
@@ -26,7 +26,7 @@ Things only the author does (pushes, deploys, migrations), queued and waiting.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**701 place-value LIVE (2026-10-13).**
+**0081 exhausted sessions BUILT:** apply, verify, push.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin BUILT, unpushed:** app-only, live on push (no deploy); then confirm in logs (TODOS item 4).
 
