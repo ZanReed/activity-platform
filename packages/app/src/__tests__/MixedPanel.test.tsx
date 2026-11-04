@@ -152,6 +152,7 @@ describe('the mixed practice panel', () => {
     it('settings: "Record a practice score" and items per session save through the server', async () => {
         panel();
         const graded = await screen.findByRole('checkbox', { name: 'Record a practice score' });
+        expect(screen.getByText('Changes apply to practice started after this.')).toBeTruthy();
         await act(async () => fireEvent.click(graded));
         expect(api.setMixedSettings).toHaveBeenLastCalledWith('class-1', null, true);
         fireEvent.change(screen.getByRole('spinbutton', { name: 'Items per session' }), { target: { value: '8' } });
@@ -176,7 +177,10 @@ describe('"Who to see first"', () => {
     it('closed: nothing fetched, no name in the page; open: the two groups in name order, rows apart; closed again: gone (W-2)', async () => {
         const view = list();
         expect(api.fetchWhoFirst).not.toHaveBeenCalled();
+        // The "hidden" sentence is true only while the list is closed.
+        expect(view.container.textContent).toContain('Names are hidden until you open the list');
         fireEvent.click(screen.getByRole('button', { name: 'Show the list' }));
+        expect(view.container.textContent).not.toContain('Names are hidden');
         const stuck = await screen.findByRole('region', { name: 'Getting stuck on a skill' });
         // Ana (number facts) and Aroha (mixed) are separate rows, in name order.
         const rows = [...stuck.querySelectorAll('li')].map((li) => li.textContent);

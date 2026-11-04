@@ -18,7 +18,7 @@
 // Words (W-9): never "struggling", "behind", "weak", "at risk" or "slow".
 // =============================================================================
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
     fetchStudentRecent,
     fetchWhoFirst,
@@ -165,7 +165,8 @@ export default function WhoFirst({ classId }: { classId: string }) {
             <h2>Who to see first</h2>
             <p className="ft-muted">
                 Students who have practised today and are getting stuck, or making the same mistake
-                again. Names are hidden until you open the list; keep it off a projector.
+                again.
+                {open ? null : ' Names are hidden until you open the list; keep it off a projector.'}
             </p>
             <button type="button" className="ft-link" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
                 {open ? 'Hide the list' : 'Show the list'}
@@ -186,7 +187,7 @@ function WhoRow({
     open: boolean;
     onToggle: () => void;
 }) {
-    let detail: { shown: string; full: string };
+    let detail: { shown: ReactNode; full: string };
     if (row.kind === 'stuck') {
         detail = skillsShort(row.skills);
     } else if (row.kind === 'facts') {
@@ -197,7 +198,17 @@ function WhoRow({
         const words = row.mistakes.map(
             (m) => `Same mistake: ${m.label ?? m.id} (${m.skills.map(skillName).join('; ')})`,
         );
-        detail = { shown: words.join(' · '), full: words.join('. ') };
+        // One line per mistake, the label in ink: it's what a teacher reads the
+        // row for (C-162).
+        detail = {
+            shown: row.mistakes.map((m) => (
+                <span key={m.id} className="ft-who-same">
+                    Same mistake: <span className="ft-who-label">{m.label ?? m.id}</span> (
+                    {m.skills.map(skillName).join('; ')})
+                </span>
+            )),
+            full: words.join('. '),
+        };
     }
 
     // Number-facts rows have no practice history to open (W-8 is mixed only).

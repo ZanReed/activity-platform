@@ -282,7 +282,7 @@ export default function MixedPanel({
                     </button>
                 ) : null}
                 <p className="ft-muted ft-small" style={{ margin: 0 }}>
-                    Changes apply to practice started after you save.
+                    Changes apply to practice started after this.
                 </p>
             </fieldset>
 
@@ -302,33 +302,35 @@ export default function MixedPanel({
             {data.skills.length > 0 ? (
                 <>
                     <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Each skill">
-                        <table className="ft-table">
+                        {/* The roles keep this a table to a screen reader once the
+                            phone stylesheet restacks its rows. */}
+                        <table className="ft-table ft-stack" role="table">
                             <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                 Each skill: students’ last 5 first tries
                             </caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Skill</th>
-                                    <th scope="col" className="ft-num">Students practising</th>
-                                    <th scope="col" className="ft-num">Getting stuck</th>
-                                    <th scope="col" className="ft-num">First tries right (last 5)</th>
-                                    <th scope="col" className="ft-num">Skips</th>
+                            <thead role="rowgroup">
+                                <tr role="row">
+                                    <th role="columnheader" scope="col">Skill</th>
+                                    <th role="columnheader" scope="col" className="ft-num">Students practising</th>
+                                    <th role="columnheader" scope="col" className="ft-num">Getting stuck</th>
+                                    <th role="columnheader" scope="col" className="ft-num">First tries right (last 5)</th>
+                                    <th role="columnheader" scope="col" className="ft-num">Skips</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody role="rowgroup">
                                 {data.skills.map((s) => {
                                     const name = skillName({ id: s.skill_id, label: s.label });
                                     return (
-                                        <tr key={s.skill_id}>
-                                            <th scope="row" style={{ fontWeight: 500 }}>
+                                        <tr role="row" key={s.skill_id}>
+                                            <th role="rowheader" scope="row" style={{ fontWeight: 500 }}>
                                                 <span className="ft-trunc" title={name}>{name}</span>
                                             </th>
-                                            <td className="ft-num">{s.students_practising}</td>
-                                            <td className="ft-num">{s.struggling}</td>
-                                            <td className="ft-num">
+                                            <td role="cell" className="ft-num" data-label="Students practising">{s.students_practising}</td>
+                                            <td role="cell" className="ft-num" data-label="Getting stuck">{s.struggling}</td>
+                                            <td role="cell" className="ft-num" data-label="First tries right (last 5)">
                                                 {s.first_tries_right} of {s.first_tries}
                                             </td>
-                                            <td className="ft-num">{s.skips}</td>
+                                            <td role="cell" className="ft-num" data-label="Skips">{s.skips}</td>
                                         </tr>
                                     );
                                 })}
@@ -356,27 +358,27 @@ export default function MixedPanel({
                         role="region"
                         aria-label="Each student"
                     >
-                        <table className="ft-table">
+                        <table className="ft-table ft-stack" role="table">
                             <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                 Each student: days practised this week and the skills they are getting
                                 stuck on
                             </caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Student</th>
-                                    <th scope="col" className="ft-num">Days this week</th>
-                                    <th scope="col">Getting stuck on</th>
-                                    {data.graded ? <th scope="col">Latest practice score</th> : null}
+                            <thead role="rowgroup">
+                                <tr role="row">
+                                    <th role="columnheader" scope="col">Student</th>
+                                    <th role="columnheader" scope="col" className="ft-num">Days this week</th>
+                                    <th role="columnheader" scope="col">Getting stuck on</th>
+                                    {data.graded ? <th role="columnheader" scope="col">Latest practice score</th> : null}
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody role="rowgroup">
                                 {students.map((s) => (
-                                    <tr key={s.student_id}>
-                                        <th scope="row" style={{ fontWeight: 500 }}>{s.name}</th>
-                                        <td className="ft-num">{s.days_this_week}</td>
-                                        <td>{s.struggling.length === 0 ? '—' : s.struggling.map(skillName).join('; ')}</td>
+                                    <tr role="row" key={s.student_id}>
+                                        <th role="rowheader" scope="row" style={{ fontWeight: 500 }}>{s.name}</th>
+                                        <td role="cell" className="ft-num" data-label="Days this week">{s.days_this_week}</td>
+                                        <td role="cell" data-label="Getting stuck on">{s.struggling.length === 0 ? '—' : s.struggling.map(skillName).join('; ')}</td>
                                         {data.graded ? (
-                                            <td>
+                                            <td role="cell" data-label="Latest practice score">
                                                 {s.latest_score
                                                     ? `${s.latest_score.right} of ${s.latest_score.planned}`
                                                     : s.score_in_progress

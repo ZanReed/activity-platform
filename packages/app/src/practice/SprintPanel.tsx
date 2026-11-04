@@ -208,7 +208,7 @@ export default function SprintPanel({
 
             {data.on && data.families.length > 0 ? (
                 <>
-                    <div className="ft-tablewrap">
+                    <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Fact families">
                         <table className="ft-table">
                             <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                 Students by where they are with each fact family
@@ -237,7 +237,7 @@ export default function SprintPanel({
                         {showStudents ? 'Hide students' : 'Show students'}
                     </button>
                     {showStudents ? (
-                        <div className="ft-tablewrap">
+                        <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Each student">
                             <table className="ft-table">
                                 <caption className="ft-muted ft-small" style={{ textAlign: 'left' }}>
                                     Each student: days practised, and how many fact families are in

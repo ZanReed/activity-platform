@@ -114,3 +114,28 @@ test('"Not updated" sits above the names', async ({ page }) => {
   expect((await note.boundingBox())!.y).toBeLessThan((await first.boundingBox())!.y);
   await expect(who).toContainText('Ben Carter');
 });
+
+test('the per-skill table shows every number on a phone, with no sideways scroll', async ({ page }) => {
+  const table = page.getByRole('region', { name: 'Each skill' });
+  await expect(table).toBeVisible();
+  const cell = table.getByRole('cell').first();
+  await expect(cell).toBeVisible();
+  expect(await table.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  // Each cell names itself, because the column heads are hidden.
+  const label = await cell.evaluate((el) => getComputedStyle(el, '::before').content);
+  expect(label).toContain('Students practising');
+  const skips = table.locator('td[data-label="Skips"]').first();
+  const box = (await skips.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(375);
+});
+
+test('each same mistake has its own line, with the label in ink', async ({ page }) => {
+  const line = page.getByTestId('ft-who').locator('.ft-who-same').first();
+  await expect(line).toContainText(MISTAKE);
+  const colours = await line.evaluate((el) => ({
+    label: getComputedStyle(el.querySelector('.ft-who-label')!).color,
+    line: getComputedStyle(el).color,
+  }));
+  expect(colours.label).not.toBe(colours.line);
+  await expect(line).toHaveCSS('display', 'block');
+});

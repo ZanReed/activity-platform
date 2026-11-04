@@ -732,7 +732,7 @@ export function Results({
                                 <button type="button" className="ft-link" aria-expanded={showGroups} onClick={() => setShowGroups((v) => !v)}>
                                     {showGroups ? 'Hide names' : 'Show names'}
                                 </button>
-                                <div className="ft-tablewrap">
+                                <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Who needs what">
                                     <table className="ft-table">
                                         <thead>
                                             <tr>
@@ -807,7 +807,7 @@ export function Results({
                             ) : null}
                         </div>
                         {showStudents ? (
-                            <div className="ft-tablewrap">
+                            <div className="ft-tablewrap" tabIndex={0} role="region" aria-label="Each student">
                                 <table className="ft-table">
                                     <thead>
                                         <tr>
