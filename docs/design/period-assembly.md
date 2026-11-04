@@ -1,6 +1,6 @@
 # Period assembly (D43, last item of the 2026-10-02 BUILD ORDER): design pass
 
-**Status:** DESIGN PASS 2026-11-04, nothing ruled and nothing built. The twelve decisions below wait for the author, one by one, with a recommendation on each.
+**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Nothing built yet.
 Parent: [practice-blocks.md](practice-blocks.md) ("period assembly … get their own pass"). Neighbours: [mixed-practice.md](mixed-practice.md), [chain-hooks-view.md](chain-hooks-view.md), [teacher-guides.md](teacher-guides.md).
 
 ## The rule being served (read from their `main` at 2b80f96, graph v0.19.6)
@@ -95,7 +95,7 @@ Still to settle:
 
 ## C-182: a correction and two rulings (2026-11-04)
 
-Letter from their main at 828d121. It reports these as Zan's rulings on their side; they aren't recorded as rulings here until the author confirms them on this side.
+Letter from their main at 828d121. It reports these as Zan's rulings on their side; the author confirmed them on this side on 2026-11-04.
 
 - **PA-1 is not a D43 obligation.** They withdraw C-180's "this is runs premade": that phrase is about content, which ready-made practice already satisfies. PA-1 is weighed on cost and use. They still recommend building v1 now, and so does this side, so the C-180 table's reason for rows 1 and 2 is replaced.
 - **Exhausted sessions.** A same-day second session that runs out of due skills may serve not-yet-due skills, stalest first, one item per skill, with no step up. This replaces reading 4 under ER-6 in [mixed-practice.md](mixed-practice.md), and answers "A second Practice on a double" above.
@@ -113,7 +113,7 @@ Three things the ruling leaves open, each with a recommendation:
 
 ## C-183: the three open questions answered (2026-11-04)
 
-Their main at 828d121. It reports C-182 and these answers as Zan's rulings. As with C-182, they aren't recorded as rulings here until the author confirms them on this side.
+Their main at 828d121. It reports C-182 and these answers as Zan's rulings; the author confirmed them on this side on 2026-11-04.
 
 - **Due date:** a right early answer leaves it alone. Early items change the schedule only when wrong.
 - **Top up:** second and later sessions only, up to the session's size, one item per skill. The first session can still end early.
@@ -127,13 +127,33 @@ Their main at 828d121. It reports C-182 and these answers as Zan's rulings. As w
 
 Found while checking:
 1. **Build note:** a skill pulled forward right in session 2 and repeated right in session 3 has one non-early attempt that day, so a plain check would step it up. A day with any early attempt must not step up. A wrong answer still drops one step, once for the day.
-2. **Open question, does a skip on an early item drop a step?** A skip counts as a wrong first try (DM-10), so as written it would. **Recommend it doesn't:** the student wasn't due that skill, and it would punish passing on something the session added to fill itself. The skip still counts for staleness and stays visible as a skip.
+2. **A skip on an early item doesn't drop a step (author ruling, 2026-11-04).** A skip counts as a wrong first try everywhere else (DM-10), but here the student wasn't due that skill and the session added it to fill itself. The skip still counts for staleness and stays visible as a skip.
 
-## If ruled as recommended: the slices
+## The rulings (author, 2026-11-04)
 
-1. **Data and teacher:** the column, the RPC, its verify script, the pick control, the Today panel. Migration first, then push (OV-7).
-2. **Student:** the Today list, return links, done-screen next row, measured against the shell budget.
-3. **Next, on its own pass:** the review period (PA-9).
+Where this differs from the numbered decisions above, this wins.
+
+- **PA-1, PA-2:** build v1 now: the teacher picks today's activity, and students get a short ordered list. Weighed on cost and use, not as a D43 obligation.
+- **PA-3:** "Use today" on the class's activity list, never automatic. It lapses at the end of the class's day. A double picks up to two.
+- **PA-4:** a dated row per period item (kind and activity), not a column, with `kind` allowing only `activity` until review ships. The first UI offers today only; future dates wait until a teacher asks.
+- **PA-5:** the "Today" list on `/practice/CODE`, in shape order: Number facts · a non-link "your teacher's question" row for the hook · the activity · Practice. Up to six rows on a double, with one hook only. Nothing picked: the page behaves as it does now. Lazy route only.
+- **PA-6:** order is a suggestion, never a gate.
+- **PA-7:** a return link after the activity's check, passed in, and the next row on the done screen. The viewer stays unaware of periods.
+- **PA-8:** a "Today" panel at the top of the class's Practice page, with no student names.
+- **PA-9:** corrective, assessment, transfer and buffer periods keep their triggers. Review is next, on its own pass, after their keys.
+- **PA-10:** "Items per session" stays, with a helper line beside it. The helper line needs `period_shapes` and `mixed_seconds_per_item` mirrored through the importer, so it waits for their PR.
+- **PA-11:** no clock.
+- **PA-12:** answered by C-180 to C-183.
+- **Exhausted sessions (changes the live scheduler):** second and later sessions the same day top up to the session's size, one item per skill: due skills, then not-yet-due skills stalest first, then skills already practised today. A right or skipped early item doesn't change the step or the due date. A wrong one drops a step and sets the due date from that day. Every item counts for staleness. The first session of the day can still end early.
+- **Early-end log:** filed with a trigger in TODOS, and it includes first sessions when built.
+
+## The slices
+
+1. **Exhausted sessions:** a migration, a verify script and the [mixed-practice.md](mixed-practice.md) readings. Independent of the rest, and live as soon as it's applied.
+2. **Data and teacher:** the table, the RPC, its verify script, the pick control, the Today panel. Migration first, then push (OV-7).
+3. **Student:** the Today list, return links, done-screen next row, measured against the shell budget.
+4. **Helper line (PA-10):** after their `period_shapes` PR is merged and mirrored.
+5. **Next, on its own pass:** the review period (PA-9).
 
 Each slice gets a Fable review before it counts as done (author ruling, 2026-11-02).
 

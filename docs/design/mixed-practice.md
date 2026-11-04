@@ -752,9 +752,13 @@ caught); 3 importer tests + 1 bank test, each mutation-tested.
    `start_mixed_session` does require it.
 3. *New-skills cap* covers every never-practised skill, the previous day's
    first spaced retrieval included (C-145 2c names them together).
-4. *ER-6's fallback* (a later session the same day with nothing due) serves
-   skills already practised today, never not-yet-due ones. A short session
-   ends early otherwise; nothing tops it up.
+4. *ER-6's fallback* ⚠ **AMENDED 2026-11-04 (C-182, C-183, author yes; see
+   [period-assembly.md](period-assembly.md)):** second and later sessions the
+   same day top up: due skills, then not-yet-due skills stalest first, then
+   skills already practised today. An early item changes the schedule only
+   when wrong. The first session of the day can still end early. Until that
+   migration is live, the old reading holds: a later session with nothing due
+   serves skills already practised today, never not-yet-due ones.
 5. *Chain order* = the source activity's `source_path` (the teaching order).
 6. A skip records `correct = false, skipped = true`; the score's "answered"
    excludes skips (C-146's "you answered 5 of 6" + "You skipped 1").

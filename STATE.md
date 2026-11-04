@@ -207,7 +207,7 @@ worker: recover from a stale shell"). 5. ~~**Y7 charts**~~ BUILT and live
 2026-10-04 (pulled into the author's 2026-10-04 build run). 6. **D43 builds:**
 fluency + diagnostics LIVE (slice 1, the check, 2026-10-05; slice 2, the daily
 practice, 2026-10-06) → mixed practice (gated on two chains with ratified
-banks) → period assembly. **First classes: ~early Feb 2027** (author,
+banks) → period assembly (ruled). **First classes: ~early Feb 2027** (author,
 "4 months"). The intake rule that goes with this is in [CLAUDE.md](CLAUDE.md) →
 Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 

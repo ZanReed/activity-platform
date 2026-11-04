@@ -245,7 +245,9 @@ the queue. An entry's own Priority line below does not outrank it.**
    C-145 awaited. The doc's "Hand-off" is the order of work; a
    `/plan-design-review` of the runner + teacher view comes before any build.**
 
-   **Period assembly: DESIGN PASS WRITTEN 2026-11-04, unruled: [period-assembly.md](docs/design/period-assembly.md) (PA-1…PA-12). No code until the author rules.**
+   **Period assembly: RULED by the author 2026-11-04: [period-assembly.md](docs/design/period-assembly.md) (PA-1…PA-12, plus exhausted sessions). Slices are listed there.**
+
+   **Log of practice sessions that end early, without names (their ask, C-180 and C-183). FILED, author 2026-11-04.** **Trigger:** a teacher or the curriculum side has a real class's reason to revisit how short sessions behave. When built, it includes first sessions, which are the evidence for revisiting them. It's a new record of student activity even when aggregated, so it needs its own compliance read first.
 
 **The intake rule (ruled the same day; the standing copy is CLAUDE.md → Working
 style):** a new wish is filed with a TRIGGER, not a slot. It enters this queue
