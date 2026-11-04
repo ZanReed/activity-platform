@@ -93,6 +93,24 @@ Still to settle:
 - **Their ask: a log of sessions that end early, without names.** Not in the recommendations. It's a new record of student activity, even aggregated, so it needs its own compliance read. File with a trigger unless the author wants it now.
 - **Coming separately from them:** a skills diagnostic that seeds practice, and a re-teach suggestion. Neither is designed, and neither changes this pass.
 
+## C-182: a correction and two rulings (2026-11-04)
+
+Letter from their main at 828d121. It reports these as Zan's rulings on their side; they aren't recorded as rulings here until the author confirms them on this side.
+
+- **PA-1 is not a D43 obligation.** They withdraw C-180's "this is runs premade": that phrase is about content, which ready-made practice already satisfies. PA-1 is weighed on cost and use. They still recommend building v1 now, and so does this side, so the C-180 table's reason for rows 1 and 2 is replaced.
+- **Exhausted sessions.** A same-day second session that runs out of due skills may serve not-yet-due skills, stalest first, one item per skill, with no step up. This replaces reading 4 under ER-6 in [mixed-practice.md](mixed-practice.md), and answers "A second Practice on a double" above.
+- **Review.** A wrong answer on a pulled-forward item still drops a step. The pool is taught plus seeded skills, with due skills first. This goes to the review pass (PA-9).
+- **New key.** `mixed_seconds_per_item` [60, 90] arrives with `period_shapes`, and the helper line uses 90.
+
+**What exhausted sessions cost (read from 0066 and 0070; nothing built):** one migration and a verify script, with no Edge Function or bundle change. It isn't a one-line change, for two reasons:
+- `mixed_steps` works out each step from `mixed_attempts` alone, so today an all-right day always steps up. A pulled-forward item needs a stored marker on `mixed_session_items`, set at session start and read by `mixed_steps`. Existing rows default to not pulled forward, which is correct because none exist.
+- `mixed_plan` (0070's body) only falls back when nothing at all was picked, so the fill changes too.
+
+Three things the ruling leaves open, each with a recommendation:
+1. **Does a right pulled-forward answer move the due date?** As written, `due_on` is the last practice day plus the interval, so a skill due tomorrow would drop out for up to 28 more days, even with no step up. **Recommend it leaves the due date alone;** only a wrong answer changes the schedule.
+2. **Top up, or only when nothing is due?** With 2 due skills and 8 items, should the session serve 6 pulled-forward items or end at 2? **Recommend top up, on second and later sessions only,** because a short second block is the case this ruling exists for. The first session of the day stays as it is and can still end early.
+3. **Skills already practised today.** **Recommend they stay as the last resort,** after not-yet-due skills, so a student never meets a repeat while something staler is available.
+
 ## If ruled as recommended: the slices
 
 1. **Data and teacher:** the column, the RPC, its verify script, the pick control, the Today panel. Migration first, then push (OV-7).
