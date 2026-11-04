@@ -1,6 +1,6 @@
 # Period assembly (D43, last item of the 2026-10-02 BUILD ORDER): design pass
 
-**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slice 1 (exhausted sessions) is built as 0081; the rest isn't.
+**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slice 1 (exhausted sessions, 0081) and slice 2 (data and teacher, 0082) are built; the rest isn't.
 Parent: [practice-blocks.md](practice-blocks.md) ("period assembly … get their own pass"). Neighbours: [mixed-practice.md](mixed-practice.md), [chain-hooks-view.md](chain-hooks-view.md), [teacher-guides.md](teacher-guides.md).
 
 ## The rule being served (read from their `main` at 2b80f96, graph v0.19.6)
@@ -134,7 +134,7 @@ Found while checking:
 Where this differs from the numbered decisions above, this wins.
 
 - **PA-1, PA-2:** build v1 now: the teacher picks today's activity, and students get a short ordered list. Weighed on cost and use, not as a D43 obligation.
-- **PA-3:** "Use today" on the class's activity list, never automatic. It lapses at the end of the class's day. A double picks up to two.
+- **PA-3:** "Use today", never automatic. As built, the control is in the PA-8 panel, not on the class's activity list, because that list is on Home in the eager shell. It lapses at the end of the class's day. A double picks up to two.
 - **PA-4:** a dated row per period item (kind and activity), not a column, with `kind` allowing only `activity` until review ships. The first UI offers today only; future dates wait until a teacher asks.
 - **PA-5:** the "Today" list on `/practice/CODE`, in shape order: Number facts · a non-link "your teacher's question" row for the hook · the activity · Practice. Up to six rows on a double, with one hook only. Nothing picked: the page behaves as it does now. Lazy route only.
 - **PA-6:** order is a suggestion, never a gate.

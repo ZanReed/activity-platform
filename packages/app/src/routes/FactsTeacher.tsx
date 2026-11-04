@@ -51,6 +51,7 @@ import {
 import { aboutMinutes } from '../practice/minutes';
 import MixedPanel from '../practice/MixedPanel';
 import SprintPanel from '../practice/SprintPanel';
+import TodayPanel from '../practice/TodayPanel';
 import WhoFirst from '../practice/WhoFirst';
 import { guessYearEnd, longDay, yearEndBounds } from '../practice/yearEnd';
 
@@ -185,6 +186,7 @@ export default function FactsTeacher() {
     } else {
         body = (
             <>
+                <TodayPanel classId={classId} sprintOn={sprintOn} mixedOn={mixedOn} />
                 {sprintOn || mixedOn ? <WhoFirst classId={classId} /> : null}
                 <OpenScreen
                     // Remounted when the class's end date changes (it can be

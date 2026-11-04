@@ -24,6 +24,8 @@ vi.mock('../lib/factSprint', () => sprintApi);
 vi.mock('../lib/classes', () => ({
     listClasses: vi.fn(async () => [{ id: 'class-1', name: '9 Maths B' }]),
 }));
+// Today's panel shares the page; its own suite is TodayPanel.test.tsx.
+vi.mock('../practice/TodayPanel', () => ({ default: () => <div>today panel</div> }));
 // Mixed practice's panel (slice 4) shares the page; its own suite is
 // MixedPanel.test.tsx. Here it is present, off, and quiet.
 const mixedApi = vi.hoisted(() => ({
@@ -120,6 +122,16 @@ beforeEach(() => {
 afterEach(() => {
     cleanup();
     vi.useRealTimers();
+});
+
+describe('the Today panel', () => {
+    it('sits above the rest of the page', async () => {
+        api.fetchOverview.mockResolvedValue(overview());
+        page();
+        const panel = await screen.findByText('today panel');
+        const open = await screen.findByText('Run a snapshot with this class');
+        expect(panel.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
 });
 
 describe('opening a snapshot', () => {

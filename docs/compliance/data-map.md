@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-04-draft-47`. Mirrors migrations 0001–**0081**, verified
+> Version `2026-11-04-draft-48`. Mirrors migrations 0001–**0082**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-48` (2026-11-04) — 0082 adds NO personal data.** `class_period_items` says which activities a class picked for a day. No column names a person, and who picked goes to `audit_log` under the existing `class.update` action.
 >
 > **`draft-47` (2026-11-04) — 0081 adds one STUDENT-DERIVED flag to existing rows.** `early` on `mixed_session_items` and `mixed_attempts` says a question was served before its skill was due. It's kept and deleted with the row it sits on, so the retention policy doesn't change.
 >
