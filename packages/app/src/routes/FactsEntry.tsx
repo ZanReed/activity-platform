@@ -56,6 +56,8 @@
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { listMyActivityProgress, progressLabel } from '../lib/classActivities';
+import { fetchClassToday } from '../lib/classToday';
 import { VIEWER_STORAGE_PREFIX, type PracticeSession } from '@activity/viewer';
 import {
     AccountUnavailableCard,
@@ -91,6 +93,7 @@ import FactRunner from '../practice/FactRunner';
 import MixedDone, { type MixedTally } from '../practice/MixedDone';
 import { CARD, Card } from '../practice/PracticeCard';
 import { FactSaveQueue, heldKey } from '../practice/saveQueue';
+import { nextActivity, todayRows } from '../practice/todayRows';
 
 // Its own chunk: only a student who presses Start or Carry on loads it.
 const MixedRunner = lazy(() => import('../practice/MixedRunner'));
@@ -107,6 +110,9 @@ interface MixedEntry {
     classId: string;
     preview: Exclude<MixedPreview, { state: 'off' }>;
 }
+
+/** Today's picks (PA-5), with this student's status on each. */
+type TodayPicks = { id: string; title: string; status: string | null }[];
 
 type View =
     | { kind: 'loading' }
@@ -144,6 +150,11 @@ export default function FactsEntry() {
     // DM-1: which practice the chooser picked, when both are on.
     const [choice, setChoice] = useState<'facts' | 'practice' | null>(null);
     const [starting, setStarting] = useState(false);
+    // PA-5: what the teacher picked for today. Empty: this page is as it was.
+    const [today, setToday] = useState<TodayPicks>([]);
+    const navigate = useNavigate();
+    // Sessions finished today when the page last asked, for the next row (PA-7).
+    const practiceDoneRef = useRef(0);
     const activeRef = useRef(false);
     activeRef.current = active !== null || sprintRun !== null || mixedRun !== null;
 
@@ -168,9 +179,11 @@ export default function FactsEntry() {
             );
         // Mixed practice: the class behind the code, then the preview. Off, or
         // any failure, reads as "not on" (the sprint's posture above).
-        const mixedRead = async (): Promise<MixedEntry | undefined> => {
+        const mixedRead = async (
+            classRead: ReturnType<typeof lookupPracticeClass>,
+        ): Promise<MixedEntry | undefined> => {
             try {
-                const cls = await lookupPracticeClass(code);
+                const cls = await classRead;
                 if (!cls?.mixedOn) return undefined;
                 const preview = await previewMixed(cls.id);
                 return preview.state === 'off' ? undefined : { classId: cls.id, preview };
@@ -178,22 +191,54 @@ export default function FactsEntry() {
                 return undefined;
             }
         };
-        const bothReads = () => Promise.all([sprintRead(), mixedRead()]);
+        // Today's picks. Any failure reads as "nothing picked", which is the
+        // page as it always was. A failed status read keeps the list, unmarked.
+        const todayRead = async (
+            classRead: ReturnType<typeof lookupPracticeClass>,
+        ): Promise<TodayPicks> => {
+            try {
+                const cls = await classRead;
+                if (!cls) return [];
+                const { activities } = await fetchClassToday(cls.id);
+                if (activities.length === 0) return [];
+                const progress = await listMyActivityProgress().catch(() => []);
+                return activities.map((a) => {
+                    const p = progress.find((x) => x.activityId === a.activity_id);
+                    const label = p ? progressLabel(p) : null;
+                    return {
+                        id: a.activity_id,
+                        title: a.title,
+                        status: label === 'Not started' ? null : label,
+                    };
+                });
+            } catch {
+                return [];
+            }
+        };
+        const bothReads = () => {
+            const classRead = lookupPracticeClass(code);
+            return Promise.all([sprintRead(), mixedRead(classRead), todayRead(classRead)]);
+        };
         try {
             let entry: Awaited<ReturnType<typeof fetchEntry>>;
             let sprint: SprintPractice | undefined;
             let mixed: MixedEntry | undefined;
+            let picks: TodayPicks = [];
             if (lastStateRef.current !== null && leadsToSprint(lastStateRef.current)) {
-                const [e, [s, m]] = await Promise.all([fetchEntry(code), bothReads()]);
+                const [e, [s, m, t]] = await Promise.all([fetchEntry(code), bothReads()]);
                 entry = e;
-                [sprint, mixed] = leadsToSprint(e.state) ? [s, m] : [undefined, undefined];
+                [sprint, mixed, picks] = leadsToSprint(e.state) ? [s, m, t] : [undefined, undefined, []];
             } else {
                 entry = await fetchEntry(code);
                 // No check to do: is either practice on?
-                [sprint, mixed] = leadsToSprint(entry.state) ? await bothReads() : [undefined, undefined];
+                [sprint, mixed, picks] = leadsToSprint(entry.state)
+                    ? await bothReads()
+                    : [undefined, undefined, []];
             }
             lastStateRef.current = entry.state;
             if (!activeRef.current) {
+                setToday(picks);
+                practiceDoneRef.current = mixed?.preview.doneToday ?? 0;
                 setView({ kind: 'entry', entry, ...(sprint ? { sprint } : {}), ...(mixed ? { mixed } : {}) });
             }
             return entry;
@@ -213,7 +258,7 @@ export default function FactsEntry() {
     }, [userId, roleReady, enter]);
 
     // ---- the waiting room (DR-15) -----------------------------------------------
-    const waiting = view.kind === 'entry' && view.entry.state === 'none_open' && !view.sprint && !view.mixed;
+    const waiting = view.kind === 'entry' && view.entry.state === 'none_open' && !view.sprint && !view.mixed && today.length === 0;
     const [waitExpired, setWaitExpired] = useState(false);
     useEffect(() => {
         if (!waiting) return;
@@ -310,6 +355,30 @@ export default function FactsEntry() {
         void enter();
     };
 
+    // ---- today's links (PA-5, PA-7) ----------------------------------------------
+    const backFromActivity = { back: `/practice/${code}` };
+    const backToToday = () => {
+        setSprintRun(null);
+        leaveRun();
+        activeRef.current = false;
+        setView({ kind: 'loading' });
+        void enter();
+    };
+    // A done screen's way on: the next activity, or the list. Null with no picks.
+    const todayAction = (practiceDone: number | null): ReactNode => {
+        if (today.length === 0) return null;
+        const next = nextActivity(today, practiceDone);
+        return next ? (
+            <Link to={`/a/${next.id}`} state={backFromActivity} className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}>
+                Next: {next.title}
+            </Link>
+        ) : (
+            <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={backToToday}>
+                Back to today
+            </button>
+        );
+    };
+
     // ---- screens ---------------------------------------------------------------
     let body: ReactNode;
     if (mixedRun && userId) {
@@ -320,8 +389,12 @@ export default function FactsEntry() {
                     session={mixedRun.session}
                     userId={userId}
                     classId={mixedRun.classId}
-                    onAgain={() => void startPractice(mixedRun.classId)}
+                    onAgain={() => {
+                        practiceDoneRef.current += 1;
+                        void startPractice(mixedRun.classId);
+                    }}
                     onEnded={reenter}
+                    todayAction={todayAction(practiceDoneRef.current + 1)}
                 />
             </Suspense>
         );
@@ -331,6 +404,19 @@ export default function FactsEntry() {
                 key={sprintRun.session_id}
                 session={sprintRun}
                 userId={userId}
+                {...(today.length > 0
+                    ? {
+                          doneAction: (() => {
+                              const next = nextActivity(today, null);
+                              return next
+                                  ? {
+                                        label: `Next: ${next.title}`,
+                                        onClick: () => navigate(`/a/${next.id}`, { state: backFromActivity }),
+                                    }
+                                  : { label: 'Back to today', onClick: backToToday };
+                          })(),
+                      }
+                    : {})}
                 onClosed={(saved) => {
                     setSprintRun(null);
                     setChoice(null);
@@ -428,7 +514,11 @@ export default function FactsEntry() {
                 tally={view.tally}
                 graded={view.graded}
                 classId={view.classId}
-                onAgain={() => void startPractice(view.classId)}
+                onAgain={() => {
+                    practiceDoneRef.current += 1;
+                    void startPractice(view.classId);
+                }}
+                todayAction={todayAction(practiceDoneRef.current + 1)}
             />
         );
     } else if (view.kind === 'sprintClosed') {
@@ -440,6 +530,63 @@ export default function FactsEntry() {
                 <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => { setView({ kind: 'loading' }); void enter(); }}>
                     See what is next
                 </button>
+            </Card>
+        );
+    } else if (today.length > 0 && choice === null) {
+        // PA-5: the teacher picked something, so the short list comes first.
+        const sprint = view.sprint;
+        const preview = view.mixed?.preview;
+        const rows = todayRows({
+            facts: sprint
+                ? {
+                      minutes: sprint.state === 'ready' ? (sprint.minutes ?? 5) : 5,
+                      doneToday: sprint.done_today,
+                  }
+                : null,
+            practice: preview
+                ? {
+                      minutes: preview.planned > 0 ? practiceMinutes(preview.planned) : null,
+                      doneToday: preview.doneToday,
+                  }
+                : null,
+            activities: today,
+        });
+        const label = (text: string, minutes: string | number | null, mark: string | null) =>
+            [text, minutes === null ? null : `about ${minutes} min`, mark].filter(Boolean).join(' · ');
+        body = (
+            <Card title="Today">
+                {rows.map((row, i) => {
+                    if (row.kind === 'hook') {
+                        return (
+                            <p key={i} className="mt-4 text-base text-muted">
+                                Your teacher’s question
+                            </p>
+                        );
+                    }
+                    if (row.kind === 'activity') {
+                        return (
+                            <Link
+                                key={i}
+                                to={`/a/${row.id}`}
+                                state={backFromActivity}
+                                className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}
+                            >
+                                {label(row.title, null, row.status)}
+                            </Link>
+                        );
+                    }
+                    const facts = row.kind === 'facts';
+                    return (
+                        <button
+                            key={i}
+                            type="button"
+                            className={`mt-4 w-full ${BTN_PRIMARY}`}
+                            onClick={() => setChoice(facts ? 'facts' : 'practice')}
+                        >
+                            {label(facts ? 'Number facts' : 'Practice', row.minutes, row.done ? 'Done ✓' : null)}
+                        </button>
+                    );
+                })}
             </Card>
         );
     } else if (view.mixed && view.sprint && choice === null) {
@@ -586,7 +733,23 @@ export default function FactsEntry() {
         }
     }
 
-    return <main className="fx-stage">{body}</main>;
+    // A row opened from the list can go back to it.
+    const onChosenRow = view.kind === 'entry' && today.length > 0 && choice !== null;
+    const onRun = mixedRun !== null || sprintRun !== null || active !== null;
+    return (
+        <main className="fx-stage">
+            {body}
+            {onChosenRow && !onRun ? (
+                <button
+                    type="button"
+                    className="mt-2 min-h-11 text-sm font-medium text-strong underline"
+                    onClick={() => setChoice(null)}
+                >
+                    Back to today
+                </button>
+            ) : null}
+        </main>
+    );
 }
 
 /** Mixed practice's resting screens (DM-4, DM-6, DM-12 as amended by C-146).
@@ -695,10 +858,13 @@ function SprintRun({
     session,
     userId,
     onClosed,
+    doneAction,
 }: {
     session: SprintSession;
     userId: string;
     onClosed: (saved: number) => void;
+    /** PA-7: today's next row, in place of the way home. */
+    doneAction?: { label: string; onClick: () => void };
 }) {
     const navigate = useNavigate();
     const [, rerender] = useState(0);
@@ -790,7 +956,7 @@ function SprintRun({
             savedLine=""
             doneHeadline={doneHeadline}
             doneSlot={<p className="mt-2 text-base text-muted">This is not marked.</p>}
-            doneAction={{ label: 'Go to your classes', onClick: () => navigate('/') }}
+            doneAction={doneAction ?? { label: 'Go to your classes', onClick: () => navigate('/') }}
         />
     );
 }

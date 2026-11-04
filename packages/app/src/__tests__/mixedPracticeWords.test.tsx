@@ -28,6 +28,10 @@ const sprintApi = vi.hoisted(() => ({ fetchSprintEntry: vi.fn(), saveSprintAttem
 vi.mock('../lib/factSprint', () => sprintApi);
 vi.mock('../lib/classes', () => ({ joinClass: vi.fn(), redeemJoinCode: vi.fn() }));
 vi.mock('../lib/auth', () => ({ signInWithGoogle: vi.fn(async () => ({ error: null })) }));
+vi.mock('../lib/classToday', async (orig) => ({
+    ...(await orig<typeof import('../lib/classToday')>()),
+    fetchClassToday: vi.fn(async () => ({ on_date: '2027-02-15', activities: [] })),
+}));
 vi.mock('../lib/studentAuth', () => ({ signOutEverything: vi.fn(async () => {}) }));
 const mixedApi = vi.hoisted(() => ({
     lookupPracticeClass: vi.fn(),

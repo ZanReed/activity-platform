@@ -6,7 +6,7 @@
 // never automatic and gates nothing (PA-6).
 // =============================================================================
 
-import { CLASS_TODAY_RPC, SET_CLASS_TODAY_RPC } from './edgeFunctions';
+import { CLASS_TODAY_RPC, SET_CLASS_TODAY_RPC } from './classTodayRpc';
 import { supabase } from './supabase';
 
 export interface TodayActivity {

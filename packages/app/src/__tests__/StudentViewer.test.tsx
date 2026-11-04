@@ -682,6 +682,30 @@ describe('the activity top bar (student review S4/S6, 2026-10-14)', () => {
         expect(print.querySelector('svg')).not.toBeNull();
         expect(print).toHaveAttribute('title', 'Print');
     });
+
+    it('opened from a class\'s Today list, the way back is that list (PA-7)', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = {
+            activityId: 'aaaaaaaa-0000-4000-8000-000000000001',
+            versionId: 'v1',
+            versionNum: 1,
+            title: 'Linear Systems',
+            document: servedFixtureDocument(),
+        };
+        render(
+            <MemoryRouter
+                initialEntries={[{ pathname: '/a/aaaaaaaa-0000-4000-8000-000000000001', state: { back: '/practice/ABC234' } }]}
+            >
+                <Routes>
+                    <Route path="/a/:activityId" element={<StudentViewer />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        expect(await screen.findByRole('link', { name: '← Today' })).toHaveAttribute(
+            'href',
+            '/practice/ABC234',
+        );
+    });
 });
 
 /** Two sections, one blank each, through the real sanitizer: what the restore

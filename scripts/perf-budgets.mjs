@@ -174,8 +174,14 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * code (StudentViewer, ViewerContainer, registry, Home, JoinClass) plus the
  * libraries rung 3 already named. The rule is unchanged: the next addition
  * that crosses 158.5 gets a rung or another explicit ruling.
+ *
+ * ⚖ CAP RULING 158.5 → 158.6 — author, 2026-11-04. Period assembly's student
+ * list (PA-5, PA-7) measured 158.533, 34 bytes over: the viewer's "← Today"
+ * link is ~19 of them, and without it the build was still over at 158.514. No
+ * rung found at this size; a rebuild's gzip noise is about the same. The rule
+ * is unchanged: the next addition that crosses 158.6 gets a rung or a ruling.
  */
-export const SHELL_JS_GZ_KIB = 158.5;
+export const SHELL_JS_GZ_KIB = 158.6;
 
 /**
  * The student shell's CSS, gzipped — a SEPARATE row on purpose.

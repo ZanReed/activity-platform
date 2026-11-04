@@ -30,7 +30,7 @@ import {
   useMemo,
   useState, useRef, useSyncExternalStore } from 'react';
 import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   PrintButton,
   activityTypeLabel,
@@ -131,6 +131,9 @@ type LoadState =
 
 export default function StudentViewer() {
   const { activityId = '' } = useParams();
+  // PA-7: opened from a class's Today list, the way back is that list. The
+  // viewer knows nothing about periods; the link is passed in.
+  const backToToday = (useLocation().state as { back?: string } | null)?.back;
   const navigate = useNavigate();
   const { session, loading: sessionLoading } = useSession();
   // WHO is signed in, as a string: the only thing about the session the
@@ -667,8 +670,8 @@ export default function StudentViewer() {
             but the browser's Back button. */}
         <div className="viewer-topbar__row">
           <div className="viewer-topbar__titles">
-            <Link to="/" className="viewer-topbar__back">
-              ← My classes
+            <Link to={backToToday ?? '/'} className="viewer-topbar__back">
+              {backToToday ? '← Today' : '← My classes'}
             </Link>
             <h1>{state.served.title}</h1>
             {/* D4 — the same meta line the printed sheet carries, in the same

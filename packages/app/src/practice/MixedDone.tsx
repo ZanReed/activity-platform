@@ -14,7 +14,7 @@
 // The words never say "session", "mixed", "planned" or "graded" (DM-13).
 // =============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { BTN_PRIMARY } from '../components/AuthScreens';
 import { previewMixed } from '../lib/mixedPractice';
@@ -36,8 +36,10 @@ export type MixedDoneProps =
           graded: boolean;
           classId: string;
           onAgain: () => void;
+          /** PA-7: today's next row. */
+          todayAction?: ReactNode;
       }
-    | { kind: 'stopped'; tally: MixedTally };
+    | { kind: 'stopped'; tally: MixedTally; todayAction?: ReactNode };
 
 export default function MixedDone(props: MixedDoneProps) {
     const { tally } = props;
@@ -58,6 +60,7 @@ export default function MixedDone(props: MixedDoneProps) {
                 )}
                 {skippedLine}
                 <p className="mt-2 text-base text-muted">You can carry on later today.</p>
+                {props.todayAction}
                 <Link to="/" className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}>
                     Go to your classes
                 </Link>
@@ -77,6 +80,7 @@ export default function MixedDone(props: MixedDoneProps) {
                 </p>
             ) : null}
             <p className="mt-2 text-base text-muted">See you next lesson.</p>
+            {props.todayAction}
             <Again classId={props.classId} onAgain={props.onAgain} />
             <Link to="/" className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}>
                 Go to your classes

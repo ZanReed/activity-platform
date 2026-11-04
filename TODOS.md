@@ -247,6 +247,8 @@ the queue. An entry's own Priority line below does not outrank it.**
 
    **Period assembly: RULED by the author 2026-11-04: [period-assembly.md](docs/design/period-assembly.md) (PA-1…PA-12, plus exhausted sessions). Slices are listed there.**
 
+   **Number facts "Back to today" while the last answers are saving. FILED 2026-11-04.** The button is live while the done screen says "Saving". Tapped then, the re-read can say "Keep going" for a session just finished. "Go to your classes" has the same race. **Trigger:** a student or teacher reports it, or the done screen is next changed.
+
    **Log of practice sessions that end early, without names (their ask, C-180 and C-183). FILED, author 2026-11-04.** **Trigger:** a teacher or the curriculum side has a real class's reason to revisit how short sessions behave. When built, it includes first sessions, which are the evidence for revisiting them. It's a new record of student activity even when aggregated, so it needs its own compliance read first.
 
 **The intake rule (ruled the same day; the standing copy is CLAUDE.md → Working

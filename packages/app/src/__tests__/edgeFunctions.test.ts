@@ -16,6 +16,7 @@ import {
   SHARE_ACTIVITY_RPC,
   UNSHARE_ACTIVITY_RPC,
 } from '../lib/edgeFunctions';
+import { CLASS_TODAY_RPC, SET_CLASS_TODAY_RPC } from '../lib/classTodayRpc';
 
 // A1's real lesson: the app POSTed to a function name that never existed
 // (/check-section), and the e2e stub retyped the same wrong name — so the
@@ -54,6 +55,8 @@ describe('rpc name constants', () => {
     SHARE_ACTIVITY_RPC,
     UNSHARE_ACTIVITY_RPC,
     LIST_CLASS_ACTIVITIES_RPC,
+    CLASS_TODAY_RPC,
+    SET_CLASS_TODAY_RPC,
     GLOSSARY_FOR_ACTIVITY_RPC,
     LIST_BANK_RPC,
     BANK_TEACHER_GUIDE_RPC,

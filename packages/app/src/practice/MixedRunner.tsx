@@ -87,6 +87,8 @@ export interface MixedRunnerProps {
      * check mode, and its own done screen (TP-5: never scored). */
     checkMode?: 'practice' | 'dol-practice';
     done?: (tally: MixedTally) => ReactNode;
+    /** PA-7: today's next row, for the done screen. */
+    todayAction?: ReactNode;
 }
 
 /** The counts the done screen shows, from the tries seen (all of them are
@@ -103,7 +105,7 @@ export function tallyOf(results: Iterable<PracticeItemResult>, of: number | null
     return { of: of ?? tried, right, skipped, answered: tried - skipped };
 }
 
-export default function MixedRunner({ session, userId, classId, onAgain, onEnded, checkMode, done }: MixedRunnerProps) {
+export default function MixedRunner({ session, userId, classId, onAgain, onEnded, checkMode, done, todayAction }: MixedRunnerProps) {
     const items = session.items;
     const [results, setResults] = useState<Map<number, PracticeItemResult>>(
         () => new Map(items.flatMap((i) => (i.result ? [[i.seq, i.result] as const] : []))),
@@ -124,7 +126,7 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
 
     if (stopped) {
         if (done) return <>{done(tallyOf(results.values(), null))}</>;
-        return <MixedDone kind="stopped" tally={tallyOf(results.values(), null)} />;
+        return <MixedDone kind="stopped" tally={tallyOf(results.values(), null)} todayAction={todayAction} />;
     }
     const item = items[index];
     if (!item) {
@@ -136,6 +138,7 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
                 graded={session.graded}
                 classId={classId}
                 onAgain={onAgain}
+                todayAction={todayAction}
             />
         );
     }

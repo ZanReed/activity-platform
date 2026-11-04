@@ -38,6 +38,15 @@ vi.mock('../lib/mixedPractice', async (orig) => ({
     ...(await orig<typeof import('../lib/mixedPractice')>()),
     ...mixedApi,
 }));
+const todayApi = vi.hoisted(() => ({ fetchClassToday: vi.fn(), listMyActivityProgress: vi.fn() }));
+vi.mock('../lib/classToday', async (orig) => ({
+    ...(await orig<typeof import('../lib/classToday')>()),
+    fetchClassToday: todayApi.fetchClassToday,
+}));
+vi.mock('../lib/classActivities', async (orig) => ({
+    ...(await orig<typeof import('../lib/classActivities')>()),
+    listMyActivityProgress: todayApi.listMyActivityProgress,
+}));
 vi.mock('../lib/auth', () => ({ signInWithGoogle: vi.fn() }));
 vi.mock('../lib/studentAuth', () => ({ signOutEverything: vi.fn(async () => {}) }));
 
@@ -69,6 +78,8 @@ beforeEach(() => {
     sprintApi.fetchSprintEntry.mockReset().mockResolvedValue({ state: 'off' });
     // Mixed practice off unless a test turns it on.
     mixedApi.lookupPracticeClass.mockReset().mockResolvedValue({ id: 'class-1', mixedOn: false });
+    todayApi.fetchClassToday.mockReset().mockResolvedValue({ on_date: '2026-11-04', activities: [] });
+    todayApi.listMyActivityProgress.mockReset().mockResolvedValue([]);
     mixedApi.previewMixed.mockReset().mockResolvedValue({ state: 'off' });
     mixedApi.startMixed.mockReset();
     mixedApi.finishMixed.mockReset();
@@ -404,3 +415,158 @@ describe('FactsEntry', () => {
     });
 });
 
+describe('today (period assembly PA-5, PA-6, PA-7)', () => {
+    const A = { activity_id: 'act-a', title: 'Unit rates' };
+    const B = { activity_id: 'act-b', title: 'Ratios' };
+    const NO_CHECK = { state: 'none_open', class_name: 'x', join_code: 'ABC234' };
+    const practiceOn = (over: Record<string, unknown> = {}) => {
+        mixedApi.lookupPracticeClass.mockResolvedValue({ id: 'class-1', mixedOn: true });
+        mixedApi.previewMixed.mockResolvedValue({
+            state: 'ready', doneToday: 0, graded: false, itemsPerSession: 6, planned: 6, ...over,
+        });
+    };
+    const factsOn = (over: Record<string, unknown> = {}) =>
+        sprintApi.fetchSprintEntry.mockResolvedValue({
+            state: 'ready', done_today: 0, due: 3, minutes: 5, ...over,
+        });
+    const textOfMain = () => screen.getByRole('main').textContent ?? '';
+    const before = (a: string, b: string) => {
+        const t = textOfMain();
+        expect(t.indexOf(a)).toBeGreaterThanOrEqual(0);
+        expect(t.indexOf(a)).toBeLessThan(t.indexOf(b));
+    };
+
+    beforeEach(() => {
+        api.fetchEntry.mockResolvedValue(NO_CHECK);
+    });
+
+    it('lists the period in order: number facts, the hook, the activity, practice', async () => {
+        factsOn();
+        practiceOn();
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A] });
+        page();
+        await screen.findByRole('heading', { name: 'Today' });
+        before('Number facts · about 5 min', 'Your teacher’s question');
+        before('Your teacher’s question', 'Unit rates');
+        before('Unit rates', 'Practice · about 6–9 min');
+        // The hook is a line to read, not a link.
+        expect(screen.queryByRole('link', { name: /teacher/ })).toBeNull();
+        const link = screen.getByRole('link', { name: 'Unit rates' }) as HTMLAnchorElement;
+        expect(link.getAttribute('href')).toBe('/a/act-a');
+    });
+
+    it('nothing picked: the page is exactly as it was', async () => {
+        factsOn();
+        practiceOn();
+        page();
+        await screen.findByRole('heading', { name: 'Practice' });
+        expect(screen.queryByRole('heading', { name: 'Today' })).toBeNull();
+        expect(screen.queryByText('Your teacher’s question')).toBeNull();
+    });
+
+    it('a failed read of today is the page as it was, not a broken one', async () => {
+        factsOn();
+        practiceOn();
+        todayApi.fetchClassToday.mockRejectedValue(new Error('network'));
+        page();
+        await screen.findByRole('heading', { name: 'Practice' });
+    });
+
+    it('a double has six rows, one hook, and each practice after its activity', async () => {
+        factsOn();
+        practiceOn({ doneToday: 1 });
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A, B] });
+        page();
+        await screen.findByRole('heading', { name: 'Today' });
+        expect(screen.getAllByText('Your teacher’s question')).toHaveLength(1);
+        const practice = screen.getAllByRole('button', { name: /^Practice/ });
+        expect(practice.map((b) => b.textContent)).toEqual([
+            'Practice · about 6–9 min · Done ✓',
+            'Practice · about 6–9 min',
+        ]);
+        before('Unit rates', 'Ratios');
+    });
+
+    it('shows only what the class has on, with the student\'s own status', async () => {
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A, B] });
+        todayApi.listMyActivityProgress.mockResolvedValue([
+            { activityId: 'act-a', sectionsTotal: 2, sectionsChecked: 2, earlierChecked: false, earlierDone: false, feedbackReleased: false },
+        ]);
+        page();
+        await screen.findByRole('heading', { name: 'Today' });
+        expect(screen.getByRole('link', { name: 'Unit rates · Done ✓' })).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Ratios' })).toBeTruthy();
+        expect(screen.queryByText(/Number facts/)).toBeNull();
+        expect(screen.queryByText(/^Practice/)).toBeNull();
+    });
+
+    it('a failed status read keeps the list, unmarked', async () => {
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A] });
+        todayApi.listMyActivityProgress.mockRejectedValue(new Error('network'));
+        page();
+        await screen.findByRole('link', { name: 'Unit rates' });
+    });
+
+    it('order is never a gate: practice opens with the activity untouched, and there is a way back', async () => {
+        factsOn();
+        practiceOn();
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A] });
+        page();
+        fireEvent.click(await screen.findByRole('button', { name: 'Practice · about 6–9 min' }));
+        await screen.findByText('6 questions · about 6–9 minutes.');
+        fireEvent.click(screen.getByRole('button', { name: 'Back to today' }));
+        await screen.findByRole('heading', { name: 'Today' });
+    });
+
+    it('an open check still comes first, and today isn\'t even read', async () => {
+        api.fetchEntry.mockResolvedValue(READY);
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A] });
+        page();
+        await waitFor(() => expect(screen.queryByRole('heading', { name: 'Today' })).toBeNull());
+        await screen.findAllByRole('button');
+        expect(todayApi.fetchClassToday).not.toHaveBeenCalled();
+    });
+
+    it('after practice on a double, the done screen offers the next activity, with the way back', async () => {
+        practiceOn({ state: 'resume', planned: 6, nextSeq: 4, sessionId: 'sess-9' });
+        mixedApi.finishMixed.mockResolvedValue({ planned: 6, right: 2, answered: 3, skipped: 0, graded: false });
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A, B] });
+        page();
+        await screen.findByRole('heading', { name: 'Today' });
+        fireEvent.click(screen.getAllByRole('button', { name: /^Practice/ })[0]!);
+        await act(async () => {
+            fireEvent.click(await screen.findByRole('button', { name: 'Finish here' }));
+        });
+        await screen.findByRole('heading', { name: 'Practice done' });
+        const next = screen.getByRole('link', { name: 'Next: Ratios' });
+        expect(next.getAttribute('href')).toBe('/a/act-b');
+    });
+
+    it('after the last practice, the done screen offers the list again', async () => {
+        practiceOn({ state: 'resume', planned: 6, nextSeq: 4, sessionId: 'sess-9' });
+        mixedApi.finishMixed.mockResolvedValue({ planned: 6, right: 2, answered: 3, skipped: 0, graded: false });
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A] });
+        page();
+        fireEvent.click(await screen.findByRole('button', { name: /^Practice/ }));
+        await act(async () => {
+            fireEvent.click(await screen.findByRole('button', { name: 'Finish here' }));
+        });
+        await screen.findByRole('heading', { name: 'Practice done' });
+        fireEvent.click(screen.getByRole('button', { name: 'Back to today' }));
+        await screen.findByRole('heading', { name: 'Today' });
+    });
+
+    it('stops the waiting room\'s polling when there is a list to show', async () => {
+        todayApi.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A] });
+        const intervals = vi.spyOn(window, 'setInterval');
+        try {
+            page();
+            await screen.findByRole('heading', { name: 'Today' });
+            // Passive effects have run once the list has settled.
+            await act(async () => {});
+            expect(intervals.mock.calls.some(([, ms]) => ms === WAIT_POLL_MS)).toBe(false);
+        } finally {
+            intervals.mockRestore();
+        }
+    });
+});

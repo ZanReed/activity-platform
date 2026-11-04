@@ -1,6 +1,6 @@
 # Period assembly (D43, last item of the 2026-10-02 BUILD ORDER): design pass
 
-**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slice 1 (exhausted sessions, 0081) and slice 2 (data and teacher, 0082) are built; the rest isn't.
+**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slices 1 to 3 are built (0081, 0082, the student list). The helper line and review aren't.
 Parent: [practice-blocks.md](practice-blocks.md) ("period assembly … get their own pass"). Neighbours: [mixed-practice.md](mixed-practice.md), [chain-hooks-view.md](chain-hooks-view.md), [teacher-guides.md](teacher-guides.md).
 
 ## The rule being served (read from their `main` at 2b80f96, graph v0.19.6)
@@ -136,9 +136,9 @@ Where this differs from the numbered decisions above, this wins.
 - **PA-1, PA-2:** build v1 now: the teacher picks today's activity, and students get a short ordered list. Weighed on cost and use, not as a D43 obligation.
 - **PA-3:** "Use today", never automatic. As built, the control is in the PA-8 panel, not on the class's activity list, because that list is on Home in the eager shell. It lapses at the end of the class's day. A double picks up to two.
 - **PA-4:** a dated row per period item (kind and activity), not a column, with `kind` allowing only `activity` until review ships. The first UI offers today only; future dates wait until a teacher asks.
-- **PA-5:** the "Today" list on `/practice/CODE`, in shape order: Number facts · a non-link "your teacher's question" row for the hook · the activity · Practice. Up to six rows on a double, with one hook only. Nothing picked: the page behaves as it does now. Lazy route only.
-- **PA-6:** order is a suggestion, never a gate.
-- **PA-7:** a return link after the activity's check, passed in, and the next row on the done screen. The viewer stays unaware of periods.
+- **PA-5:** the "Today" list on `/practice/CODE`, in shape order: Number facts · a non-link "your teacher's question" row for the hook · the activity · Practice. Up to six rows on a double, with one hook only. Nothing picked: the page behaves as it does now. Lazy route only. As built, an activity row shows no minutes until `duration_min` reaches this side with the helper-line mirror.
+- **PA-6:** order is a suggestion, never a gate. As built, a student on the list doesn't poll for a snapshot opening, the same as a class with practice on; a reload finds it.
+- **PA-7:** a return link after the activity's check, passed in, and the next row on the done screen. The viewer stays unaware of periods. As built, the return link is the viewer's top-bar back link, which reads "← Today" whenever the activity was opened from the list, not only after a check.
 - **PA-8:** a "Today" panel at the top of the class's Practice page, with no student names.
 - **PA-9:** corrective, assessment, transfer and buffer periods keep their triggers. Review is next, on its own pass, after their keys.
 - **PA-10:** "Items per session" stays, with a helper line beside it. The helper line needs `period_shapes` and `mixed_seconds_per_item` mirrored through the importer, so it waits for their PR.
