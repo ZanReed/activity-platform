@@ -1,6 +1,6 @@
 # Period assembly (D43, last item of the 2026-10-02 BUILD ORDER): design pass
 
-**Status:** RULED by the author 2026-11-04: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slices 1 to 3 are live (0081, 0082, the student list). Slice 4, the helper line, is built as 0083 and shows nothing until their keys are mirrored. Review isn't built.
+**Status:** RULED by the author 2026-11-04, and LIVE apart from the review period: PA-1 to PA-12 as recommended, read as updated by C-180 to C-183 ("The rulings" below is the summary). Slices 1 to 3 are live (0081, 0082, the student list). Slice 4, the helper line, is live too (0083, registry 0e6df783 imported 2026-11-05). Review isn't built.
 Parent: [practice-blocks.md](practice-blocks.md) ("period assembly … get their own pass"). Neighbours: [mixed-practice.md](mixed-practice.md), [chain-hooks-view.md](chain-hooks-view.md), [teacher-guides.md](teacher-guides.md).
 
 ## The rule being served (read from their `main` at 2b80f96, graph v0.19.6)
