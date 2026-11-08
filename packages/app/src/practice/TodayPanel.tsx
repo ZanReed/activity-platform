@@ -90,9 +90,9 @@ export default function TodayPanel({
             setToday((await setClassToday(classId, activityId, on)).activities);
         } catch (err) {
             const message = err instanceof Error ? err.message : '';
-            const refused = message.includes('two_today') || message.includes('not_in_class');
+            const refused = message.includes('today_full') || message.includes('not_in_class');
             setSaveError(
-                message.includes('two_today')
+                message.includes('today_full')
                     ? `A day holds ${MAX_TODAY} activities at most. Remove one first.`
                     : message.includes('not_in_class')
                       ? "That activity isn't available to this class any more."
@@ -176,7 +176,7 @@ export default function TodayPanel({
                 )
             ) : null}
             {choosing && full ? (
-                <p className="ft-muted ft-small">Two is the most for one day, for a double period.</p>
+                <p className="ft-muted ft-small">Six is the most for one day.</p>
             ) : null}
         </section>
     );

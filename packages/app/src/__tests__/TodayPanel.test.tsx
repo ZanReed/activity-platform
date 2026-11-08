@@ -85,24 +85,25 @@ describe('TodayPanel', () => {
         expect(api.setClassToday).toHaveBeenCalledWith('c1', 'a', false);
     });
 
-    it('stops a third pick, but still lets a pick be removed', async () => {
-        api.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A, B] });
+    it('stops a seventh pick, but still lets a pick be removed', async () => {
+        const six = [A, B, ...[3, 4, 5, 6].map((n) => ({ activity_id: `f${n}`, title: `Filler ${n}` }))];
+        api.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: six });
         show();
         fireEvent.click(await screen.findByRole('button', { name: 'Change' }));
         const third = (await screen.findByRole('button', { name: 'Use today: Scale' })) as HTMLButtonElement;
         expect(third.disabled).toBe(true);
         expect((screen.getByRole('button', { name: 'Remove from today: Ratios' }) as HTMLButtonElement).disabled).toBe(false);
-        expect(screen.getByText(/Two is the most/)).toBeTruthy();
+        expect(screen.getByText(/Six is the most/)).toBeTruthy();
     });
 
     it('explains the refusal if another tab filled the day, and shows what it picked', async () => {
-        api.setClassToday.mockRejectedValue(new Error('two_today'));
+        api.setClassToday.mockRejectedValue(new Error('today_full'));
         show();
         fireEvent.click(await screen.findByRole('button', { name: "Pick today's activity" }));
         const scale = await screen.findByRole('button', { name: 'Use today: Scale' });
         api.fetchClassToday.mockResolvedValue({ on_date: '2026-11-04', activities: [A, B] });
         fireEvent.click(scale);
-        expect((await screen.findByRole('alert')).textContent).toMatch(/2 activities at most/);
+        expect((await screen.findByRole('alert')).textContent).toMatch(/6 activities at most/);
         await screen.findByRole('button', { name: 'Remove from today: Ratios' });
     });
 

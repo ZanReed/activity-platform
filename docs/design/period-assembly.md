@@ -134,7 +134,7 @@ Found while checking:
 Where this differs from the numbered decisions above, this wins.
 
 - **PA-1, PA-2:** build v1 now: the teacher picks today's activity, and students get a short ordered list. Weighed on cost and use, not as a D43 obligation.
-- **PA-3:** "Use today", never automatic. As built, the control is in the PA-8 panel, not on the class's activity list, because that list is on Home in the eager shell. It lapses at the end of the class's day. A double picks up to two.
+- **PA-3:** "Use today", never automatic. As built, the control is in the PA-8 panel, not on the class's activity list, because that list is on Home in the eager shell. It lapses at the end of the class's day. A double picks up to two (raised to six by 0084, author ruling 2026-11-09, from the walkthrough).
 - **PA-4:** a dated row per period item (kind and activity), not a column, with `kind` allowing only `activity` until review ships. The first UI offers today only; future dates wait until a teacher asks.
 - **PA-5:** the "Today" list on `/practice/CODE`, in shape order: Number facts · a non-link "your teacher's question" row for the hook · the activity · Practice. Up to six rows on a double, with one hook only. Nothing picked: the page behaves as it does now. Lazy route only. As built, an activity row shows no minutes until `duration_min` reaches this side with the helper-line mirror.
 - **PA-6:** order is a suggestion, never a gate. As built, a student on the list doesn't poll for a snapshot opening, the same as a class with practice on; a reload finds it.

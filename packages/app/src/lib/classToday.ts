@@ -19,8 +19,8 @@ export interface ClassToday {
     activities: TodayActivity[];
 }
 
-/** The most a class picks for one day: a double period's two activities. */
-export const MAX_TODAY = 2;
+/** The most a class picks for one day (0084): generous, not a model of a period. */
+export const MAX_TODAY = 6;
 
 export async function fetchClassToday(classId: string): Promise<ClassToday> {
     const { data, error } = await supabase.rpc(CLASS_TODAY_RPC, { p_class_id: classId });

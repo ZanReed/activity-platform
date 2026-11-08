@@ -71,7 +71,7 @@ begin
   end if;
   n := n + 1;
 
-  -- B2 pick two, in order; a repeat pick is a no-op with no audit row; a third refuses
+  -- B2 pick two, in order; a repeat pick is a no-op with no audit row (the cap: verify-0084)
   perform set_class_today(v_k, v_a[2], true);
   v_r := set_class_today(v_k, v_a[1], true);
   select string_agg(e->>'title', ',' order by o) into v_got
@@ -83,9 +83,6 @@ begin
      or v_audit <> 2 then
     raise exception 'FAIL B2: audit rows';
   end if;
-  v_got := null;
-  begin perform set_class_today(v_k, v_a[3], true); exception when others then v_got := sqlerrm; end;
-  if v_got is distinct from 'two_today' then raise exception 'FAIL B2: third pick gave %', v_got; end if;
   n := n + 1;
 
   -- B3 an activity not in the class refuses; so does an unpublished one

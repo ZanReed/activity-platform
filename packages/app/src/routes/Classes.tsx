@@ -640,7 +640,7 @@ function ClassCard({
             </form>
         )}
         </div>
-        <span className="flex shrink-0 items-center gap-3">
+        <span className="flex min-w-0 flex-wrap items-center gap-3">
         <JoinCode code={info.joinCode} />
         <button
         type="button"

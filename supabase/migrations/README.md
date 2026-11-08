@@ -90,6 +90,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0081_mixed_exhausted_sessions.sql` | C-182 + C-183 (author rulings 2026-11-04): second and later mixed practice sessions the same day top up: due skills, then not-yet-due skills stalest first, then skills already practised today. A new `early` marker on `mixed_session_items` and `mixed_attempts`: a right or skipped early item leaves the step and due date alone, and a wrong one drops a step. `mixed_steps` and `mixed_plan` are dropped and recreated. No Edge Function change. |
 | `0082_class_today.sql` | Period assembly PA-3, PA-4 (author ruling 2026-11-04): `class_period_items` holds a class's picked activities for a day, up to two, and a pick lapses with the class's day. `class_today` is the read for the teacher and current students, and `set_class_today` is the audited teacher write. No personal data. |
 | `0083_period_shapes_mirror.sql` | Period assembly PA-10: a practice registry may carry `period_shapes` and `mixed_seconds_per_item`, both or neither, and `mixed_class_summary` passes them to the teacher's helper line. Nothing about how practice runs reads them. No personal data. |
+| `0084_class_today_six.sql` | Author ruling 2026-11-09: a class can pick up to six activities for a day, up from two. Only the cap and its error name change. No personal data. |
 
 ## Regression re-runs (the DB has no CI harness)
 
