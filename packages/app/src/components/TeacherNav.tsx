@@ -27,9 +27,9 @@ export function TeacherNav() {
     return (
         <nav
         aria-label="Teacher pages"
-        className="mb-6 flex items-center justify-between gap-3 border-b border-line pb-3 text-sm"
+        className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3 text-sm"
         >
-        <ul className="flex items-center gap-3 whitespace-nowrap">
+        <ul className="flex flex-wrap items-center gap-3 whitespace-nowrap">
         {TEACHER_NAV_LINKS.map((l) => (
             <li key={l.to}>
             <NavLink

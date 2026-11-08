@@ -2,14 +2,15 @@
 // classes-card-fits.e2e.ts — a class card's links stay inside the card
 // -----------------------------------------------------------------------------
 // From the walkthrough, 2026-11-09: the row of links ran past the card's edge,
-// worst on a phone. jsdom has no layout, so this is measured in a browser.
+// worst on a phone. CI's fonts then showed the teacher nav doing the same, so
+// the page's width is asserted too. jsdom has no layout: this needs a browser.
 // =============================================================================
 
 import { expect, test } from '@playwright/test';
 import { signInAs, stubIdentityApi } from '../helpers/studentSession';
 import { stubFactsTeacherApi } from '../helpers/factsTeacherStub';
 
-for (const [label, width] of [['a phone', 375], ['a laptop', 1024], ['a wide screen', 1280]] as const) {
+for (const [label, width] of [['a small phone', 320], ['a phone', 375], ['a laptop', 1024], ['a wide screen', 1280]] as const) {
   test(`every link stays inside the card on ${label}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await stubIdentityApi(page, { role: 'teacher' });
