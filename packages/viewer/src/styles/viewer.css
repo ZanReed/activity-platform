@@ -1256,6 +1256,17 @@
   margin: var(--space-2) 0 0;
 }
 
+/* Blanks inside inline maths: the field once it mounts, the boxed equation
+   until then and on paper. */
+.viewer-math-gaps__static[data-field-mounted='true'] {
+  display: none;
+}
+
+/* A display graph is a figure: its paper fits the drawing, not the column. */
+.viewer-graph__canvas.viewer-figure {
+  max-width: var(--vw-figure-cap-standalone);
+}
+
 .viewer-math-block__render {
   overflow-x: auto;
   padding: var(--space-2) 0;
@@ -1895,6 +1906,7 @@
 :where([data-viewer-mode='print']) [data-feedback='server'],
 :where([data-viewer-mode='print']) .viewer-mc__choice input,
 :where([data-viewer-mode='print']) .viewer-graph__canvas,
+:where([data-viewer-mode='print']) .viewer-math-gaps__field,
 :where([data-viewer-mode='print']) .viewer-number-line__canvas,
 :where([data-viewer-mode='print']) .viewer-data-plot__canvas,
 :where([data-viewer-mode='print']) .tool-corner,
@@ -1906,6 +1918,10 @@
 
 :where([data-viewer-mode='print']) .viewer-reference-float {
   display: none;
+}
+
+:where([data-viewer-mode='print']) .viewer-math-gaps__static[data-field-mounted='true'] {
+  display: inline;
 }
 
 
@@ -2563,8 +2579,13 @@
 
   .viewer-graph__canvas,
   .viewer-number-line__canvas,
-  .viewer-data-plot__canvas {
+  .viewer-data-plot__canvas,
+  .viewer-math-gaps__field {
     display: none;
+  }
+
+  .viewer-math-gaps__static[data-field-mounted='true'] {
+    display: inline;
   }
 
   [data-print-svg] {

@@ -17,7 +17,8 @@
 //     sizes a blank from its answer. `answerType` is already served (it is not a
 //     BLANK_SECRET_FIELD). The cap is the old browser default; the column's
 //     `max-width: 100%` (viewer.css) bounds it further.
-//   - A text or math blank keeps the browser default, as before.
+//   - A TEXT blank does the same (author, 2026-11-09, from a phone: a one-word
+//     "Yes" took a line of its own). A math blank keeps the browser default.
 //   - PRINT is unchanged: paper has its own 8ch floor for handwriting
 //     (viewer.css, underline-blanks), and handwriting needs more room than a
 //     typed character.
@@ -37,7 +38,7 @@ export function blankInputSize(
   value: string,
 ): number | undefined {
   if (blank.width) return blank.width;
-  if (mode === 'screen' && blank.answerType === 'numeric') {
+  if (mode === 'screen' && blank.answerType !== 'math') {
     return Math.min(NUMERIC_BLANK_MAX_CHARS, Math.max(NUMERIC_BLANK_MIN_CHARS, value.length + 1));
   }
   return undefined;

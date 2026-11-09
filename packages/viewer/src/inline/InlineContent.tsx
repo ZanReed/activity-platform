@@ -111,7 +111,13 @@ function InlineNode({
     case 'hard_break':
       return <br />;
     case 'math_inline':
-      return <InlineMath latex={String(node.latex ?? '')} />;
+      return (node.prompts as unknown[] | undefined)?.length ? (
+        <Suspense>
+          <InlineMathGaps node={node} />
+        </Suspense>
+      ) : (
+        <InlineMath latex={String(node.latex ?? '')} />
+      );
     case 'blank': {
       // answerType is served (not an answer-key field) and sizes an unsized
       // numeric blank's input (blocks/blankSize.ts).
@@ -267,6 +273,8 @@ function DefinitionTerm({
     </span>
   );
 }
+
+const InlineMathGaps = lazy(() => import('./InlineMathGaps.js'));
 
 export function InlineMath({ latex }: { latex: string }) {
   const [html, setHtml] = useState<string | null>(() => {

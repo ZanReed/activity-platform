@@ -61,7 +61,7 @@ const sizes = (container: HTMLElement) =>
   );
 
 describe('blank input size', () => {
-  it('an unsized numeric blank starts at 4 characters on screen; text and math keep the browser default', () => {
+  it('an unsized numeric or text blank starts at 4 characters on screen; math keeps the browser default', () => {
     const { container } = harness(
       <FillInBlank
         block={prose({ answerType: 'numeric' }, { answerType: 'text' }, { answerType: 'math' }, {}) as never}
@@ -69,7 +69,7 @@ describe('blank input size', () => {
         label={LABEL}
       />,
     );
-    expect(sizes(container)).toEqual(['4', null, null, null]);
+    expect(sizes(container)).toEqual(['4', '4', null, '4']);
   });
 
   it('grows with what the student types, one character of room past the value, capped at 20', () => {
@@ -105,7 +105,7 @@ describe('blank input size', () => {
     expect(sizes(container)).toEqual([null]);
   });
 
-  it('a numeric blank in a table cell follows the same rule', () => {
+  it('a numeric or text blank in a table cell follows the same rule', () => {
     const table = {
       id: 'tbl-1',
       type: 'table',
@@ -128,10 +128,10 @@ describe('blank input size', () => {
       ],
     };
     const { container } = harness(<Table block={table as never} label={LABEL} mode="screen" />);
-    expect(sizes(container)).toEqual(['4', null]);
+    expect(sizes(container)).toEqual(['4', '4']);
     fireEvent.change(container.querySelector('input.viewer-blank__input')!, {
       target: { value: '22.50' },
     });
-    expect(sizes(container)).toEqual(['6', null]);
+    expect(sizes(container)).toEqual(['6', '4']);
   });
 });

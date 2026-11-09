@@ -319,14 +319,26 @@ export default function InteractiveGraph({
 
       <div
         ref={mountRef}
-        className="viewer-graph__canvas"
+        className={isDisplay ? 'viewer-graph__canvas viewer-figure' : 'viewer-graph__canvas'}
         // A board needs a SIZED container: JSXGraph measures its mount point,
         // and in a zero-height box it builds an svg of height 0 and draws
         // nothing. Found in /dev/viewer, where boards mounted only
         // intermittently until this was set. Inline so the component is
         // self-sufficient — the stylesheet pass can override via the class,
         // but a graph must never depend on external CSS merely to exist.
-        style={CANVAS_SIZE}
+        {...(isDisplay && mode === 'screen' && block.interaction?.type === 'display'
+          ? // Nothing mounts on a display graph, so the figure is drawn here.
+            // An empty canvas was all a student ever saw (walkthrough, 2026-11-09).
+            {
+              dangerouslySetInnerHTML: {
+                __html: renderGraphSvg(
+                  block.axisConfig,
+                  block.interaction.drawables as Parameters<typeof renderGraphSvg>[1],
+                  `${block.id}-s`,
+                ),
+              },
+            }
+          : { style: CANVAS_SIZE })}
         data-graph-canvas="true"
         // Focusable and named by THIS component rather than delegated to the
         // kit: the registry's a11y story promises a focusable canvas, and a

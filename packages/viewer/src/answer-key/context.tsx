@@ -24,7 +24,7 @@ import type { AnswerKeyMap, BlockAnswerKey } from './types.js';
 
 /** null (not {}) is the no-provider default, so "no answer channel at all" and
  *  "an empty answer key" stay distinguishable to anything that cares. */
-const AnswerKeyContext = createContext<AnswerKeyMap | null>(null);
+export const AnswerKeyContext = createContext<AnswerKeyMap | null>(null);
 
 export interface AnswerKeyProviderProps {
   readonly answers: AnswerKeyMap;
