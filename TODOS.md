@@ -3,6 +3,65 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## GUI gaps — features with no way to insert or manage them in the app (audit + rule, author 2026-11-12)
+
+The rule is in CLAUDE.md ("EVERY FEATURE SHIPS WITH A GUI"). The roster is
+`packages/app/src/lib/guiSurfaces.ts`, and `guiSurfaces.test.ts` requires one
+`## GUI gap — \`<id>\`` heading below for every row marked `gap`, and none for a
+closed one. **When you build a gap's GUI: change its row to `slash`/`file` and
+delete its heading here, in the same commit.** Each gap has a trigger, not a
+slot (the 2026-10-02 rule); the author ranks them. Scope is a teacher's own
+activities and Bank copies: a file-backed activity is still edited in its `.md`,
+and the importer's hand-edit refusal stays as it is.
+
+The audit found these already covered (no action): charts, figures (shape list,
+segment arrow, figure source), graph settings incl. free vectors and
+transform-a-curve, graded stimuli ("Shown with the question"), teacher guide,
+reference panel, quiz/exam types, definitions, the ² ³ tray.
+
+## GUI gap — `video`
+
+D64's clip + pause points. The editor shows a read-only card: no slash entry, no
+form (`editor/extensions/Video.ts`, "A teacher can't add or change a clip in v1").
+Needs: insert a clip by URL, set and edit its pause points, remove it. ⚠ The
+server-side URL gate (C-176) and the school's YouTube clearance for under-13s
+(D73) govern which URLs are allowed — the form must use the same gate, not a
+copy of it. **TRIGGER:** a teacher wants a clip in their own activity or Bank copy,
+or video clearance goes on (VP-8).
+
+## GUI gap — `seeded_data`
+
+Per-student numbers (```seed). The settings drawer lists the variables read-only
+(`ActivityConfigDrawer.tsx`, "READ-ONLY by design" — written for file-backed
+activities, where an editor control would trip the hand-edit refusal). Needs: add,
+edit and remove a variable and its range in a teacher's own activity, then use it
+in a blank. **TRIGGER:** a teacher wants a varied-numbers copy of a seeded Bank
+activity, or writes their own seeded activity.
+
+## GUI gap — `dol_retake`
+
+D65's DoL marker on a section. `SectionBreak.ts` carries the `dol` attr so a save
+keeps it, but no control sets or clears it, and its skills (`dol_skills:`) have no
+UI. Needs: a "This section is a DoL" toggle on the section's inline UI, with its
+skill list, validated by the same rules `dolImport.ts` applies. **TRIGGER:** a
+teacher wants to add or remove a DoL on a Bank copy (the unit tracker's Passed
+reads it).
+
+### Not a capability row, so not in the test: the activity's skill and chain role
+
+`primary_skill` / `chain_role` / `consolidates_chain` are import-only too. That is
+the existing "`skills` is an ORPHAN FIELD AT BOTH GRAINS" entry below (§1 of
+CURRICULUM-ARCHITECTURE ALIGNMENT); its trigger stands. Under the rule, once a
+teacher-authored activity can take part in mixed practice or the unit tracker,
+those fields need a control.
+
+### Exempt (curriculum-owned, mirrored one way): visible, not editable
+
+Practice banks (Bank preview), the course glossary, chain hook pools (the
+/chains page; teachers mark hooks used), the fact-scope and sprint settings, and
+the chain/skill registries. If one of these has nowhere a teacher can SEE it,
+that is a gap under decision 1 — none found 2026-11-12.
+
 ## Efficiency audit 2026-10 — the open items (filed 2026-10-18; walked one by one with the author)
 
 Report: `docs/reviews/2026-10-efficiency-audit.md` on [PR #3](https://github.com/ZanReed/activity-platform/pull/3) (open — merge it and this link becomes the file). **Done and live:** 0063 (timezone), 0064 (#1 #2 #3 #10 #11-indexes), the small fixes (#4 #7 #8 #12 #13 #15) and the Edge Function supabase-js pin. Live data has one student, so every cost below is argued or measured on seeded data, not felt yet. Status per item: OPEN / RULED (with the ruling) / BUILT / DROPPED.
