@@ -586,6 +586,7 @@ between them.
 - **Why `Promise.all` was dropped:** with the pin, parallelising `ownLatestChecks` with the authorization chain saves ~2 ms. That isn't worth a speculative read in a handler whose security IS its ordering.
 - **Risks accepted:** `us-east-2` is served but is not on Supabase's published region list; if it is ever refused, every function call fails loudly and the constant is a one-line fix. The documented `us-east-1` measured ~50–70 ms slower per call. A pinned region does not fail over in an outage, which doesn't matter while the database lives in that region. **The constant moves with the database:** a project move to another region must change it.
 - **Guards:** `edgeFunctionUrls.test.ts` (the builder adds the region; a sweep fails on any hand-built function URL) and the restore e2e row (every get-activity and check-activity request carries the pin). Both were mutation-tested on the day they were written.
+- **Live-verified 2026-11-12:** the live site's student calls on 2026-11-09 were 10 of 10 pinned and answered `x-sb-edge-region: us-east-2` (`function_edge_logs`); nothing unpinned in that window.
 
 ## Print parity — the artifact, and why it is not a pixel diff (2026-08-01/02, S5, closes finding R4)
 

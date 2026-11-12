@@ -30,7 +30,7 @@ Author-only: pushes, deploys, migrations.
 
 **Period assembly LIVE (0081–0084).** Planner pass next.
 
-**0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd). Log check owed (TODOS item 4).
+**0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd), log-verified 2026-11-12.
 
 **Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 
