@@ -35,6 +35,10 @@ afterEach(cleanup);
 let convert: MarkdownImporter;
 beforeAll(async () => {
     convert = await getMarkdownImporter();
+    // The bar is a lazy chunk. Load (and transform) it once up front, so a
+    // test's wait for it is never racing a cold module load (a flake seen
+    // under load, 2026-11-12).
+    await import('../editor/components/TableToolbar');
     // jsdom has no layout: Range lacks the rect methods ProseMirror's
     // scroll-into-view calls (deleteTable scrolls). Stub them for this file.
     const empty = () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}) });
@@ -89,7 +93,8 @@ async function caretIn(editor: Editor, row: number, col: number) {
         editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, target)));
         editor.view.focus();
     });
-    // The bar is a lazy chunk: let it load.
+    // The bar is a lazy chunk: let React resolve it (the module is preloaded
+    // above). Callers that need the bar wait for it with findByRole.
     await act(async () => {
         await new Promise((r) => setTimeout(r, 0));
     });
@@ -100,7 +105,11 @@ function savedTable(editor: Editor): TableBlock {
         for (const r of s.rows) for (const c of r.columns) for (const b of c.blocks) if (b.type === 'table') return b;
     throw new Error('no table');
 }
-const press = (name: string) => act(() => void fireEvent.mouseDown(screen.getByRole('button', { name })));
+/** Press a toolbar button, waiting for the (lazy) bar to be there first. */
+async function press(name: string) {
+    const button = await screen.findByRole('button', { name });
+    act(() => void fireEvent.mouseDown(button));
+}
 
 describe('the table toolbar (T-1, T-2)', () => {
     it('shows only while the caret is in a table', async () => {
@@ -108,7 +117,7 @@ describe('the table toolbar (T-1, T-2)', () => {
         render(<TableToolbarHost editor={editor} />);
         expect(screen.queryByRole('toolbar', { name: 'Table' })).toBeNull();
         await caretIn(editor, 0, 0);
-        expect(screen.getByRole('toolbar', { name: 'Table' })).toBeTruthy();
+        expect(await screen.findByRole('toolbar', { name: 'Table' })).toBeTruthy();
         editor.destroy();
     });
 
@@ -116,9 +125,9 @@ describe('the table toolbar (T-1, T-2)', () => {
         const editor = setup();
         render(<TableToolbarHost editor={editor} />);
         await caretIn(editor, 1, 0);
-        press('Add a row below');
+        await press('Add a row below');
         expect(savedTable(editor).rows).toHaveLength(4);
-        press('Delete this row');
+        await press('Delete this row');
         expect(savedTable(editor).rows).toHaveLength(3);
         editor.destroy();
     });
@@ -128,7 +137,7 @@ describe('the table toolbar (T-1, T-2)', () => {
         render(<TableToolbarHost editor={editor} />);
         expect(savedTable(editor).columnAligns).toEqual(['left', 'right']);
         await caretIn(editor, 0, 1);
-        press('Add a column to the left');
+        await press('Add a column to the left');
         const t = savedTable(editor);
         expect(t.rows[0]!.cells).toHaveLength(3);
         expect(t.columnAligns).toEqual(['left', 'left', 'right']);
@@ -139,7 +148,7 @@ describe('the table toolbar (T-1, T-2)', () => {
         const editor = setup();
         render(<TableToolbarHost editor={editor} />);
         await caretIn(editor, 0, 1);
-        press('Delete this column');
+        await press('Delete this column');
         const t = savedTable(editor);
         expect(t.rows[0]!.cells).toHaveLength(1);
         expect(t.columnAligns).toBeUndefined();
@@ -150,7 +159,7 @@ describe('the table toolbar (T-1, T-2)', () => {
         const editor = setup();
         render(<TableToolbarHost editor={editor} />);
         await caretIn(editor, 0, 0);
-        press('Centre this column');
+        await press('Centre this column');
         expect(savedTable(editor).columnAligns).toEqual(['center', 'right']);
         const firstCell = editor.view.dom.querySelector('td') as HTMLElement;
         expect(firstCell.style.textAlign).toBe('center');
@@ -161,7 +170,7 @@ describe('the table toolbar (T-1, T-2)', () => {
         const editor = setup(['| a | b |', '|---|---|', '| 1 | 2 |'].join('\n'));
         render(<TableToolbarHost editor={editor} />);
         await caretIn(editor, 0, 0);
-        press('Delete this row');
+        await press('Delete this row');
         expect(savedTable(editor).rows).toHaveLength(1);
         // One row left: the button is off.
         expect((screen.getByRole('button', { name: 'Delete this row' }) as HTMLButtonElement).disabled).toBe(true);
@@ -172,7 +181,7 @@ describe('the table toolbar (T-1, T-2)', () => {
         const editor = setup(['Before.', '', TABLE].join('\n'));
         render(<TableToolbarHost editor={editor} />);
         await caretIn(editor, 0, 0);
-        press('Delete the table');
+        await press('Delete the table');
         expect(() => savedTable(editor)).toThrow('no table');
         expect(JSON.stringify(tiptapToActivity(editor.getJSON(), META))).toContain('Before.');
         editor.destroy();
@@ -278,7 +287,7 @@ describe('Fable review 2026-11-12', () => {
         for (const name of ['Align this column left', 'Centre this column', 'Align this column right']) {
             expect(screen.getByRole('button', { name }).getAttribute('aria-pressed')).toBe('false');
         }
-        press('Centre this column');
+        await press('Centre this column');
         expect(savedTable(editor).columnAligns).toEqual(['center', 'center']);
         editor.destroy();
     });
