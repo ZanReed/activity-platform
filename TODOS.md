@@ -32,6 +32,8 @@ see an import-only FIELD inside a covered block. This sweep read every authored
 schema field against the editor's controls (two read-only agents, key claims
 re-checked by grep). Not triggered wishes: under the 2026-11-12 rule each is a
 debt. Ranked by what a teacher meets first; each gets its own short design pass.
+**Items 3–9 have their design passes, waiting on the author's rulings:**
+[gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md) (drafted 2026-11-13).
 
 1. ✅ **Misconception ids — BUILT 2026-11-12** (misconception-sensors.md →
    "GUI amendment 2026-11-12"). Also fixed: editing a blank's mistake feedback
@@ -96,13 +98,10 @@ named in the Responses note; a faded example's answers are "part 1/2", not
 activity; My activities caps tag chips at 12 like the Bank. Still open:
 
 1. **"✗ Try again" in one-try places** (a mixed item, a frozen DoL try):
-   `viewer/blocks/StatePill.tsx` default label. A wording ruling first (the
-   label shows on every graded block); shell-budget cost.
+   `viewer/blocks/StatePill.tsx` default label. Rulings T1/T2 in
+   [gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md); shell-budget cost.
 2. **Content:** bank item t1 (`rate.unit-rate.md`) has no `solution:` though
    the intro promises working after every answer — curriculum side.
-3. No browser/axe coverage of the Practice page's resting state with a
-   snapshot open (banner shown, open screen hidden) — add to
-   `a11y/student-surfaces.e2e.ts` after its open step.
 
 **Not reached with the playtest:** the video form and table toolbar (menus
 don't open in the in-app browser — Playwright), first-and-last repeat, the

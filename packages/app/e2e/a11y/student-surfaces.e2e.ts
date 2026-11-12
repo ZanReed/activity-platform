@@ -775,6 +775,22 @@ test.describe('the teacher number-facts page', () => {
     await expectNoAxeViolations(page);
   });
 
+  test('with a snapshot open, the Practice page stays, with its banner, and has no axe violations (2026-11-12)', async ({ page }) => {
+    await stubIdentityApi(page, { role: 'teacher' });
+    await signInAs(page);
+    await stubFactsTeacherApi(page, 'open');
+    await page.goto(`/classes/${FT_CLASS_ID}/facts`);
+    // An open snapshot no longer takes over the page (author ruling): the
+    // heading stays "Practice", the open screen is gone, a banner leads in.
+    await expect(page.getByRole('heading', { level: 1, name: 'Practice' })).toBeVisible();
+    const banner = page.getByRole('region', { name: 'Open number facts snapshot' });
+    await expect(banner).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open the snapshot' })).toHaveCount(0);
+    await expectNoAxeViolations(page);
+    await banner.getByRole('button', { name: 'View the snapshot' }).click();
+    await page.locator('.ft-linkbig').waitFor();
+  });
+
   test('a snapshot whose student results were removed has no axe violations (0048)', async ({ page }) => {
     await stubIdentityApi(page, { role: 'teacher' });
     await signInAs(page);
