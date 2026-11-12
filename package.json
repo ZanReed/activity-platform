@@ -19,6 +19,7 @@
     "verify:auth": "node scripts/verify-runner.mjs",
     "playtest": "node scripts/playtest.mjs",
     "playtest:seed": "node scripts/playtest.mjs --seed-only",
+    "playtest:replay": "node scripts/playtest.mjs --replay",
     "worker:login": "pnpm --filter @activity/grading-worker worker:login",
     "worker:check": "pnpm --filter @activity/grading-worker worker:check",
     "worker:run": "pnpm --filter @activity/grading-worker worker:run",

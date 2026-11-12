@@ -7,3 +7,6 @@ pnpm-lock.yaml
 # Hand-formatted; reflowing loses intent
 *.md
 supabase/migrations/**
+
+# Recorded playtest scenarios (pnpm playtest → Save scenario): machine-written
+packages/app/playtest-scenarios/

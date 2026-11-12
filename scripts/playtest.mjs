@@ -48,6 +48,7 @@ export function parseArgs(argv) {
         reset: true,
         seed: true,
         serve: true,
+        replay: false,
         catalogue: process.env.PLAYTEST_CATALOGUE ?? join(homedir(), 'activity-catalogue-pilot'),
         curriculum: process.env.PLAYTEST_CURRICULUM ?? resolve(REPO_ROOT, '../curriculum-repo'),
     };
@@ -57,6 +58,11 @@ export function parseArgs(argv) {
             out.reset = false;
             out.seed = false;
         } else if (a === '--seed-only') out.serve = false;
+        else if (a === '--replay') {
+            out.replay = true;
+            out.reset = false;
+            out.seed = false;
+        }
         else if (a === '--catalogue') out.catalogue = resolve(argv[++i] ?? '');
         else if (a === '--curriculum') out.curriculum = resolve(argv[++i] ?? '');
         else throw new Error(`Unknown argument: ${a}`);
@@ -382,6 +388,34 @@ function serve(stack) {
     log('serving — open the app URL above and use the "Playtest as" bar. Ctrl-C stops everything.');
 }
 
+/** Tier 1: no stack, no functions — the app against a dead address, answered
+ *  from a saved scenario (packages/app/src/dev/playtestTraffic.ts). The pair
+ *  is set explicitly, like serve(), so no shell variable can redirect it. */
+export const REPLAY_SUPABASE_URL = 'http://127.0.0.1:54399';
+
+function serveReplay() {
+    const env = {
+        ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITE_SUPABASE'))),
+        VITE_SUPABASE_URL: REPLAY_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: 'replay-no-backend',
+    };
+    const child = spawn('pnpm', ['--filter', '@activity/app', 'exec', 'vite', '--mode', 'replay'], {
+        cwd: REPO_ROOT,
+        stdio: 'inherit',
+        env,
+    });
+    const stop = () => {
+        if (child.exitCode === null && !child.killed) child.kill('SIGINT');
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+    child.on('error', (err) => {
+        log(`the app could not start: ${err.message}`);
+        process.exitCode = 1;
+    });
+    log('replaying — no backend. Pick a scenario on the bar; record new ones with `pnpm playtest`.');
+}
+
 // ---- main -------------------------------------------------------------------
 
 async function main() {
@@ -389,8 +423,9 @@ async function main() {
     try {
         args = parseArgs(process.argv.slice(2));
     } catch (err) {
-        fail(err.message, 'usage: pnpm playtest [--no-reset] [--seed-only] [--catalogue <dir>] [--curriculum <dir>]');
+        fail(err.message, 'usage: pnpm playtest [--no-reset] [--seed-only] [--replay] [--catalogue <dir>] [--curriculum <dir>]');
     }
+    if (args.replay) return serveReplay();
     const stack = readStack();
     if (args.seed) await seed(stack, args);
     if (args.serve) serve(stack);

@@ -73,8 +73,26 @@ with a **"Playtest as" bar** in the bottom-left corner: click a person to
 switch. Student checks go through the real local `check-activity`, so the
 teacher's progress, misconception and response views show what you just did.
 It shares the stack with the `integration` e2e lane — re-seed after running
-that lane. Guarded by `scripts/tests/playtest-guards.test.mjs` (local URLs
-only; the bar never reaches a production build).
+that lane.
+
+**No Docker? Replay a recording.** On the bar, **● Record a scenario**, play
+through as anyone, then **Save scenario**: every response the local stack gave
+is written to `packages/app/playtest-scenarios/<name>.json`. Then
+
+```bash
+pnpm playtest:replay       # the app with NO backend, answered from a scenario
+```
+
+runs the app against an address nothing listens on and answers every request
+from the scenario you pick on the bar (switch people the same way). Requests
+replay in recorded order, so "before the check / after the check" both show.
+Limits: writes change nothing, and an answer you never gave while recording
+falls back to the closest recorded one (the bar counts these as *approximate*;
+the console names them). Recordings never contain passwords.
+
+Guarded by `scripts/tests/playtest-guards.test.mjs` (local or dead URLs only;
+nothing from either mode reaches a production build; no scenario holds a
+password).
 
 ## Common commands
 
@@ -93,6 +111,7 @@ only; the bar never reaches a production build).
 | `pnpm deploy:get-activity` | Redeploy `get-activity` with the required `--no-verify-jwt` flag baked in (run `bundle:viewer-server` first) |
 | `pnpm deploy:check` | Redeploy `check-activity` — no flag; `verify_jwt` stays true (run `bundle:grading-server` first) |
 | `pnpm playtest` | Playtest the whole app as a teacher or a student against a seeded LOCAL Supabase stack — no sign-in, never the live project (see "Playtesting without signing in" above) |
+| `pnpm playtest:replay` | The same with no backend at all: replays a scenario recorded from `pnpm playtest` |
 | `pnpm clean` | Remove all `dist/` directories |
 | `pnpm --filter @activity/app test:e2e:print` | The print gates (rules · pagination · answer key). Screenshot baselines are Linux-authoritative and skip locally by design (S5-7) — CI runs the same match with `PRINT_BASELINES=1`. |
 | `pnpm --filter @activity/app test:e2e:<lane>` | One Playwright lane: `editor` (200+ /playground specs, reuses your dev server) · `student` (signed-in stubs, own pinned-env server) · `sw` (built worker via preview) · `perf` (throttled timings, same preview) · `a11y` (axe + the four real-browser gap rows, student dev server) · `integration` (real local Supabase stack — needs Docker; see the lane's preflight) |

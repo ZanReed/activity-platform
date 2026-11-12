@@ -12,20 +12,9 @@
 // user (the 2026-10-04 ruling is about shipped screens).
 // =============================================================================
 
-import { useEffect, useState } from 'react';
-import accounts from './playtestAccounts.json';
+import { useEffect, useState, type ReactNode } from 'react';
+import type { PlaytestPerson } from './playtestPeople';
 
-export interface PlaytestPerson {
-    key: string;
-    email: string;
-    name: string;
-    role: 'teacher' | 'student';
-}
-
-const PLAYTEST_PEOPLE: PlaytestPerson[] = [
-    { ...accounts.teacher, role: 'teacher' },
-    ...accounts.students.map((s) => ({ ...s, role: 'student' as const })),
-];
 
 export interface PlaytestBackend {
     /** Short label for the backend, shown on the bar ("local stack"). */
@@ -35,7 +24,17 @@ export interface PlaytestBackend {
     signOut(): Promise<void>;
 }
 
-export function PlaytestBar({ backend }: { backend: PlaytestBackend }) {
+export function PlaytestBar({
+    backend,
+    people,
+    extra,
+}: {
+    backend: PlaytestBackend;
+    /** Who the bar offers; in replay, only the people the scenario recorded. */
+    people: PlaytestPerson[];
+    /** The mode's own controls (recording, or the scenario picker). */
+    extra?: ReactNode;
+}) {
     const [open, setOpen] = useState(false);
     const [email, setEmail] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
@@ -45,7 +44,7 @@ export function PlaytestBar({ backend }: { backend: PlaytestBackend }) {
         void backend.currentEmail().then(setEmail);
     }, [backend]);
 
-    const current = PLAYTEST_PEOPLE.find((p) => p.email === email);
+    const current = people.find((p) => p.email === email);
 
     async function run(key: string, action: () => Promise<void>) {
         setBusy(key);
@@ -81,7 +80,7 @@ export function PlaytestBar({ backend }: { backend: PlaytestBackend }) {
                 <div className="border-t border-amber-300 px-3 pb-3 pt-2">
                     <p className="mb-2 text-xs opacity-80">Playtest as:</p>
                     <div className="flex flex-wrap gap-1.5">
-                        {PLAYTEST_PEOPLE.map((p) => (
+                        {people.map((p) => (
                             <button
                                 key={p.key}
                                 type="button"
@@ -102,6 +101,7 @@ export function PlaytestBar({ backend }: { backend: PlaytestBackend }) {
                             Sign out
                         </button>
                     </div>
+                    {extra}
                     {error && (
                         <p role="alert" className="mt-2 text-xs text-red-700 dark:text-red-300">
                             {error}

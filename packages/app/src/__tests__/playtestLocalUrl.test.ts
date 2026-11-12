@@ -6,9 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { isLocalSupabaseUrl } from '../dev/mountPlaytest';
 // @ts-expect-error — a plain .mjs node script with no type declarations
 import { isLocalUrl } from '../../../../scripts/playtest.mjs';
+import { LOCAL_SUPABASE_URL } from '../../e2e/integration/contract';
 
 const CASES: Array<[string | undefined, boolean]> = [
-    ['http://127.0.0.1:54321', true],
+    [LOCAL_SUPABASE_URL, true],
     ['http://localhost:54321', true],
     ['http://[::1]:54321', true],
     ['https://abcdefghijkl.supabase.co', false],

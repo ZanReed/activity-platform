@@ -6,6 +6,7 @@ import path from 'node:path';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { STUB_LANE_SUPABASE_URL } from './e2e/helpers/e2eOrigins';
+import { playtestScenarios } from './vite.playtest';
 
 // ------------------------------------------------------------------
 // MathLive fonts, self-hosted in the app bundle (2026-08-14, D-13 station).
@@ -185,6 +186,9 @@ export default defineConfig({
     mathliveFonts(),
     authJsDeadModules(),
     reactRouterProductionBuild(),
+    // Dev-server only, and only in --mode playtest|replay: record/replay
+    // endpoints for the no-sign-in playtest (vite.playtest.ts).
+    playtestScenarios(),
     // ------------------------------------------------------------------
     // Service worker (S6 V8, rulings S6-5 / S6-11).
     //
