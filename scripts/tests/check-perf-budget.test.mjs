@@ -20,12 +20,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { randomBytes } from 'node:crypto';
+import { SHELL_SPEND_BAND_BYTES, TEACHER_JOURNEYS } from '../perf-budgets.mjs';
 
 /**
  * Filler that gzip genuinely cannot shrink.
@@ -51,10 +52,10 @@ const SCRIPT = resolve(__dirname, '..', 'check-perf-budget.mjs');
  * Run the budget script against a fixture dist.
  * @returns {{code:number, out:string}}
  */
-function runBudget(distPath) {
+function runBudget(distPath, extraEnv = {}) {
     try {
         const out = execFileSync('node', [SCRIPT], {
-            env: { ...process.env, PERF_BUDGET_DIST: distPath },
+            env: { ...process.env, PERF_BUDGET_DIST: distPath, ...extraEnv },
             encoding: 'utf8',
             stdio: ['ignore', 'pipe', 'pipe'],
         });
@@ -112,6 +113,14 @@ function makeHealthyDist(overrides = {}) {
         writeFileSync(join(dir, file), body);
     }
 
+    // One small route chunk per teacher journey, so every journey row has
+    // something real to measure (a missing route is a vacuity failure).
+    const journeyManifest = {};
+    for (const j of TEACHER_JOURNEYS) {
+        const file = `assets/journey-${j.name}-fixture.js`;
+        if (!(file in chunks)) writeFileSync(join(dir, file), `const ${j.name}Route=1;`);
+        journeyManifest[j.route] = { file, isDynamicEntry: true, imports: ['index.html'] };
+    }
     writeFileSync(
         join(dir, '.vite/manifest.json'),
         JSON.stringify(
@@ -121,6 +130,8 @@ function makeHealthyDist(overrides = {}) {
                     isEntry: true,
                     css: ['assets/index-fixture.css'],
                 },
+                ...journeyManifest,
+                ...(overrides.extraManifest ?? {}),
             },
         ),
     );
@@ -432,5 +443,161 @@ test('a screen moved out of the shell fails when it is back in the entry, or its
         assert.match(out, /MARKER NOT FOUND|rotted/);
     } finally {
         cleanup(rotted);
+    }
+});
+
+// -----------------------------------------------------------------------------
+// The spend meter (shell-size review D3 / P-2). The fixture entry carries CI's
+// Supabase origin, read from ci.yml the way the script reads it, and the test
+// pins the baseline to the fixture's own gz size, then moves it past the band.
+// -----------------------------------------------------------------------------
+
+const CI_ORIGIN = readFileSync(resolve(__dirname, '..', '..', '.github/workflows/ci.yml'), 'utf8')
+    .match(/VITE_SUPABASE_URL:\s*(\S+)/)[1];
+const ciEntry = `const url="${CI_ORIGIN}";` + '["assets/katex-fixture.js"];const app=1;';
+const ciEntryGz = gzipSync(Buffer.from(ciEntry)).length;
+
+test('spend meter: a CI-env shell inside the band passes and prints its delta', () => {
+    const dir = makeHealthyDist({ entryBody: ciEntry });
+    try {
+        const { code, out } = runBudget(dir, { PERF_BUDGET_BASELINE: String(ciEntryGz - 10) });
+        assert.equal(code, 0, out);
+        assert.match(out, /shell spend vs baseline.*\+10 B/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('spend meter: growth past the band fails and says how to record it', () => {
+    const dir = makeHealthyDist({ entryBody: ciEntry });
+    try {
+        const over = SHELL_SPEND_BAND_BYTES + 1;
+        const { code, out } = runBudget(dir, { PERF_BUDGET_BASELINE: String(ciEntryGz - over) });
+        assert.equal(code, 1, out);
+        assert.match(out, new RegExp(`grew ${over} B`));
+        assert.match(out, /SHELL_SPEND row/);
+        assert.match(out, new RegExp(`SHELL_JS_BASELINE_BYTES to ${ciEntryGz}`));
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('spend meter: shrinking past the band fails too (bank the saving, R6)', () => {
+    const dir = makeHealthyDist({ entryBody: ciEntry });
+    try {
+        const under = SHELL_SPEND_BAND_BYTES + 1;
+        const { code, out } = runBudget(dir, { PERF_BUDGET_BASELINE: String(ciEntryGz + under) });
+        assert.equal(code, 1, out);
+        assert.match(out, new RegExp(`SHRANK ${under} B`));
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('spend meter: a non-CI-env build reports n/a rather than a false delta', () => {
+    const dir = makeHealthyDist();
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 0, out);
+        assert.match(out, /shell spend vs baseline.*n\/a/);
+        assert.match(out, /pnpm verify/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Teacher journeys (shell-size review T5)
+// -----------------------------------------------------------------------------
+
+test('journey: a forbidden library reached through a static import fails and names the chunk', () => {
+    // The print route statically imports a chunk that carries MathLive: the
+    // exact shape of the drawer leak TR2 removed.
+    const print = TEACHER_JOURNEYS.find((j) => j.name === 'print');
+    const dir = makeHealthyDist({
+        extraManifest: {
+            [print.route]: { file: 'assets/journey-print-fixture.js', imports: ['src/leak.ts'] },
+            'src/leak.ts': { file: 'assets/mathlive-fixture.js' },
+        },
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /journey: print is free of mathlive/);
+        assert.match(out, /mathlive-fixture\.js/, 'failure must name the chunk');
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('journey: chunks the shell already loaded do not count against a route', () => {
+    // The katex fixture chunk is imported by BOTH the entry and the bank
+    // route: the student already has it, so the bank journey stays clean.
+    const bank = TEACHER_JOURNEYS.find((j) => j.name === 'bank');
+    const dir = makeHealthyDist({
+        extraManifest: {
+            'index.html': { file: 'assets/index-fixture.js', isEntry: true, imports: ['src/shared.ts'] },
+            'src/shared.ts': { file: 'assets/mathlive-fixture.js' },
+            [bank.route]: { file: 'assets/journey-bank-fixture.js', imports: ['src/shared.ts'] },
+        },
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 0, out);
+        assert.match(out, /journey: bank is free of mathlive\s+absent/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('journey: an oversized route fails its cap and names its biggest chunks', () => {
+    const classes = TEACHER_JOURNEYS.find((j) => j.name === 'classes');
+    const dir = makeHealthyDist({
+        chunks: undefined,
+        extraManifest: {
+            [classes.route]: { file: 'assets/journey-classes-fixture.js', imports: ['src/big.ts'] },
+            'src/big.ts': { file: 'assets/big-fixture.js' },
+        },
+    });
+    writeFileSync(join(dir, 'assets/big-fixture.js'), incompressible(classes.maxGzKiB + 5));
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /journey: classes/);
+        assert.match(out, /big-fixture\.js/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('VACUITY: a journey route inside the shell closure fails instead of measuring 0', () => {
+    const editor = TEACHER_JOURNEYS[0];
+    const dir = makeHealthyDist({
+        extraManifest: {
+            'index.html': { file: 'assets/index-fixture.js', isEntry: true, imports: [editor.route] },
+        },
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /in the shell's static closure/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('VACUITY: a journey route missing from the manifest fails instead of vanishing', () => {
+    const dir = makeHealthyDist();
+    const manifestPath = join(dir, '.vite/manifest.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    delete manifest[TEACHER_JOURNEYS[0].route];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /VACUITY guard/);
+        assert.match(out, /not in the build manifest/);
+    } finally {
+        cleanup(dir);
     }
 });

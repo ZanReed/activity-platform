@@ -28,6 +28,7 @@ import {
   censusKeyOf,
 } from '../src/index.js';
 import type { BlockType } from '../src/index.js';
+import { A11Y_STORIES } from './a11yStories.js';
 
 // The established reflection trick (runtime-doc-contract.test.ts precedent):
 // read the union's type literals off the Zod schema at runtime.
@@ -133,11 +134,19 @@ describe('a11y stories (ruling 6.1A)', () => {
   it('every interactive block declares a non-trivial a11y story', () => {
     for (const type of registeredBlockTypes) {
       const entry = blockRegistry[type];
+      const story = A11Y_STORIES[type];
       if (entry.interactivity === 'interactive') {
-        expect(entry.a11y?.story ?? '').not.toHaveLength(0);
+        expect(story ?? '', type).not.toHaveLength(0);
         // A story, not a checkbox: it must say something about the keyboard.
-        expect(entry.a11y!.story.length).toBeGreaterThan(60);
+        expect(story!.length, type).toBeGreaterThan(60);
+      } else {
+        // A story for a non-interactive type is a stale row (the type stopped
+        // accepting input, or the key is misspelled): refuse it.
+        expect(story, type).toBeUndefined();
       }
+    }
+    for (const key of Object.keys(A11Y_STORIES)) {
+      expect(registeredBlockTypes, key).toContain(key);
     }
   });
 

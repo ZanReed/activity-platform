@@ -56,7 +56,10 @@ function ciBuildEnv() {
         );
         process.exit(2);
     }
-    return { VITE_SUPABASE_URL: url, VITE_SUPABASE_ANON_KEY: key };
+    // VITE_DISTRICT_HINT is blanked because CI has none and the app inlines
+    // it: a .env.local hint would shift the shell's bytes, and the spend meter
+    // (perf-budgets.mjs → SHELL_JS_BASELINE_BYTES) counts exact bytes.
+    return { VITE_SUPABASE_URL: url, VITE_SUPABASE_ANON_KEY: key, VITE_DISTRICT_HINT: '' };
 }
 
 // A build that uses YOUR .env.local instead of CI's pinned env is the
@@ -78,6 +81,8 @@ const GATES = [
     {
         name: 'perf budgets',
         cmd: 'node scripts/check-perf-budget.mjs',
+        // Strict like CI: a spend meter that cannot run is a failure, not n/a.
+        env: { PERF_REQUIRE_SPEND_METER: '1' },
         ci: '"Performance budgets"',
     },
     {

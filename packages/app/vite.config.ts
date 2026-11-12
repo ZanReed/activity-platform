@@ -267,6 +267,10 @@ export default defineConfig({
   // ------------------------------------------------------------------
   build: {
     manifest: true,
+    // Shell-size review R4 (2026-11-13): every supported browser (Chromebook
+    // Chrome, current Safari and Firefox) has native modulepreload, so Vite's
+    // polyfill was ~0.26 KiB gz of the student shell doing nothing.
+    modulePreload: { polyfill: false },
   },
   // ------------------------------------------------------------------
   // Vitest. This block exists for exactly ONE reason, and the reason is a
@@ -366,6 +370,12 @@ export default defineConfig({
       '@supabase/storage-js': path.resolve(
         __dirname,
         './src/lib/supabase-stubs/storage-js.ts',
+      ),
+      // Shell-size review R2 (2026-11-13): no call sites; Edge Functions are
+      // called with plain fetch (lib/edgeFunctions.ts). Header in the stub.
+      '@supabase/functions-js': path.resolve(
+        __dirname,
+        './src/lib/supabase-stubs/functions-js.ts',
       ),
     },
   },

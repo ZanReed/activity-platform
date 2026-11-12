@@ -39,12 +39,14 @@
 // =============================================================================
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { gzipSync } from 'node:zlib';
+import { gzipSync, brotliCompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import {
     APP_DIST_DIR,
     SHELL_JS_GZ_KIB,
+    SHELL_JS_BASELINE_BYTES,
+    SHELL_SPEND_BAND_BYTES,
     SHELL_CSS_GZ_KIB,
     PRECACHE_MAX_ENTRIES,
     PRECACHE_MAX_BYTES,
@@ -52,6 +54,7 @@ import {
     SHELL_FORBIDDEN_MARKERS,
     ABSENT_FROM_BUILD,
     SHELL_EVICTED,
+    TEACHER_JOURNEYS,
     stripAssetSpecifiers,
 } from './perf-budgets.mjs';
 
@@ -140,6 +143,84 @@ record(
     'KiB',
     `entry chunk: ${entry.file}`,
 );
+
+// ---- The spend meter (shell-size review D3, policy P-2) ----------------------
+// Exact gz bytes against SHELL_JS_BASELINE_BYTES, red OUTSIDE ±band either way.
+// Meaningful only for a build made with CI's env: the Supabase URL and anon key
+// are inlined into the entry, so a .env.local build reads different bytes (and
+// an env-less build drops whole code paths). The origin is READ from ci.yml,
+// never retyped, the way verify-local.mjs reads the build env.
+const ciYml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+const ciOrigin = ciYml.match(/VITE_SUPABASE_URL:\s*(\S+)/)?.[1];
+require_(ciOrigin, 'could not read VITE_SUPABASE_URL out of .github/workflows/ci.yml.');
+const entryGzBytes = gzipSync(entryBuf).length;
+// Fixture dists (PERF_BUDGET_DIST) may pin their own baseline: the only way to
+// fire this row's red branches without a real build. Ignored otherwise.
+const baseline = process.env.PERF_BUDGET_DIST && process.env.PERF_BUDGET_BASELINE
+    ? Number(process.env.PERF_BUDGET_BASELINE)
+    : SHELL_JS_BASELINE_BYTES;
+if (entryBuf.includes(ciOrigin)) {
+    const delta = entryGzBytes - baseline;
+    const ok = Math.abs(delta) <= SHELL_SPEND_BAND_BYTES;
+    const sign = delta >= 0 ? '+' : '';
+    rows.push({
+        name: 'shell spend vs baseline (gz bytes)',
+        actual: `${sign}${delta}`,
+        cap: `±${SHELL_SPEND_BAND_BYTES}`,
+        unit: 'B',
+        ok,
+    });
+    if (!ok) {
+        failures.push({
+            name: 'shell spend vs baseline',
+            actual: `${sign}${delta}`,
+            cap: `±${SHELL_SPEND_BAND_BYTES}`,
+            unit: 'B',
+            detail:
+                (delta > 0
+                    ? `the shell grew ${delta} B gz past SHELL_JS_BASELINE_BYTES (${baseline}). `
+                    : `the shell SHRANK ${-delta} B gz below SHELL_JS_BASELINE_BYTES (${baseline}): bank it. `) +
+                `Measured ${entryGzBytes} B. In scripts/perf-budgets.mjs, add a SHELL_SPEND row ` +
+                `{ date, change, bytes: ${delta} } naming what moved it, and set ` +
+                `SHELL_JS_BASELINE_BYTES to ${entryGzBytes}, in this commit. This is a ` +
+                'ledger entry, not a cap: the ceiling (SHELL_JS_GZ_KIB) is fixed, and a ' +
+                'spend that would cross it brings a reserve rung (shell-size review P-3).',
+        });
+    }
+} else {
+    // In CI (and under `pnpm verify`, which sets PERF_REQUIRE_SPEND_METER) the
+    // dist IS a CI-env build, so a miss here means the check is blind.
+    require_(
+        !(process.env.CI || process.env.PERF_REQUIRE_SPEND_METER) || process.env.PERF_BUDGET_DIST,
+        `the entry chunk does not contain CI's Supabase origin (${ciOrigin}), so ` +
+            'the spend meter cannot run. In CI that means the build env and ci.yml ' +
+            'disagree, or the app stopped inlining VITE_SUPABASE_URL into the entry.',
+    );
+    rows.push({
+        name: 'shell spend vs baseline (gz bytes)',
+        actual: 'n/a',
+        cap: 'CI env',
+        unit: '',
+        ok: true,
+    });
+    rows.push({
+        name: '  (not a CI-env build: run `pnpm verify`)',
+        actual: '',
+        cap: '',
+        unit: '',
+        ok: true,
+    });
+}
+
+// Brotli is what Cloudflare actually serves (P-6). Information only: gzip stays
+// the gate because the cap history is written in it.
+rows.push({
+    name: 'shell JS (entry chunk, brotli)',
+    actual: brotliCompressSync(entryBuf).length / 1024,
+    cap: 'info',
+    unit: 'KiB',
+    ok: true,
+});
 
 const entryCss = entry.css ?? [];
 const cssBytes = entryCss.reduce((sum, c) => {
@@ -237,6 +318,83 @@ for (const rowSpec of CHUNK_LEDGER) {
 }
 
 // -----------------------------------------------------------------------------
+// Rows — teacher journeys (shell-size review T5)
+// -----------------------------------------------------------------------------
+// Route chunk + its static-import closure from the manifest, minus the shell's
+// own closure. The manifest's `imports` lists are exactly what the browser
+// fetches before the route can render (Vite preloads them with the chunk).
+const manifestKeyOf = (file) => Object.keys(manifest).find((k) => manifest[k].file === file);
+function staticClosure(key, seen = new Set()) {
+    if (seen.has(key) || !manifest[key]) return seen;
+    seen.add(key);
+    for (const dep of manifest[key].imports ?? []) staticClosure(dep, seen);
+    return seen;
+}
+const shellClosure = staticClosure(manifestKeyOf(entry.file));
+const ledgerMarker = Object.fromEntries(CHUNK_LEDGER.map((r) => [r.name, r.marker]));
+for (const j of TEACHER_JOURNEYS) {
+    require_(
+        manifest[j.route]?.file,
+        `teacher journey "${j.name}": ${j.route} is not in the build manifest. The ` +
+            'route was renamed or stopped being a chunk; update TEACHER_JOURNEYS in ' +
+            'scripts/perf-budgets.mjs rather than letting the row vanish.',
+    );
+    require_(
+        !shellClosure.has(j.route),
+        `teacher journey "${j.name}": ${j.route} is in the shell's static closure, ` +
+            'so its journey would measure 0 KiB and every "free of" row would pass ' +
+            'vacuously. A teacher route joined the student shell: that is the bug.',
+    );
+    const chunks = [...staticClosure(j.route)]
+        .filter((k) => !shellClosure.has(k))
+        .map((k) => {
+            const path = join(dist, manifest[k].file);
+            const buf = readFileSync(path);
+            return { file: manifest[k].file, gz: gzKiB(buf), source: buf.toString('utf8') };
+        });
+    const total = chunks.reduce((sum, c) => sum + c.gz, 0);
+    record(
+        `journey: ${j.name}`,
+        total,
+        j.maxGzKiB,
+        'KiB',
+        `${j.route} downloads ${chunks.length} chunk(s) beyond the shell: ` +
+            [...chunks].sort((a, b) => b.gz - a.gz).slice(0, 6)
+                .map((c) => `${c.file} (${fmt(c.gz)} KiB)`).join(', ') +
+            `. ${j.why} A jump of a whole library usually means a static import ` +
+            'crossed a feature line (serialize.ts, the config drawer, a package barrel).',
+    );
+    for (const lib of j.forbid) {
+        const marker = ledgerMarker[lib];
+        require_(marker, `teacher journey "${j.name}" forbids "${lib}", which is not a CHUNK_LEDGER row.`);
+        const hits = chunks.filter((c) => marker.test(stripAssetSpecifiers(c.source)));
+        rows.push({
+            name: `journey: ${j.name} is free of ${lib}`,
+            actual: hits.length ? 'PRESENT' : 'absent',
+            cap: 'absent',
+            unit: '',
+            ok: hits.length === 0,
+        });
+        if (hits.length) {
+            failures.push({
+                name: `journey: ${j.name} is free of ${lib}`,
+                actual: 'PRESENT',
+                cap: 'absent',
+                unit: '',
+                detail:
+                    `${lib} code is in the ${j.name} journey (${j.route}) via ` +
+                    hits.map((c) => `${c.file} (${fmt(c.gz)} KiB)`).join(', ') +
+                    `. ${j.why} Find the static import that crossed over ` +
+                    '(the review\'s three were lib/serialize.ts, ' +
+                    'components/ActivityConfigDrawer.tsx and the @activity/graph-kit ' +
+                    'barrel) and make it lazy or move what the route needs into a ' +
+                    'module of its own. Background: docs/design/shell-size-review.md §8.',
+            });
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
 // Rows — payloads that must be absent from the WHOLE build, not just the shell
 // -----------------------------------------------------------------------------
 // The inverse of the ledger (see ABSENT_FROM_BUILD's comment for why it cannot
@@ -302,7 +460,7 @@ for (const spec of ABSENT_FROM_BUILD) {
                 `${spec.name} is back in the bundle: ` +
                 matched.map((m) => `${m.file} (${fmt(m.gz)} KiB)`).join(', ') +
                 `. ${spec.why} The usual cause is its wiring in ` +
-                'packages/app/vite.config.ts (a resolve.alias entry for the two ' +
+                'packages/app/vite.config.ts (a resolve.alias entry for the three ' +
                 'sub-clients, the activity:auth-js-dead-modules plugin for auth-js) ' +
                 'being removed or stopping short of a new import path. This is not ' +
                 'a cap to raise — either restore the wiring, or retire the stub ' +
@@ -398,9 +556,10 @@ console.log('-'.repeat(72));
 for (const r of rows) {
     const actual = typeof r.actual === 'number' ? fmt(r.actual) : r.actual;
     const cap = typeof r.cap === 'number' ? fmt(r.cap) : r.cap;
+    const capText = r.cap === 'info' ? '(info)' : r.cap === '' ? '' : `(cap ${cap} ${r.unit})`;
     console.log(
         `  ${r.ok ? 'ok  ' : 'FAIL'}  ${r.name.padEnd(34)} ${String(actual).padStart(9)} ${r.unit}` +
-            `  (cap ${cap} ${r.unit})`,
+            `  ${capText}`,
     );
 }
 console.log('-'.repeat(72));

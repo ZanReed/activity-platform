@@ -16,7 +16,6 @@ export type {
   SanitizeSpec,
   PrintTreatment,
   PrintSpec,
-  A11ySpec,
   BlockComponentProps,
   LazyBlockComponent,
   BlockRegistryEntry,

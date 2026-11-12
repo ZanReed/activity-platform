@@ -65,7 +65,7 @@ import {
 } from '../lib/swRegistration';
 import { buildFoldableDocument } from '../lib/foldable';
 import { useAutosave } from '../lib/useAutosave';
-import { PrintSettingsBody } from '../components/ActivityConfigDrawer';
+import { PrintSettingsBody } from '../components/PrintSettingsBody';
 
 type PrintLayout = 'worksheet' | 'foldable';
 

@@ -38,6 +38,8 @@ const stubDir = join(appDir, 'src/lib/supabase-stubs');
 const STUBS = [
     'realtime-js.ts',
     'storage-js.ts',
+    // Shell-size review R2 (2026-11-13).
+    'functions-js.ts',
     // Rung 2 (2026-10-04): auth-js's never-executed modules, wired by the
     // activity:auth-js-dead-modules plugin rather than resolve.alias.
     'auth-webauthn.ts',
@@ -138,11 +140,12 @@ test('the INSTALLED supabase-js is the version the stubs were audited against', 
 // nothing here notices. This row pins the wiring itself.
 // -----------------------------------------------------------------------------
 
-test('vite.config.ts still aliases BOTH sub-clients at the stubs', () => {
+test('vite.config.ts still aliases all three sub-clients at the stubs', () => {
     const config = readFileSync(join(appDir, 'vite.config.ts'), 'utf8');
     for (const [specifier, file] of [
         ['@supabase/realtime-js', 'realtime-js.ts'],
         ['@supabase/storage-js', 'storage-js.ts'],
+        ['@supabase/functions-js', 'functions-js.ts'],
     ]) {
         assert.match(
             config,

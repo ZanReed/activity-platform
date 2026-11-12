@@ -191,16 +191,18 @@ HISTORY, not re-argued here.)*
 **Editor open remainders** (focus mode, the touch/a11y pass, smart-defaults, the keyboard-reorder settle, and two papercuts) **moved to [TODOS.md](TODOS.md) on 2026-08-22** — they lived only in this section, which is replaced every session.
 
 
-## The shell budget — the ~150 KiB target is MET
+## The shell budget — a FIXED ceiling and a spend meter (2026-11-13)
 
-**`SHELL_JS_GZ_KIB` 172 → 158 and `SHELL_CSS_GZ_KIB` 14 → 15 (2026-08-23).**
-P1A's target is met for the first time. **Passed again since (glossary arc,
-measured 2026-09-30), and rung 2 ran 2026-10-04 (auth-js's never-executed
-modules stubbed); rung 3 ran 2026-10-18; the 156.5 stop line is RETIRED (author, 2026-10-18): eager additions are judged against the cap itself, raised since by author rulings recorded beside it in `scripts/perf-budgets.mjs`.** Measure with CI's env (`pnpm verify`): a `.env.local` build reads ~47 bytes heavier. **Read the real numbers from
-`node scripts/check-perf-budget.mjs`, never from here** — this line has carried
-a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
-DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,
-preact/compat, auth-js) is listed in TODOS, is not urgent, and is not a plan.
+**`SHELL_JS_GZ_KIB` is fixed at 158.7; the +0.1 cap rulings are over** (author,
+[shell-size-review.md](docs/design/shell-size-review.md) D1–D10, T1–T9). Tier A
+freed ~3.3 KiB of allowance; every later shell change records a `SHELL_SPEND`
+row (exact gz bytes, ±256 B band, red both ways) and a slice that would cross
+the ceiling brings a reserve rung (R6, R5, R7). New blocks are lazy unless named
+in `packages/viewer/tests/eagerBlocks.ts`. Teacher routes have coarse
+`TEACHER_JOURNEYS` caps plus forbidden-library rows. **Read numbers from
+`node scripts/check-perf-budget.mjs` after `pnpm verify`, never from here.**
+Next teacher slices: T2 (y-tiptap stub), T3 (lazy markdown dialog), T8 (lint),
+then T4, then T6.
 
 ## Build order — RULED by the author 2026-10-02
 

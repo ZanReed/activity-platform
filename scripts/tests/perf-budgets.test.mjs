@@ -31,6 +31,12 @@ import {
     TIMING_CEILING_MULTIPLE,
     timingCeilingMs,
     stripAssetSpecifiers,
+    SHELL_JS_GZ_KIB,
+    SHELL_JS_ANCHOR,
+    SHELL_SPEND,
+    SHELL_JS_BASELINE_BYTES,
+    SHELL_SPEND_BAND_BYTES,
+    TEACHER_JOURNEYS,
 } from '../perf-budgets.mjs';
 
 test('migrated ceilings still hold their pre-migration values (D8 pin)', () => {
@@ -164,4 +170,61 @@ test('a chunk that both names AND contains a library is still detected', () => {
     const src =
         '["assets/mathlive.min-C-PTW5EO.js"];class MathfieldElement extends HTMLElement{}';
     assert.ok(/MathfieldElement/.test(stripAssetSpecifiers(src)));
+});
+
+// -----------------------------------------------------------------------------
+// The fixed ceiling and the spend ledger (shell-size review D2/D3, 2026-11-13)
+// -----------------------------------------------------------------------------
+
+test('the shell JS ceiling is FIXED at 158.7 (P-1)', () => {
+    // If this fails, someone moved the ceiling. That takes a design pass that
+    // names what the bytes buy and which reserve rung would undo it
+    // (docs/design/shell-size-review.md §5), not a +0.1 ruling. A shell that
+    // grew should have recorded a SHELL_SPEND row instead.
+    assert.equal(SHELL_JS_GZ_KIB, 158.7);
+});
+
+test('baseline = anchor + every spend row: the ledger cannot be skipped (P-2)', () => {
+    assert.ok(Number.isInteger(SHELL_JS_ANCHOR.bytes) && SHELL_JS_ANCHOR.bytes > 0);
+    assert.match(SHELL_JS_ANCHOR.date, /^\d{4}-\d{2}-\d{2}$/);
+    let sum = SHELL_JS_ANCHOR.bytes;
+    for (const row of SHELL_SPEND) {
+        assert.match(row.date ?? '', /^\d{4}-\d{2}-\d{2}$/, 'spend row needs an ISO date');
+        assert.ok(row.change && row.change.length > 10, 'spend row must say what bought it');
+        assert.ok(Number.isInteger(row.bytes) && row.bytes !== 0, `${row.change}: bytes is a non-zero integer delta`);
+        sum += row.bytes;
+    }
+    assert.equal(
+        SHELL_JS_BASELINE_BYTES,
+        sum,
+        'SHELL_JS_BASELINE_BYTES must equal SHELL_JS_ANCHOR.bytes plus the sum of SHELL_SPEND. ' +
+            'Moving the baseline without a spend row hides the spend the meter exists to show.',
+    );
+});
+
+test('the baseline sits under the ceiling: crossing it is P-3, not a spend row', () => {
+    assert.ok(
+        SHELL_JS_BASELINE_BYTES <= SHELL_JS_GZ_KIB * 1024,
+        'the recorded baseline is above the fixed ceiling. A slice that crosses the ceiling ' +
+            'brings a reserve rung in the same slice (shell-size review P-3).',
+    );
+    assert.ok(SHELL_SPEND_BAND_BYTES > 0 && SHELL_SPEND_BAND_BYTES <= 512);
+});
+
+test('every teacher journey row is complete and forbids only ledger names (T5)', () => {
+    const ledgerNames = new Set(CHUNK_LEDGER.map((r) => r.name));
+    const seen = new Set();
+    assert.ok(TEACHER_JOURNEYS.length > 0);
+    for (const j of TEACHER_JOURNEYS) {
+        assert.ok(!seen.has(j.name), `duplicate journey ${j.name}`);
+        seen.add(j.name);
+        assert.match(j.route, /^src\/routes\/[A-Za-z]+\.tsx$/, `${j.name}: route is a manifest key`);
+        assert.ok(typeof j.maxGzKiB === 'number' && j.maxGzKiB > 0, `${j.name}: needs a positive cap`);
+        assert.ok(j.why && j.why.length > 20, `${j.name}: needs a stated reason`);
+        for (const lib of j.forbid) {
+            // A ledger name is what keeps the absence honest: the ledger row
+            // fails when its marker matches nothing, so the marker cannot rot.
+            assert.ok(ledgerNames.has(lib), `${j.name}: forbids "${lib}", which is not a CHUNK_LEDGER row`);
+        }
+    }
 });

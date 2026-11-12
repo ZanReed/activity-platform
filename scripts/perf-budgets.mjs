@@ -189,8 +189,49 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * env (`pnpm verify`): a build from .env.local reads ~47 bytes heavier. The
  * rule is unchanged: the next addition that crosses 158.7 gets a rung or a
  * ruling.
+ *
+ * ⚖ A FIXED CEILING — author ruling 2026-11-13 (docs/design/shell-size-review.md
+ * D2, policy P-1). The +0.1 rulings above are OVER. Tier A of the review
+ * (a11y prose out of the registry, functions-js stubbed, sideEffects on viewer
+ * and graph-kit, no modulepreload polyfill) took the shell 162,470 → 159,049
+ * bytes gz (158.66 → 155.32 KiB), and the cap stayed at 158.7: the ~3.3 KiB
+ * between them is the ALLOWANCE that SHELL_SPEND below draws down. This number
+ * no longer moves by ruling. Changing it takes a design pass that names what
+ * the bytes buy and which reserve rung would undo it; a slice that would cross
+ * it brings a rung from the reserve in the same slice (P-3; the reserve, ranked,
+ * is §2 of the review: R6 figure engine, R5 Home + JoinClass, R7 rare blocks).
+ * perf-budgets.test.mjs pins the value.
  */
 export const SHELL_JS_GZ_KIB = 158.7;
+
+/**
+ * THE SPEND METER (review D3, policy P-2): the shell's EXACT gz bytes under
+ * CI's build env, and the ledger that explains every byte since the anchor.
+ *
+ * check-perf-budget.mjs fails when the measured shell is more than
+ * SHELL_SPEND_BAND_BYTES ABOVE the baseline ("record the spend") or more than
+ * that BELOW it ("record the saving"; R6's anti-fossil rule, enforced). The fix
+ * either way is one commit that adds a SHELL_SPEND row and moves
+ * SHELL_JS_BASELINE_BYTES by the same amount. perf-budgets.test.mjs asserts
+ * baseline = anchor + Σ spend, so the ledger cannot be skipped.
+ *
+ * Builds are deterministic per commit, so the band only has to absorb
+ * legitimate tiny edits (a renamed variable, a reworded aria-label), not runner
+ * noise. Measure under CI's env: `pnpm verify` builds with it. A build from
+ * .env.local inlines a different Supabase URL and key, so the meter reports
+ * itself n/a there rather than lying.
+ *
+ * A spend row is { date, change, bytes }: `bytes` is the signed delta in gz
+ * bytes, `change` says what bought it (name the slice or design pass).
+ */
+export const SHELL_JS_ANCHOR = {
+    date: '2026-11-13',
+    bytes: 159049,
+    note: 'shell-size review tier A (R1–R4) landed; ceiling fixed at 158.7',
+};
+export const SHELL_SPEND = [];
+export const SHELL_JS_BASELINE_BYTES = 159049;
+export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
  * The student shell's CSS, gzipped — a SEPARATE row on purpose.
@@ -412,6 +453,14 @@ export const ABSENT_FROM_BUILD = [
         why: 'The app talks to Storage with two raw fetch calls in lib/uploadImage.ts instead. Stubbed by resolve.alias.',
     },
     {
+        name: '@supabase/functions-js',
+        // The relay-error header name and its error message; neither is in
+        // the stub or in lib/edgeFunctions.ts (which shares forceFunctionRegion,
+        // so that string would match a correct build).
+        marker: /x-relay-error|Relay Error invoking the Edge Function/,
+        why: 'Zero call sites: Edge Functions are called with plain fetch through lib/edgeFunctions.ts (functions.invoke sends x-region, which CORS refuses). Stubbed by resolve.alias (shell-size review R2).',
+    },
+    {
         name: 'iceberg-js',
         marker: /X-Iceberg-Access-Delegation|CommitStateUnknownException/,
         why: "storage-js's dependency — an Apache Iceberg client, on a path that uploads PNGs.",
@@ -470,6 +519,88 @@ export const SHELL_EVICTED = [
         name: 'pending-account onboarding (PendingOnboarding)',
         marker: /data-onboarding/,
         why: 'Only a brand-new account with no role sees it; Home loads it lazily.',
+    },
+];
+
+/**
+ * TEACHER JOURNEYS — what each teacher route downloads beyond the shell
+ * (shell-size review §8, rulings T1 + T5, 2026-11-13).
+ *
+ * The teacher problem is not creep but LEAKS: one static import across a
+ * feature line drags a heavy library into a route that never runs it. The
+ * review found every big teacher cost had that shape: the Bank imported
+ * lib/serialize.ts for one guide helper (MathLive and mathjs came with it,
+ * 301 KiB gz) and the print page imported its settings form from
+ * ActivityConfigDrawer.tsx (the drawer's editors came with it, 684 KiB gz).
+ *
+ * A journey = the route's chunk plus its STATIC import closure from
+ * dist/.vite/manifest.json, minus the chunks the shell already loaded. Each
+ * row has two guards:
+ *   - `maxGzKiB`, deliberately COARSE (~10% over the 2026-11-13 measurement):
+ *     teachers are on staff devices with a warm cache, and the editor moves
+ *     most days, so this is no byte meter (ruling T9). It catches a library
+ *     joining a route, not a feature growing.
+ *   - `forbid`, the rows doing the real work: CHUNK_LEDGER names whose code
+ *     must not be anywhere in the journey. A ledger marker is live by
+ *     construction (its ledger row fails when the marker matches nothing), so
+ *     an absence here cannot rot into a vacuous pass.
+ * `route` is the manifest key (relative to packages/app); a renamed route
+ * fails as a vacuity error rather than silently dropping its row.
+ *
+ * Measured 2026-11-13, CI env, after T1: editor 761.8, print 78.0,
+ * progress 80.0, responses 79.0, activities 43.9, classes 8.2, bank 5.3.
+ * The editor cap is set over today's number; T2 (y-tiptap stub, ~−31) and
+ * T3 (lazy markdown dialog, ~−40) tighten it in their own slices.
+ */
+export const TEACHER_JOURNEYS = [
+    {
+        name: 'editor',
+        route: 'src/routes/ActivityEditor.tsx',
+        maxGzKiB: 840,
+        forbid: [],
+        why: 'The editor legitimately carries Tiptap, MathLive, KaTeX and mathjs. Its cap catches a NEW library, not a new feature.',
+    },
+    {
+        name: 'print',
+        route: 'src/routes/ActivityPrint.tsx',
+        maxGzKiB: 86,
+        forbid: ['prosemirror', 'mathlive'],
+        why: 'Print renders through the viewer. Its settings form lives in components/PrintSettingsBody.tsx so the drawer (and its editors) stays out (TR2).',
+    },
+    {
+        name: 'bank',
+        route: 'src/routes/Bank.tsx',
+        maxGzKiB: 7,
+        forbid: ['prosemirror', 'mathlive'],
+        why: 'The Bank list is cards and filters. The guide panel loads serialize.ts and the guide editor lazily (TR1).',
+    },
+    {
+        name: 'activities',
+        route: 'src/routes/Activities.tsx',
+        maxGzKiB: 48,
+        forbid: ['prosemirror', 'mathlive'],
+        why: 'A teacher landing page: a list, no editor.',
+    },
+    {
+        name: 'classes',
+        route: 'src/routes/Classes.tsx',
+        maxGzKiB: 10,
+        forbid: ['prosemirror', 'mathlive'],
+        why: 'A list of classes, no editor.',
+    },
+    {
+        name: 'responses',
+        route: 'src/routes/ActivityResponses.tsx',
+        maxGzKiB: 87,
+        forbid: ['prosemirror', 'mathlive'],
+        why: 'A dashboard. It reaches mathjs for seeded answers (T4 makes that lazy); it must never reach the editor.',
+    },
+    {
+        name: 'progress',
+        route: 'src/routes/ActivityProgress.tsx',
+        maxGzKiB: 88,
+        forbid: ['prosemirror', 'mathlive'],
+        why: 'A dashboard, as for responses.',
     },
 ];
 

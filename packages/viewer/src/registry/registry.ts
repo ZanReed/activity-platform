@@ -5,7 +5,8 @@
 // proves: coverage is exact against the Block union, numbering declarations
 // agree with block-predicates.ts, families agree with isGradeable, variants
 // agree with the schema's interaction unions, and every interactive entry
-// carries an a11y story. Add a block type to the schema and this file fails to
+// has an a11y story (in tests/a11yStories.ts, not here: the stories are prose
+// no runtime code reads, and this file ships in the student shell). Add a block type to the schema and this file fails to
 // compile (BlockRegistry is keyed by the union) — that is the point.
 //
 // Print declarations started FAITHFUL to the baseline print layer
@@ -104,14 +105,6 @@ export const blockRegistry: BlockRegistry = {
     // ruling S5-OV6 — still not in the showAnswers set, which is the separate
     // answer-key-variant question S5.5 owns.
     print: { breakInside: 'avoid', treatment: 'underline-blanks' },
-    a11y: {
-      story:
-        'Each in-equation gap is a text input in tab order, labeled with its ' +
-        'position within the equation ("gap 1 of 2"). The PROBLEM number is ' +
-        'announced once by the block wrapper, which is a labelled group — not ' +
-        'repeated on every gap (viewer-numbering D3). Values type as plain text; ' +
-        'verdicts are announced via the shared state-pill aria-live region.',
-    },
   },
 
   image: {
@@ -159,17 +152,6 @@ export const blockRegistry: BlockRegistry = {
     analyticsKey: 'fill_in_blank',
     sanitize: { strip: ['solution'], inlineBlankSecrets: true },
     print: { breakInside: 'avoid', treatment: 'underline-blanks' },
-    a11y: {
-      story:
-        'Each blank is a text input in tab order, labeled with its sub-part ' +
-        'and position ("Part b, blank 2 of 3") on a numbered multi-blank ' +
-        'problem, and "Blank 2 of 3" otherwise. The PROBLEM number is ' +
-        'announced once by the block wrapper, which is a labelled group, ' +
-        'rather than repeated on every blank (viewer-numbering D3/N7). ' +
-        'Hint and mistake ' +
-        'affordances are buttons reachable by Tab; the opened popover traps ' +
-        'no focus and closes on Escape. Verdicts announce via aria-live.',
-    },
   },
 
   bullet_list: {
@@ -236,13 +218,6 @@ export const blockRegistry: BlockRegistry = {
       ],
     },
     print: { breakInside: 'avoid', treatment: 'static-svg' },
-    a11y: {
-      story:
-        'The canvas is focusable; handles move by arrow keys with position ' +
-        'narration to a visually-hidden aria-live region (a visible readout ' +
-        'would hand over the answer — reading the grid is the skill). ' +
-        'Post-check results are visible text. Touch targets meet 44px.',
-    },
   },
 
   multiple_choice: {
@@ -274,12 +249,6 @@ export const blockRegistry: BlockRegistry = {
       shuffled: ['choices'],
       shuffleLockedBy: 'lockChoiceOrder',
     },
-    a11y: {
-      story:
-        'Native radio (single) / checkbox (multi) inputs grouped in a ' +
-        'fieldset whose legend is the prompt; full label click targets. ' +
-        'Standard arrow-key radio behavior; verdicts announce via aria-live.',
-    },
   },
 
   matching: {
@@ -293,13 +262,6 @@ export const blockRegistry: BlockRegistry = {
     // A9/E3: conditional, and declared as such — the bank drops its
     // unbreakability once it holds figures. See PrintSpec.breakInside.
     print: { breakInside: 'avoid-unless-figures', treatment: 'letter-bank' },
-    a11y: {
-      story:
-        'Pointer drag with a keyboard select-then-place grammar underneath: ' +
-        'target cards are focusable, Space/Enter lifts, arrows choose a dock, ' +
-        'Space/Enter places, Escape cancels. Every move narrates to a ' +
-        'visually-hidden aria-live region ("Card B placed on item 2").',
-    },
   },
 
   correspondence: {
@@ -313,15 +275,6 @@ export const blockRegistry: BlockRegistry = {
     // Same conditional as matching, for the same reason: the banks drop
     // unbreakability once they hold figures.
     print: { breakInside: 'avoid-unless-figures', treatment: 'letter-bank' },
-    a11y: {
-      story:
-        'One native <select> per (item, column) cell — operable by keyboard, ' +
-        'screen reader, and touch with no custom grammar (the shipped ' +
-        'matching affordance, generalized). Each select is labeled with its ' +
-        'item and column ("Graph for item 2"); options carry the column\'s ' +
-        'derived letters. Verdicts announce via the shared state-pill ' +
-        'aria-live region.',
-    },
   },
 
   ordering: {
@@ -346,12 +299,6 @@ export const blockRegistry: BlockRegistry = {
       // per-student serve shuffle.
       shuffled: ['items'],
     },
-    a11y: {
-      story:
-        'Rows are focusable and reorder via the shared lift grammar: ' +
-        'Space/Enter lifts, arrows move the row, Space/Enter drops, Escape ' +
-        'cancels; positions narrate to a visually-hidden aria-live region.',
-    },
   },
 
   number_line: {
@@ -374,12 +321,6 @@ export const blockRegistry: BlockRegistry = {
       ],
     },
     print: { breakInside: 'avoid', treatment: 'static-svg' },
-    a11y: {
-      story:
-        'The line is focusable; points/interval endpoints move by arrow keys ' +
-        'with value narration to a visually-hidden aria-live region (visible ' +
-        'readout would reveal the answer). Post-check results are visible.',
-    },
   },
 
   data_plot: {
@@ -405,12 +346,6 @@ export const blockRegistry: BlockRegistry = {
     // unlike the graph and number-line canvases). FIXED by ruling S5-OV6 — a
     // chart split across a page boundary is unreadable.
     print: { breakInside: 'avoid', treatment: 'static-svg' },
-    a11y: {
-      story:
-        'Chart-building controls are focusable; dots/bars/box handles adjust ' +
-        'by arrow keys with value narration to a visually-hidden aria-live ' +
-        'region. Post-check results are visible text.',
-    },
   },
 
   learning_objectives: {
@@ -466,20 +401,6 @@ export const blockRegistry: BlockRegistry = {
     // the declaration + the type projection that says so.
     sanitize: { strip: [], inlineBlankSecrets: true },
     print: { breakInside: 'avoid', treatment: 'data-table' },
-    a11y: {
-      story:
-        'The table is a real <table> with <th> cells on whichever axis the ' +
-        'author marked (headerRow / headerColumn), so a screen reader ' +
-        'announces a blank cell with its row and column headers — "Kilograms ' +
-        '2, Cost, blank" — which is the information a sighted student reads ' +
-        'off the grid. Each blank is a text input in tab order, reading order ' +
-        'left to right then down. On a multi-blank table the input also ' +
-        'carries its sub-part letter ("Part b"), matching the (b) marker ' +
-        'printed beside it; that marker is aria-hidden so it is not announced ' +
-        'twice. The PROBLEM number is announced once by the block wrapper, ' +
-        'never repeated per cell (viewer-numbering D3). Verdicts announce via ' +
-        'the shared state-pill aria-live region.',
-    },
   },
 
   self_explanation: {
@@ -495,11 +416,6 @@ export const blockRegistry: BlockRegistry = {
     // ruling S5-OV6 — a prompt on one page and its answer space on the next is
     // the same defect class as a split equation.
     print: { breakInside: 'avoid', treatment: 'writing-box' },
-    a11y: {
-      story:
-        'A labeled textarea in tab order. On check the block announces ' +
-        '"Recorded — your teacher will review" via aria-live; never a verdict.',
-    },
   },
 
   short_answer: {
@@ -530,12 +446,6 @@ export const blockRegistry: BlockRegistry = {
     // unnamed siblings of the same family rather than leave the defect in
     // place for them (the plot_ray/plot_segment lesson: audit the family).
     print: { breakInside: 'avoid', treatment: 'writing-box' },
-    a11y: {
-      story:
-        'A labeled textarea in tab order. Recorded state announces via ' +
-        'aria-live; teacher feedback, once released, renders as a labeled ' +
-        'region announced on arrival.',
-    },
   },
 
   essay: {
@@ -551,12 +461,6 @@ export const blockRegistry: BlockRegistry = {
     sanitize: { strip: ['rubric', 'answer', 'solution'] },
     // Extended with short_answer + self_explanation — see the note there.
     print: { breakInside: 'avoid', treatment: 'writing-box' },
-    a11y: {
-      story:
-        'A labeled textarea in tab order. The live word counter is ' +
-        'aria-live=polite and debounced so it never chatters per keystroke. ' +
-        'Recorded state and released teacher feedback announce via aria-live.',
-    },
   },
 
   graph_figure: {

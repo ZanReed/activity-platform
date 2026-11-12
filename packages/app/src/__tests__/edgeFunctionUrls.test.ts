@@ -91,8 +91,11 @@ describe('no function URL is built by hand', () => {
       const pinned = (text.match(/edgeFunctionUrl\(\s*functionsBase\(\)/g) ?? []).length;
       if (all !== pinned) offenders.push(rel);
       if (/\/functions\/v1\//.test(text)) offenders.push(`${rel} (literal /functions/v1/)`);
-      // supabase-js builds the URL itself and would run unpinned.
-      if (/\.functions\.invoke\(|supabase\.functions\b/.test(text)) {
+      // supabase-js builds the URL itself and would run unpinned. The one
+      // file allowed to NAME it is the stub that makes reading it throw
+      // (shell-size review R2), whose error message says what to use instead.
+      const isFunctionsStub = rel === join('lib', 'supabase-stubs', 'functions-js.ts');
+      if (!isFunctionsStub && /\.functions\.invoke\(|supabase\.functions\b/.test(text)) {
         offenders.push(`${rel} (supabase.functions — use edgeFunctionUrl)`);
       }
     }

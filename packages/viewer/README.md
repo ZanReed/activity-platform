@@ -112,8 +112,8 @@ Two cross-cutting rules the conformance suite also enforces:
 
 ```
 src/
-  registry/     the block registry: family, numbering, sanitize spec, a11y story,
-                print treatment, component binding. THE cross-lane contract —
+  registry/     the block registry: family, numbering, sanitize spec,
+                print treatment, component binding (a11y stories: tests/a11yStories.ts). THE cross-lane contract —
                 changes land here, never forked per-lane.
   tokens/       design tokens (light/dark/print) + DESIGN.md. Components consume
                 tokens only; no private colors.

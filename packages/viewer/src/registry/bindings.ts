@@ -13,8 +13,8 @@
 // binding landed. A read API that never renders anything was about to ship
 // with a graphing engine inside it.
 //
-// So: registry.ts stays pure DATA (families, numbering, sanitize specs, a11y
-// stories) and is safe on both sides. Components bind HERE, and only client
+// So: registry.ts stays pure DATA (families, numbering, sanitize specs) and
+// is safe on both sides. Components bind HERE, and only client
 // code imports this file. The guard suite proves every key here is a real
 // registry type, and scripts/bundle-viewer-server.mjs is what proves the
 // server never reaches it — its output size is the canary.
@@ -48,6 +48,11 @@ import FadedWorkedExample from '../blocks/FadedWorkedExample.js';
  *
  * Loading tier per ruling D16: 'eager' for light, near-universal blocks;
  * 'lazy' only where real weight hides behind the import.
+ *
+ * ⚠ LAZY BY DEFAULT since shell-size review D4 (2026-11-13): an eager row puts
+ * the component in the student shell, whose ceiling is fixed. Every eager row
+ * must be named in tests/eagerBlocks.ts with a reason (eagerBlocks.test.ts),
+ * and its byte cost goes in SHELL_SPEND (scripts/perf-budgets.mjs).
  */
 export const blockBindings: Partial<
   Record<BlockType, BlockComponentBinding<BlockType>>

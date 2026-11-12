@@ -16,7 +16,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
-import { teacherGuideToTiptap } from '../lib/serialize';
 import {
     BANK_LICENSE,
     copyBankActivity,
@@ -60,8 +59,14 @@ function GuidePanel({ activityId }: { activityId: string }) {
     const [state, setState] = useState<GuideState>({ phase: 'loading' });
     useEffect(() => {
         let cancelled = false;
-        getBankTeacherGuide(activityId)
-            .then((guide) => {
+        // serialize.ts is loaded HERE, with the guide, not imported by the
+        // route: its to-Tiptap half reaches MathLive and mathjs, so a static
+        // import made every Bank visit download ~300 KiB gz that only the guide
+        // panel uses (shell-size review TR1). The two loads run in parallel,
+        // and TeacherGuideEditor needs Tiptap anyway, so the panel waits no
+        // longer than it did. perf-budgets.mjs → TEACHER_JOURNEYS pins it.
+        Promise.all([getBankTeacherGuide(activityId), import('../lib/serialize')])
+            .then(([guide, { teacherGuideToTiptap }]) => {
                 if (!cancelled) {
                     setState({ phase: 'ready', doc: guide ? teacherGuideToTiptap(guide) : null });
                 }

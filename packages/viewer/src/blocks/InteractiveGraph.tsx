@@ -341,7 +341,7 @@ export default function InteractiveGraph({
           : { style: CANVAS_SIZE })}
         data-graph-canvas="true"
         // Focusable and named by THIS component rather than delegated to the
-        // kit: the registry's a11y story promises a focusable canvas, and a
+        // kit: the block's a11y story (tests/a11yStories.ts) promises a focusable canvas, and a
         // keyboard user should reach it even before the lazy chunk lands (or
         // if it never does). The kit adds arrow-key handling on top.
         {...(isDisplay || mode === 'print'
@@ -361,7 +361,7 @@ export default function InteractiveGraph({
         </p>
       ) : null}
 
-      {/* Position narration — visually hidden ON PURPOSE (registry a11y story:
+      {/* Position narration — visually hidden ON PURPOSE (the a11y story in tests/a11yStories.ts:
           a visible readout would hand over the answer). */}
       {!isDisplay && mode === 'screen' ? (
         <span

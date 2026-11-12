@@ -1,6 +1,7 @@
 # Student shell size review — measurements, savings, and a policy that stops the creep
 
-**Status:** ⚖ **RULED 2026-11-13: the author accepted every recommendation** in §6 (D1–D10) and §8.4 (T1–T9). Nothing is built yet. Build order: student tier A (D1) with the fixed ceiling, spend meter and lazy-by-default guard (D2–D5, D10); teacher T1 + T5 together, then T2, T3, T8, then T4 as its own slice, then T6. Held in reserve: D6–D8. Measure first: T7. Declined: D9's R11–R13 and T9.
+**Status:** ⚖ **RULED 2026-11-13: the author accepted every recommendation** in §6 (D1–D10) and §8.4 (T1–T9).
+✅ **BUILT 2026-11-13 (first slices):** student tier A (D1: R1–R4) with the fixed ceiling, spend meter, `EAGER_BLOCKS` guard and brotli row (D2–D5, D10), and teacher T1 + T5. Measured under CI's env: shell **162,470 → 159,049 B gz** (158.66 → 155.32 KiB); Bank journey **301.4 → 5.3**, Print **684 → 78.0** KiB gz. Every guard mutation-tested. **Still to build:** T2, T3, T8, then T4 as its own slice, then T6. Held in reserve: D6–D8. Measure first: T7. Declined: D9's R11–R13 and T9.
 **Date:** 2026-11-13, measured at `018d52b8` (main) under CI's build env
 (`VITE_SUPABASE_URL=http://127.0.0.1:54399`, `VITE_SUPABASE_ANON_KEY=e2e-anon-key`),
 in a detached scratch worktree so the GUI-sweep session's uncommitted edits were not measured.

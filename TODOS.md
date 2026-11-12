@@ -1825,7 +1825,20 @@ Error: Check must be reachable by Tab alone. Focus trail (last 12 stops):
 (25 stops walked, budget 117)
 ```
 
-**Still open:** one real sighting. The next flake is now self-documenting —
+**⚡ SIGHTED 2026-11-13** (full local run of the chromium+student+sw+a11y
+lanes, shell-size branch; 1 of 442 failed, the row passed 3/3 when re-run
+alone against the same dist). The trail ended **`(93 stops walked, budget 93)`**:
+the walk did not get lost, it RAN OUT OF BUDGET. Its last stops were
+`number_line` button → 3× `data_plot` canvas → `math_block` math-field →
+`fill_in_blank` input + 2 tray keys → `table` input + 2 tray keys → `table`
+input. Hypothesis to test first: the budget is computed from the stops present
+when the walk starts, and the lazy blocks (number_line, data_plot, math_block)
+add stops after that under load, so a slow run is short of budget by exactly
+the stops that mounted late. Next step: compute the budget after every lazy
+block has mounted (or re-derive it inside the walk), then force a late mount
+to confirm the row goes red without the fix.
+
+**Was open until then:** one real sighting. The next flake is now self-documenting —
 **read the failure message, do not re-run first.** A re-run is what destroyed
 the evidence both previous times.
 
@@ -2774,6 +2787,8 @@ changes belongs here. Recorded with enough context to act without archaeology.
 
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 
+> ⚖ **2026-11-13: THE CAP IS FIXED AT 158.7 AND A SPEND METER REPLACES CAP RULINGS (author, [shell-size-review.md](docs/design/shell-size-review.md)).** Tier A built: a11y story prose moved test-side, `@supabase/functions-js` stubbed, `sideEffects` declared on viewer + graph-kit, Vite's modulepreload polyfill off. **162,470 → 159,049 B gz (158.66 → 155.32 KiB)**, the `SHELL_JS_ANCHOR` in `scripts/perf-budgets.mjs`. The allowance under the ceiling is drawn down by `SHELL_SPEND` rows; crossing the ceiling needs a reserve rung. **The reserve, in order:** R6 (lazy static figure engine, ~5 est., re-opens Y7 ER-9), R5 (Home + JoinClass lazy, −4.7 measured, needs a path-based preload), R7 (rare blocks lazy, ~3, Table stays eager). The "no cheap rung left" line under rung 3 below was wrong: the review found 3.4 KiB of code no student ran.
+>
 > ⚖ **2026-10-30: CAP 158 → 158.5 (author cap ruling).** D65 slice 2 (targeted practice between DoL tries) measured **158.063** — the viewer's offer + DoL state ~0.14, the lazy `/a/:id/practice/:versionId` route ~0.12. A per-module sourcemap attribution of the entry found no cheap rung (largest app/viewer modules: graph-svg 12.6, StudentViewer 10.9, registry 10.7, ViewerContainer 10.1, Home 7.8 KiB raw — all first paint). The rule stands: the next addition over 158.5 gets a rung or another explicit ruling. Recorded beside `SHELL_JS_GZ_KIB`.
 >
 > ⚖ **2026-10-18: THE 156.5 STOP LINE IS RETIRED (author ruling).** Item 3 (reopen reuse, audit #9) took the shell to **156.6**, 0.1 over the stop line, with no cheap rung left (rung 3 below). The author accepted 156.6 and moved the working limit to the **158 cap**: eager additions are now judged against the cap itself, so there is no early-warning margin — the next one that crosses 158 fails `check-perf-budget` outright, and the answer then is a rung or an explicit cap ruling, never a quiet raise. Recorded in `scripts/perf-budgets.mjs` beside `SHELL_JS_GZ_KIB`.

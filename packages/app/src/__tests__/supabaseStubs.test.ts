@@ -161,6 +161,27 @@ describe('V2/V3 — the stubbed surfaces fail loud, naming the way back', () => 
     });
 });
 
+describe('V4 — supabase.functions is walled (shell-size review R2)', () => {
+    it('reading the getter throws by name and points at edgeFunctions.ts', () => {
+        const supabase = createClient(FAKE_URL, FAKE_KEY, {
+            auth: { persistSession: false, autoRefreshToken: false },
+        });
+        // `functions` is a GETTER in SupabaseClient (it constructs a fresh
+        // FunctionsClient per read), so a client that never touches it pays
+        // nothing, and the first read is already the mistake.
+        let message = '';
+        try {
+            void supabase.functions;
+            throw new Error('supabase.functions did not throw — the stub is not in force');
+        } catch (err) {
+            message = (err as Error).message;
+        }
+        expect(message).toContain('vite.config.ts');
+        expect(message).toContain('edgeFunctions.ts');
+        expect(message).toContain('x-region');
+    });
+});
+
 // =============================================================================
 // Rung 2 (2026-10-04) — auth-js's dead modules: WebAuthn, web3, the admin API.
 // Wired by the activity:auth-js-dead-modules plugin, not resolve.alias; the

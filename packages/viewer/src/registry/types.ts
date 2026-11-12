@@ -6,7 +6,7 @@
 // the runtime's data-block-type selectors, data-block-category emission, and
 // RUNTIME.md's per-type contract sections) plus the rulings this arc added:
 // checked-state family (7.2A), answer-key sanitize spec (TV4-A), analytics key
-// (P3A), and the per-block a11y story (6.1A).
+// (P3A). (The per-block a11y story, 6.1A, is test-side: tests/a11yStories.ts.)
 //
 // What the registry deliberately does NOT absorb:
 //  - packages/schema/src/block-predicates.ts stays the RULE ENGINE for
@@ -195,13 +195,6 @@ export interface PrintSpec {
   readonly shuffleLockedBy?: string;
 }
 
-/** Per-block a11y story (ruling 6.1A). REQUIRED for every interactive type —
- * guard-enforced. Free text, one paragraph: the full keyboard path and what
- * gets announced. The T6 component must implement what its story says. */
-export interface A11ySpec {
-  readonly story: string;
-}
-
 /** Props every block component receives. Deliberately minimal in S0 — the
  * store seam (S3) extends this; extending is additive, lanes must not fork it.
  * `block` is the SANITIZED wire shape: schema-typed, but answer-key fields are
@@ -287,8 +280,9 @@ export interface BlockRegistryEntry<T extends BlockType = BlockType> {
   readonly variants?: readonly string[];
   readonly sanitize: SanitizeSpec;
   readonly print: PrintSpec;
-  /** Required when interactivity === 'interactive' (guard-enforced). */
-  readonly a11y?: A11ySpec;
+  // The per-block a11y story (6.1A) is NOT a field here: it lives in
+  // tests/a11yStories.ts, because nothing at runtime reads it and registry
+  // data ships in the student shell (shell-size review R1, 2026-11-13).
 }
 
 export type BlockRegistry = { readonly [T in BlockType]: BlockRegistryEntry<T> };
