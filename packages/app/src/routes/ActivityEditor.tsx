@@ -51,11 +51,23 @@ import {
     tiptapToTeacherGuide,
 } from '../lib/serialize';
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
-import { useAutosave } from '../lib/useAutosave';
+import { SaveConflictError, useAutosave } from '../lib/useAutosave';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
 import { findPublishProblems, publishProblemsSentence } from '../lib/prePublishCheck';
 import { selectBlankById } from '../editor/selectBlankById';
 import { REPUBLISH_COPY, hasLockedOrDol, isNoChanges, startedStudentCount } from '../lib/republishImpact';
+
+/** G-8: what the editor says about its save. */
+const SAVE_COPY = {
+    saving: 'Saving…',
+    saved: 'Saved',
+    failed: 'Not saved. Trying again…',
+    retry: 'Retry now',
+    conflict:
+        'This activity changed in another tab or on another device, so this tab stopped saving. Reload to see the latest, or keep your version and save it over the other one.',
+    reload: 'Reload',
+    keepMine: 'Keep my version',
+} as const;
 
 // G-3's republish confirm, loaded on first use.
 const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
@@ -97,6 +109,8 @@ interface ActivityLoadRow {
     title: string;
     draft_content: unknown;
     current_version_id: string | null;
+    /** The row version this tab last read or wrote (G-8's conflict check). */
+    updated_at: string;
     // Row-native taxonomy (0037). These are NOT in the document — they are
     // listing metadata like `visibility`, so they load from and save to the
     // row directly rather than travelling through ActivityMeta.
@@ -287,6 +301,10 @@ export default function ActivityEditor() {
     // the server doesn't hold. Null = no draft known (post-publish, no edits),
     // where the publish RPC answers authoritatively.
     const lastPersistedDraft = useRef<ActivityDocument | null>(null);
+    // G-8: the activity row's updated_at as this tab last saw it. A save only
+    // lands if the row still has it; otherwise another tab, device or the
+    // importer wrote since, and autosave stops rather than overwrite them.
+    const knownUpdatedAt = useRef<string | null>(null);
     const titleRef = useRef<HTMLInputElement | null>(null);
     const freshFocusDone = useRef(false);
     useEffect(() => {
@@ -308,7 +326,7 @@ export default function ActivityEditor() {
             const { data, error } = await supabase
             .from('activities')
             .select(
-                'id, title, draft_content, current_version_id, tags, pedagogical_role, copied_from_activity_id',
+                'id, title, draft_content, current_version_id, tags, pedagogical_role, copied_from_activity_id, updated_at',
             )
             .eq('id', id)
             .is('deleted_at', null)
@@ -326,6 +344,7 @@ export default function ActivityEditor() {
 
             const row = data as ActivityLoadRow;
             setIsPublished(row.current_version_id !== null);
+            knownUpdatedAt.current = row.updated_at;
             setIsBankCopy(row.copied_from_activity_id != null);
 
             // Hydrate the row-native taxonomy BEFORE the document branches
@@ -635,7 +654,7 @@ export default function ActivityEditor() {
     // Serializes the current state and writes the draft. draft_content and the
     // title column are written together so the activity list (which reads the
     // column) never drifts from meta.title.
-    const save = async () => {
+    const save = async (opts?: { force?: boolean }) => {
         if (!tiptapJson || !meta || !id) return;
         // meta.title is z.string().min(1); a blank title would make the saved
         // draft fail validation on the next load. Fall back to a placeholder.
@@ -667,7 +686,7 @@ export default function ActivityEditor() {
         // those columns are publish-truth, stamped server-side by
         // publish_activity from the frozen snapshot (0037 §C / R1). One
         // writer per column is the whole provenance ruling.
-        const { error } = await supabase
+        let query = supabase
         .from('activities')
         .update({
             draft_content: parsed.data,
@@ -677,11 +696,19 @@ export default function ActivityEditor() {
             updated_at: new Date().toISOString(),
         })
         .eq('id', id);
+        // G-8: only over the version this tab last saw (overwrite() skips it).
+        if (!opts?.force && knownUpdatedAt.current !== null) {
+            query = query.eq('updated_at', knownUpdatedAt.current);
+        }
+        const { data, error } = await query.select('updated_at');
         if (error) throw error;
+        const written = (data ?? []) as { updated_at: string }[];
+        if (written.length === 0) throw new SaveConflictError();
+        knownUpdatedAt.current = written[0]?.updated_at ?? knownUpdatedAt.current;
         lastPersistedDraft.current = parsed.data;
     };
 
-        const { status, flush } = useAutosave(changeKey, save);
+        const { status, flush, retry: retrySave, overwrite: overwriteSave } = useAutosave(changeKey, save);
         // Pre-publish step (E-1/OV-2): flush the autosave and ABORT the publish
         // when the latest edits could not persist — publishing would otherwise
         // snapshot a stale draft. On success, hand usePublish the exact payload
@@ -773,7 +800,23 @@ export default function ActivityEditor() {
             if (publishState.kind === 'success' && latestKeyRef.current === publishedKeyRef.current) {
                 lastPersistedDraft.current = null;
             }
-        }, [publishState.kind]);
+            // G-8: publish_activity moved the row's updated_at; re-read it so
+            // this tab's next save isn't taken for another tab's change.
+            if (publishState.kind === 'success' && id) {
+                // Unchecked until the read lands, so a save racing it isn't
+                // mistaken for a conflict.
+                knownUpdatedAt.current = null;
+                void supabase
+                    .from('activities')
+                    .select('updated_at')
+                    .eq('id', id)
+                    .maybeSingle()
+                    .then(({ data }) => {
+                        const at = (data as { updated_at?: string } | null)?.updated_at;
+                        if (at) knownUpdatedAt.current = at;
+                    });
+            }
+        }, [publishState.kind, id]);
 
         if (loadState.status === 'loading') {
             return (
@@ -1006,11 +1049,42 @@ export default function ActivityEditor() {
                 )}
                 </div>
             )}
-            {status === 'error' && (
-                <div className="mt-2 flex justify-end">
-                <span className="text-xs text-danger">
-                Couldn't save — your latest edits aren't stored
-                </span>
+            {/* G-8: where the save stands — Saving… / Saved, or why not and
+                what to do. The conflict stop names both ways out. */}
+            {status === 'conflict' ? (
+                <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-md border border-danger bg-canvas p-3 text-sm shadow-lg" role="alert" data-save-conflict>
+                <p className="text-strong">{SAVE_COPY.conflict}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="min-h-11 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary-hover"
+                >
+                {SAVE_COPY.reload}
+                </button>
+                <button
+                type="button"
+                onClick={overwriteSave}
+                className="min-h-11 rounded-md border border-line-strong bg-canvas px-3 text-sm font-medium text-strong hover:bg-surface"
+                >
+                {SAVE_COPY.keepMine}
+                </button>
+                </div>
+                </div>
+            ) : (
+                <div className="mt-2 flex justify-end" data-save-status={status}>
+                {status === 'error' ? (
+                    <span className="text-xs text-danger" role="alert">
+                    {SAVE_COPY.failed}{' '}
+                    <button type="button" onClick={retrySave} className="font-medium underline underline-offset-2">
+                    {SAVE_COPY.retry}
+                    </button>
+                    </span>
+                ) : status === 'saving' || status === 'saved' ? (
+                    <span className="text-xs text-muted" role="status">
+                    {status === 'saving' ? SAVE_COPY.saving : SAVE_COPY.saved}
+                    </span>
+                ) : null}
                 </div>
             )}
             {publishState.kind === 'error' && (

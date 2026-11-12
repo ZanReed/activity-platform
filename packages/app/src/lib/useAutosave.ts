@@ -25,7 +25,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
+
+/** Thrown by a save() that found the row changed under it (G-8). */
+export class SaveConflictError extends Error {
+    constructor() {
+        super('This activity changed in another tab or on another device.');
+        this.name = 'SaveConflictError';
+    }
+}
+
+/** Waits between automatic retries of a failed save; the last repeats. */
+export const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000] as const;
 
 export interface Autosave {
     status: SaveStatus;
@@ -36,11 +47,16 @@ export interface Autosave {
      * call when nothing is pending; it resolves `true` immediately.
      */
     flush: () => Promise<boolean>;
+    /** Try a failed save again now (the "Retry" button). */
+    retry: () => void;
+    /** After a conflict: save this tab's version over the other one. */
+    overwrite: () => void;
 }
 
 export function useAutosave(
     key: string | null,
-    save: () => Promise<void>,
+    /** `force` is true only for overwrite(): skip the conflict check once. */
+    save: (opts?: { force?: boolean }) => Promise<void>,
                             delayMs = 1000,
 ): Autosave {
     const [status, setStatus] = useState<SaveStatus>('idle');
@@ -55,6 +71,11 @@ export function useAutosave(
     const inFlight = useRef(false);
     const inFlightPromise = useRef<Promise<void> | null>(null);
     const alive = useRef(true);
+    // G-8: back-off state, and the conflict stop.
+    const failures = useRef(0);
+    const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const conflicted = useRef(false);
+    const forceNext = useRef(false);
 
     // True when the document has unsaved changes: a write is in flight, or the
     // latest key differs from what's been persisted (pending debounce window).
@@ -68,20 +89,34 @@ export function useAutosave(
     // Runs one save; chains another if the document moved while it was writing.
     // Reads everything from refs, so it is a stable callback.
     const runSave = useCallback(() => {
-        if (inFlight.current || !alive.current) return;
+        if (inFlight.current || !alive.current || conflicted.current) return;
         const writingKey = latestKey.current;
         if (writingKey === null || writingKey === savedKey.current) return;
 
+        clearTimeout(retryTimer.current);
         inFlight.current = true;
         setStatus('saving');
+        const force = forceNext.current;
+        forceNext.current = false;
         const promise = saveRef
-        .current()
+        .current(force ? { force: true } : undefined)
         .then(() => {
             savedKey.current = writingKey;
+            failures.current = 0;
             if (alive.current) setStatus('saved');
         })
-        .catch(() => {
-            if (alive.current) setStatus('error');
+        .catch((err: unknown) => {
+            if (!alive.current) return;
+            if (err instanceof SaveConflictError) {
+                conflicted.current = true;
+                setStatus('conflict');
+                return;
+            }
+            setStatus('error');
+            // G-8: retry on a back-off rather than wait for the next keystroke.
+            const wait = RETRY_DELAYS_MS[Math.min(failures.current, RETRY_DELAYS_MS.length - 1)];
+            failures.current += 1;
+            retryTimer.current = setTimeout(() => runSaveRef.current(), wait);
         })
         .finally(() => {
             inFlight.current = false;
@@ -99,6 +134,32 @@ export function useAutosave(
             }
         });
         inFlightPromise.current = promise;
+    }, []);
+    // runSave schedules itself from inside its own promise chain.
+    const runSaveRef = useRef(runSave);
+    runSaveRef.current = runSave;
+
+    const retry = useCallback(() => {
+        clearTimeout(retryTimer.current);
+        runSave();
+    }, [runSave]);
+
+    const overwrite = useCallback(() => {
+        conflicted.current = false;
+        forceNext.current = true;
+        runSave();
+    }, [runSave]);
+
+    // G-8: back online → try a failed save at once.
+    useEffect(() => {
+        const onOnline = () => {
+            if (!conflicted.current && latestKey.current !== savedKey.current) runSaveRef.current();
+        };
+        window.addEventListener('online', onOnline);
+        return () => {
+            window.removeEventListener('online', onOnline);
+            clearTimeout(retryTimer.current);
+        };
     }, []);
 
     const flush = useCallback(async (): Promise<boolean> => {
@@ -142,7 +203,7 @@ export function useAutosave(
                 latestKey.current !== null &&
                 latestKey.current !== savedKey.current
             ) {
-                void saveRef.current();
+                saveRef.current().catch(() => undefined);
             }
         };
     }, []);
@@ -174,5 +235,5 @@ export function useAutosave(
         return () => clearTimeout(timer);
     }, [key, delayMs, runSave]);
 
-    return { status, flush };
+    return { status, flush, retry, overwrite };
 }
