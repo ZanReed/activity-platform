@@ -72,6 +72,7 @@ interface FieldRowProps {
 }
 
 function FieldRow({ field, editor, node, pos }: FieldRowProps) {
+    if (field.when && !field.when(node)) return null;
     if (field.kind === 'custom') {
         // A complex sub-editor owns its own layout + heading; the drawer just
         // gives it a slot.

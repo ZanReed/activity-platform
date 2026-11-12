@@ -270,3 +270,46 @@ test('E1: after an in-place type switch, the drawer reflects the NEW type (no st
     await expect(drawer.getByText('Min. overlap (IoU)')).toBeVisible();
     expect(((await readInteraction(page)) as { type: string }).type).toBe('shade_region');
 });
+
+// GUI sweep item 5 (ruled 2026-11-13): the stimulus's screen-reader
+// description has a drawer field, shown only once the graph shows something
+// with the question.
+test('no stimulus, no figure description field', async ({ page }) => {
+    await insertGraph(page, INTERACTIONS.plot_point);
+    const drawer = await openDrawer(page);
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole('textbox', { name: 'Describe the figure for screen readers' })).toHaveCount(0);
+});
+
+test('with a stimulus, the figure description field writes stimulusAlt', async ({ page }) => {
+    await insertGraph(page, INTERACTIONS.plot_point);
+    // Give the graph a stimulus, as "Shown with the question" would.
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((n: any, p: number) => {
+            if (pos === null && n.type.name === 'interactiveGraph') pos = p;
+            return pos === null;
+        });
+        ed.chain()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .command(({ tr }: any) => {
+                tr.setNodeAttribute(pos, 'stimulus', [{ kind: 'point', at: [1, 2], label: 'A' }]);
+                return true;
+            })
+            .run();
+        ed.commands.setNodeSelection(pos);
+    });
+    const drawer = await openDrawer(page);
+    const field = drawer.getByRole('textbox', { name: 'Describe the figure for screen readers' });
+    await expect(field).toBeVisible();
+    await field.fill('Point A at (1, 2)');
+    await field.press('Enter');
+    expect(await readAttr(page, 'stimulusAlt')).toBe('Point A at (1, 2)');
+    // Emptying it removes the description.
+    await field.fill('');
+    await field.press('Enter');
+    expect(await readAttr(page, 'stimulusAlt')).toBeNull();
+});

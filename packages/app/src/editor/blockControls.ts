@@ -63,6 +63,8 @@ interface AdvancedFieldBase {
     label: string;
     /** Optional one-line helper text under the control. */
     help?: string;
+    /** Show the field only when this holds for the node (default: always). */
+    when?: (node: PMNode) => boolean;
 }
 
 export type AdvancedField =
@@ -189,6 +191,20 @@ export const universalActions: ReadonlyArray<ControlEntry> = [
 // only way to open its (no-longer-auto-opening) edit popover.
 
 /** The student-answer placeholder, shared by the free-text blocks' Advanced. */
+/** What a graded graph's "Shown with the question" figure depicts, for a
+ *  screen reader (GUI sweep item 5, ruled 2026-11-13). Joined to the graph's
+ *  accessible name by the viewer; meaningless without a stimulus, so hidden
+ *  until there is one. */
+const stimulusAltField: AdvancedField = {
+    kind: 'text',
+    label: 'Describe the figure for screen readers',
+    help: 'What the figure shown with the question looks like. Never give the answer here.',
+    placeholder: 'e.g. Triangle ABC with a right angle at B',
+    when: (node) => Array.isArray(node.attrs.stimulus) && (node.attrs.stimulus as unknown[]).length > 0,
+    get: (node) => (node.attrs.stimulusAlt as string | null) ?? '',
+    set: (editor, pos, value) => setNodeAttr(editor, pos, 'stimulusAlt', value.trim() === '' ? null : value),
+};
+
 const placeholderField: AdvancedField = {
     kind: 'text',
     label: 'Placeholder',
@@ -583,6 +599,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                 group: 'Settings',
                 fields: [
                     { kind: 'custom', label: 'Graph settings', render: renderGraphSettings },
+                    stimulusAltField,
                 ],
             },
             numberingGroup,
