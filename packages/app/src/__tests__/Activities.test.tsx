@@ -77,6 +77,14 @@ vi.mock('../lib/SessionContext', () => ({
     }),
 }));
 
+// "Republish changed": the page's rows below use the REAL candidate rules;
+// only the network loop is replaced (it has its own file, bulkRepublish.test).
+const repub = vi.hoisted(() => ({ many: vi.fn() }));
+vi.mock('../lib/bulkRepublish', async (importActual) => ({
+    ...(await importActual<typeof import('../lib/bulkRepublish')>()),
+    republishMany: repub.many,
+}));
+
 import Activities from '../routes/Activities';
 
 const ROWS = [
@@ -802,5 +810,92 @@ describe('Activities — row anatomy (R1–R7, 2026-10-14; amends D8)', () => {
         expect(toggle).toHaveAttribute('aria-pressed', 'true');
         // No separate marker beside the control.
         expect(within(rowOf('Published One')).queryByRole('img', { name: 'In the Activity Bank' })).toBeNull();
+    });
+});
+
+describe('Republish changed (R-1..R-7)', () => {
+    const draft = (type = 'worksheet') => ({ draft_schema: '2', draft_type: type });
+    const CHANGED = [
+        // Newest first, the way the real list query orders them.
+        { id: 'f2', title: 'Constant k', status: 'published', updated_at: '2026-11-13T00:00:00Z', source_path: '801/02-k.md', unit: 'Rates', ...draft() },
+        { id: 'f1', title: 'Unit Rates', status: 'published', updated_at: '2026-11-12T00:00:00Z', source_path: '801/01-unit-rate.md', unit: 'Rates', ...draft() },
+        { id: 'm1', title: 'My Own Sheet', status: 'published', updated_at: '2026-11-11T00:00:00Z', source_path: null, unit: 'Mine', ...draft() },
+        { id: 'q1', title: 'Term Quiz', status: 'published', updated_at: '2026-11-10T00:00:00Z', source_path: null, unit: 'Mine', ...draft('quiz') },
+        // Never published (R-1) and published-without-draft: neither counts.
+        { id: 'd1', title: 'Fresh Draft', status: 'draft', updated_at: '2026-11-09T00:00:00Z', source_path: null, ...draft() },
+        { id: 'p1', title: 'Up To Date', status: 'published', updated_at: '2026-11-08T00:00:00Z', source_path: null, draft_schema: null, draft_type: null },
+    ];
+
+    beforeEach(() => {
+        h.listResult.current = { data: CHANGED, error: null };
+        repub.many.mockReset();
+        repub.many.mockImplementation(async (ids: string[], onProgress?: (d: number, t: number) => void) => {
+            ids.forEach((_, i) => onProgress?.(i + 1, ids.length));
+            return ids.map((id) => ({ id, ok: true }));
+        });
+    });
+
+    it('is absent when nothing is waiting', async () => {
+        h.listResult.current = { data: ROWS, error: null };
+        renderList();
+        await screen.findByRole('link', { name: 'Warm Up' });
+        expect(screen.queryByRole('button', { name: /Republish changed/ })).toBeNull();
+    });
+
+    it('counts only published activities with a draft, quizzes and exams excluded', async () => {
+        renderList();
+        expect(await screen.findByRole('button', { name: 'Republish changed (3)' })).toBeInTheDocument();
+    });
+
+    it('lists each by name, marks file vs app edits, and names the skipped quiz', async () => {
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Republish changed (3)' }));
+        const dialog = await screen.findByRole('dialog');
+        for (const name of ['Unit Rates', 'Constant k', 'My Own Sheet']) {
+            expect(within(dialog).getByRole('checkbox', { name: new RegExp(name) })).toBeChecked();
+        }
+        expect(within(dialog).getByRole('checkbox', { name: /Unit Rates/ }).closest('label')).toHaveTextContent('from its file');
+        expect(within(dialog).getByRole('checkbox', { name: /My Own Sheet/ }).closest('label')).toHaveTextContent('edited in the app');
+        expect(within(dialog).queryByRole('checkbox', { name: /Term Quiz/ })).toBeNull();
+        expect(dialog.querySelector('[data-republish-skipped]')).toHaveTextContent('Term Quiz');
+        expect(within(dialog).queryByText(/Fresh Draft|Up To Date/)).toBeNull();
+    });
+
+    it('lists a unit in catalogue order, not most-recently-edited order', async () => {
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Republish changed (3)' }));
+        const dialog = await screen.findByRole('dialog');
+        const names = within(dialog).getAllByRole('checkbox').map((c) => c.closest('label')?.textContent ?? '');
+        // f2 was edited later, but 801/01 comes before 801/02.
+        expect(names.findIndex((n) => n.includes('Unit Rates'))).toBeLessThan(
+            names.findIndex((n) => n.includes('Constant k')),
+        );
+    });
+
+    it('republishes only what stays ticked, then drops them from the count', async () => {
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Republish changed (3)' }));
+        const dialog = await screen.findByRole('dialog');
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: /My Own Sheet/ }));
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Republish 2' }));
+        await within(dialog).findByText('Republished 2.');
+        expect(repub.many).toHaveBeenCalledTimes(1);
+        expect([...repub.many.mock.calls[0]![0]].sort()).toEqual(['f1', 'f2']);
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+        expect(await screen.findByRole('button', { name: 'Republish changed (1)' })).toBeInTheDocument();
+    });
+
+    it('names a failure and keeps the rest', async () => {
+        repub.many.mockImplementation(async (ids: string[]) =>
+            ids.map((id) => (id === 'f2' ? { id, ok: false, message: 'Nothing to publish' } : { id, ok: true })),
+        );
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Republish changed (3)' }));
+        const dialog = await screen.findByRole('dialog');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Republish 3' }));
+        expect(await within(dialog).findByText(/Republished 2\. 1 couldn’t be published/)).toBeInTheDocument();
+        expect(within(dialog).getByText('Constant k: Nothing to publish')).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+        expect(await screen.findByRole('button', { name: 'Republish changed (1)' })).toBeInTheDocument();
     });
 });

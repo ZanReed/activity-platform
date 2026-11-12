@@ -82,6 +82,15 @@ out then. A shared banner (load `source_key`, show it once above the editor and
 in the drawer) would warn first, for every panel the GUI rule adds. **TRIGGER:**
 the first time an import refuses a file because of an app edit.
 
+## A per-unit "Republish unit" link (R-7, "Republish changed", 2026-11-12)
+
+My activities has "Republish changed (N)" in its header (`lib/bulkRepublish.ts`,
+`components/RepublishDialog.tsx`, rulings R-1..R-7): every published activity
+with unpublished changes, listed by unit, untickable, quizzes and exams skipped.
+A link beside each unit's "List unit in the Bank" was ruled NOT NOW: the
+header list already covers one unit by unticking the rest. **TRIGGER:** a
+teacher republishing one unit at a time finds the untick list too long.
+
 ## A `sample` variable has no upper bound on its size (Fable review, 2026-11-12)
 
 `sample 5000000 of 1..99999999` passes the importer, the drawer's panel and the

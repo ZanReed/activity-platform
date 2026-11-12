@@ -20,6 +20,8 @@ import {
 import { useScrollMemory } from '../lib/useScrollMemory';
 import { isBankLister, setActivityListing } from '../lib/bank';
 import { chainHooksPath, chainsWithHooks, fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
+import { republishCandidates } from '../lib/bulkRepublish';
+import { RepublishDialog } from '../components/RepublishDialog';
 
 interface ActivityRow {
     id: string;
@@ -47,6 +49,11 @@ interface ActivityRow {
     // copied_from_activity_id = this row is a copy added FROM the Bank.
     visibility: string;
     copied_from_activity_id: string | null;
+    // "Republish changed" (lib/bulkRepublish.ts). Two scalars pulled by json
+    // path, never the draft itself: a draft exists exactly when its
+    // schemaVersion does, and its activityType names a quiz or exam (D51).
+    draft_schema: string | null;
+    draft_type: string | null;
 }
 
 // A row's icon controls (R4/R5): a 24px hit target around a 16px icon.
@@ -105,6 +112,7 @@ export default function Activities() {
     const location = useLocation();
 
     const [activities, setActivities] = useState<ActivityRow[]>([]);
+    const [republishOpen, setRepublishOpen] = useState(false);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
 
@@ -260,7 +268,9 @@ export default function Activities() {
                 'id, title, status, updated_at, tags, pedagogical_role, course, unit,' +
                 'source_path, visibility, copied_from_activity_id,' +
                 'draft_course:draft_content->meta->>course,' +
-                'draft_unit:draft_content->meta->>unit',
+                'draft_unit:draft_content->meta->>unit,' +
+                'draft_schema:draft_content->>schemaVersion,' +
+                'draft_type:draft_content->meta->>activityType',
             )
             .is('deleted_at', null) // redundant with RLS, but self-documenting
             .order('updated_at', { ascending: false });
@@ -488,6 +498,12 @@ export default function Activities() {
     // library shows no filter chrome at all.
     const hasDrafts = activities.some((a) => a.status === 'draft');
 
+    // "Republish changed" (R-1..R-7): shown only when something is waiting,
+    // and its count is what the dialog would republish (quizzes and exams
+    // are listed there as skipped, not counted).
+    const changed = republishCandidates(activities);
+    const changedCount = changed.filter((c) => c.skip === null).length;
+
     // A filtered-to-nothing list is a different state from an empty library,
     // and it needs a different message plus a way back out.
     const filteredToNothing =
@@ -500,6 +516,15 @@ export default function Activities() {
         <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-ink">My activities</h1>
         <div className="flex items-center gap-3">
+        {changedCount > 0 && (
+            <button
+            type="button"
+            onClick={() => setRepublishOpen(true)}
+            className="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink shadow-sm transition hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+            Republish changed ({changedCount})
+            </button>
+        )}
         <button
         type="button"
         onClick={handleCreate}
@@ -510,6 +535,22 @@ export default function Activities() {
         </button>
         </div>
         </div>
+
+        {republishOpen && (
+            <RepublishDialog
+            candidates={changed}
+            onClose={(republished) => {
+                setRepublishOpen(false);
+                // publish_activity clears the draft, so these leave the count.
+                if (republished.length > 0) {
+                    const done = new Set(republished);
+                    setActivities((prev) =>
+                        prev.map((a) => (done.has(a.id) ? { ...a, draft_schema: null, draft_type: null } : a)),
+                    );
+                }
+            }}
+            />
+        )}
 
         {createError && (
             <p className="mt-3 text-sm text-danger">
