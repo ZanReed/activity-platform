@@ -108,7 +108,7 @@ export const FENCES: FenceSpec[] = [
     },
     {
         // D64 (docs/design/video-pause-points.md): a catch-up clip that pauses
-        // at the section's faded blocks. Catalogue only (VP-10).
+        // at the section's faded blocks. Catalogue only for a PASTE (VP-10, kept by amendment V-6; the editor inserts one since 2026-11-12).
         tag: 'video',
         blockType: 'video',
         summary: 'a catch-up clip that stops at each faded block below it (catalogue files only)',

@@ -193,7 +193,7 @@ export function buildEditorExtensions({
         // Chart — a static statistics chart of category data (Y7 charts), from
         // the ```chart fence, with a "Chart source" popover over that text.
         Chart,
-        // D64: the read-only card for a catalogue clip (VP-10). No slash entry.
+        // D64: the catch-up clip. Inserted from the slash menu and edited on its card since the 2026-11-12 amendment (lifted VP-10).
         Video,
     ];
 }

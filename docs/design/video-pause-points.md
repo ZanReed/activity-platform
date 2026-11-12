@@ -115,7 +115,7 @@ pause: 6:30
 **VP-9 · Print and offline.** On paper the card prints nothing, because the faded blocks are there anyway. Offline, or if the host fails, the card says "The video isn't available right now" and the activity carries on.
 - *Recommend:* yes.
 
-**VP-10 · Editor: it survives a save, and nothing more.** A read-only card shows the title, URL and pause count, and round-trips. No slash-menu entry and no edit form. A teacher can't add a video in v1. TRIGGER: a teacher asks to attach their own.
+**VP-10 · Editor: it survives a save, and nothing more.** ⚠ **LIFTED 2026-11-12 — see "Amendment 2026-11-12" below.** A read-only card shows the title, URL and pause count, and round-trips. No slash-menu entry and no edit form. A teacher can't add a video in v1. TRIGGER: a teacher asks to attach their own.
 - *Recommend:* yes.
 
 **VP-11 · Out of scope, each with a trigger in TODOS.** A teacher's view of who watched (asks for a watch log; needs its own compliance read). Native fullscreen (a tester finds it missing). Tries after the section is checked (VP-3). Self-hosting on the platform (the school refuses every outside host). Teacher-attached videos (VP-10).
@@ -135,6 +135,32 @@ pause: 6:30
 - Pilot: 701/01. All three faded blocks have mistake feedback (checked in the file), fading from 1 blank to 4.
 - No objection to the rest.
 - B-230 carries the rulings, including that `recorded_against` is all a re-stamp needs and that no double count exists.
+
+## Amendment 2026-11-12: teachers insert and edit clips (lifts VP-10)
+
+**Why:** the author's rule of 2026-11-12, "every feature ships with a GUI" (CLAUDE.md). It reached this feature first. Ruled "yes to all" by the author on the day.
+
+- **V-1:** a "Video" entry in the slash and Insert menus, under Media & figures. VP-10 and VP-11's "teacher-attached videos" are lifted.
+- **V-2:** the form sits on the card: title, link (YouTube or an https .mp4/.webm), captions (a file only, required there), and pauses (m:ss, optional rewind) with add and remove. It checks with the fence parser's own rules (`videoProblems` in `videoFence.ts`, now shared), and writes the node only when the whole draft is a valid clip. A stored clip is always one the importer would accept.
+- **V-3:** the card says live why a clip won't reach students (`lib/videoPlacement.ts`): quiz, exam, locked, DoL, not the Lesson section, a second clip, or pauses ≠ faded examples after it. It re-checks the whole document 300 ms after an edit, and when the activity's type or submission mode changes.
+- **V-4:** "This video matches the lesson as it is now" sets `recorded_against` to the current beat hash. It is the teacher's own statement that the clip still matches, and it replaces the dry-run paste step for anyone without the importer.
+- **V-5:** insert anywhere, like every block; the card's reasons steer. Removal is the normal block controls.
+- **V-6:** a teacher's markdown paste still drops the fence (TODOS, with a trigger).
+- **V-7:** the VP-8 checklist gains an item: clearance must cover teacher-attached clips and any file host, or apply to catalogue clips only.
+
+**As built (2026-11-12).** App-only: no migration, no Edge Function bundle, no `capability-facts.json` change, no letter. Live on push.
+- `Video.ts` gained a lazy NodeView (`VideoView` → `VideoViewBody` + `VideoForm`, the ChartView pattern), an `insertVideo` command and `storage.meta` (the activity's type and submission mode, written by `Editor.tsx`'s `videoMeta` prop).
+- **A new card has `data: null`,** which serialize drops (`videoAttrsComplete`, shared with serialize). The card says "Not saved yet" until it has a title, a link and a pause.
+- **`clipIsPlaced` is unchanged** (it is in the grading bundle). `videoPlacement.test.ts` holds `clipReasons` to it case by case: no reasons ⇔ placed.
+- **Found while building:** the old "no slash item" test imported `SLASH_MENU_ITEMS`, a name the module never exported, so it passed whatever the menu held (P9). Replaced with a test that the entry exists and inserts a card a save drops.
+- **Students are unaffected:** `video_clearance` is off, and `video_source` already gives an owning teacher the URL for a preview.
+- **Fable review (no P0; P1 = an unused import, fixed). Its P2s, all fixed:**
+  - A new link drops the confirmation, because the beat hash doesn't cover the URL.
+  - A pasted card the fence would refuse arrives empty.
+  - A throw in the card's recheck shows no status, never a stale "Ready".
+  - The card's clip counting is one function (`keptClipsBefore`), tested over incomplete cards, columns and sections.
+  - The equivalence test asserts its baseline.
+  - Each fix was mutation-tested.
 
 ## As built
 

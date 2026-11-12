@@ -61,8 +61,8 @@ export const GUI_SURFACES: Record<keyof typeof JOIN, GuiSurface> = {
     reference: { file: 'editor/ReferencePanelEditor.tsx', marker: 'ReferencePanelEditor' },
     figure: { slash: 'Graph figure' },
     chart: { slash: 'Chart' },
-    // D64 v1: a read-only card, no slash entry, no form (Video.ts).
-    video: { gap: 'video' },
+    // D64 amendment 2026-11-12 (lifted VP-10): the card's form edits it.
+    video: { slash: 'Video' },
     // The settings drawer lists the variables read-only; nothing adds or edits one.
     seeded_data: { gap: 'seeded_data' },
     // SectionBreak carries the `dol` attr but no control sets or clears it.

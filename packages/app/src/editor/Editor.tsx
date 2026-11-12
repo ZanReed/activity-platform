@@ -17,6 +17,8 @@ import Toolbar from './Toolbar';
 import './editor.css';
 import 'mathlive';
 import { buildEditorExtensions } from './editorExtensions';
+import type { VideoStorage } from './extensions/Video';
+import type { ClipMeta } from '../lib/videoPlacement';
 import { armSettle } from './extensions/SettleMotion';
 import { columnsNestedDragOptions } from './dragHandleNested';
 import BlockInsertModal from './components/BlockInsertModal';
@@ -59,6 +61,10 @@ interface EditorProps {
     // app-side fontsource path (lib/fonts.ts) so authoring is WYSIWYG without
     // an R2 round trip. Undefined = the default look (playground, old docs).
     typography?: Typography;
+    // The activity's type and submission mode, for the video card: a quiz, exam
+    // or locked activity can't have a clip (lib/videoPlacement.ts). Live — the
+    // card re-checks when it changes. Undefined in the playground.
+    videoMeta?: ClipMeta;
 }
 
 // Place the insert cursor exactly at a block seam for the insert-zone path.
@@ -93,6 +99,7 @@ export default function Editor({
     activityId,
     onEditorReady,
     typography,
+    videoMeta,
 }: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
@@ -286,6 +293,18 @@ export default function Editor({
     // 'default'/undefined; idempotent per family). The vars below apply
     // immediately either way — font-display swap semantics via the fallback
     // stack until the file lands.
+    // The video card reads the activity's type and submission mode from here
+    // (a NodeView has no other route to the activity's settings), and re-checks
+    // when they change, since a settings change is not an editor transaction.
+    const videoType = videoMeta?.activityType;
+    const videoMode = videoMeta?.submissionMode;
+    useEffect(() => {
+        const storage = (editor?.storage as { video?: VideoStorage } | undefined)?.video;
+        if (!storage) return;
+        storage.meta = { activityType: videoType, submissionMode: videoMode };
+        storage.listeners.forEach((recheck) => recheck());
+    }, [editor, videoType, videoMode]);
+
     useEffect(() => {
         if (typography) void ensureActivityFontLoaded(typography.font);
     }, [typography?.font]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -7,7 +7,6 @@ import { parseVideoFence } from '../lib/videoFence';
 import { getMarkdownImporter, type MarkdownImporter } from '../lib/markdownToTiptap';
 import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { wrapBlocksStrict } from '../editor/strictGrid';
-import { Video } from '../editor/extensions/Video';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 
 let convert: MarkdownImporter;
@@ -101,7 +100,7 @@ describe('where a clip may sit (VP-1)', () => {
         expect(JSON.stringify(result.referencePanel ?? {})).not.toContain('"video"');
     });
 
-    it("a teacher's paste leaves it out and says so (VP-10)", () => {
+    it("a teacher's paste leaves it out and says so (VP-10, kept by V-6)", () => {
         const result = convert(lesson(CLIP, FADED));
         expect(result.blocks.some((b) => b.type === 'video')).toBe(false);
         expect(result.warnings.join(' ')).toMatch(/catalogue importer/);
@@ -157,7 +156,7 @@ describe('staleness on save (VP-5)', () => {
     });
 });
 
-describe("the editor's read-only card (VP-10)", () => {
+describe("the editor card's static HTML (copy-paste and the DOM serializer)", () => {
     function card(data: Record<string, unknown>): HTMLElement {
         const schema = getSchema(buildEditorExtensions());
         const node = PMNode.fromJSON(schema, { type: 'video', attrs: { id: 'x', data } });
@@ -177,11 +176,19 @@ describe("the editor's read-only card (VP-10)", () => {
         expect(card({ ...data, stale: true }).textContent).toContain('Video is out of date');
     });
 
-    it('is not offered anywhere: the name is the node, with no slash item', async () => {
-        const { SLASH_MENU_ITEMS } = (await import('../editor/slashMenuItems')) as unknown as {
-            SLASH_MENU_ITEMS?: { title: string }[];
-        };
-        expect(Video.name).toBe('video');
-        expect((SLASH_MENU_ITEMS ?? []).some((item) => /video/i.test(item.title))).toBe(false);
+    // Replaced 2026-11-12: the old test imported `SLASH_MENU_ITEMS`, a name the
+    // module never exported, so `?? []` made it pass whatever the menu held (P9).
+    it('is offered as "Video", and inserts an empty card that a save drops (amendment V-1)', async () => {
+        const { slashMenuItems } = await import('../editor/slashMenuItems');
+        const item = slashMenuItems.find((i) => i.title === 'Video');
+        expect(item?.subgroup).toBe('Media & figures');
+        const { Editor } = await import('@tiptap/core');
+        const editor = new Editor({ extensions: buildEditorExtensions() });
+        item!.command({ editor });
+        const json = editor.getJSON();
+        expect(JSON.stringify(json)).toContain('"type":"video"');
+        // data: null — not a clip yet, so nothing is stored (the card says "Not saved yet").
+        expect(JSON.stringify(tiptapToActivity(json, META))).not.toContain('"video"');
+        editor.destroy();
     });
 });

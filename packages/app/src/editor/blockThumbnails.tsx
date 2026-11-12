@@ -240,6 +240,16 @@ const chart = thumb(
     </>
 );
 
+// A screen with a play triangle and a pause mark on its timeline — the D64 clip.
+const video = thumb(
+    <>
+        <rect x={20} y={8} width={60} height={32} rx={3} fill="none" stroke={LINE} strokeWidth={2} />
+        <path d="M45 16 L57 24 L45 32 Z" fill={INK} />
+        <path d="M20 46 H80" stroke={LINE} strokeWidth={2} />
+        <path d="M52 42 V50" stroke={INK} strokeWidth={2} />
+    </>
+);
+
 const fillInBlank = thumb(
     <>
         {bar(12, 16, 20)}
@@ -445,6 +455,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     'Static graph': staticGraph,
     'Graph figure': graphFigure,
     Chart: chart,
+    Video: video,
     'Fill in the blank': fillInBlank,
     'Answer blank': answerBlank,
     'Multiple choice': multipleChoice,

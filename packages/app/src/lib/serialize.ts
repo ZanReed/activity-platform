@@ -115,7 +115,7 @@ import {
     ChoiceImage,
     ChoiceGraph,
 } from '@activity/schema';
-import type { VideoAttrs } from './videoFence';
+import { videoAttrsComplete, type VideoAttrs } from './videoFence';
 import type { JSONContent } from '@tiptap/react';
 import type { ChartAttrs } from './chartFence';
 import { emptyPlaceholders } from '../editor/mathPromptSync';
@@ -1233,7 +1233,8 @@ function tiptapGraphFigureToActivity(node: JSONContent): GraphFigureBlock {
 // and take the whole document's save with it.
 function tiptapVideoToActivity(node: JSONContent): VideoBlock | null {
     const data = (node.attrs?.data ?? null) as Partial<VideoAttrs> | null;
-    if (!data?.title || !data.url || !data.pauses?.length) return null;
+    // An unfinished card (the editor's form, mid-fill) is dropped: the card says so.
+    if (!videoAttrsComplete(data)) return null;
     return {
         id: crypto.randomUUID(),
         type: 'video',

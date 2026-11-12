@@ -23,6 +23,7 @@ import {
     Ruler,
     BarChart3,
     Info,
+    Video as VideoIcon,
 } from 'lucide-react';
 
 // ============================================================================
@@ -344,6 +345,19 @@ export const slashMenuItems: SlashMenuItem[] = [
         icon: BarChart3,
         command: ({ editor, range }) => {
             begin(editor, range).insertChart().run();
+        },
+    },
+    {
+        // D64 amendment 2026-11-12 (lifts VP-10): a teacher attaches their own
+        // catch-up clip. The card says live whether students would get it.
+        title: 'Video',
+        description: 'A catch-up video that pauses at each faded example in the Lesson section.',
+        keywords: ['video', 'clip', 'youtube', 'catch-up', 'catch up', 'watch', 'pause', 'film', 'recording'],
+        group: 'Structure',
+        subgroup: 'Media & figures',
+        icon: VideoIcon,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertVideo().run();
         },
     },
     {

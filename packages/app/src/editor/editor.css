@@ -2289,6 +2289,19 @@ img.mc-block__figure-preview {
 .chart-view__preview svg text {
     fill: currentColor;
 }
+/* The video card's pause list (VideoForm) sits inside .chart-form. */
+.video-form__pauses {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+.video-form__pauses legend {
+    padding: 0;
+    margin-bottom: 0.2rem;
+}
 /* The chart's in-place form (ChartForm). */
 .chart-form {
     display: grid;

@@ -18,16 +18,17 @@ The audit found these already covered (no action): charts, figures (shape list,
 segment arrow, figure source), graph settings incl. free vectors and
 transform-a-curve, graded stimuli ("Shown with the question"), teacher guide,
 reference panel, quiz/exam types, definitions, the ² ³ tray.
+**Closed:** `video` (2026-11-12 — the card's form, the placement reasons and
+"This video matches the lesson as it is now"; design doc → "Amendment
+2026-11-12").
 
-## GUI gap — `video`
+## Lifting the teacher-paste block on ```video (amendment V-6, 2026-11-12)
 
-D64's clip + pause points. The editor shows a read-only card: no slash entry, no
-form (`editor/extensions/Video.ts`, "A teacher can't add or change a clip in v1").
-Needs: insert a clip by URL, set and edit its pause points, remove it. ⚠ The
-server-side URL gate (C-176) and the school's YouTube clearance for under-13s
-(D73) govern which URLs are allowed — the form must use the same gate, not a
-copy of it. **TRIGGER:** a teacher wants a clip in their own activity or Bank copy,
-or video clearance goes on (VP-8).
+A teacher's markdown paste still drops a ```video fence with a warning
+(`ImportOptions.catalogue`), and the teacher's copy-paste prompt doesn't teach it.
+The editor can now insert one, so the block is no longer what keeps clips
+catalogue-only. **TRIGGER:** a teacher pastes an assistant-drafted lesson with a
+clip and loses it, or asks to.
 
 ## GUI gap — `seeded_data`
 
@@ -248,9 +249,10 @@ Zan rates platform features above activity authoring right now (C-149 item 4). E
      - [ ] The HoD confirms the school's policy on teacher-recorded, student-facing video.
      - [ ] Counsel answers a new packet question (next free number; Q12 is earmarked for mixed practice): a third-party embed on under-13 devices, by host, YouTube and file.
      - [ ] The privacy page and data map name the host.
+     - [ ] **Teacher-attached clips (amendment V-7, 2026-11-12).** Since the editor lets any teacher attach a clip from YouTube or ANY https file host, the counsel question and the HoD's confirmation must cover teacher-attached clips and arbitrary file hosts, OR clearance is ruled to apply to catalogue clips only (then build that split before the switch goes on: `video_source` can't tell the two apart today).
      - [ ] `prune_video_pause_tries` (0080, the author's 30-day window) is armed, with Zan's explicit yes. It deletes student work: dry-run by default and unscheduled, and verify-0080's `prune_is_unscheduled` row fails if a cron job names it. Flip that row with the cron row. Before the clearance setting goes on, not after.
      - [ ] Zan's explicit yes.
-   - **D64 out of scope, VP-11, each with its trigger:** who-watched view + watch log (a teacher asks; needs its own compliance read) · native fullscreen (a tester finds it missing) · tries after the section is checked (a teacher asks for revision tries) · self-hosting on the platform (the school refuses every outside host) · teacher-attached videos (a teacher asks to attach their own).
+   - **D64 out of scope, VP-11, each with its trigger:** who-watched view + watch log (a teacher asks; needs its own compliance read) · native fullscreen (a tester finds it missing) · tries after the section is checked (a teacher asks for revision tries) · self-hosting on the platform (the school refuses every outside host) · ~~teacher-attached videos~~ BUILT 2026-11-12 (the GUI rule; design doc → "Amendment 2026-11-12").
 
    - **D77 optional DoL explanation (C-173, author-ruled 2026-11-02): BUILT 2026-11-02 (0075), apply + push owed; prompt teaches it.** Every Y7–10 DoL gains one `shortanswer` after its auto-scored items. Spelling needs no change (`dol_skills` repeats the primary). Rule, derived from the document with no new key: in a DoL, a rubric item that isn't the primary is OPTIONAL. Its pill says "Recorded", it leaves "to grade" and "need grading", and it stays listed and markable on Responses.
    - **Read a class's explanations on one screen (C-173 item 5).** Responses groups by question, but each row truncates to one line, and the whole answer takes a click. TRIGGER: a teacher marks D77 explanations for a real class and finds the clicks in the way.
@@ -1243,6 +1245,11 @@ src/__tests__/supabaseStorageKey.test.ts     (fails at file level, not a case)
 src/__tests__/ActivityPrint.test.tsx         "writes ONLY meta.print…" (D20A)
 src/__tests__/StudentViewer.test.tsx         "a normal load shows no banner at all"
 ```
+
+**A fourth seen 2026-11-12:** `Bank.test.tsx` "offers the guide only where there
+is one" (a 1 s `waitFor` on the guide text) failed once in a full `pnpm verify`
+while a review agent was running tests in parallel, then passed 3/3 alone and
+2/2 in two more full app runs. Same signature as the three above.
 
 **The evidence it is contention, not a defect:**
 - all three pass in isolation, exit 0;

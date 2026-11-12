@@ -129,7 +129,7 @@ describe('registry ↔ converter (behavioral)', () => {
     it.each(FENCES)(
         '$tag: the example imports to $blockType with no warnings',
         (f) => {
-            // A catalogue-only fence has its own conversion: see the VP-10 row.
+            // A catalogue-only fence has its own conversion: see the VP-10 row (paste only, V-6).
             if (f.catalogueOnly) {
                 const result = convert(
                     `## Lesson {checkpoint}\n\n${fence(f.tag, f.example)}\n\n${fence('faded', 'title: One\nx = {{4}}')}`,

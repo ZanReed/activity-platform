@@ -215,7 +215,7 @@ export interface ImportOptions {
      * is itself a seed problem.
      */
     readonly bankSection?: true;
-    /** Set by the batch importer. A ```video fence is refused without it (VP-10). */
+    /** Set by the batch importer. A ```video fence is refused without it (VP-10, kept for pastes by amendment V-6). */
     readonly catalogue?: true;
 }
 

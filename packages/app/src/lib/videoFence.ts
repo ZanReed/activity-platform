@@ -37,7 +37,8 @@ export interface VideoParse {
 
 const TIME = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/;
 
-function seconds(text: string): number | null {
+/** `m:ss` or `h:mm:ss` → seconds, or null. The fence and the editor form both read times with this. */
+export function seconds(text: string): number | null {
     const match = TIME.exec(text.trim());
     if (!match) return null;
     const [, hours, minutes, secs] = match;
@@ -90,26 +91,16 @@ export function parseVideoFence(source: string): VideoParse {
         } else problems.push(`Video: can't read the line \`${line}\`.`);
     }
 
-    if (!title) problems.push('Video: a clip needs a `title:`.');
-    const host = url ? videoHostOf(url) : null;
-    if (!url) problems.push('Video: a clip needs a `url:`.');
-    else if (!host) problems.push(`Video: \`${url}\` isn't a host the player supports. Use YouTube, or an https .mp4 or .webm file.`);
-    if (host === 'youtube' && captions) problems.push('Video: `captions:` is for a video file. A YouTube clip uses its own captions.');
-    if (host === 'file' && !captions) problems.push('Video: a video file needs `captions:` with an https .vtt file.');
-    if (captions && !/^https:\/\/\S+\.vtt(\?\S*)?$/i.test(captions)) problems.push(`Video: \`captions: ${captions}\` isn't an https .vtt file.`);
+    // A pause line that failed to parse already said so; "needs at least one"
+    // on top of it would be noise.
+    const pauseLineFailed = problems.some((p) => p.includes('pause:'));
+    const shared = videoProblems({ title, url, captions, pauses }, FENCE_WORDS).filter(
+        (problem) => !(pauseLineFailed && problem.field === 'pauses' && pauses.length === 0),
+    );
+    problems.push(...shared.map((problem) => `Video: ${problem.message}`));
     if (recordedAgainst && !/^[0-9a-f]{8}$/.test(recordedAgainst)) {
         problems.push(`Video: \`recorded_against: ${recordedAgainst}\` isn't a hash. Paste the 8 characters a dry run prints.`);
     }
-    if (pauses.length === 0 && problems.every((p) => !p.includes('pause:'))) {
-        problems.push('Video: a clip needs at least one `pause:`.');
-    }
-    for (let i = 1; i < pauses.length; i++) {
-        if (pauses[i]!.at <= pauses[i - 1]!.at) {
-            problems.push('Video: pause times must ascend.');
-            break;
-        }
-    }
-
     if (problems.length > 0) return { attrs: null, problems };
     return {
         attrs: {
@@ -121,4 +112,99 @@ export function parseVideoFence(source: string): VideoParse {
         },
         problems,
     };
+}
+
+// ---- the rules every writer of a clip shares ---------------------------------
+// The fence parser and the editor's form (VideoForm) check the same things with
+// this one function, so the two can't disagree about what a valid clip is. Only
+// the words differ: the fence names its keys, the form names its fields.
+
+export type VideoField = 'title' | 'url' | 'captions' | 'pauses';
+
+export interface VideoProblem {
+    field: VideoField;
+    message: string;
+}
+
+interface VideoWords {
+    title: string;
+    url: string;
+    captions: string;
+    pause: string;
+    quote: (text: string) => string;
+}
+
+export const FENCE_WORDS: VideoWords = {
+    title: 'a `title:`',
+    url: 'a `url:`',
+    captions: '`captions:`',
+    pause: '`pause:`',
+    quote: (text) => `\`${text}\``,
+};
+
+export const FORM_WORDS: VideoWords = {
+    title: 'a title',
+    url: 'a video link',
+    captions: 'a captions link',
+    pause: 'pause',
+    quote: (text) => `“${text}”`,
+};
+
+const VTT = /^https:\/\/\S+\.vtt(\?\S*)?$/i;
+
+/** Everything wrong with a clip's own fields (where it sits is videoPlacement's job). */
+export function videoProblems(
+    clip: { title: string; url: string; captions?: string; pauses: readonly VideoPause[] },
+    words: VideoWords,
+): VideoProblem[] {
+    const problems: VideoProblem[] = [];
+    const { title, url, pauses } = clip;
+    const captions = clip.captions ?? '';
+    if (!title.trim()) problems.push({ field: 'title', message: `a clip needs ${words.title}.` });
+    const host = url ? videoHostOf(url) : null;
+    if (!url) problems.push({ field: 'url', message: `a clip needs ${words.url}.` });
+    else if (!host) {
+        problems.push({
+            field: 'url',
+            message: `${words.quote(url)} isn't a host the player supports. Use YouTube, or an https .mp4 or .webm file.`,
+        });
+    }
+    if (host === 'youtube' && captions) {
+        problems.push({ field: 'captions', message: `${words.captions} is for a video file. A YouTube clip uses its own captions.` });
+    }
+    if (host === 'file' && !captions) {
+        problems.push({ field: 'captions', message: `a video file needs ${words.captions} with an https .vtt file.` });
+    }
+    if (captions && !VTT.test(captions)) {
+        const shown = words === FENCE_WORDS ? `captions: ${captions}` : captions;
+        problems.push({ field: 'captions', message: `${words.quote(shown)} isn't an https .vtt file.` });
+    }
+    if (pauses.length === 0) problems.push({ field: 'pauses', message: `a clip needs at least one ${words.pause}.` });
+    for (let i = 1; i < pauses.length; i++) {
+        if (pauses[i]!.at <= pauses[i - 1]!.at) {
+            problems.push({ field: 'pauses', message: 'pause times must ascend.' });
+            break;
+        }
+    }
+    // The fence refuses a forward rewind line by line (parsePause), so this only
+    // ever fires from the form, which holds pauses as numbers.
+    pauses.forEach((pause, i) => {
+        if (pause.rewindTo !== undefined && pause.rewindTo >= pause.at) {
+            problems.push({ field: 'pauses', message: `pause ${i + 1} rewinds forward. A rewind must go to an earlier time.` });
+        }
+    });
+    return problems;
+}
+
+/** What serialize needs to keep a node: without these it drops it (no stored clip). */
+export function videoAttrsComplete(data: Partial<VideoAttrs> | null | undefined): data is VideoAttrs {
+    return Boolean(data?.title && data.url && data.pauses?.length);
+}
+
+/** Seconds → `m:ss` (or `h:mm:ss`), the form the fence and the form both write. */
+export function formatTime(total: number): string {
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = String(Math.floor(total % 60)).padStart(2, '0');
+    return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }

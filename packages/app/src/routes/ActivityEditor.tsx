@@ -915,6 +915,7 @@ export default function ActivityEditor() {
             activityId={id}
             onEditorReady={setEditorInstance}
             typography={meta.typography}
+            videoMeta={{ activityType: meta.activityType, submissionMode: meta.submissionMode }}
             />
 
             {/*
