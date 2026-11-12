@@ -1,7 +1,7 @@
 # Student shell size review — measurements, savings, and a policy that stops the creep
 
 **Status:** ⚖ **RULED 2026-11-13: the author accepted every recommendation** in §6 (D1–D10) and §8.4 (T1–T9).
-✅ **BUILT 2026-11-13 (first slices):** student tier A (D1: R1–R4) with the fixed ceiling, spend meter, `EAGER_BLOCKS` guard and brotli row (D2–D5, D10), and teacher T1 + T5. Measured under CI's env: shell **162,470 → 159,049 B gz** (158.66 → 155.32 KiB); Bank journey **301.4 → 5.3**, Print **684 → 78.0** KiB gz. Every guard mutation-tested. ✅ **Then T2 + T3 + T8 (same day):** y-tiptap stubbed and the markdown import dialog lazy, editor journey **761.8 → 690.4** KiB gz (cap 840 → 760, plus a `lazyOut` row for the dialog); the lint rule refuses value imports of `lib/serialize`, the config drawer and the graph-kit barrel from non-editor routes. A real drag-reorder could not be driven under Playwright with or without the stub, so it is an author eyeball check. **Still to build:** T4 as its own slice, then T6. Held in reserve: D6–D8. Measure first: T7. Declined: D9's R11–R13 and T9.
+✅ **BUILT 2026-11-13 (first slices):** student tier A (D1: R1–R4) with the fixed ceiling, spend meter, `EAGER_BLOCKS` guard and brotli row (D2–D5, D10), and teacher T1 + T5. Measured under CI's env: shell **162,470 → 159,049 B gz** (158.66 → 155.32 KiB); Bank journey **301.4 → 5.3**, Print **684 → 78.0** KiB gz. Every guard mutation-tested. ✅ **Then T2 + T3 + T8 (same day):** y-tiptap stubbed and the markdown import dialog lazy, editor journey **761.8 → 690.4** KiB gz (cap 840 → 760, plus a `lazyOut` row for the dialog); the lint rule refuses value imports of `lib/serialize`, the config drawer and the graph-kit barrel from non-editor routes. A real drag-reorder could not be driven under Playwright with or without the stub, so it is an author eyeball check. **Still to build:** T4 (design pass in §8.5, decisions T4-1..T4-5 open), then T6. Held in reserve: D6–D8. Measure first: T7. Declined: D9's R11–R13 and T9.
 **Date:** 2026-11-13, measured at `018d52b8` (main) under CI's build env
 (`VITE_SUPABASE_URL=http://127.0.0.1:54399`, `VITE_SUPABASE_ANON_KEY=e2e-anon-key`),
 in a detached scratch worktree so the GUI-sweep session's uncommitted edits were not measured.
@@ -387,3 +387,38 @@ written, before a build.
 | **T9** | Apply the student side's exact-byte meter (§5 P-2) to teacher routes? | **No.** The journey caps and markers fit the teacher problem; the meter would tax every editor commit |
 
 ⚖ **RULED 2026-11-13 (author): every recommendation above, as written.**
+
+### 8.5 T4 design pass: dashboards load the seeding code only when they seed (2026-11-13)
+
+**Re-derived against `122f8b1e` (P10), and the premise changed.** §8.2 framed TR5 as "evaluate
+seeded answers lazily, with a no-flash requirement". The code says something simpler:
+
+- All three dashboards reach mathjs by ONE static edge: `lib/answerText.ts` imports `seedForForm`
+  from `@activity/viewer/seeded-print`, which reaches `resolveEntry` → graph-kit's scorers → mathjs.
+- **Responses and Progress never seed.** Both call `servedDocument(…, studentId = null)`, the
+  "many students" path that keeps `{name}` templates. So they download mathjs for code they never run.
+- **Only AnswerPanel seeds** (one student's answers, read against that student's numbers). It calls
+  `servedDocument` inside an async loader, after `fetchStudentWork` and `fetchVersionContents`,
+  and its panel shows "loading" until the loader finishes. **No answer text is ever on screen
+  before the seeding runs, so there is no flash to design around.**
+
+**Measured** (scratch build, the import cut, CI env): Responses **79.0 → 33.5**, Progress
+**80.0 → 34.6**, AnswerPanel's own journey **→ 29.3** KiB gz (from ~75).
+
+**The change, as proposed:**
+- `servedDocument` keeps its signature for the `null` path and stays synchronous. It no longer
+  imports `seeded-print`.
+- The seeding path takes the seeding function as an argument. `answerText.ts` exports
+  `loadSeeding()` = `import('@activity/viewer/seeded-print')`. AnswerPanel's loader awaits it
+  before building documents.
+- Guards: a `mathjs` CHUNK_LEDGER row (its marker live by construction), `forbid: ['mathjs']` on
+  the Responses and Progress journeys, and a new AnswerPanel journey row with the same forbid.
+  Mutation-tested by restoring the static import.
+
+| # | Decision | Recommendation |
+|---|---|---|
+| **T4-1** | Cut the static `seeded-print` import from `answerText.ts`, passing the seeding function in on the one path that seeds? | **Yes.** −45 KiB on each of Responses and Progress, with no behaviour change on either |
+| **T4-2** | When does AnswerPanel load the seeding code? **(a)** at the start of its loader, in parallel with the two fetches: no added wait, but every AnswerPanel visit downloads it (today's bytes). **(b)** only when the fetched content has `seedVars` or a DoL section: unseeded activities save ~45 KiB, and a seeded one waits one round trip after its content arrives, under the loading state it already shows | **(b).** The wait is hidden behind an existing loading state, happens once per session (the chunk is then cached), and only for seeded activities |
+| **T4-3** | If the seeding chunk fails to load (an open tab after a deploy): show the panel's existing error state, worded "refresh the page", or fall back to unseeded answers? | **Error state.** Unseeded answers would show the class template (`{a}`), or the wrong student's numbers, as if they were this student's, which is worse than no answers |
+| **T4-4** | Add the `mathjs` ledger row and the three journey forbids? | **Yes**, born green in the same commit |
+| **T4-5** | Scope: leave the Bank preview (`BankItemPreview`, ~70 KiB, imports `substituteSeededAnswers`) and Print (which genuinely seeds to print) out of T4? | **Yes.** Print needs the code. The Bank preview could take the same pattern later; file it with the trigger "a Bank preview is reported slow" |
