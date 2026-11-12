@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
-import RecentlyDeleted from '../components/RecentlyDeleted';
 import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
 import { useSession } from '../lib/SessionContext';
 import ClassActivitiesPanel, {
@@ -446,6 +445,8 @@ function AgeStatementChoice({
 
 // G-5/G-7's confirm, loaded on first use (perf-budgets: journey classes).
 const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
+// Loaded only when something has been deleted (perf-budgets journeys).
+const RecentlyDeleted = lazy(() => import('../components/RecentlyDeleted'));
 
 const CLASS_CONFIRM_COPY = {
     codeTitle: (code: string) => `Replace code ${code}?`,
@@ -975,7 +976,11 @@ export default function Classes() {
         {actionError && (
             <p className="mt-3 text-sm text-danger">{actionError}</p>
         )}
-        <RecentlyDeleted items={deleted} onRestore={restore} noun="class" />
+        {deleted.length > 0 && (
+            <Suspense fallback={null}>
+            <RecentlyDeleted items={deleted} onRestore={restore} noun="class" />
+            </Suspense>
+        )}
         </div>
         </div>
         {undo && (

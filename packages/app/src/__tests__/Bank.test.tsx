@@ -210,7 +210,7 @@ describe('Activity Bank filters and authors (0055)', () => {
 
         // F-1: topics live behind one button, grouped by unit, with counts.
         fireEvent.click(screen.getByRole('button', { name: /^Topics/ }));
-        const panel = screen.getByRole('dialog', { name: 'Filter by topic' });
+        const panel = await screen.findByRole('dialog', { name: 'Filter by topic' });
         fireEvent.click(within(panel).getAllByLabelText(/^triangles \(/)[0]!);
         fireEvent.click(within(panel).getAllByLabelText(/^rates \(/)[0]!);
         expect(shown()).toEqual(['m1', 'm3']); // any of the chosen tags

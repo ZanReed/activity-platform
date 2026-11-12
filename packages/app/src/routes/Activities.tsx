@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import { BarChart3, ClipboardCheck, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
-import RecentlyDeleted from '../components/RecentlyDeleted';
+import { RepublishDialog } from '../components/RepublishDialog';
 import { listDeletedActivities, restoreActivity, type DeletedItem } from '../lib/recentlyDeleted';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -26,7 +26,6 @@ import { useScrollMemory } from '../lib/useScrollMemory';
 import { isBankLister, setActivityListing } from '../lib/bank';
 import { chainHooksPath, chainsWithHooks, fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
 import { republishCandidates } from '../lib/bulkRepublish';
-import { RepublishDialog } from '../components/RepublishDialog';
 
 interface ActivityRow {
     id: string;
@@ -128,6 +127,8 @@ function fetchActivityRows() {
 // G-6's confirm is loaded on first use: the Activities journey has no room
 // for it in the first download (perf-budgets: journey activities).
 const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
+// Loaded only when something has been deleted (perf-budgets journeys).
+const RecentlyDeleted = lazy(() => import('../components/RecentlyDeleted'));
 
 const ACTIVITY_DELETE_COPY = {
     title: (t: string) => `Delete ${t}?`,
@@ -984,7 +985,11 @@ export default function Activities() {
         {listingError && (
             <p className="mt-3 text-sm text-danger" role="alert">{listingError}</p>
         )}
-        <RecentlyDeleted items={deleted} onRestore={restoreFromDeleted} noun="activity" />
+        {deleted.length > 0 && (
+            <Suspense fallback={null}>
+            <RecentlyDeleted items={deleted} onRestore={restoreFromDeleted} noun="activity" />
+            </Suspense>
+        )}
         </div>
         </div>
 

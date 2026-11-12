@@ -316,7 +316,11 @@ describe('Activities filter bar (F-1…F-4)', () => {
         h.listResult.current = { data: TAGGED_ROWS, error: null };
     });
 
-    const openTopics = () => fireEvent.click(screen.getByRole('button', { name: /^Topics/ }));
+    // The panel is a lazy chunk (perf budget): wait for it on first open.
+    const openTopics = async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Topics/ }));
+        await screen.findByRole('dialog', { name: 'Filter by topic' });
+    };
     const pick = (tag: string) =>
         fireEvent.click(within(screen.getByRole('dialog', { name: 'Filter by topic' })).getByLabelText(new RegExp(`^${tag} \\(`)));
 
@@ -331,7 +335,7 @@ describe('Activities filter bar (F-1…F-4)', () => {
     it('a picked topic filters the list, shows as a removable chip, and ANDs with a second', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
-        openTopics();
+        await openTopics();
         pick('graphing');
         expect(screen.getByRole('link', { name: 'Graphing Lines' })).toBeTruthy();
         expect(screen.queryByRole('link', { name: 'Factoring Practice' })).toBeNull();
@@ -345,7 +349,7 @@ describe('Activities filter bar (F-1…F-4)', () => {
     it('the panel finds a topic by typing, and Escape closes it', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
-        openTopics();
+        await openTopics();
         const dialog = screen.getByRole('dialog', { name: 'Filter by topic' });
         fireEvent.change(within(dialog).getByLabelText('Find a topic'), { target: { value: 'word' } });
         expect(within(dialog).getByLabelText(/^word problems \(/)).toBeTruthy();
@@ -378,7 +382,7 @@ describe('Activities filter bar (F-1…F-4)', () => {
     it('filtered-to-nothing offers a way out, and clear resets every filter', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
-        openTopics();
+        await openTopics();
         pick('factoring');
         pick('graphing');
         expect(screen.getByText(/No activities match/)).toBeTruthy();

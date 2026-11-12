@@ -154,7 +154,8 @@ describe('add a unit to a class from My activities (A1–A4)', () => {
         // Second lesson first, so the FIRST lesson is the newest and tops
         // the student's newest-first Home. The draft is never sent.
         expect(sent(SHARE)).toEqual(['a2', 'a1']);
-        expect(h.rpcCalls.every((c) => c.args.p_class_id === 'c7b')).toBe(true);
+        // (Reads like the Recently deleted list carry no class; only the adds.)
+        expect(h.rpcCalls.filter((c) => c.name === SHARE).every((c) => c.args.p_class_id === 'c7b')).toBe(true);
     });
 
     it('lists classes by name, and shows a partly-added unit as mixed', async () => {

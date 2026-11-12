@@ -9,8 +9,8 @@
 // failed and why, by name. The dialog can't be closed mid-run.
 // =============================================================================
 
-import { useMemo, useState } from 'react';
-import { FocusTrap } from 'focus-trap-react';
+import { useMemo, useRef, useState } from 'react';
+import { useDialogFocus } from '../lib/useDialogFocus';
 import { groupByUnit, sortForOutline, type GroupableActivity } from '../lib/activityGrouping';
 import {
     republishMany,
@@ -62,6 +62,9 @@ export function RepublishDialog({
     const close = () => {
         if (!running) onClose(republished);
     };
+    // lib/useDialogFocus, not focus-trap-react (9 KiB on the Activities journey).
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const onKeyDown = useDialogFocus(dialogRef, close);
     const toggle = (id: string) =>
         setTicked((cur) => {
             const next = new Set(cur);
@@ -78,30 +81,20 @@ export function RepublishDialog({
     };
 
     return (
-        <FocusTrap
-            focusTrapOptions={{
-                // Same options and reasons as ImportMarkdownDialog: close is
-                // driven by our own handlers, never by the trap's deactivation.
-                escapeDeactivates: false,
-                returnFocusOnDeactivate: true,
-                allowOutsideClick: true,
-                tabbableOptions: { displayCheck: 'none' },
-            }}
-        >
             <div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-4"
                 onMouseDown={(e) => {
                     if (e.target === e.currentTarget) close();
                 }}
-                onKeyDown={(e) => {
-                    if (e.key === 'Escape') close();
-                }}
+                onKeyDown={onKeyDown}
             >
                 <div
+                    ref={dialogRef}
+                    tabIndex={-1}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="republish-title"
-                    className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-lg bg-canvas shadow-xl"
+                    className="outline-none flex max-h-[85vh] w-full max-w-xl flex-col rounded-lg bg-canvas shadow-xl"
                 >
                     <div className="border-b border-line px-5 py-3">
                         <h2 id="republish-title" className="text-base font-semibold text-ink">
@@ -200,6 +193,5 @@ export function RepublishDialog({
                     </div>
                 </div>
             </div>
-        </FocusTrap>
     );
 }

@@ -9,12 +9,13 @@
 // misclick never goes through. While the action runs the dialog can't be closed,
 // and a failure is shown inside it rather than lost behind it.
 //
-// The focus trap is hand-rolled (as RemoveStudentDialog's is), not
-// focus-trap-react: that library is 8.9 KiB gz and would land on every
-// teacher page that can delete something (perf-budgets journeys).
+// The focus trap is lib/useDialogFocus.ts, not focus-trap-react: that library
+// is ~9 KiB gz and would land on every teacher page that can delete something
+// (perf-budgets journeys).
 // =============================================================================
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { useDialogFocus } from '../lib/useDialogFocus';
 
 export interface ConfirmDialogProps {
     title: string;
@@ -58,55 +59,7 @@ export default function ConfirmDialog({
     };
 
     const dialogRef = useRef<HTMLDivElement>(null);
-    const cancelRef = useRef(cancel);
-    cancelRef.current = cancel;
-    // Cancel first (a misclick + Enter must not go through); focus goes back
-    // to whatever opened the dialog when it closes.
-    useEffect(() => {
-        const opener = document.activeElement as HTMLElement | null;
-        dialogRef.current?.querySelector<HTMLButtonElement>('[data-confirm-cancel]')?.focus();
-        // Keys are caught at the document, not only on the dialog: a click on
-        // the dialog's text, or both buttons disabled while it runs, leaves
-        // focus on <body>, and Escape / Tab must still behave (Fable review).
-        const onDocKey = (e: globalThis.KeyboardEvent) => {
-            const dialog = dialogRef.current;
-            if (!dialog || dialog.contains(document.activeElement)) return;
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                cancelRef.current();
-            } else if (e.key === 'Tab') {
-                e.preventDefault();
-                const first = dialog.querySelector<HTMLElement>('button:not(:disabled)');
-                if (first) first.focus();
-                else dialog.focus();
-            }
-        };
-        document.addEventListener('keydown', onDocKey);
-        return () => {
-            document.removeEventListener('keydown', onDocKey);
-            if (opener && document.contains(opener)) opener.focus();
-        };
-    }, []);
-
-    const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-        if (e.key === 'Escape') {
-            e.stopPropagation();
-            cancel();
-            return;
-        }
-        if (e.key !== 'Tab') return;
-        const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input, select, textarea') ?? [])];
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (!first || !last) return;
-        if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-        }
-    };
+    const onKeyDown = useDialogFocus(dialogRef, cancel, '[data-confirm-cancel]');
 
     return (
             <div

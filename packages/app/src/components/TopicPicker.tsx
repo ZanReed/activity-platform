@@ -7,7 +7,11 @@
 // topics show as removable chips on one line under the bar.
 // =============================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+
+// The open panel is its own chunk: the list pages' first download has no room
+// for it (perf-budgets journeys), and it is only needed once opened.
+const TopicPanel = lazy(() => import('./TopicPanel'));
 import { topicCount, type TopicGroup } from '../lib/listFilters';
 
 export function TopicPicker({
@@ -54,11 +58,6 @@ export function TopicPicker({
 
     const total = topicCount(groups);
     if (total === 0) return null;
-    const q = find.trim().toLowerCase();
-    const shown = groups
-        .map((g) => ({ ...g, topics: g.topics.filter((t) => !q || t.tag.toLowerCase().includes(q)) }))
-        .filter((g) => g.topics.length > 0);
-
     const close = () => {
         setOpen(false);
         setFind('');
@@ -80,54 +79,19 @@ export function TopicPicker({
                 {chosen.length > 0 ? `Topics · ${chosen.length} chosen` : `Topics (${total})`} ▾
             </button>
             {open && (
-                <div
-                    role="dialog"
-                    aria-label="Filter by topic"
-                    className="fixed z-30 rounded-lg border border-line bg-canvas p-3 shadow-lg"
-                    style={place ? { top: place.top, left: place.left, width: place.width } : { visibility: 'hidden' }}
-                    onBlur={(e) => {
-                        // Tabbing out of the panel closes it (keyboard users
-                        // never fire the outside-mousedown close).
-                        const to = e.relatedTarget as Node | null;
-                        if (to && !rootRef.current?.contains(to)) setOpen(false);
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            e.stopPropagation();
-                            close();
-                        }
-                    }}
-                >
-                    <input
-                        type="search"
-                        autoFocus
-                        value={find}
-                        onChange={(e) => setFind(e.target.value)}
-                        placeholder="Find a topic"
-                        aria-label="Find a topic"
-                        className="w-full rounded-md border border-line-strong bg-canvas px-2.5 py-1.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+                <Suspense fallback={null}>
+                    <TopicPanel
+                        groups={groups}
+                        chosen={chosen}
+                        onToggle={onToggle}
+                        find={find}
+                        setFind={setFind}
+                        place={place}
+                        rootRef={rootRef}
+                        onClose={close}
+                        onTabOut={() => setOpen(false)}
                     />
-                    <div className="mt-2 max-h-80 overflow-y-auto pr-1">
-                        {shown.length === 0 && <p className="py-2 text-sm text-muted">No topic matches.</p>}
-                        {shown.map((g) => (
-                            <fieldset key={g.unit ?? '__none'} className="mt-2 first:mt-0">
-                                <legend className="text-xs font-semibold text-muted">{g.unit ?? 'No unit'}</legend>
-                                {g.topics.map((t) => (
-                                    <label key={t.tag} className="flex min-h-8 cursor-pointer items-center gap-2 text-sm text-ink">
-                                        <input
-                                            type="checkbox"
-                                            checked={chosen.includes(t.tag)}
-                                            onChange={() => onToggle(t.tag)}
-                                            aria-label={`${t.tag} (${t.count})`}
-                                        />
-                                        <span className="min-w-0 flex-1 truncate" aria-hidden="true">{t.tag}</span>
-                                        <span className="text-xs text-muted" aria-hidden="true">{t.count}</span>
-                                    </label>
-                                ))}
-                            </fieldset>
-                        ))}
-                    </div>
-                </div>
+                </Suspense>
             )}
         </div>
     );
