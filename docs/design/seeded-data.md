@@ -213,7 +213,8 @@ Schema (`seedVars` + reference grammar) + derivation leaf module +
 get-activity substitution walk + check-activity derivation/evaluation +
 importer (`seed:` block, reference validation) + format doc + prompt regen +
 print seed override + editor surface (read-only display of declared vars in
-the config drawer is enough for v1 — file-based authoring is the source) +
+the config drawer is enough for v1 — file-based authoring is the source;
+LIFTED 2026-11-12, see the GUI amendment at the end) +
 guard tests incl. D8 + BOTH bundles + both redeploys. Likely a
 `SANITIZER_REV`-relevant change (the serve transform changes) — expect a
 hand `SANITIZER_ALGO_REV` bump since declarations may not capture it; the
@@ -268,3 +269,16 @@ and one of them caught a VACUOUS assertion in its own test (the print key
 check read textContent while the key fills input values; the mutation
 survived, the assertion was rebound to the inputs, the mutation then
 reddened). The pattern the repo keeps paying for, caught at authoring time.
+
+## GUI amendment 2026-11-12 — teachers declare variables in the app
+
+**Why:** the author's rule of 2026-11-12, "every feature ships with a GUI" (CLAUDE.md). The Cost section's "read-only display … is enough for v1" is lifted. Ruled "yes to all" by the author on the day.
+
+- **S-1:** the settings drawer's panel (`components/SeedVarsPanel.tsx`) adds, edits and removes variables: a name, a kind (whole number in a range, one value from a list, several different numbers) and its fields.
+- **S-2:** one set of rules (`lib/seedRules.ts` → `seedVarProblems`) for the ```seed importer and the panel; each words the findings for its reader. The panel writes `meta.seedVars` only when every row is valid; the last variable removed writes `undefined`, never `[]` (R11).
+- **S-3:** the importer's D7/R2/R3 reference checks (`seedReferenceFindings`, shared) run live under the panel over the editor's document, minus a DoL section with its own seed.
+- **S-4:** a "how to use them" line and a sample student from the real derivation, seeded `editor-sample:N`, which no student's serve seed can equal. Needed a new viewer export, `@activity/viewer/seed-values` (no server bundle changed).
+- **S-5:** renaming or removing a variable rewrites nothing; the live checks point at what's left behind.
+- **S-6:** no "comes from a file" note yet. The editor doesn't load `source_key`; filed in TODOS as one shared banner, with a trigger.
+
+**As built:** app-only, with no migration, no Edge Function bundle and no `SANITIZER_REV` change. Blank answers like `a*p` and `{a}` in text already worked in the editor, because the answer box stores any text, so the declaration was the only missing piece. The importer's messages are unchanged: its 396 tests pass as they were.

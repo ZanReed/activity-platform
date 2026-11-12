@@ -63,8 +63,8 @@ export const GUI_SURFACES: Record<keyof typeof JOIN, GuiSurface> = {
     chart: { slash: 'Chart' },
     // D64 amendment 2026-11-12 (lifted VP-10): the card's form edits it.
     video: { slash: 'Video' },
-    // The settings drawer lists the variables read-only; nothing adds or edits one.
-    seeded_data: { gap: 'seeded_data' },
+    // GUI amendment 2026-11-12: the settings drawer's panel declares them.
+    seeded_data: { file: 'components/SeedVarsPanel.tsx', marker: 'Add a variable' },
     // SectionBreak carries the `dol` attr but no control sets or clears it.
     dol_retake: { gap: 'dol_retake' },
     practice_bank: {

@@ -63,10 +63,10 @@ import {
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import { parseFigureFence, SEGMENT_ENDPOINT_REFUSAL } from './figureFence';
 import { parseChartFence } from './chartFence';
-import { freeVariables } from '@activity/graph-kit/scorers';
+import { seedReferenceFindings, seedVarProblems, type SeedVarProblem } from './seedRules';
 import {
     ACTIVITY_TYPES,
-    RESERVED_SEED_NAMES,
+    type SeedVarSpec,
     resolveTerm,
     suggestTerm,
     termKey,
@@ -3732,6 +3732,34 @@ function metaEnum<T extends string>(
 //   data: sample 8 of 55..99
 // Bad lines warn and are skipped (the meta-fence posture) — the D7 cross-
 // checks below catch a declaration that ends up missing.
+/** `int 2..9`, `list 1.5, 2`, `sample 8 of 55..99` → a spec, or null when unreadable. */
+function parseSeedSpecText(spec: string): SeedVarSpec | null {
+    const intM = /^int\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
+    if (intM) return { kind: 'int', min: Number(intM[1]), max: Number(intM[2]) };
+    const sampleM = /^sample\s+(\d+)\s+of\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
+    if (sampleM) return { kind: 'sample', n: Number(sampleM[1]), min: Number(sampleM[2]), max: Number(sampleM[3]) };
+    const listM = /^list\s+(.+)$/.exec(spec);
+    if (listM) return { kind: 'list', values: (listM[1] ?? '').split(',').map((v) => Number(v.trim())) };
+    return null;
+}
+
+function seedProblemForFence(name: string, kind: SeedVarSpec['kind'], problem: SeedVarProblem): string {
+    switch (problem.code) {
+        case 'name-shape':
+            return `\u201c${name}\u201d \u2014 variable names are lowercase letters/digits/underscores, starting with a letter. Skipped.`;
+        case 'name-reserved':
+            return `\u201c${name}\u201d is a reserved name (math constant/function, or x/y). Pick another. Skipped.`;
+        case 'name-duplicate':
+            return `\u201c${name}\u201d is declared twice \u2014 kept the first declaration.`;
+        case 'range-order':
+            return `\u201c${name}\u201d \u2014 ${kind} min must be \u2264 max. Skipped.`;
+        case 'sample-too-many':
+            return `\u201c${name}\u201d \u2014 sample asks for ${problem.n} distinct values from a range of ${problem.range}. Skipped.`;
+        case 'list-not-numbers':
+            return `\u201c${name}\u201d \u2014 list values must all be numbers. Skipped.`;
+    }
+}
+
 function parseSeedFence(src: string, ctx: Ctx): void {
     const meta: ImportedMeta = ctx.meta ?? {};
     const vars: SeedVarType[] = [...(meta.seedVars ?? [])];
@@ -3762,48 +3790,21 @@ function parseSeedFence(src: string, ctx: Ctx): void {
         const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/.exec(line);
         if (!m) { warn(`\u201c${line}\u201d isn\u2019t a \`name: spec\` line and was skipped.`); continue; }
         const name = m[1] ?? '';
-        const spec = (m[2] ?? '').trim();
-        if (!/^[a-z][a-z0-9_]*$/.test(name)) {
-            warn(`\u201c${name}\u201d \u2014 variable names are lowercase letters/digits/underscores, starting with a letter. Skipped.`);
+        const specText = (m[2] ?? '').trim();
+        const spec = parseSeedSpecText(specText);
+        // The rules are shared with the settings drawer's panel (seedRules.ts);
+        // the first problem is reported, worded for a file author.
+        const found = seedVarProblems(name, spec ?? { kind: 'int', min: 0, max: 0 }, vars.map((v) => v.name))[0];
+        const nameProblem = found && found.code.startsWith('name-');
+        if (!spec && !nameProblem) {
+            warn(`\u201c${name}: ${specText}\u201d \u2014 specs are \u201cint MIN..MAX\u201d, \u201clist v1, v2, \u2026\u201d, or \u201csample N of MIN..MAX\u201d. Skipped.`);
             continue;
         }
-        if (RESERVED_SEED_NAMES.includes(name)) {
-            warn(`\u201c${name}\u201d is a reserved name (math constant/function, or x/y). Pick another. Skipped.`);
+        if (found) {
+            warn(seedProblemForFence(name, spec?.kind ?? 'int', found));
             continue;
         }
-        if (vars.some((v) => v.name === name)) {
-            warn(`\u201c${name}\u201d is declared twice \u2014 kept the first declaration.`);
-            continue;
-        }
-        const intM = /^int\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
-        const listM = /^list\s+(.+)$/.exec(spec);
-        const sampleM = /^sample\s+(\d+)\s+of\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
-        if (intM) {
-            const min = Number(intM[1]);
-            const max = Number(intM[2]);
-            if (min > max) { warn(`\u201c${name}\u201d \u2014 int min must be \u2264 max. Skipped.`); continue; }
-            vars.push({ name, spec: { kind: 'int', min, max } });
-        } else if (sampleM) {
-            const n = Number(sampleM[1]);
-            const min = Number(sampleM[2]);
-            const max = Number(sampleM[3]);
-            if (min > max) { warn(`\u201c${name}\u201d \u2014 sample min must be \u2264 max. Skipped.`); continue; }
-            if (n < 1 || n > max - min + 1) {
-                warn(`\u201c${name}\u201d \u2014 sample asks for ${n} distinct values from a range of ${max - min + 1}. Skipped.`);
-                continue;
-            }
-            vars.push({ name, spec: { kind: 'sample', n, min, max } });
-        } else if (listM) {
-            const values = (listM[1] ?? '').split(',').map((v) => Number(v.trim()));
-            if (values.length === 0 || values.some((v) => !Number.isFinite(v))) {
-                warn(`\u201c${name}\u201d \u2014 list values must all be numbers. Skipped.`);
-                continue;
-            }
-            vars.push({ name, spec: { kind: 'list', values } });
-        } else {
-            warn(`\u201c${name}: ${spec}\u201d \u2014 specs are \u201cint MIN..MAX\u201d, \u201clist v1, v2, \u2026\u201d, or \u201csample N of MIN..MAX\u201d. Skipped.`);
-            continue;
-        }
+        vars.push({ name, spec: spec! });
     }
     if (vars.length > 0) {
         meta.seedVars = vars;
@@ -3815,105 +3816,37 @@ function parseSeedFence(src: string, ctx: Ctx): void {
 // used, no reference hides inside latex, and seeded blanks don't carry
 // literal numeric mistake matchers (seed-dependent noise). Warnings only —
 // the batch importer's --strict turns them into failures, which is the fence.
-const SEED_MACRO_RE = /\\seed\{([a-z][a-z0-9_]*)\}/g;
-
 function validateSeedReferences(blocks: JSONContent[], ctx: Ctx): void {
-    const declared = new Set((ctx.meta?.seedVars ?? []).map((v) => v.name));
-    const braceRefs = new Set<string>();
-    const latexRefs = new Set<string>();
-    const exprRefs = new Set<string>();
-    const dataVarRefs = new Set<string>();
-    const seededLiteralMatchers: string[] = [];
-    const BRACE = /\{([a-z][a-z0-9_]*)\}/g;
-
-    const visit = (node: unknown): void => {
-        if (Array.isArray(node)) { node.forEach(visit); return; }
-        if (node === null || typeof node !== 'object') return;
-        const obj = node as Record<string, unknown>;
-        if (obj.type === 'text' && typeof obj.text === 'string') {
-            for (const m of obj.text.matchAll(BRACE)) braceRefs.add(m[1]!);
-        }
-        if (typeof obj.latex === 'string') {
-            // `\seed{name}` is the maths spelling (D65 DL-17) and substitutes
-            // at serve; a BARE `{name}` in latex is a brace group and doesn't.
-            for (const m of obj.latex.matchAll(SEED_MACRO_RE)) braceRefs.add(m[1]!);
-            const bare = obj.latex.replace(SEED_MACRO_RE, '');
-            for (const m of bare.matchAll(BRACE)) {
-                if (declared.has(m[1]!)) latexRefs.add(m[1]!);
-            }
-        }
-        if (typeof obj.dataVar === 'string') dataVarRefs.add(obj.dataVar);
-        // A blank's fields ride under `attrs` in Tiptap JSON (and flat in the
-        // schema shape) — read whichever is present.
-        const blank =
-            obj.type === 'blank'
-                ? ((obj.attrs as Record<string, unknown> | undefined) ?? obj)
-                : null;
-        if (blank && typeof blank.answer === 'string' && declared.size > 0) {
-            const entries = [
-                blank.answer,
-                ...(Array.isArray(blank.acceptableAnswers)
-                    ? (blank.acceptableAnswers as unknown[]).filter((a): a is string => typeof a === 'string')
-                    : []),
-            ];
-            const used = new Set<string>();
-            for (const entry of entries) {
-                for (const v of freeVariables(entry)) {
-                    if (declared.has(v)) { used.add(v); exprRefs.add(v); }
-                }
-            }
-            if (used.size > 0 && Array.isArray(blank.mistakeFeedback)) {
-                for (const mf of blank.mistakeFeedback as Array<{ match?: unknown }>) {
-                    const match = typeof mf.match === 'string' ? mf.match.trim() : '';
-                    if (match !== '' && Number.isFinite(Number(match))) {
-                        seededLiteralMatchers.push(match);
-                    }
-                }
-            }
-        }
-        for (const v of Object.values(obj)) visit(v);
-    };
-    visit(blocks as unknown);
-
-    if (declared.size === 0) {
+    const declared = (ctx.meta?.seedVars ?? []).map((v) => v.name);
+    // The checks are shared with the settings drawer's panel (seedRules.ts);
+    // this side words them for a file author.
+    const f = seedReferenceFindings(blocks, declared, blocks.length > 0);
+    if (declared.length === 0) {
         // No fence: a brace-shaped reference is probably a forgotten ```seed.
-        if (braceRefs.size > 0) {
+        if (f.undeclaredText.length > 0) {
             ctx.warnings.add(
-                `Seed: found {${[...braceRefs].join('}, {')}} in the text but no \`\`\`seed fence \u2014 students would see the braces literally.`,
+                `Seed: found {${f.undeclaredText.join('}, {')}} in the text but no \`\`\`seed fence \u2014 students would see the braces literally.`,
             );
         }
         return;
     }
-    for (const name of braceRefs) {
-        if (!declared.has(name)) {
-            ctx.warnings.add(`Seed: {${name}} isn\u2019t declared in the \`\`\`seed fence \u2014 it will render literally.`);
-        }
+    for (const name of f.undeclaredText) {
+        ctx.warnings.add(`Seed: {${name}} isn\u2019t declared in the \`\`\`seed fence \u2014 it will render literally.`);
     }
-    for (const name of dataVarRefs) {
-        if (!declared.has(name)) {
-            ctx.warnings.add(`Seed: data variable \u201c${name}\u201d isn\u2019t declared in the \`\`\`seed fence.`);
-        }
+    for (const name of f.undeclaredData) {
+        ctx.warnings.add(`Seed: data variable \u201c${name}\u201d isn\u2019t declared in the \`\`\`seed fence.`);
     }
-    for (const name of latexRefs) {
-        // R2: latex is OUT of v1's substitution surfaces \u2014 {a} inside math
-        // is a brace group, so the letter would render, not the value.
+    for (const name of f.bareInMaths) {
+        // R2: {a} inside math is a brace group, so the letter would render.
         ctx.warnings.add(
             `Seed: {${name}} appears inside math ($\u2026$) \u2014 a bare {name} in maths is a brace group, so students would see the letter. Write \\seed{${name}} inside the dollars instead.`,
         );
     }
-    const referenced = new Set([...braceRefs, ...exprRefs, ...dataVarRefs]);
-    // A paste with no body at all (a bare fence) has nothing to reference
-    // FROM, so the unreferenced check would only punish fence-first authoring.
-    if (blocks.length > 0) {
-        for (const name of declared) {
-            if (!referenced.has(name)) {
-                ctx.warnings.add(`Seed: \u201c${name}\u201d is declared but nothing references it.`);
-            }
-        }
+    for (const name of f.unused) {
+        ctx.warnings.add(`Seed: \u201c${name}\u201d is declared but nothing references it.`);
     }
-    for (const match of seededLiteralMatchers) {
-        // R3: a literal numeric matcher on a seeded blank fires for one seed
-        // and is noise for every other student.
+    for (const match of f.literalMatchers) {
+        // R3: a literal numeric matcher on a seeded blank fires for one seed.
         ctx.warnings.add(
             `Seed: mistake matcher \u201c${match}\u201d is a literal number on a seeded blank \u2014 write it as an expression over the variables so it matches every student\u2019s own values.`,
         );

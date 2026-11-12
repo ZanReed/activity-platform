@@ -939,6 +939,7 @@ export default function ActivityEditor() {
             guideInitialContent={guideImport?.content ?? loadState.guideTiptap}
             onGuideEditorUpdate={handleGuideUpdate}
             activityId={id}
+            bodyEditor={editorInstance}
             taxonomy={{
                 tags,
                 onTagsChange: setTags,

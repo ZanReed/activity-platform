@@ -18,7 +18,8 @@ The audit found these already covered (no action): charts, figures (shape list,
 segment arrow, figure source), graph settings incl. free vectors and
 transform-a-curve, graded stimuli ("Shown with the question"), teacher guide,
 reference panel, quiz/exam types, definitions, the ² ³ tray.
-**Closed:** `video` (2026-11-12 — the card's form, the placement reasons and
+**Closed:** `seeded_data` (2026-11-12 — the drawer's panel; seeded-data.md →
+"GUI amendment 2026-11-12"). `video` (2026-11-12 — the card's form, the placement reasons and
 "This video matches the lesson as it is now"; design doc → "Amendment
 2026-11-12").
 
@@ -30,14 +31,24 @@ The editor can now insert one, so the block is no longer what keeps clips
 catalogue-only. **TRIGGER:** a teacher pastes an assistant-drafted lesson with a
 clip and loses it, or asks to.
 
-## GUI gap — `seeded_data`
+## One "this activity comes from a file" banner for every editing panel (S-6, 2026-11-12)
 
-Per-student numbers (```seed). The settings drawer lists the variables read-only
-(`ActivityConfigDrawer.tsx`, "READ-ONLY by design" — written for file-backed
-activities, where an editor control would trip the hand-edit refusal). Needs: add,
-edit and remove a variable and its range in a teacher's own activity, then use it
-in a blank. **TRIGGER:** a teacher wants a varied-numbers copy of a seeded Bank
-activity, or writes their own seeded activity.
+The editor can't tell a catalogue (file-backed) activity from a teacher's own:
+its load query reads no `source_key`. Editing one in the app is refused at the
+next import, by name, so nothing is lost silently, but the teacher only finds
+out then. A shared banner (load `source_key`, show it once above the editor and
+in the drawer) would warn first, for every panel the GUI rule adds. **TRIGGER:**
+the first time an import refuses a file because of an app edit.
+
+## A `sample` variable has no upper bound on its size (Fable review, 2026-11-12)
+
+`sample 5000000 of 1..99999999` passes the importer, the drawer's panel and the
+schema (`SeedVarSpec`), and every serve then derives and substitutes millions of
+numbers. The panel truncates its sample line, but serve and grade don't. A cap
+belongs in the shared rule AND the schema refine: a schema change means
+`pnpm bundle:viewer-server` + `bundle:grading-server` and both redeploys, so it
+is the author's call. **TRIGGER:** a statistics chain drafts a dataset bigger
+than ~50, or any sample over a few hundred appears anywhere.
 
 ## GUI gap — `dol_retake`
 

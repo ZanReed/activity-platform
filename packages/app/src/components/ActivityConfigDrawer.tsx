@@ -23,6 +23,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Settings, BookOpen, Calculator as CalculatorIcon, NotebookPen } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
+import type { Editor as TiptapEditor } from '@tiptap/core';
+import SeedVarsPanel from './SeedVarsPanel';
 import {
     createCalculatorTool,
     type ActivityFont,
@@ -290,6 +292,7 @@ export function ConfigDrawer({
     onGuideEditorUpdate,
     activityId,
     taxonomy,
+    bodyEditor,
 }: {
     active: ConfigKey | null;
     onClose: () => void;
@@ -307,6 +310,8 @@ export function ConfigDrawer({
     onGuideEditorUpdate: (json: JSONContent) => void;
     activityId?: string;
     taxonomy: RowTaxonomy;
+    /** The activity's main editor, for the seeded-variable panel's live reference checks. */
+    bodyEditor?: TiptapEditor | null;
 }) {
     const closeRef = useRef<HTMLButtonElement>(null);
     const prevActiveRef = useRef<ConfigKey | null>(null);
@@ -366,6 +371,8 @@ export function ConfigDrawer({
                         meta={meta}
                         onChange={onMetaChange}
                         taxonomy={taxonomy}
+                        bodyEditor={bodyEditor}
+                        visible={active === 'settings'}
                     />
                 </div>
                 <div className={active === 'reference' ? '' : 'hidden'}>
@@ -469,10 +476,15 @@ function ActivitySettingsBody({
     meta,
     onChange,
     taxonomy,
+    bodyEditor,
+    visible,
 }: {
     meta: ActivityMeta;
     onChange: (next: ActivityMeta) => void;
     taxonomy: RowTaxonomy;
+    bodyEditor?: TiptapEditor | null;
+    /** The settings section is open (the drawer stays mounted when closed). */
+    visible: boolean;
 }) {
 
     // meta.unit is optional: a blank field means "no unit", which must be the
@@ -527,36 +539,22 @@ function ActivitySettingsBody({
                 the catalog when you publish.
             </p>
 
-            {/* Seeded variables (wishlist #6) — READ-ONLY by design: the .md
-                file's ```seed fence is the authoring surface, and an editor
-                control would make the importer's hand-edit fingerprint fire on
-                every file. This panel exists so a teacher opening a seeded
-                activity can SEE that it varies per student. */}
-            {meta.seedVars && meta.seedVars.length > 0 ? (
-                <div data-seed-vars="true">
-                    <span className={SETTINGS_LABEL_CLASS}>
-                        Seeded variables (per-student numbers)
-                    </span>
-                    <ul className="mt-1 grid gap-0.5 text-xs text-secondary">
-                        {meta.seedVars.map((v) => (
-                            <li key={v.name}>
-                                <code>{'{' + v.name + '}'}</code>
-                                {' — '}
-                                {v.spec.kind === 'int'
-                                    ? `a whole number ${v.spec.min}–${v.spec.max}`
-                                    : v.spec.kind === 'list'
-                                      ? `one of ${v.spec.values.join(', ')}`
-                                      : `${v.spec.n} different numbers from ${v.spec.min}–${v.spec.max}`}
-                            </li>
-                        ))}
-                    </ul>
-                    <p className={SETTINGS_HELP_CLASS}>
-                        Each student is served (and graded on) their own values.
-                        Edit the activity&rsquo;s .md file to change these —
-                        they can&rsquo;t be edited here.
-                    </p>
-                </div>
-            ) : null}
+            {/* Seeded variables (wishlist #6; editable since the GUI amendment of
+                2026-11-12, seeded-data.md). A file-backed activity is still
+                edited in its .md: an edit here makes the next import refuse it
+                and say so (the importer's hand-edit fingerprint). */}
+            <SeedVarsPanel
+                seedVars={meta.seedVars}
+                editor={bodyEditor}
+                visible={visible}
+                onChange={(vars) => {
+                    const next: ActivityMeta = { ...meta };
+                    // R11: absent, never [] — an empty list would churn every save.
+                    if (vars) next.seedVars = vars;
+                    else delete next.seedVars;
+                    onChange(next);
+                }}
+            />
 
             <div>
                 <label className={SETTINGS_LABEL_CLASS} htmlFor="pedagogical-role">

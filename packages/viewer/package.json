@@ -12,7 +12,8 @@
     "./tokens.css": "./src/tokens/tokens.css",
     "./viewer.css": "./src/styles/viewer.css",
     "./fixtures/leak": "./src/fixtures/leakFixture.ts",
-    "./seeded-print": "./src/print/seededPrint.ts"
+    "./seeded-print": "./src/print/seededPrint.ts",
+    "./seed-values": "./src/sanitize/seedValues.ts"
   },
   "scripts": {
     "test": "vitest run",
