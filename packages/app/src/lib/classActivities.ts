@@ -132,7 +132,7 @@ export async function listPublishedActivities(): Promise<PublishedActivityOption
     const { data, error } = await supabase
         .from('activities')
         .select(
-            'id, title, course, unit, source_path, updated_at, current_version:activity_versions!activities_current_version_id_fkey(created_at)',
+            'id, title, course, unit, source_path, updated_at, current_version:activity_versions!activities_current_version_fk(created_at)',
         )
         .eq('status', 'published')
         .is('deleted_at', null)
