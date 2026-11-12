@@ -160,7 +160,33 @@ already in this file. Ranked inside each group; the author picks the order.
   student across devices.
 - Paste or drop a screenshot into the editor (suspected: no paste/drop
   handler; images only via the file picker).
-- Due dates / scheduling — part of the period planner, deferred by the HoD.
+- Due dates / scheduling — the author wants due dates (2026-11-13, "still a
+  good feature to have"); see "Due dates" below.
+
+**Group A** is in design: [ui-review-group-a.md](docs/design/ui-review-group-a.md)
+(G-1…G-8). **The filter bar** (author's screenshot, 2026-11-13) is in design:
+[activity-list-filters.md](docs/design/activity-list-filters.md) (F-1…F-6).
+
+## Due dates (author, 2026-11-13)
+
+Wanted by the author even though the HoD asked to hold the wider planning work.
+**TRIGGER: group A is built (author: "group A first"). Then its own design pass,
+before any code.** Things the pass must settle:
+- **Where the date lives.** 0001's unused `assignments` table already carries
+  `due_at`, but classes now hold activities through the class-activity rows
+  (the "Added 13 Nov" list), not through `assignments`. One date per class
+  per activity is the likely home. Reviving `assignments` instead is a
+  decision, not a default.
+- **What a student sees.** "Due Fri" on the Home row, a due-soon order, and
+  overdue wording that doesn't shame.
+- **What a teacher sees.** Progress columns flag late, and a "due this week"
+  view.
+- **Whether a due date ever locks anything.** Recommended: no, only a label.
+- **How it fits the period planner** ("BUILD ORDER" → the period planner design pass: future-dated
+  Today rows)
+  without two scheduling models.
+- **Time zones.** A due date is a date in the class's timezone (the per-teacher
+  timezone ruling).
 
 ## Lifting the teacher-paste block on ```video (amendment V-6, 2026-11-12)
 
