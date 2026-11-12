@@ -142,3 +142,28 @@ A wrong answer's pill says **"✗ Try again"** everywhere
 - **T2.** Or keep "Try again" as the default and override it only in the two
   one-try places? *(smaller change, but every new one-try surface must
   remember)*
+
+---
+
+## As built (2026-11-13)
+
+Items 3–8 are built on main (`2b15a765`, `6e2af905`, `d72bca1c`, `8263411a`,
+`63ee15d9`, review fixes `181fb5d5`); a Fable review's findings are fixed in
+the last. Notes:
+
+- **4** is a "Blank n of N" picker beside Answer settings, not caret-following:
+  sturdier inside MathLive. The incomplete-gap signifier is unchanged (4b).
+- **7** found and fixed a data-loss bug: the editor's dataPlot node had no
+  `dataVar` attribute, so an app edit of a seeded plot dropped its variable.
+  Choosing a variable widens the axis to the variable's range.
+- **8**: levels are free text (8 characters), suggesting the activity's own.
+  **Open question for the author:** "DoL passed" still pre-ticks only for lines
+  at level `A` (`lib/dolPass.ts` `DOL_BASE_LEVELS`), so a teacher's own level
+  words get no prefill. Should the base level be declared per activity?
+- **T1 (Try again) is HELD.** Honouring it means each graded block knows
+  whether a retry exists, which adds code to the student shell, at its cap
+  (158.7/158.7 KiB). It waits on the shell-size work
+  ([shell-size-review.md](shell-size-review.md)).
+- **Not fixed (older weakness, from the review):** the nested rich-text field
+  has no `definition` mark, so an imported `[[term]]` in a solution or model
+  answer could make the field mount empty. Not reproduced.

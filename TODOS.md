@@ -32,8 +32,10 @@ see an import-only FIELD inside a covered block. This sweep read every authored
 schema field against the editor's controls (two read-only agents, key claims
 re-checked by grep). Not triggered wishes: under the 2026-11-12 rule each is a
 debt. Ranked by what a teacher meets first; each gets its own short design pass.
-**Items 3–9 have their design passes, waiting on the author's rulings:**
-[gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md) (drafted 2026-11-13).
+**Items 3–8 BUILT 2026-11-13** on the author's rulings
+([gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md) → "As built"); item 9
+ruled "Figure source counts". Open from it: the "Try again" label (T1, held for
+the shell-size work) and DoL pass prefill reading only level `A`.
 
 1. ✅ **Misconception ids — BUILT 2026-11-12** (misconception-sensors.md →
    "GUI amendment 2026-11-12"). Also fixed: editing a blank's mistake feedback
