@@ -203,15 +203,18 @@ describe('Activity Bank filters and authors (0055)', () => {
         await screen.findByText('Lesson A');
         fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Year 7 Mathematics' } });
         expect(shown()).toEqual(['m1', 'm2']);
-        fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+        fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'review' } });
         expect(shown()).toEqual(['m2']);
         fireEvent.click(screen.getByText('Clear filters'));
         expect(shown()).toEqual(['m1', 'm2', 'm3']);
 
-        const tagGroup = screen.getByRole('group', { name: 'Topic tags' });
-        fireEvent.click(within(tagGroup).getByRole('button', { name: 'triangles' }));
-        fireEvent.click(within(tagGroup).getByRole('button', { name: 'rates' }));
+        // F-1: topics live behind one button, grouped by unit, with counts.
+        fireEvent.click(screen.getByRole('button', { name: /^Topics/ }));
+        const panel = screen.getByRole('dialog', { name: 'Filter by topic' });
+        fireEvent.click(within(panel).getAllByLabelText(/^triangles \(/)[0]!);
+        fireEvent.click(within(panel).getAllByLabelText(/^rates \(/)[0]!);
         expect(shown()).toEqual(['m1', 'm3']); // any of the chosen tags
+        expect(screen.getByRole('button', { name: 'Remove topic rates' })).toBeInTheDocument();
         fireEvent.click(screen.getByLabelText('Has a teacher guide'));
         expect(shown()).toEqual(['m1', 'm3']);
         fireEvent.change(screen.getByLabelText('Author'), { target: { value: 'Mr Okafor' } });

@@ -9,11 +9,14 @@ import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
-import { collectTagVocabulary, visibleTagChips } from '../lib/normalizeTags';
+import { FILTER_KEYS, STATUS_OPTIONS, matchesQuery, parseStatus, topicGroups } from '../lib/listFilters';
+import { useUrlFilters } from '../lib/useUrlFilters';
+import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
 import {
     distinctCourses,
     groupByUnit,
     sortForOutline,
+    unitOf,
 } from '../lib/activityGrouping';
 import {
     PEDAGOGICAL_ROLE_LABELS,
@@ -65,8 +68,8 @@ const ICON_BUTTON =
 // How many activities the "Recently edited" strip carries (D4). Five keeps it
 // one row at every viewport; it is a shortcut back into work, not a list.
 const RECENT_LIMIT = 5;
-/** Tag chips shown before "More tags" — the Bank's number (Bank.tsx TAG_LIMIT). */
-const TAG_CHIP_LIMIT = 12;
+/** F-5: how many recent pills show before "+N" (one line at page width). */
+const RECENT_SHOWN = 3;
 
 function formatEdited(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, {
@@ -242,15 +245,15 @@ export default function Activities() {
     // activities carrying BOTH, which is how a teacher actually hunts. Purely
     // client-side over the rows already fetched — the list is one author's own
     // activities, so there is no query to add and no index to depend on.
-    const [activeTags, setActiveTags] = useState<string[]>([]);
-
-    // Search (D9) and the drafts quick-filter (D11). Both AND with the tag
-    // chips: filters narrow, never widen. `drafts` is deliberately NOT a status
-    // facet — "finish my unfinished work" is a task; published/archived have no
-    // task behind them, so they get no control.
-    const [search, setSearch] = useState('');
-    const [draftsOnly, setDraftsOnly] = useState(false);
-    const [showAllTags, setShowAllTags] = useState(false);
+    // F-1…F-6 (activity-list-filters.md): every filter lives in the URL, so
+    // Back, refresh and a shared link keep it. All AND: filters narrow.
+    const filters = useUrlFilters();
+    const activeTags = filters.getAll(FILTER_KEYS.topic);
+    const search = filters.get(FILTER_KEYS.query);
+    const statusFilter = parseStatus(filters.get(FILTER_KEYS.status) || null);
+    const setSearch = (v: string) => filters.set({ [FILTER_KEYS.query]: v });
+    // F-5: the strip shows three; "+N" opens the rest.
+    const [showAllRecent, setShowAllRecent] = useState(false);
     const searchRef = useRef<HTMLInputElement | null>(null);
 
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -477,19 +480,16 @@ export default function Activities() {
     // loaded rows rather than queried separately: the list already holds every
     // activity this author owns, so a second round trip would only add a way
     // for the chips and the rows to disagree.
-    const tagVocabulary = collectTagVocabulary(activities);
-    const tagChips = visibleTagChips(activities, activeTags, TAG_CHIP_LIMIT, showAllTags);
+    const topics = topicGroups(activities, (a) => a.tags, (a) => unitOf(a));
 
     const toggleTag = (tag: string) => {
-        setActiveTags((prev) =>
-            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-        );
+        filters.set({
+            [FILTER_KEYS.topic]: activeTags.includes(tag) ? activeTags.filter((t) => t !== tag) : [...activeTags, tag],
+        });
     };
 
     const clearFilters = () => {
-        setActiveTags([]);
-        setDraftsOnly(false);
-        setSearch('');
+        filters.set({ [FILTER_KEYS.topic]: null, [FILTER_KEYS.status]: null, [FILTER_KEYS.query]: null });
     };
 
     // The recent strip (D4): most-recently-edited first, ALWAYS from the full
@@ -509,15 +509,18 @@ export default function Activities() {
     // which is what "I know its name" retrieval actually needs.
     const query = search.trim().toLowerCase();
     const anyFilter =
-        activeTags.length > 0 || draftsOnly || query.length > 0;
+        activeTags.length > 0 || statusFilter !== 'all' || query.length > 0;
 
     // Plain computation, NOT useMemo: these sit below the `if (!session)`
     // early return, where a hook would be a rules-of-hooks violation (lint
     // caught exactly that). Filtering + grouping a few hundred rows is
     // microseconds, so memoizing would buy nothing and cost a real hazard.
+    const changedIds = new Set(republishCandidates(activities).map((c) => c.row.id));
     const visibleActivities = activities.filter((a) => {
-        if (draftsOnly && a.status !== 'draft') return false;
-        if (query && !a.title.toLowerCase().includes(query)) return false;
+        if (statusFilter === 'drafts' && a.status !== 'draft') return false;
+        if (statusFilter === 'published' && a.status !== 'published') return false;
+        if (statusFilter === 'changed' && !changedIds.has(a.id)) return false;
+        if (!matchesQuery(a.title, a.tags, query)) return false;
         return activeTags.every((t) => (a.tags ?? []).includes(t));
     });
 
@@ -549,7 +552,6 @@ export default function Activities() {
     // The drafts chip earns its place only when there ARE drafts — same
     // no-empty-chrome rule the tag row already follows. An all-published
     // library shows no filter chrome at all.
-    const hasDrafts = activities.some((a) => a.status === 'draft');
 
     // "Republish changed" (R-1..R-7): shown only when something is waiting,
     // and its count is what the dialog would republish (quizzes and exams
@@ -623,26 +625,38 @@ export default function Activities() {
             <nav
             aria-label="Recently edited"
             className="mt-5 flex flex-wrap items-center gap-1.5"
+            data-recent-strip
             >
             <span aria-hidden="true" className="text-[10px] font-semibold uppercase tracking-wide text-muted">
             Recently edited
             </span>
-            {recent.map((a) => (
+            {(showAllRecent ? recent : recent.slice(0, RECENT_SHOWN)).map((a) => (
                 <Link
                 key={a.id}
                 to={`/activity/${a.id}`}
                 aria-label={`${a.title} — recently edited`}
-                className="max-w-[14rem] truncate rounded-full border border-line bg-canvas px-2.5 py-1 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink"
+                className="max-w-[11rem] truncate rounded-full border border-line bg-canvas px-2.5 py-1 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink"
                 >
                 {a.title}
                 </Link>
             ))}
+            {recent.length > RECENT_SHOWN && (
+                <button
+                type="button"
+                aria-expanded={showAllRecent}
+                onClick={() => setShowAllRecent((v) => !v)}
+                className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
+                >
+                {showAllRecent ? 'Fewer' : `+${recent.length - RECENT_SHOWN}`}
+                </button>
+            )}
             </nav>
         )}
 
-        {/* Search (D9). The placeholder advertises the shortcut — that is how
-            a keyboard affordance becomes discoverable without a legend. */}
-        <div className="mt-3">
+        {/* The filter bar (F-1…F-4): search (titles AND topics), Topics, and
+            Status on one line; chosen topics on one line below, only while
+            some are chosen. The placeholder advertises the "/" shortcut. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
         ref={searchRef}
         type="text"
@@ -654,60 +668,31 @@ export default function Activities() {
                 e.currentTarget.blur();
             }
         }}
-        aria-label="Search activities"
-        placeholder="Search activities…    /"
-        className="w-full rounded-md border border-line-strong bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        aria-label="Search activities and topics"
+        placeholder="Search activities and topics…    /"
+        className="min-w-[12rem] flex-1 rounded-md border border-line-strong bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         />
-        </div>
-
-        {/* Filter chips: the drafts task-filter (D11) leads, then the tag
-            vocabulary. The drafts chip is dashed so it reads as a different
-            KIND of filter than a topic tag. */}
-        {(hasDrafts || tagVocabulary.length > 0) && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {hasDrafts && (
-        <button
-        type="button"
-        aria-pressed={draftsOnly}
-        onClick={() => setDraftsOnly((v) => !v)}
-        className={`rounded-full border border-dashed px-2.5 py-1 text-xs font-medium transition ${
-            draftsOnly
-            ? 'border-ink bg-primary text-white'
-            : 'border-line-strong bg-canvas text-muted hover:text-ink'
-        }`}
-        >
-        drafts
-        </button>
-        )}
-        {tagChips.shown.map((tag) => {
-            const on = activeTags.includes(tag);
-            return (
-                <button
-                key={tag}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleTag(tag)}
-                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                    on
-                    ? 'border-ink bg-primary text-white'
-                    : 'border-line bg-canvas text-muted hover:border-line-strong hover:text-ink'
-                }`}
-                >
-                {tag}
-                </button>
-            );
-        })}
-        {(tagChips.hidden > 0 || showAllTags) && tagVocabulary.length > TAG_CHIP_LIMIT && (
-            <button
-            type="button"
-            onClick={() => setShowAllTags((v) => !v)}
-            className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
+        <TopicPicker groups={topics} chosen={activeTags} onToggle={toggleTag} />
+        {activities.length > 0 && (
+            <select
+            aria-label="Status"
+            value={statusFilter}
+            onChange={(e) => filters.set({ [FILTER_KEYS.status]: e.target.value === 'all' ? null : e.target.value })}
+            className="min-h-9 rounded-md border border-line-strong bg-canvas px-2 text-sm text-ink"
             >
-            {showAllTags ? 'Fewer tags' : `More tags (${tagChips.hidden})`}
-            </button>
+            {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                {o.label}
+                </option>
+            ))}
+            </select>
         )}
         </div>
-        )}
+        <ChosenTopics
+        chosen={activeTags}
+        onRemove={toggleTag}
+        onClear={() => filters.set({ [FILTER_KEYS.topic]: null })}
+        />
 
         {/* Count line — aria-live so a filter's effect is ANNOUNCED, not just
             shown. Only rendered while a filter is active; an unfiltered list

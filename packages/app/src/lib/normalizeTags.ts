@@ -80,25 +80,3 @@ export function collectTagVocabulary(
     return normalizeTags(all).sort((x, y) => x.localeCompare(y));
 }
 
-/** The chip row to show (playtest sweep 2026-11-12: My activities showed all
- *  59 chips where the Bank shows 12). Most-used first, then A–Z; capped at
- *  `limit` unless `all`, but a tag the teacher has ON always shows. */
-export function visibleTagChips(
-    activities: readonly { tags?: readonly string[] | null }[],
-    active: readonly string[],
-    limit: number,
-    all: boolean,
-): { shown: string[]; hidden: number } {
-    const counts = new Map<string, number>();
-    for (const tag of collectTagVocabulary(activities)) counts.set(tag, 0);
-    for (const a of activities) {
-        for (const t of normalizeTags([...(a.tags ?? [])])) counts.set(t, (counts.get(t) ?? 0) + 1);
-    }
-    const ordered = [...counts.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .map(([t]) => t);
-    if (all || ordered.length <= limit) return { shown: ordered, hidden: 0 };
-    const head = ordered.slice(0, limit);
-    const extraOn = ordered.slice(limit).filter((t) => active.includes(t));
-    return { shown: [...head, ...extraOn], hidden: ordered.length - head.length - extraOn.length };
-}

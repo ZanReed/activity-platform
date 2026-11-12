@@ -311,114 +311,114 @@ const TAGGED_ROWS = [
     },
 ];
 
-describe('Activities tag filter', () => {
+describe('Activities filter bar (F-1…F-4)', () => {
     beforeEach(() => {
         h.listResult.current = { data: TAGGED_ROWS, error: null };
     });
 
-    it('renders one chip per tag in use, deduped and sorted, after the drafts chip', async () => {
+    const openTopics = () => fireEvent.click(screen.getByRole('button', { name: /^Topics/ }));
+    const pick = (tag: string) =>
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Filter by topic' })).getByLabelText(new RegExp(`^${tag} \\(`)));
+
+    it('at rest, the whole vocabulary is ONE button with its count — no chip rows', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
-        const chips = screen
-            .getAllByRole('button', { pressed: false })
-            .map((b) => b.textContent);
-        // The drafts task-filter (D11) leads; the tag vocabulary follows.
-        expect(chips).toEqual([
-            'drafts',
-            'factoring',
-            'graphing',
-            'word problems',
-        ]);
+        expect(screen.getByRole('button', { name: 'Topics (3) ▾' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'graphing' })).toBeNull();
+        expect(screen.queryByRole('group', { name: 'Chosen topics' })).toBeNull();
     });
 
-    it('filters the list to activities carrying the picked tag', async () => {
+    it('a picked topic filters the list, shows as a removable chip, and ANDs with a second', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
-
-        fireEvent.click(screen.getByRole('button', { name: 'graphing' }));
-
+        openTopics();
+        pick('graphing');
         expect(screen.getByRole('link', { name: 'Graphing Lines' })).toBeTruthy();
         expect(screen.queryByRole('link', { name: 'Factoring Practice' })).toBeNull();
-        expect(screen.queryByRole('link', { name: 'Untagged Sheet' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Remove topic graphing' })).toBeTruthy();
+        pick('factoring');
+        expect(screen.queryByRole('link', { name: 'Graphing Lines' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Remove topic factoring' }));
+        expect(screen.getByRole('link', { name: 'Graphing Lines' })).toBeTruthy();
     });
 
-    it('ANDs multiple tags — each chip narrows', async () => {
+    it('the panel finds a topic by typing, and Escape closes it', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Factoring Practice' });
+        openTopics();
+        const dialog = screen.getByRole('dialog', { name: 'Filter by topic' });
+        fireEvent.change(within(dialog).getByLabelText('Find a topic'), { target: { value: 'word' } });
+        expect(within(dialog).getByLabelText(/^word problems \(/)).toBeTruthy();
+        expect(within(dialog).queryByLabelText(/^graphing \(/)).toBeNull();
+        fireEvent.keyDown(dialog, { key: 'Escape' });
+        expect(screen.queryByRole('dialog', { name: 'Filter by topic' })).toBeNull();
+    });
 
-        fireEvent.click(screen.getByRole('button', { name: 'factoring' }));
+    it('F-3: the search box matches topic names as well as titles', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Factoring Practice' });
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), { target: { value: 'graphing' } });
+        expect(screen.getByRole('link', { name: 'Graphing Lines' })).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), { target: { value: 'word prob' } });
         expect(screen.getByRole('link', { name: 'Factoring Practice' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Graphing Lines' })).toBeNull();
+    });
 
-        // Adding a tag the row does NOT carry empties the list, rather than
-        // widening it the way an OR would.
-        fireEvent.click(screen.getByRole('button', { name: 'graphing' }));
+    it('F-4: Status narrows to drafts or published', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Factoring Practice' });
+        fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'published' } });
+        expect(screen.getByRole('link', { name: 'Graphing Lines' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Untagged Sheet' })).toBeNull();
+        fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'drafts' } });
+        expect(screen.getByRole('link', { name: 'Untagged Sheet' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Graphing Lines' })).toBeNull();
+    });
+
+    it('filtered-to-nothing offers a way out, and clear resets every filter', async () => {
+        renderList();
+        await screen.findByRole('link', { name: 'Factoring Practice' });
+        openTopics();
+        pick('factoring');
+        pick('graphing');
+        expect(screen.getByText(/No activities match/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Clear the filter' }));
+        expect(screen.getByRole('link', { name: 'Factoring Practice' })).toBeTruthy();
+        expect(screen.queryByRole('group', { name: 'Chosen topics' })).toBeNull();
+    });
+
+    it('F-6: filters come from the URL, so Back and a shared link keep them', async () => {
+        render(
+            <MemoryRouter initialEntries={['/activities?topic=graphing&q=lines']}>
+                <Activities />
+            </MemoryRouter>,
+        );
+        await screen.findByRole('link', { name: 'Graphing Lines' });
+        expect(screen.queryByRole('link', { name: 'Factoring Practice' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Remove topic graphing' })).toBeTruthy();
+        expect((screen.getByLabelText('Search activities and topics') as HTMLInputElement).value).toBe('lines');
+    });
+
+    it('F-4: "Changed since publish" shows published activities with unpublished edits', async () => {
+        h.listResult.current = {
+            data: [
+                { ...TAGGED_ROWS[1], draft_schema: '1' },
+                { ...TAGGED_ROWS[0], status: 'published', draft_schema: null },
+            ],
+            error: null,
+        };
+        renderList();
+        await screen.findByRole('link', { name: 'Graphing Lines' });
+        fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'changed' } });
+        expect(screen.getByRole('link', { name: 'Graphing Lines' })).toBeTruthy();
         expect(screen.queryByRole('link', { name: 'Factoring Practice' })).toBeNull();
     });
 
-    it('marks an active chip pressed, and toggles it back off', async () => {
-        renderList();
-        await screen.findByRole('link', { name: 'Factoring Practice' });
-
-        const chip = screen.getByRole('button', { name: 'graphing' });
-        fireEvent.click(chip);
-        expect(chip.getAttribute('aria-pressed')).toBe('true');
-
-        fireEvent.click(chip);
-        expect(chip.getAttribute('aria-pressed')).toBe('false');
-        expect(screen.getByRole('link', { name: 'Factoring Practice' })).toBeTruthy();
-    });
-
-    // Filtered-to-nothing is a DIFFERENT state from an empty library, and it
-    // must offer a way back out rather than looking like a broken page.
-    it('shows a filtered-to-nothing message with a way to clear', async () => {
-        renderList();
-        await screen.findByRole('link', { name: 'Factoring Practice' });
-
-        fireEvent.click(screen.getByRole('button', { name: 'factoring' }));
-        fireEvent.click(screen.getByRole('button', { name: 'graphing' }));
-
-        expect(screen.getByText(/No activities match/)).toBeTruthy();
-        expect(screen.queryByText(/No activities yet/)).toBeNull();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Clear the filter' }));
-        expect(screen.getByRole('link', { name: 'Factoring Practice' })).toBeTruthy();
-    });
-
-    it('clear (in the count line) resets every active filter at once', async () => {
-        renderList();
-        await screen.findByRole('link', { name: 'Factoring Practice' });
-
-        fireEvent.click(screen.getByRole('button', { name: 'factoring' }));
-        fireEvent.click(screen.getByRole('button', { name: 'drafts' }));
-        fireEvent.click(screen.getByRole('button', { name: 'clear' }));
-
-        expect(screen.getByRole('link', { name: 'Untagged Sheet' })).toBeTruthy();
-        expect(
-            screen.getByRole('button', { name: 'factoring' }).getAttribute('aria-pressed'),
-        ).toBe('false');
-    });
-
-    it('renders no filter chrome at all when nothing is tagged and nothing is draft', async () => {
-        h.listResult.current = {
-            data: [{ ...TAGGED_ROWS[2], status: 'published' }],
-            error: null,
-        };
+    it('no Topics button when nothing is tagged', async () => {
+        h.listResult.current = { data: [{ ...TAGGED_ROWS[2], status: 'published' }], error: null };
         renderList();
         await screen.findByRole('link', { name: 'Untagged Sheet' });
-        expect(screen.queryByRole('button', { name: 'clear' })).toBeNull();
-        expect(screen.queryByRole('button', { pressed: false })).toBeNull();
-    });
-
-    // The drafts chip is a task filter, so it appears on the strength of
-    // drafts existing — independent of whether anything is tagged.
-    it('shows the drafts chip when drafts exist but nothing is tagged', async () => {
-        h.listResult.current = {
-            data: [{ ...TAGGED_ROWS[2], status: 'draft' }],
-            error: null,
-        };
-        renderList();
-        await screen.findByRole('link', { name: 'Untagged Sheet' });
-        expect(screen.getByRole('button', { name: 'drafts' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /^Topics/ })).toBeNull();
     });
 });
 
@@ -524,13 +524,16 @@ describe('Activities curriculum outline', () => {
             .getAllByRole('link')
             .map((a) => a.getAttribute('aria-label'));
         expect(titles[0]).toBe('Vertex Form Exit Ticket — recently edited');
-        expect(titles).toHaveLength(4);
+        // F-5: three on one line, the rest behind "+N".
+        expect(titles).toHaveLength(3);
+        fireEvent.click(within(nav).getByRole('button', { name: '+1' }));
+        expect(within(nav).getAllByRole('link')).toHaveLength(4);
     });
 
     it('filters by title substring, case-insensitively', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        fireEvent.change(screen.getByLabelText('Search activities'), {
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), {
             target: { value: 'radical' },
         });
         expect(screen.getByRole('link', { name: 'Radical Equations' })).toBeTruthy();
@@ -541,7 +544,7 @@ describe('Activities curriculum outline', () => {
     it('hides unit groups that have no matches under a filter', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        fireEvent.change(screen.getByLabelText('Search activities'), {
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), {
             target: { value: 'radical' },
         });
         const headings = screen
@@ -554,21 +557,21 @@ describe('Activities curriculum outline', () => {
     it('leaves the recent strip intact while a filter is active', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        fireEvent.change(screen.getByLabelText('Search activities'), {
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), {
             target: { value: 'radical' },
         });
         const nav = screen.getByRole('navigation', { name: 'Recently edited' });
-        expect(within(nav).getAllByRole('link')).toHaveLength(4);
+        expect(within(nav).getAllByRole('link')).toHaveLength(3);
     });
 
     it('the drafts chip narrows to drafts and ANDs with search', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        fireEvent.click(screen.getByRole('button', { name: 'drafts' }));
+        fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'drafts' } });
         expect(screen.getByRole('link', { name: 'Factoring Trinomials' })).toBeTruthy();
         expect(screen.queryByRole('link', { name: 'Radical Equations' })).toBeNull();
 
-        fireEvent.change(screen.getByLabelText('Search activities'), {
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), {
             target: { value: 'untitled' },
         });
         expect(screen.queryByRole('link', { name: 'Factoring Trinomials' })).toBeNull();
@@ -580,7 +583,7 @@ describe('Activities curriculum outline', () => {
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
         expect(screen.queryByText(/of 4 shown/)).toBeNull();
 
-        fireEvent.click(screen.getByRole('button', { name: 'drafts' }));
+        fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'drafts' } });
         const count = screen.getByRole('status');
         expect(count.getAttribute('aria-live')).toBe('polite');
         expect(count.textContent).toContain('2 of 4 shown');
@@ -589,7 +592,7 @@ describe('Activities curriculum outline', () => {
     it('Escape in the search box clears it', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        const box = screen.getByLabelText('Search activities') as HTMLInputElement;
+        const box = screen.getByLabelText('Search activities and topics') as HTMLInputElement;
         fireEvent.change(box, { target: { value: 'radical' } });
         fireEvent.keyDown(box, { key: 'Escape' });
         expect(box.value).toBe('');
@@ -599,7 +602,7 @@ describe('Activities curriculum outline', () => {
     it('`/` focuses the search box from the page body', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        const box = screen.getByLabelText('Search activities');
+        const box = screen.getByLabelText('Search activities and topics');
         expect(document.activeElement).not.toBe(box);
         fireEvent.keyDown(window, { key: '/' });
         expect(document.activeElement).toBe(box);
@@ -609,7 +612,7 @@ describe('Activities curriculum outline', () => {
     it('`/` does not steal focus while an input already has it', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
-        const box = screen.getByLabelText('Search activities') as HTMLInputElement;
+        const box = screen.getByLabelText('Search activities and topics') as HTMLInputElement;
         box.focus();
         const evt = new KeyboardEvent('keydown', { key: '/', cancelable: true, bubbles: true });
         window.dispatchEvent(evt);
@@ -703,7 +706,7 @@ describe('Activities outline — catalogue-path order (Lane B)', () => {
         await screen.findByRole('link', { name: 'Proportional Intro' });
         expect(headings()).toEqual(['Rates', 'Graphs']);
 
-        fireEvent.change(screen.getByLabelText('Search activities'), {
+        fireEvent.change(screen.getByLabelText('Search activities and topics'), {
             target: { value: 'review' },
         });
 

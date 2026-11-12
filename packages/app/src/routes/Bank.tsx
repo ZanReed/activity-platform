@@ -13,7 +13,10 @@
 // reorder them).
 // =============================================================================
 
-import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { FILTER_KEYS, topicGroups } from '../lib/listFilters';
+import { useUrlFilters } from '../lib/useUrlFilters';
+import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import {
@@ -214,41 +217,20 @@ function NameControl() {
 }
 
 const NO_AUTHOR = '\u0000no-author';
-const TAG_LIMIT = 12;
-
-function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
-    return (
-        <button
-            type="button"
-            aria-pressed={on}
-            onClick={onClick}
-            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition ${
-                on ? 'border-accent bg-accent text-white' : 'border-line bg-canvas text-muted hover:text-strong'
-            }`}
-        >
-            {children}
-        </button>
-    );
-}
-
-function toggleIn<T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> {
-    const next = new Set(set);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    return next;
-}
 
 export default function Bank() {
     const navigate = useNavigate();
     const [entries, setEntries] = useState<BankEntry[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [query, setQuery] = useState('');
-    const [course, setCourse] = useState<string>('');
-    const [roles, setRoles] = useState<ReadonlySet<PedagogicalRole>>(new Set());
-    const [tags, setTags] = useState<ReadonlySet<string>>(new Set());
-    const [guideOnly, setGuideOnly] = useState(false);
-    const [author, setAuthor] = useState<string>('');
-    const [showAllTags, setShowAllTags] = useState(false);
+    // F-6: every filter lives in the URL (Back, refresh, a shared link).
+    const filters = useUrlFilters();
+    const query = filters.get(FILTER_KEYS.query);
+    const course = filters.get(FILTER_KEYS.course);
+    const type = filters.get(FILTER_KEYS.type) as PedagogicalRole | '';
+    const chosenTopics = filters.getAll(FILTER_KEYS.topic);
+    const guideOnly = filters.get(FILTER_KEYS.guide) === '1';
+    const author = filters.get(FILTER_KEYS.author);
+    const setQuery = (v: string) => filters.set({ [FILTER_KEYS.query]: v });
     const [lister, setLister] = useState(false);
     const [panel, setPanel] = useState<Panel>(null);
     const [addingId, setAddingId] = useState<string | null>(null);
@@ -285,13 +267,12 @@ export default function Bank() {
         [entries],
     );
 
-    // Tag chips, most-used first; the long tail behind "More tags".
-    const tagCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        for (const e of entries ?? []) for (const t of e.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
-        return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    }, [entries]);
-    const shownTags = showAllTags ? tagCounts : tagCounts.slice(0, TAG_LIMIT);
+    // F-1: topics grouped by the unit they appear in.
+    const topics = useMemo(() => topicGroups(entries ?? [], (e) => e.tags, (e) => e.unit), [entries]);
+    const toggleTopic = (t: string) =>
+        filters.set({
+            [FILTER_KEYS.topic]: chosenTopics.includes(t) ? chosenTopics.filter((x) => x !== t) : [...chosenTopics, t],
+        });
 
     const roleOptions = useMemo(
         () => PEDAGOGICAL_ROLES.filter((r) => (entries ?? []).some((e) => e.pedagogical_role === r)),
@@ -315,8 +296,8 @@ export default function Bank() {
         return (entries ?? []).filter(
             (e) =>
                 (!course || e.course === course) &&
-                (roles.size === 0 || roles.has(e.pedagogical_role as PedagogicalRole)) &&
-                (tags.size === 0 || e.tags.some((t) => tags.has(t))) &&
+                (!type || e.pedagogical_role === type) &&
+                (chosenTopics.length === 0 || e.tags.some((t) => chosenTopics.includes(t))) &&
                 (!guideOnly || e.has_guide) &&
                 (!author || (author === NO_AUTHOR ? !e.author_name : e.author_name === author)) &&
                 (!q ||
@@ -325,17 +306,19 @@ export default function Bank() {
                     (e.unit ?? '').toLowerCase().includes(q) ||
                     (e.author_name ?? '').toLowerCase().includes(q)),
         );
-    }, [entries, query, course, roles, tags, guideOnly, author]);
+    }, [entries, query, course, type, chosenTopics.join('\u0000'), guideOnly, author]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const filtering =
-        query.trim() !== '' || course !== '' || roles.size > 0 || tags.size > 0 || guideOnly || author !== '';
+        query.trim() !== '' || course !== '' || type !== '' || chosenTopics.length > 0 || guideOnly || author !== '';
     const clearFilters = () => {
-        setQuery('');
-        setCourse('');
-        setRoles(new Set());
-        setTags(new Set());
-        setGuideOnly(false);
-        setAuthor('');
+        filters.set({
+            [FILTER_KEYS.query]: null,
+            [FILTER_KEYS.course]: null,
+            [FILTER_KEYS.type]: null,
+            [FILTER_KEYS.topic]: null,
+            [FILTER_KEYS.guide]: null,
+            [FILTER_KEYS.author]: null,
+        });
     };
 
     // Group consecutive rows by course + unit, preserving list_bank's order.
@@ -393,7 +376,7 @@ export default function Bank() {
                         <select
                             aria-label="Subject"
                             value={course}
-                            onChange={(e) => setCourse(e.target.value)}
+                            onChange={(e) => filters.set({ [FILTER_KEYS.course]: e.target.value })}
                             className="rounded-md border border-line-strong bg-canvas px-2 py-1.5 text-sm text-ink"
                         >
                             <option value="">All subjects</option>
@@ -408,7 +391,7 @@ export default function Bank() {
                         <select
                             aria-label="Author"
                             value={author}
-                            onChange={(e) => setAuthor(e.target.value)}
+                            onChange={(e) => filters.set({ [FILTER_KEYS.author]: e.target.value })}
                             className="rounded-md border border-line-strong bg-canvas px-2 py-1.5 text-sm text-ink"
                         >
                             <option value="">All authors</option>
@@ -420,40 +403,41 @@ export default function Bank() {
                             {authors.unnamed && <option value={NO_AUTHOR}>Unnamed</option>}
                         </select>
                     )}
+                    {roleOptions.length > 1 && (
+                        <select
+                            aria-label="Type"
+                            value={type}
+                            onChange={(e) => filters.set({ [FILTER_KEYS.type]: e.target.value })}
+                            className="rounded-md border border-line-strong bg-canvas px-2 py-1.5 text-sm text-ink"
+                        >
+                            <option value="">All types</option>
+                            {roleOptions.map((r) => (
+                                <option key={r} value={r}>
+                                    {PEDAGOGICAL_ROLE_LABELS[r]}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    <TopicPicker groups={topics} chosen={chosenTopics} onToggle={toggleTopic} />
+                    {entries && entries.length > 0 && (
+                        <label className="flex items-center gap-1.5 text-xs text-muted">
+                            <input
+                                type="checkbox"
+                                checked={guideOnly}
+                                onChange={(e) => filters.set({ [FILTER_KEYS.guide]: e.target.checked ? '1' : null })}
+                            />
+                            Has a teacher guide
+                        </label>
+                    )}
                 </div>
 
                 {entries && entries.length > 0 && (
-                    <div className="mt-3 space-y-2" data-bank-filters>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            {roleOptions.length > 1 &&
-                                roleOptions.map((r) => (
-                                    <Chip key={r} on={roles.has(r)} onClick={() => setRoles((cur) => toggleIn(cur, r))}>
-                                        {PEDAGOGICAL_ROLE_LABELS[r]}
-                                    </Chip>
-                                ))}
-                            <label className="ml-1 flex items-center gap-1.5 text-xs text-muted">
-                                <input type="checkbox" checked={guideOnly} onChange={(e) => setGuideOnly(e.target.checked)} />
-                                Has a teacher guide
-                            </label>
-                        </div>
-                        {tagCounts.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5" aria-label="Topic tags" role="group">
-                                {shownTags.map(([t]) => (
-                                    <Chip key={t} on={tags.has(t)} onClick={() => setTags((cur) => toggleIn(cur, t))}>
-                                        {t}
-                                    </Chip>
-                                ))}
-                                {tagCounts.length > TAG_LIMIT && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAllTags((v) => !v)}
-                                        className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
-                                    >
-                                        {showAllTags ? 'Fewer tags' : `More tags (${tagCounts.length - TAG_LIMIT})`}
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                    <div className="mt-2 space-y-2" data-bank-filters>
+                        <ChosenTopics
+                            chosen={chosenTopics}
+                            onRemove={toggleTopic}
+                            onClear={() => filters.set({ [FILTER_KEYS.topic]: null })}
+                        />
                         {filtering && (
                             <p className="text-xs text-muted" role="status">
                                 Showing {visible.length} of {entries.length}.{' '}
