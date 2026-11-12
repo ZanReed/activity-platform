@@ -1,7 +1,7 @@
 # Student shell size review — measurements, savings, and a policy that stops the creep
 
 **Status:** ⚖ **RULED 2026-11-13: the author accepted every recommendation** in §6 (D1–D10) and §8.4 (T1–T9).
-✅ **BUILT 2026-11-13 (first slices):** student tier A (D1: R1–R4) with the fixed ceiling, spend meter, `EAGER_BLOCKS` guard and brotli row (D2–D5, D10), and teacher T1 + T5. Measured under CI's env: shell **162,470 → 159,049 B gz** (158.66 → 155.32 KiB); Bank journey **301.4 → 5.3**, Print **684 → 78.0** KiB gz. Every guard mutation-tested. ✅ **Then T2 + T3 + T8 (same day):** y-tiptap stubbed and the markdown import dialog lazy, editor journey **761.8 → 690.4** KiB gz (cap 840 → 760, plus a `lazyOut` row for the dialog); the lint rule refuses value imports of `lib/serialize`, the config drawer and the graph-kit barrel from non-editor routes. A real drag-reorder could not be driven under Playwright with or without the stub, so it is an author eyeball check. ✅ **T4 built (same day, ruled as recommended):** Responses **79.0 → 33.8**, Progress **80.0 → 34.9**, answer panel **75 → 29.8** KiB gz; mathjs ledger row + forbids on all three. ✅ **T6 built (same day):** the summed `prosemirror` ledger row is no longer the editor's growth gate (`journey: editor` is); it measures 253.1 and its cap moved 292 → 320, loose on purpose. **The review's build list is done.** Held in reserve: D6–D8. Measure first: T7. Declined: D9's R11–R13 and T9.
+✅ **BUILT 2026-11-13 (first slices):** student tier A (D1: R1–R4) with the fixed ceiling, spend meter, `EAGER_BLOCKS` guard and brotli row (D2–D5, D10), and teacher T1 + T5. Measured under CI's env: shell **162,470 → 159,049 B gz** (158.66 → 155.32 KiB); Bank journey **301.4 → 5.3**, Print **684 → 78.0** KiB gz. Every guard mutation-tested. ✅ **Then T2 + T3 + T8 (same day):** y-tiptap stubbed and the markdown import dialog lazy, editor journey **761.8 → 690.4** KiB gz (cap 840 → 760, plus a `lazyOut` row for the dialog); the lint rule refuses value imports of `lib/serialize`, the config drawer and the graph-kit barrel from non-editor routes. A real drag-reorder could not be driven under Playwright with or without the stub, so it is an author eyeball check. ✅ **T4 built (same day, ruled as recommended):** Responses **79.0 → 33.8**, Progress **80.0 → 34.9**, answer panel **75 → 29.8** KiB gz; mathjs ledger row + forbids on all three. ✅ **T6 built (same day):** the summed `prosemirror` ledger row is no longer the editor's growth gate (`journey: editor` is); it measures 253.1 and its cap moved 292 → 320, loose on purpose. **The review's build list is done.** Held in reserve: D6–D8. **T7 measured (§8.6), decisions T7-1/T7-2 open.** Declined: D9's R11–R13 and T9.
 **Date:** 2026-11-13, measured at `018d52b8` (main) under CI's build env
 (`VITE_SUPABASE_URL=http://127.0.0.1:54399`, `VITE_SUPABASE_ANON_KEY=e2e-anon-key`),
 in a detached scratch worktree so the GUI-sweep session's uncommitted edits were not measured.
@@ -424,3 +424,46 @@ seeded answers lazily, with a no-flash requirement". The code says something sim
 | **T4-5** | Scope: leave the Bank preview (`BankItemPreview`, ~70 KiB, imports `substituteSeededAnswers`) and Print (which genuinely seeds to print) out of T4? | **Yes.** Print needs the code. The Bank preview could take the same pattern later; file it with the trigger "a Bank preview is reported slow" |
 
 ⚖ **RULED 2026-11-13 (author): T4-1 to T4-5 as recommended.** Built the same day; see the Status line.
+
+### 8.6 T7 measured: what a returning user re-downloads per deploy (2026-11-13)
+
+**Method.** `scripts/measure-deploy-churn.mjs` rebuilds real deployed commits (each push to `main`
+deploys; the commits are the head SHAs of CI's push runs) under CI's env. For each consecutive pair
+it sums the gz bytes of files in the new build's static closure whose names the old build did not
+have. That is what a warm cache fetches, since `/assets/*` is immutable. It ran over the 13 deploys
+from `5d1980f8` (2026-11-05) to `e5df6dea` (this review's last slice), in four variants: as shipped,
+the TR9 vendor `manualChunks` rule, Rollup's `minifyInternalExports: false` ("stable"), and both.
+
+**Findings.**
+
+| Over 13 deploys (10 changed code) | Student shell re-download | Editor re-download (shell + editor closure) |
+|---|---|---|
+| As shipped | **1,583 KiB** (the whole ~158 KiB shell, every code deploy) | **5,844 KiB** (~590 of ~915 per code deploy, 64%) |
+| Vendor split | 2,423 KiB | 4,372 KiB |
+| Stable exports only | 1,594 KiB | 5,876 KiB |
+| Vendor split + stable exports | 1,919 KiB | 3,872 KiB (~360 per code deploy, −34%) |
+
+1. **The naive vendor rule leaks into the student shell.** In every split build, the entry
+   statically imported `vendor-editor` and `vendor-mathjs`, which took the shell from ~155 to
+   **~358 KiB**. The rule groups whole libraries, and the shell uses a small piece of at least one
+   of them, so the whole group came with it. The budget's purity rows would have failed it. A safe
+   rule would have to exclude every module the entry can reach, using the module graph
+   (`getModuleInfo`), not only package names.
+2. **A vendor chunk re-hashes even when its code doesn't change.** Two `vendor-mathjs` builds were
+   byte-identical except for the export alias line (`export{ns as a,…}`). Rollup reassigns those
+   aliases when importing code changes. That is why the split saved nothing on 4 of the 10 code
+   deploys. `minifyInternalExports: false` fixes this, but only together with the split.
+3. **Students re-download the whole shell on every deploy that changes code.** It is one hashed
+   entry chunk, so any change to student or shared code renames it. That is ~158 KiB per student
+   per code deploy (10 of 13 here), from the CDN. No chunk rule changes it short of splitting
+   React and the other libraries out of the entry, which §5 P-7 says re-anchors the size gate.
+
+**What a correct split would buy:** about 230 KiB per code deploy, per teacher, on staff devices
+with a warm cache. That is modest. Against it: a manualChunks rule that must be made shell-safe
+through the module graph, a stable-exports cost of ~1–6 KiB gz across the editor chunks, and a new
+way for a rule change to cost students 200 KiB.
+
+| # | Decision | Recommendation |
+|---|---|---|
+| **T7-1** | Build TR9, made shell-safe and with stable exports? | **No, close T7 here.** The saving is real but small for teachers. The simple version is unsafe for students, and the safe version is complexity a teacher would not notice. **Re-measure trigger:** a teacher reports the editor being slow to open after updates, or deploys become several a day during term. The script is committed for that |
+| **T7-2** | Students re-download the shell (~158 KiB) on each code deploy. Once classes start (~Feb 2027), push to `main` outside school hours in both NZ and US time zones? | **Yes, as a working norm, not a guard.** It costs nothing and keeps the re-download off a class's shared Wi-Fi mid-lesson. It also keeps the service worker's "new version" notice from interrupting a lesson. Recorded in STATE. A CI-time check would be the wrong lever |
