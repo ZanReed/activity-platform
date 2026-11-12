@@ -33,9 +33,18 @@ export default function MathPromptControls({
   // GUI sweep item 4 (ruled 2026-11-13): every gap has its own settings, not
   // only the first ("single-gap v1" until then). The picker names the gap;
   // a deleted gap falls back to gap 1.
-  const [chosen, setChosen] = useState(0);
-  const index = chosen < prompts.length ? chosen : 0;
+  // Held as the prompt's id, not its index: prompts[] skips gaps with no
+  // answer yet, so an index would slide onto a different gap when an earlier
+  // one is filled or cleared (Fable review, 2026-11-13).
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const index = Math.max(0, prompts.findIndex((p) => p.id === chosenId));
   const prompt = prompts[index];
+  // Numbered as the gaps sit in the formula, answered or not.
+  const gapOrder = placeholderIds(latex);
+  const gapLabel = (id: string) => {
+    const at = gapOrder.indexOf(id);
+    return at === -1 ? 'Blank' : `Blank ${at + 1} of ${gapOrder.length}`;
+  };
 
   // Signifier (MA-DR4): a placeholder present in the latex but not yet in
   // prompts[] is an unanswered gap — an incomplete question. Flag it so the
@@ -66,18 +75,18 @@ export default function MathPromptControls({
             <select
               className="math-gap-picker"
               aria-label="Which blank's answer settings"
-              value={index}
+              value={prompt?.id ?? ''}
               onMouseDown={() => {
                 keepEditingRef.current = true;
               }}
               onChange={(e) => {
-                setChosen(Number(e.target.value));
+                setChosenId(e.target.value);
                 setShowSettings(true);
               }}
             >
-              {prompts.map((p, i) => (
-                <option key={p.id} value={i}>
-                  {`Blank ${i + 1} of ${prompts.length}`}
+              {prompts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {gapLabel(p.id)}
                 </option>
               ))}
             </select>

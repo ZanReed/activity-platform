@@ -297,25 +297,30 @@ test('correspondence: the drawer has the worked solution, work space and numberi
 // GUI sweep item 7 (ruled 2026-11-13): a data plot can draw from a seeded
 // `sample` variable. The node had no `dataVar` attr at all until this change,
 // so the round trip below is also the guard for that data loss.
-async function setSampleNames(page: Page, names: string[]) {
+async function setSamples(page: Page, samples: { name: string; min: number; max: number }[]) {
     await page.evaluate((n) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ed = (window as any).__tiptapEditor;
         const storage = ed.storage.sectionBreak;
-        storage.seedSampleNames = n;
+        storage.seedSamples = n;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         storage.listeners.forEach((l: any) => l());
-    }, names);
+    }, samples);
 }
 
 test('data plot: the Data choice sets dataVar, and it survives the document JSON', async ({ page }) => {
-    await setSampleNames(page, ['scores']);
+    await setSamples(page, [{ name: 'scores', min: 0, max: 50 }]);
     await insertAndSelect(page, 'insertDataPlot', 'dataPlot');
     await gear(page).click();
     await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
     const plot = page.locator(DRAWER).getByRole('combobox', { name: 'Plot' });
     await plot.selectOption({ label: 'Seeded variable scores (different for each student)' });
     expect(await attrOfFirst(page, 'dataPlot', 'dataVar')).toBe('scores');
+    // The axis now spans the variable's whole range (0..50).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const config = (await attrOfFirst(page, 'dataPlot', 'config')) as any;
+    expect(config.min).toBeLessThanOrEqual(0);
+    expect(config.max).toBeGreaterThanOrEqual(50);
     const html = await page.evaluate(() => (window as any).__tiptapEditor.getHTML()); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(html).toContain('data-dataplot-var="scores"');
     await plot.selectOption({ label: 'These numbers' });
@@ -323,7 +328,7 @@ test('data plot: the Data choice sets dataVar, and it survives the document JSON
 });
 
 test('data plot: a variable no longer declared shows a warning, not a silent reset', async ({ page }) => {
-    await setSampleNames(page, ['scores']);
+    await setSamples(page, [{ name: 'scores', min: 0, max: 50 }]);
     await insertAndSelect(page, 'insertDataPlot', 'dataPlot');
     await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

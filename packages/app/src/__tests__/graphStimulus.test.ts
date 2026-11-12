@@ -140,6 +140,23 @@ describe('the stimulus survives import → document → editor → document', ()
     });
 });
 
+describe('a description with no figure is not saved (GUI sweep review, 2026-11-13)', () => {
+    it('removing the stimulus drops stimulusAlt on save', () => {
+        const meta = { title: 'T' } as Parameters<typeof tiptapToActivity>[1];
+        const tiptap = wrapBlocksStrict(graph(...REFLECTION).blocks);
+        const visit = (n: { type?: string; attrs?: Record<string, unknown>; content?: unknown[] }) => {
+            if (n.type === 'interactiveGraph' && n.attrs) n.attrs.stimulus = [];
+            for (const c of (n.content ?? []) as (typeof n)[]) visit(c);
+        };
+        visit(tiptap as never);
+        const block = tiptapToActivity(tiptap, meta)
+            .sections.flatMap((s) => s.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)))
+            .find((b) => b.type === 'interactive_graph') as InteractiveGraphBlock;
+        expect(block.stimulus).toEqual([]);
+        expect(block.stimulusAlt).toBeUndefined();
+    });
+});
+
 describe('segment arrowheads and dashes (arrowhead Drop 1)', () => {
     const segs = (r: ReturnType<typeof graph>, key = 'stimulus') =>
         ((attrsOf(r)[key] ?? (attrsOf(r).interaction as Record<string, unknown>)?.drawables) as Record<string, unknown>[]).filter(

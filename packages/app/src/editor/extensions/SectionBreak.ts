@@ -36,8 +36,9 @@ export interface SectionBreakStorage {
     isCopy: boolean;
     /** The activity-level seed variable names (meta.seedVars). */
     seedNames: string[];
-    /** The `sample` ones among them — what a data plot can draw from. */
-    seedSampleNames: string[];
+    /** The `sample` ones among them, with their ranges — what a data plot
+     *  can draw from. */
+    seedSamples: { name: string; min: number; max: number }[];
     /** Panels re-render when it changes (no transaction fires). */
     listeners: Set<() => void>;
 }
@@ -52,7 +53,7 @@ export const SectionBreak = Node.create<Record<string, never>, SectionBreakStora
     draggable: true,
 
     addStorage() {
-        return { isCopy: false, seedNames: [], seedSampleNames: [], listeners: new Set() };
+        return { isCopy: false, seedNames: [], seedSamples: [], listeners: new Set() };
     },
 
     addAttributes() {

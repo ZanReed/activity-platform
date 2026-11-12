@@ -107,7 +107,7 @@ export const renderSolutionField = inlineAttrField(
 export const renderModelAnswerField = inlineAttrField(
     'answer',
     'Model answer',
-    'What a full-marks answer says. Shown to students after the section is checked, and to you when grading.',
+    'What a full-marks answer says. Teacher-only: students never see it; it prints on the answer key.',
 );
 
 /**

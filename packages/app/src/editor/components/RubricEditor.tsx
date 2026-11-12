@@ -125,9 +125,17 @@ export default function RubricEditor({
                             placeholder="Level"
                             aria-label="Level this line shows"
                             disabled={!isEditable}
+                            // Trimmed on blur, not per keystroke, so a level can
+                            // hold a space ("Not yet").
                             onChange={(e) => {
-                                const level = e.target.value.trim();
+                                const level = e.target.value;
                                 updateCriterion(c.id, { level: level === '' ? undefined : level });
+                            }}
+                            onBlur={(e) => {
+                                const level = e.target.value.trim();
+                                if (level !== e.target.value) {
+                                    updateCriterion(c.id, { level: level === '' ? undefined : level });
+                                }
                             }}
                             onKeyDown={(e) => e.stopPropagation()}
                         />

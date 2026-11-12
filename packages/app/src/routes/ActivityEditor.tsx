@@ -922,7 +922,9 @@ export default function ActivityEditor() {
             videoMeta={{ activityType: meta.activityType, submissionMode: meta.submissionMode }}
             isBankCopy={isBankCopy}
             seedNames={meta.seedVars?.map((v) => v.name)}
-            seedSampleNames={meta.seedVars?.filter((v) => v.spec.kind === 'sample').map((v) => v.name)}
+            seedSamples={meta.seedVars?.flatMap((v) =>
+                v.spec.kind === 'sample' ? [{ name: v.name, min: v.spec.min, max: v.spec.max }] : [],
+            )}
             />
 
             {/*

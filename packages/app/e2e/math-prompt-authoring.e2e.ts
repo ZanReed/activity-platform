@@ -144,6 +144,21 @@ test('a SECOND gap has its own answer settings, picked by "Blank 2 of 2" (GUI sw
         ]);
 });
 
+test('the picker numbers gaps as they sit in the formula, even with an empty one first', async ({
+    page,
+}) => {
+    await insertMathBlock(page, '\\placeholder[g1]{} + \\placeholder[g2]{} = \\placeholder[g3]{}');
+    await page.evaluate(() => {
+        const mf: any = document.querySelector('.math-block-input');
+        mf.setPromptValue('g2', '2', {});
+        mf.setPromptValue('g3', '5', {});
+        mf.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await expect.poll(async () => (await readMathBlockAttrs(page)).prompts.length).toBe(2);
+    const picker = page.getByRole('combobox', { name: "Which blank's answer settings" });
+    await expect(picker.locator('option')).toHaveText(['Blank 2 of 3', 'Blank 3 of 3']);
+});
+
 test('the ⌘⇧B / Ctrl⇧B shortcut inserts a gap while editing', async ({
     page,
 }) => {

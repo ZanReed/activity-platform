@@ -10,14 +10,16 @@ import type {
 } from '../extensions/DataPlot';
 import type { SectionBreakStorage } from '../extensions/SectionBreak';
 
-/** The activity's `sample` variable names, live (Editor.tsx writes them into
+type Sample = SectionBreakStorage['seedSamples'][number];
+
+/** The activity's `sample` variables, live (Editor.tsx writes them into
  *  SectionBreak storage; a drawer panel has no other route to the activity). */
-function useSampleNames(editor: Editor): string[] {
+function useSamples(editor: Editor): Sample[] {
     const storage = (editor.storage as { sectionBreak?: SectionBreakStorage }).sectionBreak;
-    const [names, setNames] = useState<string[]>(() => storage?.seedSampleNames ?? []);
+    const [names, setNames] = useState<Sample[]>(() => storage?.seedSamples ?? []);
     useEffect(() => {
         if (!storage) return;
-        const update = () => setNames([...(storage.seedSampleNames ?? [])]);
+        const update = () => setNames([...(storage.seedSamples ?? [])]);
         storage.listeners.add(update);
         update();
         return () => {
@@ -77,9 +79,29 @@ function DataPlotSettingsPanel({
     const isGraded = interaction.type !== 'display';
     const chart = chartOf(interaction);
     // GUI sweep item 7 (ruled 2026-11-13): plot a seeded `sample` variable.
-    const samples = useSampleNames(editor);
+    const samples = useSamples(editor);
     const dataVar = typeof node.attrs.dataVar === 'string' && node.attrs.dataVar !== '' ? (node.attrs.dataVar as string) : null;
-    const missing = dataVar !== null && !samples.includes(dataVar);
+    const missing = dataVar !== null && !samples.some((s) => s.name === dataVar);
+    // Choosing a variable widens the axis to its whole range, as the importer
+    // does: a draw outside the window would be dropped from the plot and so
+    // change the computed answer (Fable review, 2026-11-13).
+    const chooseSource = (name: string) => {
+        const sample = samples.find((s) => s.name === name);
+        editor
+            .chain()
+            .command(({ tr }) => {
+                tr.setNodeAttribute(pos, 'dataVar', name === '' ? null : name);
+                if (sample && (sample.min < config.min || sample.max > config.max)) {
+                    tr.setNodeAttribute(pos, 'config', {
+                        ...config,
+                        min: Math.min(config.min, sample.min),
+                        max: Math.max(config.max, sample.max),
+                    });
+                }
+                return true;
+            })
+            .run();
+    };
 
     const setConfig = (patch: Partial<DataPlotConfigAttr>): void =>
         setNodeAttr(editor, pos, 'config', { ...config, ...patch });
@@ -117,12 +139,12 @@ function DataPlotSettingsPanel({
                             className="block-advanced-drawer__control"
                             disabled={!isEditable}
                             value={dataVar ?? ''}
-                            onChange={(e) => setNodeAttr(editor, pos, 'dataVar', e.target.value === '' ? null : e.target.value)}
+                            onChange={(e) => chooseSource(e.target.value)}
                         >
                             <option value="">These numbers</option>
-                            {samples.map((name) => (
-                                <option key={name} value={name}>
-                                    Seeded variable {name} (different for each student)
+                            {samples.map((s) => (
+                                <option key={s.name} value={s.name}>
+                                    Seeded variable {s.name} (different for each student)
                                 </option>
                             ))}
                             {missing && <option value={dataVar}>{dataVar} (no longer declared)</option>}

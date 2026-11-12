@@ -1187,7 +1187,13 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
             ? (attrs.stimulus as InteractiveGraphBlock['stimulus'])
             : [],
     };
-    if (typeof attrs.stimulusAlt === 'string' && attrs.stimulusAlt.trim() !== '') {
+    // The description belongs to the stimulus: with no figure shown, a kept
+    // description would still be announced ("The graph shows: …").
+    if (
+        typeof attrs.stimulusAlt === 'string' &&
+        attrs.stimulusAlt.trim() !== '' &&
+        block.stimulus.length > 0
+    ) {
         block.stimulusAlt = attrs.stimulusAlt;
     }
     // Optional solution — carry only when non-empty so round-trip equality holds
