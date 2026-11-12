@@ -143,6 +143,19 @@ describe('the First tries panel', () => {
         expect(screen.getByText(/1 student's first try is no longer kept, so not counted/)).toBeTruthy();
     });
 
+    it('ties keep the activity order, whatever order the server sent (sweep 2026-11-12)', () => {
+        const tied: FirstTries = {
+            ...data,
+            items: [
+                item({ section_id: f.sid, item_id: f.easyBlank.id, first: 4, right_first: 2, wrong_first: 2 }),
+                item({ section_id: f.sid, item_id: f.blank.id, first: 4, right_first: 2, wrong_first: 2 }),
+            ],
+        };
+        panel(tied, served);
+        const heads = screen.getAllByRole('button', { name: /right first time/ });
+        expect(heads.map((h) => h.textContent?.match(/Q\d/)?.[0])).toEqual(['Q2', 'Q3']);
+    });
+
     it('multiple choice shows every choice in authored order, zeros, the correct one, and what a distractor told them', () => {
         panel(data, served);
         const mc = screen.getAllByRole('button', { name: /right first time/ })[0]!.parentElement!;

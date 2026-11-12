@@ -165,6 +165,14 @@ describe('the queue', () => {
     await waitFor(() => expect(screen.getByText(base.student_label as string)).toBeTruthy());
   });
 
+  it('a REVISED optional explanation is still named in the note, not silently hidden (sweep 2026-11-12)', async () => {
+    const base = row({ graded: true, graded_at: 'x', stale: true });
+    h.dolOptionals.mockResolvedValueOnce(new Set([`${base.activity_version_id}:${base.block_id}`]));
+    setup([base]);
+    await waitFor(() => expect(screen.getByText(/1 optional explanation/)).toBeTruthy());
+    expect(screen.queryByText(/need grading/)).toBeNull();
+  });
+
   it('tags rows from an earlier version instead of grouping by version', async () => {
     setup([row({ is_current: false, version_num: 1 })]);
     await waitFor(() => expect(screen.getByText('v1')).toBeTruthy());

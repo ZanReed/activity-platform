@@ -35,14 +35,18 @@ export function todayRows({ facts, practice, activities }: TodayInput): TodayRow
 /**
  * The activity a done screen offers next. After number facts, the first not
  * yet done.
- * After `practiceDone` practice sessions, the one after that block, so a
- * double's first Practice leads to its second activity. Undefined means the
- * done screen offers the list instead.
+ * After `practiceDone` practice sessions, the first not done from the block
+ * after that one, so a double's first Practice leads to its second activity.
+ * Undefined means the done screen offers the list instead.
  */
 export function nextActivity(
     activities: readonly { id: string; title: string; status: string | null }[],
     practiceDone: number | null,
 ): { id: string; title: string } | undefined {
-    if (practiceDone === null) return activities.find((a) => a.status !== 'Done ✓');
-    return activities[practiceDone];
+    // Never an activity Today already marks done (playtest sweep 2026-11-12:
+    // a mixed done screen offered one) — skip on to the next one not done.
+    // 'Done ✓' only: a student done with an EARLIER version is still offered
+    // the new one, as before.
+    const notDone = (a: { status: string | null }) => a.status !== 'Done ✓';
+    return activities.slice(practiceDone ?? 0).find(notDone);
 }

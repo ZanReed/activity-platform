@@ -2832,6 +2832,7 @@ export function parseArgs(argv) {
     let registry = null;
     let warnedRegistryAlias = false;
     let skillsRegistry = null;
+    let externalPrereqRegistry = null;
     let chainRegistry = null;
     let glossary = null;
     let factRegistry = null;
@@ -2868,6 +2869,9 @@ export function parseArgs(argv) {
             registry = arg === '--registry' ? (argv[++i] ?? null) : arg.slice('--registry='.length);
         }
         else if (arg === '--skills-registry') skillsRegistry = argv[++i] ?? null;
+        else if (arg === '--external-prereq-registry') externalPrereqRegistry = argv[++i] ?? null;
+        else if (arg.startsWith('--external-prereq-registry='))
+            externalPrereqRegistry = arg.slice('--external-prereq-registry='.length);
         else if (arg.startsWith('--skills-registry='))
             skillsRegistry = arg.slice('--skills-registry='.length);
         else if (arg === '--chain-registry') chainRegistry = argv[++i] ?? null;
@@ -2898,6 +2902,7 @@ export function parseArgs(argv) {
         strict,
         registry,
         skillsRegistry,
+        externalPrereqRegistry,
         chainRegistry,
         glossary,
         factRegistry,
@@ -2915,6 +2920,7 @@ export function usageText() {
   pnpm import:batch <folder> --owner <email|uuid> [--dry-run] [--force]
                              [--misconception-registry <file>]
                              [--skills-registry <file>]
+                             [--external-prereq-registry <file>]
                              [--chain-registry <file>] [--glossary <file>]
                              [--fact-registry <file>] [--hook-registry <file>]
                              [--practice-registry <file>]
@@ -2933,6 +2939,12 @@ export function usageText() {
                ignored). Turns "which skills are covered" from unanswerable into
                a generated manifest, because coverage needs the ids that EXIST,
                not only the ones the catalogue happens to name
+  --external-prereq-registry
+               the curriculum side's external-prereq-registry.txt (assumed prior
+               knowledge, ids like ext.arith.fractions). Same grammar as the
+               skill registry; ONLY its labels are used, mirrored into
+               skill_label so a DoL or review item that targets one shows its
+               name, not its id. Never counted as a skill, never a part count
   --chain-registry
                the chain registry file (chain folder = unit title, one per line).
                Without it the run reads chain-registry.txt from the catalogue
@@ -3086,6 +3098,18 @@ async function main() {
                     '  one empty file.',
             );
         }
+    }
+
+    // External prerequisites (2026-11-12): their labels only, so the DoL panel
+    // names an `ext.*` target instead of showing its id. Never skills: they
+    // join no coverage, no id check and no part count.
+    let externalLabels = new Map();
+    if (args.externalPrereqRegistry) {
+        const path = resolve(args.externalPrereqRegistry);
+        const text = await readFile(path, 'utf8').catch(() => null);
+        if (text === null) usage(`--external-prereq-registry ${path} could not be read.`);
+        externalLabels = parseSkillRegistry(text).labels;
+        if (externalLabels.size === 0) usage(`--external-prereq-registry ${path} names no labelled ids.`);
     }
 
     // The glossary file, read UP FRONT like the registries: a typo'd path fails
@@ -4462,15 +4486,19 @@ async function main() {
     // The skill-label mirror (0068, W-6): with --skills-registry. Fail-soft and
     // loud like the registry mirror above, except under --strict.
     let skillLabelMirrorFailed = false;
-    if (skills && skills.labels.size > 0) {
-        const { rows, tooLong, strictFailure } = planSkillLabels(skills.labels);
+    const allLabels = new Map([...externalLabels, ...(skills?.labels ?? [])]);
+    if (allLabels.size > 0) {
+        const { rows, tooLong, strictFailure } = planSkillLabels(allLabels);
         skillLabelMirrorFailed = strictFailure;
         if (tooLong.length > 0) {
             console.warn(`⚠ ${tooLong.length} skill label(s) over 500 characters, not mirrored: ${tooLong.join(', ')}`);
         }
         try {
             const mirrored = await db.syncSkillLabels(rows);
-            console.log(`labels    : ${Array.isArray(mirrored) ? mirrored.length : 0} skill labels mirrored`);
+            console.log(
+                `labels    : ${Array.isArray(mirrored) ? mirrored.length : 0} skill labels mirrored` +
+                    (externalLabels.size > 0 ? ` (${externalLabels.size} of them external prerequisites)` : ''),
+            );
         } catch (err) {
             skillLabelMirrorFailed = true;
             console.warn(

@@ -1193,6 +1193,9 @@ test('§G a row with NO recorded fingerprint is allowed — the guard self-arms'
 
 test('§G --force parses in either position', () => {
     assert.equal(parseArgs(['folder', '--owner', 'a@b.c', '--force']).force, true);
+    // External prerequisites (2026-11-12): labels only, both spellings.
+    assert.equal(parseArgs(['folder', '--owner', 'a@b.c', '--external-prereq-registry', 'x.txt']).externalPrereqRegistry, 'x.txt');
+    assert.equal(parseArgs(['folder', '--owner', 'a@b.c', '--external-prereq-registry=y.txt']).externalPrereqRegistry, 'y.txt');
     assert.equal(parseArgs(['--force', 'folder', '--owner=a@b.c']).force, true);
     assert.equal(parseArgs(['folder', '--owner', 'a@b.c']).force, false);
 });
@@ -1801,6 +1804,7 @@ test('§I --strict and --misconception-registry parse, in either form', () => {
             strict: true,
             registry: 'tax.txt',
             skillsRegistry: null,
+            externalPrereqRegistry: null,
             chainRegistry: null,
             glossary: null,
             factRegistry: null,

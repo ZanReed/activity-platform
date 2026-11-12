@@ -213,6 +213,7 @@ function registryFlags(curriculum) {
     const pairs = [
         ['--misconception-registry', 'misconception-registry.txt'],
         ['--skills-registry', 'skill-registry.txt'],
+        ['--external-prereq-registry', 'external-prereq-registry.txt'],
         ['--chain-registry', 'chain-registry.txt'],
         ['--glossary', 'glossary.md'],
         ['--fact-registry', 'fact-scope-registry.json'],

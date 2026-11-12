@@ -131,6 +131,11 @@ export interface ItemPlace {
     /** 1-based position among the blanks of its block, when it has several. */
     blankOrdinal?: number;
     blankCount?: number;
+    /** 1-based position among ALL the items of its top-level block, set only
+     *  when they sit in more than one child block (a faded example's steps):
+     *  per-child blank numbers would otherwise give two answers the same
+     *  label — "Q4" and "Q4" (playtest sweep 2026-11-12). */
+    partOrdinal?: number;
 }
 
 export interface DocIndex {
@@ -226,7 +231,12 @@ export function indexDoc(doc: ActivityDocument): DocIndex {
                     const label = pageLabel(block);
                     if (label.kind === 'number') numbering[block.id] = `Q${next++}`;
                     else if (label.kind === 'custom') numbering[block.id] = label.text;
+                    const from = items.length;
                     visit(block, block.id, items);
+                    const mine = items.slice(from);
+                    if (mine.length > 1 && new Set(mine.map((it) => it.block)).size > 1) {
+                        mine.forEach((it, i) => (it.partOrdinal = i + 1));
+                    }
                 }
             }
         }
@@ -241,6 +251,7 @@ export function questionLabel(index: DocIndex, place: ItemPlace): string {
     const base =
         index.numbering[place.topBlockId] ??
         (inlineText(promptOf(place.block)).slice(0, 48) || 'Question');
+    if (place.partOrdinal) return `${base} · part ${place.partOrdinal}`;
     return place.blankOrdinal ? `${base} · blank ${place.blankOrdinal}` : base;
 }
 

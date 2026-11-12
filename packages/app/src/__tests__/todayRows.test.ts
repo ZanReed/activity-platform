@@ -14,6 +14,12 @@ describe('nextActivity (PA-7)', () => {
     it('after a first practice on a double, the second activity', () => {
         expect(nextActivity([A, B], 1)?.id).toBe('b');
     });
+    it('after a practice, never offers an activity Today marks done (sweep 2026-11-12)', () => {
+        const C = { id: 'c', title: 'C', status: null };
+        expect(nextActivity([A, { ...B, status: 'Done ✓' }, C], 1)?.id).toBe('c');
+        // Done with an earlier version still counts as something to do.
+        expect(nextActivity([A, { ...B, status: 'Done (earlier version)' }], 1)?.id).toBe('b');
+    });
     it('after the last practice, nothing: the done screen offers the list', () => {
         expect(nextActivity([A], 1)).toBeUndefined();
         expect(nextActivity([A, B], 2)).toBeUndefined();

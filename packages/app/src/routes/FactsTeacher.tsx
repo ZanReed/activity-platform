@@ -150,7 +150,18 @@ export default function FactsTeacher() {
     }, [load, classId]);
 
     const open = overview?.probes.find((p) => p.state === 'open') ?? null;
-    const shownId = chosen ?? open?.id ?? null;
+    // An OPEN snapshot no longer takes over the page (author, 2026-11-12: some
+    // teachers would not appreciate losing Today, Who to see first and the
+    // practice panels for up to seven days). The page stays "Practice" with a
+    // banner into the live view; only opening one goes straight to it.
+    const [goToOpen, setGoToOpen] = useState(false);
+    useEffect(() => {
+        if (goToOpen && open) {
+            setGoToOpen(false);
+            setParams({ snapshot: open.id });
+        }
+    }, [goToOpen, open, setParams]);
+    const shownId = chosen;
 
     let body: ReactNode;
     if (error && !overview) {
@@ -186,8 +197,10 @@ export default function FactsTeacher() {
     } else {
         body = (
             <>
+                {open ? <OpenBanner probe={open} onView={() => setParams({ snapshot: open.id })} /> : null}
                 <TodayPanel classId={classId} sprintOn={sprintOn} mixedOn={mixedOn} />
                 {sprintOn || mixedOn ? <WhoFirst classId={classId} /> : null}
+                {open ? null : (
                 <OpenScreen
                     // Remounted when the class's end date changes (it can be
                     // saved from the practice panel below).
@@ -195,10 +208,11 @@ export default function FactsTeacher() {
                     classId={classId}
                     overview={overview}
                     onOpened={() => {
-                        setParams({});
+                        setGoToOpen(true);
                         void load();
                     }}
                 />
+                )}
                 <SprintPanel
                     classId={classId}
                     latestVerdict={overview.probes.find((p) => p.state === 'closed')?.verdict ?? null}
@@ -234,6 +248,21 @@ export default function FactsTeacher() {
 }
 
 // ---- OPEN ------------------------------------------------------------------------
+
+/** The open snapshot, as a way in rather than a takeover (author, 2026-11-12). */
+function OpenBanner({ probe, onView }: { probe: ProbeOverview['probes'][number]; onView: () => void }) {
+    return (
+        <div className="ft-panel" role="region" aria-label="Open number facts snapshot">
+            <h2>A number facts snapshot is open</h2>
+            <p className="ft-muted">
+                Year {probe.year_level} facts, opened {day(probe.opened_at)}. Students can still take it.
+            </p>
+            <button type="button" className="ft-btn-primary" style={{ marginTop: 12 }} onClick={onView}>
+                View the snapshot
+            </button>
+        </div>
+    );
+}
 
 function OpenScreen({
     classId,

@@ -192,11 +192,15 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                     if (handGradedLine(line.itemId) && !dolOptionalBlockIds(served.doc).has(line.itemId) && !s.graded_block_ids.includes(line.itemId)) toGrade += 1;
                                 }
                                 const lines = sectionAnswerLines(shownDoc, s.section_id, shown.responses, shown.verdicts);
+                                const optionalIds = dolOptionalBlockIds(served.doc);
                                 const rows = lines.map((line) => {
                                     // Grades belong to the LATEST attempt: on a first try, no badge.
                                     const handGraded = !showFirst && handGradedLine(line.itemId);
                                     const graded = handGraded && s.graded_block_ids.includes(line.itemId);
-                                    return { line, handGraded, graded };
+                                    // The D77 optional explanation is never owed: the count above
+                                    // already skips it, and so must its badge (playtest sweep 2026-11-12).
+                                    const optional = handGraded && optionalIds.has(line.itemId);
+                                    return { line, handGraded, graded, optional };
                                 });
                                 return (
                                     <div key={s.section_id} className="mb-3">
@@ -235,12 +239,13 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                             <p className="text-sm text-muted">Nothing to answer in this section.</p>
                                         ) : (
                                             <ul>
-                                                {rows.map(({ line, handGraded, graded }) => (
+                                                {rows.map(({ line, handGraded, graded, optional }) => (
                                                     <AnswerRow
                                                         key={line.itemId}
                                                         line={line}
                                                         handGraded={handGraded}
                                                         graded={graded}
+                                                        optional={optional}
                                                         describe={(id) => descriptions.get(id) ?? null}
                                                     />
                                                 ))}
@@ -275,10 +280,17 @@ function orderSections<T extends { section_id: string }>(served: ServedDoc, sect
     return [...sections].sort((a, b) => pos(a.section_id) - pos(b.section_id));
 }
 
-function verdictWords(line: AnswerLine, handGraded: boolean, graded: boolean): { glyph: string; word: string } {
+export function verdictWords(
+    line: Pick<AnswerLine, 'verdict'>,
+    handGraded: boolean,
+    graded: boolean,
+    optional = false,
+): { glyph: string; word: string } {
     if (line.verdict === 'correct') return { glyph: '✓', word: 'Right' };
     if (line.verdict === 'incorrect') return { glyph: '✗', word: 'Wrong' };
-    if (handGraded) return graded ? { glyph: '●', word: 'Graded' } : { glyph: '○', word: 'To grade' };
+    if (handGraded && graded) return { glyph: '●', word: 'Graded' };
+    if (handGraded && optional) return { glyph: '·', word: 'Optional' };
+    if (handGraded) return { glyph: '○', word: 'To grade' };
     if (line.verdict === 'recorded') return { glyph: '·', word: 'Recorded' };
     return { glyph: '·', word: 'Not marked' };
 }
@@ -287,14 +299,16 @@ function AnswerRow({
     line,
     handGraded,
     graded,
+    optional,
     describe,
 }: {
     line: AnswerLine;
     handGraded: boolean;
     graded: boolean;
+    optional: boolean;
     describe: (id: string) => string | null;
 }) {
-    const v = verdictWords(line, handGraded, graded);
+    const v = verdictWords(line, handGraded, graded, optional);
     return (
         <li className="cp-answer text-sm">
             <div className="flex items-baseline gap-3">

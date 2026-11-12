@@ -7,7 +7,7 @@ import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
-import { collectTagVocabulary } from '../lib/normalizeTags';
+import { collectTagVocabulary, visibleTagChips } from '../lib/normalizeTags';
 import {
     distinctCourses,
     groupByUnit,
@@ -63,6 +63,8 @@ const ICON_BUTTON =
 // How many activities the "Recently edited" strip carries (D4). Five keeps it
 // one row at every viewport; it is a shortcut back into work, not a list.
 const RECENT_LIMIT = 5;
+/** Tag chips shown before "More tags" — the Bank's number (Bank.tsx TAG_LIMIT). */
+const TAG_CHIP_LIMIT = 12;
 
 function formatEdited(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, {
@@ -210,6 +212,7 @@ export default function Activities() {
     // task behind them, so they get no control.
     const [search, setSearch] = useState('');
     const [draftsOnly, setDraftsOnly] = useState(false);
+    const [showAllTags, setShowAllTags] = useState(false);
     const searchRef = useRef<HTMLInputElement | null>(null);
 
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -426,6 +429,7 @@ export default function Activities() {
     // activity this author owns, so a second round trip would only add a way
     // for the chips and the rows to disagree.
     const tagVocabulary = collectTagVocabulary(activities);
+    const tagChips = visibleTagChips(activities, activeTags, TAG_CHIP_LIMIT, showAllTags);
 
     const toggleTag = (tag: string) => {
         setActiveTags((prev) =>
@@ -626,7 +630,7 @@ export default function Activities() {
         drafts
         </button>
         )}
-        {tagVocabulary.map((tag) => {
+        {tagChips.shown.map((tag) => {
             const on = activeTags.includes(tag);
             return (
                 <button
@@ -644,6 +648,15 @@ export default function Activities() {
                 </button>
             );
         })}
+        {(tagChips.hidden > 0 || showAllTags) && tagVocabulary.length > TAG_CHIP_LIMIT && (
+            <button
+            type="button"
+            onClick={() => setShowAllTags((v) => !v)}
+            className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
+            >
+            {showAllTags ? 'Fewer tags' : `More tags (${tagChips.hidden})`}
+            </button>
+        )}
         </div>
         )}
 

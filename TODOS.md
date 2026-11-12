@@ -87,29 +87,22 @@ the first time an import refuses a file because of an app edit.
 The first signed-in browser pass over ~30 features (`pnpm playtest`, local
 stack). FIXED same day: Responses showed a section UUID (1acc0861); a revised
 written answer said "Reviewed by your teacher" (15f458ab); glossary entries
-split mid-sentence (4b30bdb5, re-imported + all 21 republished live). Open,
-each with its cause; none blocks a student:
+split mid-sentence (4b30bdb5). FIXED 2026-11-13 (author rulings on 1 and 3):
+an open facts snapshot no longer hides the Practice page (a banner leads to
+it); `ext.*` DoL targets show names (`--external-prereq-registry`); the
+optional DoL explanation badges "Optional"; a revised optional answer is
+named in the Responses note; a faded example's answers are "part 1/2", not
+"Q4"/"Q4"; first tries have a stable tie order; "Next:" never offers a done
+activity; My activities caps tag chips at 12 like the Bank. Still open:
 
-1. **Practice page hides everything behind an OPEN facts snapshot** (up to 7
-   days): Today, Who to see first, sprint and mixed panels can't be reached
-   (`routes/FactsTeacher.tsx` `shownId` branch). Possibly deliberate for the
-   projector — the author's call.
-2. AnswerPanel badges the D77 optional explanation "○ To grade"
-   (`progress/AnswerPanel.tsx:197` lacks line 192's `dolOptionalBlockIds`).
-3. DoL panel shows the raw id `ext.arith.fractions`: `skill_label` mirrors
-   `skill-registry.txt` only, not `external-prereq-registry.txt`.
-4. Responses: a REVISED D77 optional answer vanishes under "Needs grading"
-   with no "optional explanation" note (`owed()` + the note count only
-   never-graded rows).
-5. "✗ Try again" in one-try places (a mixed item, a frozen DoL try):
-   `viewer/blocks/StatePill.tsx` default label. Shell-budget cost.
-6. A faded example's two answers are both "Q4" in AnswerPanel:
-   `lib/answerText.ts` `visit()` numbers blanks per child block.
-7. First tries list has no tiebreak (`progress/FirstTriesPanel.tsx:54`).
-8. Mixed done screen offers "Next:" an activity Today already marks done.
-9. Content: bank item t1 (`rate.unit-rate.md`) has no `solution:` though the
-   intro promises working after every answer — curriculum side.
-10. My activities shows all 59 tag chips; the Bank caps its list.
+1. **"✗ Try again" in one-try places** (a mixed item, a frozen DoL try):
+   `viewer/blocks/StatePill.tsx` default label. A wording ruling first (the
+   label shows on every graded block); shell-budget cost.
+2. **Content:** bank item t1 (`rate.unit-rate.md`) has no `solution:` though
+   the intro promises working after every answer — curriculum side.
+3. No browser/axe coverage of the Practice page's resting state with a
+   snapshot open (banner shown, open screen hidden) — add to
+   `a11y/student-surfaces.e2e.ts` after its open step.
 
 **Not reached with the playtest:** the video form and table toolbar (menus
 don't open in the in-app browser — Playwright), first-and-last repeat, the

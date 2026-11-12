@@ -311,8 +311,10 @@ export default function ActivityResponses() {
   );
 
   const outstanding = (rows ?? []).filter(owed).length;
+  // Every optional explanation the filter hides, a REVISED one (graded, then
+  // changed) included — it used to vanish with no note (playtest sweep 2026-11-12).
   const optionalUnmarked = (rows ?? []).filter(
-    (row) => !row.graded && dolOptionals.has(`${row.activity_version_id}:${row.block_id}`),
+    (row) => needsGrading(row) && dolOptionals.has(`${row.activity_version_id}:${row.block_id}`),
   ).length;
   // Only students whose identity this teacher may see can be named in a
   // release action, so the bulk affordance counts exactly those.

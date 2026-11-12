@@ -97,9 +97,9 @@ const mixedSummary = (over: Record<string, unknown> = {}) => ({
     practised_today: 0, practised_week: 0, skills: [], ...over,
 });
 
-function page() {
+function page(entry = '/classes/class-1/facts') {
     return render(
-        <MemoryRouter initialEntries={['/classes/class-1/facts']}>
+        <MemoryRouter initialEntries={[entry]}>
             <Routes>
                 <Route path="/classes/:classId/facts" element={<FactsTeacher />} />
             </Routes>
@@ -235,13 +235,29 @@ describe('opening a snapshot', () => {
 });
 
 describe('the live view', () => {
+    const LIVE = '/classes/class-1/facts?snapshot=probe-1';
     const open = overview([{ id: 'probe-1', year_level: 7, opened_at: '2027-02-08T21:00:00Z', closed_at: null, auto_closed: false, state: 'open', item_count: 40, verdict: null, keep_until: '2028-01-16', pruned_at: null }]);
     const roster = [student(1), student(2, { status: 'not_started', has_rate: false, rate: null, group: null, done: 0 })];
+
+    it('an open snapshot does not hide the practice page; its banner opens the live view (author, 2026-11-12)', async () => {
+        api.fetchOverview.mockResolvedValue(open);
+        api.fetchResults.mockResolvedValue(results({}, {}, roster));
+        page();
+        const banner = await screen.findByRole('region', { name: 'Open number facts snapshot' });
+        expect(banner.textContent).toContain('Year 7 facts');
+        expect(screen.getByRole('heading', { level: 1, name: 'Practice' })).toBeTruthy();
+        // The open screen is gone (one snapshot at a time); the rest stays.
+        expect(screen.queryByText('Run a snapshot with this class')).toBeNull();
+        expect(screen.getByText('Earlier snapshots')).toBeTruthy();
+        expect(screen.queryByText('Progress')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'View the snapshot' }));
+        expect(await screen.findByText('Progress')).toBeTruthy();
+    });
 
     it('shows the typeable link and the three counts, with names hidden until asked (DR-19)', async () => {
         api.fetchOverview.mockResolvedValue(open);
         api.fetchResults.mockResolvedValue(results({}, {}, roster));
-        const { container } = page();
+        const { container } = page(LIVE);
         await screen.findByText('Progress');
         expect(container.querySelector('.ft-linkbig')!.textContent).toMatch(/\/facts\/ABC234$/);
         expect(container.querySelector('.ft-linkbig')!.textContent).not.toMatch(/^https?:/);
@@ -255,7 +271,7 @@ describe('the live view', () => {
     it('the full-screen view shows only the link and the counts', async () => {
         api.fetchOverview.mockResolvedValue(open);
         api.fetchResults.mockResolvedValue(results({}, {}, roster));
-        const { container } = page();
+        const { container } = page(LIVE);
         await screen.findByText('Progress');
         fireEvent.click(screen.getByRole('button', { name: 'Full screen for the board' }));
         const projector = container.querySelector('.ft-projector')!;
@@ -269,7 +285,7 @@ describe('the live view', () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         api.fetchOverview.mockResolvedValue(open);
         api.fetchResults.mockResolvedValueOnce(results({}, {}, roster));
-        const { container } = page();
+        const { container } = page(LIVE);
         await screen.findByText('Progress');
         api.fetchResults.mockResolvedValueOnce(results({}, { started: 24, finished: 19 }, roster));
         await act(async () => {
@@ -288,7 +304,7 @@ describe('the live view', () => {
         api.fetchOverview.mockResolvedValue(open);
         api.fetchResults.mockResolvedValue(results({}, {}, roster));
         api.closeProbe.mockResolvedValue(results({}, {}, roster).class);
-        page();
+        page(LIVE);
         await screen.findByText('Progress');
         fireEvent.click(screen.getByRole('button', { name: 'Close the snapshot…' }));
         const dialog = screen.getByRole('alertdialog');
@@ -316,7 +332,7 @@ describe('the live view', () => {
             api.fetchResults.mockResolvedValue(results({ state: 'closed', closed_at: '2027-02-09T02:00:00Z' }, {}, roster));
             return results({}, {}, roster).class;
         });
-        page();
+        page(LIVE);
         await screen.findByText('Progress');
         fireEvent.click(screen.getByRole('button', { name: 'Close the snapshot…' }));
         await act(async () => {

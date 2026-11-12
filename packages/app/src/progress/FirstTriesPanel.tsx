@@ -51,7 +51,21 @@ export default function FirstTriesPanel({
     nameOf: (studentId: string, name: string) => string;
     studentHref: (studentId: string) => string;
 }) {
-    const items = [...data.items].sort((a, b) => rate(a) - rate(b) || b.wrong_first - a.wrong_first);
+    // Ties fall back to the questions' order in the activity, then to the id,
+    // so two equal rows never swap places between loads (playtest sweep 2026-11-12).
+    const order = new Map(
+        Object.values(served?.index.bySection ?? {})
+            .flat()
+            .map((place, i) => [place.itemId, i]),
+    );
+    const pos = (id: string) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
+    const items = [...data.items].sort(
+        (a, b) =>
+            rate(a) - rate(b) ||
+            b.wrong_first - a.wrong_first ||
+            pos(a.item_id) - pos(b.item_id) ||
+            a.item_id.localeCompare(b.item_id),
+    );
     const sectionStudents = new Map(data.sections.map((s) => [s.section_id, s.students]));
     const seeded = (served?.doc.meta.seedVars ?? []).length > 0;
     return (
