@@ -201,8 +201,10 @@ the ceiling brings a reserve rung (R6, R5, R7). New blocks are lazy unless named
 in `packages/viewer/tests/eagerBlocks.ts`. Teacher routes have coarse
 `TEACHER_JOURNEYS` caps plus forbidden-library rows. **Read numbers from
 `node scripts/check-perf-budget.mjs` after `pnpm verify`, never from here.**
-Next teacher slices: T2 (y-tiptap stub), T3 (lazy markdown dialog), T8 (lint),
-then T4, then T6.
+T2, T3 and T8 built too (editor journey 690 KiB gz). **Author check owed:**
+drag one block by its grip in the editor once (y-tiptap is stubbed;
+Playwright cannot drive that drag, with or without the stub). Next: T4 (lazy
+seeded answers on the dashboards, needs a no-flash design line), then T6.
 
 ## Build order — RULED by the author 2026-10-02
 

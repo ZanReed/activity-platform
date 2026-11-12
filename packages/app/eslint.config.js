@@ -59,4 +59,65 @@ export default tseslint.config(
       ],
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // Shell-size review T8 (TP-5, 2026-11-13) — no heavy import across a feature
+  // line from a lightweight route.
+  //
+  // Every large teacher-side cost the review found was ONE static import of
+  // this shape: the Bank imported lib/serialize.ts for a guide helper
+  // (+296 KiB gz of MathLive and mathjs), the print page imported its form
+  // from ActivityConfigDrawer.tsx (+590 KiB of editors). The budget rows in
+  // scripts/perf-budgets.mjs (TEACHER_JOURNEYS) catch it after a build; this
+  // catches it while the line is being typed. Type-only imports are fine:
+  // they vanish at build time — but only as `import type { X }`: with
+  // verbatimModuleSyntax an inline `import { type X }` still emits a bare
+  // import of the module, so no-import-type-side-effects refuses that form
+  // here. The editor routes are exempt because they ARE the editor; dev routes
+  // are exempt because they are dev tools. src/progress/ is in scope because
+  // AnswerPanel is a lazy route too.
+  {
+    files: ['src/routes/**/*.{ts,tsx}', 'src/progress/**/*.{ts,tsx}'],
+    ignores: [
+      'src/routes/ActivityEditor.tsx',
+      'src/routes/Playground.tsx',
+      'src/routes/Dev*.tsx',
+    ],
+    rules: {
+      '@typescript-eslint/no-import-type-side-effects': 'error',
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/lib/serialize', '**/lib/serialize.ts'],
+              allowTypeImports: true,
+              message:
+                'serialize.ts reaches MathLive and mathjs (~300 KiB gz). A route ' +
+                'outside the editor loads it with import() where it is used (see ' +
+                'GuidePanel in routes/Bank.tsx). Shell-size review TR1.',
+            },
+            {
+              group: ['**/components/ActivityConfigDrawer', '**/components/ActivityConfigDrawer.tsx'],
+              allowTypeImports: true,
+              message:
+                'The config drawer mounts two Tiptap editors and the calculator. ' +
+                'Move what this route needs into a module of its own (as ' +
+                'components/PrintSettingsBody.tsx did). Shell-size review TR2.',
+            },
+          ],
+          paths: [
+            {
+              name: '@activity/graph-kit',
+              allowTypeImports: true,
+              message:
+                "The graph-kit barrel re-exports the mount functions, which pull " +
+                'JSXGraph and MathLive. Import a subpath from its package.json ' +
+                '`exports` map instead (CLAUDE.md: subpaths, never the barrel).',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

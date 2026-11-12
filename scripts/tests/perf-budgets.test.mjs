@@ -221,6 +221,9 @@ test('every teacher journey row is complete and forbids only ledger names (T5)',
         assert.match(j.route, /^src\/routes\/[A-Za-z]+\.tsx$/, `${j.name}: route is a manifest key`);
         assert.ok(typeof j.maxGzKiB === 'number' && j.maxGzKiB > 0, `${j.name}: needs a positive cap`);
         assert.ok(j.why && j.why.length > 20, `${j.name}: needs a stated reason`);
+        for (const spec of j.lazyOut ?? []) {
+            assert.ok(spec.name && spec.marker instanceof RegExp && spec.why?.length > 20, `${j.name}: incomplete lazyOut row`);
+        }
         for (const lib of j.forbid) {
             // A ledger name is what keeps the absence honest: the ledger row
             // fails when its marker matches nothing, so the marker cannot rot.

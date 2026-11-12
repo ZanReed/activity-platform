@@ -108,6 +108,8 @@ function makeHealthyDist(overrides = {}) {
         // must be found in SOME non-entry chunk, or its row reports a rotted marker.
         'assets/SignedOutLanding-fixture.js': 'h("input",{id:"landing-code"})',
         'assets/PendingOnboarding-fixture.js': 'h("div",{"data-onboarding":v})',
+        // A journey's lazyOut module (TEACHER_JOURNEYS): present, not imported.
+        'assets/ImportMarkdownDialog-fixture.js': 'h("h2",{id:"import-md-title"})',
     };
     for (const [file, body] of Object.entries(chunks)) {
         writeFileSync(join(dir, file), body);
@@ -597,6 +599,35 @@ test('VACUITY: a journey route missing from the manifest fails instead of vanish
         assert.equal(code, 1, out);
         assert.match(out, /VACUITY guard/);
         assert.match(out, /not in the build manifest/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('journey: a lazyOut module statically imported by its route fails (TR4 shape)', () => {
+    const editor = TEACHER_JOURNEYS.find((j) => j.name === 'editor');
+    const dir = makeHealthyDist({
+        extraManifest: {
+            [editor.route]: { file: 'assets/journey-editor-fixture.js', imports: ['src/dialog.tsx'] },
+            'src/dialog.tsx': { file: 'assets/ImportMarkdownDialog-fixture.js' },
+        },
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /journey: editor leaves out the markdown import dialog\s+IN JOURNEY/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('VACUITY: a lazyOut marker that matches no chunk fails instead of reading "lazy"', () => {
+    const dir = makeHealthyDist();
+    writeFileSync(join(dir, 'assets/ImportMarkdownDialog-fixture.js'), 'h("h2",{id:"renamed-title"})');
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /leaves out the markdown import dialog\s+MARKER NOT FOUND/);
     } finally {
         cleanup(dir);
     }

@@ -364,6 +364,28 @@ for (const j of TEACHER_JOURNEYS) {
             `. ${j.why} A jump of a whole library usually means a static import ` +
             'crossed a feature line (serialize.ts, the config drawer, a package barrel).',
     );
+    for (const spec of j.lazyOut ?? []) {
+        const inJourney = chunks.some((c) => spec.marker.test(stripAssetSpecifiers(c.source)));
+        const elsewhere = jsChunks.some(
+            (chunk) => spec.marker.test(stripAssetSpecifiers(readFileSync(chunk.path, 'utf8'))),
+        );
+        const ok = !inJourney && elsewhere;
+        const actual = inJourney ? 'IN JOURNEY' : elsewhere ? 'lazy' : 'MARKER NOT FOUND';
+        rows.push({ name: `journey: ${j.name} leaves out ${spec.name}`, actual, cap: 'lazy', unit: '', ok });
+        if (!ok) {
+            failures.push({
+                name: `journey: ${j.name} leaves out ${spec.name}`,
+                actual,
+                cap: 'lazy',
+                unit: '',
+                detail: inJourney
+                    ? `${spec.name} is back in the ${j.name} journey's static imports. ${spec.why} ` +
+                      'A static import of it crept back; restore the lazy() import.'
+                    : `the marker ${spec.marker} matches no chunk at all, so this row cannot ` +
+                      'tell lazy from deleted. The markup changed: pick a new marker from it.',
+            });
+        }
+    }
     for (const lib of j.forbid) {
         const marker = ledgerMarker[lib];
         require_(marker, `teacher journey "${j.name}" forbids "${lib}", which is not a CHUNK_LEDGER row.`);

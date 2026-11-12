@@ -53,7 +53,22 @@ import { useAutosave } from '../lib/useAutosave';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
 import PublishStatus from '../components/PublishStatus';
 import Editor from '../editor/Editor';
-import ImportMarkdownDialog from '../components/ImportMarkdownDialog';
+// Loaded on demand (shell-size review TR4, 2026-11-13): the dialog carries the
+// markdown importer and the ~11 KiB copy-paste AI prompt TEXT, ~40 KiB gz the
+// editor downloaded on every open for a dialog most sessions never show. The
+// Import button warms the chunk on hover/focus, so the first click rarely
+// waits.
+//
+// NOT React.lazy, on purpose: after a deploy the old chunk name 404s, a lazy()
+// rejection is rethrown during render, and this app has no error boundary, so
+// one Import click on a tab left open across a deploy would blank the editor
+// under a working teacher. Loading in the click handler keeps that failure a
+// message instead. The message says REFRESH because a retry cannot work: the
+// browser remembers a failed module load for the life of the page (measured
+// in import-dialog.e2e.ts), and after a deploy the old file is gone anyway.
+type ImportDialogComponent = typeof import('../components/ImportMarkdownDialog').default;
+const loadImportDialog = (): Promise<ImportDialogComponent> =>
+    import('../components/ImportMarkdownDialog').then((m) => m.default);
 import {
     ConfigButtons,
     ConfigDrawer,
@@ -226,6 +241,17 @@ export default function ActivityEditor() {
         null,
     );
     const [importOpen, setImportOpen] = useState(false);
+    const [ImportDialog, setImportDialog] = useState<ImportDialogComponent | null>(null);
+    const [importLoadError, setImportLoadError] = useState(false);
+    const openImport = useCallback(() => {
+        loadImportDialog()
+            .then((Dialog) => {
+                setImportDialog(() => Dialog);
+                setImportLoadError(false);
+                setImportOpen(true);
+            })
+            .catch(() => setImportLoadError(true));
+    }, []);
     // Which config drawer section is open (null = drawer closed). One drawer,
     // one section at a time — see ActivityConfigDrawer.
     const [configOpen, setConfigOpen] = useState<ConfigKey | null>(null);
@@ -791,7 +817,10 @@ export default function ActivityEditor() {
             <HeaderButton
             icon={<ClipboardPaste size={18} />}
             label="Import"
-            onClick={() => setImportOpen(true)}
+            onClick={openImport}
+            onIntent={() => {
+                loadImportDialog().catch(() => {});
+            }}
             disabled={!editorInstance}
             title="Paste markdown and convert it to activity blocks"
             />
@@ -958,11 +987,27 @@ export default function ActivityEditor() {
             }}
             />
 
-            {importOpen && (
-                <ImportMarkdownDialog
+            {importOpen && ImportDialog && (
+                <ImportDialog
                 onClose={() => setImportOpen(false)}
                 onImport={handleImportMarkdown}
                 />
+            )}
+            {importLoadError && (
+                <div
+                role="alert"
+                data-import-load-error
+                className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink shadow"
+                >
+                <span>Import couldn’t load. The app may have been updated: refresh the page to use it.</span>
+                <button
+                    type="button"
+                    className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
+                    onClick={() => setImportLoadError(false)}
+                >
+                    Dismiss
+                </button>
+                </div>
             )}
             </Shell>
         );

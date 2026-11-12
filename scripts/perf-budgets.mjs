@@ -461,6 +461,12 @@ export const ABSENT_FROM_BUILD = [
         why: 'Zero call sites: Edge Functions are called with plain fetch through lib/edgeFunctions.ts (functions.invoke sends x-region, which CORS refuses). Stubbed by resolve.alias (shell-size review R2).',
     },
     {
+        name: 'yjs (via @tiptap/y-tiptap)',
+        // Two of yjs's own error strings; the stub carries neither.
+        marker: /Yjs was already imported|Unexpected content type/,
+        why: 'No live co-editing: extension-drag-handle reaches y-tiptap only when a y-sync plugin exists, and none is installed. Stubbed by resolve.alias (shell-size review TR3); ~31 KiB gz of the editor.',
+    },
+    {
         name: 'iceberg-js',
         marker: /X-Iceberg-Access-Delegation|CommitStateUnknownException/,
         why: "storage-js's dependency — an Apache Iceberg client, on a path that uploads PNGs.",
@@ -544,20 +550,33 @@ export const SHELL_EVICTED = [
  *     must not be anywhere in the journey. A ledger marker is live by
  *     construction (its ledger row fails when the marker matches nothing), so
  *     an absence here cannot rot into a vacuous pass.
+ *   - `lazyOut` (optional): app modules made lazy for this journey, each
+ *     checked like SHELL_EVICTED: ABSENT from the journey and PRESENT in some
+ *     other chunk, so a renamed marker fails instead of passing forever. For
+ *     cuts too small for the coarse cap to notice (the import dialog's 40 KiB
+ *     is inside the editor's 10%).
  * `route` is the manifest key (relative to packages/app); a renamed route
  * fails as a vacuity error rather than silently dropping its row.
  *
  * Measured 2026-11-13, CI env, after T1: editor 761.8, print 78.0,
  * progress 80.0, responses 79.0, activities 43.9, classes 8.2, bank 5.3.
- * The editor cap is set over today's number; T2 (y-tiptap stub, ~−31) and
- * T3 (lazy markdown dialog, ~−40) tighten it in their own slices.
+ * T2 (y-tiptap stubbed) + T3 (import dialog lazy), same day: editor
+ * 761.8 → 690.4, and its cap tightened 840 → 760 in that commit.
  */
 export const TEACHER_JOURNEYS = [
     {
         name: 'editor',
         route: 'src/routes/ActivityEditor.tsx',
-        maxGzKiB: 840,
+        maxGzKiB: 760,
         forbid: [],
+        lazyOut: [
+            {
+                name: 'the markdown import dialog',
+                // Its title id; the dialog's own markup, nowhere else.
+                marker: /import-md-title/,
+                why: 'TR4: the importer + AI prompt text load when the dialog opens (the Import button warms them on hover/focus).',
+            },
+        ],
         why: 'The editor legitimately carries Tiptap, MathLive, KaTeX and mathjs. Its cap catches a NEW library, not a new feature.',
     },
     {

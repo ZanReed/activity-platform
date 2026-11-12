@@ -377,6 +377,13 @@ export default defineConfig({
         __dirname,
         './src/lib/supabase-stubs/functions-js.ts',
       ),
+      // Shell-size review TR3 (2026-11-13): the Yjs co-editing binding, reached
+      // only through extension-drag-handle, which never calls it without a
+      // y-sync plugin. ~31 KiB gz off the editor. Header in the stub.
+      '@tiptap/y-tiptap': path.resolve(
+        __dirname,
+        './src/lib/tiptap-stubs/y-tiptap.ts',
+      ),
     },
   },
 });

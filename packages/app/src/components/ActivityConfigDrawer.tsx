@@ -116,6 +116,7 @@ export function HeaderButton({
     dot,
     title,
     dataConfigButton,
+    onIntent,
 }: {
     icon: ReactNode;
     label: string;
@@ -126,6 +127,9 @@ export function HeaderButton({
     dot?: 'emerald' | 'amber';
     title?: string;
     dataConfigButton?: string;
+    /** Fired on hover or focus, before a click: lets a button warm a lazy
+     *  chunk so the first click does not wait on the network. */
+    onIntent?: () => void;
 }) {
     const base =
         'relative flex min-w-[3.5rem] flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-medium leading-none transition';
@@ -166,6 +170,8 @@ export function HeaderButton({
         <button
             type="button"
             onClick={onClick}
+            onPointerEnter={onIntent}
+            onFocus={onIntent}
             disabled={disabled}
             title={title}
             aria-pressed={active}
