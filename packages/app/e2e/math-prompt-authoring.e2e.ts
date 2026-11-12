@@ -115,6 +115,35 @@ test('the Answer settings popover configures the gap grading (trimmed to math)',
         ]);
 });
 
+test('a SECOND gap has its own answer settings, picked by "Blank 2 of 2" (GUI sweep 4, 2026-11-13)', async ({
+    page,
+}) => {
+    await insertMathBlock(page, 'x = \\placeholder[g1]{} + \\placeholder[g2]{}');
+    await page.evaluate(() => {
+        const mf: any = document.querySelector('.math-block-input');
+        mf.setPromptValue('g1', '2', {});
+        mf.setPromptValue('g2', '3', {});
+        mf.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await expect.poll(async () => (await readMathBlockAttrs(page)).prompts.length).toBe(2);
+
+    const picker = page.getByRole('combobox', { name: "Which blank's answer settings" });
+    await expect(picker).toBeVisible();
+    await picker.selectOption({ label: 'Blank 2 of 2' });
+    const pop = page.locator('.blank-edit-popover');
+    await expect(pop).toBeVisible();
+    await pop.getByLabel('Comparison tolerance').fill('0.25');
+    await pop.getByLabel('Comparison tolerance').blur();
+
+    // Only gap 2 changed; gap 1 is untouched.
+    await expect
+        .poll(async () => (await readMathBlockAttrs(page)).prompts.map((p: any) => [p.id, p.tolerance ?? null]))
+        .toEqual([
+            ['g1', null],
+            ['g2', 0.25],
+        ]);
+});
+
 test('the ⌘⇧B / Ctrl⇧B shortcut inserts a gap while editing', async ({
     page,
 }) => {

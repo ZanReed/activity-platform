@@ -30,7 +30,12 @@ export default function MathPromptControls({
   onUpdatePrompts,
 }: MathPromptControlsProps) {
   const [showSettings, setShowSettings] = useState(false);
-  const prompt = prompts[0]; // single-gap v1
+  // GUI sweep item 4 (ruled 2026-11-13): every gap has its own settings, not
+  // only the first ("single-gap v1" until then). The picker names the gap;
+  // a deleted gap falls back to gap 1.
+  const [chosen, setChosen] = useState(0);
+  const index = chosen < prompts.length ? chosen : 0;
+  const prompt = prompts[index];
 
   // Signifier (MA-DR4): a placeholder present in the latex but not yet in
   // prompts[] is an unanswered gap — an incomplete question. Flag it so the
@@ -39,7 +44,7 @@ export default function MathPromptControls({
 
   const patchPrompt = (patch: Partial<MathPrompt>) => {
     if (!prompt) return;
-    onUpdatePrompts(prompts.map((p, i) => (i === 0 ? { ...p, ...patch } : p)));
+    onUpdatePrompts(prompts.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   };
 
   return (
@@ -57,6 +62,26 @@ export default function MathPromptControls({
           >
             + Blank
           </button>
+          {prompts.length > 1 && (
+            <select
+              className="math-gap-picker"
+              aria-label="Which blank's answer settings"
+              value={index}
+              onMouseDown={() => {
+                keepEditingRef.current = true;
+              }}
+              onChange={(e) => {
+                setChosen(Number(e.target.value));
+                setShowSettings(true);
+              }}
+            >
+              {prompts.map((p, i) => (
+                <option key={p.id} value={i}>
+                  {`Blank ${i + 1} of ${prompts.length}`}
+                </option>
+              ))}
+            </select>
+          )}
           {prompt && (
             <button
               type="button"
@@ -85,6 +110,8 @@ export default function MathPromptControls({
       )}
       {showSettings && prompt && (
         <BlankEditPopover
+          // A different gap is a different form: remount with its values.
+          key={prompt.id}
           referenceElement={anchorEl}
           isOpen
           mathPromptMode
