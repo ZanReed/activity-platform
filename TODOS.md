@@ -1802,7 +1802,7 @@ ANY runtime, year-round". That is true of the DAY KEYS and was never true of
 their relationship to the watermark — two different properties, one comment,
 read as promising both.
 
-## The a11y GAP-2 row — ✅ CAPTURE IS NOW AUTOMATIC (2026-08-24); still needs one sighting
+## The a11y GAP-2 row — ✅ WIDENED 2026-11-13 (the Tab budget had zero headroom; the extra stop's source is NOT identified)
 
 **The blocker was never the bug — it was that nobody was watching.** The row
 has flaked twice (run 31852826598, and locally 2026-08-22) and both times went
@@ -1824,6 +1824,19 @@ Error: Check must be reachable by Tab alone. Focus trail (last 12 stops):
   div.viewer-graph__canvas «interactive_graph»
 (25 stops walked, budget 117)
 ```
+
+**✅ WIDENED 2026-11-13, and the hypothesis below was WRONG.** Logging a PASSING
+run's trail showed the walk to Check takes exactly 93 stops against a budget
+of 93: it always finished on its last allowed press. The budget ("focusable
+elements + 40") undercounts real Tab stops (the interactive graph alone makes
+~37), so one extra stop on a slow run failed it. Lazy mounting was not the
+cause (`openWorksheet` already waits for every lazy type's marker). The bound
+is now `3 × focusables + 40` (~2× headroom, still derived and finite); the
+file passed 66/66 over three repeats. The trail logging stays. **Still open,
+low priority:** WHICH stop is occasionally extra (some widget sometimes takes
+one more Tab). If a student-facing keyboard bug is ever suspected there,
+diff a passing trail against a long one; the headroom only stops the row
+failing on it.
 
 **⚡ SIGHTED 2026-11-13** (full local run of the chromium+student+sw+a11y
 lanes, shell-size branch; 1 of 442 failed, the row passed 3/3 when re-run
@@ -2784,16 +2797,6 @@ changes belongs here. Recorded with enough context to act without archaeology.
    write-then-remove the persistence blob. Wasteful but CORRECT; low priority.
 
 **Depends on:** nothing. Each is independent.
-
-## Bank preview: load the seeding code on demand (shell-size review T4-5)
-
-**Trigger: a Bank preview is reported slow.** `components/BankItemPreview.tsx`
-imports `substituteSeededAnswers` from `@activity/viewer/seeded-print`
-statically, so every Bank preview downloads mathjs (~43 KiB gz of its ~70)
-whether or not the activity is seeded. The fix is the pattern T4 used on the
-dashboards: `needsSeeding()` on the content, then `import()` only when it is
-true (docs/design/shell-size-review.md §8.5). Add a TEACHER_JOURNEYS row with
-`forbid: ['mathjs']` in the same commit.
 
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 

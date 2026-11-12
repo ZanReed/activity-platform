@@ -193,23 +193,17 @@ HISTORY, not re-argued here.)*
 
 ## The shell budget — a FIXED ceiling and a spend meter (2026-11-13)
 
-**`SHELL_JS_GZ_KIB` is fixed at 158.7; the +0.1 cap rulings are over** (author,
-[shell-size-review.md](docs/design/shell-size-review.md) D1–D10, T1–T9). Tier A
-freed ~3.3 KiB of allowance; every later shell change records a `SHELL_SPEND`
-row (exact gz bytes, ±256 B band, red both ways) and a slice that would cross
-the ceiling brings a reserve rung (R6, R5, R7). New blocks are lazy unless named
-in `packages/viewer/tests/eagerBlocks.ts`. Teacher routes have coarse
-`TEACHER_JOURNEYS` caps plus forbidden-library rows. **Read numbers from
+**`SHELL_JS_GZ_KIB` is fixed at 158.7; cap rulings are over**
+([shell-size-review.md](docs/design/shell-size-review.md), every decision built
+or closed). Each shell change records a `SHELL_SPEND` row (±256 B, red both
+ways); crossing the ceiling brings a reserve rung (R6, R7). New blocks are lazy
+unless named in `packages/viewer/tests/eagerBlocks.ts`; teacher and landing
+routes have `TEACHER_JOURNEYS` rows. **Read numbers from
 `node scripts/check-perf-budget.mjs` after `pnpm verify`, never from here.**
-T2, T3 and T8 built too (editor journey 690 KiB gz). **Author check owed:**
-drag one block by its grip in the editor once (y-tiptap is stubbed;
-Playwright cannot drive that drag, with or without the stub). T4 built too
-(dashboards load the seeding code only to seed one student), and T6 (the
-summed prosemirror row is no longer the editor gate). The review's build list
-is done. T7 measured and closed (no vendor split; `scripts/measure-deploy-churn.mjs`
-re-measures). **Once classes start (~Feb 2027), push to `main` outside school
-hours in BOTH NZ and US time:** every code deploy makes each student re-download
-the ~158 KiB shell, and puts the "new version" notice in front of a lesson.
+**Author check owed:** drag one block by its grip in the editor (y-tiptap is
+stubbed; Playwright cannot drive that drag). **Once classes start (~Feb
+2027), push to `main` outside school hours in BOTH NZ and US time:** each code
+deploy makes every student re-download the shell and shows the update notice.
 
 ## Build order — RULED by the author 2026-10-02
 

@@ -4,21 +4,30 @@ import { SessionProvider } from './lib/SessionContext';
 import RequireAuth from './components/RequireAuth';
 import ThemeToggle from './components/ThemeToggle';
 import UpdateNotice from './components/UpdateNotice';
-import Home from './routes/Home';
 import StudentViewer from './routes/StudentViewer';
-import JoinClass from './routes/JoinClass';
+// Lazy, but preloaded by URL and awaited before the first render, so neither
+// shows the route fallback on a landing visit (lib/landingRoutes.ts, R5).
+import { Home, JoinClass } from './lib/landingRoutes';
 
 // =============================================================================
 // Route loading tiers (S8 ruling D4) — the entry chunk IS the student shell.
 // -----------------------------------------------------------------------------
 // Students open a link on a school Chromebook over school Wi-Fi and are the
-// audience the perf budget exists to protect. So the two routes a student can
-// land on — StudentViewer and Home — are imported STATICALLY above, which makes
-// the built entry chunk exactly what a student downloads before first paint:
-// one JS fetch, no serialized second round-trip for the code that renders the
-// worksheet. That equivalence is what `scripts/check-perf-budget.mjs` measures;
-// if the viewer were lazy, the shell cap would be guarding a router skeleton no
-// real user journey corresponds to.
+// audience the perf budget exists to protect. So the worksheet route,
+// StudentViewer, is imported STATICALLY above, which makes the built entry
+// chunk exactly what a student downloads before the worksheet's first paint:
+// one JS fetch, no serialized second round-trip for the code that renders it.
+// That equivalence is what `scripts/check-perf-budget.mjs` measures; if the
+// viewer were lazy, the shell cap would be guarding a router skeleton no real
+// user journey corresponds to.
+//
+// Home and JoinClass were static too until 2026-11-13 (shell-size review R5,
+// −4.7 KiB gz off the entry). They are lazy now WITHOUT a second round trip:
+// the `activity:route-preload` plugin (vite.config.ts) writes a tiny script
+// into index.html that adds a modulepreload for the right chunk by URL
+// (`/` → Home, `/join/…` → JoinClass), so it downloads beside the entry, and
+// main.tsx waits for it before the first render so React.lazy never shows its
+// fallback there (lib/landingRoutes.ts).
 //
 // Everything below is lazy. Teacher surfaces (editor, dashboards, print) carry
 // Tiptap and the authoring UI and are reached only after a deliberate,
@@ -29,7 +38,9 @@ import JoinClass from './routes/JoinClass';
 //        entry chunk (student shell)          lazy chunks (on navigation)
 //        ┌───────────────────────────┐        ┌──────────────────────────┐
 //        │ router · SessionProvider  │        │ ActivityEditor (Tiptap)  │
-//        │ StudentViewer · Home      │  ───▶  │ Activities · Classes     │
+//        │ StudentViewer             │  ───▶  │ Home · JoinClass (preload│
+//        │                           │        │   by URL in index.html)  │
+//        │                           │        │ Activities · Classes     │
 //        │ viewer eager block tier   │        │ Analytics                │
 //        │ ThemeToggle               │        │ ActivityPrint · Privacy  │
 //        └───────────────────────────┘        │ /dev/* (DEV only)        │
@@ -125,9 +136,8 @@ export default function App() {
             </RequireAuth>
         }
         />
-        {/* The shareable join deep link (identity slice B12). Static import —
-            it is a student first-paint surface like StudentViewer/Home, and
-            it shares their chunk anyway (same shell components). Not
+        {/* The shareable join deep link (identity slice B12). Lazy since R5,
+            preloaded by URL like Home (lib/landingRoutes.ts). Not
             RequireAuth: the route runs its own gate (same 3.2A shape). */}
         <Route path="/join/:code" element={<JoinClass />} />
         {/* The number-facts demo: public, saves nothing (D43 slice 1, S-7).

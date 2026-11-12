@@ -434,6 +434,50 @@ for (const j of TEACHER_JOURNEYS) {
 // -----------------------------------------------------------------------------
 // Absent from the entry AND present elsewhere: the second half is the liveness
 // proof, so a renamed marker fails instead of reporting "absent" forever.
+// ---- Route preload by URL (shell-size review R5) ------------------------------
+// Home and JoinClass are lazy; index.html must preload each one's chunk for
+// its URL, or a visit to / pays a second round trip before first paint. The
+// list is READ from packages/app/src/lib/landingPaths.ts (never retyped), and
+// the inline data-route-preload script's map is PARSED: each route's built
+// file must sit under ITS OWN pattern, not merely appear somewhere.
+{
+    const listSrc = readFileSync(join(root, 'packages/app/src/lib/landingPaths.ts'), 'utf8');
+    const wanted = [...listSrc.matchAll(/route:\s*['"]([^'"]+)['"],\s*path:\s*['"]([^'"]+)['"]/g)].map(
+        (m) => ({ route: m[1], path: m[2] }),
+    );
+    require_(
+        wanted.length > 0 && wanted.length === (listSrc.match(/route:/g) ?? []).length,
+        'could not read every { route, path } row of LANDING_ROUTES in ' +
+            'packages/app/src/lib/landingPaths.ts; the route-preload rows would under-check.',
+    );
+    const html = existsSync(join(dist, 'index.html')) ? readFileSync(join(dist, 'index.html'), 'utf8') : '';
+    const script = html.match(/<script data-route-preload[^>]*>([\s\S]*?)<\/script>/)?.[1] ?? '';
+    let built = [];
+    try {
+        built = JSON.parse(script.match(/m=(\[[\s\S]*?\]\]\]);/)?.[1] ?? '[]');
+    } catch {
+        built = [];
+    }
+    for (const { route, path: pattern } of wanted) {
+        const file = manifest[route]?.file;
+        const entryForPattern = built.find((row) => row[0] === pattern);
+        const ok = Boolean(file) && Boolean(entryForPattern) && entryForPattern[1][0] === file;
+        const name = `index.html preloads ${route.replace(/^src\/routes\//, '')}`;
+        rows.push({ name, actual: ok ? 'yes' : 'NO', cap: 'yes', unit: '', ok });
+        if (!ok) {
+            failures.push({
+                name,
+                actual: 'NO',
+                cap: 'yes',
+                unit: '',
+                detail: !file
+                    ? `${route} has no chunk in the build manifest: it was renamed or made a static import. Update packages/app/src/lib/landingPaths.ts.`
+                    : `dist/index.html's preload map does not put ${file} first under "${pattern}". The activity:route-preload plugin in vite.config.ts stopped running or stopped matching; without it a visit to that URL waits a second round trip for its route.`,
+            });
+        }
+    }
+}
+
 for (const spec of SHELL_EVICTED) {
     const inEntry = spec.marker.test(entrySource);
     const elsewhere = jsChunks.some(

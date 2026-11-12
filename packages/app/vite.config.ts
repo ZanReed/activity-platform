@@ -1,3 +1,4 @@
+import { LANDING_ROUTES } from './src/lib/landingPaths';
 import { defineConfig, type Plugin, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -172,6 +173,77 @@ function reactRouterProductionBuild(): Plugin {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Route preload by URL (shell-size review R5, 2026-11-13).
+//
+// Home and JoinClass are lazy routes, so on its own a visit to `/` would fetch
+// the entry, run it, and only then ask for the Home chunk: a second round trip
+// before first paint. This plugin closes that gap. At build time it finds each
+// listed route's chunk (and that chunk's static imports beyond the entry), and
+// writes a small inline script into index.html that adds
+// <link rel="modulepreload"> for them when location.pathname matches, so the
+// route chunk downloads IN PARALLEL with the entry.
+//
+// Build-only and fail-loud: a listed route that has no chunk (renamed, or made
+// static again) stops the build rather than shipping a page that preloads
+// nothing. check-perf-budget.mjs re-reads dist/index.html and pins the map.
+// ---------------------------------------------------------------------------
+// The list lives in src/lib/landingPaths.ts (also read by landingRoutes.ts
+// and the budget check), so the three cannot disagree.
+
+function routePreload(): Plugin {
+  return {
+    name: 'activity:route-preload',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        const bundle = ctx.bundle;
+        if (!bundle) return undefined;
+        const chunks = Object.values(bundle).filter(
+          (c): c is Extract<typeof c, { type: 'chunk' }> => c.type === 'chunk',
+        );
+        const entry = chunks.find((c) => c.isEntry);
+        const inEntry = new Set<string>();
+        const walk = (file: string, into: Set<string>) => {
+          if (into.has(file)) return;
+          into.add(file);
+          const c = chunks.find((x) => x.fileName === file);
+          for (const dep of c?.imports ?? []) walk(dep, into);
+        };
+        if (entry) walk(entry.fileName, inEntry);
+        const map = LANDING_ROUTES.map(({ route, path: pattern }) => {
+          const chunk = chunks.find((c) => c.facadeModuleId?.endsWith('/' + route));
+          if (!chunk) {
+            throw new Error(
+              `activity:route-preload: no chunk for ${route}. It was renamed or made a ` +
+                'static import again; update src/lib/landingPaths.ts.',
+            );
+          }
+          const files = new Set<string>();
+          walk(chunk.fileName, files);
+          return [pattern, [...files].filter((f) => !inEntry.has(f))] as const;
+        });
+        const script =
+          '(function(){try{var p=location.pathname,m=' +
+          JSON.stringify(map) +
+          ';for(var i=0;i<m.length;i++)if(new RegExp(m[i][0]).test(p)){' +
+          "for(var j=0;j<m[i][1].length;j++){var l=document.createElement('link');" +
+          "l.rel='modulepreload';l.setAttribute('data-route-preload','');l.href='/'+m[i][1][j];" +
+          'document.head.appendChild(l)}break}}catch(e){}})();';
+        return [
+          {
+            tag: 'script',
+            attrs: { 'data-route-preload': '' },
+            children: script,
+            injectTo: 'head',
+          },
+        ];
+      },
+    },
+  };
+}
+
 export default defineConfig({
   // The build's commit, stamped onto each number-facts session (ER-24) so a
   // "it didn't save" report can be tied to the code that ran. Cloudflare Pages
@@ -186,6 +258,7 @@ export default defineConfig({
     mathliveFonts(),
     authJsDeadModules(),
     reactRouterProductionBuild(),
+    routePreload(),
     // Dev-server only, and only in --mode playtest|replay: record/replay
     // endpoints for the no-sign-in playtest (vite.playtest.ts).
     playtestScenarios(),

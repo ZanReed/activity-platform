@@ -231,11 +231,24 @@ test.describe('gap 2 — the full keyboard path', () => {
     // fixed bound silently re-fails the day a block type is added; this one
     // tracks the document. Still bounded, so an unreachable control fails
     // loudly instead of spinning forever.
+    //
+    // ⚠ THE OLD BOUND WAS THE FLAKE (diagnosed 2026-11-13). It was "focusable
+    // elements + 40", and a PASSING run reached Check at stop 93 of a 93-stop
+    // budget: the walk always finished on its last allowed press, so any extra
+    // stop (its source is not identified; TODOS → GAP-2) failed the row (the sighting's trail ended "93 stops
+    // walked, budget 93"). The element count undercounts real Tab stops: the
+    // interactive graph alone makes ~37 (each board, its answer region and its
+    // buttons, some visited twice as JSXGraph moves focus inside the widget).
+    // So the bound is now 3× the count + 40: still DERIVED from the document,
+    // still finite, with ~2× headroom over the walk that passes today. The
+    // walk's own length is printed on failure, so the headroom can be read.
     const tabBudget = await page.evaluate(
       () =>
-        document.querySelectorAll(
-          'a[href], button, input, select, textarea, math-field, [tabindex]:not([tabindex="-1"])',
-        ).length + 40,
+        3 *
+          document.querySelectorAll(
+            'a[href], button, input, select, textarea, math-field, [tabindex]:not([tabindex="-1"])',
+          ).length +
+        40,
     );
 
     // ⚠ THE TRAIL IS THE POINT (2026-08-24). This row has flaked twice and both

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import App from './App.tsx';
+import { preloadLandingRoute } from './lib/landingRoutes';
 import './index.css';
 import { VIEWER_SHELL_CACHE } from '@activity/viewer';
 import {
@@ -30,12 +31,17 @@ if (import.meta.env.PROD) {
 void registerServiceWorker();
 
 function render() {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-    <BrowserRouter>
-    <App />
-    </BrowserRouter>
-    </StrictMode>,
+  // A landing URL's lazy route is awaited first, so its first render does not
+  // flash the route fallback (lib/landingRoutes.ts). Usually instant: index.html
+  // already started that download beside this entry. Never rejects.
+  void preloadLandingRoute(location.pathname).then(() =>
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+      <BrowserRouter>
+      <App />
+      </BrowserRouter>
+      </StrictMode>,
+    ),
   );
 }
 

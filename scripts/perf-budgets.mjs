@@ -229,8 +229,14 @@ export const SHELL_JS_ANCHOR = {
     bytes: 159049,
     note: 'shell-size review tier A (R1–R4) landed; ceiling fixed at 158.7',
 };
-export const SHELL_SPEND = [];
-export const SHELL_JS_BASELINE_BYTES = 159049;
+export const SHELL_SPEND = [
+    {
+        date: '2026-11-13',
+        change: 'R5: Home + JoinClass lazy, preloaded by URL from index.html and awaited before first render (reserve rung D7, pulled early by the author)',
+        bytes: -4601,
+    },
+];
+export const SHELL_JS_BASELINE_BYTES = 154448;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
@@ -550,6 +556,19 @@ export const SHELL_EVICTED = [
         marker: /data-onboarding/,
         why: 'Only a brand-new account with no role sees it; Home loads it lazily.',
     },
+    // Shell-size review R5 (2026-11-13): the two routes besides the worksheet
+    // that a student lands on. Lazy, and preloaded by URL from index.html
+    // (vite.config.ts → activity:route-preload; the preload rows below pin it).
+    {
+        name: 'the Home route (Home.tsx)',
+        marker: /data-list-loading/,
+        why: 'A worksheet link never shows Home. A visit to / preloads it beside the entry.',
+    },
+    {
+        name: 'the join route (JoinClass.tsx)',
+        marker: /You're joining a class/,
+        why: 'Only a join link shows it. A visit to /join/… preloads it beside the entry.',
+    },
 ];
 
 /**
@@ -590,6 +609,23 @@ export const SHELL_EVICTED = [
  * 80.0 → 34.9 (caps 87/88 → 37/38), answer panel row added.
  */
 export const TEACHER_JOURNEYS = [
+    // Two STUDENT rows ride this list since R5 (2026-11-13): Home and JoinClass
+    // left the shell, so what a visit to / or /join/… costs beyond the entry is
+    // now a journey like any other. Measured 6.5 and 5.2 KiB gz.
+    {
+        name: 'home (student landing)',
+        route: 'src/routes/Home.tsx',
+        maxGzKiB: 8,
+        forbid: ['prosemirror', 'mathlive', 'mathjs', 'katex'],
+        why: 'The signed-in landing for students and teachers. Preloaded by URL from index.html; must stay a list, never a heavy library.',
+    },
+    {
+        name: 'join (student)',
+        route: 'src/routes/JoinClass.tsx',
+        maxGzKiB: 7,
+        forbid: ['prosemirror', 'mathlive', 'mathjs', 'katex'],
+        why: 'A join link: one form. Preloaded by URL from index.html.',
+    },
     {
         name: 'editor',
         route: 'src/routes/ActivityEditor.tsx',
@@ -629,7 +665,10 @@ export const TEACHER_JOURNEYS = [
     {
         name: 'classes',
         route: 'src/routes/Classes.tsx',
-        maxGzKiB: 10,
+        // 10 → 12.5 on 2026-11-13 (R5): TeacherNav and the class helpers it
+        // shares with Home left the shell when Home went lazy, so Classes now
+        // fetches them itself (8.2 → 11.1). A cost moved, not a leak.
+        maxGzKiB: 12.5,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A list of classes, no editor.',
     },

@@ -111,6 +111,9 @@ function makeHealthyDist(overrides = {}) {
         'assets/PendingOnboarding-fixture.js': 'h("div",{"data-onboarding":v})',
         // A journey's lazyOut module (TEACHER_JOURNEYS): present, not imported.
         'assets/ImportMarkdownDialog-fixture.js': 'h("h2",{id:"import-md-title"})',
+        // The two routes R5 moved out of the shell (SHELL_EVICTED).
+        'assets/Home-evicted-fixture.js': 'h("p",{"data-list-loading":!0})',
+        'assets/JoinClass-evicted-fixture.js': 'h("p",null,"You\'re joining a class")',
     };
     for (const [file, body] of Object.entries(chunks)) {
         writeFileSync(join(dir, file), body);
@@ -139,7 +142,18 @@ function makeHealthyDist(overrides = {}) {
         ),
     );
 
-    writeFileSync(join(dir, 'index.html'), '<!doctype html><title>fixture</title>');
+    // The R5 preload script names every route chunk the real build would
+    // preload by URL: here, each journey fixture file.
+    writeFileSync(
+        join(dir, 'index.html'),
+        overrides.indexHtml ??
+            '<!doctype html><title>fixture</title><script data-route-preload>(function(){var m=' +
+                JSON.stringify([
+                    ['^/$', [`assets/journey-${TEACHER_JOURNEYS.find((j) => j.route === 'src/routes/Home.tsx').name}-fixture.js`]],
+                    ['^/join/', [`assets/journey-${TEACHER_JOURNEYS.find((j) => j.route === 'src/routes/JoinClass.tsx').name}-fixture.js`]],
+                ]) +
+                ';})();</script>',
+    );
     writeFileSync(
         join(dir, '_headers'),
         overrides.headers ?? '/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n',
@@ -629,6 +643,37 @@ test('VACUITY: a lazyOut marker that matches no chunk fails instead of reading "
         const { code, out } = runBudget(dir);
         assert.equal(code, 1, out);
         assert.match(out, /leaves out the markdown import dialog\s+MARKER NOT FOUND/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('route preload: an index.html that does not preload a lazy landing route fails (R5)', () => {
+    const dir = makeHealthyDist({ indexHtml: '<!doctype html><title>no preload</title>' });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /index\.html preloads Home\.tsx\s+NO/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('route preload: a chunk filed under the WRONG URL pattern fails (R5)', () => {
+    const home = TEACHER_JOURNEYS.find((j) => j.route === 'src/routes/Home.tsx');
+    const join = TEACHER_JOURNEYS.find((j) => j.route === 'src/routes/JoinClass.tsx');
+    const swapped = JSON.stringify([
+        ['^/$', [`assets/journey-${join.name}-fixture.js`]],
+        ['^/join/', [`assets/journey-${home.name}-fixture.js`]],
+    ]);
+    const dir = makeHealthyDist({
+        indexHtml: `<!doctype html><script data-route-preload>(function(){var m=${swapped};})();</script>`,
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /index\.html preloads Home\.tsx\s+NO/);
+        assert.match(out, /index\.html preloads JoinClass\.tsx\s+NO/);
     } finally {
         cleanup(dir);
     }
