@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { FILTER_KEYS, topicGroups } from '../lib/listFilters';
-import { useUrlFilters } from '../lib/useUrlFilters';
+import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -224,13 +224,12 @@ export default function Bank() {
     const [loadError, setLoadError] = useState<string | null>(null);
     // F-6: every filter lives in the URL (Back, refresh, a shared link).
     const filters = useUrlFilters();
-    const query = filters.get(FILTER_KEYS.query);
+    const [query, setQuery] = useUrlText(filters, FILTER_KEYS.query);
     const course = filters.get(FILTER_KEYS.course);
     const type = filters.get(FILTER_KEYS.type) as PedagogicalRole | '';
     const chosenTopics = filters.getAll(FILTER_KEYS.topic);
     const guideOnly = filters.get(FILTER_KEYS.guide) === '1';
     const author = filters.get(FILTER_KEYS.author);
-    const setQuery = (v: string) => filters.set({ [FILTER_KEYS.query]: v });
     const [lister, setLister] = useState(false);
     const [panel, setPanel] = useState<Panel>(null);
     const [addingId, setAddingId] = useState<string | null>(null);
@@ -269,10 +268,7 @@ export default function Bank() {
 
     // F-1: topics grouped by the unit they appear in.
     const topics = useMemo(() => topicGroups(entries ?? [], (e) => e.tags, (e) => e.unit), [entries]);
-    const toggleTopic = (t: string) =>
-        filters.set({
-            [FILTER_KEYS.topic]: chosenTopics.includes(t) ? chosenTopics.filter((x) => x !== t) : [...chosenTopics, t],
-        });
+    const toggleTopic = (t: string) => filters.toggle(FILTER_KEYS.topic, t);
 
     const roleOptions = useMemo(
         () => PEDAGOGICAL_ROLES.filter((r) => (entries ?? []).some((e) => e.pedagogical_role === r)),

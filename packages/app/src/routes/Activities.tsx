@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
 import { FILTER_KEYS, STATUS_OPTIONS, matchesQuery, parseStatus, topicGroups } from '../lib/listFilters';
-import { useUrlFilters } from '../lib/useUrlFilters';
+import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
 import {
     distinctCourses,
@@ -249,9 +249,9 @@ export default function Activities() {
     // Back, refresh and a shared link keep it. All AND: filters narrow.
     const filters = useUrlFilters();
     const activeTags = filters.getAll(FILTER_KEYS.topic);
-    const search = filters.get(FILTER_KEYS.query);
+    const [search, setSearchText] = useUrlText(filters, FILTER_KEYS.query);
     const statusFilter = parseStatus(filters.get(FILTER_KEYS.status) || null);
-    const setSearch = (v: string) => filters.set({ [FILTER_KEYS.query]: v });
+    const setSearch = setSearchText;
     // F-5: the strip shows three; "+N" opens the rest.
     const [showAllRecent, setShowAllRecent] = useState(false);
     const searchRef = useRef<HTMLInputElement | null>(null);
@@ -476,17 +476,11 @@ export default function Activities() {
         refreshDeleted();
     };
 
-    // Every tag in use, deduped and sorted — the chip row. Derived from the
-    // loaded rows rather than queried separately: the list already holds every
-    // activity this author owns, so a second round trip would only add a way
-    // for the chips and the rows to disagree.
+    // F-1: the topics in use, grouped by unit — derived from the loaded rows
+    // rather than queried, so the panel and the rows can't disagree.
     const topics = topicGroups(activities, (a) => a.tags, (a) => unitOf(a));
 
-    const toggleTag = (tag: string) => {
-        filters.set({
-            [FILTER_KEYS.topic]: activeTags.includes(tag) ? activeTags.filter((t) => t !== tag) : [...activeTags, tag],
-        });
-    };
+    const toggleTag = (tag: string) => filters.toggle(FILTER_KEYS.topic, tag);
 
     const clearFilters = () => {
         filters.set({ [FILTER_KEYS.topic]: null, [FILTER_KEYS.status]: null, [FILTER_KEYS.query]: null });
@@ -548,10 +542,6 @@ export default function Activities() {
     // distinguish. Repeating "Algebra II" above every unit is a constant, and
     // constants are noise.
     const showCourseInHeaders = distinctCourses(activities).length > 1;
-
-    // The drafts chip earns its place only when there ARE drafts — same
-    // no-empty-chrome rule the tag row already follows. An all-published
-    // library shows no filter chrome at all.
 
     // "Republish changed" (R-1..R-7): shown only when something is waiting,
     // and its count is what the dialog would republish (quizzes and exams

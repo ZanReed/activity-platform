@@ -20,17 +20,36 @@ export function TopicPicker({
     onToggle: (tag: string) => void;
 }) {
     const [open, setOpen] = useState(false);
+    // Where the panel sits: measured from the button on open and clamped to
+    // the screen, so it never opens off either edge (Fable review: a button
+    // that wraps to the start of a line at phone width pushed it off the left).
+    const [place, setPlace] = useState<{ top: number; left: number; width: number } | null>(null);
     const [find, setFind] = useState('');
     const rootRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         if (!open) return;
+        const measure = () => {
+            const r = buttonRef.current?.getBoundingClientRect();
+            if (!r) return;
+            const margin = 16;
+            const width = Math.min(352, window.innerWidth - 2 * margin);
+            const left = Math.max(margin, Math.min(r.right - width, window.innerWidth - width - margin));
+            setPlace({ top: r.bottom + 4, left, width });
+        };
+        measure();
         const onDown = (e: MouseEvent) => {
             if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
         };
         document.addEventListener('mousedown', onDown);
-        return () => document.removeEventListener('mousedown', onDown);
+        window.addEventListener('resize', measure);
+        window.addEventListener('scroll', measure, true);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            window.removeEventListener('resize', measure);
+            window.removeEventListener('scroll', measure, true);
+        };
     }, [open]);
 
     const total = topicCount(groups);
@@ -64,7 +83,14 @@ export function TopicPicker({
                 <div
                     role="dialog"
                     aria-label="Filter by topic"
-                    className="absolute right-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line bg-canvas p-3 shadow-lg"
+                    className="fixed z-30 rounded-lg border border-line bg-canvas p-3 shadow-lg"
+                    style={place ? { top: place.top, left: place.left, width: place.width } : { visibility: 'hidden' }}
+                    onBlur={(e) => {
+                        // Tabbing out of the panel closes it (keyboard users
+                        // never fire the outside-mousedown close).
+                        const to = e.relatedTarget as Node | null;
+                        if (to && !rootRef.current?.contains(to)) setOpen(false);
+                    }}
                     onKeyDown={(e) => {
                         if (e.key === 'Escape') {
                             e.stopPropagation();

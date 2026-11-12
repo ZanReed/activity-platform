@@ -426,7 +426,7 @@ describe('Activities filter bar (F-1…F-4)', () => {
 // The curriculum outline (design review D3–D11)
 // -----------------------------------------------------------------------------
 // The list is the teacher's year: unit groups, natural-sorted, No-unit last;
-// a recent strip for resume-work; search + drafts chip; empty groups hidden
+// a recent strip for resume-work; search + the Status menu; empty groups hidden
 // under filters. Row order inside a group stays recency.
 // =============================================================================
 
@@ -564,7 +564,7 @@ describe('Activities curriculum outline', () => {
         expect(within(nav).getAllByRole('link')).toHaveLength(3);
     });
 
-    it('the drafts chip narrows to drafts and ANDs with search', async () => {
+    it('Status = Drafts narrows to drafts and ANDs with search', async () => {
         renderList();
         await screen.findByRole('link', { name: 'Vertex Form Exit Ticket' });
         fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'drafts' } });

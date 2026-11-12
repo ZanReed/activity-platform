@@ -1,5 +1,11 @@
 # Activities list surface — RULED (design review 2026-08-18)
 
+> **⚠ SUPERSEDED IN PART 2026-11-13:** the filter row (drafts chip, tag chips
+> with `aria-pressed`, the 5-pill recent strip) was replaced by one filter bar —
+> Topics panel, Status menu, URL-kept filters, a 3-pill strip. See
+> [activity-list-filters.md](activity-list-filters.md). The outline, grouping
+> and search rulings below still stand.
+>
 > **Status:** ✅ BUILT 2026-08-19 (T1–T4; T5–T6 open) — was RULED 2026-08-18
 > (full /plan-design-review, 7 passes + wireframes)
 > (9 decisions, D3–D11, all interactive). The sibling slice the taxonomy eng
