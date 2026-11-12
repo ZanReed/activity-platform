@@ -35,11 +35,22 @@ export class SaveConflictError extends Error {
     }
 }
 
+/** Thrown by a save() that can never succeed by retrying (a document that
+ *  fails validation, a row that is gone): status 'error', no retries. */
+export class PermanentSaveError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'PermanentSaveError';
+    }
+}
+
 /** Waits between automatic retries of a failed save; the last repeats. */
 export const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000] as const;
 
 export interface Autosave {
     status: SaveStatus;
+    /** The last failure's message when it won't be retried (PermanentSaveError). */
+    permanentError: string | null;
     /**
      * Force any pending/in-flight save to complete. Resolves `true` once the
      * latest document state has reached the server, `false` when a save
@@ -60,6 +71,7 @@ export function useAutosave(
                             delayMs = 1000,
 ): Autosave {
     const [status, setStatus] = useState<SaveStatus>('idle');
+    const [permanentError, setPermanentError] = useState<string | null>(null);
 
     // Latest values, read at save time without re-running the debounce effect.
     const saveRef = useRef(save);
@@ -96,14 +108,19 @@ export function useAutosave(
         clearTimeout(retryTimer.current);
         inFlight.current = true;
         setStatus('saving');
+        // Force stays set until a save SUCCEEDS: a network failure during an
+        // overwrite retries as an overwrite, not as a checked save.
         const force = forceNext.current;
-        forceNext.current = false;
         const promise = saveRef
         .current(force ? { force: true } : undefined)
         .then(() => {
             savedKey.current = writingKey;
             failures.current = 0;
-            if (alive.current) setStatus('saved');
+            forceNext.current = false;
+            if (alive.current) {
+                setStatus('saved');
+                setPermanentError(null);
+            }
         })
         .catch((err: unknown) => {
             if (!alive.current) return;
@@ -113,6 +130,12 @@ export function useAutosave(
                 return;
             }
             setStatus('error');
+            if (err instanceof PermanentSaveError) {
+                // Retrying can't help; say why instead of "trying again".
+                setPermanentError(err.message);
+                return;
+            }
+            setPermanentError(null);
             // G-8: retry on a back-off rather than wait for the next keystroke.
             const wait = RETRY_DELAYS_MS[Math.min(failures.current, RETRY_DELAYS_MS.length - 1)];
             failures.current += 1;
@@ -213,7 +236,9 @@ export function useAutosave(
     // only arm it when actually dirty so a clean editor never nags.
     useEffect(() => {
         const handler = (e: BeforeUnloadEvent) => {
-            if (isDirty()) {
+            // Not during a conflict: its own banner offers Reload, and the
+            // browser's "Leave site?" on top of it would only confuse.
+            if (isDirty() && !conflicted.current) {
                 e.preventDefault();
                 // Legacy requirement for the prompt to show in some browsers.
                 e.returnValue = '';
@@ -235,5 +260,5 @@ export function useAutosave(
         return () => clearTimeout(timer);
     }, [key, delayMs, runSave]);
 
-    return { status, flush, retry, overwrite };
+    return { status, permanentError, flush, retry, overwrite };
 }

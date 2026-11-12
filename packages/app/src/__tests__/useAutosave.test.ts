@@ -10,7 +10,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { RETRY_DELAYS_MS, SaveConflictError, useAutosave } from '../lib/useAutosave';
+import { PermanentSaveError, RETRY_DELAYS_MS, SaveConflictError, useAutosave } from '../lib/useAutosave';
+import { rowWritesSettled, trackRowWrite } from '../lib/pendingRowWrites';
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -95,5 +96,70 @@ describe('useAutosave (G-8)', () => {
         expect(save).toHaveBeenCalledTimes(2);
         expect(save).toHaveBeenLastCalledWith({ force: true });
         expect(result.current.status).toBe('saved');
+    });
+
+    it('a permanent error is not retried, and says why', async () => {
+        const save = vi.fn().mockRejectedValue(new PermanentSaveError('Document failed validation; not saved.'));
+        const { result } = setup(save);
+        await act(async () => {
+            vi.advanceTimersByTime(1000);
+        });
+        await settle();
+        expect(result.current.status).toBe('error');
+        expect(result.current.permanentError).toBe('Document failed validation; not saved.');
+        await act(async () => {
+            vi.advanceTimersByTime(120_000);
+        });
+        await settle();
+        expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    it('an overwrite that fails on the network retries AS an overwrite', async () => {
+        const save = vi
+            .fn()
+            .mockRejectedValueOnce(new SaveConflictError())
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValue(undefined);
+        const { result, rerender } = setup(save);
+        await act(async () => {
+            vi.advanceTimersByTime(1000);
+        });
+        await settle();
+        await act(async () => {
+            result.current.overwrite();
+        });
+        await settle();
+        await act(async () => {
+            vi.advanceTimersByTime(RETRY_DELAYS_MS[0]);
+        });
+        await settle();
+        expect(save).toHaveBeenCalledTimes(3);
+        expect(save).toHaveBeenLastCalledWith({ force: true });
+        expect(result.current.status).toBe('saved');
+        // Once it lands, saving is checked again: the next edit is not forced.
+        rerender({ k: 'k9' });
+        await act(async () => {
+            vi.advanceTimersByTime(1000);
+        });
+        await settle();
+        expect(save).toHaveBeenCalledTimes(4);
+        expect(save).toHaveBeenLastCalledWith(undefined);
+    });
+});
+
+describe('pendingRowWrites (G-8: print view, then back to the editor)', () => {
+    it('waits for a registered write to the same activity, and not for others', async () => {
+        vi.useRealTimers();
+        let finish!: () => void;
+        const write = new Promise<void>((r) => (finish = r));
+        trackRowWrite('a1', write);
+        let waited = false;
+        const wait = rowWritesSettled('a1').then(() => (waited = true));
+        await rowWritesSettled('other');
+        await Promise.resolve();
+        expect(waited).toBe(false);
+        finish();
+        await wait;
+        expect(waited).toBe(true);
     });
 });

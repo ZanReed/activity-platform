@@ -51,7 +51,8 @@ import {
     tiptapToTeacherGuide,
 } from '../lib/serialize';
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
-import { SaveConflictError, useAutosave } from '../lib/useAutosave';
+import { PermanentSaveError, SaveConflictError, useAutosave } from '../lib/useAutosave';
+import { rowWritesSettled } from '../lib/pendingRowWrites';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
 import { findPublishProblems, publishProblemsSentence } from '../lib/prePublishCheck';
 import { selectBlankById } from '../editor/selectBlankById';
@@ -323,6 +324,10 @@ export default function ActivityEditor() {
         }
         let cancelled = false;
         (async () => {
+            // G-8: a print-view save still landing would otherwise make this
+            // load's updated_at stale and the first edit a false conflict.
+            await rowWritesSettled(id);
+            if (cancelled) return;
             const { data, error } = await supabase
             .from('activities')
             .select(
@@ -678,7 +683,7 @@ export default function ActivityEditor() {
         if (!parsed.success) {
             // Shouldn't happen — serialize produces valid docs and the title is
             // sanitized. Fail loud rather than persist a draft the editor can't read.
-            throw new Error('Document failed validation; not saved.');
+            throw new PermanentSaveError('Document failed validation; not saved.');
         }
         // ONE update statement carries the document and the row-native
         // taxonomy, so a metadata edit is atomic with the document it
@@ -703,12 +708,19 @@ export default function ActivityEditor() {
         const { data, error } = await query.select('updated_at');
         if (error) throw error;
         const written = (data ?? []) as { updated_at: string }[];
-        if (written.length === 0) throw new SaveConflictError();
+        if (written.length === 0) {
+            // Unchecked and still nothing written: the row is gone (deleted in
+            // another tab) or no longer ours — not a conflict to overwrite.
+            if (opts?.force || knownUpdatedAt.current === null) {
+                throw new PermanentSaveError('This activity is no longer available to edit.');
+            }
+            throw new SaveConflictError();
+        }
         knownUpdatedAt.current = written[0]?.updated_at ?? knownUpdatedAt.current;
         lastPersistedDraft.current = parsed.data;
     };
 
-        const { status, flush, retry: retrySave, overwrite: overwriteSave } = useAutosave(changeKey, save);
+        const { status, permanentError, flush, retry: retrySave, overwrite: overwriteSave } = useAutosave(changeKey, save);
         // Pre-publish step (E-1/OV-2): flush the autosave and ABORT the publish
         // when the latest edits could not persist — publishing would otherwise
         // snapshot a stale draft. On success, hand usePublish the exact payload
@@ -724,6 +736,10 @@ export default function ActivityEditor() {
                 const flushed = await flush();
                 if (!flushed) return { ok: false };
                 publishedKeyRef.current = latestKeyRef.current;
+                // G-8: publish_activity moves updated_at mid-flight; a save
+                // typed meanwhile must not be taken for another tab's change.
+                // Unchecked until the re-read after the publish settles.
+                knownUpdatedAt.current = null;
                 return { ok: true, draft: lastPersistedDraft.current };
             },
             [flush],
@@ -802,10 +818,8 @@ export default function ActivityEditor() {
             }
             // G-8: publish_activity moved the row's updated_at; re-read it so
             // this tab's next save isn't taken for another tab's change.
-            if (publishState.kind === 'success' && id) {
-                // Unchecked until the read lands, so a save racing it isn't
-                // mistaken for a conflict.
-                knownUpdatedAt.current = null;
+            const settled = publishState.kind === 'success' || publishState.kind === 'error' || publishState.kind === 'blocked';
+            if (settled && id && knownUpdatedAt.current === null) {
                 void supabase
                     .from('activities')
                     .select('updated_at')
@@ -813,7 +827,10 @@ export default function ActivityEditor() {
                     .maybeSingle()
                     .then(({ data }) => {
                         const at = (data as { updated_at?: string } | null)?.updated_at;
-                        if (at) knownUpdatedAt.current = at;
+                        // Only if no save has set a newer stamp meanwhile; a
+                        // failed read leaves it unchecked until the next save
+                        // (whose returned updated_at restores the check).
+                        if (at && knownUpdatedAt.current === null) knownUpdatedAt.current = at;
                     });
             }
         }, [publishState.kind, id]);
@@ -952,7 +969,7 @@ export default function ActivityEditor() {
             <button
             type="button"
             onClick={() => void onPublishClick()}
-            disabled={publishState.kind === 'publishing' || status === 'saving' || noChanges || checkingStarted}
+            disabled={publishState.kind === 'publishing' || status === 'saving' || status === 'conflict' || noChanges || checkingStarted}
             title={
                 status === 'saving'
                     ? 'Saving your latest edits before publishing'
@@ -1075,10 +1092,12 @@ export default function ActivityEditor() {
                 <div className="mt-2 flex justify-end" data-save-status={status}>
                 {status === 'error' ? (
                     <span className="text-xs text-danger" role="alert">
-                    {SAVE_COPY.failed}{' '}
-                    <button type="button" onClick={retrySave} className="font-medium underline underline-offset-2">
-                    {SAVE_COPY.retry}
-                    </button>
+                    {permanentError ? `Not saved: ${permanentError}` : SAVE_COPY.failed}{' '}
+                    {!permanentError && (
+                        <button type="button" onClick={retrySave} className="font-medium underline underline-offset-2">
+                        {SAVE_COPY.retry}
+                        </button>
+                    )}
                     </span>
                 ) : status === 'saving' || status === 'saved' ? (
                     <span className="text-xs text-muted" role="status">

@@ -38,6 +38,7 @@
 // about what a block looks like, they only disagree about the paper.
 // =============================================================================
 
+import { trackRowWrite } from '../lib/pendingRowWrites';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import {
@@ -64,7 +65,7 @@ import {
     clearStaleBuildGuard,
 } from '../lib/swRegistration';
 import { buildFoldableDocument } from '../lib/foldable';
-import { useAutosave } from '../lib/useAutosave';
+import { PermanentSaveError, useAutosave } from '../lib/useAutosave';
 import { PrintSettingsBody } from '../components/PrintSettingsBody';
 
 type PrintLayout = 'worksheet' | 'foldable';
@@ -288,7 +289,7 @@ export default function ActivityPrint() {
     // editor open in another tab could lose editor work by nudging a margin
     // here — silently, with no error and no trace. Print settings are the only
     // thing this page owns, so they are the only thing it writes.
-    const savePrint = useCallback(async () => {
+    const writePrintNow = useCallback(async () => {
         if (!id || !print) return;
         const { data, error: readErr } = await supabase
             .from('activities')
@@ -297,7 +298,7 @@ export default function ActivityPrint() {
             .is('deleted_at', null)
             .maybeSingle();
         if (readErr) throw readErr;
-        if (!data) throw new Error('This activity is no longer available.');
+        if (!data) throw new PermanentSaveError('This activity is no longer available.');
 
         const current = (data as { draft_content: unknown }).draft_content;
         // No draft yet (published, never edited): fall back to the document we
@@ -306,7 +307,7 @@ export default function ActivityPrint() {
         const base = current ?? doc;
         const parsed = ActivityDocument.safeParse(base);
         if (!parsed.success) {
-            throw new Error('Print settings failed validation; not saved.');
+            throw new PermanentSaveError('Print settings failed validation; not saved.');
         }
         const next: ActivityDocument = {
             ...parsed.data,
@@ -322,6 +323,12 @@ export default function ActivityPrint() {
             .eq('id', id);
         if (error) throw error;
     }, [id, doc, print]);
+    // G-8: registered, so the editor opened straight after this page waits
+    // for it before reading the row (lib/pendingRowWrites.ts).
+    const savePrint = useCallback(
+        () => (id ? trackRowWrite(id, writePrintNow()) : writePrintNow()),
+        [id, writePrintNow],
+    );
 
     const { status: saveStatus } = useAutosave(
         print ? JSON.stringify(print) : null,
