@@ -49,6 +49,33 @@ sample activities/submissions). The editor playground at `/playground` and the
 `/dev/*` harnesses need no Supabase data and are the fastest way to poke at
 editor behavior (dev builds only).
 
+### Playtesting without signing in (local stack)
+
+`pnpm playtest` runs the whole app against a **local** Supabase stack with real
+data, so teacher and student features can be tried end to end without Google
+sign-in and without touching the live project. Needs Docker and the Supabase
+CLI (`supabase start` once).
+
+```bash
+pnpm playtest              # reset + seed the local DB, then serve functions + app
+pnpm playtest --no-reset   # keep what you did last time; just serve
+pnpm playtest:seed         # reset + seed only
+```
+
+The seed applies every migration, imports the catalogue
+(`~/activity-catalogue-pilot`, override with `--catalogue`) with every
+registry from `../curriculum-repo` (`--curriculum`), publishes it all, and
+builds one class (teacher + six students; accounts in
+`packages/app/src/dev/playtestAccounts.json`) with mixed practice on, a
+number-facts check open and a Today activity set. The app opens on
+`http://localhost:5173` in `--mode playtest` (`packages/app/.env.playtest`)
+with a **"Playtest as" bar** in the bottom-left corner: click a person to
+switch. Student checks go through the real local `check-activity`, so the
+teacher's progress, misconception and response views show what you just did.
+It shares the stack with the `integration` e2e lane — re-seed after running
+that lane. Guarded by `scripts/tests/playtest-guards.test.mjs` (local URLs
+only; the bar never reaches a production build).
+
 ## Common commands
 
 | Command | What it does |
@@ -65,7 +92,7 @@ editor behavior (dev builds only).
 | `node --test scripts/tests/*.test.mjs` | The root-script guard suite (perf budgets, e2e origins, supabase stub pin, verify-runner, data-map coverage). |
 | `pnpm deploy:get-activity` | Redeploy `get-activity` with the required `--no-verify-jwt` flag baked in (run `bundle:viewer-server` first) |
 | `pnpm deploy:check` | Redeploy `check-activity` — no flag; `verify_jwt` stays true (run `bundle:grading-server` first) |
-
+| `pnpm playtest` | Playtest the whole app as a teacher or a student against a seeded LOCAL Supabase stack — no sign-in, never the live project (see "Playtesting without signing in" above) |
 | `pnpm clean` | Remove all `dist/` directories |
 | `pnpm --filter @activity/app test:e2e:print` | The print gates (rules · pagination · answer key). Screenshot baselines are Linux-authoritative and skip locally by design (S5-7) — CI runs the same match with `PRINT_BASELINES=1`. |
 | `pnpm --filter @activity/app test:e2e:<lane>` | One Playwright lane: `editor` (200+ /playground specs, reuses your dev server) · `student` (signed-in stubs, own pinned-env server) · `sw` (built worker via preview) · `perf` (throttled timings, same preview) · `a11y` (axe + the four real-browser gap rows, student dev server) · `integration` (real local Supabase stack — needs Docker; see the lane's preflight) |

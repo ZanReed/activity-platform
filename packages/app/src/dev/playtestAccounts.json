@@ -1,0 +1,15 @@
+{
+  "_comment": "LOCAL-STACK PLAYTEST ACCOUNTS ONLY (scripts/playtest.mjs seeds them; src/dev/PlaytestBar.tsx signs in as them). The .example domain (RFC 2606) can never be a real account, and the seed refuses any Supabase URL that is not 127.0.0.1/localhost. One file for both sides, so the seed and the sign-in buttons cannot drift (P2).",
+  "domain": "playtest.example",
+  "password": "playtest-local-only-pw-1",
+  "className": "Playtest 7A",
+  "teacher": { "key": "teacher", "email": "teacher@playtest.example", "name": "Ms Playtest" },
+  "students": [
+    { "key": "ava", "email": "ava@playtest.example", "name": "Ava Student" },
+    { "key": "ben", "email": "ben@playtest.example", "name": "Ben Student" },
+    { "key": "cal", "email": "cal@playtest.example", "name": "Cal Student" },
+    { "key": "dee", "email": "dee@playtest.example", "name": "Dee Student" },
+    { "key": "eli", "email": "eli@playtest.example", "name": "Eli Student" },
+    { "key": "fay", "email": "fay@playtest.example", "name": "Fay Student" }
+  ]
+}

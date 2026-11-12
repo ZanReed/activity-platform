@@ -29,6 +29,15 @@ if (import.meta.env.PROD) {
 }
 void registerServiceWorker();
 
+// `pnpm playtest` (scripts/playtest.mjs) runs vite in --mode playtest against
+// the LOCAL Supabase stack; this adds the "Playtest as" switcher in its own
+// root. Both halves of the condition are compile-time constants, so a
+// production build folds it to `false` and drops the import — keep the gate in
+// exactly this form (scripts/tests/playtest-guards.test.mjs pins it).
+if (import.meta.env.DEV && import.meta.env.MODE === 'playtest') {
+  void import('./dev/mountPlaytest').then((m) => m.mountPlaytest());
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
   <BrowserRouter>

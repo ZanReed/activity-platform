@@ -17,6 +17,8 @@
     "report:stale": "node --env-file-if-exists=.env.supabase scripts/stale-publications.mjs",
     "verify": "node scripts/verify-local.mjs",
     "verify:auth": "node scripts/verify-runner.mjs",
+    "playtest": "node scripts/playtest.mjs",
+    "playtest:seed": "node scripts/playtest.mjs --seed-only",
     "worker:login": "pnpm --filter @activity/grading-worker worker:login",
     "worker:check": "pnpm --filter @activity/grading-worker worker:check",
     "worker:run": "pnpm --filter @activity/grading-worker worker:run",
