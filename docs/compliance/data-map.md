@@ -12,7 +12,7 @@
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
 >
-> **`draft-52` (2026-11-13) — 0086 adds NO personal data.** It adds `restore_class` (a soft-deleted class comes back exactly as it was: same roster, activities and join code — no new data, and none is copied) and two owner-scoped reads of the teacher's own deleted classes and activities (names and titles only). One new audit action, `class.restore`, in the existing `audit_log` (actor = the teacher). The range moves to 0086 on that basis.
+> **`draft-52` (2026-11-13) — 0086 adds NO personal data.** It adds `restore_class` (a soft-deleted class comes back as it was: same roster, activities and join code — no new data, and none is copied; once the disarmed practice prunes are armed, a class restored more than 30 days after deletion comes back without its number-facts and mixed-practice data) and two owner-scoped reads of the teacher's own deleted classes and activities (names and titles only). One new audit action, `class.restore`, in the existing `audit_log` (actor = the teacher). The range moves to 0086 on that basis.
 >
 > **`draft-51` (2026-11-12) — 0085 adds NO personal data.** service_role gains insert and update on the curriculum misconception list (which live already had through hosted default privileges). The range moves to 0085 on that basis.
 >

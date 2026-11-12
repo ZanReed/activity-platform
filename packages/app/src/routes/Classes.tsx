@@ -795,7 +795,10 @@ export default function Classes() {
     }, [undo]);
     const restore = async (id: string) => {
         await restoreClass(id);
-        setClasses(await listClasses());
+        // A class deleted before this page loaded had no activity rows (the
+        // policy hides a deleted class's), so re-read them with the class.
+        const [list] = await Promise.all([listClasses(), classActivities.reload()]);
+        setClasses(list);
         setUndo((u) => (u?.id === id ? null : u));
         refreshDeleted();
     };

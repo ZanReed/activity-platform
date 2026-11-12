@@ -20,8 +20,12 @@
 -- No purge exists for classes (TODOS "A class purge does not exist"), so a
 -- deleted class stays restorable until one is ruled. Its join code stays
 -- reserved the whole time (classes.join_code is unique, not partial), so a
--- restore can never collide. Restoring brings the class back exactly as it
--- was: roster, activities and the same code.
+-- restore can never collide. Restoring brings the class back as it was:
+-- roster, activities and the same code. ⚠ ONE EXCEPTION, once armed: the
+-- disarmed prunes prune_fact_practice (0048/0050) and prune_mixed_practice
+-- (0066) remove a class's practice data 30 days after it was deleted, so a
+-- class restored after that comes back without its number-facts checks and
+-- mixed-practice sessions. Both arming checklists in TODOS carry this.
 --
 -- No personal-data column or student-derived table is added: class names and
 -- activity titles are teacher content (data-map unchanged).
@@ -40,12 +44,14 @@ begin
   -- is_class_teacher is unusable here (it requires deleted_at is null), so
   -- the ownership + tombstone test is inline, as in restore_activity. A
   -- non-owner, a missing row, or a live (already-restored) class all raise.
+  -- current_user_is_teacher(): a teacher demoted since lost delete through
+  -- is_class_teacher (0027 §D); they must not be able to restore either.
   if not exists (
     select 1 from classes
     where id = p_class_id
       and teacher_id = auth.uid()
       and deleted_at is not null
-  ) then
+  ) or not current_user_is_teacher() then
     raise exception 'Class is not restorable';
   end if;
 
@@ -70,6 +76,7 @@ as $$
   select c.id, c.name, c.deleted_at
   from classes c
   where c.teacher_id = auth.uid() and c.deleted_at is not null
+    and current_user_is_teacher()
   order by c.deleted_at desc;
 $$;
 

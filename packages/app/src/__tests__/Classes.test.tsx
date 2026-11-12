@@ -43,6 +43,12 @@ const h = vi.hoisted(() => {
 vi.mock('../lib/supabase', () => ({
     supabase: { from: h.from, rpc: h.rpc },
 }));
+// G-5: restoring a class re-reads the class activities (counted here).
+const ca = vi.hoisted(() => ({ list: vi.fn(async () => []) }));
+vi.mock('../lib/classActivities', async (importActual) => ({
+    ...(await importActual<typeof import('../lib/classActivities')>()),
+    listTeacherClassActivities: ca.list,
+}));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({
         session: { user: { id: 'teacher-1' } },
@@ -238,10 +244,16 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
         fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete class' }));
         await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('soft_delete_class', { p_class_id: 'class-1' }));
 
-        // G-5: an undo toast, which restores through restore_class.
+        // G-5: an undo toast, which restores through restore_class — and
+        // re-reads the class activities (a class deleted before the page
+        // loaded had none in the hook; Fable review).
         const toast = await screen.findByText(/^Deleted/);
+        const activityReadsBefore = ca.list.mock.calls.length;
         fireEvent.click(within(toast.closest('[role="status"]') as HTMLElement).getByRole('button', { name: 'Undo' }));
         await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('restore_class', { p_class_id: 'class-1' }));
+        await waitFor(() =>
+            expect(ca.list.mock.calls.length).toBeGreaterThan(activityReadsBefore),
+        );
     });
 
     // G-7: replacing a posted code asks first.

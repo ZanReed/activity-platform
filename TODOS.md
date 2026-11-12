@@ -94,10 +94,9 @@ already in this file. Ranked inside each group; the author picks the order.
 4. **Release all graded** (`ActivityResponses.tsx` `releaseAll`) — one click,
    no confirm, no un-release; a failure part-way replaces the queue with the
    load-error message.
-5. **Delete a class** — 4-second "Really delete?" text link, no count of
-   students or work, no undo (`Classes.tsx` ~508). **Delete an activity** —
-   7-second undo toast only, though `restore_activity` and a 30-day purge
-   exist; no "Recently deleted" view.
+5. ✅ BUILT 2026-11-13 (G-5/G-6, 0086): **Delete a class** — confirm with
+   counts, Undo, Recently deleted + Restore. **Delete an activity** — confirm
+   when it is in a class; Recently deleted + Restore (30-day purge shown).
 6. **"New code"** replaces a class join code in one click (`Classes.tsx`).
 7. Two tabs on one activity overwrite each other (autosave has no version
    check); a failed save has no retry, no `role="alert"`, no online listener.
@@ -152,7 +151,7 @@ already in this file. Ranked inside each group; the author picks the order.
 - Export progress/grades to CSV.
 - One "to grade" inbox across activities (chips exist per class cell).
 - Hide/unpublish without deleting; rename/archive a class at year end;
-  duplicate my own activity; Recently deleted (backend exists).
+  duplicate my own activity. (Recently deleted: built, G-5/G-6.)
 - Already-copied marker in the Bank (re-adding makes duplicates).
 - Student: past attempts / score per activity; completion panel linking to
   the next activity or the unit tracker; unchecked work following the
@@ -420,7 +419,10 @@ Chromium fires no `blur` when a focused input becomes disabled, and `BlankInput`
   the author's explicit yes.** It deletes students' practice answers (and, for
   unscored sessions, the session rows). Held back only by being unscheduled and
   dry-run by default (verify-0066's `prune_is_unscheduled` row fails if a cron
-  job names it). Steps, in order, the cron row last: (1) a counsel question
+  job names it). ⚠ Since 0086 a deleted class can be RESTORED: once armed,
+  this removes a class's sessions 30 days after it was deleted, so a later
+  restore brings the class back without them — say so in Recently deleted
+  (it shows no date for classes today) before arming. Steps, in order, the cron row last: (1) a counsel question
   (a Q12 in counsel-review-packet.md: the mixed-practice window, and the
   ER-7 rule that a recorded practice score outlives its answers); (2) 0066
   applied live and verify-0066 green live; (3) two dry-run reports a week apart,
@@ -673,7 +675,10 @@ asked in the open-snapshot screen; each check carries `keep_until`.
 
 `prune_fact_practice(false)` deletes students' answers and timings. Nothing
 mechanical holds it back except that no job calls it (verify-0048's
-`prune_is_unscheduled` row). In order; the cron row comes LAST:
+`prune_is_unscheduled` row). ⚠ Since 0086 a deleted class can be RESTORED:
+once armed, this removes a deleted class's number-facts data 30 days after the
+delete, so a later restore brings the class back without it — Recently deleted
+must say so (it shows no date for classes today) before arming. In order; the cron row comes LAST:
 
 1. ✅ DONE 2026-10-06. **Counsel Q11(b) answered** (counsel-review-packet.md):
    the author reported counsel's reply, "current measures are sufficient",
