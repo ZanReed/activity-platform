@@ -1,6 +1,6 @@
 # Student shell size review — measurements, savings, and a policy that stops the creep
 
-**Status:** DESIGN PASS, awaiting rulings (§6). Analysis only: no source file changed.
+**Status:** DESIGN PASS, awaiting rulings (§6 student side, §8.4 teacher side). Analysis only: no source file changed.
 **Date:** 2026-11-13, measured at `018d52b8` (main) under CI's build env
 (`VITE_SUPABASE_URL=http://127.0.0.1:54399`, `VITE_SUPABASE_ANON_KEY=e2e-anon-key`),
 in a detached scratch worktree so the GUI-sweep session's uncommitted edits were not measured.
@@ -30,6 +30,10 @@ TODOS.md → "The student shell's size ladder", the chunk-layout comment in `pac
   0.1 KiB. Nothing records who spent the headroom, nothing asks a new feature to pay for itself, and
   a 20-byte overrun gets a 100-byte ruling. §5 proposes a fixed ceiling, an exact-byte spend
   meter, and lazy-by-default for new blocks.
+- **Teacher side (§8):** the editor's first open downloads 762 KiB gz beyond the shell, Print 684 and
+  Bank 301. Bank and Print pay for MathLive and most of the editor through one stray import each.
+  Four small fixes cut ~960 KiB of first-visit download across those three routes (two of them
+  measured), and per-route journey caps with forbidden markers would keep it from coming back.
 
 ## 1. Measurements
 
@@ -258,4 +262,123 @@ vite.attrib.ts` (a wrapper that spreads `vite.config.ts` and adds a `generateBun
 each entry module's rendered code size + standalone gzip) under CI's two env vars. Each §2
 "measured" figure is one build with only that change applied, compared by gzip-6 of the entry file
 (the same `gzipSync` default `check-perf-budget.mjs` uses). Do not use `.env.local`: it reads about
-47 B heavier.
+47 B heavier. The teacher figures (§8) add a second wrapper that dumps rollup's module graph
+(`getModuleInfo(id).importedIds`) for the shortest-path traces and the graph-cut estimates, and sum
+each route's static chunk closure from the per-chunk `imports` lists.
+
+---
+
+## 8. Teacher side
+
+**Scope added 2026-11-13** (author: "it's better to be efficient on both sides when we can").
+Same build, same CI env, same rules: analysis only. Decisions are numbered **T1–T9** so they do
+not collide with §6.
+
+### 8.1 What a teacher downloads
+
+The measure is the **journey**: a route's lazy chunk plus every chunk it statically imports,
+minus what the shell already brought. That is what the browser fetches on the first visit to the
+route, before any in-route `import()`. Gzip-6 of the dist files:
+
+| Route | Journey beyond shell (gz) | Files | Heaviest parts |
+|---|---|---|---|
+| **ActivityEditor** | **762.4 KiB** | 41 | MathLive 222.7 · ProseMirror/Tiptap core chunk 151.3 (131 vendor, 20 app) · editor extensions chunk 94.6 (**yjs + lib0 + y-tiptap ≈ 41.5**, prosemirror-tables 7.1, app 33.8) · KaTeX 75.2 · route chunk 45.7 (**markdownToTiptap 18.9 + markdownImportPrompt 11.2**) · **mathjs + typed-function 43.6** · Editor chunk 37.9 (**tippy + popper 13.7**) · zod 14.5 · focus-trap 9.1 |
+| **ActivityPrint** | **684.0** | 39 | Nearly the whole editor: `PrintSettingsBody` is imported from `ActivityConfigDrawer.tsx`, which statically imports `ReferencePanelEditor` and `TeacherGuideEditor` (Tiptap, MathLive) and the graph-kit barrel (mathjs) |
+| **Bank** | **301.4** | 13 | MathLive 222.7 + mathjs 43.6 + zod 14.5, all through **one import**: `teacherGuideToTiptap` from `lib/serialize.ts` (serialize → mathPromptSync → math-prompt-convert → MathLive; serialize → dolRules → scorers → mathjs) |
+| ActivityProgress | 80.0 | 16 | mathjs 43.6 (answerText → seededPrint → resolveEntry → scorers → evaluate), zod 14.5 |
+| ActivityResponses | 79.0 | 14 | the same mathjs + zod path |
+| progress/AnswerPanel | 74.8 | 13 | the same |
+| Activities (teacher landing) | 43.9 | 15 | zod 14.5 (schema barrel), focus-trap 9.1, route 9.0 |
+| FactsTeacher | 13.7 | 6 | route chunk 11.9 |
+| Classes / ClassProgress / ChainHooks / Analytics | 8.2 / 6.1 / 4.4 / 1.7 | | |
+
+**All JS in the build:** 1,386 KiB gz (1,165 br) in 129 chunks. **Largest chunks:** JSXGraph 239.1
+(lazy, graph blocks only), MathLive 222.7, Tiptap/ProseMirror core 151.3, editor extensions 94.3,
+KaTeX 75.2, markdown-it 45.3 (already dynamic), mathjs 43.6.
+
+**Caching changes what a byte costs.** Teachers come back; the service worker's CacheFirst runtime
+cache makes a repeat editor open nearly free *until the next deploy*. Cloudflare deploys every push
+to `main`, which is often several times a day. Any chunk whose hash changes is downloaded again.
+The two biggest editor chunks **mix vendor code with app code** (the Tiptap core chunk holds 20 KiB
+of `app/src/editor`, the extensions chunk 34). So an editor commit can re-hash ~245 KiB of mostly
+unchanged ProseMirror. Not measured across deploys; see T7.
+
+### 8.2 Ranked savings (teacher)
+
+*Measured* = a real build with the change applied in the scratch worktree. *Graph est.* = modules
+that become unreachable in the module graph when that one static edge is cut, sized by their share
+of their chunk's gzip (§1.2's method).
+
+| # | Change | Saving | Risk / effort | What teachers feel |
+|---|---|---|---|---|
+| **TR1** | **Bank stops importing `lib/serialize.ts`**: move `teacherGuideToTiptap` (or what it needs) into a small module of its own | **Bank 301.4 → 5.4 measured (−296)** | Low / S | Bank opens without downloading MathLive or mathjs. On a school Chromebook that is ~1 MB less to parse |
+| **TR2** | **Print stops importing `ActivityConfigDrawer.tsx`**: move `PrintSettingsBody` into its own module | **Print 651 → 63 graph est. (−588)** | Low / S | Print preview opens without the editor. Making only the two drawer editors lazy measured 684 → 588 (−96, ReferencePanelEditor alone); both, graph est. −337 |
+| **TR3** | **Stub `@tiptap/y-tiptap`** (yjs, lib0, y-protocols, extension-collaboration). Reached only through `@tiptap/extension-drag-handle`, which calls it only when a y-sync plugin exists (`getRelativePos` returns `null` when `ySyncPluginKey.getState` is empty). No collaboration in the app | **Editor −31.3 measured** (and the same on Print until TR2) | Low–med / S. Same pattern as the Supabase stubs: an alias, a pin test on the Tiptap version (the family is bumped together), and an `ABSENT_FROM_BUILD` row. Un-stub if co-editing ever lands (the fall co-ownership arc is async, not live) | Nothing; drag handles still work (mutation/e2e on drag-reorder required) |
+| **TR4** | **Markdown import dialog lazy** in `ActivityEditor.tsx` (it carries `markdownToTiptap` and the 11 KiB copy-paste prompt *text*) | **Editor ≈ −40 measured** (−71.4 together with TR3) | Low / XS | A one-round-trip wait the first time the dialog opens |
+| **TR5** | **Dashboards evaluate seeded answers lazily**: Responses, Progress and AnswerPanel reach mathjs through `resolveEntry → scorers` | **Responses 67 → 12.5 graph est. (−55)**, the same order for Progress and AnswerPanel | Med / M. The seeded-answer text must appear without a flash; it could load only when the activity has seeded items | Dashboards for unseeded activities open lighter; seeded ones wait one round trip for their answer text |
+| TR6 | Slash menu off tippy.js + popper (deprecated) onto `@floating-ui`, which Tiptap already ships | ~13 est. | Low–med / S | Nothing if the menu positions the same |
+| TR7 | Activities off the schema barrel (zod 14.5) | ≤14 est. Graph cut showed 0, so another path also reaches zod | Low / S, needs its own trace | Teacher landing a little lighter |
+| TR8 | MathLive deferred to the first math field | up to 223, **but woven through 7 importers** (Editor.tsx's `import 'mathlive'`, both drawer editors, mathFormula.ts, and graph-kit's barrel used by 9 editor modules) | High / L | Maths activities almost always have math, so most sessions would download it anyway; this improves time-to-first-edit, not total bytes. **Not recommended** |
+| TR9 | Split vendor code from app code in the editor chunks (`manualChunks` for prosemirror/tiptap, mathjs, katex) so editor commits stop re-hashing vendor code | **0 first-open bytes; repeat-visit bytes after each deploy** (not measured) | Med / S. A wrong rule can pull vendor code into the shell; the shell's forbidden-marker rows already catch that | Teachers re-download ~20–40 KiB of app code after a deploy instead of ~245 |
+
+**Together TR1–TR4 (low risk, all small):** editor 762 → ~691 (measured), Bank 301 → 5 (measured),
+Print 684 → ~63 (graph est.). That is about **−960 KiB of first-visit downloads across the three
+routes**, with no change to what a teacher sees except a lazy markdown dialog.
+
+**Why these exist:** every large item above is one static import reaching across a feature line
+(Bank → serialize, Print → drawer, drawer → graph-kit barrel, drag-handle → yjs). That is the same
+class as the student side's barrel finding (§2 R3) and rung 1's zod: **import cost, not use
+cost.** Nothing on the teacher side currently checks for it, because the CHUNK_LEDGER rows
+measure *libraries* summed across all chunks, never *which routes* pull them.
+
+### 8.3 Policy for the teacher side
+
+The student policy (§5: a fixed ceiling and an exact-byte meter) **should not be copied as it
+stands.** Teachers are on staff devices, revisit with a warm cache, and the editor changes most
+days. A 256-byte meter on the editor would turn every editor commit into a spend row. The teacher
+problem is different: **heavy libraries leaking into routes that don't use them.** The guard
+should match that.
+
+**TP-1. Teacher journey budgets in `scripts/perf-budgets.mjs`.** A new `TEACHER_JOURNEYS` list,
+one row per route facade (`routes/ActivityEditor.tsx`, `Bank`, `ActivityPrint`, `Activities`,
+`ActivityResponses`, `ActivityProgress`, `Classes`). Each row has a gz cap on the static-closure
+sum beyond the shell (from `dist/.vite/manifest.json`, the file `check-perf-budget.mjs` already
+reads; the manifest's `imports` lists are exactly the static closure). Caps are set at measurement
++ ~10% after TR1–TR4 land, under the existing R6 anti-fossil rule. The rows should be coarse on
+purpose.
+
+**TP-2. Per-journey forbidden markers, the rows that do the real work.** These reuse
+`CHUNK_LEDGER`'s content markers: **Bank, Activities, Classes and the dashboards must be free of
+`MathfieldElement` (MathLive) and `ProseMirror`. Print must be free of `ProseMirror`. No journey
+may contain yjs** (after TR3). This is the teacher equivalent of `SHELL_FORBIDDEN_MARKERS`. Each
+row carries a `why`, and each is mutation-tested once by restoring the import it guards.
+
+**TP-3. Retire the summed `prosemirror` ledger row's role as the editor's growth gate.** It sums
+every chunk containing the `ProseMirror` marker, which includes the editor's own app code, so
+"every editor feature crosses it" (perf-budgets.mjs, 2026-11-12). Once TP-1's editor journey row
+exists, the ledger row returns to its original job of keeping ProseMirror out of the shell. Its cap
+can then be set from TR9's vendor-only chunk or left loose.
+
+**TP-4. A design-pass size line for teacher features, coarse.** It need not give a byte count,
+only the answers to: "Does this add a heavy library to a route that didn't have it? Does a
+lightweight route gain an import from `editor/`, `lib/serialize.ts` or a package barrel?"
+
+**TP-5. A lint rule for the import shapes that caused every finding here.** These are a static
+import of `lib/serialize.ts`, `components/ActivityConfigDrawer.tsx` or `@activity/graph-kit` (the
+barrel) from a route file outside the editor. ESLint's `no-restricted-imports` with a per-file
+override, so the editor keeps them. This catches the mistake in the editor while it is being
+written, before a build.
+
+### 8.4 Decisions (teacher side)
+
+| # | Decision | Recommendation |
+|---|---|---|
+| **T1** | Build TR1 (Bank off serialize, −296 measured) and TR2 (Print off the drawer, −588 graph est.) as one small slice? | **Yes, first.** Biggest wins in the review, lowest risk |
+| **T2** | Stub y-tiptap/yjs (TR3, −31 measured) with a Tiptap pin test and an absence row? | **Yes**, with drag-reorder e2e coverage. Un-stub only for live co-editing |
+| **T3** | Make the markdown import dialog lazy (TR4, ≈−40 measured)? | **Yes** |
+| **T4** | Lazy seeded-answer evaluation on the dashboards (TR5, ~−55 graph est. each)? | **Yes, after T1–T3**, as its own slice, because the no-flash requirement needs a design line |
+| **T5** | Add `TEACHER_JOURNEYS` caps (TP-1) and per-journey forbidden markers (TP-2) to `perf-budgets.mjs` / `check-perf-budget.mjs`? | **Yes, in the same slice as T1**, so the guard is born green and mutation-tested against the import it removes |
+| **T6** | Retire the summed prosemirror ledger row as the editor gate (TP-3)? | **Yes**, once T5's editor journey row exists |
+| **T7** | Vendor/app chunk split for the editor (TR9), to cut post-deploy re-downloads? | **Measure first**: record chunk-hash churn across a week of deploys, then decide |
+| **T8** | Lint rule against cross-feature heavy imports (TP-5)? | **Yes**, cheap |
+| **T9** | Apply the student side's exact-byte meter (§5 P-2) to teacher routes? | **No.** The journey caps and markers fit the teacher problem; the meter would tax every editor commit |
