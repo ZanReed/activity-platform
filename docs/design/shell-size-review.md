@@ -1,6 +1,6 @@
 # Student shell size review — measurements, savings, and a policy that stops the creep
 
-**Status:** DESIGN PASS, awaiting rulings (§6 student side, §8.4 teacher side). Analysis only: no source file changed.
+**Status:** ⚖ **RULED 2026-11-13: the author accepted every recommendation** in §6 (D1–D10) and §8.4 (T1–T9). Nothing is built yet. Build order: student tier A (D1) with the fixed ceiling, spend meter and lazy-by-default guard (D2–D5, D10); teacher T1 + T5 together, then T2, T3, T8, then T4 as its own slice, then T6. Held in reserve: D6–D8. Measure first: T7. Declined: D9's R11–R13 and T9.
 **Date:** 2026-11-13, measured at `018d52b8` (main) under CI's build env
 (`VITE_SUPABASE_URL=http://127.0.0.1:54399`, `VITE_SUPABASE_ANON_KEY=e2e-anon-key`),
 in a detached scratch worktree so the GUI-sweep session's uncommitted edits were not measured.
@@ -254,6 +254,8 @@ reachable chunks of the route) in the same slice.
 | **D9** | Library swaps (R10 thin data client, R11 own auth client, R12 Preact, R13 router)? | **No for R11–R13.** R10 gets a design pass only when the reserve is spent, or when the field-measurement trigger fires |
 | **D10** | Add a brotli info row to the budget output (P-6)? | **Yes**, info only |
 
+⚖ **RULED 2026-11-13 (author): every recommendation above, as written.**
+
 ## 7. Reproducing
 
 The scratch worktree, attribution config and outputs were not committed. To redo: `git worktree add
@@ -382,3 +384,5 @@ written, before a build.
 | **T7** | Vendor/app chunk split for the editor (TR9), to cut post-deploy re-downloads? | **Measure first**: record chunk-hash churn across a week of deploys, then decide |
 | **T8** | Lint rule against cross-feature heavy imports (TP-5)? | **Yes**, cheap |
 | **T9** | Apply the student side's exact-byte meter (§5 P-2) to teacher routes? | **No.** The journey caps and markers fit the teacher problem; the meter would tax every editor commit |
+
+⚖ **RULED 2026-11-13 (author): every recommendation above, as written.**
