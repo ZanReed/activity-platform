@@ -203,8 +203,10 @@ in `packages/viewer/tests/eagerBlocks.ts`. Teacher routes have coarse
 `node scripts/check-perf-budget.mjs` after `pnpm verify`, never from here.**
 T2, T3 and T8 built too (editor journey 690 KiB gz). **Author check owed:**
 drag one block by its grip in the editor once (y-tiptap is stubbed;
-Playwright cannot drive that drag, with or without the stub). Next: T4 (lazy
-seeded answers on the dashboards, needs a no-flash design line), then T6.
+Playwright cannot drive that drag, with or without the stub). T4 built too
+(dashboards load the seeding code only to seed one student), and T6 (the
+summed prosemirror row is no longer the editor gate). The review's build list
+is done; T7 waits on a week of deploy-churn measurements.
 
 ## Build order — RULED by the author 2026-10-02
 

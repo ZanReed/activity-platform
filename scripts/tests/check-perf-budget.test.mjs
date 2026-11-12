@@ -104,6 +104,7 @@ function makeHealthyDist(overrides = {}) {
         // The marker is the minified SHAPE: zod assigns the class name as a
         // string literal, which is what survives minification.
         'assets/zod-fixture.js': 'class E extends Error{constructor(){this.name="ZodError"}}',
+        'assets/mathjs-fixture.js': 'throw new TypeError("No signatures provided")',
         // The two screens rung 3 moved out of the shell (SHELL_EVICTED): each
         // must be found in SOME non-entry chunk, or its row reports a rotted marker.
         'assets/SignedOutLanding-fixture.js': 'h("input",{id:"landing-code"})',

@@ -2785,6 +2785,16 @@ changes belongs here. Recorded with enough context to act without archaeology.
 
 **Depends on:** nothing. Each is independent.
 
+## Bank preview: load the seeding code on demand (shell-size review T4-5)
+
+**Trigger: a Bank preview is reported slow.** `components/BankItemPreview.tsx`
+imports `substituteSeededAnswers` from `@activity/viewer/seeded-print`
+statically, so every Bank preview downloads mathjs (~43 KiB gz of its ~70)
+whether or not the activity is seeded. The fix is the pattern T4 used on the
+dashboards: `needsSeeding()` on the content, then `import()` only when it is
+true (docs/design/shell-size-review.md §8.5). Add a TEACHER_JOURNEYS row with
+`forbid: ['mathjs']` in the same commit.
+
 ## The student shell's size ladder — TARGET MET (2026-08-23), ladder open
 
 > ⚖ **2026-11-13: THE CAP IS FIXED AT 158.7 AND A SPEND METER REPLACES CAP RULINGS (author, [shell-size-review.md](docs/design/shell-size-review.md)).** Tier A built: a11y story prose moved test-side, `@supabase/functions-js` stubbed, `sideEffects` declared on viewer + graph-kit, Vite's modulepreload polyfill off. **162,470 → 159,049 B gz (158.66 → 155.32 KiB)**, the `SHELL_JS_ANCHOR` in `scripts/perf-budgets.mjs`. The allowance under the ceiling is drawn down by `SHELL_SPEND` rows; crossing the ceiling needs a reserve rung. **The reserve, in order:** R6 (lazy static figure engine, ~5 est., re-opens Y7 ER-9), R5 (Home + JoinClass lazy, −4.7 measured, needs a path-based preload), R7 (rare blocks lazy, ~3, Table stays eager). The "no cheap rung left" line under rung 3 below was wrong: the review found 3.4 KiB of code no student ran.

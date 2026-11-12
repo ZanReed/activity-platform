@@ -31,7 +31,36 @@ import {
     type CheckItemResult,
     type SectionResponses,
 } from '@activity/viewer';
-import { seedForForm } from '@activity/viewer/seeded-print';
+// NOT imported statically (shell-size review T4, 2026-11-13): seeded-print
+// reaches the scorers and mathjs (~45 KiB gz), and only ONE caller seeds (the
+// per-student answer panel). Responses and Progress pass studentId null and
+// never run it, so they must not download it. A caller that seeds loads it with
+// loadSeeding() and passes it in; perf-budgets.mjs → TEACHER_JOURNEYS forbids
+// mathjs on all three dashboards.
+export type SeedForForm = typeof import('@activity/viewer/seeded-print').seedForForm;
+
+/** The seeding code, on demand. Rejects when the chunk cannot load (an open
+ *  tab after a deploy); the browser then keeps that failure for the page. */
+export function loadSeeding(): Promise<SeedForForm> {
+    return import('@activity/viewer/seeded-print').then((m) => m.seedForForm);
+}
+
+/** Does this stored content serve different numbers per student? Seed
+ *  variables (wishlist #6) or a DoL section (D65) are the only two sources;
+ *  without either, seeding is the identity and need not be loaded. */
+export function needsSeeding(content: unknown): boolean {
+    try {
+        return docNeedsSeeding(upgradeActivityDocument(content).doc);
+    } catch {
+        // Unreadable by this build: servedDocument throws for it on its own,
+        // and the caller shows that version's answers as unavailable.
+        return false;
+    }
+}
+
+function docNeedsSeeding(doc: ActivityDocument): boolean {
+    return (doc.meta.seedVars?.length ?? 0) > 0 || doc.sections.some((s) => s.dol !== undefined);
+}
 
 export const ANSWER_NOT_SHOWN = '(answer not shown)';
 export const NO_ANSWER = '(no answer)';
@@ -60,7 +89,11 @@ export interface ServedDoc {
  * when the content cannot be read by this build (the caller shows that).
  * studentId NULL = no student (the common-wrong-answers panel groups many
  * students' answers): a seeded activity then keeps its `{name}` templates
- * rather than showing one student's numbers as everyone's. */
+ * rather than showing one student's numbers as everyone's.
+ *
+ * `seedForForm` (from loadSeeding()) is REQUIRED when studentId is set and the
+ * content needsSeeding(): building one student's view without it would show
+ * the class template as that student's answers, so this throws instead. */
 export function servedDocument(
     content: unknown,
     versionId: string,
@@ -68,11 +101,15 @@ export function servedDocument(
     /** D65: the DoL form to rebuild — the attempt number of the DoL attempt
      *  on screen (a DoL attempt's form IS its attempt number). */
     dolForm = 1,
+    seedForForm?: SeedForForm,
 ): ServedDoc {
     const { doc } = upgradeActivityDocument(content);
     let served: ActivityDocument = doc;
     let keyed: ActivityDocument = doc;
-    if (studentId !== null) {
+    if (studentId !== null && docNeedsSeeding(doc)) {
+        if (!seedForForm) {
+            throw new Error('servedDocument: this content is seeded; pass seedForForm from loadSeeding()');
+        }
         ({ served, keyed } = seedForForm(doc, serveSeed(versionId, studentId), dolForm));
     }
     return { doc: served, key: extractAnswerKey(keyed), index: indexDoc(served) };

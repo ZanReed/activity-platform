@@ -142,6 +142,11 @@ describe('Activity Bank page', () => {
     });
 
     it('offers the guide only where there is one, and shows its text', async () => {
+        // The guide panel imports lib/serialize on demand (shell-size review
+        // TR1), and that module graph (MathLive, mathjs) takes longer than
+        // waitFor's 1 s to transform under a full parallel run. Warm it first,
+        // so the row tests the panel, not the transformer's speed.
+        await import('../lib/serialize');
         h.getBankTeacherGuide.mockResolvedValue({
             blocks: [
                 {

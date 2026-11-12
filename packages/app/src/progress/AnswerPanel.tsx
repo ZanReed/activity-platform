@@ -16,7 +16,16 @@
 import { dolOptionalBlockIds } from '@activity/viewer';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
-import { dolSectionId, sectionAnswerLines, servedDocument, type AnswerLine, type ServedDoc } from '../lib/answerText';
+import {
+    dolSectionId,
+    loadSeeding,
+    needsSeeding,
+    sectionAnswerLines,
+    servedDocument,
+    type AnswerLine,
+    type SeedForForm,
+    type ServedDoc,
+} from '../lib/answerText';
 
 /** The docs-map key of a version's DoL form-2 rebuild (D65). */
 const dolForm2Key = (versionId: string) => `${versionId}#dol-form-2`;
@@ -41,7 +50,9 @@ export default function AnswerPanel() {
     const activityId = params.activityId ?? params.id ?? '';
     const ctx = useOutletContext<ProgressOutletContext>();
     const navigate = useNavigate();
-    const [state, setState] = useState<{ status: 'loading' } | { status: 'error' } | ({ status: 'ready' } & Ready)>({
+    const [state, setState] = useState<
+        { status: 'loading' } | { status: 'error' } | { status: 'stale' } | ({ status: 'ready' } & Ready)
+    >({
         status: 'loading',
     });
     const headingRef = useRef<HTMLHeadingElement>(null);
@@ -53,17 +64,31 @@ export default function AnswerPanel() {
             try {
                 const work = await fetchStudentWork(ctx.classId, studentId, activityId);
                 const contents = await fetchVersionContents(work.versions.map((v) => v.version_id));
+                // The seeding code loads only for a seeded activity (T4-2), after
+                // the content says so: one round trip, under "Loading…" above, so
+                // no answer is ever shown before its student's numbers.
+                let seedForForm: SeedForForm | undefined;
+                if ([...contents.values()].some((c) => needsSeeding(c.content))) {
+                    try {
+                        seedForForm = await loadSeeding();
+                    } catch {
+                        // T4-3: never fall back to template answers. An open tab
+                        // after a deploy cannot load the old chunk; say refresh.
+                        if (!cancelled) setState({ status: 'stale' });
+                        return;
+                    }
+                }
                 const docs = new Map<string, ServedDoc | null>();
                 for (const v of work.versions) {
                     const c = contents.get(v.version_id);
                     try {
-                        const served = c ? servedDocument(c.content, v.version_id, studentId) : null;
+                        const served = c ? servedDocument(c.content, v.version_id, studentId, 1, seedForForm) : null;
                         docs.set(v.version_id, served);
                         // D65: a DoL retake was served FORM 2's numbers, so its
                         // answers read against form 2 (a DoL attempt's form is
                         // its attempt number).
                         if (c && served && dolSectionId(served)) {
-                            docs.set(dolForm2Key(v.version_id), servedDocument(c.content, v.version_id, studentId, 2));
+                            docs.set(dolForm2Key(v.version_id), servedDocument(c.content, v.version_id, studentId, 2, seedForForm));
                         }
                     } catch {
                         docs.set(v.version_id, null);
@@ -134,6 +159,12 @@ export default function AnswerPanel() {
                 <p role="alert" className="text-sm text-ink">
                     Couldn't load these answers. The student may have left the class, or the activity is no longer
                     assigned. Close this and press Refresh.
+                </p>
+            )}
+            {state.status === 'stale' && (
+                <p role="alert" className="text-sm text-ink" data-answers-stale>
+                    Couldn't load this student's numbers. The app may have been updated: refresh the page to see
+                    these answers.
                 </p>
             )}
             {state.status === 'ready' && <Answers ready={state} studentId={studentId} activityId={activityId} />}

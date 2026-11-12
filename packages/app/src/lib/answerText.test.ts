@@ -15,11 +15,14 @@ import {
     type Block,
 } from '@activity/schema';
 import { deriveSeedValues, serveSeed } from '@activity/viewer';
+import { seedForForm } from '@activity/viewer/seeded-print';
 import {
     ANSWER_NOT_SHOWN,
     NO_ANSWER,
     answerWords,
     formatNumber,
+    loadSeeding,
+    needsSeeding,
     sectionAnswerLines,
     servedDocument,
     type AnswerFamily,
@@ -44,7 +47,7 @@ function docOf(blocks: Block[], extra: Partial<ActivityDocument['meta']> = {}): 
 }
 
 function linesFor(doc: ActivityDocument, responses: object, verdicts: object, student = STUDENT) {
-    const served = servedDocument(doc, VERSION, student);
+    const served = servedDocument(doc, VERSION, student, 1, seedForForm);
     return sectionAnswerLines(served, doc.sections[0]!.id, responses, verdicts);
 }
 
@@ -191,5 +194,34 @@ describe('formatNumber', () => {
         expect(formatNumber(-3)).toBe('−3');
         expect(formatNumber(0.1 + 0.2)).toBe('0.3');
         expect(formatNumber(-0)).toBe('0');
+    });
+});
+
+describe('seeding loads on demand (shell-size review T4)', () => {
+    const plain = () => docOf([createShortAnswerBlock()]);
+    const seeded = () =>
+        docOf([createShortAnswerBlock()], { seedVars: [{ name: 'a', spec: { kind: 'int' as const, min: 2, max: 9 } }] });
+
+    it('needsSeeding is true for seed variables or a DoL section, false otherwise', () => {
+        expect(needsSeeding(plain())).toBe(false);
+        expect(needsSeeding(seeded())).toBe(true);
+        const dol = plain();
+        (dol.sections[0] as { dol?: unknown }).dol = { skills: ['s.vfy.one'], retake: false };
+        expect(needsSeeding(dol)).toBe(true);
+        expect(needsSeeding({ not: 'a document' })).toBe(false);
+    });
+
+    it('an unseeded activity builds one student\'s view without the seeding code', () => {
+        expect(() => servedDocument(plain(), VERSION, STUDENT)).not.toThrow();
+    });
+
+    it('a seeded activity REFUSES to build one student\'s view without it (no template answers)', () => {
+        expect(() => servedDocument(seeded(), VERSION, STUDENT)).toThrow(/seedForForm/);
+        // The class-wide view (no student) keeps templates by design and needs nothing.
+        expect(() => servedDocument(seeded(), VERSION, null)).not.toThrow();
+    });
+
+    it('loadSeeding hands back the real seedForForm', async () => {
+        expect(await loadSeeding()).toBe(seedForForm);
     });
 });

@@ -63,6 +63,15 @@ vi.mock('../lib/dolPass', async (orig) => ({
     fetchDolPassStatus: dol.passes,
 }));
 
+// T4: the seeding code loads on demand; real by default, and one test makes
+// the load fail the way an open tab does after a deploy.
+const seeding = vi.hoisted(() => ({ load: vi.fn() }));
+vi.mock('../lib/answerText', async (orig) => {
+    const real = await orig<typeof import('../lib/answerText')>();
+    seeding.load.mockImplementation(real.loadSeeding);
+    return { ...real, loadSeeding: seeding.load };
+});
+
 import ClassProgress from '../routes/ClassProgress';
 import ActivityProgressPage from '../routes/ActivityProgress';
 import ActivityResponses from '../routes/ActivityResponses';
@@ -505,5 +514,65 @@ describe('the answer panel (CP-3, CP-7)', () => {
         const rows = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
         expect(rows.find((r) => r.includes('(no answer)'))).toContain('To grade');
         expect(rows.find((r) => r.includes('Done.'))).toContain('Graded');
+    });
+
+    async function renderSeeded(doc: unknown, blockId: string, sid: string) {
+        api.fetchStudentWork.mockResolvedValue({
+            student: { id: 's1', name: 'Ana Lee' },
+            activity: { id: A1, title: 'Fractions 2', current_version_id: 'v1' },
+            versions: [{ version_id: 'v1', version_num: 1, is_current: true, sections: [{
+                section_id: sid, attempts: 1, attempt_number: 1, checked_at: '2027-02-09T09:41:00Z',
+                responses: { freeText: { [blockId]: 'Done.' } },
+                verdicts: { [blockId]: { verdict: 'recorded' } },
+                graded_block_ids: [blockId],
+            }] }],
+        });
+        api.fetchVersionContents.mockResolvedValue(new Map([['v1', { version_num: 1, content: doc }]]));
+        const ctx = { hideNames: false, nameOf: (_: string, n: string) => n, classId: 'class-1', closeTo: '/classes/class-1/progress' };
+        render(
+            <MemoryRouter initialEntries={[`/classes/class-1/progress/s1/${A1}`]}>
+                <Routes>
+                    <Route path="/classes/:classId/progress" element={<Outlet context={ctx} />}>
+                        <Route path=":studentId/:activityId" element={<AnswerPanel />} />
+                    </Route>
+                </Routes>
+            </MemoryRouter>,
+        );
+    }
+
+    async function seededDoc() {
+        const schema = await import('@activity/schema');
+        const doc = schema.createEmptyDocument();
+        const graded = schema.createShortAnswerBlock();
+        doc.sections[0]!.rows[0]!.columns[0]!.blocks = [graded];
+        doc.meta.seedVars = [{ name: 'a', spec: { kind: 'int' as const, min: 2, max: 9 } }];
+        return { doc, blockId: graded.id, sid: doc.sections[0]!.id };
+    }
+
+    it('a seeded activity loads the seeding code, then shows the answers (T4-2)', async () => {
+        seeding.load.mockClear();
+        const { doc, blockId, sid } = await seededDoc();
+        await renderSeeded(doc, blockId, sid);
+        const rows = await screen.findAllByRole('listitem');
+        expect(rows.map((li) => li.textContent ?? '').find((r) => r.includes('Done.'))).toBeTruthy();
+        expect(seeding.load).toHaveBeenCalledTimes(1);
+    });
+
+    it('an unseeded activity never loads the seeding code (T4-2)', async () => {
+        seeding.load.mockClear();
+        const { doc, blockId, sid } = await seededDoc();
+        doc.meta.seedVars = [];
+        await renderSeeded(doc, blockId, sid);
+        await screen.findAllByRole('listitem');
+        expect(seeding.load).not.toHaveBeenCalled();
+    });
+
+    it('when the seeding code cannot load, it says refresh and shows NO answers (T4-3)', async () => {
+        seeding.load.mockRejectedValueOnce(new TypeError('Failed to fetch dynamically imported module'));
+        const { doc, blockId, sid } = await seededDoc();
+        await renderSeeded(doc, blockId, sid);
+        const alert = await screen.findByRole('alert');
+        expect(alert.textContent).toContain('refresh the page');
+        expect(screen.queryByText(/Done\./)).toBeNull();
     });
 });

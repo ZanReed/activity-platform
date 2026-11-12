@@ -331,6 +331,21 @@ export const PRECACHE_MAX_BYTES = 100 * 1024;
  * contains the `.ProseMirror` marker), so the NEXT editor feature will cross
  * it. That feature's design pass decides between lazy-loading its own UI the
  * same way and raising this cap with a written reason; it is not a surprise.
+ *
+ * ⚖ RETIRED AS THE EDITOR'S GROWTH GATE — shell-size review T6, ruled
+ * 2026-11-13. The paragraph above is history. This row summed every chunk
+ * holding the ProseMirror marker, the editor's own app code included, so
+ * every editor feature crossed it. The editor is now gated by
+ * TEACHER_JOURNEYS → `journey: editor` (what a teacher downloads to open it,
+ * cap ~10% over measurement), and this row goes back to its first job:
+ * proving the marker is LIVE, which the shell pin (`shell is free of
+ * prosemirror`) and every journey's `forbid: ['prosemirror']` depend on.
+ * Measured 2026-11-13 after T2/T3: 253.1 (it was 291.7). The cap is set LOOSE
+ * on purpose (320, ~26% over) and is exempt from the ~10% anti-fossil rule,
+ * because tightening it would recreate the gate T6 retired. It should fire only
+ * on a vendor-sized jump (a second copy of ProseMirror, a Tiptap family bump
+ * that doubles it). An editor feature that crosses it while `journey: editor`
+ * passes raises this cap; it does not slim the feature.
  */
 export const CHUNK_LEDGER = [
     {
@@ -363,8 +378,8 @@ export const CHUNK_LEDGER = [
     {
         name: 'prosemirror',
         marker: /ReplaceError|ProseMirror/,
-        maxGzKiB: 292,
-        why: 'The editor. A student must never download this; it is the single biggest reason the S8 route split exists.',
+        maxGzKiB: 320,
+        why: 'The editor. A student must never download this; it is the single biggest reason the S8 route split exists. NOT the editor growth gate since T6 (journey: editor is); loose on purpose, see the note above.',
     },
     {
         name: 'zod',
@@ -385,6 +400,15 @@ export const CHUNK_LEDGER = [
         // something) before the row goes red. A guard verified the lazy way
         // here would be a guard that has never been seen to fire.
         why: 'Schema validation. It belongs to the EDITOR — serialize, publish, import and the print preview all parse; the student path parses nothing (readClient and documentCache both cast). It sat in the student shell until 2026-08-23 because one value import in block-predicates.ts reached a module that builds zod schemas at load time. This row caps it where it actually lives and, via SHELL_FORBIDDEN_MARKERS below, asserts it never comes back. See docs/design/shell-slim-zod.md.',
+    },
+    {
+        name: 'mathjs',
+        // typed-function's own error strings (mathjs's dispatch layer); no app
+        // or package source says either.
+        marker: /No signatures provided|Too many arguments in function/,
+        // Measured 2026-11-13: 43.3 KiB gz, one chunk (graph-kit's evaluate).
+        maxGzKiB: 48,
+        why: 'The expression evaluator behind graph-kit scorers and seeded answers. Lazy everywhere a student or dashboard does not evaluate; the teacher dashboards load it only to seed one student (shell-size review T4).',
     },
 ];
 
@@ -562,6 +586,8 @@ export const SHELL_EVICTED = [
  * progress 80.0, responses 79.0, activities 43.9, classes 8.2, bank 5.3.
  * T2 (y-tiptap stubbed) + T3 (import dialog lazy), same day: editor
  * 761.8 → 690.4, and its cap tightened 840 → 760 in that commit.
+ * T4 (seeding loaded on demand), same day: responses 79.0 → 33.8, progress
+ * 80.0 → 34.9 (caps 87/88 → 37/38), answer panel row added.
  */
 export const TEACHER_JOURNEYS = [
     {
@@ -610,16 +636,23 @@ export const TEACHER_JOURNEYS = [
     {
         name: 'responses',
         route: 'src/routes/ActivityResponses.tsx',
-        maxGzKiB: 87,
-        forbid: ['prosemirror', 'mathlive'],
-        why: 'A dashboard. It reaches mathjs for seeded answers (T4 makes that lazy); it must never reach the editor.',
+        maxGzKiB: 37,
+        forbid: ['prosemirror', 'mathlive', 'mathjs'],
+        why: 'A dashboard of the whole class: it never seeds (studentId null), so it must not reach the evaluator (T4) or the editor.',
     },
     {
         name: 'progress',
         route: 'src/routes/ActivityProgress.tsx',
-        maxGzKiB: 88,
-        forbid: ['prosemirror', 'mathlive'],
+        maxGzKiB: 38,
+        forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard, as for responses.',
+    },
+    {
+        name: 'answer panel',
+        route: 'src/progress/AnswerPanel.tsx',
+        maxGzKiB: 33,
+        forbid: ['prosemirror', 'mathlive', 'mathjs'],
+        why: "One student's answers. It seeds, but loads the seeding code (and mathjs) only when the activity has seed variables or a DoL section (T4-2), via loadSeeding() in lib/answerText.ts.",
     },
 ];
 

@@ -218,7 +218,7 @@ test('every teacher journey row is complete and forbids only ledger names (T5)',
     for (const j of TEACHER_JOURNEYS) {
         assert.ok(!seen.has(j.name), `duplicate journey ${j.name}`);
         seen.add(j.name);
-        assert.match(j.route, /^src\/routes\/[A-Za-z]+\.tsx$/, `${j.name}: route is a manifest key`);
+        assert.match(j.route, /^src\/(routes|progress)\/[A-Za-z]+\.tsx$/, `${j.name}: route is a manifest key`);
         assert.ok(typeof j.maxGzKiB === 'number' && j.maxGzKiB > 0, `${j.name}: needs a positive cap`);
         assert.ok(j.why && j.why.length > 20, `${j.name}: needs a stated reason`);
         for (const spec of j.lazyOut ?? []) {
