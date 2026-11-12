@@ -206,7 +206,10 @@ drag one block by its grip in the editor once (y-tiptap is stubbed;
 Playwright cannot drive that drag, with or without the stub). T4 built too
 (dashboards load the seeding code only to seed one student), and T6 (the
 summed prosemirror row is no longer the editor gate). The review's build list
-is done; T7 waits on a week of deploy-churn measurements.
+is done. T7 measured and closed (no vendor split; `scripts/measure-deploy-churn.mjs`
+re-measures). **Once classes start (~Feb 2027), push to `main` outside school
+hours in BOTH NZ and US time:** every code deploy makes each student re-download
+the ~158 KiB shell, and puts the "new version" notice in front of a lesson.
 
 ## Build order — RULED by the author 2026-10-02
 
