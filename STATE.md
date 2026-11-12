@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
+**Playtest browser sweep (2026-11-12): nothing owed.** Three fixes and "Republish changed" pushed; the glossary re-imported live and all 21 republished (`report:stale` 0). Open low findings: [TODOS](TODOS.md) → "Playtest browser sweep".
+
 **GUI rule (2026-11-12): all three gaps LIVE** (video, seeded variables, DoL; pushed, CI green). [TODOS](TODOS.md) → GUI gaps.
 
 **D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
@@ -194,7 +196,7 @@ HISTORY, not re-argued here.)*
 **`SHELL_JS_GZ_KIB` 172 → 158 and `SHELL_CSS_GZ_KIB` 14 → 15 (2026-08-23).**
 P1A's target is met for the first time. **Passed again since (glossary arc,
 measured 2026-09-30), and rung 2 ran 2026-10-04 (auth-js's never-executed
-modules stubbed); rung 3 ran 2026-10-18; the 156.5 stop line is RETIRED (author, 2026-10-18): eager additions are judged against the cap itself, raised to 158.5 by author ruling 2026-10-30 (D65 slice 2 measured 158.063, no cheap rung).** **Read the real numbers from
+modules stubbed); rung 3 ran 2026-10-18; the 156.5 stop line is RETIRED (author, 2026-10-18): eager additions are judged against the cap itself, raised since by author rulings recorded beside it in `scripts/perf-budgets.mjs`.** Measure with CI's env (`pnpm verify`): a `.env.local` build reads ~47 bytes heavier. **Read the real numbers from
 `node scripts/check-perf-budget.mjs`, never from here** — this line has carried
 a stale JS figure twice. Derivations live in `scripts/perf-budgets.mjs` and
 DECISIONS.md → "The shell CSS cap". ⏭ The remaining ladder (router,
@@ -259,7 +261,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-10-06 (second session) — the VERIFY RUNNER now judges row sections strictly (a row that errors, returns NULL, prints a stray line or never comes back is a FAIL; pg_cron rows carry `-- @live-only` and SKIP locally). Its first run revived verify-0030's `client_grant_is_select_only`, silently absent since 2026-08-14; green on live. Full live verify 274 rows, 0 fail (TODOS → the runner entry). Earlier that day, live and author-confirmed: 0048 (prune DISARMED, arming STARTED), the daily facts practice (0049–0051), the sign-in button, 0052, under-13 use (0053). NEXT: (1) on or after 2026-10-13 read the prune's SECOND dry-run report on live (`select prune_fact_practice();`), then bring the author both reports and ask for his explicit yes before any schedule exists; (2) number-facts integration row and the import report's settings lines BUILT (TODOS); no unranked items left. Builder's under-13 project files UPDATED (C-73 closed). End-date test done; device checks wait for school devices. Build queue: nothing ungated (mixed practice gated). Liaison: `0d42274` stamped (B-96), imported (3/102 parts). Next C-79 / B-97. Behind its gate: mixed practice.
+**Last updated:** 2026-11-12 — first signed-in browser sweep with `pnpm playtest` (~30 features). Fixed and pushed: Responses names sections and questions (1acc0861); a revised answer no longer says "Reviewed" (15f458ab, shell cap 158.6 → 158.7 by ruling); glossary prose joins (4b30bdb5, re-imported live); My activities' "Republish changed" (38306f40). Live: all 21 republished, `report:stale` 0. NEXT: period planner design pass (unchanged); the sweep's low findings wait in TODOS.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
