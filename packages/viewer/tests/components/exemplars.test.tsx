@@ -16,7 +16,7 @@
 // bound component; this suite is the hand-written source it generalizes from.
 // =============================================================================
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import {
@@ -424,6 +424,60 @@ describe('ShortAnswer — released teacher feedback', () => {
     // stops claiming a review that already happened.
     expect(pill()?.textContent).toContain('Reviewed by your teacher');
     expect(pill()?.textContent).not.toContain('your teacher will review');
+  });
+
+  // Playtest sweep 2026-11-12: a DoL retake's new explanation wore try 1's
+  // "Reviewed by your teacher" and try 1's marks, with no "revised" note until
+  // a reload. Two causes, one row each, plus the "only then" cost claim.
+  it.each([
+    ['short_answer', ShortAnswer, saBlock],
+    ['essay', Essay, esBlock],
+  ] as const)('%s: does not call a REVISED answer reviewed', async (_label, Component, block) => {
+    const { store } = harness(() => <Component block={block as never} mode="screen" />, {
+      released: { graded: true, blocks: { [block.id]: { ...FEEDBACK, stale: true } } },
+    });
+    await store.loadReleasedFeedback();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my answer' } });
+    await store.checkSection(SECTION, { freeText: [block.id] });
+    await waitFor(() => expect(pill()).toHaveAttribute('data-state', 'recorded'));
+    expect(pill()?.textContent).not.toContain('Reviewed by your teacher');
+  });
+
+  it('does not call work on another version reviewed', async () => {
+    const { store } = await withFeedback({ activityVersionId: 'a-different-version' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my answer' } });
+    await store.checkSection(SECTION, { freeText: [saBlock.id] });
+    await waitFor(() => expect(pill()).toHaveAttribute('data-state', 'recorded'));
+    expect(pill()?.textContent).not.toContain('Reviewed by your teacher');
+  });
+
+  it('a re-check re-reads the feedback, so a revision shows without a reload', async () => {
+    const { store, service } = await withFeedback();
+    // The server's answer once the new text is the latest check: stale.
+    const reads = vi.fn(async () => ({
+      graded: true,
+      blocks: { [saBlock.id]: { ...FEEDBACK, stale: true } },
+    }));
+    service.fetchReleasedFeedback = reads;
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'a new answer' } });
+    await store.checkSection(SECTION, { freeText: [saBlock.id] });
+    await waitFor(() =>
+      expect(document.querySelector('[data-released-feedback]')?.textContent).toContain(
+        'revised your answer since this feedback',
+      ),
+    );
+    expect(reads).toHaveBeenCalledTimes(1);
+    expect(pill()?.textContent).not.toContain('Reviewed by your teacher');
+  });
+
+  it('a check with no released feedback on its answers makes no extra read', async () => {
+    const h = harness(() => <ShortAnswer block={saBlock as never} mode="screen" />);
+    const reads = vi.fn(async () => ({ graded: false, blocks: {} }));
+    h.service.fetchReleasedFeedback = reads;
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my answer' } });
+    await h.store.checkSection(SECTION, { freeText: [saBlock.id] });
+    await waitFor(() => expect(pill()).toHaveAttribute('data-state', 'recorded'));
+    expect(reads).not.toHaveBeenCalled();
   });
 
   it('says "a former teacher" when the grading account is gone', async () => {

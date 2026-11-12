@@ -481,6 +481,14 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           // ...and it leaves the queue: this check happened.
           pending: remainingPending,
         });
+        // Released feedback carries the server's `stale` flag: the graded text
+        // compared with the LATEST check's. A re-check that sent an answer with
+        // feedback on it can change that, so read it again (one RPC, and only
+        // then). Without this the card kept "Reviewed" and dropped its
+        // "you've revised" note until a reload (playtest sweep 2026-11-12).
+        if ((items.freeText ?? []).some((id) => state.releasedFeedback[id])) {
+          void store.loadReleasedFeedback();
+        }
       } catch (err) {
         // Responses are untouched — only the section status records the
         // failure (2.1A "Couldn't check — try again", non-blaming). The key is

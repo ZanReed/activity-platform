@@ -43,6 +43,18 @@ export const REVIEWED_LABEL = 'Reviewed by your teacher';
 // D77: marking a DoL's explanation is optional, so promise no review.
 export const OPTIONAL_LABEL = 'Recorded';
 
+/** "Reviewed by your teacher" only when the feedback is about the answer on
+ *  screen. A revised answer (`stale`, the server's text comparison) or work on
+ *  another version was not reviewed, and claiming it was is the wrong promise
+ *  in the other direction (playtest sweep 2026-11-12: a DoL retake's new
+ *  explanation wore try 1's "Reviewed"). The card still shows, with its note. */
+export function feedbackCoversAnswer(
+  feedback: { stale: boolean; activityVersionId: string } | undefined,
+  servedVersionId: string | undefined,
+): boolean {
+  return feedback !== undefined && !feedback.stale && feedback.activityVersionId === servedVersionId;
+}
+
 export default function ShortAnswer({
   block,
   mode = 'screen',
@@ -93,7 +105,7 @@ export default function ShortAnswer({
       {result ? (
         <StatePill
           state="recorded"
-          label={feedback ? REVIEWED_LABEL : isOptionalMarking(block.id) ? OPTIONAL_LABEL : undefined}
+          label={feedbackCoversAnswer(feedback, servedVersionId) ? REVIEWED_LABEL : isOptionalMarking(block.id) ? OPTIONAL_LABEL : undefined}
         />
       ) : null}
 

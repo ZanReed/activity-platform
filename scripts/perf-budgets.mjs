@@ -180,8 +180,17 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * link is ~19 of them, and without it the build was still over at 158.514. No
  * rung found at this size; a rebuild's gzip noise is about the same. The rule
  * is unchanged: the next addition that crosses 158.6 gets a rung or a ruling.
+ *
+ * ⚖ CAP RULING 158.6 → 158.7 — author, 2026-11-12. The released-feedback fix
+ * (a re-checked written answer no longer wears "Reviewed by your teacher"; the
+ * store re-reads feedback after such a check) measured 158.621 under CI's
+ * build env, 22 bytes over; main sat at 158.598, 2 bytes under, so any eager
+ * change would have crossed. No rung searched at this size. Measure with CI's
+ * env (`pnpm verify`): a build from .env.local reads ~47 bytes heavier. The
+ * rule is unchanged: the next addition that crosses 158.7 gets a rung or a
+ * ruling.
  */
-export const SHELL_JS_GZ_KIB = 158.6;
+export const SHELL_JS_GZ_KIB = 158.7;
 
 /**
  * The student shell's CSS, gzipped — a SEPARATE row on purpose.

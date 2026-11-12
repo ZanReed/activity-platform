@@ -17,7 +17,7 @@ import { useBlockPhase, useBlockSolution, useBlockFeedback, useItemResult, useRe
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { ReleasedFeedbackCard } from './ReleasedFeedbackCard.js';
-import { OPTIONAL_LABEL, REVIEWED_LABEL } from './ShortAnswer.js';
+import { OPTIONAL_LABEL, REVIEWED_LABEL, feedbackCoversAnswer } from './ShortAnswer.js';
 import { FreeResponseAnswerKey } from './FreeResponseAnswerKey.js';
 
 export default function Essay({
@@ -74,7 +74,7 @@ export default function Essay({
       {result ? (
         <StatePill
           state="recorded"
-          label={feedback ? REVIEWED_LABEL : isOptionalMarking(block.id) ? OPTIONAL_LABEL : undefined}
+          label={feedbackCoversAnswer(feedback, servedVersionId) ? REVIEWED_LABEL : isOptionalMarking(block.id) ? OPTIONAL_LABEL : undefined}
         />
       ) : null}
 
