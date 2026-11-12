@@ -88,10 +88,9 @@ already in this file. Ranked inside each group; the author picks the order.
    (`tiptapBlankToActivity`) drops it with a console warning. The chip stays
    on screen until reload. Same for an image with no src.
 3. **Republish has no confirm.** `ActivityEditor.tsx` `onClick={publish}`.
-   Students mid-activity keep their version until they reload, then the
-   device's unchecked answers for the old version never hydrate
-   (`viewer/store/store.ts` ~696); a locked/DoL activity's only "unlock" is a
-   republish (ViewerContainer D3 comment). A typo fix mid-period does this.
+   On the new version every section starts unchecked, locked and DoL included
+   (checks are per version, 0040/0060). (Corrected 2026-11-13: unchecked
+   answers are NOT lost — S6-9 keeps a student on the version they started.)
 4. **Release all graded** (`ActivityResponses.tsx` `releaseAll`) — one click,
    no confirm, no un-release; a failure part-way replaces the queue with the
    load-error message.

@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import { BarChart3, ClipboardCheck, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
-import ConfirmDialog from '../components/ConfirmDialog';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -105,6 +104,10 @@ function RoleBadge({ role }: { role: string | null }) {
 }
 
 /** G-6: what deleting an activity that sits in a class costs. */
+// G-6's confirm is loaded on first use: the Activities journey has no room
+// for it in the first download (perf-budgets: journey activities).
+const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
+
 const ACTIVITY_DELETE_COPY = {
     title: (t: string) => `Delete ${t}?`,
     body: (classes: readonly string[] | null) =>
@@ -984,6 +987,7 @@ export default function Activities() {
         </div>
 
         {confirmDelete && (
+            <Suspense fallback={null}>
             <ConfirmDialog
             title={ACTIVITY_DELETE_COPY.title(confirmDelete.activity.title)}
             confirmLabel={ACTIVITY_DELETE_COPY.confirm}
@@ -997,6 +1001,7 @@ export default function Activities() {
             >
             <p>{ACTIVITY_DELETE_COPY.body(confirmDelete.classes)}</p>
             </ConfirmDialog>
+            </Suspense>
         )}
 
         {/* Undo toasts — one per recently-deleted activity, bottom-left in the

@@ -26,6 +26,7 @@ import {
   VIEWER_STORAGE_PREFIX,
   VIEWER_STORE_SCHEMA_VERSION,
   bufferKey,
+  countUncheckedActivities,
   createMockCheckService,
   createViewerBuffer,
   createViewerStore,
@@ -42,6 +43,7 @@ import {
   type StorageLike,
   type TimerHandle,
 } from '../src/index.js';
+import { bufferHasUncheckedWork } from '../src/store/buffer.js';
 import { OTHER_USER_ID, TEST_USER_ID } from './helpers/ids.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -642,5 +644,83 @@ describe('in-flight idempotency key survives a reload (ruling S6-3)', () => {
 
     await store.checkSection('sec-1', {});
     expect(observed).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UI review G-1: what signing out would clear. Narrower than "unsent work":
+// an answer whose section has been checked is safe on the server.
+// ---------------------------------------------------------------------------
+
+describe('unchecked work on this device (G-1)', () => {
+  const blob = (over: Record<string, unknown>) =>
+    JSON.stringify({ ...emptyPersistedState(TEST_USER_ID, ACTIVITY, VERSION), ...over });
+
+  it('an empty buffer, or one whose answers are all checked, holds nothing unchecked', () => {
+    expect(bufferHasUncheckedWork(null)).toBe(false);
+    expect(bufferHasUncheckedWork(blob({}))).toBe(false);
+    const checkedOnly = blob({
+      responses: { blanks: { b1: '450' }, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: {} },
+      checked: { s1: { items: { b1: { verdict: 'correct' } } } },
+    });
+    expect(bufferHasUncheckedWork(checkedOnly)).toBe(false);
+  });
+
+  it('an answered item no checked section covers is unchecked; a blank-string answer is not', () => {
+    const typed = blob({
+      responses: { blanks: { b1: '450', b2: '3.6' }, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: {} },
+      checked: { s1: { items: { b1: { verdict: 'correct' } } } },
+    });
+    expect(bufferHasUncheckedWork(typed)).toBe(true);
+    const emptyText = blob({
+      responses: { blanks: {}, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: { f1: '   ' }, graphs: {} },
+    });
+    expect(bufferHasUncheckedWork(emptyText)).toBe(false);
+  });
+
+  it('a queued or in-flight check counts, even with every answer checked', () => {
+    expect(bufferHasUncheckedWork(blob({ pending: { s1: { at: 1 } } }))).toBe(true);
+    expect(bufferHasUncheckedWork(blob({ inFlight: { s1: { key: 'k' } } }))).toBe(true);
+  });
+
+  it('counts activities, not versions, and only this student\'s', () => {
+    const storage = new FakeStorage();
+    const work = blob({ pending: { s1: { at: 1 } } });
+    storage.setItem(bufferKey({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION }), work);
+    storage.setItem(bufferKey({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: OTHER_VERSION }), work);
+    storage.setItem(bufferKey({ userId: TEST_USER_ID, activityId: 'cccccccc-0000-4000-8000-000000000001', versionId: VERSION }), work);
+    storage.setItem(bufferKey({ userId: OTHER_USER_ID, activityId: 'dddddddd-0000-4000-8000-000000000001', versionId: VERSION }), work);
+    expect(countUncheckedActivities(storage, TEST_USER_ID)).toBe(2);
+    expect(countUncheckedActivities(storage, OTHER_USER_ID)).toBe(1);
+  });
+});
+
+describe('graph work counts the way the grader counts it (G-1, P4)', () => {
+  it('graphWorkTouched is the exact negation of the grader\'s isUntouched', async () => {
+    const { isUntouched } = await import('../src/server/grading/graphs.js');
+    const { graphWorkTouched } = await import('../src/store/buffer.js');
+    const cases = [
+      { interaction: 'plot_point', points: [] },
+      { interaction: 'plot_point', points: [[1, 2]] },
+      { interaction: 'plot_point', points: [], noSolution: true },
+      { interaction: 'transform_curve', points: [[0, 0]], equation: ' ' },
+      { interaction: 'transform_curve', points: [], equation: 'y=x^2' },
+      { interaction: 'transform_curve', points: [], dragged: true },
+      { interaction: 'plot_parts', points: [], parts: [{ points: [] }] },
+      { interaction: 'plot_parts', points: [], parts: [{ points: [[1, 1]] }] },
+      { interaction: 'plot_interval', points: [], domain: { minX: 2 } },
+      { interaction: 'plot_interval', points: [], domain: {} },
+    ];
+    for (const c of cases) {
+      expect(graphWorkTouched(c)).toBe(!isUntouched(c as never));
+    }
+  });
+
+  it('a graph emptied after placing a point is not unchecked work', () => {
+    const raw = JSON.stringify({
+      ...emptyPersistedState(TEST_USER_ID, ACTIVITY, VERSION),
+      responses: { blanks: {}, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: { g1: { interaction: 'plot_point', points: [] } } },
+    });
+    expect(bufferHasUncheckedWork(raw)).toBe(false);
   });
 });

@@ -194,6 +194,7 @@ export {
   bufferKey,
   createViewerBuffer,
   findUnsentWork,
+  countUncheckedActivities,
   parseBufferKey,
   parseScopedKey,
   scopedKey,

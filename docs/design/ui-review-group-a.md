@@ -15,7 +15,7 @@ back** (undo / restore), and **stop losing it** (keep what was made).
 |---|---|---|---|
 | 1 | Student signs out, or is signed out after 30 min idle + 2 min grace | every unchecked answer on the device and any queued offline check (`signOutEverything` purges `activity-viewer:*` from local + session storage) | idle prompt "You'll be signed out soon to keep this device safe", not sticky, no button; Home "Sign out" has no warning |
 | 2 | Teacher inserts a blank and leaves it empty | the blank, on the next reload (`serialize.ts` `tiptapBlankToActivity` drops `answer: ''`; schema `BlankToken.answer` is `min(1)`) | none — the chip stays on screen until reload |
-| 3 | Teacher republishes | a student who reloads ("Reload to get the new version") loses unchecked answers (old-version buffer never hydrates, `viewer/store/store.ts` ~696); checks are keyed by version (0040), so locked and DoL sections start again | none — `onClick={publish}` |
+| 3 | Teacher republishes | ~~a student who reloads loses unchecked answers~~ **CORRECTED 2026-11-13 while building:** unchecked answers are protected — a student with unsent work on the old version is kept on it (S6-9, `findUnsentWork` + the pinned document in `StudentViewer.tsx`). What a republish does cost: checks and their restore are keyed by version (0040, 0060), so on the new version every section starts unchecked, locked and DoL included | none — `onClick={publish}` |
 | 4 | Teacher clicks "Release all graded" | nothing lost, but it can't be taken back (no un-release exists); a mid-loop failure replaces the queue with the load error | none |
 | 5 | Teacher deletes a class | the class leaves every student's Home. It is a SOFT delete (`soft_delete_class`), but no restore RPC exists and no purge exists either (TODOS "A class purge does not exist") | a text link that reads "Really delete?" for 4 s |
 | 6 | Teacher deletes an activity | it leaves every class Home at once | 7-second undo toast; `restore_activity` (0012) works for 30 days but nothing in the UI reaches it after the toast |
@@ -32,6 +32,13 @@ back** (undo / restore), and **stop losing it** (keep what was made).
   which also fixes UI review item 16's idle-banner half), names the same cost
   when there is one, and gets an **I'm still here** button.
 - Shared-device wiping stays exactly as it is (S6-6). Only the telling changes.
+- *As built:* "unchecked" = an answered item no checked section's results
+  cover, or a queued / in-flight check (`bufferHasUncheckedWork`); graph work
+  counts the way the grader counts it (`graphWorkTouched`, drift-tested against
+  `isUntouched`). **Known limit (Fable review):** an answer changed after its
+  section was checked still counts as checked — the buffer keeps no copy of
+  what was sent. Closing it needs an "edited since check" flag in the buffer;
+  not built.
 - *Not in this pass:* saving unchecked answers to the server so nothing is lost
   and work follows a student to another Chromebook. That is the real cure, but
   it is a new table of student-derived rows (data-map, retention policy, likely
@@ -54,9 +61,10 @@ Recommended:
 
 **G-3. Republish asks first when students would feel it.** Recommended:
 - When the activity is in a class and at least one student has started it, the
-  Republish button opens a confirm:
-  "*N students have started this.* Anyone who has it open keeps the old version
-  until they reload, and reloading clears answers they haven't checked."
+  Republish button opens a confirm. *As built (wording corrected to match S6-9,
+  see the table):* "*N students have started this.* On the new version their
+  sections start unchecked. Answers they haven't checked stay with the version
+  they started until they check them."
 - If the activity has locked or DoL sections, the confirm adds: "Locked and DoL
   sections start again for everyone."
 - **Republish** / **Keep editing**.

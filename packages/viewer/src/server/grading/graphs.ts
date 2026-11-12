@@ -77,7 +77,7 @@ const heights = (work: GraphWork): number[] =>
   work.points.map(([, height]) => height);
 
 /** Did the student do anything at all on this canvas? */
-function isUntouched(work: GraphWork): boolean {
+export function isUntouched(work: GraphWork): boolean {
   if (work.noSolution === true) return false; // an explicit claim IS an answer
   // transform_curve: a typed equation or a real drag answers regardless of
   // points (and its seed points must NOT count — the dispatch case owns that).

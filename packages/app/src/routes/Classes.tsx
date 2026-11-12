@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
-import ConfirmDialog from '../components/ConfirmDialog';
 import { useSession } from '../lib/SessionContext';
 import ClassActivitiesPanel, {
     useTeacherClassActivities,
@@ -443,6 +442,9 @@ function AgeStatementChoice({
     );
 }
 
+// G-5/G-7's confirm, loaded on first use (perf-budgets: journey classes).
+const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
+
 const CLASS_CONFIRM_COPY = {
     codeTitle: (code: string) => `Replace code ${code}?`,
     codeBody: 'The old code and link stop working. Students already in the class stay in.',
@@ -482,6 +484,7 @@ function DeleteClassDialog({
         };
     }, [info.id]);
     return (
+        <Suspense fallback={null}>
         <ConfirmDialog
         title={CLASS_CONFIRM_COPY.deleteTitle(info.name)}
         confirmLabel={CLASS_CONFIRM_COPY.deleteConfirm}
@@ -491,6 +494,7 @@ function DeleteClassDialog({
         >
         <p>{CLASS_CONFIRM_COPY.deleteBody(students, activityCount)}</p>
         </ConfirmDialog>
+        </Suspense>
     );
 }
 
@@ -722,6 +726,7 @@ function ClassCard({
         </span>
         </div>
         {confirming === 'code' && (
+            <Suspense fallback={null}>
             <ConfirmDialog
             title={CLASS_CONFIRM_COPY.codeTitle(info.joinCode)}
             confirmLabel={CLASS_CONFIRM_COPY.codeConfirm}
@@ -734,6 +739,7 @@ function ClassCard({
             >
             <p>{CLASS_CONFIRM_COPY.codeBody}</p>
             </ConfirmDialog>
+            </Suspense>
         )}
         {confirming === 'delete' && (
             <DeleteClassDialog

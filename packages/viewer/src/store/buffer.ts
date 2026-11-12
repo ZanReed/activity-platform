@@ -155,6 +155,98 @@ export function bufferHasUnsentWork(raw: string | null): boolean {
 }
 
 /**
+ * A graph's work counts only once the student has done something the grader
+ * would score. MIRRORS server/grading/graphs.ts `isUntouched` (kept separate so
+ * no grading code reaches the client store); tests/buffer.test.ts runs both
+ * over the same cases so they cannot drift apart (P4).
+ */
+export function graphWorkTouched(work: unknown): boolean {
+  if (typeof work !== 'object' || work === null) return false;
+  const w = work as {
+    noSolution?: unknown;
+    equation?: unknown;
+    dragged?: unknown;
+    points?: unknown[];
+    parts?: Array<{ points?: unknown[] }>;
+    domain?: { minX?: unknown; maxX?: unknown };
+  };
+  if (w.noSolution === true) return true;
+  if (typeof w.equation === 'string' && w.equation.trim() !== '') return true;
+  if (w.dragged === true) return true;
+  if ((w.points?.length ?? 0) > 0) return true;
+  if (w.parts?.some((p) => (p.points?.length ?? 0) > 0)) return true;
+  if (w.domain && (w.domain.minX !== undefined || w.domain.maxX !== undefined)) return true;
+  return false;
+}
+
+/** A response value a student has actually given: not '', [], {} or nothing. */
+function isAnswered(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
+
+/**
+ * Does this buffer hold answers the student has not checked yet, or a check
+ * still waiting to be sent? Narrower than `bufferHasUnsentWork` (which keeps
+ * ANY answered buffer, checked or not, for the orphan GC): this one is what
+ * sign-out would cost the student (UI review G-1). An answer counts as checked
+ * when its item id appears in a checked section's results — the result is
+ * keyed by the same ids the responses use (check/wire.ts).
+ *
+ * KNOWN LIMIT (Fable review): an answer changed AFTER its section was checked
+ * still counts as checked — the blob keeps no copy of what was sent, so a
+ * retyped retry is not warned about. Recorded in ui-review-group-a.md G-1.
+ */
+export function bufferHasUncheckedWork(raw: string | null): boolean {
+  if (!raw) return false;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return false;
+  const blob = parsed as {
+    responses?: Record<string, Record<string, unknown> | null>;
+    checked?: Record<string, { items?: Record<string, unknown> } | null>;
+    pending?: Record<string, unknown>;
+    inFlight?: Record<string, unknown>;
+  };
+  if (blob.pending && Object.keys(blob.pending).length > 0) return true;
+  if (blob.inFlight && Object.keys(blob.inFlight).length > 0) return true;
+  const checkedIds = new Set<string>();
+  for (const result of Object.values(blob.checked ?? {})) {
+    for (const id of Object.keys(result?.items ?? {})) checkedIds.add(id);
+  }
+  for (const [category, entries] of Object.entries(blob.responses ?? {})) {
+    for (const [id, value] of Object.entries(entries ?? {})) {
+      if (checkedIds.has(id)) continue;
+      if (category === 'graphs' ? graphWorkTouched(value) : isAnswered(value)) return true;
+    }
+  }
+  return false;
+}
+
+/** How many of this student's activities on this device hold unchecked work
+ *  (UI review G-1: what signing out would clear). Never throws. */
+export function countUncheckedActivities(storage: StorageLike, userId: string): number {
+  const activities = new Set<string>();
+  try {
+    for (const key of scopedKeys(storage)) {
+      const parts = parseScopedKey(key);
+      if (parts?.kind !== 'buffer' || parts.userId !== userId) continue;
+      if (bufferHasUncheckedWork(storage.getItem(key))) activities.add(parts.activityId);
+    }
+  } catch {
+    // Storage unavailable: nothing readable is buffered.
+  }
+  return activities.size;
+}
+
+/**
  * BOOT SWEEP (ruling S6-6). Remove every piece of viewer-scoped data that is
  * not the signed-in user's — buffers and cached documents alike — plus
  * anything under the prefix too malformed to attribute to anyone. Sign-out

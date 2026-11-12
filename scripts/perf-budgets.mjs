@@ -235,8 +235,13 @@ export const SHELL_SPEND = [
         change: 'R5: Home + JoinClass lazy, preloaded by URL from index.html and awaited before first render (reserve rung D7, pulled early by the author)',
         bytes: -4601,
     },
+    {
+        date: '2026-11-13',
+        change: 'UI review G-1: the viewer\'s idle warning becomes a lazy fixed bar naming what sign-out clears (the loader + its plain offline fallback stay in the shell; the bar, its count and the sign-out confirm are lazy)',
+        bytes: 255,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 154448;
+export const SHELL_JS_BASELINE_BYTES = 154703;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

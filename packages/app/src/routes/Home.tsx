@@ -1,6 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
+import { uncheckedActivitiesOnDevice, uncheckedCostSentence } from '../lib/uncheckedWork';
+import IdleBar from '../components/IdleBar';
 import { markIdleSignOut, consumeIdleSignOutFlag } from '../lib/auth';
 import { useSession } from '../lib/SessionContext';
 import { useSlowFlag } from '../lib/slowLoad';
@@ -33,6 +35,11 @@ import { JoinCodeForm } from '../components/JoinCodeForm';
 const SignedOutLanding = lazy(() =>
   import('../components/SignedOutLanding').then((m) => ({ default: m.SignedOutLanding })),
 );
+// G-1's sign-out confirm. Lazy (the Home journey's first download has no
+// room for it), but fetched right after Home first paints (StudentHome's
+// effect), so a student who goes offline later can still sign out.
+const loadConfirmDialog = () => import('../components/ConfirmDialog');
+const ConfirmDialog = lazy(loadConfirmDialog);
 const PendingOnboarding = lazy(() =>
   import('../components/PendingOnboarding').then((m) => ({ default: m.PendingOnboarding })),
 );
@@ -51,6 +58,8 @@ async function signOut() {
 export default function Home() {
   const { session, loading, role, roleStatus, retryRole } = useSession();
   const callbackError = useAuthCallbackError();
+  // G-1: the unchecked-activity count, while the sign-out confirm is open.
+  const [confirmSignOut, setConfirmSignOut] = useState<number | null>(null);
   // The idle-escalation flag is consumed when the SIGNED-OUT state renders,
   // not at mount: idle sign-out happens while Home is already mounted, so a
   // mount-time read would race the escalation and the banner would never
@@ -148,11 +157,34 @@ export default function Home() {
               {session.user.email}
               <button
                 type="button"
-                onClick={() => void signOut()}
+                onClick={() => {
+                  // G-1: sign-out clears unchecked answers from this device
+                  // (S6-6 stays as it is) — so it says so first, when it would.
+                  const n = uncheckedActivitiesOnDevice(session.user.id);
+                  if (n > 0) setConfirmSignOut(n);
+                  else void signOut();
+                }}
                 className="px-1.5 py-2.5 underline underline-offset-2 hover:text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 Sign out
               </button>
+              {confirmSignOut !== null && (
+                <Suspense fallback={null}>
+                <ConfirmDialog
+                  title="Sign out?"
+                  confirmLabel="Sign out anyway"
+                  cancelLabel="Go back"
+                  danger
+                  onCancel={() => setConfirmSignOut(null)}
+                  onConfirm={async () => {
+                    await signOut();
+                    setConfirmSignOut(null);
+                  }}
+                >
+                  <p>{uncheckedCostSentence(confirmSignOut)}</p>
+                </ConfirmDialog>
+                </Suspense>
+              )}
             </span>
           ) : null}
         </div>
@@ -221,6 +253,7 @@ type ActivitiesState =
  */
 function StudentHome({ email }: { email: string }) {
   void email; // identity lives in the topbar (OV#9); param kept for symmetry
+  const { session } = useSession();
   const [state, setState] = useState<ClassesState>({ phase: 'loading' });
   const [activities, setActivities] = useState<ActivitiesState>({ phase: 'loading' });
   const [idlePrompt, setIdlePrompt] = useState(false);
@@ -250,6 +283,8 @@ function StudentHome({ email }: { email: string }) {
 
   useEffect(() => {
     load();
+    // Warm the sign-out confirm (see loadConfirmDialog) while online.
+    void loadConfirmDialog().catch(() => undefined);
   }, [load]);
 
   // The 2.4A idle wiring (D-10, closes cutover gate C2): prompt after the
@@ -290,13 +325,7 @@ function StudentHome({ email }: { email: string }) {
 
   return (
     <div className="space-y-4">
-      {idlePrompt ? (
-        <div className="rounded-lg border border-line bg-canvas p-4 shadow-sm" role="alert">
-          <p className="text-sm text-strong">
-            Still there? You&apos;ll be signed out soon to keep this device safe.
-          </p>
-        </div>
-      ) : null}
+      {idlePrompt && session ? <IdleBar userId={session.user.id} /> : null}
       {joined.length === 0 ? (
         <div className="rounded-lg border border-line bg-canvas px-6 py-10 text-center shadow-sm">
           <h2 className="text-xl font-bold text-ink">Join your first class</h2>

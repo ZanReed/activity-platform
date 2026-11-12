@@ -28,8 +28,13 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  Suspense,
+  lazy,
   useState, useRef, useSyncExternalStore } from 'react';
 import { MARKS, markOnce, preloadGraphKitIfNeeded, preloadMathIfNeeded } from '@activity/viewer';
+
+// UI review G-1: the idle warning bar, loaded when it is needed (see below).
+const IdleBar = lazy(() => import('../components/IdleBar'));
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   PrintButton,
@@ -722,12 +727,21 @@ export default function StudentViewer() {
           persistent state; these are transitions. (The other-tab/read-only
           notice renders in ViewerContainer beside its takeover affordance —
           takeover UI, not a status banner; the one deliberate exception.) */}
-      {idlePrompt ? (
-        <div className="viewer-banner" role="status" data-banner="idle-prompt">
-          <span>
-            Still there? You&apos;ll be signed out soon to keep this device safe.
-          </span>
-        </div>
+      {idlePrompt && sessionUserId ? (
+        // G-1: fixed to the top (not in the banner flow), so it is seen
+        // wherever the student has scrolled; names what sign-out would clear.
+        // Lazy (the viewer is in the student shell, and the spend meter has no
+        // room for it). The fallback is the plain warning, so a chunk that
+        // can't load offline still warns before sign-out.
+        <Suspense
+          fallback={
+            <div className="viewer-banner" role="status" data-banner="idle-prompt">
+              <span>Still there? You’ll be signed out soon to keep this device safe.</span>
+            </div>
+          }
+        >
+          <IdleBar userId={sessionUserId} />
+        </Suspense>
       ) : authExpired ? (
         <div className="viewer-banner" role="status" data-banner="session-expired">
           <span>Your sign-in expired. Your work is saved on this device.</span>

@@ -50,8 +50,6 @@ import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/res
 import {
   RESPONSES_COPY as COPY,
   fetchGradingQueue,
-  RELEASE_ALL_COPY,
-  releaseEach,
   releaseGrades,
   releaseLabel,
   saveCheckGrade,
@@ -60,6 +58,7 @@ import {
   type GradingQueueRow,
 } from '../lib/grading';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { RELEASE_ALL_COPY, releaseEach } from '../lib/releaseAll';
 import { DOL_PASS_COPY, baseLevelMet, fetchDolPassStatus, setDolPass, type DolPassRow } from '../lib/dolPass';
 import {
   ASSIST_COPY,
