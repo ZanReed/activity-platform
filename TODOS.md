@@ -69,6 +69,99 @@ the shell-size work) and DoL pass prefill reading only level `A`.
 graph figure but set by nothing; a definition's `glossaryKey` (it comes from
 the course glossary).
 
+## UI review 2026-11-13 — friction, data loss and missing features (author: "full review of our features")
+
+Three read-only code reviews (editor, teacher screens, student screens) plus a
+click-through in `pnpm playtest`; each item below was re-read in the code, or
+measured in the browser, before it was filed. Nothing here repeats a heading
+already in this file. Ranked inside each group; the author picks the order.
+
+**A. Work can be lost without warning**
+1. **Sign-out wipes unchecked answers.** `signOutEverything()`
+   (`lib/studentAuth.ts`) purges local + session storage, i.e. the viewer's
+   buffered answers and queued offline checks. The 30-minute idle sign-out
+   and Home's "Sign out" never say so, while the offline banners promise the
+   work is "saved on this device". Shared-device wiping is by design (S6-6);
+   the missing part is telling the student, or checking/sending first.
+2. **An empty blank or image vanishes on save.** `insertBlankAndEdit` inserts
+   `answer: ''`; clicking away keeps it empty; `serialize.ts`
+   (`tiptapBlankToActivity`) drops it with a console warning. The chip stays
+   on screen until reload. Same for an image with no src.
+3. **Republish has no confirm.** `ActivityEditor.tsx` `onClick={publish}`.
+   Students mid-activity keep their version until they reload, then the
+   device's unchecked answers for the old version never hydrate
+   (`viewer/store/store.ts` ~696); a locked/DoL activity's only "unlock" is a
+   republish (ViewerContainer D3 comment). A typo fix mid-period does this.
+4. **Release all graded** (`ActivityResponses.tsx` `releaseAll`) — one click,
+   no confirm, no un-release; a failure part-way replaces the queue with the
+   load-error message.
+5. **Delete a class** — 4-second "Really delete?" text link, no count of
+   students or work, no undo (`Classes.tsx` ~508). **Delete an activity** —
+   7-second undo toast only, though `restore_activity` and a 30-day purge
+   exist; no "Recently deleted" view.
+6. **"New code"** replaces a class join code in one click (`Classes.tsx`).
+7. Two tabs on one activity overwrite each other (autosave has no version
+   check); a failed save has no retry, no `role="alert"`, no online listener.
+
+**B. Teachers publish broken questions without knowing**
+8. **No pre-publish check.** `usePublish` only Zod-parses. Each block's own
+   warning (MC with no correct choice, matching, gaps) is never gathered.
+9. **Graphs and number lines start with a made-up answer**
+   (`InteractiveGraph.ts:342` `[[0,0]]`, `NumberLine.ts:50` `[5]`) and no
+   "answer not set" cue; a text blank chip has no "needs an answer" marker
+   (maths gaps do).
+10. No "unpublished changes" state: the header always shows green
+    "Published vN"; "Republish" with nothing changed shows a red
+    "Publish failed: Nothing to publish".
+11. Imported meta notes are hidden on an unpublished activity (the notes box
+    sits inside the `isPublished || success` block, `ActivityEditor.tsx` ~859).
+12. Drawer values that fail validation (min words > max, negative work space)
+    stay shown but are dropped on save.
+
+**C. Dead ends and missing feedback**
+13. **No catch-all route** — any mistyped URL is a blank page (checked in the
+    browser) for teachers and students.
+14. Student activity-load failure has no way home and shows raw error text;
+    `unauthenticated` offers "Try again" (same session) instead of sign-in.
+    A failed join has no retry or sign-in button.
+15. After a check the student sees "Checked." — no tally of how they did.
+16. On a phone the viewer's two sticky bars cover a third of the screen
+    (top bar 173 px + check footer 103 px of 812, measured). Status banners
+    (idle prompt, storage full, stale version) are NOT sticky, so a student
+    scrolled down never sees them.
+17. Teacher Analytics shows ops text ("run `pnpm backfill:census`", "stale
+    cache rows swept") and groups by block kind, not question.
+18. Progress / Analytics / Responses each say "Back to editor" and don't
+    link to each other; "Today" lives behind a link called "Practice".
+19. Stale copy: "Once student sign-in opens/launches" (`Classes.tsx` ~152, ~874).
+20. "+ Blank" says "at the cursor" but inserts at the end of the line
+    (`FillInBlankView.tsx`).
+21. Block delete is one click on a hover icon; no Undo/Redo buttons anywhere.
+
+**D. Accessibility and touch**
+22. Answer inputs lack `autoCapitalize/autoCorrect/spellCheck="off"`
+    (`viewer/blocks/BlankInput.tsx`); join-code inputs have them.
+23. Locked/DoL Check drops keyboard focus to the body when the confirm opens.
+24. Every result pill is its own live region (a 10-blank check = 10+ announcements).
+25. Editor: B/I/U/sub/sup buttons have no names or `aria-pressed`; the slash
+    menu has no listbox roles; block reorder is drag-only in the UI (⌘⇧↑/↓ is
+    undocumented); roster "Remove" buttons don't name the student.
+26. Jargon: "rem", "Checkpoint", "DoL" (hover-only explanation), the
+    "```figure fence" wording, raw misconception ids.
+
+**E. Features teachers and students would expect (none started unless noted)**
+- Export progress/grades to CSV.
+- One "to grade" inbox across activities (chips exist per class cell).
+- Hide/unpublish without deleting; rename/archive a class at year end;
+  duplicate my own activity; Recently deleted (backend exists).
+- Already-copied marker in the Bank (re-adding makes duplicates).
+- Student: past attempts / score per activity; completion panel linking to
+  the next activity or the unit tracker; unchecked work following the
+  student across devices.
+- Paste or drop a screenshot into the editor (suspected: no paste/drop
+  handler; images only via the file picker).
+- Due dates / scheduling — part of the period planner, deferred by the HoD.
+
 ## Lifting the teacher-paste block on ```video (amendment V-6, 2026-11-12)
 
 A teacher's markdown paste still drops a ```video fence with a warning
