@@ -1,6 +1,11 @@
 # GUI sweep, items 3–8: rulings wanted
 
-Status: **DRAFT FOR RULING (2026-11-13)**. Nothing here is built.
+Status: **RULED by the author 2026-11-13.** Every recommendation below is
+accepted (3a, 3b, 4a, 4b, 5a, 6a, 7a, 7b, 8a, 9a, T1), with one change:
+**8b — the level picker must NOT be fixed to A/M/E** ("that won't be language
+teachers outside NZ will be familiar with"). It offers the levels the activity
+itself declares (its DoL's `dol_rubric_levels:`), and a teacher can name their
+own levels when the activity declares none.
 
 TODOS → "GUI sweep 2026-11-12" lists fields that only a markdown import can
 set. The author ruled "do the GUI sweep first". Items 1 (misconception ids) and
@@ -109,9 +114,9 @@ playtest sweep could not reach the pass tick for that reason).
 shown only on a DoL section's rubric.
 
 - **8a.** A per-line level picker, DoL rubrics only? *(recommended: yes)*
-- **8b.** Is A/M/E the vocabulary to show, or should the picker read the
-  levels the activity declares? *(needs the author: A/M/E is the NCEA reading;
-  the schema stores whatever `dol_rubric_levels:` names)*
+- **8b.** ~~Is A/M/E the vocabulary to show?~~ **RULED: no.** The picker
+  reads the levels the activity declares; with none declared, the teacher
+  names them. A/M/E is only one school system's words.
 
 ## Item 9 (graph figure text fields): a ruling, not a build
 

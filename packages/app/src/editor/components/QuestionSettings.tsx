@@ -58,45 +58,57 @@ export function ToggleRow({
     );
 }
 
-/** The drawer's Worked-solution field (custom kind, like renderRubricField). */
-export function renderSolutionField({
-    editor,
-    node,
-    pos,
-}: {
-    editor: Editor;
-    node: PMNode;
-    pos: number;
-}): ReactNode {
-    const solution = (node.attrs.solution as InlineNodes | null) ?? [];
-    const onChange = (nodes: InlineNodes) => {
-        editor
-            .chain()
-            .command(({ tr }) => {
-                tr.setNodeAttribute(pos, 'solution', nodes.length > 0 ? nodes : null);
-                return true;
-            })
-            .run();
+/**
+ * A drawer field editing one rich-text (InlineNode[]) attribute — the Worked
+ * solution on the question blocks, and the model answer + worked solution on
+ * short answer / essay (GUI sweep item 3, 2026-11-13). An empty editor clears
+ * the attribute (null), so "removed" round-trips as absent.
+ */
+export function inlineAttrField(attr: string, label: string, help: string) {
+    return function InlineAttrField({
+        editor,
+        node,
+        pos,
+    }: {
+        editor: Editor;
+        node: PMNode;
+        pos: number;
+    }): ReactNode {
+        const value = (node.attrs[attr] as InlineNodes | null) ?? [];
+        const onChange = (nodes: InlineNodes) => {
+            editor
+                .chain()
+                .command(({ tr }) => {
+                    tr.setNodeAttribute(pos, attr, nodes.length > 0 ? nodes : null);
+                    return true;
+                })
+                .run();
+        };
+        return (
+            // Renders inside the drawer's custom slot, which delegates the heading
+            // to the field itself (same contract as the rubric builder).
+            <div className="question-solution-field">
+                <span className="block-advanced-drawer__label">{label}</span>
+                <span className="question-solution-field__help">{help}</span>
+                <InlineRichTextEditor value={value} onChange={onChange} ariaLabel={label} />
+            </div>
+        );
     };
-    return (
-        // Renders inside the drawer's custom slot, which delegates the heading
-        // to the field itself (same contract as the rubric builder).
-        <div className="question-solution-field">
-            <span className="block-advanced-drawer__label">
-                Worked solution
-            </span>
-            <span className="question-solution-field__help">
-                Shown to students after the section is checked. Supports bold,
-                italic, and inline math.
-            </span>
-            <InlineRichTextEditor
-                value={solution}
-                onChange={onChange}
-                ariaLabel="Worked solution"
-            />
-        </div>
-    );
 }
+
+/** The drawer's Worked-solution field (custom kind, like renderRubricField). */
+export const renderSolutionField = inlineAttrField(
+    'solution',
+    'Worked solution',
+    'Shown to students after the section is checked. Supports bold, italic, and inline math.',
+);
+
+/** Short answer / essay: the teacher's model answer (GUI sweep item 3). */
+export const renderModelAnswerField = inlineAttrField(
+    'answer',
+    'Model answer',
+    'What a full-marks answer says. Shown to students after the section is checked, and to you when grading.',
+);
 
 /**
  * The display-only summary a question block keeps in place of its removed

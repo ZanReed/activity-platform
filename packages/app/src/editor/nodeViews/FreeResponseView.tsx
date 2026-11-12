@@ -15,18 +15,16 @@ import type { InlineNode, Rubric } from '@activity/schema';
 //     <textarea disabled />  <- preview of the student's answer area
 //     <div .wordhint />       <- display-only word target (essay)
 //     <div .rubric-summary /> <- display-only "Rubric: N · X pts" when set
-//     <details .key />        <- display-only answer + solution (READ-ONLY)
+//     <details .key />        <- answer + solution summary (edited in the drawer)
 //   </div>
 //
-// THE ANSWER KEY IS READ-ONLY HERE, BY RULING (E10, 2026-08-19). The block may
-// carry `answer` (the teacher's canonical answer) and `solution` (the
-// post-check explanation), and this NodeView shows both — collapsed, in
-// teacher-only styling — but offers no way to edit them. That is a decision,
-// not an unfinished edge: these fields are authored in the .md file, and the
-// batch importer's file-keyed re-import-updates flow is the editing surface.
-// Showing them anyway matters because a teacher opening an imported activity
-// needs to SEE that the key came across; an invisible field is one nobody
-// notices is missing. A full editing UI is a recorded TODO.
+// THE ANSWER KEY IS SHOWN HERE, EDITED IN THE DRAWER. E10 (2026-08-19) shipped
+// `answer` (the teacher's canonical answer) and `solution` (the post-check
+// explanation) as display-only, authored in the .md file. The GUI sweep (item
+// 3, ruled 2026-11-13) added both to the block's Settings drawer
+// (blockControls.ts → freeResponseAnswerFields) and kept this collapsed,
+// teacher-only <details> as the in-block summary (ruling 3b): one place to
+// edit, like the other question blocks, and still visible at a glance.
 //
 // Settings (placeholder, word-count, rubric) live in the block's Settings
 // drawer (⚙ on the command bar / quick-bar → AdvancedDrawer, descriptor-driven

@@ -12,9 +12,9 @@
 // following the `rubric` attr's established pattern: the node stores it, the
 // DOM round-trips it through a data-* attribute (so copy/paste between editors
 // and Tiptap's own HTML serialization keep it), and serialize.ts Zod-sanitizes
-// it on the way to the schema. Nothing in the editor mutates them: E10 ships
-// read-only display, and the author's editing surface is the .md file the batch
-// importer re-imports.
+// it on the way to the schema. E10 shipped read-only display; since the GUI
+// sweep (item 3, 2026-11-13) the settings drawer edits both (blockControls.ts
+// → freeResponseAnswerFields), and the block's own <details> stays a summary.
 //
 // A malformed JSON attr parses to null rather than throwing — a hand-edited or
 // truncated data-* attribute costs the field, never the whole document parse.

@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
 import { renderRubricField } from './components/RubricEditor';
-import { renderSolutionField } from './components/QuestionSettings';
+import { renderModelAnswerField, renderSolutionField } from './components/QuestionSettings';
 import { renderDataPlotSettings } from './components/DataPlotSettings';
 import { renderGraphSettings } from './components/GraphSettings';
 import { renderNumberLineSettings } from './components/NumberLineSettings';
@@ -196,6 +196,14 @@ const placeholderField: AdvancedField = {
     get: (node) => (node.attrs.placeholder as string) ?? '',
     set: (editor, pos, value) => setNodeAttr(editor, pos, 'placeholder', value),
 };
+
+/** Short answer / essay's model answer + worked solution (GUI sweep item 3,
+ *  ruled 2026-11-13 — 3a: edited here, like the other question blocks; 3b: the
+ *  block's own <details> stays a read-only summary). */
+const freeResponseAnswerFields: AdvancedField[] = [
+    { kind: 'custom', label: 'Model answer', render: renderModelAnswerField },
+    { kind: 'custom', label: 'Worked solution', render: renderSolutionField },
+];
 
 /** The rubric builder (custom sub-editor), shared by the graded free-text blocks. */
 const rubricField: AdvancedField = {
@@ -507,7 +515,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         // E7 made this block page-numbered, and until the schema carried
         // `label` there was no way for an author to opt a reflection-style
         // short answer out of the worksheet's numbering.
-        advanced: [{ group: 'Grading', fields: [rubricField] }, numberingGroup],
+        advanced: [{ group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] }, numberingGroup],
     },
     essay: {
         primary: [],
@@ -542,7 +550,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                     },
                 ],
             },
-            { group: 'Grading', fields: [rubricField] },
+            { group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] },
             // Numbering — see the note on shortAnswer; both blocks became
             // page-numbered at answer-key ruling E7 and gained the field at
             // viewer-numbering N6.
@@ -561,6 +569,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         advanced: questionAdvancedWithNumbering,
     },
     matching: { primary: [], advanced: questionAdvancedWithNumbering },
+    // Correspondence carries the same solution / workSpace / label attrs
+    // (GUI sweep item 6, ruled 2026-11-13); it had no drawer entry, so all
+    // three were import-only.
+    correspondence: { primary: [], advanced: questionAdvancedWithNumbering },
     ordering: { primary: [], advanced: questionAdvancedWithNumbering },
     // interactive_graph settings are interaction-dependent (per-type tolerance
     // rows, display is axis-only) → one custom drawer field (GraphSettings).

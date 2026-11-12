@@ -247,3 +247,49 @@ test('number-line: inline settings bar gone; settings live in the drawer', async
             .snapToTick,
     ).toBe(false);
 });
+
+// GUI sweep items 3 + 6 (ruled 2026-11-13): short answer / essay edit their
+// model answer + worked solution in the drawer; correspondence gets the shared
+// question settings it never had.
+for (const [cmd, type] of [
+    ['insertShortAnswer', 'shortAnswer'],
+    ['insertEssay', 'essay'],
+] as const) {
+    test(`${type}: the drawer edits the model answer and the worked solution`, async ({ page }) => {
+        await insertAndSelect(page, cmd, type);
+        await gear(page).click();
+        await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+        const drawer = page.locator(DRAWER);
+        await expect(drawer.getByText('Model answer', { exact: true })).toBeVisible();
+        const fields = drawer.locator('.question-solution-field .inline-rte__content .ProseMirror');
+        await expect(fields).toHaveCount(2);
+        await fields.nth(0).click();
+        await page.keyboard.type('Unit rate is 2.5');
+        await fields.nth(1).click();
+        await page.keyboard.type('Divide 15 by 6');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const answer = (await attrOfFirst(page, type, 'answer')) as any[];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const solution = (await attrOfFirst(page, type, 'solution')) as any[];
+        expect(answer[0].text).toContain('Unit rate');
+        expect(solution[0].text).toContain('Divide 15');
+        // Clearing the model answer removes it (null), not an empty list.
+        await fields.nth(0).click();
+        await page.keyboard.press('ControlOrMeta+a');
+        await page.keyboard.press('Backspace');
+        expect(await attrOfFirst(page, type, 'answer')).toBeNull();
+    });
+}
+
+test('correspondence: the drawer has the worked solution, work space and numbering', async ({ page }) => {
+    await insertAndSelect(page, 'insertCorrespondence', 'correspondence');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    await expect(drawer.getByText('Worked solution', { exact: true })).toBeVisible();
+    await expect(drawer.getByRole('combobox', { name: 'Number on the page' })).toBeVisible();
+    const workSpace = drawer.getByRole('spinbutton', { name: 'Work space (rem)' });
+    await workSpace.fill('3');
+    await workSpace.blur();
+    expect(await attrOfFirst(page, 'correspondence', 'workSpace')).toBe(3);
+});
