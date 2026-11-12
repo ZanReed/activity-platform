@@ -4561,3 +4561,53 @@ img.mc-block__figure-preview {
     font-size: 0.6875rem;
     color: var(--ed-text-muted);
 }
+
+/* =============================================================================
+ *  TableToolbarHost (tables GUI amendment 2026-11-12): rows, columns and
+ *  alignment for the table the caret is in. Body-portaled, fixed above it.
+ *  ========================================================================= */
+
+.table-toolbar {
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: calc(100vw - 8px);
+    padding: 0.25rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.5rem;
+    background: var(--ed-surface);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+    font-size: 0.75rem;
+}
+
+.table-toolbar__button {
+    padding: 0.125rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    white-space: nowrap;
+}
+
+.table-toolbar__button:hover:not(:disabled),
+.table-toolbar__button:focus-visible {
+    border-color: var(--ed-border);
+    background: var(--ed-surface-2);
+}
+
+.table-toolbar__button[aria-pressed='true'] {
+    border-color: var(--ed-accent);
+}
+
+.table-toolbar__button:disabled {
+    opacity: 0.45;
+}
+
+.table-toolbar__sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--ed-border);
+}

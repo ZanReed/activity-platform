@@ -3,8 +3,41 @@ import {
     Table as TiptapTable,
     TableCell as TiptapTableCell,
     TableRow as TiptapTableRow,
+    TableView,
 } from '@tiptap/extension-table';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { labelNodeAttr } from '../labelNodeAttr';
+
+// The editor shows each column's alignment (tables GUI amendment 2026-11-12):
+// a cell decoration per aligned column, so what the toolbar sets is what the
+// teacher sees. Rebuilt only when the document changes.
+const COLUMN_ALIGN_KEY = new PluginKey('tableColumnAligns');
+
+function columnAlignDecorations(doc: PMNode): DecorationSet {
+    const decos: Decoration[] = [];
+    doc.descendants((node, pos) => {
+        // Text blocks hold no tables; don't walk their inline content.
+        if (node.type.name !== 'table') return !node.isTextblock && !node.isAtom;
+        const aligns = node.attrs.columnAligns as string[] | null | undefined;
+        if (Array.isArray(aligns) && aligns.some((a) => a !== 'left')) {
+            node.forEach((row, rowOffset) => {
+                let col = 0;
+                row.forEach((cell, cellOffset) => {
+                    const align = aligns[col];
+                    if (align === 'center' || align === 'right') {
+                        const from = pos + 1 + rowOffset + 1 + cellOffset;
+                        decos.push(Decoration.node(from, from + cell.nodeSize, { style: `text-align: ${align}` }));
+                    }
+                    col += 1;
+                });
+            });
+        }
+        return false;
+    });
+    return DecorationSet.create(doc, decos);
+}
 
 // ============================================================================
 // Table — the editor half of the table block.
@@ -132,7 +165,35 @@ declare module '@tiptap/core' {
     }
 }
 
+// Tiptap draws the table through its own TableView (a wrapper div + <table>),
+// which copies only `style` onto the <table> and never the block's attributes.
+// So the header styling in editor.css (`table[data-header-row]`, …) never
+// applied while editing, and a teacher couldn't see the header choice (found
+// building the tables GUI amendment, 2026-11-12). This view carries them.
+class ActivityTableView extends TableView {
+    constructor(node: PMNode, cellMinWidth: number) {
+        super(node, cellMinWidth);
+        this.syncAttrs(node);
+    }
+
+    override update(node: PMNode): boolean {
+        if (!super.update(node)) return false;
+        this.syncAttrs(node);
+        return true;
+    }
+
+    private syncAttrs(node: PMNode): void {
+        this.table.setAttribute('data-header-row', String(node.attrs.headerRow !== false));
+        this.table.setAttribute('data-header-column', String(node.attrs.headerColumn === true));
+        this.table.setAttribute('data-cell-labels', String(node.attrs.showCellLabels !== false));
+    }
+}
+
 export const Table = TiptapTable.extend({
+    addOptions() {
+        return { ...this.parent!(), View: ActivityTableView };
+    },
+
     addAttributes() {
         return {
             // Stable UUID at insertion; serialize mints fresh ones per round
@@ -168,16 +229,18 @@ export const Table = TiptapTable.extend({
                     'data-cell-labels': String(attributes.showCellLabels !== false),
                 }),
             },
-            // Per-column alignment. NO UI sets this yet — it arrives from the
-            // markdown importer's delimiter row (Slice 3) and is carried through
-            // round-trips so an imported table's alignment survives editing.
-            // Same posture as Column.width, and the same reason: losing authored
-            // data because the editor has no control for it yet is a bug.
+            // Per-column alignment, from the importer's delimiter row or the
+            // table toolbar's Left / Centre / Right (TableToolbarHost, which
+            // shifts it when a column is added or deleted — lib/tableAligns).
             columnAligns: {
                 default: null as string[] | null,
                 parseHTML: (element) => {
                     const raw = element.getAttribute('data-column-aligns');
-                    return raw ? raw.split(',') : null;
+                    // Pasted HTML is untrusted: keep only the three values.
+                    const aligns = raw
+                        ? raw.split(',').map((a) => (a === 'center' || a === 'right' ? a : 'left'))
+                        : [];
+                    return aligns.some((a) => a !== 'left') ? aligns : null;
                 },
                 renderHTML: (attributes) =>
                     Array.isArray(attributes.columnAligns) && attributes.columnAligns.length > 0
@@ -186,6 +249,22 @@ export const Table = TiptapTable.extend({
             },
             ...labelNodeAttr,
         };
+    },
+
+    addProseMirrorPlugins() {
+        return [
+            ...(this.parent?.() ?? []),
+            new Plugin({
+                key: COLUMN_ALIGN_KEY,
+                state: {
+                    init: (_, state) => columnAlignDecorations(state.doc),
+                    apply: (tr, old) => (tr.docChanged ? columnAlignDecorations(tr.doc) : old),
+                },
+                props: {
+                    decorations: (state) => COLUMN_ALIGN_KEY.getState(state) as DecorationSet,
+                },
+            }),
+        ];
     },
 
     addCommands() {

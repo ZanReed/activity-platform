@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import type { Node as PMNode } from '@tiptap/pm/model';
-import { NodeSelection } from 'prosemirror-state';
 import { ChevronDown, Settings, Check } from 'lucide-react';
 import {
     controlsFor,
@@ -13,6 +12,7 @@ import {
     type AdvancedGroup,
 } from '../blockControls';
 import AdvancedDrawer from './AdvancedDrawer';
+import { selectedBlock } from '../selectedBlock';
 
 // What the drawer below the bar is currently showing.
 type DrawerContent =
@@ -82,11 +82,13 @@ export default function BlockCommandBarHost({
 
         const update = () => {
             const { selection } = editor.state;
-            const node =
-                selection instanceof NodeSelection ? selection.node : null;
+            // A table is selected as a whole-table CellSelection, never a
+            // NodeSelection (selectedBlock.ts), so its settings can open.
+            const at = selectedBlock(selection);
+            const node = at?.node ?? null;
             const controls = node ? controlsFor(node.type.name) : null;
             const key =
-                node && controls ? `${selection.from}:${node.type.name}` : null;
+                node && at && controls ? `${at.pos}:${node.type.name}` : null;
             if (key !== lastSelKey.current) {
                 lastSelKey.current = key;
                 setSettingsMode(false);
@@ -96,7 +98,7 @@ export default function BlockCommandBarHost({
                 setSelected((prev) => (prev === null ? prev : null));
                 return;
             }
-            const pos = selection.from;
+            const pos = at!.pos;
             const typeName = node.type.name;
             setSelected((prev) =>
                 prev && prev.pos === pos && prev.typeName === typeName

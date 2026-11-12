@@ -273,6 +273,14 @@ export const PRECACHE_MAX_BYTES = 100 * 1024;
  * for a ProseMirror plugin should expect to spend the remaining margin, at
  * which point the lazy-chunk branch of R6 is the answer that was already
  * chosen — it does not need re-deciding, only doing.
+ *
+ * ⚠ RE-MEASURED 2026-11-12: 291.7 of 292 (0.3 KiB left). The tables GUI
+ * amendment's toolbar crossed the cap (292.3) and was moved into its own lazy
+ * chunk (TableToolbar.tsx) to come back under — the R6 branch, applied to the
+ * new code only. Every editor/* module rides this row (the editor chunk
+ * contains the `.ProseMirror` marker), so the NEXT editor feature will cross
+ * it. That feature's design pass decides between lazy-loading its own UI the
+ * same way and raising this cap with a written reason; it is not a surprise.
  */
 export const CHUNK_LEDGER = [
     {

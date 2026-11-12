@@ -31,6 +31,7 @@ import {
     stackDocJSON,
 } from './strictGrid';
 import BlankPopoverHost from './components/BlankPopoverHost';
+import TableToolbarHost from './components/TableToolbarHost';
 import ImagePopoverHost from './components/ImagePopoverHost';
 import DefinitionPopoverHost from './components/DefinitionPopoverHost';
 import BlockCommandBarHost from './components/BlockCommandBarHost';
@@ -459,6 +460,8 @@ export default function Editor({
                   document.body for stacking-context independence.
                 */}
                 <BlankPopoverHost editor={editor} />
+                {/* Rows, columns and alignment for the table the caret is in. */}
+                <TableToolbarHost editor={editor} />
                 {/*
                   ImagePopoverHost — sibling host watching the selection for a
                   node-selected image block, showing the anchored edit popover.

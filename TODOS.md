@@ -36,10 +36,10 @@ debt. Ranked by what a teacher meets first; each gets its own short design pass.
 1. ✅ **Misconception ids — BUILT 2026-11-12** (misconception-sensors.md →
    "GUI amendment 2026-11-12"). Also fixed: editing a blank's mistake feedback
    in the app dropped its bindings.
-2. **Tables:** header row / header column and column alignment have no
-   control; no button adds or deletes rows or columns (only Tiptap's built-in
-   commands exist; check the Tab key in a browser); no numbering control
-   (`table` is missing from blockControls), no `showCellLabels` toggle.
+2. ✅ **Tables — BUILT 2026-11-12** (table-block.md → "GUI amendment
+   2026-11-12"): a toolbar for rows, columns and alignment; settings for
+   headers, cell letters and numbering. Also fixed: a table's settings could
+   never open, and the editor never showed its headers.
 3. **Short answer / essay:** the model answer and worked solution are
    view-only in the editor (FreeResponseView's `<details>`).
 4. **Maths gaps:** acceptable answers, equivalence and tolerance can be set on

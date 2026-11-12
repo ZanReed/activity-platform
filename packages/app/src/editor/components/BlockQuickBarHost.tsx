@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
-import { NodeSelection, TextSelection } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 import { Trash2, Copy, Settings, Eye, EyeOff } from 'lucide-react';
 import { OPEN_BLOCK_SETTINGS, hasConfigurableControls } from '../blockControls';
 import { blockAncestor } from '../strictGrid';
+import { selectedBlock } from '../selectedBlock';
 import { usePreviewToggle } from './usePreviewToggle';
 
 // The graphing blocks that carry a "preview as student" eye toggle.
@@ -92,7 +93,7 @@ export default function BlockQuickBarHost({
                 cancelClear();
                 return;
             }
-            if (editor.state.selection instanceof NodeSelection) {
+            if (selectedBlock(editor.state.selection)) {
                 cancelClear();
                 setActivePos((prev) => (prev === null ? prev : null));
                 return;

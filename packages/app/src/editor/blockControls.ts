@@ -11,6 +11,7 @@ import { renderResetCrop } from './components/ImageDrawerFields';
 import { requestCropMode } from './components/cropMode';
 import { Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
 import { OPEN_IMAGE_POPOVER } from './extensions/Image';
+import { headerAttrsOf, headerChoiceOf, type HeaderChoice } from '../lib/tableAligns';
 
 // ============================================================================
 // blockControls — the control-descriptor registry for the docked command bar.
@@ -430,6 +431,46 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // Batch 1 — instructional + free-text content blocks. Edited by clicking
     // into them (caret), so NO block-specific primary — an "enter edit" button
     // would just duplicate a click. Settings live in ⚙ settings mode.
+    // Tables GUI amendment 2026-11-12 (T-3/T-4; table-block.md). Rows,
+    // columns and alignment live on the table's own toolbar
+    // (TableToolbarHost); these are the whole-table settings.
+    table: {
+        primary: [],
+        simple: [
+            {
+                kind: 'select',
+                label: 'Headers',
+                help: 'Which cells name the others: the top row, the left column, both, or none.',
+                options: [
+                    { label: 'Top row', value: 'row' },
+                    { label: 'Left column', value: 'column' },
+                    { label: 'Top row and left column', value: 'both' },
+                    { label: 'None', value: 'none' },
+                ],
+                get: (node) => headerChoiceOf(node.attrs.headerRow !== false, node.attrs.headerColumn === true),
+                set: (editor, pos, value) => {
+                    const attrs = headerAttrsOf(value as HeaderChoice);
+                    editor
+                        .chain()
+                        .command(({ tr }) => {
+                            tr.setNodeAttribute(pos, 'headerRow', attrs.headerRow);
+                            tr.setNodeAttribute(pos, 'headerColumn', attrs.headerColumn);
+                            return true;
+                        })
+                        .run();
+                },
+            },
+            {
+                kind: 'toggle',
+                label: 'Label blank cells',
+                help: 'Letter each blank cell (a), (b), … for reference. Off leaves more writing room on paper.',
+                get: (node) => node.attrs.showCellLabels !== false,
+                set: (editor, pos, value) => setNodeAttr(editor, pos, 'showCellLabels', value),
+            },
+        ],
+        // A table with a blank is one numbered problem, like a faded example.
+        advanced: [numberingGroup],
+    },
     learningObjectives: { primary: [] },
     workedExample: { primary: [] },
     fadedWorkedExample: {

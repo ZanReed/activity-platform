@@ -346,8 +346,9 @@ plan did not anticipate:
    have outlived its reason (this repo's most-repeated defect). The exemption is now DERIVED from
    whether the editor's ProseMirror schema has the node, with a loud roster test naming the
    temporary state — so Slice 2 lifts it automatically and has to acknowledge it.
-5. **R4 `showCellLabels` had NO rendering consumer until 2026-08-22 (`4a50b00`)** — the editor toggle
-   wrote a field nothing read (the ninth orphan of the §9 class). Wired in `packages/viewer/src/blocks/Table.tsx`
+5. **R4 `showCellLabels` had NO rendering consumer until 2026-08-22 (`4a50b00`)** — the field was
+   carried but nothing read it *(corrected 2026-11-12: there was no editor toggle either; the
+   field was import-only until the GUI amendment below added "Label blank cells")* (the ninth orphan of the §9 class). Wired in `packages/viewer/src/blocks/Table.tsx`
    and now bound by an output test (`packages/viewer/tests/components/table.test.tsx`, mutation-tested: reverting
    the wiring turns 3 of 4 cases red).
 
@@ -579,3 +580,25 @@ single-source, bundle follow-on policy). Zero findings rejected; no unresolved t
 **VERDICT:** ENG CLEARED — ready to implement, Slice 0 first.
 
 NO UNRESOLVED DECISIONS
+
+## GUI amendment 2026-11-12 (the "every feature ships with a GUI" rule)
+
+Found by the GUI sweep (TODOS → "GUI sweep 2026-11-12", item 2). The editor inserted a fixed 3×2 table and added rows only through Tab; nothing added or deleted COLUMNS, so every table made in the app was two columns wide, and headers, alignment, cell letters and numbering were import-only. **Ruled 2026-11-12, T-1…T-7 all as recommended.**
+
+- **T-1** A table toolbar above the table while the caret is in it: rows above/below, columns left/right, delete row/column/table. Never below 1×1; no confirmation (undo).
+- **T-2** Left / Centre / Right for the caret's columns, in the same toolbar. `columnAligns` shifts with a column insert or delete, in the same transaction; all-left stores nothing.
+- **T-3** Headers in the table's settings: top row, left column, both, none (the fence's `header:` values).
+- **T-4** "Label blank cells" toggle and the standard "Number on the page".
+- **T-5** Insert stays 3×2. **T-6** Paste and merge rules unchanged (D7.1, D7.2).
+- **T-7** Guards mutation-tested; Fable review.
+
+### As built
+
+- `editor/components/TableToolbarHost.tsx` (one host at the editor root, body-portaled), `editor/tableCommands.ts`, `lib/tableAligns.ts`, the `table` entry in `blockControls.ts`, `editor/selectedBlock.ts`.
+- **Two pre-existing editor defects found and fixed on the way:**
+  - The settings bar could never open for a table: `@tiptap/extension-table` turns selecting a table into a CellSelection over all its cells, and the bar read only NodeSelections. `selectedBlock` now names the table for a WHOLE-table cell selection (what the ⚙ produces) and nothing for a partial one; both bars read it.
+  - The editor never showed headers: Tiptap's `TableView` copies only `style` onto the `<table>`, so editor.css's `table[data-header-row]` rules never matched. `ActivityTableView` carries the three attrs. A decoration plugin also shows column alignment in the editor.
+- **Fable review 2026-11-12 (no P0; all fixed, each mutation-tested except where noted):** the bar shows only while the editor or the bar has focus; it hides when the table is scrolled out of view (not unit-testable: jsdom has no layout); a partial cell drag no longer opens the block bar with a whole-table Delete; Alt+F10 reaches the bar from a cell, arrows move along it and Escape returns; it anchors by its bottom so wrapping grows upward; a refused column command no longer shifts alignments; Left/Centre/Right show pressed only when every selected column agrees; pasted `data-column-aligns` is filtered to the three values.
+- **Budget:** the toolbar pushed the ProseMirror ledger row to 292.3 of 292, so its body is a lazy chunk (`TableToolbar.tsx`), loaded the first time a teacher works in a table — R6's pre-chosen branch, applied to the new code. The row now reads 291.7 of 292; the note beside the cap in `scripts/perf-budgets.mjs` says the next editor feature crosses it.
+- App-only: no schema, migration, bundle or deploy change.
+
