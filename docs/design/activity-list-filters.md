@@ -1,6 +1,9 @@
 # Activity list filters — one bar, not a chip cloud (design pass, 2026-11-13)
 
-Status: **PROPOSED, awaiting the author's rulings (F-1 … F-6).** Trigger: the
+Status: **RULED 2026-11-13 (author: "Yes to all") and BUILT** (c5ea6731).
+As built: the status menu's first option reads "All activities"; a topic's
+checkbox is named "<topic> (<count>)"; the Bank keeps "any of" for topics
+(My activities keeps "all of"), as each page did before. Trigger: the
 author, 2026-11-13: "our current filter system is clunky … take up less screen
 space but still inform teachers of their options and make it easy to manage".
 

@@ -77,38 +77,38 @@ measured in the browser, before it was filed. Nothing here repeats a heading
 already in this file. Ranked inside each group; the author picks the order.
 
 **A. Work can be lost without warning**
-1. **Sign-out wipes unchecked answers.** `signOutEverything()`
+1. ✅ BUILT (G-1). **Sign-out wipes unchecked answers.** `signOutEverything()`
    (`lib/studentAuth.ts`) purges local + session storage, i.e. the viewer's
    buffered answers and queued offline checks. The 30-minute idle sign-out
    and Home's "Sign out" never say so, while the offline banners promise the
    work is "saved on this device". Shared-device wiping is by design (S6-6);
    the missing part is telling the student, or checking/sending first.
-2. **An empty blank or image vanishes on save.** `insertBlankAndEdit` inserts
+2. ✅ BUILT for blanks (G-2; an empty image placeholder still drops). **An empty blank or image vanishes on save.** `insertBlankAndEdit` inserts
    `answer: ''`; clicking away keeps it empty; `serialize.ts`
    (`tiptapBlankToActivity`) drops it with a console warning. The chip stays
    on screen until reload. Same for an image with no src.
-3. **Republish has no confirm.** `ActivityEditor.tsx` `onClick={publish}`.
+3. ✅ BUILT (G-3). **Republish has no confirm.** `ActivityEditor.tsx` `onClick={publish}`.
    On the new version every section starts unchecked, locked and DoL included
    (checks are per version, 0040/0060). (Corrected 2026-11-13: unchecked
    answers are NOT lost — S6-9 keeps a student on the version they started.)
-4. **Release all graded** (`ActivityResponses.tsx` `releaseAll`) — one click,
+4. ✅ BUILT (G-4). **Release all graded** (`ActivityResponses.tsx` `releaseAll`) — one click,
    no confirm, no un-release; a failure part-way replaces the queue with the
    load-error message.
 5. ✅ BUILT 2026-11-13 (G-5/G-6, 0086): **Delete a class** — confirm with
    counts, Undo, Recently deleted + Restore. **Delete an activity** — confirm
    when it is in a class; Recently deleted + Restore (30-day purge shown).
-6. **"New code"** replaces a class join code in one click (`Classes.tsx`).
-7. Two tabs on one activity overwrite each other (autosave has no version
+6. ✅ BUILT (G-7). **"New code"** replaces a class join code in one click (`Classes.tsx`).
+7. ✅ BUILT (G-8). Two tabs on one activity overwrite each other (autosave has no version
    check); a failed save has no retry, no `role="alert"`, no online listener.
 
 **B. Teachers publish broken questions without knowing**
-8. **No pre-publish check.** `usePublish` only Zod-parses. Each block's own
+8. ◐ STARTED (G-2: `lib/prePublishCheck.ts` runs on both publish paths, one rule — empty blanks). **No pre-publish check.** `usePublish` only Zod-parses. Each block's own
    warning (MC with no correct choice, matching, gaps) is never gathered.
 9. **Graphs and number lines start with a made-up answer**
    (`InteractiveGraph.ts:342` `[[0,0]]`, `NumberLine.ts:50` `[5]`) and no
    "answer not set" cue; a text blank chip has no "needs an answer" marker
    (maths gaps do).
-10. No "unpublished changes" state: the header always shows green
+10. ✅ BUILT (G-3 "No changes", F-4 "Changed since publish"). No "unpublished changes" state: the header always shows green
     "Published vN"; "Republish" with nothing changed shows a red
     "Publish failed: Nothing to publish".
 11. Imported meta notes are hidden on an unpublished activity (the notes box
@@ -131,7 +131,7 @@ already in this file. Ranked inside each group; the author picks the order.
     cache rows swept") and groups by block kind, not question.
 18. Progress / Analytics / Responses each say "Back to editor" and don't
     link to each other; "Today" lives behind a link called "Practice".
-19. Stale copy: "Once student sign-in opens/launches" (`Classes.tsx` ~152, ~874).
+19. ✅ FIXED (with G-5). Stale copy: "Once student sign-in opens/launches" (`Classes.tsx` ~152, ~874).
 20. "+ Blank" says "at the cursor" but inserts at the end of the line
     (`FillInBlankView.tsx`).
 21. Block delete is one click on a hover icon; no Undo/Redo buttons anywhere.
@@ -161,9 +161,10 @@ already in this file. Ranked inside each group; the author picks the order.
 - Due dates / scheduling — the author wants due dates (2026-11-13, "still a
   good feature to have"); see "Due dates" below.
 
-**Group A** is in design: [ui-review-group-a.md](docs/design/ui-review-group-a.md)
-(G-1…G-8). **The filter bar** (author's screenshot, 2026-11-13) is in design:
-[activity-list-filters.md](docs/design/activity-list-filters.md) (F-1…F-6).
+**Group A: BUILT 2026-11-13** ([ui-review-group-a.md](docs/design/ui-review-group-a.md)
+→ "As built"; 0086 must be applied live before the push). **The filter bar:
+BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters.md)).
+Groups B–E are open; the author picks the next.
 
 ## Due dates (author, 2026-11-13)
 

@@ -1,6 +1,8 @@
 # UI review group A — work lost without warning (design pass, 2026-11-13)
 
-Status: **PROPOSED, awaiting the author's rulings (G-1 … G-8).** Source:
+Status: **RULED 2026-11-13 (author: "Yes to all") and BUILT the same day** —
+see "As built" at the end. Pending: 0086 applied live before the push.
+Originally proposed with Source:
 TODOS.md → "UI review 2026-11-13", group A (items 1–7). Every fact below was
 re-read in the code on 2026-11-13; file references are to that reading.
 
@@ -130,3 +132,26 @@ Recommended:
 - Shell size: everything here is teacher-side, except G-1's Home dialog and
   the idle bar. Those are small, but they spend from the student spend meter
   (shell-size review D-policy). The meter's number goes in the commit.
+
+## As built (2026-11-13)
+
+Commits on `main`: a2f30bc3 (G-4, G-5 confirm, G-6 confirm, G-7), 0ab84ef4
+(G-1), a7fafe7d (G-2), 01493d06 (G-3), deb0f8c6 + 3b5925ab (G-5/G-6 restore
+and Recently deleted, migration 0086), 7365cf74 + 70c8ee36 (G-8). Each step
+had a Fable review; findings folded in. Differences from the rulings above:
+
+- **G-1:** the edited-after-check limit stands (see G-1). The viewer's idle bar
+  is lazy with a plain offline fallback (student shell spend +255 B, ledgered).
+- **G-3:** wording corrected — S6-9 already keeps unchecked answers on the
+  version a student started; the real cost is that sections start unchecked
+  on the new version. Republish saves and runs the pre-publish check before it
+  asks, so the count and the locked/DoL line read the document as it is now.
+- **G-5:** `restore_class` and `list_deleted_classes` also require
+  `current_user_is_teacher()` (parity with delete's 0027 gate). Once the
+  disarmed practice prunes are armed, a class restored more than 30 days after
+  deletion comes back without its practice data — on both arming checklists.
+- **G-8:** "offered for copy" became **Keep my version** (an overwrite), a
+  safety valve if the check ever misfires; Reload is the other choice.
+  Same-tab print-view writes are awaited before the editor loads
+  (`lib/pendingRowWrites.ts`); errors that retrying can't fix
+  (`PermanentSaveError`) stop retrying and say why.
