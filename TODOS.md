@@ -25,6 +25,47 @@ panel; dol-retake.md → "GUI amendment 2026-11-12"). `seeded_data` (2026-11-12 
 "This video matches the lesson as it is now"; design doc → "Amendment
 2026-11-12").
 
+## GUI sweep 2026-11-12 — fields only an import can set (author: "do the GUI sweep first")
+
+The capability roster (guiSurfaces.ts) checks one row per capability, so it can't
+see an import-only FIELD inside a covered block. This sweep read every authored
+schema field against the editor's controls (two read-only agents, key claims
+re-checked by grep). Not triggered wishes: under the 2026-11-12 rule each is a
+debt. Ranked by what a teacher meets first; each gets its own short design pass.
+
+1. **Misconception ids, at all three sites:** multiple-choice choices, blank
+   mistakes, graph mistakes. Kept on save, never shown or editable (the
+   2026-08-25 "Editor cannot SHOW misconception bindings" entry is this, now
+   under the rule).
+2. **Tables:** header row / header column and column alignment have no
+   control; no button adds or deletes rows or columns (only Tiptap's built-in
+   commands exist; check the Tab key in a browser); no numbering control
+   (`table` is missing from blockControls), no `showCellLabels` toggle.
+3. **Short answer / essay:** the model answer and worked solution are
+   view-only in the editor (FreeResponseView's `<details>`).
+4. **Maths gaps:** acceptable answers, equivalence and tolerance can be set on
+   the FIRST gap only (MathPromptControls: `prompts[0]`, "single-gap v1").
+5. **Graph accessibility:** `interactive_graph.stimulusAlt` has no control.
+6. **Correspondence:** no settings drawer, so its solution is view-only and
+   numbering / work space have no control.
+7. **Seeded data plot:** `data_plot.dataVar` (`data: {name}`) has no control,
+   so the seeded-variables panel can declare a dataset nothing in the app
+   can plot.
+8. **DoL rubric levels** (A/M/E on rubric lines): RubricEditor has no level.
+9. **Graph figure** alt / caption / plane / to-scale are editable only as
+   fence text in "Figure source" — the author rules whether that counts.
+   Inside an interactive graph, geometry marks are view-only and a segment
+   can't be set dashed (a text edit keeps it).
+10. Already filed: the activity's `skill` / `supporting_skills` / `chain_role`
+    and `meta.skills` (the ORPHAN FIELD entry, CURRICULUM-ARCHITECTURE §1).
+
+**Not gaps (no action):** ids and stamps; `number` and per-block `skills`
+(declared, nothing writes them); fixed defaults no one authors
+(`minorTicksPerStep`, `snapToTick` / `maxFrequency` on data plots, a vector's
+0.1 tolerance, figure `showGrid`); width/align declared on chart, maths and
+graph figure but set by nothing; a definition's `glossaryKey` (it comes from
+the course glossary).
+
 ## Lifting the teacher-paste block on ```video (amendment V-6, 2026-11-12)
 
 A teacher's markdown paste still drops a ```video fence with a warning
