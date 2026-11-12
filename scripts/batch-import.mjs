@@ -4451,8 +4451,10 @@ async function main() {
             console.warn(
                 `⚠ misconception_registry mirror FAILED (${err.message}).\n` +
                     '  If the table does not exist, migration 0042 has not been applied to\n' +
-                    '  this database yet; the grading-assist submit RPC will refuse ids the\n' +
-                    '  mirror does not hold. The import itself continues.',
+                    '  this database yet; if it says permission denied (42501), 0085 (the\n' +
+                    '  service_role insert/update grant) has not. Either way the grading-assist\n' +
+                    '  submit RPC will refuse ids the mirror does not hold. The import itself\n' +
+                    '  continues.',
             );
         }
     }

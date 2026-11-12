@@ -1,0 +1,26 @@
+-- =============================================================================
+-- 0085_misconception_registry_service_grant.sql — the importer can write the
+-- misconception list on ANY database, not only the hosted one
+-- -----------------------------------------------------------------------------
+-- 0042 granted service_role SELECT on misconception_registry and nothing more.
+-- The batch importer mirrors the curriculum side's list into this table with an
+-- upsert AS service_role (scripts/batch-import.mjs, syncMisconceptionRegistry),
+-- so on a database built from the migrations alone that upsert is refused
+-- (42501) — found 2026-11-12 by `pnpm playtest`, whose fresh local database
+-- mirrored 0 of 115 ids. The import still exits 0: the mirror fails soft, by
+-- design, and prints a warning.
+--
+-- Live never showed it: the hosted project's default privileges give
+-- service_role full DML on public tables, so live already holds this grant
+-- (the live mirror holds 115 rows). That is 0032's drift exactly — a local
+-- database stricter than live — and 0032's rule applies: state the posture
+-- live has, so a fresh environment matches it. ON LIVE THIS IS A NO-OP.
+--
+-- INSERT and UPDATE only, because those are the importer's only writes here
+-- (the upsert); there is no DELETE path — ids are retired in the curriculum
+-- registry, never removed from the mirror. Client roles are untouched: anon has
+-- nothing and authenticated keeps SELECT only (0042's §C policy).
+-- No personal data; no table or column change.
+-- =============================================================================
+
+grant insert, update on table public.misconception_registry to service_role;

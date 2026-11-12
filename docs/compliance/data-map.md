@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-09-draft-50`. Mirrors migrations 0001–**0084**, verified
+> Version `2026-11-12-draft-51`. Mirrors migrations 0001–**0085**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-51` (2026-11-12) — 0085 adds NO personal data.** service_role gains insert and update on the curriculum misconception list (which live already had through hosted default privileges). The range moves to 0085 on that basis.
 >
 > **`draft-50` (2026-11-09) — 0084 adds NO personal data.** One limit in one teacher write changes from two to six. The range moves to 0084 on that basis.
 >

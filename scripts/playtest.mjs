@@ -204,15 +204,6 @@ function seedAdmission() {
         'do $seed$ begin',
         `  insert into public.student_domain (domain) values (${q(ACCOUNTS.domain)}) on conflict (domain) do nothing;`,
         `  insert into public.allowlist (email) values (${q(ACCOUNTS.teacher.email)}) on conflict (email) do nothing;`,
-        // LOCAL PARITY GRANT — a migration gap found by this script, 2026-11-12.
-        // 0042 grants service_role only SELECT on misconception_registry, so
-        // the importer's mirror (an upsert as service_role) is refused locally
-        // with 42501. Live mirrors fine (115 rows), because the hosted
-        // project's default privileges give service_role full DML — the
-        // local-stricter-than-live drift 0032 describes. Until a migration
-        // states the grant, the playtest applies live's posture here, locally
-        // only. Remove this line once that migration lands.
-        '  grant insert, update on public.misconception_registry to service_role;',
         'end $seed$;',
     ].join('\n');
     supabaseCli(['db', 'query', '--local', sql], { timeout: 60_000 });

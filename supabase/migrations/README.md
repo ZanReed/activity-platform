@@ -91,6 +91,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0082_class_today.sql` | Period assembly PA-3, PA-4 (author ruling 2026-11-04): `class_period_items` holds a class's picked activities for a day, up to two, and a pick lapses with the class's day. `class_today` is the read for the teacher and current students, and `set_class_today` is the audited teacher write. No personal data. |
 | `0083_period_shapes_mirror.sql` | Period assembly PA-10: a practice registry may carry `period_shapes` and `mixed_seconds_per_item`, both or neither, and `mixed_class_summary` passes them to the teacher's helper line. Nothing about how practice runs reads them. No personal data. |
 | `0084_class_today_six.sql` | Author ruling 2026-11-09: a class can pick up to six activities for a day, up from two. Only the cap and its error name change. No personal data. |
+| `0085_misconception_registry_service_grant.sql` | service_role gains insert + update on `misconception_registry`, which 0042 never stated, so the importer's mirror works on a database built from migrations (it mirrored 0 of 115 ids locally; found by `pnpm playtest`). A no-op on live, which already had it through hosted default privileges. No personal data. Verify: `verify-0085.sql`. |
 
 ## Regression re-runs (the DB has no CI harness)
 

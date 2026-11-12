@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
+**0085: APPLY, then `verify-runner --target live --only verify-0085`.** No-op on live; why: migration header.
+
 **GUI rule (2026-11-12): all three gaps LIVE** (video, seeded variables, DoL; pushed, CI green). [TODOS](TODOS.md) → GUI gaps.
 
 **D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
