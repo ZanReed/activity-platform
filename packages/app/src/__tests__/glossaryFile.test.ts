@@ -32,6 +32,46 @@ describe('glossary file loader', () => {
         expect(res.variantCount).toBeGreaterThanOrEqual(1);
     });
 
+    // Playtest sweep 2026-11-12: the agreed format (W-2) wraps prose, and the
+    // curriculum file does, but the fence grammar made every line a block, so
+    // 115 of 117 definitions rendered split mid-sentence on screen.
+    it('joins a hard-wrapped sentence into ONE paragraph (W-2 wraps prose)', () => {
+        const text = readFileSync(
+            resolve(__dirname, '../../../../scripts/fixtures/glossary/glossary.fixture.md'),
+            'utf8',
+        );
+        const rate = load(text, 'glossary.fixture.md').entries.find((e) => e.id === 'rate');
+        // W-2's own example: "…such as" / "$\frac{km}{h}$." on two lines.
+        expect(rate?.body).toHaveLength(1);
+        expect(rate?.body[0]).toMatchObject({ type: 'paragraph' });
+        expect(JSON.stringify(rate?.body[0])).toContain('such as');
+        expect(JSON.stringify(rate?.body[0])).toContain('math_inline');
+    });
+
+    it('keeps structure when joining: blank lines, lists and display maths still split', () => {
+        const res = load(
+            fence(
+                'id: a',
+                'term: a',
+                'One of ten equal parts, the first',
+                'digit after the point.',
+                '',
+                'A second paragraph',
+                'that wraps.',
+                '- a list item',
+                '- another',
+                '$$x = 1$$',
+                'After the maths.',
+            ),
+            'g.md',
+        );
+        expect(res.warnings).toEqual([]);
+        const body = res.entries[0]?.body as unknown as Array<{ type: string; content?: Array<{ text?: string }> }>;
+        expect(body.map((b) => b.type)).toEqual(['paragraph', 'paragraph', 'bullet_list', 'math_block', 'paragraph']);
+        expect(body[0]?.content?.[0]?.text).toBe('One of ten equal parts, the first digit after the point.');
+        expect(body[1]?.content?.[0]?.text).toBe('A second paragraph that wraps.');
+    });
+
     it('requires an id: line, naming the line and the fix (W-2)', () => {
         const res = load(fence('term: gradient', 'Steep.'), 'g.md');
         expect(res.entries).toEqual([]);

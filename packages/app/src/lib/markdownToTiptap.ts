@@ -510,7 +510,7 @@ export function getGlossaryFileParser(): Promise<GlossaryFileParser> {
                         parseBlock: (text) => md.parse(text, {}) as unknown as MdToken[],
                     };
                     const { blocks } = parseContentLines(
-                        protectEscapedBrackets(bodySource),
+                        protectEscapedBrackets(joinWrappedProse(bodySource)),
                         ctx,
                         'Definition',
                     );
@@ -2142,6 +2142,42 @@ const BODY_BULLET = /^[-*]\s+(.+)$/;
 const BODY_ORDERED = /^\d+[.)]\s+(.+)$/;
 const BODY_HEADING = /^(#{1,3})\s+(.+)$/;
 const BODY_IMAGE = /^!\[([^\]]*)\]\((\S+)\)$/;
+
+/**
+ * Join hard-wrapped prose lines into one line, for GLOSSARY bodies only.
+ *
+ * The fence grammar makes every line its own block (markdown-import-format.md,
+ * "Each line is its own block"). That is right for activity fences, where the
+ * authoring prompt teaches it, and wrong for the course glossary: its agreed
+ * format (glossary.md W-2) wraps prose, and the curriculum file does, so 115
+ * of 117 definitions rendered split mid-sentence (playtest sweep 2026-11-12).
+ * The teacher-guide fence met the same problem and left the line grammar
+ * (parseTeacherGuideFence); a glossary body keeps it for its structure, so
+ * only prose is joined: a line is prose unless parseContentLines would read
+ * it as something else (a list item, heading, image, `$$` display maths, or
+ * a title:/axes:/graph: line). A blank line still ends a paragraph.
+ */
+function joinWrappedProse(src: string): string {
+    const structural = (line: string): boolean =>
+        BODY_BULLET.test(line) ||
+        BODY_ORDERED.test(line) ||
+        BODY_HEADING.test(line) ||
+        BODY_IMAGE.test(line) ||
+        line.startsWith('$$') ||
+        /^(title|axes|graph):/i.test(line);
+    const out: string[] = [];
+    let prose = false;
+    for (const raw of src.split('\n')) {
+        const line = raw.trim();
+        if (line && prose && !structural(line)) {
+            out[out.length - 1] = `${out[out.length - 1]} ${line}`;
+            continue;
+        }
+        out.push(raw);
+        prose = line !== '' && !structural(line);
+    }
+    return out.join('\n');
+}
 
 function listBlockFrom(
     type: 'bulletList' | 'orderedList',

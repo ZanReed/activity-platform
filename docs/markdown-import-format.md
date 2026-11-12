@@ -1299,6 +1299,10 @@ $\frac{\text{km}}{\text{h}}$.
   until someone decides it is a new locale).
 - **Header lines come first**, before any definition text. The header ends at
   the first line that is not `id:`, `term:` or a two-letter key.
+- **Prose may wrap.** Unlike an activity's ```definitions fence (one line, one
+  block), consecutive prose lines in a glossary entry join into one paragraph,
+  as the `rate` entry above shows. A blank line starts a new paragraph, and a
+  list item, `#` heading, image or `$$…$$` line still stands on its own.
 - **Cross-links are automatic.** When one definition mentions another entry's
   word, the student can tap through to it; do not write `[[…]]` inside a
   glossary definition.
