@@ -18,6 +18,8 @@
 // =============================================================================
 
 import {
+    Suspense,
+    lazy,
     useCallback,
     useEffect,
     useMemo,
@@ -51,8 +53,12 @@ import {
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { useAutosave } from '../lib/useAutosave';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
-import { publishProblemsSentence } from '../lib/prePublishCheck';
+import { findPublishProblems, publishProblemsSentence } from '../lib/prePublishCheck';
 import { selectBlankById } from '../editor/selectBlankById';
+import { REPUBLISH_COPY, hasLockedOrDol, isNoChanges, startedStudentCount } from '../lib/republishImpact';
+
+// G-3's republish confirm, loaded on first use.
+const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
 import PublishStatus from '../components/PublishStatus';
 import Editor from '../editor/Editor';
 // Loaded on demand (shell-size review TR4, 2026-11-13): the dialog carries the
@@ -680,10 +686,17 @@ export default function ActivityEditor() {
         // when the latest edits could not persist — publishing would otherwise
         // snapshot a stale draft. On success, hand usePublish the exact payload
         // known to be persisted so its safeParse gate runs on server reality.
+        // G-3: the key that was flushed for the publish in flight. On success it
+        // is the clean point — not the live key, which may already include an
+        // edit typed while publish_activity was running (Fable review).
+        const latestKeyRef = useRef(changeKey);
+        latestKeyRef.current = changeKey;
+        const publishedKeyRef = useRef<string | null>(null);
         const prepareForPublish = useCallback(
             async (): Promise<PrePublishResult> => {
                 const flushed = await flush();
                 if (!flushed) return { ok: false };
+                publishedKeyRef.current = latestKeyRef.current;
                 return { ok: true, draft: lastPersistedDraft.current };
             },
             [flush],
@@ -707,11 +720,57 @@ export default function ActivityEditor() {
             if (blockedKeyRef.current === null) blockedKeyRef.current = changeKey;
             else if (blockedKeyRef.current !== changeKey) clearBlocked();
         }, [publishState.kind, changeKey, clearBlocked]);
+        // G-3 "No changes": the change key at the last point the draft matched
+        // the live version (loaded with no draft, or just published). While the
+        // key still equals it and no draft is held, Republish has nothing to send.
+        // State, not a ref: the button must re-render when the clean point is set.
+        const [cleanKey, setCleanKey] = useState<string | null>(null);
+        useEffect(() => {
+            if (changeKey === null) return;
+            if (cleanKey === null && lastPersistedDraft.current === null) setCleanKey(changeKey);
+        }, [changeKey, cleanKey]);
+        useEffect(() => {
+            if (publishState.kind === 'success' && publishedKeyRef.current !== null) setCleanKey(publishedKeyRef.current);
+        }, [publishState.kind]);
+
+        const noChanges = isNoChanges({
+            live: isPublished || publishState.kind === 'success',
+            hasDraft: lastPersistedDraft.current !== null,
+            changeKey,
+            cleanKey,
+            saving: status === 'saving',
+        });
+
+        // G-3: republishing asks first when students have started (their
+        // sections start unchecked on the new version).
+        const [republishConfirm, setRepublishConfirm] = useState<{ started: number | null; locked: boolean } | null>(null);
+        const [checkingStarted, setCheckingStarted] = useState(false);
+        const onPublishClick = async () => {
+            const live = isPublished || publishState.kind === 'success';
+            if (!live || !id) return publish();
+            setCheckingStarted(true);
+            // Save first, so the locked/DoL line reads the document as it is
+            // now and a draft that can't publish (G-2) is refused before we
+            // ask — publish() then shows why. A failed save goes the same way.
+            const flushed = await flush();
+            const draft = lastPersistedDraft.current;
+            if (!flushed || (draft && findPublishProblems(draft).length > 0)) {
+                setCheckingStarted(false);
+                return publish();
+            }
+            const started = await startedStudentCount(id);
+            setCheckingStarted(false);
+            if (started === 0) return publish();
+            setRepublishConfirm({ started, locked: hasLockedOrDol(draft) });
+        };
+
         // A successful publish clears draft_content server-side; keep the
         // mirror honest so a no-edit republish sends draft:null and lets the
         // RPC answer "no unpublished changes" authoritatively.
         useEffect(() => {
-            if (publishState.kind === 'success') {
+            // Only when nothing was typed since the flush: an edit made during
+            // the RPC is (or will be) its own draft, which this must not hide.
+            if (publishState.kind === 'success' && latestKeyRef.current === publishedKeyRef.current) {
                 lastPersistedDraft.current = null;
             }
         }, [publishState.kind]);
@@ -849,12 +908,14 @@ export default function ActivityEditor() {
             */}
             <button
             type="button"
-            onClick={publish}
-            disabled={publishState.kind === 'publishing' || status === 'saving'}
+            onClick={() => void onPublishClick()}
+            disabled={publishState.kind === 'publishing' || status === 'saving' || noChanges || checkingStarted}
             title={
                 status === 'saving'
                     ? 'Saving your latest edits before publishing'
-                    : 'Publish this activity as a page students can open'
+                    : noChanges
+                      ? REPUBLISH_COPY.noChangesTitle
+                      : 'Publish this activity as a page students can open'
             }
             className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -863,10 +924,31 @@ export default function ActivityEditor() {
                 ? 'Saving…'
                 : publishState.kind === 'publishing'
                   ? 'Publishing…'
-                  : isPublished || publishState.kind === 'success'
-                    ? 'Republish'
-                    : 'Publish'}
+                  : noChanges
+                    ? REPUBLISH_COPY.noChanges
+                    : isPublished || publishState.kind === 'success'
+                      ? 'Republish'
+                      : 'Publish'}
             </button>
+            {republishConfirm && (
+                <Suspense fallback={null}>
+                <ConfirmDialog
+                title={REPUBLISH_COPY.title}
+                confirmLabel={REPUBLISH_COPY.confirm}
+                cancelLabel={REPUBLISH_COPY.cancel}
+                onCancel={() => setRepublishConfirm(null)}
+                onConfirm={async () => {
+                    setRepublishConfirm(null);
+                    await publish();
+                }}
+                >
+                <p>
+                {REPUBLISH_COPY.started(republishConfirm.started)} {REPUBLISH_COPY.body}
+                </p>
+                {republishConfirm.locked && <p>{REPUBLISH_COPY.locked}</p>}
+                </ConfirmDialog>
+                </Suspense>
+            )}
             </div>
 
             {(isPublished || publishState.kind === 'success') && (
