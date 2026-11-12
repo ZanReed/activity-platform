@@ -60,6 +60,13 @@ vi.mock('../lib/gradingAssist', async (importOriginal) => ({
   rejectSuggestion: h.reject,
 }));
 
+// Section and question words are pinned in ActivityResponses.test.tsx; here
+// they stay empty so these rows read no document.
+vi.mock('../lib/responsesLabels', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../lib/responsesLabels')>();
+  return { ...real, fetchQueueLabels: async () => real.emptyQueueLabels() };
+});
+
 import ActivityResponses from '../routes/ActivityResponses';
 import { RESPONSES_COPY as COPY, type GradingQueueRow } from '../lib/grading';
 import {

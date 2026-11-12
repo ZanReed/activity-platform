@@ -34,6 +34,14 @@ const h = vi.hoisted(() => ({
   dolOptionals: vi.fn(async () => new Set<string>()),
   dolPasses: vi.fn(),
   setDolPass: vi.fn(),
+  versionContents: vi.fn(async () => new Map<string, { version_num: number; content: unknown }>()),
+}));
+
+// The section and question words come from each version's document, read
+// through the page-session cache. Empty by default: no document, no heading.
+vi.mock('../lib/versionContent', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/versionContent')>()),
+  getVersionContents: h.versionContents,
 }));
 
 vi.mock('../lib/grading', async (importOriginal) => ({
@@ -65,6 +73,7 @@ vi.mock('../lib/gradingAssist', async (importOriginal) => ({
 import ActivityResponses from '../routes/ActivityResponses';
 import { RESPONSES_COPY as COPY, type GradingQueueRow } from '../lib/grading';
 import { DOL_PASS_COPY } from '../lib/dolPass';
+import { createEmptyDocument, createShortAnswerBlock } from '@activity/schema';
 
 const BASE: GradingQueueRow = {
   check_id: 'chk-1',
@@ -376,5 +385,51 @@ describe('the DoL pass tick (D65 DL-11, DE-15)', () => {
     fireEvent.click(rowButton);
     await waitFor(() => expect(screen.getByRole('button', { name: COPY.save })).toBeTruthy());
     expect(screen.queryByRole('checkbox', { name: DOL_PASS_COPY.label })).toBeNull();
+  });
+});
+
+describe('what the queue calls a section and a question', () => {
+  // Playtest sweep 2026-11-12: the group heading printed the section's UUID and
+  // the question appeared nowhere, so a teacher graded an answer without
+  // seeing what was asked. The words come from the version's own document.
+  const VERSION = '11111111-1111-4111-8111-111111111111';
+  function docWithQuestion() {
+    const doc = createEmptyDocument();
+    const section = doc.sections[0]!;
+    section.title = 'Check for understanding';
+    const short = createShortAnswerBlock();
+    short.prompt = [{ type: 'text', text: 'Explain why the cheaper card is not better value.', marks: [] }];
+    section.rows = [
+      {
+        id: '00000000-0000-4000-8000-000000000001',
+        gridLines: 'inherit',
+        columns: [{ id: '00000000-0000-4000-8000-000000000101', blocks: [short] }],
+      },
+    ];
+    return { doc, sectionId: section.id, blockId: short.id };
+  }
+
+  it('heads a group with the section title and a question with its number and words, never an id', async () => {
+    const { doc, sectionId, blockId } = docWithQuestion();
+    h.versionContents.mockResolvedValueOnce(new Map([[VERSION, { version_num: 1, content: doc }]]));
+    setup([row({ activity_version_id: VERSION, section_id: sectionId, block_id: blockId })]);
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 2, name: 'Check for understanding' })).toBeTruthy(),
+    );
+    const question = 'Q1 · Explain why the cheaper card is not better value.';
+    expect(screen.getByText(question)).toBeTruthy();
+    expect(document.body.textContent).not.toContain(sectionId);
+
+    // The grading pane names the question too, above the student's answer.
+    fireEvent.click(screen.getByText(BASE.student_label as string).closest('button')!);
+    await waitFor(() => expect(screen.getAllByText(question)).toHaveLength(2));
+  });
+
+  it('a document it cannot read leaves the heading out rather than printing the id', async () => {
+    h.versionContents.mockResolvedValueOnce(new Map([[VERSION, { version_num: 1, content: { nonsense: true } }]]));
+    setup([row({ activity_version_id: VERSION, section_id: 'sec-raw-id' })]);
+    await waitFor(() => expect(screen.getByText(BASE.student_label as string)).toBeTruthy());
+    expect(document.body.textContent).not.toContain('sec-raw-id');
   });
 });

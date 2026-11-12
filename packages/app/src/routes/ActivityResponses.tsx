@@ -46,6 +46,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { safeProgressPath } from '../lib/classProgress';
+import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/responsesLabels';
 import {
   RESPONSES_COPY as COPY,
   fetchGradingQueue,
@@ -172,6 +173,9 @@ export default function ActivityResponses() {
   // D77: answers never owed. Empty until read, so a failed read over-counts rather than hides.
   const [dolOptionals, setDolOptionals] = useState<ReadonlySet<string>>(new Set());
   const [dolPasses, setDolPasses] = useState<ReadonlyMap<string, DolPassRow>>(new Map());
+  // Section titles and question words, from each version's document. Empty
+  // until read: a heading is then left out rather than showing an id.
+  const [labels, setLabels] = useState<QueueLabels>(emptyQueueLabels);
   const [error, setError] = useState<string | null>(null);
   // A failed re-read AFTER a save keeps the queue on screen (the save itself
   // succeeded — its own errors show in the panel); only the first load blanks.
@@ -243,6 +247,7 @@ export default function ActivityResponses() {
         try {
           const versions = [...new Set(queue.map((r) => r.activity_version_id))];
           void fetchDolOptionals(versions).then(setDolOptionals, () => setDolOptionals(new Set()));
+          void fetchQueueLabels(versions).then(setLabels, () => setLabels(emptyQueueLabels()));
           const [primaries, passes] = await Promise.all([
             fetchDolPrimaries(versions),
             fetchDolPassStatus(id),
@@ -449,52 +454,76 @@ export default function ActivityResponses() {
           ) : (
             <div className="flex flex-col gap-4 md:flex-row">
               <div className="md:w-2/5">
-                {[...groups.entries()].map(([sectionId, questions]) => (
-                  <div key={sectionId} className="mb-4">
-                    <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted">
-                      {sectionId}
-                    </h2>
-                    {[...questions.entries()].map(([blockId, blockRows]) => (
-                      <div
-                        key={blockId}
-                        className="mb-2 overflow-hidden rounded-lg border border-line bg-canvas"
-                      >
-                        {blockRows.map((row) => (
-                          <button
-                            key={key(row)}
-                            type="button"
-                            onClick={() => setSelected(key(row))}
-                            aria-current={key(row) === selected ? true : undefined}
-                            className={`flex min-h-[44px] w-full items-center gap-2 border-b border-line px-3 py-2 text-left last:border-b-0 ${
-                              key(row) === selected ? 'bg-surface-2' : ''
-                            }`}
+                {[...groups.entries()].map(([sectionId, questions]) => {
+                  // Every row in a group shares the section, so any row's
+                  // version names it (ids never cross versions).
+                  const first = [...questions.values()][0]?.[0];
+                  const sectionTitle = first
+                    ? labels.sections.get(`${first.activity_version_id}:${sectionId}`)
+                    : undefined;
+                  return (
+                    <div key={sectionId} className="mb-4">
+                      {sectionTitle ? (
+                        <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted">
+                          {sectionTitle}
+                        </h2>
+                      ) : null}
+                      {[...questions.entries()].map(([blockId, blockRows]) => {
+                        const question = blockRows[0]
+                          ? labels.questions.get(`${blockRows[0].activity_version_id}:${blockId}`)
+                          : undefined;
+                        return (
+                          <div
+                            key={blockId}
+                            className="mb-2 overflow-hidden rounded-lg border border-line bg-canvas"
                           >
-                            <span className="text-sm font-semibold text-ink">
-                              {studentName(row)}
-                            </span>
-                            <span className="flex-1 truncate text-xs text-muted">
-                              {row.response_text ?? (
-                                <em>{COPY.noAnswer}</em>
-                              )}
-                            </span>
-                            {!row.is_current && (
-                              <span className="rounded border border-line px-1.5 text-xs text-muted">
-                                v{row.version_num}
-                              </span>
-                            )}
-                            <AssistFlag
-                              display={deriveAssistDisplay(
-                                suggestionByKey.get(key(row)),
-                                row.graded,
-                              )}
-                            />
-                            <Chip status={statusOf(row)} />
-                          </button>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                            {question ? (
+                              <p
+                                className="truncate border-b border-line px-3 py-1.5 text-xs font-medium text-ink"
+                                title={question}
+                                data-question-label
+                              >
+                                {question}
+                              </p>
+                            ) : null}
+                            {blockRows.map((row) => (
+                              <button
+                                key={key(row)}
+                                type="button"
+                                onClick={() => setSelected(key(row))}
+                                aria-current={key(row) === selected ? true : undefined}
+                                className={`flex min-h-[44px] w-full items-center gap-2 border-b border-line px-3 py-2 text-left last:border-b-0 ${
+                                  key(row) === selected ? 'bg-surface-2' : ''
+                                }`}
+                              >
+                                <span className="text-sm font-semibold text-ink">
+                                  {studentName(row)}
+                                </span>
+                                <span className="flex-1 truncate text-xs text-muted">
+                                  {row.response_text ?? (
+                                    <em>{COPY.noAnswer}</em>
+                                  )}
+                                </span>
+                                {!row.is_current && (
+                                  <span className="rounded border border-line px-1.5 text-xs text-muted">
+                                    v{row.version_num}
+                                  </span>
+                                )}
+                                <AssistFlag
+                                  display={deriveAssistDisplay(
+                                    suggestionByKey.get(key(row)),
+                                    row.graded,
+                                  )}
+                                />
+                                <Chip status={statusOf(row)} />
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="md:flex-1">
@@ -507,6 +536,7 @@ export default function ActivityResponses() {
                     rubric={
                       rubrics.get(`${current.activity_version_id}:${current.block_id}`) ?? null
                     }
+                    question={labels.questions.get(`${current.activity_version_id}:${current.block_id}`) ?? null}
                     dol={
                       dolPrimaries.has(`${current.activity_version_id}:${current.block_id}`)
                         ? { pass: dolPasses.get(current.student_id) ?? null }
@@ -575,6 +605,7 @@ function GradePanel({
   activityId,
   suggestion,
   rubric,
+  question,
   dol,
   onSaved,
 }: {
@@ -582,6 +613,8 @@ function GradePanel({
   activityId: string;
   suggestion: SuggestionRow | undefined;
   rubric: RubricCriterionSpec[] | null;
+  /** "Q13 · Explain to Tama why…", or null while the document is unread. */
+  question: string | null;
   /** D65: this row is the DoL's primary item; the student's current pass. */
   dol: { pass: DolPassRow | null } | null;
   onSaved: () => Promise<void>;
@@ -763,6 +796,7 @@ function GradePanel({
 
   return (
     <div className="rounded-lg border border-line bg-canvas p-4">
+      {question ? <p className="mb-1 text-sm font-medium text-ink">{question}</p> : null}
       <p className="text-xs text-muted">
         {studentName(row)} · attempt {row.attempt_number}
       </p>
