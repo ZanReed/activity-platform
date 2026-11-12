@@ -172,6 +172,21 @@ describe('deleting an activity that is in a class (G-6)', () => {
     });
 });
 
+describe('Recently deleted (G-6)', () => {
+    it('lists deleted activities and Restore brings one back through restore_activity', async () => {
+        h.rpc.mockImplementation(((fn: string) =>
+            Promise.resolve(
+                fn === 'list_deleted_activities'
+                    ? { data: [{ id: 'gone', title: 'Old Quiz', deleted_at: '2026-11-10T00:00:00Z', purge_after: '2026-12-10T00:00:00Z' }], error: null }
+                    : { data: null, error: null },
+            )) as never);
+        renderList();
+        fireEvent.click(await screen.findByText('Recently deleted (1)'));
+        fireEvent.click(screen.getByRole('button', { name: 'Restore activity Old Quiz' }));
+        await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('restore_activity', { p_activity_id: 'gone' }));
+    });
+});
+
 describe('Activities delete-with-undo', () => {
     it('delete removes the row, calls soft_delete, and shows an Undo toast', async () => {
         renderList();
@@ -237,8 +252,10 @@ describe('Activities delete-with-undo', () => {
             await waitFor(() =>
                 expect(screen.queryByRole('status')).toBeNull(),
             );
-            // Only the delete hit the server — no restore, no re-delete.
-            expect(h.rpc).toHaveBeenCalledTimes(1);
+            // Only the delete WROTE to the server — no restore, no re-delete.
+            // (The Recently deleted list reads, G-6, are not writes.)
+            const writes = (h.rpc.mock.calls as unknown as [string][]).filter(([fn]) => fn !== 'list_deleted_activities');
+            expect(writes).toHaveLength(1);
             expect(h.rpc).toHaveBeenCalledWith('soft_delete_activity', {
                 p_activity_id: 'a1',
             });

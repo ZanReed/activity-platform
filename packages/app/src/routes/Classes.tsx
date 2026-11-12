@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
+import RecentlyDeleted from '../components/RecentlyDeleted';
+import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
 import { useSession } from '../lib/SessionContext';
 import ClassActivitiesPanel, {
     useTeacherClassActivities,
@@ -149,7 +151,7 @@ function Roster({
     if (active.length === 0)
         return (
             <p className="mt-2 text-sm text-muted">
-            No students yet. Once student sign-in opens, share the join code —
+            No students yet. Share the join code —
             students sign in with their school Google account and enter it.
             </p>
         );
@@ -778,6 +780,26 @@ export default function Classes() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
+    // G-5: what was deleted (restorable), and the undo toast after a delete.
+    const [deleted, setDeleted] = useState<DeletedItem[]>([]);
+    const [undo, setUndo] = useState<{ id: string; name: string } | null>(null);
+    const refreshDeleted = () => {
+        // A failed read (or 0086 not applied yet) just hides the section.
+        listDeletedClasses().then(setDeleted, () => setDeleted([]));
+    };
+    useEffect(refreshDeleted, []);
+    useEffect(() => {
+        if (!undo) return;
+        const t = setTimeout(() => setUndo(null), 7000);
+        return () => clearTimeout(t);
+    }, [undo]);
+    const restore = async (id: string) => {
+        await restoreClass(id);
+        setClasses(await listClasses());
+        setUndo((u) => (u?.id === id ? null : u));
+        refreshDeleted();
+    };
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -915,7 +937,7 @@ export default function Classes() {
         ) : classes.length === 0 && !showCreate ? (
             <p className="text-muted">
             No classes yet. Create one to get a join code your students can
-            use once student sign-in launches.
+            use to join.
             </p>
         ) : (
             <ul className="space-y-2">
@@ -937,9 +959,11 @@ export default function Classes() {
                         prev.map((x) => (x.id === id ? { ...x, expectedDomain } : x)),
                     )
                 }
-                onDeleted={(id) =>
-                    setClasses((prev) => prev.filter((x) => x.id !== id))
-                }
+                onDeleted={(id) => {
+                    setClasses((prev) => prev.filter((x) => x.id !== id));
+                    setUndo({ id, name: c.name });
+                    refreshDeleted();
+                }}
                 onError={setActionError}
                 />
             ))}
@@ -948,8 +972,32 @@ export default function Classes() {
         {actionError && (
             <p className="mt-3 text-sm text-danger">{actionError}</p>
         )}
+        <RecentlyDeleted items={deleted} onRestore={restore} noun="class" />
         </div>
         </div>
+        {undo && (
+            <div
+            role="status"
+            className="fixed bottom-4 left-4 z-50 flex items-center gap-3 rounded-lg bg-primary px-4 py-2.5 text-sm text-white shadow-lg"
+            >
+            <span className="max-w-[16rem] truncate">
+            Deleted <span className="font-medium">{undo.name}</span>
+            </span>
+            <button
+            type="button"
+            onClick={() => {
+                const id = undo.id;
+                setUndo(null);
+                restore(id).catch((err: unknown) =>
+                    setActionError(`Couldn't restore the class: ${err instanceof Error ? err.message : String(err)}`),
+                );
+            }}
+            className="font-medium text-blue-300 underline-offset-2 hover:text-blue-200 hover:underline"
+            >
+            Undo
+            </button>
+            </div>
+        )}
         </main>
     );
 }

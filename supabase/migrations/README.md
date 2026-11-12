@@ -92,6 +92,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0083_period_shapes_mirror.sql` | Period assembly PA-10: a practice registry may carry `period_shapes` and `mixed_seconds_per_item`, both or neither, and `mixed_class_summary` passes them to the teacher's helper line. Nothing about how practice runs reads them. No personal data. |
 | `0084_class_today_six.sql` | Author ruling 2026-11-09: a class can pick up to six activities for a day, up from two. Only the cap and its error name change. No personal data. |
 | `0085_misconception_registry_service_grant.sql` | service_role gains insert + update on `misconception_registry`, which 0042 never stated, so the importer's mirror works on a database built from migrations (it mirrored 0 of 115 ids locally; found by `pnpm playtest`). A no-op on live, which already had it through hosted default privileges. No personal data. Verify: `verify-0085.sql`. |
+| `0086_restore_class_and_recently_deleted.sql` | UI review G-5/G-6: `restore_class` (mirrors 0012's `restore_activity`: inline owner + tombstone check, audited as `class.restore`), and `list_deleted_classes` / `list_deleted_activities` (owner-scoped DEFINER reads; activities carry their 30-day purge day). A deleted class keeps its join code and stays restorable (no class purge exists). No personal data. Verify: `verify-0086.sql`. **Apply before pushing the UI that calls it** (OV-7). |
 
 ## Regression re-runs (the DB has no CI harness)
 

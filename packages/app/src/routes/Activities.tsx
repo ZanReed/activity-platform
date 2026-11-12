@@ -1,8 +1,10 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import { BarChart3, ClipboardCheck, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
+import RecentlyDeleted from '../components/RecentlyDeleted';
+import { listDeletedActivities, restoreActivity, type DeletedItem } from '../lib/recentlyDeleted';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -104,6 +106,22 @@ function RoleBadge({ role }: { role: string | null }) {
 }
 
 /** G-6: what deleting an activity that sits in a class costs. */
+/** The My activities list read: the caller's live activities, newest first. */
+function fetchActivityRows() {
+    return supabase
+        .from('activities')
+        .select(
+            'id, title, status, updated_at, tags, pedagogical_role, course, unit,' +
+            'source_path, visibility, copied_from_activity_id,' +
+            'draft_course:draft_content->meta->>course,' +
+            'draft_unit:draft_content->meta->>unit,' +
+            'draft_schema:draft_content->>schemaVersion,' +
+            'draft_type:draft_content->meta->>activityType',
+        )
+        .is('deleted_at', null) // redundant with RLS, but self-documenting
+        .order('updated_at', { ascending: false });
+}
+
 // G-6's confirm is loaded on first use: the Activities journey has no room
 // for it in the first download (perf-budgets: journey activities).
 const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
@@ -288,18 +306,7 @@ export default function Activities() {
         // component unmounting before the request resolves.
         let cancelled = false;
         (async () => {
-            const { data, error } = await supabase
-            .from('activities')
-            .select(
-                'id, title, status, updated_at, tags, pedagogical_role, course, unit,' +
-                'source_path, visibility, copied_from_activity_id,' +
-                'draft_course:draft_content->meta->>course,' +
-                'draft_unit:draft_content->meta->>unit,' +
-                'draft_schema:draft_content->>schemaVersion,' +
-                'draft_type:draft_content->meta->>activityType',
-            )
-            .is('deleted_at', null) // redundant with RLS, but self-documenting
-            .order('updated_at', { ascending: false });
+            const { data, error } = await fetchActivityRows();
             if (cancelled) return;
             if (error) {
                 setListError(error.message);
@@ -318,6 +325,23 @@ export default function Activities() {
             cancelled = true;
         };
     }, []);
+
+    // G-6: soft-deleted activities, restorable until the 30-day purge. A failed
+    // read (or 0086 not applied yet) just hides the section.
+    const [deleted, setDeleted] = useState<DeletedItem[]>([]);
+    const refreshDeleted = useCallback(() => {
+        listDeletedActivities().then(setDeleted, () => setDeleted([]));
+    }, []);
+    useEffect(() => {
+        refreshDeleted();
+    }, [refreshDeleted]);
+    const restoreFromDeleted = async (activityId: string) => {
+        await restoreActivity(activityId);
+        dismissUndo(activityId);
+        const { data, error } = await fetchActivityRows();
+        if (!error) setActivities(data as unknown as ActivityRow[]);
+        refreshDeleted();
+    };
 
     // RequireAuth guarantees a session before this route renders; this guard is
     // here so TypeScript can narrow `session` to non-null below.
@@ -402,6 +426,7 @@ export default function Activities() {
         }
         setActivities((prev) => prev.filter((a) => a.id !== activity.id));
         setUndoStack((prev) => [...prev, activity]);
+        refreshDeleted();
         const timer = setTimeout(() => dismissUndo(activity.id), UNDO_MS);
         undoTimers.current.set(activity.id, timer);
     };
@@ -445,6 +470,7 @@ export default function Activities() {
                 b.updated_at.localeCompare(a.updated_at),
             ),
         );
+        refreshDeleted();
     };
 
     // Every tag in use, deduped and sorted — the chip row. Derived from the
@@ -983,6 +1009,7 @@ export default function Activities() {
         {listingError && (
             <p className="mt-3 text-sm text-danger" role="alert">{listingError}</p>
         )}
+        <RecentlyDeleted items={deleted} onRestore={restoreFromDeleted} noun="activity" />
         </div>
         </div>
 

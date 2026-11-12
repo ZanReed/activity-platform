@@ -237,6 +237,11 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
         fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete class' }));
         await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('soft_delete_class', { p_class_id: 'class-1' }));
+
+        // G-5: an undo toast, which restores through restore_class.
+        const toast = await screen.findByText(/^Deleted/);
+        fireEvent.click(within(toast.closest('[role="status"]') as HTMLElement).getByRole('button', { name: 'Undo' }));
+        await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('restore_class', { p_class_id: 'class-1' }));
     });
 
     // G-7: replacing a posted code asks first.
