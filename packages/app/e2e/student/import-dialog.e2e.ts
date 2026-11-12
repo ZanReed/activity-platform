@@ -24,7 +24,10 @@ async function openEditor(page: Page) {
   await page.route('**/rest/v1/activities**', async (route) => {
     const request = route.request();
     if (request.method() === 'PATCH') {
-      await route.fulfill({ status: 204, body: '' });
+      // The editor's save asks for the row back (select=updated_at) and
+      // treats an empty answer as "changed elsewhere / gone" (G-8), exactly
+      // as PostgREST answers a filtered update that matched nothing.
+      await route.fulfill({ json: [{ updated_at: new Date().toISOString() }] });
       return;
     }
     const row = {

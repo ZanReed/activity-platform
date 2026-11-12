@@ -18,7 +18,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { createEmptyDocument } from '@activity/schema';
-import { PUBLISH_ACTIVITY_RPC } from '../../src/lib/edgeFunctions';
+import { ACTIVITY_PROGRESS_RPC, PUBLISH_ACTIVITY_RPC } from '../../src/lib/edgeFunctions';
 import {
   signInAs,
   stubIdentityApi,
@@ -58,7 +58,10 @@ async function stubPublishApi(
   await page.route('**/rest/v1/activities**', async (route) => {
     const request = route.request();
     if (request.method() === 'PATCH') {
-      await route.fulfill({ status: 204, body: '' });
+      // The editor's save asks for the row back (select=updated_at) and
+      // treats an empty answer as "changed elsewhere / gone" (G-8), exactly
+      // as PostgREST answers a filtered update that matched nothing.
+      await route.fulfill({ json: [{ updated_at: new Date().toISOString() }] });
       return;
     }
     const row = {
@@ -148,13 +151,33 @@ test.describe('publish (RPC-direct)', () => {
     await stubIdentityApi(page, { role: 'teacher' });
     const api = await stubPublishApi(page);
 
+    // G-3: a republish asks first when students have started (one has).
+    await page.route(`**/rest/v1/rpc/${ACTIVITY_PROGRESS_RPC}`, (route) =>
+      route.fulfill({
+        json: {
+          activity: { id: E2E_ACTIVITY_ID, title: 'Publish flow fixture', current_version_id: E2E_VERSION_ID },
+          classes: [{ class_id: 'c1', name: '7A', students: [{ student_id: 's1', sections_checked: 1 }] }],
+          sections: [],
+          last_check_at: null,
+        },
+      }),
+    );
+
     await page.goto(`/activity/${E2E_ACTIVITY_ID}`);
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
     await expect(page.getByText('Published v1')).toBeVisible();
 
-    await page
-      .getByRole('button', { name: 'Republish', exact: true })
-      .click();
+    // Nothing changed since: the button says so instead of failing in red.
+    await expect(page.getByRole('button', { name: 'No changes', exact: true })).toBeDisabled();
+
+    // An edit makes it Republish again; Republish asks, and names the cost.
+    await page.getByLabel('Activity title').fill('Publish flow fixture, edited');
+    const republish = page.getByRole('button', { name: 'Republish', exact: true });
+    await expect(republish).toBeEnabled();
+    await republish.click();
+    const confirm = page.getByRole('alertdialog', { name: 'Republish for your students?' });
+    await expect(confirm).toContainText('1 student has started this.');
+    await confirm.getByRole('button', { name: 'Republish', exact: true }).click();
     await expect(page.getByText('Published v2')).toBeVisible();
     expect(api.rpcCalls).toBe(2);
   });
