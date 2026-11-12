@@ -79,6 +79,8 @@ interface ActivityLoadRow {
     // row directly rather than travelling through ActivityMeta.
     tags: string[] | null;
     pedagogical_role: string | null;
+    // Set on a Bank copy (0054): the DoL panel shows a copy's skills read-only.
+    copied_from_activity_id: string | null;
 }
 
 interface ActivityVersionLoadRow {
@@ -216,6 +218,7 @@ export default function ActivityEditor() {
         undefined,
     );
     const [isPublished, setIsPublished] = useState(false);
+    const [isBankCopy, setIsBankCopy] = useState(false);
     // Live editor instance (null until mounted) + the markdown-import modal's
     // open state. The editor owns its useEditor instance; it reports up here via
     // onEditorReady so the header's Import action can drive insert commands.
@@ -271,7 +274,7 @@ export default function ActivityEditor() {
             const { data, error } = await supabase
             .from('activities')
             .select(
-                'id, title, draft_content, current_version_id, tags, pedagogical_role',
+                'id, title, draft_content, current_version_id, tags, pedagogical_role, copied_from_activity_id',
             )
             .eq('id', id)
             .is('deleted_at', null)
@@ -289,6 +292,7 @@ export default function ActivityEditor() {
 
             const row = data as ActivityLoadRow;
             setIsPublished(row.current_version_id !== null);
+            setIsBankCopy(row.copied_from_activity_id != null);
 
             // Hydrate the row-native taxonomy BEFORE the document branches
             // below: changeKey folds these in, so seeding them late would make
@@ -916,6 +920,8 @@ export default function ActivityEditor() {
             onEditorReady={setEditorInstance}
             typography={meta.typography}
             videoMeta={{ activityType: meta.activityType, submissionMode: meta.submissionMode }}
+            isBankCopy={isBankCopy}
+            seedNames={meta.seedVars?.map((v) => v.name)}
             />
 
             {/*

@@ -1,6 +1,6 @@
 # D65 — the DoL retake and the "DoL passed" signal (design pass)
 
-**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **SLICE 1 BUILT 2026-10-25 (unpushed; see As built).** **ENG-REVIEWED 2026-10-24: DE-1…DE-19 all ruled as recommended** (they amend the DL texts; the DE item wins; see the Eng review at the bottom).
+**Status:** DESIGN PASS 2026-10-24, with the curriculum side's C-163 answers folded in (same day). **RULED 2026-10-24: all 17 decisions, every one as recommended** (DL-8 and DL-11 as amended by C-163; see Author rulings). Nothing is built. **SLICE 1 BUILT 2026-10-25 (unpushed; see As built).** **ENG-REVIEWED 2026-10-24: DE-1…DE-19 all ruled as recommended** (they amend the DL texts; the DE item wins; see the Eng review at the bottom). **GUI amendment 2026-11-12** (D-1…D-7): the DoL is marked, edited and removed in the editor; see the section before the review report.
 **Wish:** curriculum D65 (C-150, C-151; our answer B-198), TODOS → "Curriculum overhaul feature wishes, D64–D68", item 2.
 **Order:** D68 → **D65** → D64 player → D67 (author, re-ruled 2026-10-23). D68 is live (0068).
 **Trigger:** "the first Y9 DoL drafted with a parallel form". **It has NOT fired**: the curriculum main at 928a24b has no Y9 activity file. The author ruled 2026-10-24 to run the pass anyway, after first asking the curriculum side for a sample (B-208).
@@ -501,6 +501,30 @@ Each guard written in this slice was mutation-tested: red on the reverted code, 
 - *(Done 2026-10-30, author's yes after the pin landed:)* the catalogue-authoring prompt teaches the DoL grammar, with a test that imports a DoL written exactly as taught.
 - Slice 2 (targeted practice, DL-14).
 - A teacher "grant a retake" (DL-7).
+
+## GUI amendment 2026-11-12 (the "every feature ships with a GUI" rule)
+
+The DoL was import-only: `SectionBreak.ts` carried the `dol` attr so a save kept it, but nothing set or cleared it. **Ruled 2026-11-12, D-1…D-7 all as recommended.**
+
+- **D-1** A "DoL" checkbox beside "Checkpoint" on the section break; ticking it opens a panel under the break, loaded as its own chunk.
+- **D-2** A DoL is always a checkpoint (ticked and locked on). One per activity: every other break's box is off while one exists. Clips are already refused in a DoL (videoPlacement). The item-count and first-skill rules moved out of `dolImport.ts` into `lib/dolRules.ts`, shared with the panel; the importer's messages are unchanged.
+- **D-3** Skills, one per gradable item, the first deciding the pass. On a Bank copy whose DoL came with skills they are shown by name (`skill_label`) and not editable (curriculum data). Otherwise each is picked from `skill_label`. A count mismatch is reported, never blocks a save.
+- **D-4** An existing seed's tables ride along untouched and are summarised ("N versions"); a DoL made in the app has none, so one attempt. Writing a DoL's own numbers in the app is in TODOS with a trigger (it needs the fence source stored: a schema change and both redeploys).
+- **D-5** Every save re-decides `retake` from the page (`stampDolRetake`, serialize): an edit that takes the seeded numbers out of the primary item can't keep a retake that re-asks them. Unticking a seeded DoL asks first and drops its seed.
+- **D-6** The panel says whether a pass can be recorded: an own activity's DoL never records one (DE-11); a copy's counts "if this activity is that skill's final part" (`dol_pass_skill` isn't callable from the browser, by design).
+- **D-7** The GUI roster row is now a file marker; the TODOS gap closed.
+
+### As built
+
+- `lib/dolRules.ts` (`collectSeedRefs`, `dolRetakeFrom`, `dolItems`, `stampDolRetake`, `dolShapeProblems`), `lib/dolPanelWords.ts`, `lib/skillLabels.ts`, `editor/nodeViews/DolPanel.tsx`; `SectionBreakView` gained the checkbox, the lock and the remove confirm; the editor loads `copied_from_activity_id` and passes it through `SectionBreak` storage.
+- **A fresh DoL is not saved until its first skill is picked**: `SectionDol` needs one, so serialize drops a skill-less marker. The panel says so. No schema change was made.
+- **A DoL added to a Bank copy in this sitting stays editable**; after a reload its skills show read-only like any copy's.
+- App-only: no schema field, migration, bundle change or deploy. Guards mutation-tested (the save restamp, the two-row rule, tick-sets-checkpoint, no blank skills written, the checkpoint lock, the remove confirm).
+- **Fable review 2026-11-12 (all fixed, each mutation-tested):**
+  - P0: an activity-level seeded variable inside a DoL made in the app would reach students as braces and grade against nothing (the server fills a DoL from its own numbers only). The panel now calls it out (`activityVarsInDol`, the importer's DL-4 rule); the editor passes the activity's seed names through `SectionBreak` storage. It warns rather than blocks, as the seed panel does.
+  - P1: a leftover importer marker (`{ pending: true }`, a file with DoL problems pasted in) got skills but no `retake`, so it never saved. The panel now writes the stored shape.
+  - P1: clearing a seeded DoL's only skill wrote `skills: []`, and the save dropped the DoL with its numbers. It now keeps the last skill and says so.
+  - P2: the copy lock reads `isCopy` live; a cleared middle skill closes up so numbering matches items.
 
 ## GSTACK REVIEW REPORT
 

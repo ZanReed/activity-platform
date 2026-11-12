@@ -30,7 +30,7 @@
 import type { JSONContent } from '@tiptap/core';
 import { isGradeable, type Block, type SectionDol } from '@activity/schema';
 import type { BankValueTable } from '@activity/schema/bank-seed';
-import { freeVariables } from '@activity/graph-kit/scorers';
+import { collectSeedRefs, dolRetakeFrom, dolShapeProblems } from './dolRules';
 import { tiptapBlockToActivity } from './serialize';
 import { enumerateTemplate, parseBankSeedFence, type ParsedBankSeed } from './bankSeed';
 
@@ -77,59 +77,9 @@ export interface DolImportResult {
     readonly dolRange: readonly [number, number] | null;
 }
 
-const BRACE = /\{([a-z][a-z0-9_]*)\}/g;
-const SEED_MACRO = /\\seed\{([a-z][a-z0-9_]*)\}/g;
-
-/** Every seed-variable name a subtree references: `{name}` in prose,
- *  `\seed{name}` in latex, free names in blank answers / acceptable answers /
- *  mistake matchers, and a data plot's `dataVar`. Reads both the Tiptap shape
- *  (a blank's fields under `attrs`) and the schema shape (flat).
- *
- *  `skipTextBlanks` leaves out a TEXT blank's answers. There a bare word is
- *  either a declared name or the literal answer ({{no | !yes}}):
- *  resolveSeededEntry only binds names the seed declares, and an unbound word
- *  grades as itself. So a text blank's word can't be called undeclared. */
-export function collectSeedRefs(
-    node: unknown,
-    into: Set<string> = new Set(),
-    { skipTextBlanks = false }: { skipTextBlanks?: boolean } = {},
-): Set<string> {
-    const exprOf = (s: unknown): void => {
-        if (typeof s === 'string') for (const v of freeVariables(s)) into.add(v);
-    };
-    const visit = (n: unknown): void => {
-        if (Array.isArray(n)) {
-            n.forEach(visit);
-            return;
-        }
-        if (n === null || typeof n !== 'object') return;
-        const o = n as Record<string, unknown>;
-        if (o.type === 'text' && typeof o.text === 'string') {
-            for (const m of o.text.matchAll(BRACE)) into.add(m[1]!);
-        }
-        if (typeof o.latex === 'string') {
-            for (const m of o.latex.matchAll(SEED_MACRO)) into.add(m[1]!);
-        }
-        if (typeof o.dataVar === 'string') into.add(o.dataVar);
-        const blank = o.type === 'blank' ? ((o.attrs as Record<string, unknown> | undefined) ?? o) : null;
-        // A blank with no answerType is a text blank (blankSyntax's default).
-        const isText = blank !== null && (blank.answerType === undefined || blank.answerType === 'text');
-        if (blank && !(skipTextBlanks && isText)) {
-            exprOf(blank.answer);
-            if (Array.isArray(blank.acceptableAnswers)) blank.acceptableAnswers.forEach(exprOf);
-            if (Array.isArray(blank.mistakeFeedback)) {
-                for (const m of blank.mistakeFeedback as Array<{ match?: unknown }>) {
-                    if (typeof m.match === 'string' && !/^unit-(missing|wrong)$/.test(m.match.trim())) {
-                        exprOf(m.match);
-                    }
-                }
-            }
-        }
-        for (const v of Object.values(o)) if (v !== null && typeof v === 'object') visit(v);
-    };
-    visit(node);
-    return into;
-}
+// The ref walk lives in dolRules.ts (shared with the editor's DoL panel and
+// the save path); re-exported for the importer's existing callers.
+export { collectSeedRefs };
 
 /** The gradable blocks in a list of top-level nodes, each with the node it
  *  came from (so a ref walk can be scoped to one item). */
@@ -221,14 +171,15 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
 
     // ---- skills + item count (DL-1, DL-2) -----------------------------------
     const skills = input.skills ? [...input.skills] : [];
-    if (skills.length === 0) {
-        problems.push('DoL: the `{checkpoint dol}` section needs a `dol_skills:` line in the meta fence (primary skill first).');
-    } else if (input.primarySkill && skills[0] !== input.primarySkill) {
-        problems.push(`DoL: \`dol_skills:\` starts with “${skills[0]}”, but \`skill:\` is “${input.primarySkill}” — the first DoL skill is the primary item’s, and must be the activity’s skill.`);
-    }
     const items = gradableItems(dolNodes);
-    if (skills.length > 0 && items.length !== skills.length) {
-        problems.push(`DoL: the DoL section has ${items.length} gradable item${items.length === 1 ? '' : 's'}, but \`dol_skills:\` names ${skills.length} — one item per skill, in order (DL-2).`);
+    for (const p of dolShapeProblems(skills, items.length, input.primarySkill)) {
+        if (p.code === 'no-skills') {
+            problems.push('DoL: the `{checkpoint dol}` section needs a `dol_skills:` line in the meta fence (primary skill first).');
+        } else if (p.code === 'first-skill') {
+            problems.push(`DoL: \`dol_skills:\` starts with “${p.first}”, but \`skill:\` is “${p.primary}” — the first DoL skill is the primary item’s, and must be the activity’s skill.`);
+        } else {
+            problems.push(`DoL: the DoL section has ${p.items} gradable item${p.items === 1 ? '' : 's'}, but \`dol_skills:\` names ${p.skills} — one item per skill, in order (DL-2).`);
+        }
     }
 
     // ---- rubric levels (DL-11) ----------------------------------------------
@@ -306,7 +257,6 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
             }
             const groups = problems.length === 0 ? variableGroups(seed, used) : [];
             const built: BankValueTable[] = [];
-            const groupOf = new Map<string, number>();
             for (const group of groups) {
                 const groupSet = new Set(group);
                 const sub: ParsedBankSeed = {
@@ -320,7 +270,6 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
                     problems.push(...r.problems.map((p) => `DoL seed: ${p}`));
                     continue;
                 }
-                group.forEach((n) => groupOf.set(n, built.length));
                 built.push(capRows(r.table));
             }
             if (problems.length === 0 && built.length > 0) {
@@ -328,10 +277,7 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
                 // DE-8 + DE-13: the primary block must use a DoL variable whose
                 // group can produce a different row.
                 const primaryRefs = primary ? collectSeedRefs(primary.node) : new Set<string>();
-                retake = [...primaryRefs].some((n) => {
-                    const g = groupOf.get(n);
-                    return g !== undefined && built[g]!.rows.length >= 2;
-                });
+                retake = dolRetakeFrom(built, primaryRefs);
                 if (!retake) {
                     warnings.push('DoL: no retake — the primary item uses no DoL seed variable with two or more valid values, so a second attempt would re-ask the same numbers (DE-8, DE-13).');
                 }

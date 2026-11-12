@@ -116,6 +116,7 @@ import {
     ChoiceGraph,
 } from '@activity/schema';
 import { videoAttrsComplete, type VideoAttrs } from './videoFence';
+import { stampDolRetake } from './dolRules';
 import type { JSONContent } from '@tiptap/react';
 import type { ChartAttrs } from './chartFence';
 import { emptyPlaceholders } from '../editor/mathPromptSync';
@@ -277,6 +278,10 @@ export function tiptapToActivity(
         sections: splitTiptapRowsIntoSections(tiptap.content ?? []),
     };
     stampVideoStaleness(doc.sections, meta);
+    // A DoL's retake is re-decided from the page as it is now (GUI amendment
+    // D-5, dol-retake.md): an edit that takes the seeded numbers out of the
+    // primary item must not keep a retake that re-asks the same numbers.
+    stampDolRetake(doc.sections);
     // The reference panel is authored on its own surface (Drop C) and carried
     // as separate state, NOT encoded in the main editor's Tiptap doc — so it
     // arrives here as an argument, not parsed out of `tiptap`. Pass it through

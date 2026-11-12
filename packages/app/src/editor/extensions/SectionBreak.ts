@@ -29,7 +29,18 @@ declare module '@tiptap/core' {
     }
 }
 
-export const SectionBreak = Node.create({
+/** What the DoL panel needs about the activity (written by Editor.tsx; a
+ *  NodeView has no other route to the activity row). */
+export interface SectionBreakStorage {
+    /** The activity is a Bank copy (copied_from_activity_id is set). */
+    isCopy: boolean;
+    /** The activity-level seed variable names (meta.seedVars). */
+    seedNames: string[];
+    /** Panels re-render when it changes (no transaction fires). */
+    listeners: Set<() => void>;
+}
+
+export const SectionBreak = Node.create<Record<string, never>, SectionBreakStorage>({
     name: 'sectionBreak',
     // No `group` (strict grid): a sectionBreak is a top-level marker, named
     // directly by the Doc node's content expression. It is deliberately NOT in
@@ -37,6 +48,10 @@ export const SectionBreak = Node.create({
     atom: true,        // no editable content slot; NodeView provides its own UI
     selectable: true,
     draggable: true,
+
+    addStorage() {
+        return { isCopy: false, seedNames: [], listeners: new Set() };
+    },
 
     addAttributes() {
         return {
@@ -49,10 +64,12 @@ export const SectionBreak = Node.create({
                                         renderHTML: (attrs) =>
                                         attrs.title ? { 'data-title': attrs.title } : {},
             },
-            // The DoL marker (D65, docs/design/dol-retake.md): an authored
-            // value the editor never edits, only carries — Tiptap drops any
-            // attr not declared here, which would silently delete a Bank
-            // copy's DoL on its first save (DE-18).
+            // The DoL marker (D65, docs/design/dol-retake.md). Set and cleared by
+            // the section break's DoL checkbox and edited in its panel (GUI
+            // amendment 2026-11-12); the seed tables ride along untouched. It
+            // must stay declared: Tiptap drops any attr not declared here,
+            // which would silently delete a Bank copy's DoL on its first save
+            // (DE-18).
             dol: {
                 default: null as unknown,
                 parseHTML: () => null,

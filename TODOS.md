@@ -18,7 +18,8 @@ The audit found these already covered (no action): charts, figures (shape list,
 segment arrow, figure source), graph settings incl. free vectors and
 transform-a-curve, graded stimuli ("Shown with the question"), teacher guide,
 reference panel, quiz/exam types, definitions, the ² ³ tray.
-**Closed:** `seeded_data` (2026-11-12 — the drawer's panel; seeded-data.md →
+**Closed:** `dol_retake` (2026-11-12 — the section break's DoL checkbox and
+panel; dol-retake.md → "GUI amendment 2026-11-12"). `seeded_data` (2026-11-12 — the drawer's panel; seeded-data.md →
 "GUI amendment 2026-11-12"). `video` (2026-11-12 — the card's form, the placement reasons and
 "This video matches the lesson as it is now"; design doc → "Amendment
 2026-11-12").
@@ -50,14 +51,15 @@ belongs in the shared rule AND the schema refine: a schema change means
 is the author's call. **TRIGGER:** a statistics chain drafts a dataset bigger
 than ~50, or any sample over a few hundred appears anywhere.
 
-## GUI gap — `dol_retake`
+## Writing a seeded DoL in the app (GUI amendment D-4, 2026-11-12)
 
-D65's DoL marker on a section. `SectionBreak.ts` carries the `dol` attr so a save
-keeps it, but no control sets or clears it, and its skills (`dol_skills:`) have no
-UI. Needs: a "This section is a DoL" toggle on the section's inline UI, with its
-skill list, validated by the same rules `dolImport.ts` applies. **TRIGGER:** a
-teacher wants to add or remove a DoL on a Bank copy (the unit tracker's Passed
-reads it).
+The section break's DoL panel marks and unmarks a DoL, picks its skills, and
+carries an existing seed's tables untouched. It can't WRITE a DoL's own numbers
+(the bank grammar: drawn and derived names, `where dol:`): the tables are
+enumerated at import and the fence text isn't stored, so a DoL made in the app
+has one attempt and no retake. Building it means storing the fence source (a
+schema change, both bundles, both redeploys) and enumerating on edit.
+**TRIGGER:** a teacher asks for a retake on a DoL they wrote.
 
 ### Not a capability row, so not in the test: the activity's skill and chain role
 

@@ -65,8 +65,9 @@ export const GUI_SURFACES: Record<keyof typeof JOIN, GuiSurface> = {
     video: { slash: 'Video' },
     // GUI amendment 2026-11-12: the settings drawer's panel declares them.
     seeded_data: { file: 'components/SeedVarsPanel.tsx', marker: 'Add a variable' },
-    // SectionBreak carries the `dol` attr but no control sets or clears it.
-    dol_retake: { gap: 'dol_retake' },
+    // GUI amendment 2026-11-12 (dol-retake.md): the section break's checkbox
+    // sets and clears it; its lazy panel picks the skills (DolPanel.tsx).
+    dol_retake: { file: 'editor/nodeViews/SectionBreakView.tsx', marker: 'This section is the DoL' },
     practice_bank: {
         exempt: 'a bank is a curriculum-owned file kind mirrored one way (D43, PB-11); teachers see it through the Bank preview, and editing it here would fork the curriculum side\'s source',
     },

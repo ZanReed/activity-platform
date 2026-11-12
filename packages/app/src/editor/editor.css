@@ -1799,6 +1799,9 @@
 
 .section-break__title {
     flex: 1;
+    /* Shrinks below its intrinsic width, so the Checkpoint and DoL boxes stay
+     * inside a narrow editor instead of overflowing it. */
+    min-width: 0;
     border: none;
     background: transparent;
     font-size: 2.25rem;     /* 30px — above typical H1 */
@@ -1831,6 +1834,65 @@
 
 .section-break__checkpoint-label input[type="checkbox"] {
     cursor: pointer;
+}
+
+.section-break__checkpoint-label:has(input:disabled) {
+    cursor: default;
+    color: var(--ed-text-muted);
+}
+
+/* The DoL panel (D65 GUI amendment, DolPanel.tsx) and the remove confirm. */
+.section-break__dol,
+.section-break__confirm {
+    display: grid;
+    gap: 0.375rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+.section-break__confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.section-break__dol-lead {
+    color: var(--ed-text-muted);
+}
+
+.section-break__dol-skills {
+    display: grid;
+    gap: 0.25rem;
+    padding-left: 1.25rem;
+    list-style: decimal;
+}
+
+.section-break__dol-skills li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.section-break__dol-skills select {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.section-break__dol-problems {
+    color: var(--ed-warning-text);
+}
+
+.section-break__dol button,
+.section-break__confirm button {
+    justify-self: start;
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
 }
 
 /* =============================================================================

@@ -18,6 +18,7 @@ import './editor.css';
 import 'mathlive';
 import { buildEditorExtensions } from './editorExtensions';
 import type { VideoStorage } from './extensions/Video';
+import type { SectionBreakStorage } from './extensions/SectionBreak';
 import type { ClipMeta } from '../lib/videoPlacement';
 import { armSettle } from './extensions/SettleMotion';
 import { columnsNestedDragOptions } from './dragHandleNested';
@@ -65,6 +66,12 @@ interface EditorProps {
     // or locked activity can't have a clip (lib/videoPlacement.ts). Live — the
     // card re-checks when it changes. Undefined in the playground.
     videoMeta?: ClipMeta;
+    // The activity is a Bank copy: the section break's DoL panel shows a
+    // copy's skills read-only and words the pass note for it. Undefined = not a copy.
+    isBankCopy?: boolean;
+    // The activity's seeded variable names: the DoL panel flags one used
+    // inside the DoL, where it gets no value (DL-4).
+    seedNames?: readonly string[];
 }
 
 // Place the insert cursor exactly at a block seam for the insert-zone path.
@@ -100,6 +107,8 @@ export default function Editor({
     onEditorReady,
     typography,
     videoMeta,
+    isBankCopy = false,
+    seedNames,
 }: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
@@ -304,6 +313,15 @@ export default function Editor({
         storage.meta = { activityType: videoType, submissionMode: videoMode };
         storage.listeners.forEach((recheck) => recheck());
     }, [editor, videoType, videoMode]);
+
+    useEffect(() => {
+        const storage = (editor?.storage as { sectionBreak?: SectionBreakStorage } | undefined)?.sectionBreak;
+        if (!storage) return;
+        storage.isCopy = isBankCopy;
+        storage.seedNames = [...(seedNames ?? [])];
+        storage.listeners.forEach((rerender) => rerender());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editor, isBankCopy, (seedNames ?? []).join('\u0000')]);
 
     useEffect(() => {
         if (typography) void ensureActivityFontLoaded(typography.font);
