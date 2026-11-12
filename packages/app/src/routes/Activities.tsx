@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import { BarChart3, ClipboardCheck, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -101,6 +102,22 @@ function RoleBadge({ role }: { role: string | null }) {
         {PEDAGOGICAL_ROLE_LABELS[parsed]}
         </span>
     );
+}
+
+/** G-6: what deleting an activity that sits in a class costs. */
+const ACTIVITY_DELETE_COPY = {
+    title: (t: string) => `Delete ${t}?`,
+    body: (classes: readonly string[] | null) =>
+        classes === null
+            ? 'It comes off the Home of any class it’s on, straight away.'
+            : `It comes off ${listNames(classes)} Home now.`,
+    confirm: 'Delete activity',
+} as const;
+
+function listNames(names: readonly string[]): string {
+    const owned = names.map((n) => `${n}’s`);
+    if (owned.length <= 1) return owned[0] ?? '';
+    return `${owned.slice(0, -1).join(', ')} and ${owned[owned.length - 1]}`;
 }
 
 export default function Activities() {
@@ -226,6 +243,9 @@ export default function Activities() {
     // soft-deleted server-side; after this the toast just clears (the 30-day
     // purge_soft_deleted cron eventually hard-deletes it).
     const UNDO_MS = 7000;
+    // G-6: the activity waiting on the delete confirm, with the classes it's in
+    // (null: membership not loaded, so the dialog speaks generally).
+    const [confirmDelete, setConfirmDelete] = useState<{ activity: ActivityRow; classes: string[] | null } | null>(null);
 
     // Clear any outstanding auto-dismiss timers on unmount so they can't fire
     // setState after the component is gone.
@@ -917,7 +937,19 @@ export default function Activities() {
                         </Link>
                         <button
                         type="button"
-                        onClick={() => handleDelete(a)}
+                        onClick={() => {
+                            // G-6: one in a class asks first and names the
+                            // classes; one in no class keeps one click + undo.
+                            // Until membership has loaded (or if it failed) we
+                            // can't know, so it asks with general wording.
+                            if (membership.status !== 'ready') {
+                                setConfirmDelete({ activity: a, classes: null });
+                                return;
+                            }
+                            const held = classesHolding(membership, a.id);
+                            if (held.length > 0) setConfirmDelete({ activity: a, classes: held.map((c) => c.name) });
+                            else void handleDelete(a);
+                        }}
                         disabled={deletingId === a.id}
                         aria-label={`Delete ${a.title}`}
                         title="Delete"
@@ -950,6 +982,22 @@ export default function Activities() {
         )}
         </div>
         </div>
+
+        {confirmDelete && (
+            <ConfirmDialog
+            title={ACTIVITY_DELETE_COPY.title(confirmDelete.activity.title)}
+            confirmLabel={ACTIVITY_DELETE_COPY.confirm}
+            danger
+            onCancel={() => setConfirmDelete(null)}
+            onConfirm={async () => {
+                const target = confirmDelete.activity;
+                setConfirmDelete(null);
+                await handleDelete(target);
+            }}
+            >
+            <p>{ACTIVITY_DELETE_COPY.body(confirmDelete.classes)}</p>
+            </ConfirmDialog>
+        )}
 
         {/* Undo toasts — one per recently-deleted activity, bottom-left in the
             thumb zone. The soft-delete has committed; Undo calls restore. */}

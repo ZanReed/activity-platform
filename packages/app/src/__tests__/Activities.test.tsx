@@ -85,6 +85,19 @@ vi.mock('../lib/bulkRepublish', async (importActual) => ({
     republishMany: repub.many,
 }));
 
+// G-6: most tests have no class holding anything; one sets a membership.
+const member = vi.hoisted(() => ({ current: null as null | { status?: string; classes: unknown[]; rows: unknown[] } }));
+vi.mock('../components/AddToClass', async (importActual) => {
+    const actual = await importActual<typeof import('../components/AddToClass')>();
+    return {
+        ...actual,
+        useClassMembership: () => {
+            const real = actual.useClassMembership();
+            return member.current ? { ...real, status: 'ready', ...member.current } : real;
+        },
+    };
+});
+
 import Activities from '../routes/Activities';
 
 const ROWS = [
@@ -101,6 +114,7 @@ function renderList() {
 }
 
 beforeEach(() => {
+    member.current = { classes: [], rows: [] };
     bank.lister.current = false;
     bank.setActivityListing.mockClear();
     h.listResult.current = { data: ROWS, error: null };
@@ -110,6 +124,53 @@ beforeEach(() => {
     hooks.fetch.mockResolvedValue({ activityChains: {}, chains: {} });
 });
 afterEach(cleanup);
+
+describe('deleting an activity that is in a class (G-6)', () => {
+    it('asks first, names the classes, and Cancel deletes nothing', async () => {
+        member.current = {
+            classes: [
+                { id: 'c1', name: '7A' },
+                { id: 'c2', name: '7B' },
+            ],
+            rows: [
+                { classId: 'c1', activityId: 'a2' },
+                { classId: 'c2', activityId: 'a2' },
+            ],
+        };
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete Review' }));
+        const dialog = await screen.findByRole('alertdialog', { name: 'Delete Review?' });
+        expect(within(dialog).getByText(/comes off 7A’s and 7B’s Home now/)).toBeTruthy();
+        expect(h.rpc).not.toHaveBeenCalledWith('soft_delete_activity', expect.anything());
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+        expect(h.rpc).not.toHaveBeenCalledWith('soft_delete_activity', expect.anything());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Delete Review' }));
+        fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete activity' }));
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('soft_delete_activity', { p_activity_id: 'a2' }),
+        );
+    });
+
+    it('before class membership has loaded, it still asks — with general wording', async () => {
+        member.current = { status: 'loading', classes: [], rows: [] };
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete Warm Up' }));
+        const dialog = await screen.findByRole('alertdialog', { name: 'Delete Warm Up?' });
+        expect(within(dialog).getByText(/any class it’s on/)).toBeTruthy();
+        expect(h.rpc).not.toHaveBeenCalledWith('soft_delete_activity', expect.anything());
+    });
+
+    it('one in no class still deletes in one click, with undo', async () => {
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete Warm Up' }));
+        expect(screen.queryByRole('alertdialog')).toBeNull();
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('soft_delete_activity', { p_activity_id: 'a1' }),
+        );
+    });
+});
 
 describe('Activities delete-with-undo', () => {
     it('delete removes the row, calls soft_delete, and shows an Undo toast', async () => {

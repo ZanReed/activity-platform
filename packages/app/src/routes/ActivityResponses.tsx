@@ -50,6 +50,8 @@ import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/res
 import {
   RESPONSES_COPY as COPY,
   fetchGradingQueue,
+  RELEASE_ALL_COPY,
+  releaseEach,
   releaseGrades,
   releaseLabel,
   saveCheckGrade,
@@ -57,6 +59,7 @@ import {
   type CriterionEntry,
   type GradingQueueRow,
 } from '../lib/grading';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { DOL_PASS_COPY, baseLevelMet, fetchDolPassStatus, setDolPass, type DolPassRow } from '../lib/dolPass';
 import {
   ASSIST_COPY,
@@ -328,19 +331,25 @@ export default function ActivityResponses() {
     return map;
   }, [rows]);
 
-  async function releaseAll() {
+  // G-4: asks first; a failure part-way keeps the queue on screen and names
+  // who didn't get theirs, with a retry for just them.
+  const [confirmRelease, setConfirmRelease] = useState(false);
+  const [releaseFailed, setReleaseFailed] = useState<{ ok: number; total: number; ids: string[] } | null>(null);
+
+  async function releaseAll(ids: readonly string[]) {
     setBusy(true);
     try {
-      for (const studentId of unreleasedByStudent.keys()) {
-        await releaseGrades(id, studentId);
-      }
+      const { released, failed } = await releaseEach(ids, (studentId) => releaseGrades(id, studentId));
+      setReleaseFailed(failed.length > 0 ? { ok: released, total: ids.length, ids: failed } : null);
       await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }
+
+  // Only students still unreleased: one released since from their own row
+  // drops out of the note, and the note goes when none are left.
+  const stillFailed = (releaseFailed?.ids ?? []).filter((s) => unreleasedByStudent.has(s));
 
   const totalUnreleased = [...unreleasedByStudent.values()].reduce(
     (sum, entry) => sum + entry.count,
@@ -402,13 +411,43 @@ export default function ActivityResponses() {
             {totalUnreleased > 0 && (
               <button
                 type="button"
-                onClick={() => void releaseAll()}
+                onClick={() => setConfirmRelease(true)}
                 disabled={busy}
                 className="min-h-[44px] rounded-md bg-ink px-3 text-sm font-semibold text-canvas disabled:opacity-45"
               >
                 Release all graded ({unreleasedByStudent.size} student
                 {unreleasedByStudent.size === 1 ? '' : 's'})
               </button>
+            )}
+            {confirmRelease && (
+              <ConfirmDialog
+                title={RELEASE_ALL_COPY.title(unreleasedByStudent.size)}
+                confirmLabel={RELEASE_ALL_COPY.confirm}
+                onCancel={() => setConfirmRelease(false)}
+                onConfirm={async () => {
+                  setConfirmRelease(false);
+                  await releaseAll([...unreleasedByStudent.keys()]);
+                }}
+              >
+                <p>{RELEASE_ALL_COPY.body}</p>
+              </ConfirmDialog>
+            )}
+            {stillFailed.length > 0 && releaseFailed && (
+              <p role="alert" data-release-failed className="w-full text-sm text-danger">
+                {RELEASE_ALL_COPY.partial(
+                  releaseFailed.ok,
+                  releaseFailed.total,
+                  stillFailed.map((s) => unreleasedByStudent.get(s)?.label ?? '').join(', '),
+                )}{' '}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void releaseAll(stillFailed)}
+                  className="font-medium underline underline-offset-2"
+                >
+                  {RELEASE_ALL_COPY.retry}
+                </button>
+              </p>
             )}
             {/* DR-6: ONE heartbeat line, only when the provider is on —
                 silence with the worker off is a plain manual queue, not a

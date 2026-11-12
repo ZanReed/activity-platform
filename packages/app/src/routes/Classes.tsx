@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useSession } from '../lib/SessionContext';
 import ClassActivitiesPanel, {
     useTeacherClassActivities,
@@ -442,6 +443,57 @@ function AgeStatementChoice({
     );
 }
 
+const CLASS_CONFIRM_COPY = {
+    codeTitle: (code: string) => `Replace code ${code}?`,
+    codeBody: 'The old code and link stop working. Students already in the class stay in.',
+    codeConfirm: 'Replace code',
+    deleteTitle: (name: string) => `Delete ${name}?`,
+    deleteBody: (students: number | null, activities: number) => {
+        if (students === 0) return 'No students are in this class yet.';
+        const who = students === null ? 'Its students lose' : `${students} student${students === 1 ? ' loses' : 's lose'}`;
+        const what = activities > 0 ? `, along with its ${activities} activit${activities === 1 ? 'y' : 'ies'}` : '';
+        return `${who} this class from their Home${what}. Their checked work is kept.`;
+    },
+    deleteConfirm: 'Delete class',
+} as const;
+
+/** G-5: names what goes before a class is deleted. The student count is read
+ *  when the dialog opens; if that read fails the sentence goes on without it. */
+function DeleteClassDialog({
+    info,
+    activityCount,
+    onCancel,
+    onConfirm,
+}: {
+    info: ClassInfo;
+    activityCount: number;
+    onCancel: () => void;
+    onConfirm: () => Promise<void>;
+}) {
+    const [students, setStudents] = useState<number | null>(null);
+    useEffect(() => {
+        let live = true;
+        listClassMembers(info.id).then(
+            (m) => live && setStudents(m.filter((x) => x.removedAt === null).length),
+            () => undefined,
+        );
+        return () => {
+            live = false;
+        };
+    }, [info.id]);
+    return (
+        <ConfirmDialog
+        title={CLASS_CONFIRM_COPY.deleteTitle(info.name)}
+        confirmLabel={CLASS_CONFIRM_COPY.deleteConfirm}
+        danger
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+        >
+        <p>{CLASS_CONFIRM_COPY.deleteBody(students, activityCount)}</p>
+        </ConfirmDialog>
+    );
+}
+
 function ClassCard({
     info,
     activities,
@@ -467,7 +519,6 @@ function ClassCard({
     const activityCount = activities.rows.filter(
         (r) => r.classId === info.id,
     ).length;
-    const [regenerating, setRegenerating] = useState(false);
     // Domain edit (T4/D-4): a typo'd domain bricks joining, so it is
     // editable in place — through the audited RPC, since widening/clearing
     // the pin loosens the admission boundary.
@@ -505,45 +556,14 @@ function ClassCard({
             setSavingAge(false);
         }
     };
-    // Two-step delete (no restore RPC for classes yet, so no undo toast):
-    // first click arms, second click within the window commits.
-    const [armedDelete, setArmedDelete] = useState(false);
-    const [deleting, setDeleting] = useState(false);
-
-    useEffect(() => {
-        if (!armedDelete) return;
-        const t = setTimeout(() => setArmedDelete(false), 4000);
-        return () => clearTimeout(t);
-    }, [armedDelete]);
-
-    const handleRegenerate = async () => {
-        setRegenerating(true);
-        try {
-            const code = await regenerateJoinCode(info.id);
-            onCodeChange(info.id, code);
-        } catch (err) {
-            onError(
-                err instanceof Error ? err.message : 'Could not regenerate code.',
-            );
-        } finally {
-            setRegenerating(false);
-        }
-    };
+    // G-5/G-7 (ui-review-group-a.md): deleting a class and replacing its join
+    // code both ask first, and say what they cost.
+    const [confirming, setConfirming] = useState<'delete' | 'code' | null>(null);
 
     const handleDelete = async () => {
-        if (!armedDelete) {
-            setArmedDelete(true);
-            return;
-        }
-        setDeleting(true);
-        try {
-            await softDeleteClass(info.id);
-            onDeleted(info.id);
-        } catch (err) {
-            onError(err instanceof Error ? err.message : 'Could not delete class.');
-            setDeleting(false);
-            setArmedDelete(false);
-        }
+        await softDeleteClass(info.id);
+        setConfirming(null);
+        onDeleted(info.id);
     };
 
     return (
@@ -644,12 +664,11 @@ function ClassCard({
         <JoinCode code={info.joinCode} />
         <button
         type="button"
-        onClick={handleRegenerate}
-        disabled={regenerating}
-        title="Invalidate this code and draw a new one"
-        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={() => setConfirming('code')}
+        title="Replace this code with a new one"
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
-        {regenerating ? 'Drawing…' : 'New code'}
+        New code
         </button>
         <button
         type="button"
@@ -695,16 +714,35 @@ function ClassCard({
         </Link>
         <button
         type="button"
-        onClick={handleDelete}
-        disabled={deleting}
-        className={`text-sm font-medium underline underline-offset-2 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-            armedDelete ? 'text-danger' : 'text-muted hover:text-danger'
-        }`}
+        onClick={() => setConfirming('delete')}
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-danger"
         >
-        {deleting ? 'Deleting…' : armedDelete ? 'Really delete?' : 'Delete'}
+        Delete
         </button>
         </span>
         </div>
+        {confirming === 'code' && (
+            <ConfirmDialog
+            title={CLASS_CONFIRM_COPY.codeTitle(info.joinCode)}
+            confirmLabel={CLASS_CONFIRM_COPY.codeConfirm}
+            onCancel={() => setConfirming(null)}
+            onConfirm={async () => {
+                // Errors show in the dialog, which stays open (not via onError).
+                onCodeChange(info.id, await regenerateJoinCode(info.id));
+                setConfirming(null);
+            }}
+            >
+            <p>{CLASS_CONFIRM_COPY.codeBody}</p>
+            </ConfirmDialog>
+        )}
+        {confirming === 'delete' && (
+            <DeleteClassDialog
+            info={info}
+            activityCount={activityCount}
+            onCancel={() => setConfirming(null)}
+            onConfirm={handleDelete}
+            />
+        )}
         {showRoster && <Roster info={info} onCodeChange={onCodeChange} />}
         {showActivities && (
             <ClassActivitiesPanel classId={info.id} data={activities} />

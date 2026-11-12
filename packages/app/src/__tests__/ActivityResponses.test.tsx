@@ -20,7 +20,7 @@
 // =============================================================================
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
 const h = vi.hoisted(() => ({
@@ -325,8 +325,48 @@ describe('bulk release (D10)', () => {
       expect(screen.getByRole('button', { name: /Release all graded \(2 students\)/ })).toBeTruthy(),
     );
     fireEvent.click(screen.getByRole('button', { name: /Release all graded/ }));
+    // G-4: it asks first, and nothing goes out until the teacher says so.
+    const dialog = await screen.findByRole('alertdialog', { name: /Release grades to 2 students\?/ });
+    expect(h.release).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Release grades' }));
     await waitFor(() => expect(h.release).toHaveBeenCalledTimes(2));
     expect(h.release).toHaveBeenCalledWith('a1', 'stu-1');
+    expect(h.release).toHaveBeenCalledWith('a1', 'stu-2');
+  });
+
+  it('Cancel releases nothing (G-4)', async () => {
+    setup([row({ graded: true, graded_at: 'x' })]);
+    fireEvent.click(await screen.findByRole('button', { name: /Release all graded/ }));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it('a failure part-way keeps the queue, names who missed out, and retries just them (G-4)', async () => {
+    setup([
+      row({ graded: true, graded_at: 'x' }),
+      row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'j@school.example', graded: true, graded_at: 'x' }),
+    ]);
+    h.release.mockImplementation(async (_a: string, s: string) => {
+      if (s === 'stu-2') throw new Error('network');
+      return 1;
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Release all graded/ }));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Release grades' }));
+    const note = await waitFor(() => {
+      const el = document.querySelector('[data-release-failed]');
+      if (!el) throw new Error('no failure note');
+      return el as HTMLElement;
+    });
+    expect(note.textContent).toMatch(/Released 1 of 2/);
+    expect(note.textContent).toMatch(/j@school\.example/);
+    // The queue is still there — the failure did not replace it.
+    expect(screen.queryByText(new RegExp(COPY.loadFailed))).toBeNull();
+    h.release.mockClear();
+    h.release.mockResolvedValue(1);
+    fireEvent.click(within(note).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(h.release).toHaveBeenCalledTimes(1));
     expect(h.release).toHaveBeenCalledWith('a1', 'stu-2');
   });
 });

@@ -11,7 +11,7 @@
 // =============================================================================
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
 const h = vi.hoisted(() => {
@@ -208,6 +208,50 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
             p_assertion_text_version: ASSERTION_TEXT_VERSION,
         });
         expect(screen.queryByRole('radio')).toBeNull();
+    });
+
+    // G-5 (ui-review-group-a.md): a real confirm that says what goes.
+    it('Delete asks first, names the student count, and only Delete class deletes', async () => {
+        h.rpc.mockImplementation(((name: string) =>
+            Promise.resolve(
+                name === 'list_class_members'
+                    ? {
+                          data: [
+                              { student_id: 's1', display_name: 'Ava', email: 'a@x', joined_at: 'x', removed_at: null },
+                              { student_id: 's2', display_name: 'Ben', email: 'b@x', joined_at: 'x', removed_at: null },
+                              { student_id: 's3', display_name: 'Cal', email: 'c@x', joined_at: 'x', removed_at: '2026-10-01' },
+                          ],
+                          error: null,
+                      }
+                    : { data: null, error: null },
+            )) as never);
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+        const dialog = await screen.findByRole('alertdialog', { name: 'Delete Algebra I — Period 3?' });
+        await waitFor(() => expect(within(dialog).getByText(/^2 students lose this class/)).toBeTruthy());
+        expect(h.rpc).not.toHaveBeenCalledWith('soft_delete_class', expect.anything());
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+        expect(screen.getByText('Algebra I — Period 3')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete class' }));
+        await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('soft_delete_class', { p_class_id: 'class-1' }));
+    });
+
+    // G-7: replacing a posted code asks first.
+    it('New code asks first; Cancel keeps the code', async () => {
+        h.rpc.mockImplementation((() => Promise.resolve({ data: 'NEW234', error: null })) as never);
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: 'New code' }));
+        const dialog = await screen.findByRole('alertdialog', { name: 'Replace code QX7M2P?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+        expect(h.rpc).not.toHaveBeenCalledWith('regenerate_join_code', expect.anything());
+
+        fireEvent.click(screen.getByRole('button', { name: 'New code' }));
+        fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Replace code' }));
+        await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('regenerate_join_code', { p_class_id: 'class-1' }));
     });
 });
 
