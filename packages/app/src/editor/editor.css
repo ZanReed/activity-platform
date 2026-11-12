@@ -4382,6 +4382,17 @@ img.mc-block__figure-preview {
     color: var(--ed-text-secondary);
 }
 
+/* A DoL rubric's lines carry a level (GUI sweep item 8, 2026-11-13). */
+.free-response-block__criterion--levels {
+    grid-template-columns: 11rem 4.5rem 1fr 4.5rem auto;
+}
+
+.free-response-block__rubric-levels-help {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--ed-text-muted);
+}
+
 .free-response-block__criterion-remove {
     border: none;
     background: none;

@@ -17,13 +17,23 @@ interface RubricEditorProps {
     rubric: Rubric | null;
     isEditable: boolean;
     onChange: (next: Rubric | null) => void;
+    /** GUI sweep item 8 (ruled 2026-11-13): a DoL rubric's lines carry the
+     *  level they evidence. Shown only in a DoL section. */
+    showLevels?: boolean;
+    /** The levels already used in this activity, offered as suggestions. A
+     *  teacher may type any other (8 characters at most): levels are never
+     *  fixed to one school system's words (ruling 8b). */
+    knownLevels?: readonly string[];
 }
 
 export default function RubricEditor({
     rubric,
     isEditable,
     onChange,
+    showLevels = false,
+    knownLevels = [],
 }: RubricEditorProps) {
+    const listId = `rubric-levels-${rubric?.criteria[0]?.id ?? 'new'}`;
     const addCriterion = () => {
         const n = (rubric?.criteria.length ?? 0) + 1;
         const fresh: RubricCriterion = {
@@ -60,7 +70,10 @@ export default function RubricEditor({
                 )}
             </div>
             {rubric?.criteria.map((c) => (
-                <div key={c.id} className="free-response-block__criterion">
+                <div
+                    key={c.id}
+                    className={`free-response-block__criterion${showLevels ? ' free-response-block__criterion--levels' : ''}`}
+                >
                     <input
                         type="text"
                         className="free-response-block__criterion-label"
@@ -102,6 +115,23 @@ export default function RubricEditor({
                         }
                         onKeyDown={(e) => e.stopPropagation()}
                     />
+                    {showLevels && (
+                        <input
+                            type="text"
+                            className="free-response-block__criterion-level"
+                            value={c.level ?? ''}
+                            maxLength={8}
+                            list={listId}
+                            placeholder="Level"
+                            aria-label="Level this line shows"
+                            disabled={!isEditable}
+                            onChange={(e) => {
+                                const level = e.target.value.trim();
+                                updateCriterion(c.id, { level: level === '' ? undefined : level });
+                            }}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    )}
                     <button
                         type="button"
                         className="free-response-block__criterion-remove"
@@ -113,6 +143,19 @@ export default function RubricEditor({
                     </button>
                 </div>
             ))}
+            {showLevels && (
+                <datalist id={listId}>
+                    {knownLevels.map((l) => (
+                        <option key={l} value={l} />
+                    ))}
+                </datalist>
+            )}
+            {showLevels && (
+                <p className="free-response-block__rubric-levels-help">
+                    Level: the grade or standard each line shows, in your school’s words. “DoL passed” is
+                    pre-ticked only for lines at level A.
+                </p>
+            )}
             <button
                 type="button"
                 className="free-response-block__rubric-add"
@@ -140,6 +183,15 @@ export function renderRubricField({
     pos: number;
 }): ReactNode {
     const rubric = (node.attrs.rubric as Rubric | null) ?? null;
+    // In a DoL section? The nearest section break above this block says.
+    let inDol = false;
+    const known = new Set<string>();
+    editor.state.doc.descendants((n, p) => {
+        if (n.type.name === 'sectionBreak' && p < pos) inDol = Boolean(n.attrs.dol);
+        const r = n.attrs?.rubric as Rubric | null | undefined;
+        for (const c of r?.criteria ?? []) if (c.level) known.add(c.level);
+        return true;
+    });
     const onChange = (next: Rubric | null) => {
         editor
             .chain()
@@ -154,6 +206,8 @@ export function renderRubricField({
             rubric={rubric}
             isEditable={editor.isEditable}
             onChange={onChange}
+            showLevels={inDol}
+            knownLevels={[...known].sort()}
         />
     );
 }

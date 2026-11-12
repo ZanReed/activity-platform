@@ -338,3 +338,43 @@ test('data plot: a variable no longer declared shows a warning, not a silent res
     await expect(page.getByTestId('dataplot-var-missing')).toContainText('“heights”');
     expect(await attrOfFirst(page, 'dataPlot', 'dataVar')).toBe('heights');
 });
+
+// GUI sweep item 8: the level field shows only in a DoL section's rubric.
+test('rubric levels appear only in a DoL section', async ({ page }) => {
+    await insertAndSelect(page, 'insertShortAnswer', 'shortAnswer');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    await drawer.getByRole('button', { name: '+ Add rubric' }).click();
+    await expect(drawer.getByLabel('Level this line shows')).toHaveCount(0);
+
+    // Make the section a DoL (as the section break's checkbox would), reselect.
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        // The playground starts with no section break: put one at the top.
+        ed.chain().insertContentAt(0, { type: 'sectionBreak' }).run();
+        let sb: number | null = null;
+        let sa: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((n: any, p: number) => {
+            if (n.type.name === 'shortAnswer' && sa === null) sa = p;
+            if (n.type.name === 'sectionBreak' && sa === null) sb = p;
+        });
+        if (sb === null || sa === null) throw new Error('no section break before the block');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.chain().command(({ tr }: any) => { tr.setNodeAttribute(sb, 'dol', { skill: 'x' }); return true; }).run();
+        // Leave the block and come back, as a teacher who ticked the DoL box
+        // would, so its settings open fresh.
+        ed.commands.setTextSelection(1);
+    });
+    await insertAndSelect(page, 'focus', 'shortAnswer');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const level = page.locator(DRAWER).getByLabel('Level this line shows');
+    await expect(level).toHaveCount(1);
+    await level.fill('Merit');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rubric = (await attrOfFirst(page, 'shortAnswer', 'rubric')) as any;
+    expect(rubric.criteria[0].level).toBe('Merit');
+});
