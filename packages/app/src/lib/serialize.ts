@@ -1448,13 +1448,9 @@ function tiptapFillInBlankInlineNodeToActivity(
 }
 
 function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
+    // An empty answer is KEPT (UI review G-2): the draft holds the blank the
+    // teacher made, and the pre-publish check refuses it until it has one.
     const answer = (node.attrs?.answer as string | undefined) ?? '';
-    if (answer.length === 0) {
-        console.warn(
-            '[serialize] Dropping blank with empty answer; failed Zod validation if kept.',
-        );
-        return null;
-    }
 
     const acceptableRaw = node.attrs?.acceptableAnswers;
     const acceptableAnswers = Array.isArray(acceptableRaw)

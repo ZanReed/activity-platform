@@ -25,6 +25,7 @@ import { useCallback, useState } from 'react';
 import { ActivityDocument } from '@activity/schema';
 import { supabase } from './supabase';
 import { PUBLISH_ACTIVITY_RPC } from './edgeFunctions';
+import { findPublishProblems, type PublishProblem } from './prePublishCheck';
 
 /**
  * What the pre-publish step hands back. `ok: false` means the latest edits
@@ -34,6 +35,7 @@ import { PUBLISH_ACTIVITY_RPC } from './edgeFunctions';
  * `null` when no draft is known client-side (post-publish, no new edits) —
  * validation is skipped and the RPC answers authoritatively ("No draft").
  */
+
 export type PrePublishResult = { ok: true; draft: unknown } | { ok: false };
 
 export type PublishState =
@@ -42,7 +44,9 @@ export type PublishState =
     // versionNum is null when the post-publish version_num read failed — the
     // publish itself committed, so that read must never turn into an error.
     | { kind: 'success'; versionNum: number | null }
-    | { kind: 'error'; message: string };
+    | { kind: 'error'; message: string }
+    // G-2: the draft is valid but not publishable yet (e.g. an empty blank).
+    | { kind: 'blocked'; problems: PublishProblem[] };
 
 export const FLUSH_FAILED_MESSAGE =
     "Couldn't save your latest edits, so nothing was published. Fix the save error and try again.";
@@ -73,7 +77,7 @@ export function mapPublishRpcError(error: {
 export function usePublish(
     activityId: string,
     onBeforePublish?: () => Promise<PrePublishResult>,
-): { state: PublishState; publish: () => Promise<void> } {
+): { state: PublishState; publish: () => Promise<void>; clearBlocked: () => void } {
     const [state, setState] = useState<PublishState>({ kind: 'idle' });
 
     const publish = useCallback(async () => {
@@ -117,6 +121,12 @@ export function usePublish(
                 setState({ kind: 'error', message: INVALID_DOC_MESSAGE });
                 return;
             }
+            // G-2: what a draft may hold but a published version may not.
+            const problems = findPublishProblems(parsed.data);
+            if (problems.length > 0) {
+                setState({ kind: 'blocked', problems });
+                return;
+            }
         }
 
         // 3. The atomic publish. Runs user-scoped: the RPC checks ownership
@@ -154,5 +164,11 @@ export function usePublish(
         setState({ kind: 'success', versionNum });
     }, [activityId, onBeforePublish]);
 
-    return { state, publish };
+    // G-2: a refusal stops being true once the teacher edits; the editor
+    // clears it then rather than leave a stale red line.
+    const clearBlocked = useCallback(() => {
+        setState((cur) => (cur.kind === 'blocked' ? { kind: 'idle' } : cur));
+    }, []);
+
+    return { state, publish, clearBlocked };
 }

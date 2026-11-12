@@ -7,7 +7,8 @@
 // =============================================================================
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEmptyDocument } from '@activity/schema';
+import { ActivityMeta, createEmptyDocument } from '@activity/schema';
+import { tiptapToActivityBare as tiptapToActivity } from '../lib/serializeTestBridge';
 
 const h = vi.hoisted(() => ({
     session: { current: { user: { id: 'owner-1' } } as unknown },
@@ -96,6 +97,36 @@ describe('republishMany', () => {
         };
         const out = await republishMany(['a', 'b']);
         expect(out[0]).toEqual({ id: 'a', ok: false, message: INVALID_DOC_MESSAGE });
+        expect(h.rpc).toHaveBeenCalledTimes(1);
+        expect(h.rpc.mock.calls[0]?.[1]).toEqual({ p_activity_id: 'b' });
+    });
+
+    it('refuses a draft with an empty blank, by name, as the editor does (G-2)', async () => {
+        const withEmptyBlank = tiptapToActivity(
+            {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib' },
+                        content: [
+                            { type: 'text', text: 'x = ' },
+                            { type: 'blank', attrs: { id: '11111111-1111-4111-8111-111111111111', answer: '', acceptableAnswers: [] } },
+                        ],
+                    },
+                ],
+            },
+            ActivityMeta.parse({ title: 'G-2' }),
+        );
+        h.drafts.current = {
+            data: [
+                { id: 'a', draft_content: withEmptyBlank },
+                { id: 'b', draft_content: valid },
+            ],
+            error: null,
+        };
+        const out = await republishMany(['a', 'b']);
+        expect(out[0]).toEqual({ id: 'a', ok: false, message: 'A blank has no answer yet, so nothing was published.' });
         expect(h.rpc).toHaveBeenCalledTimes(1);
         expect(h.rpc.mock.calls[0]?.[1]).toEqual({ p_activity_id: 'b' });
     });

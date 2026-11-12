@@ -481,7 +481,14 @@ export type InlineNode = z.infer<typeof InlineNode>;
 export const BlankToken = z.object({
   type: z.literal('blank'),
   id: z.string().uuid(),
-  answer: z.string().min(1),
+  // May be '' in a DRAFT (UI review G-2, 2026-11-13): a teacher who inserts a
+  // blank and fills its answer later must not lose it on the next save. The
+  // app's pre-publish check (app lib/prePublishCheck.ts, run by the editor's
+  // Publish and by "Republish changed") refuses to publish while any blank is
+  // empty. publish_activity itself does not check, so this is a client-side
+  // guarantee; the grader scores an empty-key blank as never right, never as
+  // a free mark (an empty student value is unscored, viewer grading/blanks.ts).
+  answer: z.string(),
   // Alternative correct answers. Empty array is the common case.
   acceptableAnswers: z.array(z.string()).default([]),
   width: z.number().int().positive().optional(),

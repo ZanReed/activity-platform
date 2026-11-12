@@ -13,13 +13,15 @@
 //        draft, never published) — the same test the Bank uses
 //        (0054 bank_version_is_assessment: meta.activityType in quiz/exam).
 //   R-5  One at a time through the SAME call the editor's Republish makes
-//        (publish_activity), validating each draft first as usePublish does.
+//        (publish_activity), validating each draft first as usePublish does —
+//        the schema parse AND the pre-publish check (G-2, prePublishCheck.ts).
 //        No migration, so it ships with a push (OV-7). A failure is reported
 //        by name and the run keeps going.
 // =============================================================================
 
 import { ActivityDocument } from '@activity/schema';
 import { PUBLISH_ACTIVITY_RPC } from './edgeFunctions';
+import { findPublishProblems, publishProblemsSentence } from './prePublishCheck';
 import { supabase } from './supabase';
 import { INVALID_DOC_MESSAGE, mapPublishRpcError } from './usePublish';
 
@@ -92,8 +94,14 @@ export async function republishMany(
     const results: RepublishResult[] = [];
     for (const id of ids) {
         const draft = draftById.get(id);
-        if (draft !== null && draft !== undefined && !ActivityDocument.safeParse(draft).success) {
+        const parsed = draft !== null && draft !== undefined ? ActivityDocument.safeParse(draft) : null;
+        // G-2: what a draft may hold but a published version may not — the same
+        // check usePublish runs, so "Republish changed" can't skip it.
+        const problems = parsed?.success ? findPublishProblems(parsed.data) : [];
+        if (parsed && !parsed.success) {
             results.push({ id, ok: false, message: INVALID_DOC_MESSAGE });
+        } else if (problems.length > 0) {
+            results.push({ id, ok: false, message: publishProblemsSentence(problems) });
         } else {
             const { data: versionId, error } = await supabase.rpc(PUBLISH_ACTIVITY_RPC, { p_activity_id: id });
             if (error) results.push({ id, ok: false, message: mapPublishRpcError(error) });

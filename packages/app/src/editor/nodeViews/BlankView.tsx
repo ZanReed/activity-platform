@@ -38,6 +38,7 @@ function deriveBlankWidth(answer: string): number {
 
 export default function BlankView({ node, selected }: NodeViewProps) {
     const answer = (node.attrs.answer as string) ?? '';
+    const empty = answer.trim().length === 0;
     const acceptableAnswers = (node.attrs.acceptableAnswers as string[]) ?? [];
     // Order-independent grouping: this blank is interchangeable with the one
     // before it. A leading ⇄ marker makes the link visible between the chips.
@@ -64,11 +65,12 @@ export default function BlankView({ node, selected }: NodeViewProps) {
         <NodeViewWrapper
             className={`blank-chip${selected ? ' is-selected' : ''}${
                 grouped ? ' is-grouped' : ''
-            }${numeric ? ' is-numeric' : ''}`}
+            }${numeric ? ' is-numeric' : ''}${empty ? ' is-empty' : ''}`}
             data-blank-id={node.attrs.id ?? ''}
-            title={tooltip}
+            title={empty ? 'This blank needs an answer before you can publish' : tooltip}
         >
-            <span className="blank-chip__answer">{answer}</span>
+            {/* G-2: an empty blank is kept in the draft, and says so. */}
+            <span className="blank-chip__answer">{empty ? 'needs an answer' : answer}</span>
             <span
                 className="blank-chip__underline"
                 style={{ width: `${width}ch` }}

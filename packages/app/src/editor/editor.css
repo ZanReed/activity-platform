@@ -2884,6 +2884,17 @@ img.mc-block__figure-preview {
     border: 1px solid var(--ed-border); /* slate-200 */
 }
 
+/* G-2: a blank with no answer yet is kept, and reads as unfinished: dashed,
+ * in the warning colour, so it survives grayscale and isn't mistaken for an
+ * answer of "needs an answer". */
+.blank-chip.is-empty .blank-chip__answer {
+    border-style: dashed;
+    border-color: var(--ed-danger);
+    color: var(--ed-danger);
+    font-style: italic;
+    font-weight: 400;
+}
+
 /* Order-independent grouping cue: a grouped blank (interchangeable with the
  * one before it) gets a blue-tinted pill plus a ⇄ marker in the gap to its
  * left, so the author sees the link between the paired chips. */

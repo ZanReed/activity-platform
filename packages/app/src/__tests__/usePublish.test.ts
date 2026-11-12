@@ -18,7 +18,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { createEmptyDocument } from '@activity/schema';
+import { ActivityMeta, createEmptyDocument } from '@activity/schema';
+import { tiptapToActivityBare as tiptapToActivity } from '../lib/serializeTestBridge';
 
 const h = vi.hoisted(() => {
     const rpc = vi.fn();
@@ -145,6 +146,38 @@ describe('usePublish', () => {
             message: INVALID_DOC_MESSAGE,
         });
         expect(h.rpc).not.toHaveBeenCalled();
+    });
+
+    it('BLOCKS a draft with an empty blank and names it — nothing is published (G-2)', async () => {
+        const blankId = '11111111-1111-4111-8111-111111111111';
+        const draft = tiptapToActivity(
+            {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'fillInBlank',
+                        attrs: { id: 'fib' },
+                        content: [
+                            { type: 'text', text: 'x = ' },
+                            { type: 'blank', attrs: { id: blankId, answer: '', acceptableAnswers: [] } },
+                        ],
+                    },
+                ],
+            },
+            ActivityMeta.parse({ title: 'G-2' }),
+        );
+        const { result } = renderHook(() => usePublish('act-1', okPrepare(draft)));
+        await act(async () => {
+            await result.current.publish();
+        });
+        expect(result.current.state).toEqual({
+            kind: 'blocked',
+            problems: [{ kind: 'empty-blank', blankId }],
+        });
+        expect(h.rpc).not.toHaveBeenCalled();
+        // The editor clears the refusal once the teacher edits.
+        act(() => result.current.clearBlocked());
+        expect(result.current.state).toEqual({ kind: 'idle' });
     });
 
     it('skips validation when no draft is known (post-publish) and lets the RPC answer', async () => {

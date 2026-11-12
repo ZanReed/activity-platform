@@ -51,6 +51,8 @@ import {
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { useAutosave } from '../lib/useAutosave';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
+import { publishProblemsSentence } from '../lib/prePublishCheck';
+import { selectBlankById } from '../editor/selectBlankById';
 import PublishStatus from '../components/PublishStatus';
 import Editor from '../editor/Editor';
 // Loaded on demand (shell-size review TR4, 2026-11-13): the dialog carries the
@@ -690,10 +692,21 @@ export default function ActivityEditor() {
         // header's Publish chip and the PublishStatus line share it. id can be
         // undefined pre-route-match; publish() is never reachable until the
         // chip renders (past the id guards), so the '' fallback is inert.
-        const { state: publishState, publish } = usePublish(
+        const { state: publishState, publish, clearBlocked } = usePublish(
             id ?? '',
             prepareForPublish,
         );
+        // G-2: an edit after a refused publish clears the refusal (the next
+        // Publish checks again).
+        const blockedKeyRef = useRef<string | null>(null);
+        useEffect(() => {
+            if (publishState.kind !== 'blocked') {
+                blockedKeyRef.current = null;
+                return;
+            }
+            if (blockedKeyRef.current === null) blockedKeyRef.current = changeKey;
+            else if (blockedKeyRef.current !== changeKey) clearBlocked();
+        }, [publishState.kind, changeKey, clearBlocked]);
         // A successful publish clears draft_content server-side; keep the
         // mirror honest so a no-edit republish sends draft:null and lets the
         // RPC answer "no unpublished changes" authoritatively.
@@ -922,6 +935,25 @@ export default function ActivityEditor() {
                 <div className="mt-2 flex justify-end">
                 <span className="text-xs text-danger">
                 Publish failed: {publishState.message}
+                </span>
+                </div>
+            )}
+            {publishState.kind === 'blocked' && (
+                // G-2: what stops a publish, and a way straight to it.
+                <div className="mt-2 flex justify-end" role="alert" data-publish-blocked>
+                <span className="text-xs text-danger">
+                {publishProblemsSentence(publishState.problems)}{' '}
+                <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={() => {
+                    const first = publishState.problems[0];
+                    // A blank deleted since: nothing to show, so drop the line.
+                    if (!editorInstance || !first || !selectBlankById(editorInstance, first.blankId)) clearBlocked();
+                }}
+                >
+                Show me
+                </button>
                 </span>
                 </div>
             )}
