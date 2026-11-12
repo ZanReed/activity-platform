@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import DraftNumberInput from './DraftNumberInput';
@@ -8,6 +8,24 @@ import type {
     DataPlotConfigAttr,
     DataPlotInteractionAttr,
 } from '../extensions/DataPlot';
+import type { SectionBreakStorage } from '../extensions/SectionBreak';
+
+/** The activity's `sample` variable names, live (Editor.tsx writes them into
+ *  SectionBreak storage; a drawer panel has no other route to the activity). */
+function useSampleNames(editor: Editor): string[] {
+    const storage = (editor.storage as { sectionBreak?: SectionBreakStorage }).sectionBreak;
+    const [names, setNames] = useState<string[]>(() => storage?.seedSampleNames ?? []);
+    useEffect(() => {
+        if (!storage) return;
+        const update = () => setNames([...(storage.seedSampleNames ?? [])]);
+        storage.listeners.add(update);
+        update();
+        return () => {
+            storage.listeners.delete(update);
+        };
+    }, [storage]);
+    return names;
+}
 
 // Write a node attr at `pos` (inlined to avoid a circular import with
 // blockControls, which imports this module's render fn).
@@ -58,6 +76,10 @@ function DataPlotSettingsPanel({
     const isEditable = editor.isEditable;
     const isGraded = interaction.type !== 'display';
     const chart = chartOf(interaction);
+    // GUI sweep item 7 (ruled 2026-11-13): plot a seeded `sample` variable.
+    const samples = useSampleNames(editor);
+    const dataVar = typeof node.attrs.dataVar === 'string' && node.attrs.dataVar !== '' ? (node.attrs.dataVar as string) : null;
+    const missing = dataVar !== null && !samples.includes(dataVar);
 
     const setConfig = (patch: Partial<DataPlotConfigAttr>): void =>
         setNodeAttr(editor, pos, 'config', { ...config, ...patch });
@@ -86,6 +108,39 @@ function DataPlotSettingsPanel({
     return (
         <div className="graph-settings">
             <BlockSizingField editor={editor} node={node} pos={pos} />
+            {(samples.length > 0 || dataVar !== null) && (
+                <div className="block-advanced-drawer__group">
+                    <div className="block-advanced-drawer__group-title">Data</div>
+                    <label className="block-advanced-drawer__field">
+                        <span className="block-advanced-drawer__label">Plot</span>
+                        <select
+                            className="block-advanced-drawer__control"
+                            disabled={!isEditable}
+                            value={dataVar ?? ''}
+                            onChange={(e) => setNodeAttr(editor, pos, 'dataVar', e.target.value === '' ? null : e.target.value)}
+                        >
+                            <option value="">These numbers</option>
+                            {samples.map((name) => (
+                                <option key={name} value={name}>
+                                    Seeded variable {name} (different for each student)
+                                </option>
+                            ))}
+                            {missing && <option value={dataVar}>{dataVar} (no longer declared)</option>}
+                        </select>
+                        <span className="block-advanced-drawer__help">
+                            {dataVar === null
+                                ? 'Students see the numbers in the block.'
+                                : 'Each student gets their own draw; the numbers in the block are only the preview.'}
+                        </span>
+                    </label>
+                    {missing && (
+                        <p role="alert" className="block-advanced-drawer__help" data-testid="dataplot-var-missing">
+                            “{dataVar}” is not a sample variable in Seeded variables any more. Declare it there, or choose
+                            another source.
+                        </p>
+                    )}
+                </div>
+            )}
             <div className="block-advanced-drawer__group">
                 <div className="block-advanced-drawer__group-title">Chart</div>
                 <div className="graph-settings__axis-grid">

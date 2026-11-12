@@ -293,3 +293,48 @@ test('correspondence: the drawer has the worked solution, work space and numberi
     await workSpace.blur();
     expect(await attrOfFirst(page, 'correspondence', 'workSpace')).toBe(3);
 });
+
+// GUI sweep item 7 (ruled 2026-11-13): a data plot can draw from a seeded
+// `sample` variable. The node had no `dataVar` attr at all until this change,
+// so the round trip below is also the guard for that data loss.
+async function setSampleNames(page: Page, names: string[]) {
+    await page.evaluate((n) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        const storage = ed.storage.sectionBreak;
+        storage.seedSampleNames = n;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        storage.listeners.forEach((l: any) => l());
+    }, names);
+}
+
+test('data plot: the Data choice sets dataVar, and it survives the document JSON', async ({ page }) => {
+    await setSampleNames(page, ['scores']);
+    await insertAndSelect(page, 'insertDataPlot', 'dataPlot');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const plot = page.locator(DRAWER).getByRole('combobox', { name: 'Plot' });
+    await plot.selectOption({ label: 'Seeded variable scores (different for each student)' });
+    expect(await attrOfFirst(page, 'dataPlot', 'dataVar')).toBe('scores');
+    const html = await page.evaluate(() => (window as any).__tiptapEditor.getHTML()); // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(html).toContain('data-dataplot-var="scores"');
+    await plot.selectOption({ label: 'These numbers' });
+    expect(await attrOfFirst(page, 'dataPlot', 'dataVar')).toBeNull();
+});
+
+test('data plot: a variable no longer declared shows a warning, not a silent reset', async ({ page }) => {
+    await setSampleNames(page, ['scores']);
+    await insertAndSelect(page, 'insertDataPlot', 'dataPlot');
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        const { from } = ed.state.selection;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.chain().command(({ tr }: any) => { tr.setNodeAttribute(from, 'dataVar', 'heights'); return true; }).run();
+        ed.commands.setNodeSelection(from);
+    });
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    await expect(page.getByTestId('dataplot-var-missing')).toContainText('“heights”');
+    expect(await attrOfFirst(page, 'dataPlot', 'dataVar')).toBe('heights');
+});

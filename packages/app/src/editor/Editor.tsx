@@ -73,6 +73,9 @@ interface EditorProps {
     // The activity's seeded variable names: the DoL panel flags one used
     // inside the DoL, where it gets no value (DL-4).
     seedNames?: readonly string[];
+    // The activity's `sample` variables: the data plot's Data choice lists
+    // them (GUI sweep item 7, 2026-11-13).
+    seedSampleNames?: readonly string[];
 }
 
 // Place the insert cursor exactly at a block seam for the insert-zone path.
@@ -110,6 +113,7 @@ export default function Editor({
     videoMeta,
     isBankCopy = false,
     seedNames,
+    seedSampleNames,
 }: EditorProps) {
     // Force re-render on every editor transaction. Tiptap React's built-in
     // re-render hook misses pure storedMarks transactions (e.g., toggling a
@@ -320,9 +324,10 @@ export default function Editor({
         if (!storage) return;
         storage.isCopy = isBankCopy;
         storage.seedNames = [...(seedNames ?? [])];
+        storage.seedSampleNames = [...(seedSampleNames ?? [])];
         storage.listeners.forEach((rerender) => rerender());
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editor, isBankCopy, (seedNames ?? []).join('\u0000')]);
+    }, [editor, isBankCopy, (seedNames ?? []).join('\u0000'), (seedSampleNames ?? []).join('\u0000')]);
 
     useEffect(() => {
         if (typography) void ensureActivityFontLoaded(typography.font);

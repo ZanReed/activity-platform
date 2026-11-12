@@ -109,6 +109,17 @@ export const DataPlot = Node.create({
                     'data-dataplot-data': JSON.stringify(attrs.data),
                 }),
             },
+            // Seeded dataset (R4): the `sample` variable whose drawn list replaces
+            // `data` at serve and grade time. Missing until 2026-11-13, so an
+            // app edit silently dropped it from an imported seeded plot.
+            dataVar: {
+                default: null as string | null,
+                parseHTML: (el) => el.getAttribute('data-dataplot-var'),
+                renderHTML: (attrs) =>
+                    typeof attrs.dataVar === 'string' && attrs.dataVar !== ''
+                        ? { 'data-dataplot-var': attrs.dataVar }
+                        : {},
+            },
             config: {
                 default: defaults.config as DataPlotConfigAttr,
                 parseHTML: (el) =>
