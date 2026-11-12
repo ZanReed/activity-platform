@@ -33,10 +33,9 @@ schema field against the editor's controls (two read-only agents, key claims
 re-checked by grep). Not triggered wishes: under the 2026-11-12 rule each is a
 debt. Ranked by what a teacher meets first; each gets its own short design pass.
 
-1. **Misconception ids, at all three sites:** multiple-choice choices, blank
-   mistakes, graph mistakes. Kept on save, never shown or editable (the
-   2026-08-25 "Editor cannot SHOW misconception bindings" entry is this, now
-   under the rule).
+1. ✅ **Misconception ids — BUILT 2026-11-12** (misconception-sensors.md →
+   "GUI amendment 2026-11-12"). Also fixed: editing a blank's mistake feedback
+   in the app dropped its bindings.
 2. **Tables:** header row / header column and column alignment have no
    control; no button adds or deletes rows or columns (only Tiptap's built-in
    commands exist; check the Tab key in a browser); no numbering control
@@ -1418,17 +1417,10 @@ than a live declaration with no implementation.
 slice; check the `exports` map and `kitSurfaces.ts` again first, since that is
 what makes the deletion safe.
 
-## Editor cannot SHOW misconception bindings (DX review deferral, 2026-08-25)
+## ✅ Editor cannot SHOW misconception bindings — BUILT 2026-11-12
 
-The misconception-sensors arc round-trips `misconceptionId`s through the editor
-(serialize both directions) but no editor view renders them — a teacher editing
-in-app cannot see that a distractor is bound. Ruled ACCEPTABLE while the
-".md is the source" rule holds (file-backed activities are edited in markdown,
-where bindings are visible text). **Becomes real work when the fall
-co-ownership arc gives colleagues in-app authoring** — then: read-only binding
-badges in the blank popover, `MultipleChoiceView`, and `GraphSettings` mistake
-rows, before any colleague authors over an imported activity blind.
-**Depends on:** the co-ownership arc.
+Closed by the GUI sweep's item 1: ids are shown, picked, changed and removed at
+all three sites (misconception-sensors.md → "GUI amendment 2026-11-12").
 
 ## ✅ The phantom `course`/`unit` change on every published activity — FIXED 2026-08-31
 

@@ -25,6 +25,7 @@ import type { GraphAxisConfig } from '../extensions/InteractiveGraph';
 import { problemNumberAt } from '../problemNumbering';
 import { ProblemNumberGutter } from './problemNumberGutter';
 import { AxisWindowError, useAxisWindowGuard } from '../components/axisWindow';
+import MisconceptionField from '../components/MisconceptionField';
 
 // ============================================================================
 // MultipleChoiceView — NodeView for the multiple_choice block.
@@ -394,6 +395,21 @@ export default function MultipleChoiceView({
         );
     };
 
+    const setMisconception = (choiceId: string, id: string | undefined) => {
+        // Keep the panel open: a choice with an id and no feedback text would
+        // otherwise fold away on Remove (its "open" was derived from the id).
+        setOpenFeedback((prev) => ({ ...prev, [choiceId]: true }));
+        commitChoices(
+            choices.map((c) => {
+                if (c.id !== choiceId) return c;
+                const next = { ...c };
+                if (id) next.misconceptionId = id;
+                else delete next.misconceptionId;
+                return next;
+            }),
+        );
+    };
+
     const setImage = (
         choiceId: string,
         image: EditorMcChoice['image'] | undefined,
@@ -507,7 +523,7 @@ export default function MultipleChoiceView({
                                     <button
                                         type="button"
                                         className={`mc-block__row-btn${
-                                            choice.feedback?.length
+                                            choice.feedback?.length || choice.misconceptionId
                                                 ? ' mc-block__row-btn--on'
                                                 : ''
                                         }`}
@@ -519,7 +535,7 @@ export default function MultipleChoiceView({
                                         }
                                         aria-expanded={
                                             openFeedback[choice.id] ??
-                                            Boolean(choice.feedback?.length)
+                                            Boolean(choice.feedback?.length || choice.misconceptionId)
                                         }
                                         aria-label={`Feedback for choice ${
                                             LETTERS[index % 26]
@@ -527,7 +543,7 @@ export default function MultipleChoiceView({
                                         title="Feedback shown when this choice is picked"
                                         disabled={!isEditable}
                                     >
-                                        {choice.feedback?.length ? (
+                                        {choice.feedback?.length || choice.misconceptionId ? (
                                             <MessageSquare
                                                 size={14}
                                                 aria-hidden="true"
@@ -620,7 +636,7 @@ export default function MultipleChoiceView({
                                     />
                                 )}
                                 {(openFeedback[choice.id] ??
-                                    Boolean(choice.feedback?.length)) && (
+                                    Boolean(choice.feedback?.length || choice.misconceptionId)) && (
                                     <div className="mc-block__feedback">
                                         <span className="mc-block__feedback-label">
                                             Feedback when picked (shown after
@@ -639,6 +655,19 @@ export default function MultipleChoiceView({
                                                 LETTERS[index % 26]
                                             }`}
                                         />
+                                        {(!choice.correct || choice.misconceptionId) && (
+                                            <MisconceptionField
+                                                value={choice.misconceptionId}
+                                                disabled={!isEditable}
+                                                onChange={(id) => setMisconception(choice.id, id)}
+                                                context={`choice ${LETTERS[index % 26] ?? 'A'}`}
+                                                note={
+                                                    choice.correct
+                                                        ? 'Only recorded when this choice is a wrong answer.'
+                                                        : undefined
+                                                }
+                                            />
+                                        )}
                                     </div>
                                 )}
                             </div>

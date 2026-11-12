@@ -26,6 +26,7 @@ import type {
     GraphMistakeEntry,
 } from '../extensions/InteractiveGraph';
 import { AxisWindowError, useAxisWindowGuard } from './axisWindow';
+import MisconceptionField from './MisconceptionField';
 
 // ============================================================================
 // GraphSettings — the interactive_graph block's settings, rendered as a single
@@ -417,6 +418,18 @@ function GraphSettingsPanel({
                                 onChange={(nodes) => setMistakeEntry(i, { ...entry, feedback: nodes })}
                                 ariaLabel={`Feedback for anticipated mistake ${i + 1}`}
                             />
+                            {(entry.match.trim() !== '' || entry.misconceptionId) && (
+                            <MisconceptionField
+                                value={entry.misconceptionId}
+                                disabled={!isEditable}
+                                onChange={(id) => {
+                                    const { misconceptionId: _old, ...rest } = entry;
+                                    void _old;
+                                    setMistakeEntry(i, id ? { ...rest, misconceptionId: id } : rest);
+                                }}
+                                context={`anticipated mistake ${i + 1}`}
+                            />
+                            )}
                         </div>
                     ))}
                     <button

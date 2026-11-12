@@ -22,6 +22,7 @@ import {
     stripList,
     type MistakeFeedbackPair,
 } from './blankPopoverLogic';
+import MisconceptionField from './MisconceptionField';
 
 // ============================================================================
 // BlankEditPopover — popover UI for editing a blank's per-blank fields.
@@ -463,8 +464,8 @@ export default function BlankEditPopover({
         onChange({ hint: nodes.length > 0 ? nodes : undefined });
     };
 
-    // Sets the draft rows AND commits the filtered result. A row needs both a
-    // non-empty match string and non-empty feedback content to be carried;
+    // Sets the draft rows AND commits the filtered result. A row needs a
+    // non-empty match string and feedback content or a misconception id;
     // half-finished rows stay in the draft (so the UI keeps them) but are
     // dropped from the committed attr until complete.
     const commitFeedback = (next: MistakeFeedbackPair[]) => {
@@ -489,6 +490,16 @@ export default function BlankEditPopover({
         } else {
             next.push({ match: '', feedback: nodes });
         }
+        commitFeedback(next);
+    };
+
+    const updateFeedbackMisconception = (index: number, id: string | undefined) => {
+        const next = [...mistakeFeedback];
+        const row = next[index];
+        if (!row) return;
+        const updated: MistakeFeedbackPair = { match: row.match, feedback: row.feedback };
+        if (id) updated.misconceptionId = id;
+        next[index] = updated;
         commitFeedback(next);
     };
 
@@ -949,6 +960,15 @@ export default function BlankEditPopover({
                                                     }
                                                     ariaLabel="Feedback to show"
                                                 />
+                                                {!isTrailingEmpty && (
+                                                    <MisconceptionField
+                                                        value={pair.misconceptionId}
+                                                        onChange={(id) =>
+                                                            updateFeedbackMisconception(index, id)
+                                                        }
+                                                        context={`the wrong answer “${pair.match}”`}
+                                                    />
+                                                )}
                                             </div>
                                             {!isTrailingEmpty && (
                                                 <button

@@ -4463,3 +4463,101 @@ img.mc-block__figure-preview {
     background: var(--ed-blue-50, rgb(239 246 255));
     outline: 1px solid var(--ed-blue-500, rgb(59 130 246));
 }
+
+/* =============================================================================
+ *  MisconceptionField (GUI amendment 2026-11-12): which misconception a wrong
+ *  answer shows, under a blank mistake row, an MC choice's feedback or a
+ *  graph's anticipated mistake.
+ *  ========================================================================= */
+
+.misconception-field {
+    display: grid;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+}
+
+.misconception-field__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ed-text-muted);
+}
+
+.misconception-field__chip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.375rem;
+}
+
+.misconception-field__chip > span {
+    flex: 1;
+    min-width: 0;
+}
+
+.misconception-field__id {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--ed-text-muted);
+    overflow-wrap: anywhere;
+}
+
+.misconception-field button {
+    justify-self: start;
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    font-size: 0.75rem;
+}
+
+.misconception-field .misconception-field__add {
+    border-style: dashed;
+    color: var(--ed-text-muted);
+}
+
+.misconception-field__search {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.misconception-field__search input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+}
+
+.misconception-field__results {
+    display: grid;
+    gap: 0.125rem;
+    max-height: 14rem;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.misconception-field .misconception-field__results button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border-color: transparent;
+}
+
+.misconception-field__results button:hover,
+.misconception-field__results button:focus-visible {
+    border-color: var(--ed-accent);
+}
+
+.misconception-field__note {
+    font-size: 0.6875rem;
+    color: var(--ed-text-muted);
+}

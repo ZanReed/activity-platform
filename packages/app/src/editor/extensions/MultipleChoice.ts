@@ -30,6 +30,8 @@ export interface EditorMcChoice {
     content: unknown[];
     correct: boolean;
     feedback?: unknown[];
+    /** The misconception picking this (wrong) choice shows (`mis.*`). */
+    misconceptionId?: string;
     // Optional figure below the choice text (canonical schema shapes, using
     // the graph node's parallel attr types; the save boundary re-validates
     // with ChoiceImage/ChoiceGraph and drops malformed figures).

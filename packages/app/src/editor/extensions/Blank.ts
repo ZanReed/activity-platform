@@ -21,8 +21,9 @@ import { parseBlankSpec, blankAttrsFromSpec } from '../../lib/blankSyntax';
 //   - mistakeFeedback: optional array of {match, feedback} pairs where feedback
 //     is an InlineNode[] (same opaque-JSON treatment as hint). An entry may also
 //     carry a misconceptionId — the parse filter narrows the shape it REQUIRES
-//     without stripping other keys, so the binding survives an HTML round-trip
-//     even though no editor surface renders it yet.
+//     without stripping other keys, so the binding survives an HTML round-trip.
+//     The popover's mistake rows show and edit it (MisconceptionField,
+//     GUI amendment 2026-11-12).
 //
 // Editing path:
 //   updateBlankAttrs — `preserveSelection` (default true) re-applies
@@ -73,7 +74,7 @@ declare module '@tiptap/core' {
                     equivalence: 'value' | 'exact-form' | undefined;
                     hint: unknown[] | undefined;
                     mistakeFeedback:
-                        | Array<{ match: string; feedback: unknown[] }>
+                        | Array<{ match: string; feedback: unknown[]; misconceptionId?: string }>
                         | undefined;
                 }>,
                 options?: { preserveSelection?: boolean },

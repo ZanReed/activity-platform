@@ -243,6 +243,8 @@ export type GraphInteraction =
 export interface GraphMistakeEntry {
     match: string;
     feedback: InlineNodes;
+    /** The misconception this mistake shows (`mis.*`, from the course list). */
+    misconceptionId?: string;
 }
 
 // A fresh graph_inequality (y > x, strict, shade above) — used when the author

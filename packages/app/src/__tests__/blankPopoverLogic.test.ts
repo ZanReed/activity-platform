@@ -161,6 +161,20 @@ describe('filterFeedbackForCommit', () => {
     expect(filterFeedbackForCommit(rows)).toBeUndefined();
   });
 
+  it('keeps a row\'s misconception id (an edit used to drop it, 2026-11-12)', () => {
+    const rows: MistakeFeedbackPair[] = [
+      { match: '21', feedback: nodes('reversed'), misconceptionId: 'mis.place-value.digit-reversal' },
+    ];
+    expect(filterFeedbackForCommit(rows)).toEqual([
+      { match: '21', feedback: nodes('reversed'), misconceptionId: 'mis.place-value.digit-reversal' },
+    ]);
+  });
+
+  it('keeps a row with an id and no feedback text (the importer allows it)', () => {
+    const rows: MistakeFeedbackPair[] = [{ match: '21', feedback: EMPTY, misconceptionId: 'mis.a.b' }];
+    expect(filterFeedbackForCommit(rows)).toEqual([{ match: '21', feedback: EMPTY, misconceptionId: 'mis.a.b' }]);
+  });
+
   it('returns undefined for an empty input (no empty array in the schema)', () => {
     expect(filterFeedbackForCommit([])).toBeUndefined();
   });

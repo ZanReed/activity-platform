@@ -18,6 +18,8 @@ import type { InlineNodes } from '../../lib/serialize';
 export interface MistakeFeedbackPair {
   match: string;
   feedback: InlineNodes;
+  /** The misconception this wrong answer shows (`mis.*`, from the course list). */
+  misconceptionId?: string;
 }
 
 // The bundle of attrs the popover can commit. answer + acceptableAnswers are
@@ -129,9 +131,17 @@ export function resolveAcceptableCommit(
 export function filterFeedbackForCommit(
   rows: MistakeFeedbackPair[],
 ): MistakeFeedbackPair[] | undefined {
+  // A row is carried once it has a match AND something to say or record:
+  // feedback text, a misconception id, or both. The id rides along — this
+  // map used to rebuild rows as { match, feedback } and so dropped every
+  // binding on the blank whenever its feedback was edited (found 2026-11-12).
   const stripped = rows
-    .map((p) => ({ match: p.match.trim(), feedback: p.feedback }))
-    .filter((p) => p.match.length > 0 && p.feedback.length > 0);
+    .map((p) => ({
+      match: p.match.trim(),
+      feedback: p.feedback,
+      ...(p.misconceptionId ? { misconceptionId: p.misconceptionId } : {}),
+    }))
+    .filter((p) => p.match.length > 0 && (p.feedback.length > 0 || p.misconceptionId !== undefined));
   return stripped.length > 0 ? stripped : undefined;
 }
 

@@ -88,7 +88,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 (node.attrs.acceptableAnswers as string[]) ?? [];
             const hint = node.attrs.hint as InlineNodes | undefined;
             const mistakeFeedback = node.attrs.mistakeFeedback as
-                | Array<{ match: string; feedback: InlineNodes }>
+                | Array<{ match: string; feedback: InlineNodes; misconceptionId?: string }>
                 | undefined;
             const interchangeableWithPrevious =
                 node.attrs.interchangeableWithPrevious === true;
@@ -185,7 +185,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 equivalence: 'value' | 'exact-form' | undefined;
                 hint: InlineNodes | undefined;
                 mistakeFeedback:
-                    | Array<{ match: string; feedback: InlineNodes }>
+                    | Array<{ match: string; feedback: InlineNodes; misconceptionId?: string }>
                     | undefined;
             }>,
             options?: ChangeOptions,

@@ -1,6 +1,6 @@
 # Misconception sensors — ids on distractors, live graph feedback, unit-bearing blanks
 
-**Status: SHIPPED and LIVE (2026-08-25).** Greenlit 2026-08-24 ("all yes" on
+**Status: SHIPPED and LIVE (2026-08-25).** **GUI amendment 2026-11-12:** ids are now set in the editor; see the section before the review report. Greenlit 2026-08-24 ("all yes" on
 the nine decisions), amended by `/plan-eng-review` and `/plan-devex-review`,
 built the same arc. Both Edge Functions are deployed and code-verified, so an
 authored binding records a misconception id on a real student's check.
@@ -422,6 +422,27 @@ From the DX review (2026-08-25). T3's importer syntax is AMENDED by X1
   - Files: this doc (done above); the units design pass
   - Verify: units slice cannot start without ruling all three
 - [x] **T14 (P3)** — TODOS.md — file the two ruled deferrals (editor binding visibility → co-ownership arc; id rename aliasing → rollup arc)
+
+## GUI amendment 2026-11-12 (the "every feature ships with a GUI" rule)
+
+Found by the GUI sweep (TODOS → "GUI sweep 2026-11-12", item 1): the editor kept ids on save but never showed them, so a teacher couldn't see, add, change or remove a binding. **Ruled 2026-11-12, M-1…M-7 all as recommended.**
+
+- **M-1** See, add, change and remove, at the three sites: a blank's mistake rows (the popover), a multiple-choice choice's feedback panel, a graph's anticipated mistakes. The course list is curriculum data and is never edited here.
+- **M-2** Picked from the course list (`misconception_registry`, 0042), never typed: a typed id nobody's list describes would show unlabelled on the class view. An id already on the activity but missing from the list stays, labelled "Not in the course list".
+- **M-3** A search over the description and the id. Ids for the activity's skill can come first once the curriculum side attaches skills to ids (none do at 2026-11-12, 115 rows).
+- **M-4** One "Misconception" field under each feedback. On multiple choice, wrong choices only; a correct choice that already has one keeps it visible, with "Only recorded when this choice is a wrong answer."
+- **M-5** The list is fetched once per page load, only when a field has an id or a search opens. Nothing reaches the student side.
+- **M-6** The field says it takes effect from the next publish.
+- **M-7** Guards mutation-tested; the roster is unchanged (not a capability row).
+
+### As built
+
+- `editor/components/MisconceptionField.tsx` (shared), `lib/misconceptionList.ts` (fetch + search), wired into `BlankEditPopover`, `MultipleChoiceView` and `GraphSettings`. App-only: no schema, migration, bundle or deploy change.
+- **A data-loss bug fixed on the way:** `filterFeedbackForCommit` (blankPopoverLogic) rebuilt each mistake row as `{ match, feedback }`, so editing a blank's mistake feedback in the app dropped every binding on that blank, and dropped rows with an id and no feedback text. It now carries the id, and keeps a row with a match and either feedback or an id. Seen in a browser: editing the feedback keeps the id.
+- Guards (each mutation-tested red): the filter keeping ids and id-only rows; the MC remove and the correct-choice rule; the graph remove keeping the mistake and its feedback; the popover showing and removing a binding; the field's description, "Not in the course list" and search.
+- **Fable review 2026-11-12 (no P0; all fixed, each mutation-tested):**
+  - P1: an id IN the list whose description is empty was labelled "Not in the course list", inviting a teacher to remove a good binding.
+  - P2s: Escape anywhere in the search now closes only the search (it closed the blank popover from a result button); focus returns to the Add/Change button; Enter picks the first match; a failed load clears on retry; "Showing 8 of N" when more match; removing an id no longer folds a choice's panel away; a fresh graph row offers the field only once it has a match (a row with no match is dropped at save); three stale comments corrected.
 
 ## GSTACK REVIEW REPORT
 
