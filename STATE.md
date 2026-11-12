@@ -20,7 +20,9 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**D65 slice 2 + its dose key LIVE 2026-10-30,** CLOSED. **D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
+**GUI rule (2026-11-12): all three gaps BUILT, push owed** (video, seeded variables, DoL; app-only). [TODOS](TODOS.md) → GUI gaps.
+
+**D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
 
 **D64:** slices 1–3 LIVE, clearance OFF. 0080 prune (30 days) LIVE, disarmed. YouTube unproven. [video-pause-points.md](docs/design/video-pause-points.md).
 

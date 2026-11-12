@@ -18,6 +18,7 @@ The audit found these already covered (no action): charts, figures (shape list,
 segment arrow, figure source), graph settings incl. free vectors and
 transform-a-curve, graded stimuli ("Shown with the question"), teacher guide,
 reference panel, quiz/exam types, definitions, the ² ³ tray.
+**No gap is open** (2026-11-12): all three the audit found are built.
 **Closed:** `dol_retake` (2026-11-12 — the section break's DoL checkbox and
 panel; dol-retake.md → "GUI amendment 2026-11-12"). `seeded_data` (2026-11-12 — the drawer's panel; seeded-data.md →
 "GUI amendment 2026-11-12"). `video` (2026-11-12 — the card's form, the placement reasons and
