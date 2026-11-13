@@ -127,7 +127,7 @@ already in this file. Ranked inside each group; the author picks the order.
     (top bar 173 px + check footer 103 px of 812, measured). Status banners
     (idle prompt, storage full, stale version) are NOT sticky, so a student
     scrolled down never sees them.
-17. ✅ BUILT (C-6; job-health reader open). Teacher Analytics shows ops text ("run `pnpm backfill:census`", "stale
+17. ✅ BUILT (C-6; job health → local weekly task). Teacher Analytics shows ops text ("run `pnpm backfill:census`", "stale
     cache rows swept") and groups by block kind, not question.
 18. ✅ BUILT (C-7/C-8). Progress / Analytics / Responses each say "Back to editor" and don't
     link to each other; "Today" lives behind a link called "Practice".
@@ -167,23 +167,20 @@ BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters
 **Group B: BUILT 2026-11-13** ([ui-review-group-b.md](docs/design/ui-review-group-b.md)
 → "As built"). **Group C: BUILT 2026-11-13** ([ui-review-group-c.md](docs/design/ui-review-group-c.md)
 → "As built"; items 13–18, 20, 21; app + viewer only, no migration or
-deploy). One C-6 piece is OPEN — see "Analytics job health has no reader"
-below. D–E open.
+deploy). C-6's job-health reader is a local weekly task (below). D–E open.
 
-## Analytics job health has no reader (C-6, 2026-11-13)
+## Analytics job health: a LOCAL weekly task (C-6, RULED 2026-11-13)
 
-C-6 took the nightly-job line ("Maintenance last ran …", from
-`analytics_job_runs`) off the teacher Analytics page, to be read by the
-weekly CI-health routine instead. Building it showed the routine CANNOT: it is
-a cloud session with no connectors (repo-only on purpose), and the ledger
-lives only in the live database. Until the author picks a reader, a stopped
-nightly job is visible nowhere — the exact failure the line existed for
-(0022). Options: (a) a LOCAL scheduled task on the author's machine, where the
-Supabase connector already is, reading `analytics_job_runs` weekly; (b) the
-line back on the Analytics page for the author's account only (C-6's
-alternative); (c) attach Supabase to the cloud routine (not recommended: it
-can write to live). **Trigger:** the author's ruling; due before the first
-school term with real students.
+C-6 took the nightly-job line off the teacher Analytics page. The weekly
+CI-health routine can't read it (cloud, no connectors on purpose), so the
+author ruled (a): a LOCAL scheduled task, `analytics-job-health`
+(~/.claude/scheduled-tasks/, Mondays 08:15 NZ, after the CI routine). It runs
+one read-only SELECT through the Supabase connector — last
+`analytics_job_runs` row (< 36 h = OK), both cron jobs active, failed runs in
+`cron.job_run_details`, and any `prune_*` job scheduled (red flag). It runs
+only while the desktop app is open (a missed Monday runs on next launch). It
+is saved in Auto mode, so the read-only rule lives in its prompt; the
+connector itself could write.
 
 ## Per-question analytics (C-6 follow-on, filed 2026-11-13)
 

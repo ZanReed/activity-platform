@@ -123,11 +123,11 @@ deploy. Differences from the rulings above:
   can show beside another.
 - **C-2 join:** "Sign in again" opens Google's account picker, since the
   account was the wrong one.
-- **C-6, OPEN:** the job-health line left the teacher page, but the weekly
+- **C-6:** the job-health line left the teacher page, but the weekly
   CI-health routine cannot read it: it is a cloud session with no database
-  connector, and the ledger lives in the live database. Until the author
-  picks a reader, a stopped nightly job shows nowhere (TODOS → "Analytics job
-  health has no reader"). Also: every registry key has a plain name
+  connector, and the ledger lives in the live database. **Ruled 2026-11-13:**
+  a LOCAL weekly scheduled task (`analytics-job-health`) reads it instead
+  (TODOS → "Analytics job health"). Also: every registry key has a plain name
   (cross-checked by `analyticsLabels.test.ts`); text, pictures and containers
   are left out of "Question type" unless a check ever scored one; a version
   with no census says so in plain words. Per-question breakdown is filed in
