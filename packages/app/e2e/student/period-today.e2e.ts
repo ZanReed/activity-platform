@@ -73,7 +73,8 @@ test('a teacher picks today on a phone, with no sideways scroll', async ({ page 
   const panel = page.getByRole('region', { name: 'Today' });
   await panel.getByRole('button', { name: "Pick today's activity" }).click();
   await panel.getByRole('button', { name: `Use today: ${LONG}` }).click();
-  await expect(panel).toContainText(`Hook · ${LONG}`);
+  // PP-8: the day card lists the activity (no hook dated, so none shown).
+  await expect(panel.getByRole('list', { name: "Today's period" })).toContainText(LONG);
   expect(await noSideways(page)).toBe(true);
   const axe = await new AxeBuilder({ page }).include('section[aria-label="Today"]').analyze();
   expect(axe.violations).toEqual([]);

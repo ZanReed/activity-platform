@@ -18,6 +18,11 @@ export async function stubChainHooksApi(page: Page): Promise<ChainHooksStub> {
     marks: [{ hook_id: 'hook.angles.squashed-x', used_on: '2027-02-08' }],
   };
 
+  // PP-7: the class's day (0087's class_local_date). The fixture's mark is
+  // 2027-02-08, so with the class on 2027-02-15 it is a past use ("Used"), not
+  // a plan; without this stub the page would fall back to the runner's date.
+  await page.route('**/rest/v1/rpc/class_local_date**', (route) => route.fulfill({ json: '2027-02-15' }));
+
   await page.route(`**/rest/v1/rpc/${MY_CHAIN_HOOKS_RPC}**`, (route) =>
     route.fulfill({
       json: {
