@@ -36,6 +36,14 @@ vi.mock('../lib/chainHooks', async (importActual) => ({
     unmarkHook: m.unmark,
 }));
 vi.mock('../lib/classes', () => ({ listClasses: m.listClasses }));
+// PP-7: the class's day. Null = the read failed, so the browser's day stands in.
+const classDay = vi.hoisted(() => ({ value: null as string | null }));
+vi.mock('../lib/dueDates', () => ({
+    classLocalDate: async () => {
+        if (classDay.value === null) throw new Error('no class day');
+        return classDay.value;
+    },
+}));
 vi.mock('../lib/practiceBank', async (importActual) => ({
     ...(await importActual<typeof import('../lib/practiceBank')>()),
     listBankItems: m.bank,
@@ -111,6 +119,7 @@ beforeEach(() => {
     m.fetch.mockReset().mockResolvedValue(POOL);
     m.listMarks.mockReset().mockResolvedValue([]);
     m.mark.mockReset().mockResolvedValue(undefined);
+    classDay.value = null;
     m.unmark.mockReset().mockResolvedValue(undefined);
     m.listClasses.mockReset().mockResolvedValue(CLASSES);
     m.bank.mockReset().mockResolvedValue([]);
@@ -265,6 +274,40 @@ describe('ChainHooks page — used marks (CH-9, 2.3A, 5.1A, RT1, RT2, 7.2A)', ()
         await waitFor(() => expect(screen.getByRole('button', { name: 'Change date' }).getAttribute('aria-disabled')).toBeNull());
     });
 
+    const threeDaysBehind = () => {
+        const [y, mo, d] = localToday().split('-').map(Number) as [number, number, number];
+        return new Date(Date.UTC(y, mo - 1, d - 3)).toISOString().slice(0, 10);
+    };
+
+    it('PP-7: "Mark used" writes the CLASS’s day, not the browser’s', async () => {
+        classDay.value = threeDaysBehind();
+        renderPage();
+        await chooseClass();
+        const markBtn = (await screen.findByRole('button', { name: /^Mark used: Draw two long straight lines/ })) as HTMLButtonElement;
+        await waitFor(() => expect(markBtn.disabled).toBe(false));
+        fireEvent.click(markBtn);
+        await waitFor(() => expect(m.mark).toHaveBeenCalled());
+        expect(m.mark.mock.calls[0]?.[2]).toBe(classDay.value);
+    });
+
+    it('PP-7: Used/Planned split on the class’s day: the browser’s today is still ahead of a class behind it', async () => {
+        classDay.value = threeDaysBehind();
+        m.listMarks.mockResolvedValue([{ hook_id: 'hook.angles.squashed-x', used_on: localToday() }]);
+        renderPage();
+        await chooseClass();
+        expect(await screen.findByText(/^Planned /)).toBeTruthy();
+    });
+
+    it('PP-7: a mark after the class’s today reads "Planned", not "Used"', async () => {
+        const [y, mo, d] = localToday().split('-').map(Number) as [number, number, number];
+        const ahead = new Date(Date.UTC(y, mo - 1, d + 5)).toISOString().slice(0, 10);
+        m.listMarks.mockResolvedValue([{ hook_id: 'hook.angles.squashed-x', used_on: ahead }]);
+        renderPage();
+        await chooseClass();
+        expect(await screen.findByText(/^Planned /)).toBeTruthy();
+        expect(screen.queryByText(/Used /)).toBeNull();
+    });
+
     it('"Change date" swaps in a labelled date field; Esc restores the line unchanged (7.2A)', async () => {
         m.listMarks.mockResolvedValue([{ hook_id: 'hook.angles.squashed-x', used_on: '2026-02-12' }]);
         renderPage();
@@ -273,7 +316,8 @@ describe('ChainHooks page — used marks (CH-9, 2.3A, 5.1A, RT1, RT2, 7.2A)', ()
         const input = screen.getByLabelText(/Used on/) as HTMLInputElement;
         expect(input.type).toBe('date');
         expect(input.value).toBe('2026-02-12');
-        expect(input.max).toBe(localToday());
+        // PP-7: no max — a hook may be dated ahead (the planner's "Planned").
+        expect(input.max).toBe('');
         fireEvent.keyDown(input, { key: 'Escape' });
         expect(screen.queryByLabelText(/Used on/)).toBeNull();
         expect(screen.getByRole('button', { name: 'Change date' })).toBeTruthy();

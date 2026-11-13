@@ -2,35 +2,28 @@
 // TodayPanel.tsx — the teacher's plan for today, top of the class's Practice
 // page (period assembly PA-3, PA-8; docs/design/period-assembly.md)
 // -----------------------------------------------------------------------------
-// The period as one line, a link to the hook page, and the pick. No student
-// names, so it is safe on a projector. No clock (PA-11). Nothing here starts,
-// locks or schedules anything (§18, PA-6).
+// Today's DAY CARD (period planner PP-8): number facts, the hook, each activity
+// with its time and its practice, then the total; "Carry on today" for last
+// time's activities (PP-2); a link to the hook page and to the Plan page; and
+// the pick. No student names, so it is safe on a projector. No clock (PA-11).
+// Nothing here starts, locks or schedules anything (§18, PA-6).
 // =============================================================================
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { fetchMyChainHooks } from '../lib/chainHooks';
+import { fetchMyChainHooks, hookShortName, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
+import {
+    dayBlocks,
+    dayLabel,
+    dayTotal,
+    fetchClassPlan,
+    shapeFrom,
+    totalLine,
+    type ClassPlan,
+} from '../lib/classPlan';
+import { fetchMixedSummary, type MixedSummary } from '../lib/mixedTeacher';
 import { listTeacherClassActivities, type TeacherClassActivity } from '../lib/classActivities';
 import { fetchClassToday, MAX_TODAY, setClassToday, type TodayActivity } from '../lib/classToday';
-
-/**
- * §17's order: number facts, one hook a day, then each activity with its
- * practice. Only what the class has on is named. Exported for its tests.
- */
-export function periodLine(
-    sprintOn: boolean,
-    mixedOn: boolean,
-    titles: readonly string[],
-): string {
-    const parts: string[] = [];
-    if (sprintOn) parts.push('Number facts 5');
-    parts.push('Hook');
-    for (const title of titles) {
-        parts.push(title);
-        if (mixedOn) parts.push('Practice');
-    }
-    return parts.join(' · ');
-}
 
 export default function TodayPanel({
     classId,
@@ -45,9 +38,29 @@ export default function TodayPanel({
     const [failed, setFailed] = useState(false);
     const [choosing, setChoosing] = useState(false);
     const [options, setOptions] = useState<TeacherClassActivity[] | null>(null);
-    const [chains, setChains] = useState<Record<string, string>>({});
+    const [hooks, setHooks] = useState<MyChainHooks>(NO_CHAIN_HOOKS);
+    // PP-8: the day's detail (minutes, the dated hook, last time) from
+    // class_plan for today's date; a failed read leaves the card plainer.
+    const [detail, setDetail] = useState<ClassPlan | null>(null);
+    const [mixed, setMixed] = useState<MixedSummary | null>(null);
     const [busy, setBusy] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+
+    // Latest-wins (review P1): two quick picks or a class switch must not let
+    // an older read land last.
+    const detailSeq = useRef(0);
+    const loadDetail = useCallback(
+        async (onDate: string, stillLive: () => boolean = () => true) => {
+            const seq = ++detailSeq.current;
+            try {
+                const d = await fetchClassPlan(classId, onDate, onDate);
+                if (stillLive() && seq === detailSeq.current) setDetail(d);
+            } catch {
+                /* the card falls back to titles only */
+            }
+        },
+        [classId],
+    );
 
     useEffect(() => {
         let live = true;
@@ -56,17 +69,25 @@ export default function TodayPanel({
         setOptions(null);
         setChoosing(false);
         setSaveError(null);
+        setDetail(null);
         fetchClassToday(classId)
-            .then((t) => live && setToday(t.activities))
+            .then((t) => {
+                if (!live) return;
+                setToday(t.activities);
+                void loadDetail(t.on_date, () => live);
+            })
             .catch(() => live && setFailed(true));
-        // The hook link is a convenience: without it the line still reads.
+        // The hook link is a convenience: without it the card still reads.
         fetchMyChainHooks()
-            .then((h) => live && setChains(h.activityChains))
+            .then((h) => live && setHooks(h))
+            .catch(() => undefined);
+        fetchMixedSummary(classId)
+            .then((m) => live && setMixed(m))
             .catch(() => undefined);
         return () => {
             live = false;
         };
-    }, [classId]);
+    }, [classId, loadDetail]);
 
     useEffect(() => {
         if (!choosing || options) return;
@@ -87,7 +108,9 @@ export default function TodayPanel({
         setBusy(true);
         setSaveError(null);
         try {
-            setToday((await setClassToday(classId, activityId, on)).activities);
+            const next = await setClassToday(classId, activityId, on);
+            setToday(next.activities);
+            void loadDetail(next.on_date);
         } catch (err) {
             const message = err instanceof Error ? err.message : '';
             const refused = message.includes('today_full') || message.includes('not_in_class');
@@ -122,21 +145,81 @@ export default function TodayPanel({
     if (!today) return null;
 
     const full = today.length >= MAX_TODAY;
-    const hookChain = today.map((a) => chains[a.activity_id]).find(Boolean);
+    const hookChain = today.map((a) => hooks.activityChains[a.activity_id]).find(Boolean);
+    // The card: class_plan's day when it has loaded, else today's titles alone.
+    const shape = { ...shapeFrom({ on: sprintOn }, mixed), sprintOn, mixedOn };
+    // The detail's day only while it holds exactly today's picks; a pick that
+    // hasn't re-read yet (or whose re-read failed) shows the titles instead.
+    const detailDay = detail?.days.find((d) => d.on_date === detail.today);
+    const sameIds = (detailDay?.activities ?? [])
+        .filter((a) => a.available)
+        .map((a) => a.activity_id)
+        .join() === today.map((a) => a.activity_id).join();
+    const day = detailDay && sameIds
+        ? detailDay
+        : {
+              activities: today.map((a, i) => ({ ...a, minutes: null, position: i + 1, available: true })),
+              hook_ids: detailDay?.hook_ids ?? [],
+          };
+    const prompts = new Map(Object.values(hooks.chains).flat().map((h) => [h.id, h.prompt]));
+    const firstHook = day.hook_ids[0];
+    const firstPrompt = firstHook ? prompts.get(firstHook) : undefined;
+    const blocks = dayBlocks(day, shape, firstPrompt ? hookShortName(firstPrompt) : null);
+    // The hook block links to the HOOK's own unit (a strayed hook isn't the
+    // first activity's), so it isn't a second "Hooks for this unit".
+    const hookOwnChain = firstHook
+        ? Object.entries(hooks.chains).find(([, pool]) => pool.some((h) => h.id === firstHook))?.[0]
+        : undefined;
+    const total = totalLine(dayTotal(day, shape));
+    const onToday = new Set(today.map((a) => a.activity_id));
+    const carry = (detail?.last_day?.activities ?? []).filter((a) => a.available && !onToday.has(a.activity_id));
 
     return (
         <section className="ft-panel" aria-label="Today">
             <h2>Today</h2>
             {today.length > 0 ? (
-                <p className="ft-today-line">
-                    {periodLine(
-                        sprintOn,
-                        mixedOn,
-                        today.map((a) => a.title),
-                    )}
-                </p>
+                <>
+                    <ol className="ft-today-card" role="list" aria-label="Today's period">
+                        {blocks.map((b, i) => (
+                            <li key={`${b.kind}-${b.activityId ?? i}`} data-block={b.kind}>
+                                <span className="ft-today-what">
+                                    {b.kind === 'hook' && hookOwnChain && firstPrompt ? (
+                                        <Link to={`/chains/${hookOwnChain}`}>Hook: {b.label}</Link>
+                                    ) : b.kind === 'hook' ? (
+                                        firstPrompt ? `Hook: ${b.label}` : 'Hook'
+                                    ) : (
+                                        b.label
+                                    )}
+                                </span>
+                                <span className="ft-muted">{b.minutes}</span>
+                            </li>
+                        ))}
+                    </ol>
+                    {total && <p className="ft-today-total">{total}</p>}
+                </>
             ) : (
                 <p className="ft-muted">No activity picked for today. Students see their usual list.</p>
+            )}
+            {carry.length > 0 && detail?.last_day && (
+                <div className="ft-today-carry">
+                    <p className="ft-muted ft-small">Last time ({dayLabel(detail.last_day.on_date)}):</p>
+                    <ul className="ft-today-list">
+                        {carry.map((a) => (
+                            <li key={a.activity_id}>
+                                <span>{a.title}</span>
+                                <button
+                                    type="button"
+                                    className="ft-btn"
+                                    disabled={busy || full}
+                                    aria-label={`Carry on ${a.title} today`}
+                                    onClick={() => void pick(a.activity_id, true)}
+                                >
+                                    Carry on today
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             )}
             <p className="ft-today-actions">
                 <button

@@ -24,6 +24,8 @@ import {
     dayLabel,
     dayTotal,
     DEFAULT_SHAPE,
+    hookChoices,
+    hookStrayed,
     fetchClassPlan,
     MAX_PER_DAY,
     moveClassPlanItem,
@@ -42,6 +44,15 @@ import {
 } from '../lib/classPlan';
 import { fetchSprintOverview } from '../lib/factSprint';
 import { setClassActivityDue } from '../lib/dueDates';
+import {
+    fetchMyChainHooks,
+    hookShortName,
+    listHookMarks,
+    markHookUsed,
+    unmarkHook,
+    type MyChainHooks,
+} from '../lib/chainHooks';
+import { useSession } from '../lib/SessionContext';
 import { fetchMixedSummary } from '../lib/mixedTeacher';
 
 const BTN =
@@ -57,6 +68,12 @@ export default function ClassPlan() {
     const [shape, setShape] = useState<DayShape>(DEFAULT_SHAPE);
     const [options, setOptions] = useState<TeacherClassActivity[]>([]);
     const [busy, setBusy] = useState(false);
+    // PP-7: the hook pools, and this class's dated hooks (class_hook_use).
+    // Either read failing leaves the picker out; the plan still works.
+    const { session } = useSession();
+    const teacherId = session?.user.id ?? null;
+    const [hooks, setHooks] = useState<MyChainHooks | null>(null);
+    const [marks, setMarks] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
     // Latest-wins: only the newest read may set the page (review P1).
     const loadSeq = useRef(0);
@@ -101,8 +118,20 @@ export default function ClassPlan() {
         [classId],
     );
 
+    const loadMarks = useCallback(
+        () =>
+            listHookMarks(classId)
+                .then((rows) => setMarks(Object.fromEntries(rows.map((r) => [r.hook_id, r.used_on]))))
+                .catch(() => undefined),
+        [classId],
+    );
+
     useEffect(() => {
         void load(null);
+        void loadMarks();
+        void fetchMyChainHooks()
+            .then(setHooks)
+            .catch(() => setHooks(null));
         void listClasses()
             .then((all) => setClassName(all.find((c) => c.id === classId)?.name ?? null))
             .catch(() => setClassName(null));
@@ -112,7 +141,7 @@ export default function ClassPlan() {
             fetchSprintOverview(classId).catch(() => null),
             fetchMixedSummary(classId).catch(() => null),
         ]).then(([sprint, mixed]) => setShape(shapeFrom(sprint, mixed)));
-    }, [classId, load, loadOptions]);
+    }, [classId, load, loadOptions, loadMarks]);
 
     const write = async (fn: () => Promise<unknown>) => {
         setBusy(true);
@@ -148,6 +177,21 @@ export default function ClassPlan() {
             setBusy(false);
         }
     };
+    // PP-7: a hook is dated through class_hook_use (one row per class and hook;
+    // an upsert moves it). The plan's hook_ids and the marks both re-read.
+    const writeHook = async (fn: () => Promise<void>) => {
+        setBusy(true);
+        setError(null);
+        try {
+            await fn();
+        } catch {
+            setError("The hook didn't save. Check your connection, then try again.");
+        } finally {
+            await Promise.all([loadMarks(), load(startRef.current)]);
+            setBusy(false);
+        }
+    };
+
     const dueFor = useMemo(() => new Map(options.map((o) => [o.activityId, o.dueOn])), [options]);
 
     const byDate = useMemo(() => new Map((plan?.days ?? []).map((d) => [d.on_date, d])), [plan]);
@@ -258,6 +302,14 @@ export default function ClassPlan() {
                         onReorder={(ids) => write(() => reorderClassPlan(classId, d, ids))}
                         dueFor={dueFor}
                         onMakeDue={(id) => void makeDue(id, d)}
+                        hooks={hooks}
+                        marks={marks}
+                        onPickHook={
+                            teacherId
+                                ? (hookId) => void writeHook(() => markHookUsed(classId, hookId, d, teacherId))
+                                : null
+                        }
+                        onUnhook={(hookId) => void writeHook(() => unmarkHook(classId, hookId))}
                     />
                 ))}
             </ol>
@@ -297,6 +349,10 @@ function DayCard({
     onReorder,
     dueFor,
     onMakeDue,
+    hooks,
+    marks,
+    onPickHook,
+    onUnhook,
 }: {
     date: string;
     isToday: boolean;
@@ -313,8 +369,14 @@ function DayCard({
     onReorder: (activityIds: string[]) => void;
     dueFor: ReadonlyMap<string, string | null>;
     onMakeDue: (activityId: string) => void;
+    hooks: MyChainHooks | null;
+    marks: Readonly<Record<string, string>>;
+    /** Null while the session isn't known (a mark records who made it). */
+    onPickHook: ((hookId: string) => void) | null;
+    onUnhook: (hookId: string) => void;
 }) {
     const [choice, setChoice] = useState('');
+    const [hookChoice, setHookChoice] = useState('');
     const [moving, setMoving] = useState<string | null>(null);
     const [moveTo, setMoveTo] = useState('');
     const visible = day.activities.filter((a) => a.available);
@@ -347,9 +409,25 @@ function DayCard({
                 )}
             </div>
 
-            {day.hook_ids.length > 0 && (
-                <p className="mt-1 text-xs text-muted">Hook planned{day.hook_ids.length > 1 ? ` (${day.hook_ids.length}: one a day is the rule)` : ''}</p>
-            )}
+            <DayHook
+                date={date}
+                day={day}
+                today={today}
+                hooks={hooks}
+                marks={marks}
+                busy={busy}
+                choice={hookChoice}
+                onChoice={setHookChoice}
+                onPick={
+                    onPickHook && date >= today
+                        ? (id) => {
+                              onPickHook(id);
+                              setHookChoice('');
+                          }
+                        : null
+                }
+                onUnhook={onUnhook}
+            />
 
             {day.activities.length > 0 && (
                 <ul className="mt-2 divide-y divide-line">
@@ -571,6 +649,112 @@ function LastDay({
                     </li>
                 ))}
             </ul>
+        </div>
+    );
+}
+
+/**
+ * PP-7: the day's hook. Shows each hook dated to the day (by its first eight
+ * words), "Not used" to undate it, and a warning when the day has two (one a
+ * day is the planner's display rule, §17) or when no activity that day is from
+ * the hook's unit (a hook doesn't travel with a moved activity). "Hook: choose"
+ * offers the pool of the day's first chained activity, unused first; a hook the
+ * class already heard (dated before today) can't be planned again.
+ */
+function DayHook({
+    date,
+    day,
+    today,
+    hooks,
+    marks,
+    busy,
+    choice,
+    onChoice,
+    onPick,
+    onUnhook,
+}: {
+    date: string;
+    day: PlanDay;
+    today: string;
+    hooks: MyChainHooks | null;
+    marks: Readonly<Record<string, string>>;
+    busy: boolean;
+    choice: string;
+    onChoice: (id: string) => void;
+    onPick: ((hookId: string) => void) | null;
+    onUnhook: (hookId: string) => void;
+}) {
+    if (!hooks) {
+        return day.hook_ids.length > 0 ? <p className="mt-1 text-xs text-muted">Hook planned</p> : null;
+    }
+    const prompts = new Map(Object.values(hooks.chains).flat().map((h) => [h.id, h.prompt]));
+    const offer = hookChoices(day, hooks, marks, today);
+    const pickable = offer?.choices.filter((c) => !day.hook_ids.includes(c.id)) ?? [];
+    const canPick = pickable.some((c) => !c.heard);
+    return (
+        <div className="mt-2 text-xs text-muted" data-day-hook>
+            {day.hook_ids.map((id) => (
+                <p key={id} className="flex flex-wrap items-center gap-2">
+                    <span>
+                        Hook: <span className="text-strong">{hookShortName(prompts.get(id) ?? id)}</span>
+                    </span>
+                    {date >= today && (
+                        <button
+                            type="button"
+                            className={LINK}
+                            disabled={busy}
+                            onClick={() => onUnhook(id)}
+                            aria-label={`Not used: ${hookShortName(prompts.get(id) ?? id)}`}
+                        >
+                            Not used
+                        </button>
+                    )}
+                    {hookStrayed(id, day, hooks) && (
+                        <span className="text-warning-strong">No activity from this unit on this day.</span>
+                    )}
+                </p>
+            ))}
+            {day.hook_ids.length > 1 && (
+                <p className="text-warning-strong">Two hooks on one day: one a day is the plan.</p>
+            )}
+            {onPick && offer && canPick && (
+                <form
+                    className="mt-1 flex flex-wrap items-center gap-2"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (choice) onPick(choice);
+                    }}
+                >
+                    <label className="sr-only" htmlFor={`hook-${date}`}>
+                        Choose a hook for {dayLabel(date)}
+                    </label>
+                    <select
+                        id={`hook-${date}`}
+                        value={choice}
+                        disabled={busy}
+                        onChange={(e) => onChoice(e.target.value)}
+                        className="min-w-0 flex-1 rounded-md border border-line-strong bg-canvas px-2 py-1 text-xs text-ink"
+                    >
+                        <option value="">{day.hook_ids.length > 0 ? 'Another hook…' : 'Hook: choose…'}</option>
+                        {pickable.map((c) => (
+                            // A heard hook is listed, disabled, so a teacher can see why it's
+                            // missing; the chain page's "Change date" / "Not used" undoes a
+                            // plan the class never reached (review P2).
+                            <option key={c.id} value={c.id} disabled={c.heard}>
+                                {hookShortName(c.prompt)}
+                                {c.heard
+                                    ? ` (used ${dayLabel(c.markedOn!)})`
+                                    : c.markedOn
+                                      ? ` (dated ${dayLabel(c.markedOn)}: moves it here)`
+                                      : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <button type="submit" className={BTN} disabled={!choice || busy}>
+                        Use
+                    </button>
+                </form>
+            )}
         </div>
     );
 }

@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 import { listClasses, type ClassInfo } from '../lib/classes';
 import { sortForOutline, unitOf } from '../lib/activityGrouping';
+import { classLocalDate } from '../lib/dueDates';
 import {
     fetchMyChainHooks,
     formatUsedOn,
@@ -80,6 +81,12 @@ export default function ChainHooks() {
     const [classesFailed, setClassesFailed] = useState(false);
     const [classId, setClassId] = useState<string>('');
     const [marks, setMarks] = useState<Record<string, string>>({});
+    // PP-7: a mark's date is the CLASS's day (its teacher's zone), not the
+    // browser's; until it loads, the browser's day stands in.
+    const [classToday, setClassToday] = useState<string | null>(null);
+    // "Mark used" waits for the class's day (review P2): until it settles, a
+    // click would write the browser's date. A failed read falls back to it.
+    const [dayReady, setDayReady] = useState(false);
     const [pending, setPending] = useState<Set<string>>(new Set());
     const [failed, setFailed] = useState<Record<string, () => void>>({});
     const [editing, setEditing] = useState<string | null>(null);
@@ -157,6 +164,16 @@ export default function ChainHooks() {
         setEditing(null);
         if (!classId) return;
         let cancelled = false;
+        setClassToday(null);
+        setDayReady(false);
+        classLocalDate(classId)
+            .then((d) => {
+                if (!cancelled) setClassToday(d);
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                if (!cancelled) setDayReady(true);
+            });
         listHookMarks(classId)
             .then((rows) => {
                 if (!cancelled) setMarks(Object.fromEntries(rows.map((r) => [r.hook_id, r.used_on])));
@@ -170,6 +187,7 @@ export default function ChainHooks() {
     }, [classId]);
 
     const pool: ChainHook[] = hooks?.chains[chainId] ?? [];
+    const today = classToday ?? localToday();
     const unitTitle = useMemo(() => {
         for (const a of activities) {
             const u = unitOf(a);
@@ -255,13 +273,15 @@ export default function ChainHooks() {
             <div className="ch-list">
                 {pool.map((hook, i) => {
                     const used = marks[hook.id];
+                    // PP-7: a mark after the class's today is a plan, not a use.
+                    const planned = used !== undefined && used > today;
                     const busy = pending.has(hook.id);
                     const retry = failed[hook.id];
                     const short = hookShortName(hook.prompt);
                     const headingId = `hook-${i}`;
                     return (
                         <article key={hook.id} className="ch-hook" aria-labelledby={headingId}>
-                            <h3 id={headingId} className={used ? 'ch-prompt ch-prompt--used' : 'ch-prompt'}>
+                            <h3 id={headingId} className={used && !planned ? 'ch-prompt ch-prompt--used' : 'ch-prompt'}>
                                 {hook.prompt}
                             </h3>
                             {hook.connects_to.length > 0 && (
@@ -278,7 +298,8 @@ export default function ChainHooks() {
                                             type="button"
                                             className="ch-btn"
                                             aria-label={`Mark used: ${short}`}
-                                            onClick={() => write(hook.id, localToday(), `Marked used for ${className}`)}
+                                            disabled={!dayReady}
+                                            onClick={() => write(hook.id, today, `Marked used for ${className}`)}
                                         >
                                             Mark used
                                         </button>
@@ -286,12 +307,11 @@ export default function ChainHooks() {
                                         <>
                                             {editing === hook.id ? (
                                                 <label className="ch-date-edit">
-                                                    Used on{' '}
+                                                    {planned ? 'Planned for' : 'Used on'}{' '}
                                                     <input
                                                         type="date"
                                                         autoFocus
                                                         defaultValue={used}
-                                                        max={localToday()}
                                                         onChange={(e) => {
                                                             const v = e.target.value;
                                                             if (v && v !== used) {
@@ -310,7 +330,13 @@ export default function ChainHooks() {
                                                 </label>
                                             ) : (
                                                 <span className="ch-status">
-                                                    <span aria-hidden="true">✓</span> Used {formatUsedOn(used)}
+                                                    {planned ? (
+                                                        <>Planned {formatUsedOn(used)}</>
+                                                    ) : (
+                                                        <>
+                                                            <span aria-hidden="true">✓</span> Used {formatUsedOn(used)}
+                                                        </>
+                                                    )}
                                                     {' '}
                                                     <button
                                                         type="button"

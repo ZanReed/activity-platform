@@ -256,3 +256,101 @@ export function shapeFrom(
         hook: range('hook', DEFAULT_SHAPE.hook),
     };
 }
+
+// ---- the day card's blocks (PP-8) ---------------------------------------------
+
+/** "about 5 min" / "about 2–3 min". */
+export function aboutRange([low, high]: [number, number]): string {
+    return low === high ? `about ${low} min` : `about ${low}–${high} min`;
+}
+
+export interface DayBlock {
+    kind: 'facts' | 'hook' | 'activity' | 'practice';
+    label: string;
+    /** "about 30 min", "time not set", or a range. */
+    minutes: string;
+    activityId?: string;
+}
+
+/**
+ * §17's order, top to bottom: number facts, the hook, then each activity with
+ * its practice. Only what the class has on is named (as the old one-line
+ * periodLine did); unavailable activities are left out. `hookName` is the
+ * hook's short name when the day has one dated to it.
+ */
+export function dayBlocks(
+    day: Pick<PlanDay, 'activities' | 'hook_ids'>,
+    shape: DayShape,
+    hookName: string | null,
+): DayBlock[] {
+    const shown = day.activities.filter((a) => a.available);
+    const out: DayBlock[] = [];
+    if (shape.sprintOn && shown.length > 0) {
+        out.push({ kind: 'facts', label: 'Number facts', minutes: aboutRange(shape.sprint) });
+    }
+    if (day.hook_ids.length > 0) {
+        out.push({ kind: 'hook', label: hookName ?? 'Hook', minutes: aboutRange(shape.hook) });
+    }
+    const practice = practiceRange(shape);
+    for (const a of shown) {
+        out.push({
+            kind: 'activity',
+            label: a.title,
+            minutes: a.minutes != null ? `about ${a.minutes} min` : 'time not set',
+            activityId: a.activity_id,
+        });
+        if (shape.mixedOn) out.push({ kind: 'practice', label: 'Practice', minutes: aboutRange(practice) });
+    }
+    return out;
+}
+
+// ---- a day's hook (PP-7) ---------------------------------------------------------
+
+export interface HookChoice {
+    id: string;
+    prompt: string;
+    /** The date already on this class's mark, if any. */
+    markedOn: string | null;
+    /** A mark on a day before today: the class heard it, so it can't be re-planned. */
+    heard: boolean;
+}
+
+/**
+ * The pool a day offers: the chain of the day's first chained activity (as
+ * the Today panel's link has always chosen), unused hooks first, each group in
+ * authored order. Null when no activity that day belongs to a chain with hooks.
+ */
+export function hookChoices(
+    day: Pick<PlanDay, 'activities'>,
+    data: {
+        activityChains: Record<string, string>;
+        chains: Record<string, { id: string; prompt: string }[]>;
+    },
+    marks: Readonly<Record<string, string>>,
+    today: string,
+): { chainId: string; choices: HookChoice[] } | null {
+    const chainId = day.activities
+        .filter((a) => a.available)
+        .map((a) => data.activityChains[a.activity_id])
+        .find((c) => c !== undefined && (data.chains[c]?.length ?? 0) > 0);
+    if (!chainId) return null;
+    const pool = (data.chains[chainId] ?? []).map((h) => {
+        const markedOn = marks[h.id] ?? null;
+        return { id: h.id, prompt: h.prompt, markedOn, heard: markedOn !== null && markedOn < today };
+    });
+    return {
+        chainId,
+        choices: [...pool.filter((c) => c.markedOn === null), ...pool.filter((c) => c.markedOn !== null)],
+    };
+}
+
+/** A hook dated to a day whose activities include none from its unit (PP-7). */
+export function hookStrayed(
+    hookId: string,
+    day: Pick<PlanDay, 'activities'>,
+    data: { activityChains: Record<string, string>; chains: Record<string, { id: string }[]> },
+): boolean {
+    const chain = Object.entries(data.chains).find(([, pool]) => pool.some((h) => h.id === hookId))?.[0];
+    if (!chain) return false;
+    return !day.activities.some((a) => a.available && data.activityChains[a.activity_id] === chain);
+}

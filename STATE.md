@@ -34,7 +34,7 @@ Author-only: pushes, deploys, migrations.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**Period assembly LIVE (0081–0084).** **Period planner** ([period-planner.md](docs/design/period-planner.md) → As built): 0088 LIVE; steps 2–4b-1 LIVE 2026-11-14 (pushed e82c8246); next 4b-2 (hook picker + Today card). #92 merged (C-191); next `--practice-registry` import mirrors `b4d730f3`. Next B-251.
+**Period assembly LIVE (0081–0084).** **Period planner** ([period-planner.md](docs/design/period-planner.md) → As built): 0088 LIVE; steps 2–4b-1 LIVE 2026-11-14; 4b-2 (hook picker + Today card) BUILT, unpushed; next step 5 (present view). #92 merged (C-191); next `--practice-registry` import mirrors `b4d730f3`. Next B-251.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd), log-verified 2026-11-12.
 

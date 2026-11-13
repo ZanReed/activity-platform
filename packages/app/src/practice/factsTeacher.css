@@ -512,11 +512,40 @@
   }
 }
 
-/* Today (period assembly PA-8). */
-.ft-today-line {
-  font-weight: 600;
+/* Today (period assembly PA-8; the day card, period planner PP-8). */
+.ft-today-card {
+  list-style: none;
   margin: 0;
+  padding: 0;
+}
+
+.ft-today-card li {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.ft-today-what {
+  font-weight: 600;
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.ft-today-card li[data-block='practice'] .ft-today-what,
+.ft-today-card li[data-block='facts'] .ft-today-what {
+  font-weight: 400;
+}
+
+.ft-today-total {
+  border-top: 1px solid var(--color-line);
+  margin: 8px 0 0;
+  padding-top: 8px;
+}
+
+.ft-today-carry {
+  margin-top: 12px;
 }
 
 .ft-today-actions {

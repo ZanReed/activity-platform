@@ -50,6 +50,21 @@ vi.mock('../lib/classActivities', () => ({
         { classId: 'c2', activityId: 'a4', title: 'Other class', addedAt: '', published: true, dueOn: null },
     ],
 }));
+// PP-7: the hook pools and this class's marks.
+const hk = vi.hoisted(() => ({
+    fetch: vi.fn(),
+    marks: vi.fn(),
+    mark: vi.fn(async () => undefined),
+    unmark: vi.fn(async () => undefined),
+}));
+vi.mock('../lib/chainHooks', async (orig) => ({
+    ...(await orig<typeof import('../lib/chainHooks')>()),
+    fetchMyChainHooks: hk.fetch,
+    listHookMarks: hk.marks,
+    markHookUsed: hk.mark,
+    unmarkHook: hk.unmark,
+}));
+vi.mock('../lib/SessionContext', () => ({ useSession: () => ({ session: { user: { id: 't1' } } }) }));
 vi.mock('../lib/factSprint', () => ({ fetchSprintOverview: async () => ({ on: true }) }));
 vi.mock('../lib/mixedTeacher', () => ({
     fetchMixedSummary: async () => ({ on_at: null, items_per_session: null, default_items: null }),
@@ -65,6 +80,10 @@ beforeEach(() => {
         last_day: { on_date: '2026-11-12', activities: [act('a9', 'Decimals', 25)] },
     };
     h.dueA1 = null;
+    hk.fetch.mockReset().mockResolvedValue({ activityChains: {}, chains: {} });
+    hk.marks.mockReset().mockResolvedValue([]);
+    hk.mark.mockClear();
+    hk.unmark.mockClear();
     h.rpc.mockReset();
     h.rpc.mockImplementation(async (name: string, args?: { p_due_on?: string }) => {
         if (name === 'set_class_activity_due') {
@@ -219,6 +238,65 @@ describe('the Plan page: carry on and due dates (PP-2, PP-10)', () => {
         // The row then reads the class's due date, not the button (bound to RENDER).
         expect(await within(card).findByText('Due Mon 16 Nov')).toBeTruthy();
         expect(within(card).queryByRole('button', { name: 'Make Unit rates due this day' })).toBeNull();
+    });
+});
+
+describe('the Plan page: a day’s hook (PP-7)', () => {
+    const POOL = {
+        activityChains: { a1: 'chain.rates' },
+        chains: {
+            'chain.rates': [
+                { id: 'hook.r.1', connects_to: [], prompt: 'Heard already last week', note: '' },
+                { id: 'hook.r.2', connects_to: [], prompt: 'Which deal is better?', note: '' },
+                { id: 'hook.r.3', connects_to: [], prompt: 'Planned for Thursday', note: '' },
+            ],
+        },
+    };
+
+    it('offers the unit’s pool, unused first; a hook already heard is not offered; picking dates it to that day', async () => {
+        hk.fetch.mockResolvedValue(POOL);
+        hk.marks.mockResolvedValue([
+            { hook_id: 'hook.r.1', used_on: '2026-11-05' },
+            { hook_id: 'hook.r.3', used_on: '2026-11-19' },
+        ]);
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Mon 16 Nov' });
+        const select = (await within(card).findByLabelText('Choose a hook for Mon 16 Nov')) as HTMLSelectElement;
+        expect([...select.options].map((o) => o.text)).toEqual([
+            'Hook: choose…',
+            'Which deal is better?',
+            'Heard already last week (used Thu 5 Nov)',
+            'Planned for Thursday (dated Thu 19 Nov: moves it here)',
+        ]);
+        // A heard hook is listed so its absence is explained, but can't be chosen.
+        expect(select.options[2]!.disabled).toBe(true);
+        expect(select.options[3]!.disabled).toBe(false);
+        fireEvent.change(select, { target: { value: 'hook.r.2' } });
+        fireEvent.click(within(card).getByRole('button', { name: 'Use' }));
+        await waitFor(() => expect(hk.mark).toHaveBeenCalledWith('c1', 'hook.r.2', '2026-11-16', 't1'));
+    });
+
+    it('a day with no chained activity offers no hook', async () => {
+        hk.fetch.mockResolvedValue(POOL);
+        renderPage();
+        const tue = await screen.findByRole('listitem', { name: 'Tue 17 Nov' });
+        expect(within(tue).queryByLabelText('Choose a hook for Tue 17 Nov')).toBeNull();
+    });
+
+    it('a dated hook shows by name with "Not used"; a stray one and a second one warn', async () => {
+        hk.fetch.mockResolvedValue(POOL);
+        h.plan.days[0]!.hook_ids = ['hook.r.2'];
+        h.plan.days.push({ on_date: '2026-11-17', activities: [act('a2', 'Graphs', 10)], hook_ids: ['hook.r.3', 'hook.r.2'] });
+        renderPage();
+        const mon = await screen.findByRole('listitem', { name: 'Mon 16 Nov' });
+        expect(await within(mon).findByText('Which deal is better?')).toBeTruthy();
+        fireEvent.click(within(mon).getByRole('button', { name: 'Not used: Which deal is better?' }));
+        await waitFor(() => expect(hk.unmark).toHaveBeenCalledWith('c1', 'hook.r.2'));
+        const tue = screen.getByRole('listitem', { name: 'Tue 17 Nov' });
+        expect(within(tue).getAllByText('No activity from this unit on this day.')).toHaveLength(2);
+        expect(within(tue).getByText(/Two hooks on one day/)).toBeTruthy();
+        // The total counts the hook block once a hook is dated (2–3 min).
+        expect(within(mon).getByText(/About 37–38 min/)).toBeTruthy();
     });
 });
 

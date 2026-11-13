@@ -32,7 +32,8 @@ repo on 2026-11-13 (P10).
   `class.update` / `use_today` / `clear_today`.
 - Live, 2026-11-13: 2 classes, 4 rows, 0 future-dated.
 
-**The teacher's Today panel** ([TodayPanel.tsx](../../packages/app/src/practice/TodayPanel.tsx)), top of `/classes/:classId/facts`:
+**The teacher's Today panel** ([TodayPanel.tsx](../../packages/app/src/practice/TodayPanel.tsx)), top of `/classes/:classId/facts`
+(*as it was before this pass: step 4b-2 replaced the line with the day card*):
 the period as one line from `periodLine()` ("Number facts 5 · Hook · 3.2 Unit
 rates · Practice"), a "Pick today's activity" / "Change" toggle listing the
 class's published activities with "Use today" / "Remove", and a "Hooks for this
@@ -610,3 +611,39 @@ Plan page (2026-11-14, overnight run):** no migration, no deploy.
   list; "not in this class" gets its own message. P2s left: no undo on the page
   (the class panel clears a due date); a date set in another tab isn't seen
   until reload; a weekend today carries onto the weekend.
+
+**Step 4b-2, a day's hook (PP-7) and the Today day card (PP-8, PP-2) (2026-11-14):**
+no migration, no deploy.
+
+- **Plan page:** each day card has a hook line. Hooks dated to the day are shown by
+  their first eight words, with "Not used" (today or later); a warning when two share
+  a day; and "No activity from this unit on this day" when the day's activities don't
+  include the hook's unit (a hook doesn't travel with a moved activity). "Hook:
+  choose…" offers the pool of the day's first chained activity, unused first. A hook
+  dated elsewhere ahead reads "(dated …: moves it here)", and the upsert moves it. A
+  hook the class already heard is listed disabled, "(used …)". The chain page's
+  Change date / Not used is the way out for a plan the class never reached. Writes go
+  through `class_hook_use` (the 0057 client path); the plan and the marks re-read.
+- **Chain page:** marks use the class's day (`classLocalDate`, the browser's while it
+  loads; "Mark used" waits for it). A mark after the class's today reads "Planned 16
+  Nov", and the date field lost its `max=today` cap.
+- **Today panel:** `periodLine` is replaced by the day card (`dayBlocks`): Number facts
+  (when the sprint is on), the hook by its first eight words (linked to its own unit's
+  page), each activity with its time, Practice after each when mixed practice is on,
+  then the total. Detail comes from `class_plan` for today, used only while it holds
+  exactly today's picks, latest-wins. "Carry on today" lists last time's available
+  activities not on today. The day card is NOT reused on the Plan page, which keeps
+  its editing rows plus the total; the summary card is the Today panel's (and step 5's
+  present view's).
+- Browser-checked on the local stack: Unit Rates on Mon 16 Nov → its pool offered
+  → a hook dated 16 Nov (`class_hook_use` row); the chain page read "Planned 16 Nov";
+  carry-on from the Today panel showed the card (Decimals · time not set, Practice
+  about 6–9 min, total). Test data removed.
+- Fable-reviewed, no P0. P1s fixed: the Today card could show stale detail after a
+  pick (now titles until the re-read matches, latest-wins; tested); "the class's
+  day" was untested (two tests). P2s fixed: heard hooks shown disabled; "Mark used"
+  waits for the class's day; the hook block links to the hook's own unit; no "Hook:
+  Hook"; `role="list"`; "dated" not "planned" in the move wording; this doc's stale
+  `periodLine` description.
+- Mutation-tested: offering heard hooks (1 red); the chain page ignoring the class's
+  day (2 red); the card trusting stale detail (1 red).
