@@ -175,7 +175,7 @@ only). The rest of group E is below, each with its trigger.
 
 ## Group E follow-ons (ruled 2026-11-13, "Yes to all")
 
-- **E-7 Due dates — NEXT design pass** (its questions: "Due dates" below).
+- **E-7 Due dates — IN DESIGN:** [due-dates.md](docs/design/due-dates.md) (DD-1…DD-9).
 - **E-2 Hide an activity without deleting it + E-3 archive a class** — one
   migration, after due dates: an RPC setting the unused `archived` status
   (students get the "not available" page, class rows the "No longer
