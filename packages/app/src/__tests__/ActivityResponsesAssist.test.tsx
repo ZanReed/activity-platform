@@ -36,6 +36,7 @@ const h = vi.hoisted(() => ({
   reject: vi.fn(),
 }));
 
+vi.mock('../lib/activityTitle', () => ({ fetchActivityTitle: () => Promise.resolve(null) }));
 vi.mock('../lib/grading', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/grading')>()),
   fetchGradingQueue: h.queue,

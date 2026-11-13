@@ -182,6 +182,19 @@ only while the desktop app is open (a missed Monday runs on next launch). It
 is saved in Auto mode, so the read-only rule lives in its prompt; the
 connector itself could write.
 
+## The unit-test network guard can miss a late request (found 2026-11-13)
+
+3db660ff went red in CI (26 ActivityResponses tests: "this test attempted a
+network call") while local `pnpm verify` was green on the same tree: the
+results header's new title read was unmocked. A direct `vitest run` of the
+file failed locally too, so the guard works when the call lands inside the
+test; under verify's parallel load it most likely landed after the test
+finished and went unattributed. Fixed at the leak (lib/activityTitle.ts,
+stubbed in the two Responses suites). **Trigger:** the next time a leak is
+green locally and red in CI — then make the guard fail the FILE (afterAll)
+for any refused call, not only the test in flight. Not re-proven: why
+verify's run missed it.
+
 ## Per-question analytics (C-6 follow-on, filed 2026-11-13)
 
 Analytics groups by question TYPE because the nightly census counts block

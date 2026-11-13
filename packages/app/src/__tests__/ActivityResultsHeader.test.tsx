@@ -15,6 +15,7 @@ const h = vi.hoisted(() => {
     return { from };
 });
 vi.mock('../lib/supabase', () => ({ supabase: { from: h.from } }));
+// (the header reads through lib/activityTitle, which uses this client)
 
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 

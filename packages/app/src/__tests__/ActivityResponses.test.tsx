@@ -39,6 +39,7 @@ const h = vi.hoisted(() => ({
 
 // The section and question words come from each version's document, read
 // through the page-session cache. Empty by default: no document, no heading.
+vi.mock('../lib/activityTitle', () => ({ fetchActivityTitle: () => Promise.resolve(null) }));
 vi.mock('../lib/versionContent', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/versionContent')>()),
   getVersionContents: h.versionContents,

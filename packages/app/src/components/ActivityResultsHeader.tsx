@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { supabase } from '../lib/supabase';
+import { fetchActivityTitle } from '../lib/activityTitle';
 
 export type ResultsTab = 'progress' | 'responses' | 'analytics';
 
@@ -42,13 +42,10 @@ export default function ActivityResultsHeader({
         setFetched(null); // never show the previous activity's title
         if (!own || !activityId) return;
         let live = true;
-        void Promise.resolve()
-            .then(() => supabase.from('activities').select('title').eq('id', activityId).maybeSingle())
-            .then(({ data }) => {
-                if (live && data && typeof data.title === 'string') setFetched(data.title);
-            })
-            // A missing title only costs the line; the page itself still works.
-            .catch(() => undefined);
+        // A missing title only costs the line; the page itself still works.
+        void fetchActivityTitle(activityId).then((t) => {
+            if (live && t) setFetched(t);
+        });
         return () => {
             live = false;
         };

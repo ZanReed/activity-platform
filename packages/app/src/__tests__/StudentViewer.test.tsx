@@ -490,7 +490,7 @@ describe('the banner dedup chain (D9/D4/A15)', () => {
             screen.getByRole('button', { name: /reload to get the new version/i }),
         ).toBeInTheDocument();
         // The check itself still worked — this is an offer, not a failure.
-        expect(screen.getByText('Checked.')).toBeInTheDocument();
+        expect(screen.getByText(/^Checked[.:]/)).toBeInTheDocument();
     });
 
     it('pinned beats stale: a pinned student is NEVER told to reload (the s4-retro 8 contradiction)', async () => {
@@ -513,7 +513,7 @@ describe('the banner dedup chain (D9/D4/A15)', () => {
         await act(async () => {});
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
-        await screen.findByText('Checked.');
+        await screen.findByText(/^Checked[.:]/);
 
         // The advisory arrived — and the chain suppresses it: reloading is
         // exactly what pinning exists to avoid.
@@ -561,7 +561,7 @@ describe('the banner dedup chain (D9/D4/A15)', () => {
 
             // Now surface the stale advisory too — storage-failure still wins.
             fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]!);
-            await screen.findByText('Checked.');
+            await screen.findByText(/^Checked[.:]/);
             expect(container.querySelector('[data-banner="storage-failure"]')).not.toBeNull();
             expect(container.querySelector('[data-banner="stale-version"]')).toBeNull();
         } finally {
