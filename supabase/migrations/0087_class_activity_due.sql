@@ -13,7 +13,8 @@
 --
 -- DD-8: NO PERSONAL DATA. The date is about a class's activity; who set it is
 -- in audit_log (the share rail). The data map gains no table and no
--- student-derived column, so docs/compliance is unchanged.
+-- student-derived column (docs/compliance/data-map.md draft-53 records
+-- that); retention-policy is unchanged.
 --
 -- The teacher reads due_on straight from class_activities (its SELECT policy
 -- and grant already cover the new column). Students read it through

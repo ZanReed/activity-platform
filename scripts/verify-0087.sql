@@ -17,7 +17,8 @@ select 'definer_and_grants',
        'set_class_activity_due, list_class_activities, class_local_date: DEFINER, signed-in only'
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
-where p.proname in ('set_class_activity_due', 'list_class_activities', 'class_local_date');
+where p.proname in ('set_class_activity_due', 'list_class_activities', 'class_local_date')
+having count(*) = 3;
 select 'search_path_pinned',
        bool_and(exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%')),
        'every DEFINER function pins its search_path'
@@ -94,6 +95,14 @@ begin
   begin perform set_class_activity_due(v_k, v_a, null); exception when others then v_got := sqlerrm; end;
   if v_got is distinct from 'Not your class' then raise exception 'FAIL B6: student gave %', v_got; end if;
 
+  -- The class's zone IS the teacher's (not the app default, which can share
+  -- Auckland's date for hours a day and would let a zone bug pass).
+  if fact_class_zone(v_k) <> 'Pacific/Auckland' then raise exception 'FAIL B7a: class zone is %', fact_class_zone(v_k); end if;
+  if not exists (select 1 from audit_log where target_id = v_k and metadata->>'op' = 'set_due'
+                   and metadata->>'due_on' = '2026-11-20' and metadata->'was' = 'null'::jsonb) then
+    raise exception 'FAIL B3a: audit row lacks the new date and the old one';
+  end if;
+
   -- The student reads it, with the class's today (Auckland), on their list.
   select count(*) into v_n from list_class_activities()
    where activity_id = v_a and due_on = date '2026-11-20'
@@ -114,12 +123,20 @@ begin
   if (select due_on from class_activities where class_id = v_k and activity_id = v_a) is not null then
     raise exception 'FAIL B10: not cleared';
   end if;
+  select count(*) into v_n from audit_log where target_id = v_k and metadata->>'op' = 'set_due';
+  if v_n <> 2 then raise exception 'FAIL B10a: clearing wrote % audit rows in all, expected 2', v_n; end if;
   perform unshare_activity_from_class(v_k, v_a);
   perform share_activity_to_class(v_k, v_a);
   if (select due_on from class_activities where class_id = v_k and activity_id = v_a) is not null then
     raise exception 'FAIL B11: a re-added activity kept an old date';
   end if;
 
-  raise exception 'EXPECTED ROLLBACK >>> B-set-and-read: 11/11';
+  -- A deleted class refuses a date.
+  update classes set deleted_at = now() where id = v_k;
+  v_got := null;
+  begin perform set_class_activity_due(v_k, v_a, date '2026-11-21'); exception when others then v_got := sqlerrm; end;
+  if v_got is distinct from 'Not your class' then raise exception 'FAIL B12: deleted class gave %', v_got; end if;
+
+  raise exception 'EXPECTED ROLLBACK >>> B-set-and-read: 12/12';
 end
 $vfy$;
