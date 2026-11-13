@@ -148,15 +148,15 @@ already in this file. Ranked inside each group; the author picks the order.
     "```figure fence" wording, raw misconception ids.
 
 **E. Features teachers and students would expect (none started unless noted)**
-- Export progress/grades to CSV.
+- ✅ BUILT (E-1): Export progress to CSV (grades from the grading panel not included).
 - One "to grade" inbox across activities (chips exist per class cell).
-- Hide/unpublish without deleting; rename/archive a class at year end;
-  duplicate my own activity. (Recently deleted: built, G-5/G-6.)
-- Already-copied marker in the Bank (re-adding makes duplicates).
+- Hide/unpublish without deleting (E-2); ✅ rename a class (E-1); archive a
+  class at year end (E-3); ✅ duplicate my own activity (E-1). (Recently deleted: built, G-5/G-6.)
+- ✅ BUILT (E-1): Already-copied marker in the Bank (re-adding makes duplicates).
 - Student: past attempts / score per activity; completion panel linking to
   the next activity or the unit tracker; unchecked work following the
   student across devices.
-- Paste or drop a screenshot into the editor (suspected: no paste/drop
+- ✅ BUILT (E-1): Paste or drop a screenshot into the editor (suspected: no paste/drop
   handler; images only via the file picker).
 - Due dates / scheduling — the author wants due dates (2026-11-13, "still a
   good feature to have"); see "Due dates" below.
@@ -169,8 +169,41 @@ BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters
 → "As built"; items 13–18, 20, 21; app + viewer only, no migration or
 deploy). C-6's job-health reader is a local weekly task (below). **Group D: BUILT 2026-11-13**
 ([ui-review-group-d.md](docs/design/ui-review-group-d.md) → "As built"; items
-22–26; app + viewer only, no migration or deploy). **Group E in design:**
-[ui-review-group-e.md](docs/design/ui-review-group-e.md) (E-1…E-9).
+22–26; app + viewer only, no migration or deploy). **Group E: E-1 + E-8 BUILT 2026-11-13**
+([ui-review-group-e.md](docs/design/ui-review-group-e.md) → "As built"; app
+only). The rest of group E is below, each with its trigger.
+
+## Group E follow-ons (ruled 2026-11-13, "Yes to all")
+
+- **E-7 Due dates — NEXT design pass** (its questions: "Due dates" below).
+- **E-2 Hide an activity without deleting it + E-3 archive a class** — one
+  migration, after due dates: an RPC setting the unused `archived` status
+  (students get the "not available" page, class rows the "No longer
+  published" dead row, "Publish again" restores the last version) and
+  `classes.archived_at` (leaves the main list for an "Archived classes" view,
+  join code stops, students stop seeing it; work stays). **Trigger:** due
+  dates' design pass is done.
+- **E-4 One grading inbox across activities** — a cross-activity RPC.
+  **Trigger:** a teacher has written answers waiting in more than one
+  activity at once.
+- **E-5 Student past attempts / score / "what next"** — its own design pass
+  (whether students see scores is a pedagogy call). **Trigger:** after due
+  dates, since "what next" and "what's due" share the Home row.
+- **E-6 Unchecked work across devices** — new server-side student data
+  (table, retention, compliance pack, counsel). **Trigger:** students using
+  more than one device for the same activity.
+- **Make a copy of a Bank copy** (found by the E-1 review). Hidden for now:
+  a client insert can't carry `copied_from_*` (the provenance guard), so the
+  copy would lose its DoL pass / targeted practice / unit tracker / glossary
+  links to the original and could be listed as the teacher's own (BK-12).
+  Needs a DEFINER `copy_own_activity` RPC that carries provenance.
+  **Trigger:** a teacher asks to duplicate an activity they got from the
+  Bank.
+- **A catalogue activity's copy has no skills** (E-1 ruled it a plain
+  editable activity): its DoL checks as an ordinary section, so no DoL pass,
+  no practice, not on the unit tracker — with no hint in the UI. **Trigger:**
+  a teacher assigns a copy instead of the original and asks why its DoL
+  isn't tracked.
 
 ## Column cell height still reads in rem (found building D-7, 2026-11-13)
 

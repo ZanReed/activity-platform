@@ -1,6 +1,7 @@
 # UI review group E — features teachers and students would expect (design pass, 2026-11-13)
 
-Status: **PROPOSED, awaiting the author's rulings (E-1 … E-9).** Source:
+Status: **RULED 2026-11-13 (author: "Yes to all"); E-1 + E-8 BUILT the same day** —
+see "As built" at the end; E-2…E-7 have triggers in TODOS. Originally proposed with Source:
 TODOS.md → "UI review 2026-11-13", group E. Each fact below was re-read in the
 code on 2026-11-13.
 
@@ -104,3 +105,37 @@ comma and a quote in it); a Fable review per step.
 - **Step 2:** paste/drop image, CSV export (+ E-8 if yes).
 - No migration, no schema change, no deploy. Teacher-side only; the student
   shell is untouched.
+
+## As built (2026-11-13)
+
+Commits on `main`: 03270c31 + 455317af (step 1), 826a9489 (step 2, E-8, step
+1 review fixes), plus the close-out commit. A Fable review per step; each
+change mutation-tested. No migration, schema change or deploy. Rulings on the
+two questions: a catalogue activity's copy is a normal editable activity, and
+the CSV carries names only (no emails). Differences from the plan:
+
+- **Make a copy is not offered on a Bank copy** (step 1 review). A client
+  insert can't carry `copied_from_*` (the provenance guard), so a copy of a
+  copy would lose its DoL pass, targeted practice, unit-tracker and glossary
+  links to the original, and could be listed in the Bank as the teacher's own
+  work. A provenance-carrying copy needs a DEFINER RPC: filed with a trigger.
+  A catalogue activity's copy has no skills (`primary_skill` isn't copied),
+  so its DoL checks as an ordinary section — filed too.
+- **The CSV follows the grid, not sections.** The class grid holds one cell
+  per student per activity, so the file has two columns per activity:
+  sections checked ("3 of 5") and % right of the computer-marked questions.
+  Names are included even with "hide names" on (that switch is for a
+  projector). Every field quoted; a name a spreadsheet would run as a formula
+  gets a leading apostrophe; BOM + CRLF for Excel.
+- **Paste / drop:** only image FILES are taken over; text and HTML pastes
+  (even HTML holding an `<img>`) go to ProseMirror as before. Uploads go
+  through `uploadImage` (same types, size limit and words as the picker); a
+  status toast says "Uploading image…" or why it failed. A multi-image drop
+  keeps every image — `insertImage` node-selects what it inserts, so without a
+  step past it the next insert replaced it (caught by its test). In the
+  playground (no activity) it says images can be added once the activity is
+  saved.
+- **Bank:** "In your library" links to the newest copy; "Add another?" is an
+  inline ask; the Bank journey cap went 7.25 → 7.5 KiB (reason in the file).
+- **E-8:** "Check each section, then lock" / "Check each section, re-check
+  freely" — labels only.
