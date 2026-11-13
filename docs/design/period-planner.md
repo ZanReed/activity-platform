@@ -452,7 +452,9 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
   0089.** The importer reads `duration_min` for the over-cap warning and keeps
   it OUT of the mirror (nothing in the app reads the cap; YAGNI), so the
   database's exact key count never sees it. #92 is clear once the importer is
-  pushed (B-249). Next C-190.
+  pushed. **B-249 sent 2026-11-14:** told them so, named the built commit (ae85b0c3,
+  unpushed), and asked them to keep #92 open until B-250 confirms the push and
+  carries the new prompt stamp. Next C-190.
 
 ## As built
 
