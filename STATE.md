@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**UI review group A (2026-11-13): APPLY 0086 LIVE, run `node scripts/verify-runner.mjs --target live --only verify-0086`, THEN push** (OV-7: the Recently deleted lists and class Undo call 0086's RPCs). G-1…G-8 built and committed on `main`; no Edge Function deploy needed. [ui-review-group-a.md](docs/design/ui-review-group-a.md).
+**UI review group A + filter bar LIVE (2026-11-13):** 0086 applied, verify-0086 5/5 live, pushed (216d95e1), CI green. Group B in design: [ui-review-group-b.md](docs/design/ui-review-group-b.md) (B-1…B-7), awaiting rulings.
 
 **Playtest browser sweep (2026-11-12): nothing owed.** Three fixes and "Republish changed" pushed; the glossary re-imported live and all 21 republished (`report:stale` 0). Open low findings: [TODOS](TODOS.md) → "Playtest browser sweep".
 

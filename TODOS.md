@@ -164,7 +164,8 @@ already in this file. Ranked inside each group; the author picks the order.
 **Group A: BUILT 2026-11-13** ([ui-review-group-a.md](docs/design/ui-review-group-a.md)
 → "As built"; 0086 must be applied live before the push). **The filter bar:
 BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters.md)).
-Groups B–E are open; the author picks the next.
+Group B is in design ([ui-review-group-b.md](docs/design/ui-review-group-b.md));
+C–E open.
 
 ## Due dates (author, 2026-11-13)
 
