@@ -125,11 +125,15 @@ describe('which pastes are taken over', () => {
     it('a screenshot (a file, no text) and a browser "Copy image" (a lone <img>)', () => {
         expect(pastedImageFiles(dt([file('s.png')], {}))).toHaveLength(1);
         expect(pastedImageFiles(dt([file('s.png')], { 'text/html': '<meta charset="utf-8"><img src="https://x/y.png">' }))).toHaveLength(1);
+        // A file copied in Finder (its name as plain text), Safari "Copy Image"
+        // (its URL as plain text): no HTML, so the image is meant.
+        expect(pastedImageFiles(dt([file('s.png')], { 'text/plain': 's.png' }))).toHaveLength(1);
+        expect(pastedImageFiles(dt([file('s.png')], { 'text/plain': 'https://x/y.png' }))).toHaveLength(1);
     });
 
     it('NOT an Office paste: text or HTML with a picture of it alongside', () => {
         expect(pastedImageFiles(dt([file('table.png')], { 'text/html': '<table><tr><td>12</td></tr></table>', 'text/plain': '12' }))).toEqual([]);
-        expect(pastedImageFiles(dt([file('p.png')], { 'text/plain': 'Some words' }))).toEqual([]);
+        expect(pastedImageFiles(dt([file('p.png')], { 'text/html': '<p>Some words</p>', 'text/plain': 'Some words' }))).toEqual([]);
     });
 
     it('helpers', () => {

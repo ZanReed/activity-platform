@@ -130,7 +130,12 @@ the CSV carries names only (no emails). Differences from the plan:
   copied text beside it). Now the image goes at a computed position between a
   column's blocks (`imageInsertPos`: after the block the caret or drop point
   is in), never replacing anything; and a paste is taken over only when it is
-  just an image (files and no text, or a lone `<img>`). Tests reproduce each
+  an image: image files with no HTML (a screenshot; a Finder file or Safari
+  "Copy Image", whose name or URL rides along as plain text), or HTML that is
+  a lone `<img>`. A second review ran every drop point and caret of a varied
+  document through it: nothing replaced, split or duplicated, `doc.check()`
+  clean. Known limit: the place is chosen when the paste happens, so edits
+  made during a slow upload can move it by a block. Tests reproduce each
   case. The image-URL popover no longer opens on an already-filled image.
 - **The CSV follows the grid, not sections.** The class grid holds one cell
   per student per activity, so the file has two columns per activity:

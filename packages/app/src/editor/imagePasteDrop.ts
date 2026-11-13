@@ -17,8 +17,9 @@
 // So the image always goes BETWEEN blocks of a column: after the block the
 // caret (or the drop point) is in, or at the column position itself.
 //
-// WHEN it takes over (paste): only when the clipboard is just an image — files
-// and no text, or HTML that is a lone <img> (a browser's "Copy image").
+// WHEN it takes over (paste): when the clipboard is an image — image files
+// with no HTML (a screenshot; a file copied in Finder, whose name rides along
+// as plain text), or HTML that is a lone <img> (a browser's "Copy image").
 // Office puts a PNG picture of a copied table or paragraph next to its text;
 // that paste stays text, as before. A drop with image files is always taken.
 // =============================================================================
@@ -46,9 +47,11 @@ export function pastedImageFiles(data: DataTransfer | null | undefined): File[] 
     const files = imageFilesIn(data);
     if (files.length === 0 || !data) return [];
     const html = data.getData('text/html');
-    const text = data.getData('text/plain');
-    if (html) return isLoneImageHtml(html) ? files : [];
-    return text.trim() === '' ? files : [];
+    // With HTML, it must be a lone <img>: Office's copies always carry HTML,
+    // with a PNG of the text beside it — those stay text. With NO HTML, plain
+    // text beside an image file is its name or URL (a file copied in Finder,
+    // Safari's "Copy Image"), so the image is what was meant (re-review).
+    return html ? (isLoneImageHtml(html) ? files : []) : files;
 }
 
 /**
