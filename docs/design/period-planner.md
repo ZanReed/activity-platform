@@ -454,7 +454,10 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
   database's exact key count never sees it. #92 is clear once the importer is
   pushed. **B-249 sent 2026-11-14:** told them so, named the built commit (ae85b0c3,
   unpushed), and asked them to keep #92 open until B-250 confirms the push and
-  carries the new prompt stamp. Next C-190.
+  carries the new prompt stamp.
+- **B-250 sent 2026-11-14, after the author pushed `main` to e82c8246:** #92 cleared to
+  merge; prompt stamp `ae85b0c3`, sha256 `d647ec2e…3eb0` (re-derived from the raw URL
+  and `git show origin/main`, byte-identical). Notion stamp row refreshed. Next C-191.
 
 ## As built
 
