@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { STARTING_ANSWER_COPY, isStartingAnswer } from '../startingAnswers';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import PromptField from '../components/PromptField';
 import {
@@ -1161,6 +1162,12 @@ export default function InteractiveGraphView({
                     </div>
                 ) : (
                     <>
+                        {/* B-4: still the answer it was inserted with. */}
+                        {!preview && isStartingAnswer('interactiveGraph', interaction) && (
+                            <p role="status" data-starting-answer style={{ margin: '0 0 0.35rem', fontSize: '0.75rem', color: 'var(--ed-warning-text-strong)', background: 'var(--ed-warning-bg)', border: '1px solid var(--ed-warning-border)', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
+                                {STARTING_ANSWER_COPY.badge}
+                            </p>
+                        )}
                         {!preview && columnsCount >= 3 && (
                             <p role="status" style={{ margin: '0 0 0.35rem', fontSize: '0.75rem', color: 'var(--ed-warning-text-strong)', background: 'var(--ed-warning-bg)', border: '1px solid var(--ed-warning-border)', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
                                 This graph sits in a {columnsCount}-column layout — it may be cramped

@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test';
-import { createEmptyDocument } from '@activity/schema';
+import { createEmptyDocument, createInteractiveGraphBlock, createMultipleChoiceBlock, createRow } from '@activity/schema';
 import { ACTIVITY_PROGRESS_RPC, PUBLISH_ACTIVITY_RPC } from '../../src/lib/edgeFunctions';
 import {
   signInAs,
@@ -180,6 +180,52 @@ test.describe('publish (RPC-direct)', () => {
     await confirm.getByRole('button', { name: 'Republish', exact: true }).click();
     await expect(page.getByText('Published v2')).toBeVisible();
     expect(api.rpcCalls).toBe(2);
+  });
+
+  // B-3: a graph still on its starting answer is a CHECK, not a refusal —
+  // listed before publishing, and "Publish anyway" goes through.
+  test('a graph on its starting answer asks first; Publish anyway publishes', async ({ page }) => {
+    await signInAs(page, { userId: TEACHER_ID });
+    await stubIdentityApi(page, { role: 'teacher' });
+    const doc = createEmptyDocument({ title: 'Publish flow fixture' });
+    const row = createRow();
+    row.columns[0]!.blocks = [createInteractiveGraphBlock()];
+    doc.sections[0]!.rows = [row];
+    const api = await stubPublishApi(page, { draft: doc });
+
+    await page.goto(`/activity/${E2E_ACTIVITY_ID}`);
+    await expect(page.locator('[data-starting-answer]')).toHaveText('Starting answer — set the real one');
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    const check = page.locator('[data-starting-check]');
+    await expect(check).toContainText('Check before publishing:');
+    await expect(check).toContainText('Q1 graph · the answer is still the one it started with');
+    expect(api.rpcCalls).toBe(0);
+    await check.getByRole('button', { name: 'Publish anyway' }).click();
+    await expect(page.getByText('Published v1')).toBeVisible();
+    expect(api.rpcCalls).toBe(1);
+  });
+
+  // B-1/B-2: a question no student can get right is refused, listed by
+  // number, and Show me selects it.
+  test('a multiple choice with no correct choice is refused and listed with Show me', async ({ page }) => {
+    await signInAs(page, { userId: TEACHER_ID });
+    await stubIdentityApi(page, { role: 'teacher' });
+    const doc = createEmptyDocument({ title: 'Publish flow fixture' });
+    const mc = createMultipleChoiceBlock();
+    mc.choices = mc.choices.map((c) => ({ ...c, correct: false }));
+    const row = createRow();
+    row.columns[0]!.blocks = [mc];
+    doc.sections[0]!.rows = [row];
+    const api = await stubPublishApi(page, { draft: doc });
+
+    await page.goto(`/activity/${E2E_ACTIVITY_ID}`);
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    const blocked = page.locator('[data-publish-blocked]');
+    await expect(blocked).toContainText('Not published. Fix these first:');
+    await expect(blocked).toContainText('Q1 · no choice is marked correct');
+    expect(api.rpcCalls).toBe(0);
+    await blocked.getByRole('button', { name: 'Show me' }).click();
+    await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1);
   });
 
   test('a PRIOR publish renders the status line in a fresh session (no env, no publish this session)', async ({

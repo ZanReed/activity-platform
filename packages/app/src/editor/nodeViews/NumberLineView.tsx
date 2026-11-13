@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { STARTING_ANSWER_COPY, isStartingAnswer } from '../startingAnswers';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import {
     mountNumberLineAuthor,
@@ -297,6 +298,12 @@ export default function NumberLineView({
                     sizing={sizing}
                 />
 
+                {/* B-4: still the answer it was inserted with. */}
+                {!preview && isStartingAnswer('numberLine', interaction) && (
+                    <p role="status" data-starting-answer style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--ed-warning-text-strong)', background: 'var(--ed-warning-bg)', border: '1px solid var(--ed-warning-border)', borderRadius: 4, padding: '0.25rem 0.5rem' }}>
+                        {STARTING_ANSWER_COPY.badge}
+                    </p>
+                )}
                 {!preview && (
                     <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--ed-text-muted)' }}>
                         {interaction.type === 'plot_point'

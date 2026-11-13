@@ -56,6 +56,7 @@ import { rowWritesSettled } from '../lib/pendingRowWrites';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
 import { findPublishProblems, problemText } from '../lib/prePublishCheck';
 import { locateProblem, problemLabel, selectProblem } from '../editor/locateProblem';
+import { STARTING_ANSWER_COPY, findStartingAnswers, type StartingAnswer } from '../editor/startingAnswers';
 import { REPUBLISH_COPY, hasLockedOrDol, isNoChanges, startedStudentCount } from '../lib/republishImpact';
 
 /** B-2: the publish refusal's list. */
@@ -795,7 +796,20 @@ export default function ActivityEditor() {
         // sections start unchecked on the new version).
         const [republishConfirm, setRepublishConfirm] = useState<{ started: number | null; locked: boolean } | null>(null);
         const [checkingStarted, setCheckingStarted] = useState(false);
-        const onPublishClick = async () => {
+        // B-3: graphs still on their starting answer, listed before publishing
+        // with "Publish anyway" — a check, not a refusal.
+        const [startCheck, setStartCheck] = useState<StartingAnswer[] | null>(null);
+        // An edit makes the list stale (positions move); the next Publish rebuilds it.
+        useEffect(() => setStartCheck(null), [changeKey]);
+        const onPublishClick = async (opts: { startsChecked?: boolean } = {}) => {
+            if (!opts.startsChecked && editorInstance) {
+                const starts = findStartingAnswers(editorInstance);
+                if (starts.length > 0) {
+                    setStartCheck(starts);
+                    return;
+                }
+            }
+            setStartCheck(null);
             const live = isPublished || publishState.kind === 'success';
             if (!live || !id) return publish();
             setCheckingStarted(true);
@@ -1118,6 +1132,40 @@ export default function ActivityEditor() {
                 <span className="text-xs text-danger">
                 Publish failed: {publishState.message}
                 </span>
+                </div>
+            )}
+            {startCheck && (
+                <div className="mt-2 flex justify-end" role="alert" data-starting-check>
+                <div className="max-w-md rounded-md border border-line bg-canvas p-2 text-xs text-strong">
+                <p className="font-medium">{STARTING_ANSWER_COPY.heading}</p>
+                <ul className="mt-1 space-y-0.5">
+                {startCheck.slice(0, PROBLEMS_SHOWN).map((s) => (
+                    <li key={s.pos}>
+                    {s.label} · {STARTING_ANSWER_COPY.item} —{' '}
+                    <button
+                    type="button"
+                    className="font-medium underline underline-offset-2"
+                    onClick={() => {
+                        setStartCheck(null);
+                        editorInstance?.chain().focus().setNodeSelection(s.pos).scrollIntoView().run();
+                    }}
+                    >
+                    {STARTING_ANSWER_COPY.goTo}
+                    </button>
+                    </li>
+                ))}
+                </ul>
+                {startCheck.length > PROBLEMS_SHOWN && (
+                    <p className="mt-0.5">{PUBLISH_BLOCKED_COPY.more(startCheck.length - PROBLEMS_SHOWN)}</p>
+                )}
+                <button
+                type="button"
+                onClick={() => void onPublishClick({ startsChecked: true })}
+                className="mt-2 min-h-9 rounded-md border border-line-strong bg-canvas px-3 text-xs font-medium text-strong hover:bg-surface"
+                >
+                {STARTING_ANSWER_COPY.publishAnyway}
+                </button>
+                </div>
                 </div>
             )}
             {publishState.kind === 'blocked' && (
