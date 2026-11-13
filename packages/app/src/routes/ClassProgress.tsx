@@ -15,6 +15,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { classProgressCsv, classProgressFileName } from '../lib/progressCsv';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import {
     cellStatus,
@@ -207,6 +208,20 @@ function Body({
                 onLeastDone={setLeastDone}
                 loaded={loaded}
             />
+            {/* E-1 (ui-review-group-e.md): the grid as a spreadsheet, built
+                from what this page loaded. Names are included even while
+                "hide names" is on: that switch is for a projector, and a
+                download goes to the teacher's own machine. */}
+            <p className="mb-3">
+                <button
+                    type="button"
+                    data-progress-csv
+                    onClick={() => downloadText(classProgressFileName(grid.class.name), classProgressCsv(grid))}
+                    className="text-sm font-medium text-strong underline underline-offset-2"
+                >
+                    Download CSV
+                </button>
+            </p>
             {grid.cells.length === 0 && (
                 <p className="mb-3 text-sm text-muted">No one has checked any work yet.</p>
             )}
@@ -358,4 +373,16 @@ function CellFace({ status }: { status: CellStatus }) {
             {older}
         </>
     );
+}
+
+/** Hand the teacher a file (E-1). A Blob URL, revoked once the click is done. */
+function downloadText(fileName: string, text: string): void {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
 }

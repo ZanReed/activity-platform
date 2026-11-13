@@ -551,6 +551,7 @@ export default function Bank() {
                                                             <button
                                                                 type="button"
                                                                 autoFocus
+                                                                disabled={addingId !== null}
                                                                 onClick={() => {
                                                                     setConfirmAgainId(null);
                                                                     void handleAdd(e);
@@ -561,7 +562,15 @@ export default function Bank() {
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setConfirmAgainId(null)}
+                                                                onClick={() => {
+                                                                    setConfirmAgainId(null);
+                                                                    // Focus back to the Add button that asked.
+                                                                    requestAnimationFrame(() =>
+                                                                        document
+                                                                            .querySelector<HTMLButtonElement>(`[data-bank-add="${e.id}"]`)
+                                                                            ?.focus(),
+                                                                    );
+                                                                }}
                                                                 className="font-medium text-muted underline underline-offset-2"
                                                             >
                                                                 Cancel
@@ -570,6 +579,7 @@ export default function Bank() {
                                                     ) : (
                                                     <button
                                                         type="button"
+                                                        data-bank-add={e.id}
                                                         onClick={() => {
                                                             if (myCopies.has(e.id)) setConfirmAgainId(e.id);
                                                             else void handleAdd(e);

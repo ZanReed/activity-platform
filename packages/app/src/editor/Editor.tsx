@@ -38,6 +38,8 @@ import BlockCommandBarHost from './components/BlockCommandBarHost';
 import BlockQuickBarHost from './components/BlockQuickBarHost';
 import GridRowMenuHost from './components/GridRowMenuHost';
 import { FieldFocusContext } from './components/fieldFocus';
+import { imageFilesIn, placeImages } from './imagePasteDrop';
+import { uploadImage } from '../lib/uploadImage';
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -120,7 +122,47 @@ export default function Editor({
     // mark on an empty cursor), so toolbar active states would lag behind
     // editor state without this nudge.
     const [, forceTick] = useState(0);
+    // E-1 (ui-review-group-e.md): paste or drop an image. The handlers live in
+    // editorProps (fixed at mount), so they read the activity through a ref.
+    const activityIdRef = useRef(activityId);
+    activityIdRef.current = activityId;
+    const editorRef = useRef<TiptapEditor | null>(null);
+    const [imageStatus, setImageStatus] = useState<
+        { kind: 'uploading' } | { kind: 'error'; message: string } | null
+    >(null);
+    const takeImages = (view: import('@tiptap/pm/view').EditorView, files: File[], at: number | null): boolean => {
+        if (files.length === 0) return false;
+        const id = activityIdRef.current;
+        if (!id) {
+            setImageStatus({ kind: 'error', message: 'Images can be added once the activity is saved.' });
+            return true;
+        }
+        void placeImages(view, files, at, {
+            upload: (file) => uploadImage(id, file),
+            insert: (src) => {
+                editorRef.current?.chain().focus().insertImage({ src }).run();
+            },
+            status: setImageStatus,
+        });
+        return true;
+    };
     const editor = useEditor({
+        editorProps: {
+            handlePaste: (view, event) => {
+                const files = imageFilesIn(event.clipboardData);
+                if (files.length === 0) return false;
+                event.preventDefault();
+                return takeImages(view, files, null);
+            },
+            handleDrop: (view, event, _slice, moved) => {
+                if (moved) return false;
+                const files = imageFilesIn(event.dataTransfer);
+                if (files.length === 0) return false;
+                event.preventDefault();
+                const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
+                return takeImages(view, files, at);
+            },
+        },
         // The extension list lives in editorExtensions.ts so tests can build
         // the real ProseMirror schema (blockTypeGuards.test.ts).
         extensions: buildEditorExtensions({ gridLinesDefault }),
@@ -135,6 +177,8 @@ export default function Editor({
             forceTick((t) => t + 1);
         },
     });
+
+    editorRef.current = editor;
 
     // Canvas wrapper — the insert-line overlay is positioned against it, so it
     // needs a ref and `position: relative`.
@@ -496,6 +540,21 @@ export default function Editor({
                   discoverability gap dogfooding surfaced (select was grip/Esc
                   only). Fed the hovered block from the gutter DragHandle.
                 */}
+                {/* E-1: a pasted/dropped image's upload, and why one failed. */}
+                {imageStatus && (
+                    <div className="block-deleted-toast" role={imageStatus.kind === 'error' ? 'alert' : 'status'} data-image-upload-status>
+                        <span>
+                            {imageStatus.kind === 'uploading'
+                                ? 'Uploading image…'
+                                : `Couldn’t add the image: ${imageStatus.message}`}
+                        </span>
+                        {imageStatus.kind === 'error' && (
+                            <button type="button" className="block-deleted-toast__undo" onClick={() => setImageStatus(null)}>
+                                Dismiss
+                            </button>
+                        )}
+                    </div>
+                )}
                 <BlockQuickBarHost
                     editor={editor}
                     canvasRef={canvasRef}

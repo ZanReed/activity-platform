@@ -187,3 +187,23 @@ test('on a phone the answers are a full page', async ({ page }) => {
   await page.screenshot({ path: 'test-results/class-progress-phone-grid.png', fullPage: true });
   expect(overflow).toEqual({ by: 0, wide: [] });
 });
+
+// E-1 (docs/design/ui-review-group-e.md): the grid as a CSV, from the loaded data.
+test('Download CSV hands over the grid: one row per student, names included', async ({ page }) => {
+  await stubIdentityApi(page, { role: 'teacher' });
+  await signInAs(page);
+  await stubClassProgressApi(page);
+  await page.goto(`/classes/${CP_CLASS_ID}/progress`);
+  await expect(page.getByRole('heading', { name: 'Class progress' })).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download CSV' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/ progress \d{4}-\d{2}-\d{2}\.csv$/);
+  const path = await download.path();
+  const text = (await import('node:fs')).readFileSync(path!, 'utf8');
+  const lines = text.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
+  expect(lines[0]).toContain('"Fractions 2 — sections checked"');
+  expect(lines.some((l) => l.startsWith('"Ana Lee"'))).toBe(true);
+  expect(lines.some((l) => l.startsWith('"Ben Carter"'))).toBe(true);
+});

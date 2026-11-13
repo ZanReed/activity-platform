@@ -103,3 +103,27 @@ test('D-5: Move up is greyed out on a column’s first block', async ({ page }) 
     });
     await expect(page.locator('.block-command-bar').getByRole('button', { name: 'Move up' })).toBeDisabled();
 });
+
+// E-1 (docs/design/ui-review-group-e.md): a pasted image FILE is taken over by
+// the editor's upload path; pasted text is left to ProseMirror as before. The
+// playground has no activity, so the upload refuses with its own words — which
+// proves the paste reached the handler without a storage stub.
+test('E-1: pasting an image file goes to the upload path; pasting text does not', async ({ page }) => {
+    await openPlayground(page, true);
+    await page.locator('.ProseMirror').click();
+    const paste = (kind: 'image' | 'text') =>
+        page.evaluate((k) => {
+            const dt = new DataTransfer();
+            if (k === 'image') dt.items.add(new File(['x'], 'shot.png', { type: 'image/png' }));
+            else dt.setData('text/plain', 'hello there');
+            const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+            document.querySelector('.ProseMirror')!.dispatchEvent(ev);
+        }, kind);
+    await paste('text');
+    await expect(page.locator('.ProseMirror')).toContainText('hello there');
+    await expect(page.locator('[data-image-upload-status]')).toHaveCount(0);
+    await paste('image');
+    await expect(page.locator('[data-image-upload-status]')).toContainText('Images can be added once the activity is saved.');
+    await page.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.locator('[data-image-upload-status]')).toHaveCount(0);
+});

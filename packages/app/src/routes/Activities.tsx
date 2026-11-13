@@ -957,6 +957,12 @@ export default function Activities() {
                         >
                         <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
                         </Link>
+                        {/* Not on a Bank copy (Fable review of E-1): a client insert
+                            can't carry `copied_from_*` (the provenance guard), so a
+                            copy of a copy would lose its DoL, practice and glossary
+                            links to the original, and could be listed as the
+                            teacher's own work (BK-12). Filed in TODOS. */}
+                        {!a.copied_from_activity_id && (
                         <button
                         type="button"
                         onClick={() => void handleCopy(a)}
@@ -967,6 +973,7 @@ export default function Activities() {
                         >
                         <Copy aria-hidden="true" className="h-4 w-4" />
                         </button>
+                        )}
                         <button
                         type="button"
                         onClick={() => {

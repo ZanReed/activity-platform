@@ -57,7 +57,7 @@ export default function DevConfigDrawer() {
                 <p className="mb-6 mt-1 text-sm text-muted">
                     Dev-only — the activity-editor header cluster + settings
                     drawer with local state. The locked-mode dot appears when
-                    submission mode is set to “Locked checkpoints” (this bench
+                    submission mode is set to “Check each section, then lock” (this bench
                     has no sections, so the warning is always on in that mode).
                 </p>
 

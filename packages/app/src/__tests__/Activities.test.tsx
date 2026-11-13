@@ -789,6 +789,17 @@ describe('Activities — Activity Bank markers and curator controls (0054)', () 
         expect(screen.queryByText('List unit in the Bank')).toBeNull();
     });
 
+    // E-1 + its Fable review: a Bank copy can't be copied again (its link to
+    // the original would be lost, and it could be listed as the teacher's own).
+    it('Make a copy is on the teacher\'s own activities, not on a Bank copy', async () => {
+        h.listResult.current = { data: BANK_ROWS, error: null };
+        renderList();
+        await screen.findAllByText('Listed One');
+        expect(screen.getByRole('button', { name: 'Make a copy of Listed One' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Make a copy of A Draft' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Make a copy of A Copy' })).toBeNull();
+    });
+
     it('a curator lists one row, or the whole unit (published rows only)', async () => {
         bank.lister.current = true;
         h.listResult.current = { data: BANK_ROWS, error: null };

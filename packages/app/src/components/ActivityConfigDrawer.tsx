@@ -611,8 +611,10 @@ function ActivitySettingsBody({
                     }
                 >
                     <option value="single">Single submit</option>
-                    <option value="locked">Locked checkpoints</option>
-                    <option value="free">Free checkpoints</option>
+                    {/* E-8 (ui-review-group-e.md): the names say what happens.
+                        Labels only — the stored values are unchanged. */}
+                    <option value="locked">Check each section, then lock</option>
+                    <option value="free">Check each section, re-check freely</option>
                 </select>
                 <p className={SETTINGS_HELP_CLASS}>
                     {SUBMISSION_MODE_HELP[meta.submissionMode]}
