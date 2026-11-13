@@ -265,15 +265,22 @@ function StudentHome({ email }: { email: string }) {
   // list, like the list is separate from the classes (DR-9): if it fails the
   // student still gets every activity, with its date instead of a status.
   const [progress, setProgress] = useState<Map<string, ActivityProgress> | null>(null);
+  // DD-3 + its Fable review: due labels and due-ordering wait for progress to
+  // SETTLE, so a finished activity never flashes "Was due …" or jumps down the
+  // list when progress lands. On a failed progress read they show (every
+  // dated row is then treated as unfinished — the honest fallback).
+  const [progressSettled, setProgressSettled] = useState(false);
 
   const loadActivities = useCallback(() => {
     setActivities({ phase: 'loading' });
+    setProgressSettled(false);
     listClassActivities()
       .then((rows) => setActivities({ phase: 'ready', rows }))
       .catch(() => setActivities({ phase: 'error' }));
     listMyActivityProgress()
       .then((rows) => setProgress(new Map(rows.map((p) => [p.activityId, p]))))
-      .catch(() => setProgress(null));
+      .catch(() => setProgress(null))
+      .finally(() => setProgressSettled(true));
   }, []);
 
   const load = useCallback(() => {
@@ -351,7 +358,9 @@ function StudentHome({ email }: { email: string }) {
             // DD-3: due and unfinished first, soonest first; then newest added.
             const rows =
               activities.phase === 'ready'
-                ? orderForHome(activities.rows.filter((r) => r.classId === c.classId), progress)
+                ? progressSettled
+                  ? orderForHome(activities.rows.filter((r) => r.classId === c.classId), progress)
+                  : activities.rows.filter((r) => r.classId === c.classId)
                 : [];
             return (
               <div key={c.classId} className="mt-3">
@@ -402,7 +411,7 @@ function StudentHome({ email }: { email: string }) {
                               const p = progress?.get(r.activityId);
                               // DD-3: a label, never a lock; muted, and gone
                               // once the work is finished.
-                              const due = studentDueLabel(r.dueOn, r.classToday, isFinished(p));
+                              const due = progressSettled ? studentDueLabel(r.dueOn, r.classToday, isFinished(p)) : null;
                               const dueTail = due ? (
                                 <span data-due={r.activityId}>{` · ${due}`}</span>
                               ) : null;

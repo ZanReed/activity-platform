@@ -635,7 +635,10 @@ export const TEACHER_JOURNEYS = [
     {
         name: 'home (student landing)',
         route: 'src/routes/Home.tsx',
-        maxGzKiB: 8,
+        // 8 → 8.25 (2026-11-13, due dates DD-3): the Home row's due label,
+        // its order, and waiting for progress to settle (dueWords.ts 0.3 KiB,
+        // shared with the teacher pages). Measured just over 8.0; no library.
+        maxGzKiB: 8.25,
         forbid: ['prosemirror', 'mathlive', 'mathjs', 'katex'],
         why: 'The signed-in landing for students and teachers. Preloaded by URL from index.html; must stay a list, never a heavy library.',
     },

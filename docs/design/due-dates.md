@@ -133,5 +133,19 @@ Differences from the plan:
 - **The CSV** gains a due column per activity only when the class has dates.
 - **Finished** = the student's Home says "Done" (current or earlier version);
   a dated row's label goes then. Unknown progress counts as unfinished.
-- Budgets: the Classes page 12.5 → 14.25 KiB (reason in the file); the
-  student shell +34 B, inside its band.
+- **The due read never holds the teacher's grid** (step 3 review). It is a
+  PostgREST GET, which retries by default (1 + 2 + 4 s on a network blip), and
+  it sat in the grid's `Promise.all`; one blip held an already-loaded grid
+  ~7 s. It now loads beside the grid with `.retry(false)`; the labels arrive
+  after it, or not at all.
+- **A student's Home waits for progress before showing due labels or
+  due-ordering**, so a finished activity never flashes "Was due …" or jumps
+  down the list when progress lands. If progress fails, they show and every
+  dated row counts as unfinished.
+- Known edges: a student who finished an activity and then starts a
+  republished version sees its date again ("In progress" outranks the
+  earlier "Done" on Home). A Home tab left open past midnight keeps
+  yesterday's wording until it reloads.
+- The playtest seed (`pnpm playtest`) sets two dates (one coming, one passed).
+- Budgets: the Classes page 12.5 → 14.25 KiB and the student Home 8 → 8.25
+  KiB (reasons in the file); the student shell +32 B, inside its band.

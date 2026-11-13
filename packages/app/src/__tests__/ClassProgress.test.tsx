@@ -165,9 +165,10 @@ describe('the class grid (CP-2, DR-1, DR-9, DR-10)', () => {
         dueMock.current = { byActivity: new Map([[A1, '2027-02-10']]), today: '2027-02-12' };
         api.fetchClassProgress.mockResolvedValue(grid());
         classPage();
-        const done = await screen.findByRole('link', { name: 'Ana Lee, Fractions 2: done, 80 percent' });
+        // The labels arrive after the grid (they load beside it).
+        expect(await screen.findByRole('link', { name: 'Ben Carter, Fractions 2: started, 2 of 4 sections, not done by the due date' })).toBeTruthy();
+        const done = screen.getByRole('link', { name: 'Ana Lee, Fractions 2: done, 80 percent' });
         expect(done.querySelector('[data-past-due]')).toBeNull();
-        expect(screen.getByRole('link', { name: 'Ben Carter, Fractions 2: started, 2 of 4 sections, not done by the due date' })).toBeTruthy();
         const caleb = screen.getByRole('row', { name: /Caleb Wu/ });
         expect(within(caleb).getByText('not started, not done by the due date')).toBeTruthy();
         // Decimals has no date: no marker on it.
@@ -177,12 +178,22 @@ describe('the class grid (CP-2, DR-1, DR-9, DR-10)', () => {
         dueMock.current = { byActivity: new Map(), today: null };
     });
 
+    // Fable review of DD-4: the due read must never hold the grid.
+    it('a due read that never answers does not hold the grid', async () => {
+        const { fetchClassDue } = await import('../lib/dueDates');
+        vi.mocked(fetchClassDue).mockImplementationOnce(() => new Promise(() => {}));
+        api.fetchClassProgress.mockResolvedValue(grid());
+        classPage();
+        expect(await screen.findByRole('link', { name: 'Ana Lee, Fractions 2: done, 80 percent' })).toBeTruthy();
+        expect(document.querySelector('[data-due-head]')).toBeNull();
+    });
+
     it('before the date: the header says when, and nothing is marked', async () => {
         dueMock.current = { byActivity: new Map([[A1, '2027-02-12']]), today: '2027-02-10' };
         api.fetchClassProgress.mockResolvedValue(grid());
         classPage();
         await screen.findByRole('link', { name: 'Ana Lee, Fractions 2: done, 80 percent' });
-        expect(document.querySelector('[data-due-head]')!.textContent).toBe('Due Fri');
+        await waitFor(() => expect(document.querySelector('[data-due-head]')?.textContent).toBe('Due Fri'));
         expect(document.querySelectorAll('[data-past-due]')).toHaveLength(0);
         dueMock.current = { byActivity: new Map(), today: null };
     });

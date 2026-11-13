@@ -49,7 +49,10 @@ export async function fetchClassDue(classId: string): Promise<ClassDue> {
         .from('class_activities')
         .select('activity_id, due_on')
         .eq('class_id', classId)
-        .not('due_on', 'is', null);
+        .not('due_on', 'is', null)
+        // A GET retries by default (1 s + 2 s + 4 s on a network blip); the
+        // labels are optional, so fail fast instead (Fable review, DD-4).
+        .retry(false);
     if (error) throw new Error(error.message);
     const byActivity = new Map(((data ?? []) as { activity_id: string; due_on: string }[]).map((r) => [r.activity_id, r.due_on]));
     return { byActivity, today: byActivity.size > 0 ? await classLocalDate(classId) : null };

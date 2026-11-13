@@ -52,8 +52,6 @@ interface Loaded {
     grid: ClassProgressData;
     /** null when the misconception read failed: the grid still shows. */
     mis: ClassMisconceptions | null;
-    /** null when the due-date read failed: the grid still shows (DD-4). */
-    due: ClassDue | null;
 }
 
 export default function ClassProgress() {
@@ -61,15 +59,29 @@ export default function ClassProgress() {
     const location = useLocation();
     const base = `/classes/${classId}/progress`;
     const loaded = useProgressLoad<Loaded>(async () => {
-        const [grid, mis, due] = await Promise.all([
+        const [grid, mis] = await Promise.all([
             fetchClassProgress(classId),
             fetchMisconceptions(classId).catch(() => null),
-            // DD-4: the class's due dates and its today. A failure only costs
-            // the labels; the grid still shows.
-            fetchClassDue(classId).catch(() => null),
         ]);
-        return { grid, mis, due };
+        return { grid, mis };
     }, [classId]);
+    // DD-4: the class's due dates load BESIDE the grid, never in its way — a
+    // slow or failed read only means the labels arrive late or not at all.
+    const [due, setDue] = useState<ClassDue | null>(null);
+    const gridLoadedAt = loaded.data?.grid;
+    useEffect(() => {
+        if (!gridLoadedAt) return;
+        let live = true;
+        fetchClassDue(classId).then(
+            (d) => {
+                if (live) setDue(d);
+            },
+            () => undefined,
+        );
+        return () => {
+            live = false;
+        };
+    }, [classId, gridLoadedAt]);
     const [hideNames, setHideNames] = useHideNames();
     const [leastDone, setLeastDone] = useLeastDoneFirst();
 
@@ -106,6 +118,7 @@ export default function ClassProgress() {
             <h1 className="mb-4 text-xl font-semibold text-ink">Class progress</h1>
             <Body
                 loaded={loaded}
+                due={due}
                 hideNames={hideNames}
                 setHideNames={setHideNames}
                 leastDone={leastDone}
@@ -122,6 +135,7 @@ export default function ClassProgress() {
 
 function Body({
     loaded,
+    due,
     hideNames,
     setHideNames,
     leastDone,
@@ -132,6 +146,8 @@ function Body({
     here,
 }: {
     loaded: ReturnType<typeof useProgressLoad<Loaded>>;
+    /** DD-4: null until (or unless) the due read lands. */
+    due: ClassDue | null;
     hideNames: boolean;
     setHideNames: (on: boolean) => void;
     leastDone: boolean;
@@ -152,7 +168,7 @@ function Body({
             </p>
         );
     }
-    const { grid, mis, due } = loaded.data;
+    const { grid, mis } = loaded.data;
     const dueOf = (aid: string) => due?.byActivity.get(aid) ?? null;
     const today = due?.today ?? null;
 

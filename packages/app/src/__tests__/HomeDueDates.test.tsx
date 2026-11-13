@@ -8,7 +8,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { orderForHome, type ActivityProgress, type StudentClassActivity } from '../lib/classActivities';
 
@@ -44,11 +44,13 @@ const prog = (activityId: string, checked: number, total: number): ActivityProgr
     activityId, sectionsTotal: total, sectionsChecked: checked, earlierChecked: false, earlierDone: false, feedbackReleased: false,
 });
 const PROGRESS = [prog('a-new', 0, 2), prog('a-soon', 1, 3), prog('a-done', 2, 2), prog('a-past', 0, 2)];
+const progressImpl = vi.hoisted(() => ({ current: (): Promise<unknown> => Promise.resolve([]) }));
+progressImpl.current = async () => PROGRESS;
 
 vi.mock('../lib/classActivities', async (importActual) => ({
     ...(await importActual<typeof import('../lib/classActivities')>()),
     listClassActivities: async () => ROWS,
-    listMyActivityProgress: async () => PROGRESS,
+    listMyActivityProgress: () => progressImpl.current(),
 }));
 
 const { default: Home } = await import('../routes/Home');
@@ -82,5 +84,26 @@ describe('the student Home (DD-3)', () => {
         const titles = screen.getAllByRole('link').map((l) => l.textContent ?? '').filter((t) => /date|soon/.test(t));
         expect(titles[0]).toMatch(/Past its date/);
         expect(titles[1]).toMatch(/Due soon/);
+    });
+});
+
+describe('while progress is still loading (Fable review of DD-3)', () => {
+    it('shows no due labels and keeps the server order, so nothing flashes or jumps', async () => {
+        let release: (v: unknown) => void = () => {};
+        progressImpl.current = () => new Promise((r) => (release = r));
+        render(
+            <MemoryRouter>
+                <Home />
+            </MemoryRouter>,
+        );
+        const first = await screen.findByRole('link', { name: /Newest, no date/ });
+        expect(document.querySelectorAll('[data-due]')).toHaveLength(0);
+        expect(document.body.textContent).not.toMatch(/Was due|Due (today|Tue)/);
+        expect(first).toBeTruthy();
+        release(PROGRESS);
+        await waitFor(() =>
+            expect(screen.getByRole('link', { name: /Past its date/ }).textContent).toMatch(/Was due Thu 12 Nov/),
+        );
+        progressImpl.current = async () => PROGRESS;
     });
 });

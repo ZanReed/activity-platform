@@ -327,6 +327,16 @@ async function seed(stack, args) {
         ...(activities[0]
             ? [[`Today: ${activities[0].title}`, 'set_class_today', { p_class_id: cls.id, p_activity_id: activities[0].id, p_on: true }]]
             : []),
+        // Due dates (0087): one in the coming week and one already passed, so
+        // both student wordings ("Due …", "Was due …") and the teacher's
+        // marker show on first open. Dates are relative to today (UTC here;
+        // the screens judge them by the class's day, a day either way).
+        ...(activities[1]
+            ? [[`due in 3 days: ${activities[1].title}`, 'set_class_activity_due', { p_class_id: cls.id, p_activity_id: activities[1].id, p_due_on: new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10) }]]
+            : []),
+        ...(activities[2]
+            ? [[`was due 2 days ago: ${activities[2].title}`, 'set_class_activity_due', { p_class_id: cls.id, p_activity_id: activities[2].id, p_due_on: new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10) }]]
+            : []),
     ];
     for (const [label, name, body] of extras) {
         try {
