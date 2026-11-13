@@ -137,14 +137,14 @@ already in this file. Ranked inside each group; the author picks the order.
 21. ✅ BUILT (C-10). Block delete is one click on a hover icon; no Undo/Redo buttons anywhere.
 
 **D. Accessibility and touch**
-22. Answer inputs lack `autoCapitalize/autoCorrect/spellCheck="off"`
+22. ✅ BUILT (D-1). Answer inputs lack `autoCapitalize/autoCorrect/spellCheck="off"`
     (`viewer/blocks/BlankInput.tsx`); join-code inputs have them.
-23. Locked/DoL Check drops keyboard focus to the body when the confirm opens.
-24. Every result pill is its own live region (a 10-blank check = 10+ announcements).
-25. Editor: B/I/U/sub/sup buttons have no names or `aria-pressed`; the slash
+23. ✅ BUILT (D-2). Locked/DoL Check drops keyboard focus to the body when the confirm opens.
+24. ✅ BUILT (D-3; reverses 6.1A). Every result pill is its own live region (a 10-blank check = 10+ announcements).
+25. ✅ BUILT (D-4/D-5/D-6). Editor: B/I/U/sub/sup buttons have no names or `aria-pressed`; the slash
     menu has no listbox roles; block reorder is drag-only in the UI (⌘⇧↑/↓ is
     undocumented); roster "Remove" buttons don't name the student.
-26. Jargon: "rem", "Checkpoint", "DoL" (hover-only explanation), the
+26. ✅ BUILT (D-7; cell height still rem, below). Jargon: "rem", "Checkpoint", "DoL" (hover-only explanation), the
     "```figure fence" wording, raw misconception ids.
 
 **E. Features teachers and students would expect (none started unless noted)**
@@ -167,8 +167,18 @@ BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters
 **Group B: BUILT 2026-11-13** ([ui-review-group-b.md](docs/design/ui-review-group-b.md)
 → "As built"). **Group C: BUILT 2026-11-13** ([ui-review-group-c.md](docs/design/ui-review-group-c.md)
 → "As built"; items 13–18, 20, 21; app + viewer only, no migration or
-deploy). C-6's job-health reader is a local weekly task (below). **Group D in design:**
-[ui-review-group-d.md](docs/design/ui-review-group-d.md) (D-1…D-8). E open.
+deploy). C-6's job-health reader is a local weekly task (below). **Group D: BUILT 2026-11-13**
+([ui-review-group-d.md](docs/design/ui-review-group-d.md) → "As built"; items
+22–26; app + viewer only, no migration or deploy). E open.
+
+## Column cell height still reads in rem (found building D-7, 2026-11-13)
+
+D-7 moved the three work-space fields to lines. The column cell-height control
+(`CellHeightControl.tsx`: "Cell: 8rem ▾", presets in rem, "Minimum cell height
+in rem") was not one of the three ruled, and still shows rem. Same fix:
+lines on screen via `remToLines`, rem stored (schema `Column.minHeight`).
+**Trigger:** the next design pass that touches columns, or a teacher asking
+what "rem" means.
 
 ## Analytics job health: a LOCAL weekly task (C-6, RULED 2026-11-13)
 
