@@ -265,7 +265,8 @@ describe('section checking (ruling P2A + the D12 shortfall rule)', () => {
     expect(status).toHaveTextContent('');
 
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-    await waitFor(() => expect(status).toHaveTextContent('Checked.'));
+    // Nothing was answered, so the tally (C-3) counts the one question as blank.
+    await waitFor(() => expect(status).toHaveTextContent('Checked: 0 of 1 right · 1 left blank.'));
     expect(
       container.querySelector('[data-section-phase="checked"]'),
     ).not.toBeNull();

@@ -237,6 +237,11 @@
   --z-topbar: 200;
   --z-banner: 300;
   --z-popover: 1000;
+
+  /* The student top bar's measured height (C-5): StudentViewer writes it on
+     the root while the bar is sticky, so a pinned banner sits under it. 0
+     wherever nothing measures it (preview, print, a phone). */
+  --viewer-topbar-h: 0px;
 }
 
 /* =============================================================================

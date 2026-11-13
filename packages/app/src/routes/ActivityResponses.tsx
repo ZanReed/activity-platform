@@ -362,7 +362,9 @@ export default function ActivityResponses() {
       <ActivityResultsHeader
         activityId={id ?? ''}
         current="responses"
-        back={backToProgress ? { to: backToProgress, label: 'Class progress' } : null}
+        // Fable review: only a CLASS grid gets its own back link; from the
+        // activity's Progress page, the Progress tab already goes there.
+        back={backToProgress?.startsWith('/classes/') ? { to: backToProgress, label: 'Class progress' } : null}
       />
       <h1 className="mb-6 text-xl font-semibold text-ink">{COPY.title}</h1>
 

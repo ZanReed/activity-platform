@@ -114,6 +114,7 @@ export const staticTokens = [
   '--z-topbar',
   '--z-banner',
   '--z-popover',
+  '--viewer-topbar-h',
 ] as const;
 
 export type ColorToken = (typeof colorTokens)[number];

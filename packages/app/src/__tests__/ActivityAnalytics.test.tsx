@@ -131,6 +131,18 @@ describe('ActivityAnalytics', () => {
         expect(screen.getByRole('columnheader', { name: 'Question type' })).toBeTruthy();
     });
 
+    it('hides text and pictures from "Question type" unless a check scored one', async () => {
+        const zero = { ...payload.keys[0], verdicts_all: 0, correct_all: 0, verdicts_latest: 0, correct_latest: 0 };
+        h.result.current = {
+            data: { ...payload, keys: [payload.keys[0], { ...zero, census_key: 'paragraph' }, { ...zero, census_key: 'image' }] },
+            error: null,
+        };
+        renderPanel();
+        await waitFor(() => expect(screen.getByText('Fill in the blank')).toBeTruthy());
+        expect(screen.queryByText('Text')).toBeNull();
+        expect(screen.queryByText('Image')).toBeNull();
+    });
+
     it('explains an uncensused version instead of showing a bare zero', async () => {
         h.result.current = {
             data: { ...payload, censused: false, keys: [] },

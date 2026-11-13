@@ -6,7 +6,7 @@
 // panel (its own address, focus in, Close returns focus) → Hide names, proven
 // by asserting NO student name survives in text OR any attribute (DR-10) and
 // that the choice survives a reload → the per-activity page with the wrong
-// answers above the grid → "N to grade" → Responses' "← Class progress".
+// answers above the grid → "N to grade" → Responses' Progress tab.
 // (Lives in the stub-env lane's folder beside facts-teacher.e2e.ts: that
 // lane's server has the pinned, account-free environment signed-in specs need.)
 // =============================================================================
@@ -138,14 +138,16 @@ test('class grid → answer panel → hide names → activity page → back from
   await expect(activityPanel).toContainText('two thirds');
   await activityPanel.getByRole('button', { name: 'Latest' }).click();
 
-  // "N to grade" carries where it came from; Responses' header goes back to it (C-7).
+  // "N to grade" → Responses; its header's Progress tab goes back (C-7).
   await page.route('**/rest/v1/rpc/list_grading_queue**', (route) => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/rpc/get_grading_assist_status**', (route) => route.fulfill({ json: null }));
   await page.route('**/rest/v1/rpc/list_grade_suggestions**', (route) => route.fulfill({ json: [] }));
   await activityPanel.getByRole('link', { name: '1 to grade in Fractions 2' }).click();
   await expect(page).toHaveURL(/\/responses\?from=/);
-  const back = page.getByRole('link', { name: '← Class progress' });
-  await expect(back).toBeVisible();
+  // Opened from the activity's own Progress page, the header's Progress tab
+  // is the way back (a "← Class progress" link would name the wrong page).
+  await expect(page.getByRole('link', { name: '← Class progress' })).toHaveCount(0);
+  const back = page.getByRole('navigation', { name: 'This activity' }).getByRole('link', { name: 'Progress' });
   await back.click();
   await expect(page).toHaveURL(new RegExp(`/activity/${CP_FRACTIONS}/progress`));
 });

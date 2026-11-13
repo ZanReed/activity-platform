@@ -50,7 +50,7 @@ import type {
   SanitizedActivityDocument,
   SanitizedBlock,
 } from '../sanitize/sanitized-types.js';
-import type { ViewerStore } from '../store/store.js';
+import type { SectionItemIds, ViewerStore } from '../store/store.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { DolServedState } from '../sanitize/dolForm.js';
 import { RESPONSE_CATEGORIES } from '../store/store.js';
@@ -168,35 +168,60 @@ const defaultResolve = resolveBlockComponent;
 /** C-3: how a checked group went — counted from the check's own verdicts. */
 export interface CheckTally {
   right: number;
-  /** Items the computer marked (correct + incorrect). */
+  /** Questions the computer marks (correct + incorrect + left blank). */
   marked: number;
+  /** Of `marked`, how many were left blank (the grader returns no verdict
+   *  for an unanswered question, so these are counted from what was sent). */
+  blank: number;
   /** Written answers recorded for the teacher. */
   recorded: number;
 }
 
+/** The marked ids a check sends (everything but written answers). */
+function markedIdsSent(items: SectionItemIds | undefined): string[] {
+  if (!items) return [];
+  const { blanks, choices, matches, correspondences, orderings, graphs } = items;
+  return [blanks, choices, matches, correspondences, orderings, graphs].flatMap((a) => a ?? []);
+}
+
+/**
+ * The group's tally, or null until every section in it is checked. `sent` is
+ * each section's check payload ids, aligned with `ids` — a question the
+ * student left blank gets no verdict back, so without it "4 of 4 right" could
+ * mean four of six (Fable review of C-3).
+ */
 export function groupTally(
   sections: Readonly<Record<string, SectionStatus | undefined>>,
   ids: readonly string[],
+  sent: readonly (SectionItemIds | undefined)[] = [],
 ): CheckTally | null {
-  const t: CheckTally = { right: 0, marked: 0, recorded: 0 };
-  for (const id of ids) {
+  const t: CheckTally = { right: 0, marked: 0, blank: 0, recorded: 0 };
+  for (const [i, id] of ids.entries()) {
     const s = sections[id];
     if (s?.phase !== 'checked') return null;
-    for (const item of Object.values(s.result.items)) {
+    const items = s.result.items;
+    for (const item of Object.values(items)) {
       if (item.verdict === 'recorded') t.recorded += 1;
       else {
         t.marked += 1;
         if (item.verdict === 'correct') t.right += 1;
       }
     }
+    for (const sentId of markedIdsSent(sent[i])) {
+      if (!(sentId in items)) {
+        t.blank += 1;
+        t.marked += 1;
+      }
+    }
   }
   return t.marked + t.recorded > 0 ? t : null;
 }
 
-/** "4 of 6 right · 1 written answer goes to your teacher". */
+/** "4 of 6 right · 2 left blank · 1 written answer goes to your teacher". */
 export function tallyText(t: CheckTally): string {
   const parts: string[] = [];
   if (t.marked > 0) parts.push(`${t.right} of ${t.marked} right`);
+  if (t.blank > 0) parts.push(`${t.blank} left blank`);
   if (t.recorded > 0) {
     parts.push(t.recorded === 1 ? '1 written answer goes to your teacher' : `${t.recorded} written answers go to your teacher`);
   }
@@ -941,7 +966,7 @@ function CheckGroupRegion({
             {blockedByCrash
               ? 'One question can’t be checked yet.'
               : (dol ? dolStatusLabel(dol, sections[ids[0]!]) : null) ??
-                groupStatusLabel(status, locked, groupTally(sections, ids))}
+                groupStatusLabel(status, locked, groupTally(sections, ids, group.sections.map((x) => x.items)))}
           </p>
           {dol && onDolPractice && dolPracticeOffered(dol, sections[ids[0]!]) ? (
             <button type="button" className="viewer-dol__practice" onClick={onDolPractice}>

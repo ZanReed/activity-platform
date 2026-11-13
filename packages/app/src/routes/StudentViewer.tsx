@@ -641,6 +641,24 @@ export default function StudentViewer() {
     if (worksheetReady) markOnce(MARKS.worksheetInteractive);
   }, [worksheetReady]);
 
+  // C-5 review fix: a pinned banner sits just under the top bar, which is
+  // sticky from Chromebook width up — at top: 0 it covered the title and the
+  // way back. The bar's height changes with its meta lines, so it is measured.
+  const topbarObserver = useRef<ResizeObserver | null>(null);
+  const topbarRef = useCallback((el: HTMLElement | null) => {
+    const root = document.documentElement;
+    topbarObserver.current?.disconnect();
+    topbarObserver.current = null;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      root.style.removeProperty('--viewer-topbar-h');
+      return;
+    }
+    topbarObserver.current = new ResizeObserver(() =>
+      root.style.setProperty('--viewer-topbar-h', `${el.offsetHeight}px`),
+    );
+    topbarObserver.current.observe(el);
+  }, []);
+
   if (sessionLoading) return <Centered>Loading…</Centered>;
   if (!activityId) return <Centered>No activity in this link.</Centered>;
 
@@ -674,7 +692,7 @@ export default function StudentViewer() {
 
   return (
     <>
-      <header className="viewer-topbar">
+      <header className="viewer-topbar" ref={topbarRef}>
         {/* Student review S4/S6 (2026-10-14): one aligned row on the page's
             measure — the way home, the title block, and Print as an icon.
             Before, the title sat on the measure while the meta and Print

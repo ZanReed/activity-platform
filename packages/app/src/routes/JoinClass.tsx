@@ -195,7 +195,7 @@ export default function JoinClass() {
             type="button"
             className={`mt-4 w-full ${BTN_PRIMARY}`}
             onClick={() => {
-              void signInWithGoogle({ redirectTo: window.location.href, includeDistrictHint: true });
+              void signInWithGoogle({ redirectTo: window.location.href, includeDistrictHint: true, forceAccountPicker: true });
             }}
           >
             Sign in again

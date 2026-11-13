@@ -101,8 +101,13 @@ test.describe('/join/:code (B12/E-9/P2-ruling)', () => {
     await signInAs(page, { userId: E2E_STUDENT_ID, supabaseUrl: SUPABASE_URL });
     await stubIdentityApi(page, { role: 'student', join: 'domainTemplate' });
     await page.goto(joinUrl(CODE));
-    await expect(page.getByRole('button', { name: 'Sign in again' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Go to your classes' })).toBeVisible();
+    // The account was the wrong one, so the picker must open — Google would
+    // otherwise sign the same account straight back in (Fable review).
+    const authorize = page.waitForRequest('**/auth/v1/authorize**');
+    await page.route('**/auth/v1/authorize**', (route) => route.fulfill({ status: 204, body: '' }));
+    await page.getByRole('button', { name: 'Sign in again' }).click();
+    expect(new URL((await authorize).url()).searchParams.get('prompt')).toBe('select_account');
   });
 });
 

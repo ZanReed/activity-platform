@@ -577,6 +577,31 @@ describe('F9b — the five new sentences, pinned verbatim', () => {
     );
   });
 
+  it('C-3: a question left blank counts against the total (Fable review)', async () => {
+    const mc = fullDoc.sections
+      .flatMap((x) => x.rows)
+      .flatMap((r) => r.columns)
+      .flatMap((c) => c.blocks)
+      .find((b) => (b as { type?: string }).type === 'multiple_choice')!;
+    const doc = docOfSections([true], 'free');
+    (doc.sections[0]!.rows[0]!.columns[0]!.blocks as unknown[]).push({ ...(mc as object), id: 'mc-blank' });
+    const svc = service();
+    const base = svc.checkSection.bind(svc);
+    // The grader returns no verdict for the unanswered choice question.
+    svc.checkSection = async (request) => {
+      const r = await base(request);
+      return { ...r, items: { 'blk-0': { verdict: 'recorded' } } } as SectionCheckResult;
+    };
+    const store = createViewerStore({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION, checkService: svc });
+    const { container } = render(<ViewerContainer document={doc} store={store} versionId={VERSION} />);
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    expect(container.querySelector('.viewer-section__status')!.textContent).toBe(
+      'Checked: 0 of 1 right · 1 left blank · 1 written answer goes to your teacher.',
+    );
+  });
+
   it('group checked, `locked`: states the irreversibility once, when it becomes true', async () => {
     const { container } = setup(docOfSections([true], 'locked'));
     await pressCheck(groupsOf(container)[0]!);

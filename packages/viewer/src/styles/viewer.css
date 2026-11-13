@@ -3275,10 +3275,22 @@
 
 /* C-5: a status banner (storage full, stale version, session expired, …)
    stays in view while it shows — before, it sat above the worksheet and a
-   student scrolled to question 12 never saw it. Above the top bar (z), like
-   the idle bar. One shows at a time (StudentViewer's banner order). */
+   student scrolled to question 12 never saw it. One shows at a time
+   (StudentViewer's banner order). It pins just UNDER the top bar where that
+   bar is sticky (StudentViewer measures it into --viewer-topbar-h), and at the
+   top on a phone, where the bar scrolls away. The other-tab notice is the one
+   banner that can show beside another, so it stays in the flow rather than
+   pin on top of it; that tab's answers are read-only anyway. */
 .viewer-banner {
   position: sticky;
-  top: 0;
+  top: var(--viewer-topbar-h);
   z-index: var(--z-banner);
+}
+.viewer-banner[data-banner='other-tab'] {
+  position: static;
+}
+@media (max-width: 639.98px) {
+  .viewer-banner {
+    top: 0;
+  }
 }

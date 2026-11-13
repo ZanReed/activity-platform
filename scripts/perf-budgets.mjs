@@ -245,8 +245,13 @@ export const SHELL_SPEND = [
         change: 'UI review C-2/C-3 (+ ~130 B of group-A/B drift inside the band since): the viewer\'s failure card gets a way back, Sign in again and a folded Details; a checked group says how it went (right / marked, written apart); the catch-all route entry (the not-found page itself is lazy)',
         bytes: 487,
     },
+    {
+        date: '2026-11-13',
+        change: 'UI review group C, Fable review fixes: the check tally counts questions left blank ("· 2 left blank"); a pinned banner sits under the measured top bar (ResizeObserver) instead of over it; join\'s Sign in again opens the account picker',
+        bytes: 301,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 155190;
+export const SHELL_JS_BASELINE_BYTES = 155491;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

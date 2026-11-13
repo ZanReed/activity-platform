@@ -23,7 +23,16 @@ describe('groupTally', () => {
       a: checked(['correct', 'incorrect', 'correct']),
       b: checked(['correct', 'recorded']),
     } as never;
-    expect(groupTally(sections, ['a', 'b'])).toEqual({ right: 3, marked: 4, recorded: 1 });
+    expect(groupTally(sections, ['a', 'b'])).toEqual({ right: 3, marked: 4, blank: 0, recorded: 1 });
+  });
+
+  it('counts a question left blank — the grader returns no verdict for it', () => {
+    // Sent: two blanks, one choice, one written answer; only one blank and the
+    // written answer came back answered.
+    const sections = { a: checked(['correct']) } as never;
+    const sent = [{ blanks: ['i0', 'b2'], choices: ['mc1'], freeText: ['fx'] }];
+    expect(groupTally(sections, ['a'], sent)).toEqual({ right: 1, marked: 3, blank: 2, recorded: 0 });
+    expect(tallyText(groupTally(sections, ['a'], sent)!)).toBe('1 of 3 right · 2 left blank');
   });
 
   it('is null until every section in the group is checked, and when nothing was graded', () => {
@@ -34,8 +43,8 @@ describe('groupTally', () => {
 
 describe('tallyText', () => {
   it('reads the way a student talks', () => {
-    expect(tallyText({ right: 4, marked: 6, recorded: 0 })).toBe('4 of 6 right');
-    expect(tallyText({ right: 4, marked: 5, recorded: 1 })).toBe('4 of 5 right · 1 written answer goes to your teacher');
-    expect(tallyText({ right: 0, marked: 0, recorded: 2 })).toBe('2 written answers go to your teacher');
+    expect(tallyText({ right: 4, marked: 6, blank: 0, recorded: 0 })).toBe('4 of 6 right');
+    expect(tallyText({ right: 4, marked: 5, blank: 0, recorded: 1 })).toBe('4 of 5 right · 1 written answer goes to your teacher');
+    expect(tallyText({ right: 0, marked: 0, blank: 0, recorded: 2 })).toBe('2 written answers go to your teacher');
   });
 });

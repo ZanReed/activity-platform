@@ -18,16 +18,17 @@
 // stored, purge-surviving rollup is an open ruling (it rides with the
 // teacher-grading slice), so this screen reports both and picks neither.
 //
-// JOB HEALTH IS ON THE PAGE ON PURPOSE. A nightly maintenance job that quietly
-// stops is this system's classic failure (0022 found the purge job had never
-// worked). Postgres notices vanish in a day and nobody reads cron logs, so the
-// last run shows up here, where someone actually looks.
+// Job health USED to be on this page (a nightly job that quietly stops is this
+// system's classic failure — 0022 found the purge job had never worked). C-6
+// moved it off the teacher page: the weekly CI-health routine reads
+// analytics_job_runs instead, so it still reaches someone who can fix it.
 // =============================================================================
 
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { supabase } from '../lib/supabase';
+import { labelFor, NOT_QUESTIONS, UNATTRIBUTED } from '../lib/analyticsLabels';
 
 interface AnalyticsKey {
     census_key: string;
@@ -51,17 +52,9 @@ interface AnalyticsPayload {
     censused: boolean;
     keys: AnalyticsKey[];
     totals: { checks: number; students: number; last_check_at: string | null };
-    job: {
-        last_run_at: string;
-        stale_cache_rows_deleted: number;
-        section_check_rows: number;
-    } | null;
+    // `job` (the nightly run) is still returned; C-6 took it off this page.
 }
 
-/** The bucket for a check item no census row explains — a check recorded
- * against a version whose census hasn't been written yet. Never silently
- * dropped: an invisible gap would read as "nothing to see here". */
-const UNATTRIBUTED = '_unattributed';
 
 function formatWhen(iso: string | null): string {
     if (!iso) return 'never';
@@ -81,50 +74,6 @@ function percent(correct: number, of: number): string {
 // C-6 (ui-review-group-c.md): the maintenance-job health line and the
 // `pnpm backfill:census` hint were developer text on a teacher page; the job's
 // health is watched by the weekly CI-health routine instead.
-
-/** C-6: a census key in a teacher's words — "Graph · plot a point",
- *  "Multiple choice". The raw key stays in the cell's title for anyone
- *  matching it against the database. */
-const BLOCK_NAMES: Record<string, string> = {
-    fill_in_blank: 'Fill in the blank',
-    multiple_choice: 'Multiple choice',
-    matching: 'Matching',
-    correspondence: 'Correspondence',
-    ordering: 'Ordering',
-    short_answer: 'Short answer',
-    essay: 'Essay',
-    self_explanation: 'Self-explanation',
-    math_block: 'Maths gaps',
-    number_line: 'Number line',
-    interactive_graph: 'Graph',
-    data_plot: 'Data plot',
-    table: 'Table',
-    faded_worked_example: 'Faded worked example',
-    worked_example: 'Worked example',
-    video: 'Video',
-};
-const INTERACTION_NAMES: Record<string, string> = {
-    plot_point: 'plot a point',
-    plot_interval: 'graph an interval',
-    plot_ray: 'draw a ray',
-    plot_segment: 'draw a segment',
-    plot_vector: 'draw a vector',
-    plot_function: 'graph a function',
-    graph_inequality: 'graph an inequality',
-    shade_region: 'shade a region',
-    transform_curve: 'transform a curve',
-    build_histogram: 'build a histogram',
-    build_boxplot: 'build a box plot',
-    build_dotplot: 'build a dot plot',
-    display: 'display only',
-};
-function labelFor(key: string): string {
-    if (key === UNATTRIBUTED) return 'Not yet attributed';
-    const [block = '', interaction] = key.split('.');
-    const name = BLOCK_NAMES[block] ?? block.replace(/_/g, ' ');
-    if (!interaction) return name;
-    return `${name} · ${INTERACTION_NAMES[interaction] ?? interaction.replace(/_/g, ' ')}`;
-}
 
 export default function ActivityAnalytics() {
     const { id } = useParams<{ id: string }>();
@@ -226,7 +175,9 @@ export default function ActivityAnalytics() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {data.keys.map((k) => (
+                                        {data.keys
+                                            .filter((k) => !NOT_QUESTIONS.has(k.census_key) || k.verdicts_all > 0)
+                                            .map((k) => (
                                             <tr
                                                 key={k.census_key}
                                                 className="border-b border-line last:border-0"

@@ -8,7 +8,9 @@
 // and the editor.
 // =============================================================================
 
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { supabase } from '../lib/supabase';
 
 export type ResultsTab = 'progress' | 'responses' | 'analytics';
 
@@ -26,13 +28,31 @@ export default function ActivityResultsHeader({
     back,
 }: {
     activityId: string;
-    /** The activity's title, once known. */
+    /** The activity's title. `undefined` = the header reads it itself (the
+     *  page has no other reason to); `null` = the page owns it, not known yet. */
     title?: string | null;
     current: ResultsTab;
     /** Where "back" goes; My activities unless the page was opened elsewhere
      *  (e.g. Responses opened from a class's progress grid). */
     back?: { to: string; label: string } | null;
 }) {
+    const [fetched, setFetched] = useState<string | null>(null);
+    const own = title === undefined;
+    useEffect(() => {
+        if (!own || !activityId) return;
+        let live = true;
+        void Promise.resolve()
+            .then(() => supabase.from('activities').select('title').eq('id', activityId).maybeSingle())
+            .then(({ data }) => {
+                if (live && data && typeof data.title === 'string') setFetched(data.title);
+            })
+            // A missing title only costs the line; the page itself still works.
+            .catch(() => undefined);
+        return () => {
+            live = false;
+        };
+    }, [own, activityId]);
+    const shown = own ? fetched : title;
     const to = back?.to ?? '/activities';
     const label = back?.label ?? 'My activities';
     return (
@@ -42,7 +62,7 @@ export default function ActivityResultsHeader({
                     ← {label}
                 </Link>
             </p>
-            {title ? <p className="mt-1 text-lg font-semibold text-ink">{title}</p> : null}
+            {shown ? <p className="mt-1 text-lg font-semibold text-ink">{shown}</p> : null}
             <nav aria-label="This activity" className="mt-2 flex flex-wrap gap-1 border-b border-line">
                 {TABS.map((t) =>
                     t.key === current ? (

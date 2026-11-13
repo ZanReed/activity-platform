@@ -433,16 +433,22 @@ describe('Responses: Back to progress (DR-8)', () => {
         );
     }
 
-    it('a valid ?from= replaces Back to editor', () => {
+    it('a valid ?from= replaces the way back to My activities', () => {
         responses(`/activity/${A1}/responses?from=${encodeURIComponent('/classes/class-1/progress')}`);
-        const back = screen.getByRole('link', { name: 'Back to progress' });
+        const back = screen.getByRole('link', { name: '← Class progress' });
         expect(back.getAttribute('href')).toBe('/classes/class-1/progress');
     });
 
     it('anything else is ignored', () => {
         responses(`/activity/${A1}/responses?from=${encodeURIComponent('https://evil.example/progress')}`);
-        expect(screen.getByRole('link', { name: 'Back to editor' })).toBeTruthy();
-        expect(screen.queryByRole('link', { name: 'Back to progress' })).toBeNull();
+        expect(screen.getByRole('link', { name: '← My activities' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: '← Class progress' })).toBeNull();
+    });
+
+    it('from the activity’s own Progress page, the Progress tab is the way back', () => {
+        responses(`/activity/${A1}/responses?from=${encodeURIComponent(`/activity/${A1}/progress`)}`);
+        expect(screen.getByRole('link', { name: '← My activities' })).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Progress' }).getAttribute('href')).toBe(`/activity/${A1}/progress`);
     });
 });
 
