@@ -400,7 +400,7 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 
 ## As built
 
-**Step 1, migration 0088 (2026-11-13), not yet live.** Applied and verified on
+**Step 1, migration 0088 (2026-11-13), LIVE:** applied by the author, verify-0088 7/7 and verify-0082 4/4 on live. Applied and verified on
 the local stack (verify-0088: A 5/5, B 10/10, C 6/6; verify-0082 with B6
 rewritten, 0084 and 0054 still green). Fable-reviewed: no P0; the fixes it
 asked for are in. Differences from the plan:

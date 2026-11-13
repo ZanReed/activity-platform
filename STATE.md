@@ -34,7 +34,7 @@ Author-only: pushes, deploys, migrations.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**Period assembly LIVE (0081–0084).** **Period planner RULED 2026-11-13** ([period-planner.md](docs/design/period-planner.md), PP-1–12, not built). **Step 1 BUILT, unpushed: apply 0088 live, then `pnpm verify:auth --target live --only verify-0088` (7 rows) and `--only verify-0082`.** Pushing it before the apply is harmless (no UI reads it yet); every later step's UI is OV-7-bound.
+**Period assembly LIVE (0081–0084).** **Period planner RULED 2026-11-13** ([period-planner.md](docs/design/period-planner.md), PP-1–12, not built). **Step 1 (0088) LIVE 2026-11-13:** applied by the author; verify-0088 7/7 and verify-0082 4/4 on live. Push of cdabf585 owed. Next: the `minutes:` letter (PP-12), then step 2.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd), log-verified 2026-11-12.
 
