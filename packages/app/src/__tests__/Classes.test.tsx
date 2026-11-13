@@ -397,9 +397,11 @@ describe('the timezone control (PP-11)', () => {
     });
 
     it('a teacher sees it; a student never does', async () => {
-        h.rpc.mockImplementation((name: string) =>
+        // The mock is declared zero-arg (see h.rpc above): read the name from
+        // rest args so the implementation stays assignable to it.
+        h.rpc.mockImplementation((...args: unknown[]) =>
             Promise.resolve(
-                name === 'my_timezone'
+                args[0] === 'my_timezone'
                     ? { data: { zone: 'Pacific/Auckland', is_set: true }, error: null }
                     : { data: null, error: null },
             ),
