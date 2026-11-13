@@ -91,11 +91,12 @@ export function useTeacherClassActivities(): TeacherActivitiesData {
             setRows(nextRows);
             setOptions(nextOptions);
             setStatus('ready');
-            // Due labels need the class's day (DD-6). Only when a row has a
-            // date — no extra read for a teacher who never sets one.
-            const dated = nextRows.find((r) => r.dueOn !== null);
-            if (dated) {
-                classLocalDate(dated.classId).then(setToday, () => setToday(null));
+            // Due labels — and "That day has passed" on a teacher's FIRST
+            // date — need the class's day (DD-6). One read for the page: all
+            // of a teacher's classes share their zone (fact_class_zone).
+            const first = nextRows[0];
+            if (first) {
+                classLocalDate(first.classId).then(setToday, () => setToday(null));
             }
         } catch {
             setStatus('error');
@@ -431,12 +432,18 @@ function DueControl({
     const [draft, setDraft] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Closing the field puts focus back on the button that opened it.
+    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const close = () => {
+        setDraft(null);
+        requestAnimationFrame(() => buttonRef.current?.focus());
+    };
     const save = async (value: string | null) => {
         setSaving(true);
         setError(null);
         try {
             await setClassActivityDue(row.classId, row.activityId, value);
-            setDraft(null);
+            close();
             onSaved();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Could not save the date.');
@@ -447,6 +454,7 @@ function DueControl({
     if (draft === null) {
         return (
             <button
+                ref={buttonRef}
                 type="button"
                 onClick={() => setDraft(row.dueOn ?? today ?? '')}
                 aria-label={`${row.dueOn ? `Due ${today ? dueWords(row.dueOn, today) : row.dueOn}` : 'No due date'}: change for ${row.title}`}
@@ -459,14 +467,14 @@ function DueControl({
     }
     const passed = draft !== '' && today !== null && daysUntil(draft, today) < 0;
     return (
-        <span className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label={`Due date for ${row.title}`}>
+        <span className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label={`Set the due date: ${row.title}`}>
             <input
                 type="date"
                 value={draft}
                 autoFocus
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
-                    if (e.key === 'Escape') setDraft(null);
+                    if (e.key === 'Escape') close();
                 }}
                 aria-label={`Due date for ${row.title}`}
                 className="rounded-md border border-line-strong bg-canvas px-1.5 py-0.5 text-xs text-ink"
@@ -484,7 +492,7 @@ function DueControl({
                     Clear
                 </button>
             )}
-            <button type="button" onClick={() => setDraft(null)} className="font-medium text-muted underline underline-offset-2">
+            <button type="button" onClick={close} className="font-medium text-muted underline underline-offset-2">
                 Cancel
             </button>
             {passed && <span className="text-muted">That day has passed.</span>}

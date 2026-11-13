@@ -219,6 +219,11 @@ export async function stubClassProgressApi(page: Page): Promise<ClassProgressStu
     stub.calls.push('activity_progress');
     return route.fulfill({ json: activity });
   });
+  // Due dates (0087, DD-4): the grid's due read — none set in this fixture.
+  await page.route('**/rest/v1/class_activities**', (route) => {
+    stub.calls.push('class_activities:due');
+    return route.fulfill({ json: [] });
+  });
   await page.route('**/rest/v1/activity_versions**', (route) =>
     route.fulfill({ json: [{ id: V_FRACTIONS, version_num: 2, content: f.doc }] }),
   );

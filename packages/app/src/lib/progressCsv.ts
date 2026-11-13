@@ -2,7 +2,8 @@
 // progressCsv.ts — class progress as a CSV (UI review E-1,
 // docs/design/ui-review-group-e.md)
 // -----------------------------------------------------------------------------
-// One row per student, three columns per activity (due date, DD-4, then), from the grid the page
+// One row per student; per activity a due column (DD-4, only when the class
+// has any dates), then two more, from the grid the page
 // already loaded (nothing new is fetched), read through the grid's OWN
 // `cellStatus` so the file says what the cell says (Fable review of E-1):
 //   "<title> — sections checked"   "3 of 5", "3 of 5 (older version)" for
@@ -29,9 +30,13 @@ export function csvField(value: string | number | null | undefined): string {
 }
 
 export function classProgressCsv(grid: ClassProgress, due?: ReadonlyMap<string, string>): string {
+    // The due column only when the class has any dates (a class that never
+    // uses them gets the two-column file, not a column of blanks per activity).
+    const withDue = (due?.size ?? 0) > 0;
     const header = ['Student'];
     for (const a of grid.activities) {
-        header.push(`${a.title} — due`, `${a.title} — sections checked`, `${a.title} — % right`);
+        if (withDue) header.push(`${a.title} — due`);
+        header.push(`${a.title} — sections checked`, `${a.title} — % right`);
     }
     const cellFor = new Map(grid.cells.map((c) => [`${c.student_id}|${c.activity_id}`, c]));
     const rows = grid.students.map((st) => {
@@ -39,7 +44,7 @@ export function classProgressCsv(grid: ClassProgress, due?: ReadonlyMap<string, 
         for (const a of grid.activities) {
             const status = cellStatus(cellFor.get(`${st.student_id}|${a.activity_id}`));
             const older = status.older ? ' (older version)' : '';
-            out.push(due?.get(a.activity_id) ?? null); // DD-4: YYYY-MM-DD, sorts in a spreadsheet
+            if (withDue) out.push(due?.get(a.activity_id) ?? null); // DD-4: YYYY-MM-DD, sorts
             out.push(
                 status.kind === 'none'
                     ? null

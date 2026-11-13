@@ -32,6 +32,11 @@ export interface StudentClassActivity {
     activityId: string;
     title: string;
     addedAt: string;
+    /** Due date in the class's timezone, 'YYYY-MM-DD', or null (0087). */
+    dueOn: string | null;
+    /** The class's today, 'YYYY-MM-DD' (0087) — the day "due" is judged by,
+     *  never the device's. null on a response from before 0087. */
+    classToday: string | null;
 }
 
 export async function listClassActivities(): Promise<StudentClassActivity[]> {
@@ -42,12 +47,16 @@ export async function listClassActivities(): Promise<StudentClassActivity[]> {
         activity_id: string;
         title: string;
         added_at: string;
+        due_on?: string | null;
+        class_today?: string | null;
     }
     return ((data ?? []) as Row[]).map((r) => ({
         classId: r.class_id,
         activityId: r.activity_id,
         title: r.title,
         addedAt: r.added_at,
+        dueOn: r.due_on ?? null,
+        classToday: r.class_today ?? null,
     }));
 }
 
@@ -327,4 +336,31 @@ export function formatListDate(iso: string): string {
         day: 'numeric',
         ...(withYear ? { year: 'numeric' as const } : {}),
     });
+}
+
+/** Is this work finished, for due-date purposes (DD-3)? "Done ✓" on the
+ *  current version, or done on an earlier one. Unknown progress is not. */
+export function isFinished(p: ActivityProgress | undefined): boolean {
+    if (!p) return false;
+    return progressLabel(p).startsWith('Done');
+}
+
+/**
+ * DD-3's order within a class: activities with a date and not finished come
+ * first, soonest first; then the rest in the list's own order (newest added
+ * first). Stable, so equal dates keep that order too.
+ */
+export function orderForHome(
+    rows: readonly StudentClassActivity[],
+    progress: ReadonlyMap<string, ActivityProgress> | null,
+): StudentClassActivity[] {
+    const pending = (r: StudentClassActivity) => r.dueOn !== null && !isFinished(progress?.get(r.activityId));
+    const indexed = rows.map((r, i) => ({ r, i }));
+    indexed.sort((a, b) => {
+        const pa = pending(a.r), pb = pending(b.r);
+        if (pa !== pb) return pa ? -1 : 1;
+        if (pa && pb && a.r.dueOn !== b.r.dueOn) return a.r.dueOn! < b.r.dueOn! ? -1 : 1;
+        return a.i - b.i;
+    });
+    return indexed.map((x) => x.r);
 }

@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { studentDueLabel } from '../lib/dueWords';
 import { Link } from 'react-router';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
 import { uncheckedActivitiesOnDevice, uncheckedCostSentence } from '../lib/uncheckedWork';
@@ -12,6 +13,8 @@ import {
   listClassActivities,
   listMyActivityProgress,
   progressLabel,
+  isFinished,
+  orderForHome,
   type ActivityProgress,
   type StudentClassActivity,
 } from '../lib/classActivities';
@@ -345,9 +348,10 @@ function StudentHome({ email }: { email: string }) {
               empty line is THE empty state. Headers stay non-links: no
               class page exists (ruled, not an oversight). */}
           {joined.map((c) => {
+            // DD-3: due and unfinished first, soonest first; then newest added.
             const rows =
               activities.phase === 'ready'
-                ? activities.rows.filter((r) => r.classId === c.classId)
+                ? orderForHome(activities.rows.filter((r) => r.classId === c.classId), progress)
                 : [];
             return (
               <div key={c.classId} className="mt-3">
@@ -396,10 +400,16 @@ function StudentHome({ email }: { email: string }) {
                             </span>
                             {(() => {
                               const p = progress?.get(r.activityId);
+                              // DD-3: a label, never a lock; muted, and gone
+                              // once the work is finished.
+                              const due = studentDueLabel(r.dueOn, r.classToday, isFinished(p));
+                              const dueTail = due ? (
+                                <span data-due={r.activityId}>{` · ${due}`}</span>
+                              ) : null;
                               if (!p) {
                                 return (
                                   <span className="shrink-0 text-xs text-muted">
-                                    Added {formatListDate(r.addedAt)}
+                                    {due ?? `Added ${formatListDate(r.addedAt)}`}
                                   </span>
                                 );
                               }
@@ -411,6 +421,7 @@ function StudentHome({ email }: { email: string }) {
                                 >
                                   {label}
                                   {p.feedbackReleased ? ' · Feedback ready' : ''}
+                                  {dueTail}
                                 </span>
                               );
                             })()}

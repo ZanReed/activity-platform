@@ -52,7 +52,8 @@ describe('classProgressCsv', () => {
         const lines = parse(classProgressCsv(grid));
         expect(lines[2]!.startsWith('"\'=HYPERLINK(""x"")"')).toBe(true);
         // A started cell carries no percent; an unknown total says so.
-        expect(lines[2]).toBe('"\'=HYPERLINK(""x"")","","started (total not recorded)","","","1 of 5",""');
+        // No due dates in this class: no due columns (two per activity).
+        expect(lines[2]).toBe('"\'=HYPERLINK(""x"")","started (total not recorded)","","1 of 5",""');
     });
 
     it('starts with a BOM and uses CRLF, for Excel', () => {

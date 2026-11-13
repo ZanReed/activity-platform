@@ -696,7 +696,11 @@ export const TEACHER_JOURNEYS = [
         // 10 → 12.5 on 2026-11-13 (R5): TeacherNav and the class helpers it
         // shares with Home left the shell when Home went lazy, so Classes now
         // fetches them itself (8.2 → 11.1). A cost moved, not a leak.
-        maxGzKiB: 12.5,
+        // 12.5 → 14.25 (2026-11-13): UI review E-1 (rename a class, D-6 row
+        // names) and due dates DD-2/DD-4 (each row's due control, the class's
+        // today, "N due this week"; dueDates + dueWords 0.67 KiB). Measured
+        // 14.0: every added chunk is the feature's own, none crossed a line.
+        maxGzKiB: 14.25,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A list of classes, no editor.',
     },
