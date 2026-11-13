@@ -536,3 +536,43 @@ deploy (0088's `my_timezone` / `set_my_timezone` are live).
   them (0063's lookup falls back to `pg_timezone_names`). The label is cosmetic.
 - The mid-day change is covered by verify-0088 C5 (`fact_class_zone` and
   `class_today` move). Not asserted: a plan row left on the old "today".
+
+**Step 4a, the Plan page (PP-1–PP-4, PP-6; 2026-11-14, overnight run):** no
+migration, no deploy. Step 4 was split because the whole of it was too large
+for one reviewable change: **4b** covers the hook picker (PP-7), "Make it due
+this day" (PP-10), "Carry on today" from the last day (PP-2), and the itemized
+day card in the Today panel (PP-8).
+
+- `/classes/:classId/plan` (`routes/ClassPlan.tsx`, `lib/classPlan.ts`, lazy;
+  `class_plan` refuses anyone but the class's teacher). It is linked as "Plan
+  ahead" from the Today panel and from each class card on My classes. It shows
+  ten school days from the class's today (a weekend day only when something is
+  on it; today always), with Earlier / Later / Back to today and "Go to" a date
+  (clamped to today…limit). "Last time" is shown read-only. The timezone control
+  sits at the top (PP-11).
+- Each day card has its activities in order, each with its time ("about 30 min" /
+  "time not set" / struck "no longer available"), ↑ / ↓ (the full day's ids,
+  unavailable rows included, as `reorder_class_plan` requires), "Move to…" a
+  date, Remove, and "Add activity" (this class's published activities not
+  already on the day; hidden past the limit and before today, where the rows
+  stay removable).
+- Total (PP-6): number facts 5 when the sprint is on and the day has an activity;
+  hook minutes from `period_shapes` when a hook is dated that day; each
+  activity's minutes; practice per activity at 60–90 s a question. That is the
+  student list's own arithmetic, not the mirrored copies, so the two agree. An
+  unset time is named ("+ Graphs (time not set)"), never counted as zero.
+- After every write the page re-reads its window, so the server's answer is what
+  shows (latest-wins, so a slow read never overwrites a newer one).
+- Browser-checked on the local stack: add ×2, ↓, and Move to Tue each wrote the
+  expected rows and audit ops (`plan_add` ×2, `reorder_plan`, `move_plan`);
+  test rows removed afterwards.
+- Fable-reviewed, no P0. P1s fixed: no latest-wins guard, and "Go to" loaded on
+  every keystroke (a past start gave dead Add forms); a stale `start` after a
+  write, with navigation not disabled while busy; sprint/practice minutes not
+  matching the student list; thin tests (range args, limits, weekend today,
+  reorder with an unavailable row). P2s fixed: a failed re-read keeps the page
+  with "Try again"; Later is bounded by the limit; a weekend today has a card;
+  the card is labelled by its heading. P2s left: focus when an arrow disables at
+  the top or bottom of a list; the error line sits at the top of the page.
+- Mutation-tested: an unset time counted as zero (2 red); the Go to range guard
+  (1 red).

@@ -148,6 +148,8 @@ export default function TodayPanel({
                     {choosing ? 'Done' : today.length > 0 ? 'Change' : "Pick today's activity"}
                 </button>
                 {hookChain ? <Link to={`/chains/${hookChain}`}>Hooks for this unit</Link> : null}
+                {/* PP-1: the Plan page, for any day after today. */}
+                <Link to={`/classes/${classId}/plan`}>Plan ahead</Link>
             </p>
             {saveError ? <p role="alert">{saveError}</p> : null}
             {choosing && options ? (

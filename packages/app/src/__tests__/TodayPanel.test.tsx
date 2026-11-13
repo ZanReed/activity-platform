@@ -157,7 +157,9 @@ describe('TodayPanel', () => {
         show();
         await screen.findByText('Number facts 5 · Hook · Unit rates · Practice');
         await waitFor(() => expect(fetchMyChainHooks).toHaveBeenCalled());
-        expect(screen.queryByRole('link')).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Hooks for this unit' })).toBeNull();
+        // PP-1: "Plan ahead" is always there, to this class's Plan page.
+        expect(screen.getByRole('link', { name: 'Plan ahead' }).getAttribute('href')).toMatch(/\/classes\/[^/]+\/plan$/);
     });
 
     it('says so when the plan can\'t load, without blocking the page', async () => {

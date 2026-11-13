@@ -818,6 +818,13 @@ function ClassCard({
         >
         Today &amp; practice
         </Link>
+        <Link
+        to={`/classes/${info.id}/plan`}
+        aria-label={`Plan ahead: ${info.name}`}
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+        >
+        Plan ahead
+        </Link>
         <button
         type="button"
         onClick={() => setConfirming('delete')}

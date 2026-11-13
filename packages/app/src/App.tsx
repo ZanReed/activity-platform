@@ -77,6 +77,8 @@ const FactsDemo = lazy(() => import('./routes/FactsDemo'));
 // The student's class link and the teacher's number-facts page (D43 slice 1).
 const FactsEntry = lazy(() => import('./routes/FactsEntry'));
 const FactsTeacher = lazy(() => import('./routes/FactsTeacher'));
+// Period planner PP-1 (0088): a class's next school days, teachers only.
+const ClassPlan = lazy(() => import('./routes/ClassPlan'));
 // The unit tracker (curriculum D67): the student's page and the teacher's.
 const StudentTracker = lazy(() => import('./routes/UnitTracker').then((m) => ({ default: m.StudentTracker })));
 const TeacherTracker = lazy(() => import('./routes/UnitTracker').then((m) => ({ default: m.TeacherTracker })));
@@ -192,6 +194,15 @@ export default function App() {
         element={
             <RequireAuth>
             <FactsTeacher />
+            </RequireAuth>
+        }
+        />
+        {/* Period planner PP-1 (0088): class_plan refuses anyone but the class's teacher. */}
+        <Route
+        path="/classes/:classId/plan"
+        element={
+            <RequireAuth>
+            <ClassPlan />
             </RequireAuth>
         }
         />
