@@ -169,7 +169,8 @@ BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters
 → "As built"; items 13–18, 20, 21; app + viewer only, no migration or
 deploy). C-6's job-health reader is a local weekly task (below). **Group D: BUILT 2026-11-13**
 ([ui-review-group-d.md](docs/design/ui-review-group-d.md) → "As built"; items
-22–26; app + viewer only, no migration or deploy). E open.
+22–26; app + viewer only, no migration or deploy). **Group E in design:**
+[ui-review-group-e.md](docs/design/ui-review-group-e.md) (E-1…E-9).
 
 ## Column cell height still reads in rem (found building D-7, 2026-11-13)
 
