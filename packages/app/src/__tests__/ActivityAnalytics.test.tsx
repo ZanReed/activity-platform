@@ -11,8 +11,8 @@
 //     looks like "students got everything wrong",
 //   * the unattributed bucket must be visible, because it is the signal that
 //     the census is behind,
-//   * a maintenance job that has never run must be stated, since a silently
-//     dead cron is this system's classic failure.
+//   * no developer text reaches the teacher (C-6, ui-review-group-c.md): the
+//     maintenance job's health is watched by the weekly CI-health routine.
 // =============================================================================
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -82,7 +82,7 @@ describe('ActivityAnalytics', () => {
         h.result.current = { data: payload, error: null };
         renderPanel();
 
-        await waitFor(() => expect(screen.getByText('fill in blank')).toBeTruthy());
+        await waitFor(() => expect(screen.getByText('Fill in the blank')).toBeTruthy());
         // 3 of 4 on the latest attempt; 4 of 6 across attempts. Showing only the
         // second would overstate mastery, which is exactly why both are here.
         expect(screen.getByText('(3/4)')).toBeTruthy();
@@ -100,50 +100,35 @@ describe('ActivityAnalytics', () => {
         h.result.current = { data: payload, error: null };
         renderPanel();
 
-        await waitFor(() => expect(screen.getByText('fill in blank')).toBeTruthy());
+        await waitFor(() => expect(screen.getByText('Fill in the blank')).toBeTruthy());
         expect(
             screen.getByText(/Students.*counts each student whose latest attempt reaches/i),
         ).toBeTruthy();
     });
 
-    it('shows totals and the maintenance-job line', async () => {
+    it('shows totals, and no developer text (C-6)', async () => {
         h.result.current = { data: payload, error: null };
-        renderPanel();
+        const { container } = renderPanel();
         await waitFor(() => expect(screen.getByText('Checks')).toBeTruthy());
         expect(screen.getByText('3')).toBeTruthy();
-        expect(screen.getByText(/Maintenance last ran/)).toBeTruthy();
+        expect(container.textContent).not.toMatch(/maintenance|cache rows|pnpm|census/i);
     });
 
-    it('says the job has not run yet WITHOUT claiming it is unscheduled', async () => {
-        // The ledger knows whether the job RAN; it knows nothing about whether
-        // it is scheduled. An earlier version asserted "not scheduled yet",
-        // which went false the moment the cron was registered and would have
-        // sent a reader to re-schedule an already-scheduled job.
-        h.result.current = { data: { ...payload, job: null }, error: null };
-        renderPanel();
-        await waitFor(() => expect(screen.getByText(/has not run yet/)).toBeTruthy());
-        expect(screen.queryByText(/not scheduled/)).toBeNull();
-    });
-
-    it('flags a run that is more than a day old as possibly stopped', async () => {
-        const twoDaysAgo = new Date(Date.now() - 48 * 3_600_000).toISOString();
+    it('names question types in plain words (C-6)', async () => {
         h.result.current = {
-            data: { ...payload, job: { ...payload.job, last_run_at: twoDaysAgo } },
+            data: {
+                ...payload,
+                keys: [
+                    { ...payload.keys[0], census_key: 'data_plot.build_histogram' },
+                    { ...payload.keys[0], census_key: 'interactive_graph.plot_point' },
+                ],
+            },
             error: null,
         };
         renderPanel();
-        await waitFor(() => expect(screen.getByText(/may have stopped/)).toBeTruthy());
-    });
-
-    it('does not flag a run from within the last day', async () => {
-        const sixHoursAgo = new Date(Date.now() - 6 * 3_600_000).toISOString();
-        h.result.current = {
-            data: { ...payload, job: { ...payload.job, last_run_at: sixHoursAgo } },
-            error: null,
-        };
-        renderPanel();
-        await waitFor(() => expect(screen.getByText(/Maintenance last ran/)).toBeTruthy());
-        expect(screen.queryByText(/may have stopped/)).toBeNull();
+        await waitFor(() => expect(screen.getByText('Data plot · build a histogram')).toBeTruthy());
+        expect(screen.getByText('Graph · plot a point')).toBeTruthy();
+        expect(screen.getByRole('columnheader', { name: 'Question type' })).toBeTruthy();
     });
 
     it('explains an uncensused version instead of showing a bare zero', async () => {
@@ -152,8 +137,8 @@ describe('ActivityAnalytics', () => {
             error: null,
         };
         renderPanel();
-        await waitFor(() => expect(screen.getByText(/No census yet/)).toBeTruthy());
-        expect(screen.getByText(/backfill:census/)).toBeTruthy();
+        await waitFor(() => expect(screen.getByText(/appears once a student has opened it/)).toBeTruthy());
+        expect(screen.queryByText(/backfill/)).toBeNull();
     });
 
     it('surfaces the unattributed bucket with its explanation', async () => {
@@ -174,7 +159,7 @@ describe('ActivityAnalytics', () => {
         await waitFor(() =>
             expect(screen.getByText('Not yet attributed')).toBeTruthy(),
         );
-        expect(screen.getByText(/no census/)).toBeTruthy();
+        expect(screen.getByText(/before the breakdown was counted/)).toBeTruthy();
     });
 
     it('keeps the page alive and repeats the server message on refusal', async () => {
@@ -183,7 +168,7 @@ describe('ActivityAnalytics', () => {
         await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
         expect(screen.getByRole('alert').textContent).toContain('Not available');
         // The heading is still there: a refusal is a panel state, not a crash.
-        expect(screen.getByText('Activity analytics')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Analytics' })).toBeTruthy();
     });
 
     it('reports no checks yet without implying failure', async () => {

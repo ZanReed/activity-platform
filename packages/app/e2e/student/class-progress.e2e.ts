@@ -6,7 +6,7 @@
 // panel (its own address, focus in, Close returns focus) → Hide names, proven
 // by asserting NO student name survives in text OR any attribute (DR-10) and
 // that the choice survives a reload → the per-activity page with the wrong
-// answers above the grid → "N to grade" → Responses' "Back to progress".
+// answers above the grid → "N to grade" → Responses' "← Class progress".
 // (Lives in the stub-env lane's folder beside facts-teacher.e2e.ts: that
 // lane's server has the pinned, account-free environment signed-in specs need.)
 // =============================================================================
@@ -138,13 +138,13 @@ test('class grid → answer panel → hide names → activity page → back from
   await expect(activityPanel).toContainText('two thirds');
   await activityPanel.getByRole('button', { name: 'Latest' }).click();
 
-  // "N to grade" carries where it came from; Responses offers "Back to progress".
+  // "N to grade" carries where it came from; Responses' header goes back to it (C-7).
   await page.route('**/rest/v1/rpc/list_grading_queue**', (route) => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/rpc/get_grading_assist_status**', (route) => route.fulfill({ json: null }));
   await page.route('**/rest/v1/rpc/list_grade_suggestions**', (route) => route.fulfill({ json: [] }));
   await activityPanel.getByRole('link', { name: '1 to grade in Fractions 2' }).click();
   await expect(page).toHaveURL(/\/responses\?from=/);
-  const back = page.getByRole('link', { name: 'Back to progress' });
+  const back = page.getByRole('link', { name: '← Class progress' });
   await expect(back).toBeVisible();
   await back.click();
   await expect(page).toHaveURL(new RegExp(`/activity/${CP_FRACTIONS}/progress`));
@@ -157,8 +157,8 @@ test('Responses ignores a ?from= that is not an in-app progress path', async ({ 
   await page.route('**/rest/v1/rpc/get_grading_assist_status**', (route) => route.fulfill({ json: null }));
   await page.route('**/rest/v1/rpc/list_grade_suggestions**', (route) => route.fulfill({ json: [] }));
   await page.goto(`/activity/${CP_FRACTIONS}/responses?from=${encodeURIComponent('//evil.example/progress')}`);
-  await expect(page.getByRole('link', { name: 'Back to editor' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Back to progress' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '← My activities' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '← Class progress' })).toHaveCount(0);
 });
 
 test('on a phone the answers are a full page', async ({ page }) => {

@@ -322,7 +322,7 @@ describe('join link', () => {
         renderClasses();
         const link = await screen.findByRole('link', { name: 'Progress' });
         expect(link.getAttribute('href')).toBe('/classes/class-1/progress');
-        expect(screen.getByRole('link', { name: 'Practice' }).getAttribute('href')).toBe('/classes/class-1/facts');
+        expect(screen.getByRole('link', { name: 'Today & practice' }).getAttribute('href')).toBe('/classes/class-1/facts');
     });
 
     it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {

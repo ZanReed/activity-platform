@@ -44,7 +44,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { safeProgressPath } from '../lib/classProgress';
 import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/responsesLabels';
 import {
@@ -58,6 +58,7 @@ import {
   type GradingQueueRow,
 } from '../lib/grading';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { RELEASE_ALL_COPY, releaseEach } from '../lib/releaseAll';
 import { DOL_PASS_COPY, baseLevelMet, fetchDolPassStatus, setDolPass, type DolPassRow } from '../lib/dolPass';
 import {
@@ -357,15 +358,13 @@ export default function ActivityResponses() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-xl font-semibold text-ink">{COPY.title}</h1>
-        <Link
-          to={backToProgress ?? `/activity/${id}`}
-          className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
-        >
-          {backToProgress ? 'Back to progress' : 'Back to editor'}
-        </Link>
-      </div>
+      {/* C-7: one header across the activity's results pages. */}
+      <ActivityResultsHeader
+        activityId={id ?? ''}
+        current="responses"
+        back={backToProgress ? { to: backToProgress, label: 'Class progress' } : null}
+      />
+      <h1 className="mb-6 text-xl font-semibold text-ink">{COPY.title}</h1>
 
       {loading && <p className="text-sm text-muted">Loading…</p>}
 

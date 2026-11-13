@@ -24,8 +24,9 @@
 // last run shows up here, where someone actually looks.
 // =============================================================================
 
+import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { supabase } from '../lib/supabase';
 
 interface AnalyticsKey {
@@ -77,53 +78,52 @@ function percent(correct: number, of: number): string {
     return `${Math.round((correct / of) * 100)}%`;
 }
 
-/** How long past its daily schedule a run has to be before this reads as a
- * problem rather than a gap. The job runs at 03:30 UTC, so anything past ~36h
- * has genuinely missed a night. */
-const STALE_AFTER_HOURS = 36;
+// C-6 (ui-review-group-c.md): the maintenance-job health line and the
+// `pnpm backfill:census` hint were developer text on a teacher page; the job's
+// health is watched by the weekly CI-health routine instead.
 
-/**
- * What to say about the nightly maintenance job.
- *
- * This exists because a silently-dead scheduled job is this system's classic
- * failure — `purge_soft_deleted` went unscheduled from the project's start and
- * nobody noticed for months, because the only evidence was a Postgres notice
- * nobody reads. So the run shows up on a screen someone opens.
- *
- * The one thing this must NOT do is guess at causes. An earlier version said
- * "the nightly analytics job is not scheduled yet" whenever there was no ledger
- * row — which was wrong the moment the job WAS scheduled and simply hadn't
- * fired, and would have sent a reader off to re-schedule something already
- * scheduled. The ledger knows whether the job has RUN. It knows nothing about
- * whether it is scheduled, so this says only what it can see.
- */
-function jobHealth(job: AnalyticsPayload['job']): string {
-    if (!job) {
-        return 'The nightly maintenance job has not run yet.';
-    }
-    const ranAt = new Date(job.last_run_at);
-    const hoursAgo = (Date.now() - ranAt.getTime()) / 3_600_000;
-    // stale_cache_rows_deleted joins the line (A22): it was fetched, typed,
-    // and never rendered — and it is the one number that shows the nightly
-    // GC actually doing something rather than merely running.
-    const base =
-        `Maintenance last ran ${formatWhen(job.last_run_at)} · ` +
-        `${job.section_check_rows.toLocaleString()} checks stored · ` +
-        `${job.stale_cache_rows_deleted.toLocaleString()} stale cache rows swept`;
-    return hoursAgo > STALE_AFTER_HOURS
-        ? `${base} — that is more than a day ago, so the nightly job may have stopped.`
-        : base;
-}
-
-/** Human label for a census key: `data_plot.build_histogram` reads as
- * "data plot · build histogram". The key itself stays visible in a title
- * attribute — it is the vocabulary the database speaks. */
+/** C-6: a census key in a teacher's words — "Graph · plot a point",
+ *  "Multiple choice". The raw key stays in the cell's title for anyone
+ *  matching it against the database. */
+const BLOCK_NAMES: Record<string, string> = {
+    fill_in_blank: 'Fill in the blank',
+    multiple_choice: 'Multiple choice',
+    matching: 'Matching',
+    correspondence: 'Correspondence',
+    ordering: 'Ordering',
+    short_answer: 'Short answer',
+    essay: 'Essay',
+    self_explanation: 'Self-explanation',
+    math_block: 'Maths gaps',
+    number_line: 'Number line',
+    interactive_graph: 'Graph',
+    data_plot: 'Data plot',
+    table: 'Table',
+    faded_worked_example: 'Faded worked example',
+    worked_example: 'Worked example',
+    video: 'Video',
+};
+const INTERACTION_NAMES: Record<string, string> = {
+    plot_point: 'plot a point',
+    plot_interval: 'graph an interval',
+    plot_ray: 'draw a ray',
+    plot_segment: 'draw a segment',
+    plot_vector: 'draw a vector',
+    plot_function: 'graph a function',
+    graph_inequality: 'graph an inequality',
+    shade_region: 'shade a region',
+    transform_curve: 'transform a curve',
+    build_histogram: 'build a histogram',
+    build_boxplot: 'build a box plot',
+    build_dotplot: 'build a dot plot',
+    display: 'display only',
+};
 function labelFor(key: string): string {
     if (key === UNATTRIBUTED) return 'Not yet attributed';
-    return key
-        .split('.')
-        .map((part) => part.replace(/_/g, ' '))
-        .join(' · ');
+    const [block = '', interaction] = key.split('.');
+    const name = BLOCK_NAMES[block] ?? block.replace(/_/g, ' ');
+    if (!interaction) return name;
+    return `${name} · ${INTERACTION_NAMES[interaction] ?? interaction.replace(/_/g, ' ')}`;
 }
 
 export default function ActivityAnalytics() {
@@ -161,15 +161,9 @@ export default function ActivityAnalytics() {
 
     return (
         <main className="mx-auto max-w-4xl px-4 py-8">
-            <div className="mb-6 flex items-center justify-between gap-3">
-                <h1 className="text-xl font-semibold text-ink">Activity analytics</h1>
-                <Link
-                    to={`/activity/${id}`}
-                    className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
-                >
-                    Back to editor
-                </Link>
-            </div>
+            {/* C-7: one header across the activity's results pages. */}
+            <ActivityResultsHeader activityId={id ?? ''} current="analytics" />
+            <h1 className="mb-6 text-xl font-semibold text-ink">Analytics</h1>
 
             {loading && <p className="text-sm text-muted">Loading…</p>}
 
@@ -193,12 +187,12 @@ export default function ActivityAnalytics() {
                         />
                     </section>
 
+                    {/* C-6: the old note named a developer command; this says
+                        the same fact in a teacher's words. */}
                     {!data.censused && (
                         <p className="mb-6 rounded-lg border border-line bg-surface-2 p-4 text-sm text-muted">
-                            No census yet for the current version. It is written the first
-                            time a student opens this activity — or run{' '}
-                            <code className="text-strong">pnpm backfill:census</code> to
-                            count it now.
+                            The question breakdown for the latest version appears once a
+                            student has opened it.
                         </p>
                     )}
 
@@ -220,7 +214,7 @@ export default function ActivityAnalytics() {
                                 <table className="w-full min-w-[34rem] border-collapse text-sm">
                                     <thead>
                                         <tr className="border-b border-line text-left text-muted">
-                                            <th className="py-2 pr-3 font-medium">Block kind</th>
+                                            <th className="py-2 pr-3 font-medium">Question type</th>
                                             <th className="py-2 pr-3 font-medium">In activity</th>
                                             <th className="py-2 pr-3 font-medium">Students</th>
                                             <th className="py-2 pr-3 font-medium">
@@ -241,7 +235,7 @@ export default function ActivityAnalytics() {
                                                     {labelFor(k.census_key)}
                                                     {k.census_key === UNATTRIBUTED && (
                                                         <span className="ml-2 text-xs text-muted">
-                                                            checks on a version with no census
+                                                            checked before the breakdown was counted
                                                         </span>
                                                     )}
                                                 </td>
@@ -269,9 +263,6 @@ export default function ActivityAnalytics() {
                         </>
                     )}
 
-                    <p className="mt-8 text-xs text-muted">
-                        {jobHealth(data.job)}
-                    </p>
                 </>
             )}
         </main>

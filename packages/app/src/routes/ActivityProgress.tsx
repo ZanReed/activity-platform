@@ -12,6 +12,7 @@
 // A cell opens the same answer panel as the class page (DR-5).
 // =============================================================================
 
+import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import { dolSectionId, servedDocument, type ServedDoc } from '../lib/answerText';
@@ -143,20 +144,8 @@ export default function ActivityProgress() {
 
     return (
         <main className="mx-auto max-w-6xl px-4 py-8">
-            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-3">
-                <p className="text-sm text-muted">
-                    <Link to="/activities" className="underline underline-offset-2 hover:text-strong">
-                        Activities
-                    </Link>
-                    {grid ? ` / ${grid.activity.title}` : ''}
-                </p>
-                <Link
-                    to={`/activity/${id}`}
-                    className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
-                >
-                    Back to editor
-                </Link>
-            </div>
+            {/* C-7: one header across the activity's results pages. */}
+            <ActivityResultsHeader activityId={id ?? ''} title={grid?.activity.title ?? null} current="progress" />
             <h1 className="mb-4 text-xl font-semibold text-ink">Progress</h1>
             <Body
                 loaded={loaded}

@@ -713,11 +713,12 @@ function ClassCard({
         >
         Unit tracker
         </Link>
+        {/* C-8: Today lives on this page; "Practice" alone hid it. */}
         <Link
         to={`/classes/${info.id}/facts`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
-        Practice
+        Today &amp; practice
         </Link>
         <button
         type="button"
