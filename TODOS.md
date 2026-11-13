@@ -167,7 +167,8 @@ BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters
 **Group B: BUILT 2026-11-13** ([ui-review-group-b.md](docs/design/ui-review-group-b.md)
 → "As built"). **Group C: BUILT 2026-11-13** ([ui-review-group-c.md](docs/design/ui-review-group-c.md)
 → "As built"; items 13–18, 20, 21; app + viewer only, no migration or
-deploy). C-6's job-health reader is a local weekly task (below). D–E open.
+deploy). C-6's job-health reader is a local weekly task (below). **Group D in design:**
+[ui-review-group-d.md](docs/design/ui-review-group-d.md) (D-1…D-8). E open.
 
 ## Analytics job health: a LOCAL weekly task (C-6, RULED 2026-11-13)
 
