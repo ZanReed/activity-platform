@@ -302,6 +302,22 @@ function groupStatusLabel(status: GroupStatus, locked: boolean, tally: CheckTall
  * same doctrine: the state decides the sentence, and a student is never told
  * to try again when nothing they do now can work.
  */
+/** The DoL line with C-3's tally folded in: "Passed: 5 of 6 right." Fable
+ *  review of D-3 — with the pills silent, a screen-reader student would
+ *  otherwise hear only "Passed." and walk every question to learn the rest. */
+function dolStatusWithTally(
+  dol: DolServedState,
+  status: SectionStatus | undefined,
+  tally: CheckTally | null,
+): string | null {
+  const line = dolStatusLabel(dol, status);
+  if (!line || !tally) return line;
+  const how = tallyText(tally);
+  if (line.startsWith('Passed.')) return `Passed: ${how}.${line.slice('Passed.'.length)}`;
+  if (line.startsWith('Checked.')) return `Checked: ${how}.${line.slice('Checked.'.length)}`;
+  return line;
+}
+
 function dolStatusLabel(dol: DolServedState, status: SectionStatus | undefined): string | null {
   if (status?.phase === 'error' && status.kind === 'dol_form_stale') {
     return 'This check has changed — reload the page to see your new version.';
@@ -901,8 +917,11 @@ function CheckGroupRegion({
     }
     const target = focusAfterConfirm.current;
     focusAfterConfirm.current = null;
-    if (target === 'check') checkRef.current?.focus();
-    else if (target === 'status') statusRef.current?.focus();
+    const check = checkRef.current;
+    // Check may be gone or disabled by now (a block crashed, the group froze):
+    // then the status line takes focus rather than the page body.
+    if (target === 'check' && check && !check.disabled) check.focus();
+    else if (target) statusRef.current?.focus();
   }, [confirming]);
   const cancelConfirm = () => {
     focusAfterConfirm.current = 'check';
@@ -1001,7 +1020,9 @@ function CheckGroupRegion({
           >
             {blockedByCrash
               ? 'One question can’t be checked yet.'
-              : (dol ? dolStatusLabel(dol, sections[ids[0]!]) : null) ??
+              : (dol
+                  ? dolStatusWithTally(dol, sections[ids[0]!], groupTally(sections, ids, group.sections.map((x) => x.items)))
+                  : null) ??
                 groupStatusLabel(status, locked, groupTally(sections, ids, group.sections.map((x) => x.items)))}
           </p>
           {dol && onDolPractice && dolPracticeOffered(dol, sections[ids[0]!]) ? (

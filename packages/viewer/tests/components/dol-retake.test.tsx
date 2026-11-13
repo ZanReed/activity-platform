@@ -117,6 +117,17 @@ describe('the DoL on screen (D65)', () => {
     expect(inputsDisabled(container)).toBe(false);
   });
 
+  // Fable review of D-3: the pills no longer speak, so the DoL line carries
+  // how it went, as an ordinary group's line does (C-3).
+  it('after a DoL check, the status line says how it went', async () => {
+    const { container } = setup(state(), service({ items: { 'blk-dol': { verdict: 'recorded' } } } as never));
+    await act(async () => { fireEvent.click(button(container)!); });
+    await act(async () => { fireEvent.click(container.querySelector('.viewer-check-group__confirm-fire')!); });
+    expect(status(container)).toBe(
+      'Checked: 1 written answer goes to your teacher. You can try a new version on your next practice day.',
+    );
+  });
+
   it('passed: "Passed." and frozen', () => {
     const { container } = setup(state({ attempts: 1, form: 1, passed: true }));
     expect(status(container)).toBe('Passed.');
