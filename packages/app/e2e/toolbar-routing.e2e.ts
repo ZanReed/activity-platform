@@ -51,7 +51,7 @@ test('the top toolbar bolds text inside a focused choice field', async ({
     await page.keyboard.press('ControlOrMeta+a');
     // Bold from the TOP toolbar (scoped: the mini toolbars are gone, so the
     // only B button is the main one).
-    await page.locator('.editor-toolbar').getByRole('button', { name: 'B' }).click();
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Bold', exact: true }).click();
     // The mark landed in the choice attr, not the main doc.
     const state = await page.evaluate(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,10 +137,10 @@ test('formatting a blank-popover hint from the toolbar keeps the popover open', 
     await hint.click();
     await page.keyboard.type('think fractions');
     await page.keyboard.press('ControlOrMeta+a');
-    // exact — a bare 'I' substring-matches "DefIne".
+    // exact — "Italic" is the button's name since D-4 (it read "I" before).
     await page
         .locator('.editor-toolbar')
-        .getByRole('button', { name: 'I', exact: true })
+        .getByRole('button', { name: 'Italic', exact: true })
         .click();
     // The popover survived the toolbar click (allowlisted outside-click).
     await expect(popover).toBeVisible();

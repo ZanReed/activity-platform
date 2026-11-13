@@ -113,36 +113,54 @@ export default function Toolbar({
             <ToolbarButton
                 onClick={() => target.chain().focus().toggleBold().run()}
                 active={isMarkActive(target, 'bold')}
+                pressed={isMarkActive(target, 'bold')}
+                title="Bold (⌘B)"
+                label="Bold"
             >
                 <strong>B</strong>
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => target.chain().focus().toggleItalic().run()}
                 active={isMarkActive(target, 'italic')}
+                pressed={isMarkActive(target, 'italic')}
+                title="Italic (⌘I)"
+                label="Italic"
             >
                 <em>I</em>
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => target.chain().focus().toggleUnderline().run()}
                 active={isMarkActive(target, 'underline')}
+                pressed={isMarkActive(target, 'underline')}
+                title="Underline (⌘U)"
+                label="Underline"
             >
                 <u>U</u>
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => target.chain().focus().toggleCode().run()}
                 active={isMarkActive(target, 'code')}
+                pressed={isMarkActive(target, 'code')}
+                title="Code (⌘E)"
+                label="Code"
             >
                 <code>{'<>'}</code>
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => target.chain().focus().toggleSubscript().run()}
                 active={isMarkActive(target, 'subscript')}
+                pressed={isMarkActive(target, 'subscript')}
+                title="Subscript (⌘,)"
+                label="Subscript"
             >
                 X<sub>2</sub>
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => target.chain().focus().toggleSuperscript().run()}
                 active={isMarkActive(target, 'superscript')}
+                pressed={isMarkActive(target, 'superscript')}
+                title="Superscript (⌘.)"
+                label="Superscript"
             >
                 X<sup>2</sup>
             </ToolbarButton>
@@ -188,6 +206,7 @@ export default function Toolbar({
                         .run()
                 }
                 title="Insert inline math at the cursor"
+                label="Inline math"
             >
                 ƒx
             </ToolbarButton>
@@ -301,8 +320,11 @@ interface ToolbarButtonProps {
     active?: boolean;
     disabled?: boolean;
     title?: string;
-    /** Accessible name, for a button whose face is an icon. */
+    /** Accessible name, for a button whose face is an icon or a glyph. */
     label?: string;
+    /** On/off state of a toggle (a mark), as aria-pressed (D-4). Leave unset
+     *  for an ordinary action button. */
+    pressed?: boolean;
     children: ReactNode;
 }
 
@@ -312,6 +334,7 @@ function ToolbarButton({
     disabled,
     title,
     label,
+    pressed,
     children,
 }: ToolbarButtonProps) {
     return (
@@ -327,6 +350,7 @@ function ToolbarButton({
             disabled={disabled}
             title={title}
             aria-label={label}
+            aria-pressed={pressed}
             className={`min-w-[32px] rounded px-2 py-1 text-sm font-medium transition ${
                 disabled
                     ? 'cursor-not-allowed bg-canvas text-disabled'

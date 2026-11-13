@@ -217,7 +217,10 @@ test.describe('remove-student dialog (B14 + design 5a/5b)', () => {
     );
     await page.goto('/classes');
     await page.getByRole('button', { name: 'Roster' }).click();
-    await page.getByRole('button', { name: 'Remove' }).click();
+    // D-6: the button names the student (visible text stays "Remove").
+    const remove = page.getByRole('button', { name: 'Remove Jordan P.', exact: true });
+    await expect(remove).toHaveText('Remove');
+    await remove.click();
   }
 
   test('two explicit actions, no default; Escape cancels; plain remove closes silently', async ({ page }) => {
@@ -232,7 +235,7 @@ test.describe('remove-student dialog (B14 + design 5a/5b)', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Remove', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove Jordan P.', exact: true }).click();
     await page
       .getByRole('dialog')
       .getByRole('button', { name: 'Remove', exact: true })

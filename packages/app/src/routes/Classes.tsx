@@ -174,6 +174,9 @@ function Roster({
             <button
             type="button"
             onClick={() => setRemoving(m)}
+            // D-6: 30 rows of "Remove" are 30 identical buttons to a screen
+            // reader; the name says whose. The visible word stays "Remove".
+            aria-label={`Remove ${m.displayName ?? m.email}`}
             className="shrink-0 px-1 py-2.5 text-sm font-medium text-muted underline underline-offset-2 transition hover:text-danger"
             >
             Remove

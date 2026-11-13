@@ -9,7 +9,8 @@ import { renderGraphSettings } from './components/GraphSettings';
 import { renderNumberLineSettings } from './components/NumberLineSettings';
 import { renderResetCrop } from './components/ImageDrawerFields';
 import { requestCropMode } from './components/cropMode';
-import { Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
+import { canMoveBlockAt, moveBlockAt } from './extensions/BlockReorderShortcuts';
 import { OPEN_IMAGE_POPOVER } from './extensions/Image';
 import { headerAttrsOf, headerChoiceOf, type HeaderChoice } from '../lib/tableAligns';
 
@@ -49,6 +50,10 @@ export interface ControlEntry {
      * Handlers call into existing editor commands — they never mutate the DOM.
      */
     onActivate: (editor: Editor, pos: number) => void;
+    /** Tooltip, e.g. the keyboard shortcut (D-5). */
+    title?: string;
+    /** Greyed out when this returns true (e.g. Move up on the first block). */
+    disabled?: (editor: Editor, pos: number) => boolean;
 }
 
 // --- Advanced fields (stage 4 drawer) -------------------------------------
@@ -183,6 +188,22 @@ function deleteBlock(editor: Editor, pos: number): void {
 
 /** Actions the host appends to every block's command bar. */
 export const universalActions: ReadonlyArray<ControlEntry> = [
+    // D-5 (ui-review-group-d.md): a block moves without dragging. The same
+    // move as ⌘⇧↑ / ⌘⇧↓, which nothing on screen used to mention.
+    {
+        label: 'Move up',
+        icon: ArrowUp,
+        title: 'Move up (⌘⇧↑)',
+        onActivate: (editor, pos) => void moveBlockAt(editor, pos, 'up'),
+        disabled: (editor, pos) => !canMoveBlockAt(editor, pos, 'up'),
+    },
+    {
+        label: 'Move down',
+        icon: ArrowDown,
+        title: 'Move down (⌘⇧↓)',
+        onActivate: (editor, pos) => void moveBlockAt(editor, pos, 'down'),
+        disabled: (editor, pos) => !canMoveBlockAt(editor, pos, 'down'),
+    },
     { label: 'Duplicate', icon: Copy, onActivate: duplicateBlock },
     { label: 'Delete', icon: Trash2, onActivate: deleteBlock },
 ];

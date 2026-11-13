@@ -292,6 +292,9 @@ export default function ClassActivitiesPanel({
                 type="button"
                 onClick={() => void handleRemove(row)}
                 disabled={removingId === row.activityId}
+                // D-6: named per row, so a list of activities isn't a column
+                // of identical "Remove" buttons to a screen reader.
+                aria-label={`Remove ${row.title}`}
                 className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong disabled:cursor-not-allowed disabled:opacity-50"
                 >
                 Remove

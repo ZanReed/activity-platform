@@ -371,6 +371,8 @@ function BarButton({ entry, editor, pos, primary }: BarButtonProps) {
                 (primary ? ' block-command-bar__action--primary' : '')
             }
             onClick={() => entry.onActivate(editor, pos)}
+            title={entry.title}
+            disabled={entry.disabled?.(editor, pos) ?? false}
         >
             <Icon size={14} aria-hidden="true" />
             <span>{entry.label}</span>

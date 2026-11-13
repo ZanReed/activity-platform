@@ -81,7 +81,7 @@ describe('remove (DR-5: confirmed, never optimistic)', () => {
     it('FAILURE: the row STAYS and the honest copy renders', async () => {
         h.unshare.mockRejectedValue(new Error('network down'));
         render(<ClassActivitiesPanel classId={CLASS_ID} data={data()} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Remove / }));
         await waitFor(() => {
             expect(screen.getByText(REMOVE_FAILED_COPY)).toBeTruthy();
         });
@@ -93,7 +93,7 @@ describe('remove (DR-5: confirmed, never optimistic)', () => {
     it('SUCCESS: the undo-row appears (role=status) and announces undo availability', async () => {
         const d = data();
         render(<ClassActivitiesPanel classId={CLASS_ID} data={d} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Remove / }));
         await waitFor(() => {
             expect(screen.getByText('“Linear equations practice” removed.')).toBeTruthy();
         });
@@ -105,7 +105,7 @@ describe('remove (DR-5: confirmed, never optimistic)', () => {
     it('UNDO FAILURE (incl. the unpublished-during-window race): the undo-row persists with honest copy, timer stopped', async () => {
         h.share.mockRejectedValue(new Error('Activity is not published'));
         render(<ClassActivitiesPanel classId={CLASS_ID} data={data()} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Remove / }));
         await waitFor(() => screen.getByRole('button', { name: 'Undo' }));
         fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
         await waitFor(() => {
@@ -150,7 +150,7 @@ describe('states (DR-7 / DR-9b,d)', () => {
         });
         render(<ClassActivitiesPanel classId={CLASS_ID} data={d} />);
         expect(screen.getByText(DEAD_ROW_COPY)).toBeTruthy();
-        expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /^Remove / })).toBeTruthy();
     });
 
     it('nothing-published and all-added are DISTINCT states', () => {
@@ -186,7 +186,7 @@ describe('states (DR-7 / DR-9b,d)', () => {
 describe('undo timer (DR-14)', () => {
     it('expires after the window; pausing on hover holds it open', async () => {
         render(<ClassActivitiesPanel classId={CLASS_ID} data={data()} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Remove / }));
         await waitFor(() => screen.getByRole('button', { name: 'Undo' }));
 
         vi.useFakeTimers();

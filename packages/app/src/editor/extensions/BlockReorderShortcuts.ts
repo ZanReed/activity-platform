@@ -1,6 +1,6 @@
 // packages/app/src/editor/extensions/BlockReorderShortcuts.ts
 import { Editor, Extension } from '@tiptap/core';
-import { TextSelection } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { activeBlockAt } from '../strictGrid';
 
 /**
@@ -73,6 +73,48 @@ function moveBlock(editor: Editor, direction: 'up' | 'down'): boolean {
     }
 
     tr.setSelection(TextSelection.near(tr.doc.resolve(cursorTarget)));
+    view.dispatch(tr);
+    return true;
+}
+
+/** Can the block at `pos` move that way within its column? (D-5: the command
+ *  bar greys Move up on the first block and Move down on the last.) */
+export function canMoveBlockAt(editor: Editor, pos: number, direction: 'up' | 'down'): boolean {
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node) return false;
+    const $pos = editor.state.doc.resolve(pos);
+    if ($pos.parent.type.name !== 'column') return false;
+    return direction === 'up'
+        ? $pos.nodeBefore !== null
+        : editor.state.doc.resolve(pos + node.nodeSize).nodeAfter !== null;
+}
+
+/**
+ * Move the block at `pos` one place within its column and keep it SELECTED
+ * (D-5, ui-review-group-d.md): the command bar's Move up / Move down, the
+ * on-screen twin of ⌘⇧↑ / ⌘⇧↓. The shortcut puts the caret back in the
+ * block; this keeps the node selection so the bar stays and a second press
+ * moves it again.
+ */
+export function moveBlockAt(editor: Editor, pos: number, direction: 'up' | 'down'): boolean {
+    if (!canMoveBlockAt(editor, pos, direction)) return false;
+    const { state, view } = editor;
+    const node = state.doc.nodeAt(pos)!;
+    const end = pos + node.nodeSize;
+    const tr = state.tr;
+    let insertAt: number;
+    if (direction === 'up') {
+        const prev = state.doc.resolve(pos).nodeBefore!;
+        insertAt = pos - prev.nodeSize;
+        tr.delete(pos, end);
+        tr.insert(insertAt, node);
+    } else {
+        const next = state.doc.resolve(end).nodeAfter!;
+        tr.delete(pos, end);
+        insertAt = pos + next.nodeSize;
+        tr.insert(insertAt, node);
+    }
+    tr.setSelection(NodeSelection.create(tr.doc, insertAt));
     view.dispatch(tr);
     return true;
 }
