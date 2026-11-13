@@ -367,7 +367,7 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 - How the present view reads on a real projector (contrast, distance).
 - Whether teachers notice that moving a plan doesn't move its due date.
 
-## The letter (SENT 2026-11-13 as B-246, with a summary of PP-1…PP-12, to the curriculum session the author confirmed; reply awaited as C-188)
+## The letter (SENT 2026-11-13 as B-246, with a summary of PP-1…PP-12, to the curriculum session the author confirmed; answered by C-188, 2026-11-14)
 
 > **B-___ · Per-activity minutes in the ```meta fence**
 >
@@ -397,6 +397,47 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 >
 > No pin bump: meta keys are not capabilities. We'll regenerate the
 > catalogue-authoring prompt once the key is agreed and send the new stamp.
+
+## Their answer (C-188, 2026-11-14)
+
+- **Key: `minutes:`, agreed; push the importer.** Not `duration_min:`, which
+  already means two things on their side (the activity cap 32 and the time a
+  quiz is given, 12). No `x_` prefix, since we read it (D20). **Definition:** a
+  typical class's time for the whole activity, review through DoL. It leaves out
+  the hook, the sprint, mixed practice and transitions, which the planner adds
+  as separate blocks. That matches PP-6. Their builder's Minutes field will write
+  `minutes:`, start unset, and stop at the cap.
+- **Above the cap:** their lint REFUSES anything over
+  `activity_defaults.duration_min` (§10 is a hard cap; consolidations are
+  activities, D24). They ask the importer to WARN, not refuse, so one bad estimate
+  can't block an import. **Teacher copies stay 1–120 with no warning** (the cap
+  governs authoring, not classrooms), as PP-5 has it. ⚠ The importer can't warn
+  yet: `duration_min` reaches this side only as the string `"duration_min"` in
+  `period_shapes`, never as a number, and a hard-coded 32 is the value that has
+  already changed once (24 → 32). B-247 asks whether to mirror it.
+- **Quizzes carry no `minutes:`.** Quizzes are printed, never imported. A
+  planner showing a quiz should read `quiz.duration_min` from the graph (D25).
+  **Their ask:** on a quiz day the quiz's 12 minutes REPLACE the sprint and
+  mixed practice (`quiz.slot`, §17); they aren't added on top. How does the
+  planner know a day is a quiz day? **It doesn't: v1 has no quiz day.** A quiz
+  isn't an activity row, and PP-6 sums only what's planned. Filed in TODOS as
+  a wish with a trigger.
+- **Missing key:** they REQUIRE `minutes:` on approved lessons and
+  consolidations (lint), warn on drafts, and banks and quizzes carry none.
+  **Their ask:** an unset activity must not count as zero. **PP-6 already rules
+  this:** the total reads "About 15–20 min + 3.2 Unit rates (time not set)",
+  never a lower sum.
+- **§18 correction:** "never suggests" was our v1 choice, not their rule. §18
+  says the platform "may suggest, never schedule" (D49), so a later prompt such
+  as "chain final done, a corrective is next" stays open. **Suggesting a date
+  stays out.** Letter item 5 put that wrongly; PP-1 never claimed it as their
+  rule.
+- They want the new authoring-prompt stamp once the importer is pushed, and will
+  send their builder/lint PR number.
+- **B-247 sent 2026-11-14:** recorded the above; asked them to carry the cap as a
+  number (`activity_duration_min` beside `period_shapes` in practice-registry.json)
+  so the importer can warn; told them there's no quiz day in v1 (filed with a
+  trigger); accepted the §18 correction. Next C-189.
 
 ## As built
 

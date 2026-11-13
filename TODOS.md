@@ -252,6 +252,17 @@ the census to record block ids — a migration plus a rollup change.
 **Trigger:** a teacher asks which question their class got wrong, with
 students checking (class progress shows per-student answers already).
 
+## A quiz day in the period planner (C-188, filed 2026-11-14)
+
+The curriculum side's `quiz.slot`: on a quiz day the printed quiz's
+`quiz.duration_min` (12) REPLACES the day's sprint and mixed-practice minutes
+(§17). It isn't added on top. The planner (PP-6) has no quiz day: a quiz isn't an
+activity row, and `quiz.duration_min` isn't mirrored here. **Trigger:** a
+teacher plans a quiz into a day, or the first quiz file reaches the catalogue.
+**Shape, when it fires:** a "Quiz day" mark on a day card (stored per class and
+day), with `quiz.duration_min` read from the graph mirror, never a copy (D25).
+It needs its own design pass and the GUI rule.
+
 ## Due dates (author, 2026-11-13)
 
 Wanted by the author even though the HoD asked to hold the wider planning work.

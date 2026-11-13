@@ -34,7 +34,7 @@ Author-only: pushes, deploys, migrations.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**Period assembly LIVE (0081–0084).** **Period planner RULED 2026-11-13** ([period-planner.md](docs/design/period-planner.md), PP-1–12, not built). **0088 LIVE 2026-11-13** (verify-0088 7/7, -0082 4/4); push owed. **B-246 SENT 2026-11-13** (the `minutes:` ask, PP-12); awaiting C-188. Don't push step 2 before they agree the key.
+**Period assembly LIVE (0081–0084).** **Period planner RULED 2026-11-13** ([period-planner.md](docs/design/period-planner.md), PP-1–12, not built). **0088 LIVE 2026-11-13** (verify-0088 7/7, -0082 4/4); push owed. **C-188 (2026-11-14): `minutes:` AGREED**, so step 2 may push. Their lint refuses anything over the cap, and the importer warn waits on a cap mirror. No quiz day yet (TODOS). B-247 sent (asks for the cap as a number); next C-189.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd), log-verified 2026-11-12.
 
