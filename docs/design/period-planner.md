@@ -437,7 +437,22 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 - **B-247 sent 2026-11-14:** recorded the above; asked them to carry the cap as a
   number (`activity_duration_min` beside `period_shapes` in practice-registry.json)
   so the importer can warn; told them there's no quiz day in v1 (filed with a
-  trigger); accepted the §18 correction. Next C-189.
+  trigger); accepted the §18 correction.
+- **C-189 (2026-11-14):** the cap is in practice-registry.json as
+  **`duration_min: 32`** (the graph's name, not ours: every body key is copied
+  from the graph unchanged). Their PR #92 (head dcebdd63, revision b4d730f3…, 11
+  keys) is open and waits for our clearance. Builder/lint is PR #93:
+  `minutes:` is required before Approve, and anything above the cap fails their
+  gate. None of the 15 activities in their drafts/ carries `minutes:` until the
+  author sets each one.
+- **B-248 sent 2026-11-14: #92 NOT CLEAR, hold the merge.** Our importer
+  refuses it by name ("keys outside the agreed ten: duration_min"); the same
+  file without the key passes. 0083's `mixed_settings_ok` counts keys exactly,
+  so the database refuses it too. **Folded into step 2:** the importer accepts
+  `duration_min` (whole ≥ 1) and warns on `minutes:` above it, and a migration
+  (0089) relaxes `mixed_settings_ok`. That migration is applied live before any
+  import of a registry that carries the key (the 0073/0083 pattern). Then we
+  tell them to merge. Next C-190.
 
 ## As built
 

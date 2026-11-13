@@ -34,7 +34,7 @@ Author-only: pushes, deploys, migrations.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**Period assembly LIVE (0081–0084).** **Period planner RULED 2026-11-13** ([period-planner.md](docs/design/period-planner.md), PP-1–12, not built). **0088 LIVE 2026-11-13** (verify-0088 7/7, -0082 4/4); push owed. **C-188: `minutes:` AGREED** (step 2 may push); B-247 sent; next C-189.
+**Period assembly LIVE (0081–0084).** **Period planner RULED 2026-11-13** ([period-planner.md](docs/design/period-planner.md), PP-1–12, not built). **0088 LIVE 2026-11-13** (verify-0088 7/7, -0082 4/4); push owed. **`minutes:` AGREED** (C-188). Their #92 adds `duration_min` to the practice registry, which our importer and 0083 refuse: B-248 told them to hold it until step 2 + 0089 are live. Next C-190.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd), log-verified 2026-11-12.
 
