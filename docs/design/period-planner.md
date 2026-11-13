@@ -367,7 +367,7 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 - How the present view reads on a real projector (contrast, distance).
 - Whether teachers notice that moving a plan doesn't move its due date.
 
-## The letter (DRAFT, not sent; number assigned at send)
+## The letter (HELD 2026-11-13: the author said send it, but no curriculum session was running; send as the next B- number when one runs)
 
 > **B-___ · Per-activity minutes in the ```meta fence**
 >
