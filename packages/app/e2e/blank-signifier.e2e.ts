@@ -106,6 +106,33 @@ test('clicking + Blank inserts a blank and opens its popover focused', async ({
     await expect(answerInput(page)).toBeFocused();
 });
 
+// C-9 (ui-review-group-c.md): the tooltip always said "at the cursor"; the
+// button appended at the end of the line. Now it goes where the caret is.
+test('+ Blank goes at the caret when the caret is in the line', async ({ page }) => {
+    await freshBlock(page);
+    await page.keyboard.type('Two plus two is here');
+    await page.keyboard.press('End');
+    for (let i = 0; i < 'here'.length; i++) await page.keyboard.press('ArrowLeft');
+    await page.locator('.fill-in-blank-block__add-blank').click();
+    await expectBlankCount(page, 1);
+    const before = await page.evaluate(() => {
+        const ed = (window as any).__tiptapEditor;
+        let text: string | null = null;
+        ed.state.doc.descendants((node: any) => {
+            if (text !== null || node.type.name !== 'fillInBlank') return text === null;
+            let acc = '';
+            node.forEach((child: any) => {
+                if (text !== null) return;
+                if (child.type.name === 'blank') text = acc;
+                else acc += child.textContent;
+            });
+            return false;
+        });
+        return text;
+    });
+    expect(before).toBe('Two plus two is ');
+});
+
 test('⌘⇧B / Ctrl⇧B inserts a blank and opens its popover focused', async ({
     page,
 }) => {

@@ -4645,3 +4645,28 @@ img.mc-block__figure-preview {
     font-size: 0.75rem;
     color: var(--ed-danger);
 }
+
+/* C-10 (ui-review-group-c.md): "Block deleted · Undo" after a quick-bar
+   delete. Bottom-left, like the activity list's undo toasts. */
+.block-deleted-toast {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: var(--ed-z-popover);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.875rem;
+    box-shadow: 0 10px 25px rgb(0 0 0 / 0.2);
+}
+.block-deleted-toast__undo {
+    min-height: 2rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    color: inherit;
+}

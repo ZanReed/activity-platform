@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
+import { Redo2, Undo2 } from 'lucide-react';
 import ColumnWidthPicker from './components/ColumnWidthPicker';
 import CellHeightControl from './components/CellHeightControl';
 import InsertMenu from './components/InsertMenu';
@@ -61,6 +62,7 @@ export default function Toolbar({
         fieldEditor && !fieldEditor.isDestroyed ? fieldEditor : null;
     const target = field ?? editor;
     const inField = field !== null;
+    const history = field && typeof field.commands.undo === 'function' ? field : editor;
 
     // The contextual column cluster is for AUTHORED multi-column rows only. In
     // the strict grid every block lives in a row, so isActive('row') is true for
@@ -81,6 +83,27 @@ export default function Toolbar({
         // `editor-toolbar` is the stable hook the popovers' outside-click
         // handlers allowlist (formatting a popover field mustn't close it).
         <div className="editor-toolbar sticky top-0 z-30 flex flex-wrap gap-1 rounded-t-lg border-b border-line bg-surface p-2">
+            {/* C-10 (ui-review-group-c.md): undo was ⌘Z only. A nested field
+                with its own history undoes itself, as ⌘Z inside it would. */}
+            <ToolbarButton
+                onClick={() => history.chain().focus().undo().run()}
+                disabled={!history.can().undo()}
+                title="Undo (⌘Z)"
+                label="Undo"
+            >
+                <Undo2 size={14} aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+                onClick={() => history.chain().focus().redo().run()}
+                disabled={!history.can().redo()}
+                title="Redo (⌘⇧Z)"
+                label="Redo"
+            >
+                <Redo2 size={14} aria-hidden="true" />
+            </ToolbarButton>
+
+            <Divider />
+
             {/* Block styles are main-document transforms — disabled while a
                 nested field has focus (a hint can't become a heading). */}
             <TextStylePicker editor={editor} disabled={inField} />
@@ -278,6 +301,8 @@ interface ToolbarButtonProps {
     active?: boolean;
     disabled?: boolean;
     title?: string;
+    /** Accessible name, for a button whose face is an icon. */
+    label?: string;
     children: ReactNode;
 }
 
@@ -286,6 +311,7 @@ function ToolbarButton({
     active,
     disabled,
     title,
+    label,
     children,
 }: ToolbarButtonProps) {
     return (
@@ -300,6 +326,7 @@ function ToolbarButton({
             onClick={onClick}
             disabled={disabled}
             title={title}
+            aria-label={label}
             className={`min-w-[32px] rounded px-2 py-1 text-sm font-medium transition ${
                 disabled
                     ? 'cursor-not-allowed bg-canvas text-disabled'

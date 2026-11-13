@@ -161,3 +161,38 @@ test('a node-selected block shows the full bar, NOT the quick-bar', async ({
     await expect(page.locator(BAR)).toBeVisible();
     await expect(page.locator(QUICKBAR)).toHaveCount(0);
 });
+
+// C-10 (ui-review-group-c.md): a one-click delete can be taken back on screen.
+test('a quick-bar delete offers Undo, which brings the block back', async ({ page }) => {
+    const before = await blockCount(page);
+    await plainBlock(page).hover();
+    await page.getByRole('button', { name: 'Delete block' }).click();
+    expect(await blockCount(page)).toBe(before - 1);
+    const toast = page.locator('[data-block-deleted-toast]');
+    await expect(toast).toContainText('Block deleted');
+    await toast.getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(() => blockCount(page)).toBe(before);
+    await expect(toast).toHaveCount(0);
+});
+
+test('the Undo toast goes once the document changes again', async ({ page }) => {
+    await plainBlock(page).hover();
+    await page.getByRole('button', { name: 'Delete block' }).click();
+    const toast = page.locator('[data-block-deleted-toast]');
+    await expect(toast).toBeVisible();
+    // Another edit: Undo would now undo THAT, so the toast must not offer it.
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.type('x');
+    // Short timeout: the toast's own 8 s timer must not be what passes this.
+    await expect(toast).toHaveCount(0, { timeout: 1500 });
+});
+
+test('the toolbar has Undo and Redo', async ({ page }) => {
+    const before = await blockCount(page);
+    await plainBlock(page).hover();
+    await page.getByRole('button', { name: 'Delete block' }).click();
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(() => blockCount(page)).toBe(before);
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Redo' }).click();
+    await expect.poll(() => blockCount(page)).toBe(before - 1);
+});

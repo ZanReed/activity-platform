@@ -3,7 +3,7 @@ import {
     NodeViewWrapper,
     type NodeViewProps,
 } from '@tiptap/react';
-import { NodeSelection } from 'prosemirror-state';
+import { NodeSelection, TextSelection } from 'prosemirror-state';
 import PromptField from '../components/PromptField';
 import type { InlineNodes } from '../../lib/serialize';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
@@ -178,8 +178,10 @@ export default function FillInBlankView({
                         // before the click). Do the insert on CLICK, after all
                         // mouse-driven selection handling has settled, so the
                         // NodeSelection we set to open the popover isn't clobbered
-                        // by a trailing mouseup. Append at the block's content-end
-                        // (from getPos) rather than trusting the live selection.
+                        // by a trailing mouseup. C-9 (ui-review-group-c.md): at
+                        // the caret when the caret is in THIS line (the
+                        // mousedown preventDefault keeps it there), otherwise at
+                        // the block's content-end, from getPos.
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                             const pos =
@@ -188,9 +190,16 @@ export default function FillInBlankView({
                             const self = editor.state.doc.nodeAt(pos);
                             const end =
                                 pos + (self ? self.nodeSize : node.nodeSize) - 1;
-                            editor.commands.insertBlankAndEdit(end);
+                            const sel = editor.state.selection;
+                            const inLine =
+                                sel instanceof TextSelection &&
+                                sel.$from.depth > 0 &&
+                                sel.$from.before() === pos &&
+                                sel.$to.depth > 0 &&
+                                sel.$to.before() === pos;
+                            editor.commands.insertBlankAndEdit(inLine ? sel.to : end);
                         }}
-                        title="Insert a fill-in blank at the cursor (⌘⇧B)"
+                        title="Insert a blank at the caret, or at the end of the line (⌘⇧B)"
                     >
                         + Blank
                     </button>

@@ -54,6 +54,9 @@ function caretBlockPos(editor: Editor): number | null {
     return blockAncestor(selection.$from)?.pos ?? null;
 }
 
+/** How long the "Block deleted · Undo" toast stays (C-10). */
+const DELETE_TOAST_MS = 8000;
+
 export default function BlockQuickBarHost({
     editor,
     canvasRef,
@@ -157,7 +160,40 @@ export default function BlockQuickBarHost({
             : '';
     const { preview, toggle: togglePreview } = usePreviewToggle(previewId);
 
-    if (!editor || activePos === null || !position) return null;
+    // C-10 (ui-review-group-c.md): a one-click delete can be taken back from
+    // the screen. The toast lasts DELETE_TOAST_MS, and goes the moment the
+    // document changes again — after another edit, Undo would undo THAT edit,
+    // not the delete.
+    const [deletedToast, setDeletedToast] = useState(0);
+    useEffect(() => {
+        if (!editor || deletedToast === 0) return;
+        const dismiss = () => setDeletedToast(0);
+        const timer = setTimeout(dismiss, DELETE_TOAST_MS);
+        editor.on('update', dismiss);
+        return () => {
+            clearTimeout(timer);
+            editor.off('update', dismiss);
+        };
+    }, [editor, deletedToast]);
+    const toast =
+        editor && deletedToast !== 0 ? (
+            <div className="block-deleted-toast" role="status" data-block-deleted-toast>
+                <span>Block deleted</span>
+                <button
+                    type="button"
+                    className="block-deleted-toast__undo"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                        setDeletedToast(0);
+                        editor.chain().focus().undo().run();
+                    }}
+                >
+                    Undo
+                </button>
+            </div>
+        ) : null;
+
+    if (!editor || activePos === null || !position) return toast;
 
     // The ⚙ opens settings mode, so only show it when the block has something
     // there (a primary or any settings) — never a dead gear on a block like
@@ -176,6 +212,7 @@ export default function BlockQuickBarHost({
             .chain()
             .deleteRange({ from: activePos, to: activePos + node.nodeSize })
             .run();
+        setDeletedToast((n) => n + 1);
     };
 
     const duplicateBlock = () => {
@@ -201,6 +238,8 @@ export default function BlockQuickBarHost({
     };
 
     return (
+        <>
+        {toast}
         <div
             className="block-quickbar"
             style={{ top: `${position.top}px`, left: `${position.left}px` }}
@@ -265,5 +304,6 @@ export default function BlockQuickBarHost({
                 </button>
             )}
         </div>
+        </>
     );
 }
