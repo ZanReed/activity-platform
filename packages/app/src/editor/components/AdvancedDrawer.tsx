@@ -148,6 +148,8 @@ function DraftField({
                 : String(field.get(node))
             : field.get(node);
     const [draft, setDraft] = useState(external);
+    // B-6: why a typed number wasn't kept (it would be dropped on save).
+    const [error, setError] = useState<string | null>(null);
     useEffect(() => {
         setDraft(external);
     }, [external]);
@@ -155,26 +157,45 @@ function DraftField({
     const commit = () => {
         if (field.kind === 'number') {
             const raw = draft.trim();
-            if (raw === '') return field.set(editor, pos, null);
+            if (raw === '') {
+                setError(null);
+                return field.set(editor, pos, null);
+            }
             const n = Number(raw);
-            if (Number.isFinite(n)) field.set(editor, pos, n);
+            if (!Number.isFinite(n)) return;
+            const reason =
+                field.min !== undefined && n < field.min
+                    ? `Can't be less than ${field.min}.`
+                    : field.max !== undefined && n > field.max
+                      ? `Can't be more than ${field.max}.`
+                      : (field.validate?.(node, n) ?? null);
+            setError(reason);
+            if (reason) return;
+            field.set(editor, pos, n);
         } else {
             field.set(editor, pos, draft);
         }
     };
 
+    const errorId = `drawer-field-error-${field.label.replace(/\W+/g, '-')}-${pos}`;
     return (
         <label className="block-advanced-drawer__field">
             <span className="block-advanced-drawer__label">{field.label}</span>
             <input
                 className="block-advanced-drawer__control"
                 type={field.kind === 'number' ? 'number' : 'text'}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
+                data-invalid={error ? 'true' : undefined}
                 value={draft}
                 placeholder={field.placeholder}
                 min={field.kind === 'number' ? field.min : undefined}
                 max={field.kind === 'number' ? field.max : undefined}
                 step={field.kind === 'number' ? field.step : undefined}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => {
+                    setDraft(e.target.value);
+                    if (error) setError(null);
+                }}
                 onBlur={commit}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -183,6 +204,11 @@ function DraftField({
                     }
                 }}
             />
+            {error && (
+                <span id={errorId} role="alert" className="block-advanced-drawer__error">
+                    {error}
+                </span>
+            )}
         </label>
     );
 }

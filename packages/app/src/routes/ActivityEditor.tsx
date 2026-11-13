@@ -802,23 +802,30 @@ export default function ActivityEditor() {
         // An edit makes the list stale (positions move); the next Publish rebuilds it.
         useEffect(() => setStartCheck(null), [changeKey]);
         const onPublishClick = async (opts: { startsChecked?: boolean } = {}) => {
+            setCheckingStarted(true);
+            // Save first: the refusal (B-1), the starting-answer check (B-3)
+            // and the republish confirm (G-3) all read the document as it is
+            // now. A failed save, or anything that must be fixed, goes straight
+            // to publish(), which refuses and says why — refusals come before
+            // the softer check, so the two panels never show together.
+            const flushed = await flush();
+            const draft = lastPersistedDraft.current;
+            if (!flushed || (draft && findPublishProblems(draft).length > 0)) {
+                setCheckingStarted(false);
+                setStartCheck(null);
+                return publish();
+            }
             if (!opts.startsChecked && editorInstance) {
                 const starts = findStartingAnswers(editorInstance);
                 if (starts.length > 0) {
+                    setCheckingStarted(false);
                     setStartCheck(starts);
                     return;
                 }
             }
             setStartCheck(null);
             const live = isPublished || publishState.kind === 'success';
-            if (!live || !id) return publish();
-            setCheckingStarted(true);
-            // Save first, so the locked/DoL line reads the document as it is
-            // now and a draft that can't publish (G-2) is refused before we
-            // ask — publish() then shows why. A failed save goes the same way.
-            const flushed = await flush();
-            const draft = lastPersistedDraft.current;
-            if (!flushed || (draft && findPublishProblems(draft).length > 0)) {
+            if (!live || !id) {
                 setCheckingStarted(false);
                 return publish();
             }
@@ -1062,29 +1069,31 @@ export default function ActivityEditor() {
                     </div>
                 )}
 
-                {/* What a ```meta import declined to overwrite (D16). Without
-                    this the never-clobber rule would read as "the paste didn't
-                    work" — the whole point is that the author's own value won,
-                    which is only reassuring if they can see it happen. */}
-                {metaImportNotes.length > 0 && (
-                    <div
-                    role="status"
-                    className="mt-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs text-muted"
-                    >
-                    <ul className="space-y-1">
-                    {metaImportNotes.map((note) => (
-                        <li key={note}>{note}</li>
-                    ))}
-                    </ul>
-                    <button
-                    type="button"
-                    onClick={() => setMetaImportNotes([])}
-                    className="mt-1.5 font-medium underline underline-offset-2 transition hover:text-ink"
-                    >
-                    Dismiss
-                    </button>
-                    </div>
-                )}
+                                </div>
+            )}
+            {/* B-5: shown whether or not the activity was ever published — a
+                first import is the common case. */}
+            {/* What a ```meta import declined to overwrite (D16). Without
+                this the never-clobber rule would read as "the paste didn't
+                work" — the whole point is that the author's own value won,
+                which is only reassuring if they can see it happen. */}
+            {metaImportNotes.length > 0 && (
+                <div
+                role="status"
+                className="mt-2 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs text-muted"
+                >
+                <ul className="space-y-1">
+                {metaImportNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                ))}
+                </ul>
+                <button
+                type="button"
+                onClick={() => setMetaImportNotes([])}
+                className="mt-1.5 font-medium underline underline-offset-2 transition hover:text-ink"
+                >
+                Dismiss
+                </button>
                 </div>
             )}
             {/* G-8: where the save stands — Saving… / Saved, or why not and
@@ -1160,8 +1169,9 @@ export default function ActivityEditor() {
                 )}
                 <button
                 type="button"
+                disabled={publishState.kind === 'publishing' || status === 'saving' || status === 'conflict' || checkingStarted}
                 onClick={() => void onPublishClick({ startsChecked: true })}
-                className="mt-2 min-h-9 rounded-md border border-line-strong bg-canvas px-3 text-xs font-medium text-strong hover:bg-surface"
+                className="mt-2 min-h-9 rounded-md border border-line-strong bg-canvas px-3 text-xs font-medium text-strong hover:bg-surface disabled:opacity-50"
                 >
                 {STARTING_ANSWER_COPY.publishAnyway}
                 </button>

@@ -38,6 +38,11 @@ describe('isStartingAnswer', () => {
         expect(isStartingAnswer('interactiveGraph', { type: 'display', drawables: [] })).toBe(false);
         expect(isStartingAnswer('paragraph', defaultPointInteraction())).toBe(false);
     });
+
+    it('a graph whose answer is "No solution" is a set answer, not a starting one', () => {
+        expect(isStartingAnswer('interactiveGraph', defaultPointInteraction(), { allowNoSolution: true, noSolutionCorrect: true })).toBe(false);
+        expect(isStartingAnswer('interactiveGraph', defaultPointInteraction(), { allowNoSolution: true, noSolutionCorrect: false })).toBe(true);
+    });
 });
 
 describe('findStartingAnswers', () => {

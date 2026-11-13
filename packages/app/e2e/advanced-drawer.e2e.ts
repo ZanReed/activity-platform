@@ -109,6 +109,41 @@ test('Advanced opens the overflow (word count + rubric)', async ({ page }) => {
     expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(150);
 });
 
+// B-6 (ui-review-group-b.md): a value the save would drop is refused where it
+// is typed, with the reason — not kept on screen and silently lost.
+test('min words above max is refused in the drawer', async ({ page }) => {
+    await insertAndSelect(page, 'insertEssay', 'essay');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    const maxWords = drawer.getByRole('spinbutton', { name: 'Max words' });
+    await maxWords.fill('100');
+    await maxWords.blur();
+    expect(await attrOfFirst(page, 'essay', 'wordMax')).toBe(100);
+    const minWords = drawer.getByRole('spinbutton', { name: 'Min words' });
+    await minWords.fill('150');
+    await minWords.blur();
+    await expect(drawer.getByRole('alert')).toHaveText("Min can't be more than max (100).");
+    await expect(minWords).toHaveAttribute('aria-invalid', 'true');
+    expect(await attrOfFirst(page, 'essay', 'wordMin')).toBeNull();
+    await minWords.fill('80');
+    await minWords.blur();
+    await expect(drawer.getByRole('alert')).toHaveCount(0);
+    expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(80);
+});
+
+test('a negative work space is refused in the drawer', async ({ page }) => {
+    await insertAndSelect(page, 'insertCorrespondence', 'correspondence');
+    await gear(page).click();
+    await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
+    const drawer = page.locator(DRAWER);
+    const workSpace = drawer.getByRole('spinbutton', { name: 'Work space (rem)' });
+    await workSpace.fill('-2');
+    await workSpace.blur();
+    await expect(drawer.getByRole('alert')).toHaveText("Can't be less than 0.");
+    expect(await attrOfFirst(page, 'correspondence', 'workSpace')).toBeNull();
+});
+
 test('a toggle simple setting flips in place, without opening the drawer', async ({
     page,
 }) => {

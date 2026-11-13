@@ -4633,3 +4633,15 @@ img.mc-block__figure-preview {
     align-self: stretch;
     background: var(--ed-border);
 }
+
+/* B-6: a drawer value that can't be saved, said where it was typed. */
+.block-advanced-drawer__control[data-invalid='true'] {
+    border-color: var(--ed-danger);
+    outline-color: var(--ed-danger);
+}
+.block-advanced-drawer__error {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: var(--ed-danger);
+}

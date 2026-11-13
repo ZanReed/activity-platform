@@ -74,3 +74,14 @@ test('a dialog chunk that will not load leaves the editor up and says to refresh
   await expect(page.getByRole('alert').filter({ hasText: 'refresh the page' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+// B-5 (ui-review-group-b.md): what a ```meta paste declined to overwrite is
+// shown on an activity that was never published — the common case for a first
+// import. It used to sit inside the "published" status block.
+test('meta import notes show on a never-published activity', async ({ page }) => {
+  await openEditor(page);
+  await importButton(page).click();
+  await page.getByRole('textbox', { name: 'Markdown to import' }).fill('```meta\ntitle: Another name\n```\n\nHello.');
+  await page.getByRole('dialog').getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByText('Meta: kept the name you already gave this activity (“Import dialog fixture”)')).toBeVisible();
+});

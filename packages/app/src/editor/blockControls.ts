@@ -79,6 +79,9 @@ export type AdvancedField =
           max?: number;
           step?: number;
           placeholder?: string;
+          /** B-6: a value the save would drop is refused where it's typed;
+           *  return the reason, or null when it's fine. */
+          validate?: (node: PMNode, value: number) => string | null;
           get: (node: PMNode) => number | null;
           set: (editor: Editor, pos: number, value: number | null) => void;
       })
@@ -545,6 +548,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                         label: 'Min words',
                         min: 1,
                         placeholder: '—',
+                        validate: (node, value) =>
+                            typeof node.attrs.wordMax === 'number' && value > (node.attrs.wordMax as number)
+                                ? `Min can't be more than max (${node.attrs.wordMax as number}).`
+                                : null,
                         get: (node) =>
                             typeof node.attrs.wordMin === 'number'
                                 ? (node.attrs.wordMin as number)
@@ -557,6 +564,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                         label: 'Max words',
                         min: 1,
                         placeholder: '—',
+                        validate: (node, value) =>
+                            typeof node.attrs.wordMin === 'number' && value < (node.attrs.wordMin as number)
+                                ? `Max can't be less than min (${node.attrs.wordMin as number}).`
+                                : null,
                         get: (node) =>
                             typeof node.attrs.wordMax === 'number'
                                 ? (node.attrs.wordMax as number)

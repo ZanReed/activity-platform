@@ -8,6 +8,12 @@
 // the real answer, so this is a CHECK, never a refusal: "still the starting
 // answer" means the interaction deep-equals the factory default for its type,
 // the same factories the editor inserts and switches type with.
+//
+// Known limits (Fable review): it compares the WHOLE interaction, so changing
+// only a tolerance or an endpoint style clears it while the point is still
+// (0, 0); and a file whose real answer is the default asks on every publish.
+// A graph whose answer is "No solution" (noSolutionCorrect) is never flagged:
+// that IS the set answer, and the starting point isn't graded.
 // =============================================================================
 
 import type { Editor } from '@tiptap/core';
@@ -52,8 +58,10 @@ function canonical(value: unknown): string {
     });
 }
 
-/** Is this block's answer still the one it was inserted with? */
-export function isStartingAnswer(pmName: string, interaction: unknown): boolean {
+/** Is this block's answer still the one it was inserted with? `attrs` is the
+ *  node's attrs when known: a "No solution" answer is a set answer. */
+export function isStartingAnswer(pmName: string, interaction: unknown, attrs?: Record<string, unknown>): boolean {
+    if (attrs?.noSolutionCorrect === true) return false;
     const factories = defaults()[pmName];
     if (!factories || !interaction) return false;
     const mine = canonical(JSON.parse(JSON.stringify(interaction)));
@@ -71,7 +79,7 @@ export function findStartingAnswers(editor: Editor): StartingAnswer[] {
     const out: StartingAnswer[] = [];
     editor.state.doc.descendants((node, pos) => {
         if (!STARTING_KINDS.has(node.type.name)) return true;
-        if (isStartingAnswer(node.type.name, node.attrs.interaction)) {
+        if (isStartingAnswer(node.type.name, node.attrs.interaction, node.attrs)) {
             const kind = node.type.name === 'numberLine' ? 'number line' : 'graph';
             const mode = (node.attrs.label as { mode?: string } | undefined)?.mode;
             const unnumbered = mode === 'none' || mode === 'custom';
