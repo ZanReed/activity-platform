@@ -2831,7 +2831,7 @@ argument and waits for real data.
   anyway because per-day distinct students is the ONE figure that cannot be recomputed
   retroactively once pruning runs. **No RPC may ever offer their SUM** (uniques don't compose;
   `hll` is unavailable on Supabase, checked 2026-08-16).
-- **A teacher timezone control.** `users.timezone` has no editing surface, so every teacher but
+- ✅ **BUILT 2026-11-14 (period planner PP-11, step 3):** `components/TimezoneControl.tsx` on My classes, through 0088's `set_my_timezone`; the name control stays filed. *Original entry:* **A teacher timezone control.** `users.timezone` had no editing surface, so every teacher but
   the author (set by 0036's email-keyed UPDATE) gets the `America/Chicago` default baked into
   their rolled day keys. Bundle it with the deferred **"how your name appears to students"**
   control — same `users` self-edit family, same tiny RLS-covered write. ⚠ Ordering matters: a

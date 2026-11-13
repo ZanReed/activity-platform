@@ -511,3 +511,28 @@ changed).
   replaces the value only if the file states one.
 - Mutation-tested: removing the row's time render (Activities test red);
   dropping `minutes` from NOT_CONTENT (two PP-5 importer tests red).
+
+**Step 3, the timezone control (PP-11, 2026-11-14, overnight run):** no migration, no
+deploy (0088's `my_timezone` / `set_my_timezone` are live).
+
+- `components/TimezoneControl.tsx` + `lib/teacherTimezone.ts`, on **My classes**
+  (one per teacher, not per class), lazy-loaded and rendered **for teachers
+  only**. A student can reach `/classes`, and the server refuses them anyway.
+  It reads "Days follow Auckland time · Change". When unset and the browser
+  differs, it offers "Use Auckland time?", one click and never a silent write.
+  Every path to a save shows the warning that a change moves the day for all
+  classes and is best done outside class time. A teacher on the Chicago default
+  can save it to confirm it.
+- Browser-checked on the local stack: the offer showed for the unset playtest
+  teacher; one click wrote `Pacific/Auckland` and an audit row (`op:
+  set_timezone`, no zone in the log).
+- Fable-reviewed. P0: the classes journey went over its 14.25 KiB cap; fixed by
+  lazy-loading the control, with no cap raised. P1: students saw the offer;
+  fixed by the teacher-only render. P1: a Chicago teacher could never confirm;
+  fixed. P2s fixed: focus returns to Change, the save is announced, the warning
+  is tied to the select, and load-error and refused-offer tests were added.
+  Mutation-tested: the unset-only offer (2 red); the teacher-only render (1 red).
+- Zone names: the browser lists legacy aliases (Asia/Calcutta); Postgres accepts
+  them (0063's lookup falls back to `pg_timezone_names`). The label is cosmetic.
+- The mid-day change is covered by verify-0088 C5 (`fact_class_zone` and
+  `class_today` move). Not asserted: a plan row left on the old "today".

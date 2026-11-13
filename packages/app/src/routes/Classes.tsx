@@ -860,8 +860,10 @@ function ClassCard({
     );
 }
 
+const TimezoneControl = lazy(() => import('../components/TimezoneControl'));
+
 export default function Classes() {
-    const { session } = useSession();
+    const { session, role } = useSession();
 
     const [classes, setClasses] = useState<ClassInfo[]>([]);
     const [listLoading, setListLoading] = useState(true);
@@ -966,6 +968,16 @@ export default function Classes() {
         {showCreate ? 'Cancel' : 'New class'}
         </button>
         </div>
+        {/* PP-11: the teacher's day zone, once for all their classes.
+            Teachers only (a student can reach /classes; set_my_timezone
+            refuses them). Lazy: the classes journey's budget is for the list. */}
+        {role === 'teacher' && (
+            <div className="mt-2">
+            <Suspense fallback={null}>
+            <TimezoneControl />
+            </Suspense>
+            </div>
+        )}
 
         {showCreate && (
             <form

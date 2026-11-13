@@ -66,10 +66,13 @@ vi.mock('../lib/dueDates', async (orig) => ({
     ...(await orig<typeof import('../lib/dueDates')>()),
     classLocalDate: vi.fn(async () => '2026-11-13'),
 }));
+// PP-11: the role decides whether the timezone control renders.
+const sess = vi.hoisted(() => ({ role: undefined as string | undefined }));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({
         session: { user: { id: 'teacher-1' } },
         loading: false,
+        role: sess.role,
     }),
 }));
 
@@ -385,5 +388,30 @@ describe('join link', () => {
         // App.tsx: <Route path="/join/:code" ... />
         expect(path).toBe('/join/ABC123');
         expect(path.split('/')[1]).toBe('join');
+    });
+});
+
+describe('the timezone control (PP-11)', () => {
+    afterEach(() => {
+        sess.role = undefined;
+    });
+
+    it('a teacher sees it; a student never does', async () => {
+        h.rpc.mockImplementation((name: string) =>
+            Promise.resolve(
+                name === 'my_timezone'
+                    ? { data: { zone: 'Pacific/Auckland', is_set: true }, error: null }
+                    : { data: null, error: null },
+            ),
+        );
+        sess.role = 'teacher';
+        const { unmount } = renderClasses();
+        expect(await screen.findByText('Auckland')).toBeTruthy();
+        unmount();
+        sess.role = 'student';
+        renderClasses();
+        await screen.findByRole('heading', { name: 'My classes' });
+        await new Promise((r) => setTimeout(r, 20));
+        expect(screen.queryByText(/Days follow/)).toBeNull();
     });
 });
