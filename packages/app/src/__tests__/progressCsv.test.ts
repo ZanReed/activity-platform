@@ -23,7 +23,16 @@ const grid: ClassProgress = {
         { activity_id: 'a1', title: 'Fractions, part 1', current_version_id: 'v', added_at: '' },
         { activity_id: 'a2', title: 'Ratios', current_version_id: 'v', added_at: '' },
     ],
-    cells: [cell('s1', 'a1', { sections_checked: 3, correct: 7, marked: 10 }), cell('s2', 'a2', { sections_checked: 1, correct: 0, marked: 0 })],
+    cells: [
+        // done on the current version, 7 of 10 marked right
+        cell('s1', 'a1', { sections_checked: 5, shown_version_id: 'v', shown_checked: 5, shown_total: 5, correct: 7, marked: 10 }),
+        // started, 1 of 5: no percent, as the grid (it shows one on done cells only)
+        cell('s2', 'a2', { sections_checked: 1, shown_version_id: 'v', shown_checked: 1, shown_total: 5, correct: 1, marked: 1 }),
+        // work only on an older version (CP-6): the shown fields, flagged
+        cell('s1', 'a2', { sections_checked: 0, shown_version_id: 'old', shown_checked: 2, shown_total: 4, correct: 3, marked: 4 }),
+        // total not recorded
+        cell('s2', 'a1', { sections_checked: 2, sections_total: null, shown_version_id: 'v', shown_checked: 2, shown_total: null }),
+    ],
     last_check_at: null,
 };
 
@@ -36,14 +45,14 @@ describe('classProgressCsv', () => {
             '"Student","Fractions, part 1 — sections checked","Fractions, part 1 — % right","Ratios — sections checked","Ratios — % right"',
         );
         // A comma and quotes in a name survive: quotes doubled, field quoted.
-        expect(lines[1]).toBe('"O\'Neil, ""Sam""","3 of 5","70","",""');
+        expect(lines[1]).toBe('"O\'Neil, ""Sam""","5 of 5","70","2 of 4 (older version)",""');
     });
 
     it('defuses a name a spreadsheet would run as a formula', () => {
         const lines = parse(classProgressCsv(grid));
         expect(lines[2]!.startsWith('"\'=HYPERLINK(""x"")"')).toBe(true);
-        // Checked but nothing computer-marked: sections shown, % blank.
-        expect(lines[2]).toBe('"\'=HYPERLINK(""x"")","","","1 of 5",""');
+        // A started cell carries no percent; an unknown total says so.
+        expect(lines[2]).toBe('"\'=HYPERLINK(""x"")","started (total not recorded)","","1 of 5",""');
     });
 
     it('starts with a BOM and uses CRLF, for Excel', () => {

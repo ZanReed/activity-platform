@@ -121,9 +121,23 @@ the CSV carries names only (no emails). Differences from the plan:
   work. A provenance-carrying copy needs a DEFINER RPC: filed with a trigger.
   A catalogue activity's copy has no skills (`primary_skill` isn't copied),
   so its DoL checks as an ordinary section — filed too.
+- **Paste / drop rebuilt after the step 2 review** (three HIGH findings,
+  each measured against the real schema): the first version replaced the
+  selection, so it could delete a selected neighbour (an image, a maths
+  block — `Selection.near` lands on exactly such a node), split a choice
+  question / fill-in line / table into two blocks with ONE id when the caret
+  was mid-text, and took over an Office paste (Office puts a picture of the
+  copied text beside it). Now the image goes at a computed position between a
+  column's blocks (`imageInsertPos`: after the block the caret or drop point
+  is in), never replacing anything; and a paste is taken over only when it is
+  just an image (files and no text, or a lone `<img>`). Tests reproduce each
+  case. The image-URL popover no longer opens on an already-filled image.
 - **The CSV follows the grid, not sections.** The class grid holds one cell
   per student per activity, so the file has two columns per activity:
-  sections checked ("3 of 5") and % right of the computer-marked questions.
+  sections checked ("3 of 5", "3 of 5 (older version)", "started (total not
+  recorded)") and % right — read through the grid's own `cellStatus`, so a
+  percent appears only on a done cell, as in the grid. DoL passes aren't in
+  the class grid, so not in the file.
   Names are included even with "hide names" on (that switch is for a
   projector). Every field quoted; a name a spreadsheet would run as a formula
   gets a leading apostrophe; BOM + CRLF for Excel.

@@ -3,18 +3,22 @@
 // docs/design/ui-review-group-e.md)
 // -----------------------------------------------------------------------------
 // One row per student, two columns per activity, from the grid the page
-// already loaded (nothing new is fetched):
-//   "<title> — sections checked"   e.g. "3 of 5" (blank if none checked)
-//   "<title> — % right"            a number, of the questions marked by the
-//                                  computer; blank if none were marked
-// Written answers waiting for the teacher are NOT grades, so they don't count.
+// already loaded (nothing new is fetched), read through the grid's OWN
+// `cellStatus` so the file says what the cell says (Fable review of E-1):
+//   "<title> — sections checked"   "3 of 5", "3 of 5 (older version)" for
+//                                  work on an earlier version (CP-6),
+//                                  "started (total not recorded)", or blank
+//   "<title> — % right"            as the grid: a whole percent on DONE
+//                                  cells where the computer marked anything
+// Written answers waiting for the teacher are not grades, so they don't
+// count. DoL passes are not in the class grid, so not in the file.
 //
 // Safe for spreadsheets: every field is quoted, quotes are doubled, and a
 // field that a spreadsheet would read as a formula (= + - @, tab, CR) gets a
 // leading apostrophe — a student's NAME is free text.
 // =============================================================================
 
-import type { ClassProgress } from './classProgress';
+import { cellStatus, type ClassProgress } from './classProgress';
 
 /** One CSV field: quoted, quotes doubled, formula-looking text defused. */
 export function csvField(value: string | number | null | undefined): string {
@@ -33,11 +37,16 @@ export function classProgressCsv(grid: ClassProgress): string {
     const rows = grid.students.map((st) => {
         const out: (string | number | null)[] = [st.name];
         for (const a of grid.activities) {
-            const c = cellFor.get(`${st.student_id}|${a.activity_id}`);
-            const total = c?.sections_total ?? null;
-            const checked = c?.sections_checked ?? 0;
-            out.push(c && checked > 0 && total !== null ? `${checked} of ${total}` : null);
-            out.push(c && c.marked > 0 ? Math.round((c.correct / c.marked) * 100) : null);
+            const status = cellStatus(cellFor.get(`${st.student_id}|${a.activity_id}`));
+            const older = status.older ? ' (older version)' : '';
+            out.push(
+                status.kind === 'none'
+                    ? null
+                    : status.kind === 'started_unknown'
+                      ? `started (total not recorded)${older}`
+                      : `${status.checked} of ${status.total}${older}`,
+            );
+            out.push(status.percent);
         }
         return out;
     });

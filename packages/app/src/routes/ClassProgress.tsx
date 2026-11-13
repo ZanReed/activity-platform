@@ -384,5 +384,7 @@ function downloadText(fileName: string, text: string): void {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    // Not at 0 ms: Safari/iOS can cancel a download whose URL is revoked
+    // before it has started reading.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

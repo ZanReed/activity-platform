@@ -38,7 +38,7 @@ import BlockCommandBarHost from './components/BlockCommandBarHost';
 import BlockQuickBarHost from './components/BlockQuickBarHost';
 import GridRowMenuHost from './components/GridRowMenuHost';
 import { FieldFocusContext } from './components/fieldFocus';
-import { imageFilesIn, placeImages } from './imagePasteDrop';
+import { imageFilesIn, pastedImageFiles, placeImages } from './imagePasteDrop';
 import { uploadImage } from '../lib/uploadImage';
 
 interface EditorProps {
@@ -126,7 +126,6 @@ export default function Editor({
     // editorProps (fixed at mount), so they read the activity through a ref.
     const activityIdRef = useRef(activityId);
     activityIdRef.current = activityId;
-    const editorRef = useRef<TiptapEditor | null>(null);
     const [imageStatus, setImageStatus] = useState<
         { kind: 'uploading' } | { kind: 'error'; message: string } | null
     >(null);
@@ -139,9 +138,6 @@ export default function Editor({
         }
         void placeImages(view, files, at, {
             upload: (file) => uploadImage(id, file),
-            insert: (src) => {
-                editorRef.current?.chain().focus().insertImage({ src }).run();
-            },
             status: setImageStatus,
         });
         return true;
@@ -149,7 +145,9 @@ export default function Editor({
     const editor = useEditor({
         editorProps: {
             handlePaste: (view, event) => {
-                const files = imageFilesIn(event.clipboardData);
+                // Only a paste that is JUST an image (see imagePasteDrop.ts):
+                // Office's text-plus-picture pastes stay text.
+                const files = pastedImageFiles(event.clipboardData);
                 if (files.length === 0) return false;
                 event.preventDefault();
                 return takeImages(view, files, null);
@@ -177,8 +175,6 @@ export default function Editor({
             forceTick((t) => t + 1);
         },
     });
-
-    editorRef.current = editor;
 
     // Canvas wrapper — the insert-line overlay is positioned against it, so it
     // needs a ref and `position: relative`.
