@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-13-draft-52`. Mirrors migrations 0001–**0086**, verified
+> Version `2026-11-13-draft-53`. Mirrors migrations 0001–**0087**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-53` (2026-11-13) — 0087 adds NO personal data.** It adds `class_activities.due_on`, a due DATE on a class's activity (docs/design/due-dates.md): about the class, never a person, and it locks nothing. Who set it is a `class.update` row (`op: set_due`, old and new date) in the existing `audit_log` (actor = the teacher). `list_class_activities` returns the date and the class's local today to the class's own students; `class_local_date` gives a class's today to its teacher or students. The range moves to 0087 on that basis.
 >
 > **`draft-52` (2026-11-13) — 0086 adds NO personal data.** It adds `restore_class` (a soft-deleted class comes back as it was: same roster, activities and join code — no new data, and none is copied; once the disarmed practice prunes are armed, a class restored more than 30 days after deletion comes back without its number-facts and mixed-practice data) and two owner-scoped reads of the teacher's own deleted classes and activities (names and titles only). One new audit action, `class.restore`, in the existing `audit_log` (actor = the teacher). The range moves to 0086 on that basis.
 >
