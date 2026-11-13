@@ -39,6 +39,7 @@ export default function ActivityResultsHeader({
     const [fetched, setFetched] = useState<string | null>(null);
     const own = title === undefined;
     useEffect(() => {
+        setFetched(null); // never show the previous activity's title
         if (!own || !activityId) return;
         let live = true;
         void Promise.resolve()

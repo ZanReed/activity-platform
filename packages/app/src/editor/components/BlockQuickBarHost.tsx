@@ -212,7 +212,9 @@ export default function BlockQuickBarHost({
             .chain()
             .deleteRange({ from: activePos, to: activePos + node.nodeSize })
             .run();
-        setDeletedToast((n) => n + 1);
+        // A fresh value each delete, so a second delete restarts the timer
+        // (a counter could land back on the value it had — Fable review).
+        setDeletedToast(Date.now());
     };
 
     const duplicateBlock = () => {

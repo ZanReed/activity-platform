@@ -1,6 +1,7 @@
 # UI review group C — dead ends and missing feedback (design pass, 2026-11-13)
 
-Status: **PROPOSED, awaiting the author's rulings (C-1 … C-10).** Source:
+Status: **RULED 2026-11-13 (author: "Yes to all") and BUILT the same day** —
+see "As built" at the end. Originally proposed with Source:
 TODOS.md → "UI review 2026-11-13", group C (items 13–21; 19 was fixed with
 group A). Each fact below was re-read in the code on 2026-11-13.
 
@@ -104,3 +105,38 @@ today. The tooltip says which.
   is a routine edit, done only with your OK.
 - A Fable review per step; each change mutation-tested; browser lanes for the
   student screens and the editor.
+
+## As built (2026-11-13)
+
+Commits on `main`: 18cdebda (step 1, C-1…C-5), 4a34302d (step 2, C-6…C-8),
+4c2545e7 (step 3, C-9/C-10), 54e7cc86 + the close-out commit (Fable review
+fixes). A Fable review per step; each change mutation-tested. No migration or
+deploy. Differences from the rulings above:
+
+- **C-3 tally:** the grader returns no verdict for an unanswered question,
+  so the count adds back the ids the check sent with no verdict: "Checked:
+  4 of 6 right · 2 left blank". An untouched ordering or graph counts as left
+  blank. A DoL keeps its own status line.
+- **C-5 banners:** they pin just UNDER the top bar where that bar is sticky
+  (StudentViewer measures it into `--viewer-topbar-h`), and at the top on a
+  phone. The other-tab notice stays in the flow: it is the one banner that
+  can show beside another.
+- **C-2 join:** "Sign in again" opens Google's account picker, since the
+  account was the wrong one.
+- **C-6, OPEN:** the job-health line left the teacher page, but the weekly
+  CI-health routine cannot read it: it is a cloud session with no database
+  connector, and the ledger lives in the live database. Until the author
+  picks a reader, a stopped nightly job shows nowhere (TODOS → "Analytics job
+  health has no reader"). Also: every registry key has a plain name
+  (cross-checked by `analyticsLabels.test.ts`); text, pictures and containers
+  are left out of "Question type" unless a check ever scored one; a version
+  with no census says so in plain words. Per-question breakdown is filed in
+  TODOS with a trigger.
+- **C-7:** the header reads the title itself on Responses and Analytics.
+  Responses opened from a CLASS grid goes back to it; opened from the
+  activity's own Progress page, the Progress tab is the way back.
+- **C-10:** the toast lasts 8 s and goes at the next edit, so Undo never
+  undoes something else. The toolbar's Undo/Redo follow a focused nested
+  field's own history (as ⌘Z inside it does). Known limits: the toast is
+  mouse-first (keyboard users have ⌘Z and the toolbar), and typing within
+  ~500 ms of a delete can group with it in history, as it does for ⌘Z.

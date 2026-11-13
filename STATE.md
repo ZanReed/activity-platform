@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**UI review group A + filter bar LIVE (2026-11-13):** 0086 applied, verify-0086 5/5 live, pushed (216d95e1), CI green. **Group B LIVE 2026-11-13** (pushed 15f6e732, CI green; app-only). Group C in design: [ui-review-group-c.md](docs/design/ui-review-group-c.md). Group B: [ui-review-group-b.md](docs/design/ui-review-group-b.md). A DoL ticked with no skills is now kept in the draft and refused at publish (ruled 2026-11-13).
+**UI review group A + filter bar LIVE (2026-11-13):** 0086 applied, verify-0086 5/5 live, pushed (216d95e1), CI green. **Group B LIVE 2026-11-13** (pushed 15f6e732, CI green; app-only). **Group C BUILT 2026-11-13** (unpushed; app + viewer, no migration or deploy): [ui-review-group-c.md](docs/design/ui-review-group-c.md). Open: the analytics job-health line has no reader yet (TODOS). Group B: [ui-review-group-b.md](docs/design/ui-review-group-b.md). A DoL ticked with no skills is now kept in the draft and refused at publish (ruled 2026-11-13).
 
 **Playtest browser sweep (2026-11-12): nothing owed.** Three fixes and "Republish changed" pushed; the glossary re-imported live and all 21 republished (`report:stale` 0). Open low findings: [TODOS](TODOS.md) → "Playtest browser sweep".
 

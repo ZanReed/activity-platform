@@ -479,7 +479,7 @@ State: approved — A) (author, 2026-10-17): default by name; a "Least done firs
 ### DR-8: getting back from Responses
 Evidence: ActivityResponses offers only "Back to editor"; "N to grade" (CP-7) leads there from a progress page.
 Options: A) "N to grade" links carry where they came from (`?from=` the progress page's own path, validated as an in-app path); Responses then shows "Back to progress" in place of "Back to editor" (recommended) · B) leave Responses as it is; the browser Back button returns
-State: approved — A) (author, 2026-10-17): "N to grade" links add `?from=<progress path>` (accepted only if it starts with `/classes/` or `/activity/`); Responses shows "Back to progress" when present, "Back to editor" otherwise.
+State: approved — A) (author, 2026-10-17): "N to grade" links add `?from=<progress path>` (accepted only if it starts with `/classes/` or `/activity/`); Responses shows "Back to progress" when present, "Back to editor" otherwise. **Superseded 2026-11-13 by UI review C-7** ([ui-review-group-c.md](ui-review-group-c.md)): one results header; a class-grid `?from=` shows "← Class progress", anything else "← My activities" plus the Progress tab.
 
 Pass 3 re-rated: 9/10.
 

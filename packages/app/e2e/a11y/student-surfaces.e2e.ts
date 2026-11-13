@@ -552,7 +552,8 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     // ANNOUNCED — the text is in the live region, once, and it is the
     // irreversibility sentence rather than the plain "Checked."
     const status = group.locator('.viewer-section__status[aria-live="polite"]');
-    await expect(status).toHaveText('Checked and locked. You can’t change these answers.');
+    // C-3: the locked line carries the tally, then the irreversibility.
+    await expect(status).toHaveText(/^Checked and locked: \d+ of \d+ right.*\. You can’t change these answers\.$/);
 
     // AND THE KEYBOARD KEPT ITS PLACE. Disabling the fieldset drops focus to
     // <body>; the status region takes it instead, which is also what makes the

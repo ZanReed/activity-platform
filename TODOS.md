@@ -117,24 +117,24 @@ already in this file. Ranked inside each group; the author picks the order.
     stay shown but are dropped on save.
 
 **C. Dead ends and missing feedback**
-13. **No catch-all route** — any mistyped URL is a blank page (checked in the
+13. ✅ BUILT (C-1). **No catch-all route** — any mistyped URL is a blank page (checked in the
     browser) for teachers and students.
-14. Student activity-load failure has no way home and shows raw error text;
+14. ✅ BUILT (C-2). Student activity-load failure has no way home and shows raw error text;
     `unauthenticated` offers "Try again" (same session) instead of sign-in.
     A failed join has no retry or sign-in button.
-15. After a check the student sees "Checked." — no tally of how they did.
-16. On a phone the viewer's two sticky bars cover a third of the screen
+15. ✅ BUILT (C-3). After a check the student sees "Checked." — no tally of how they did.
+16. ✅ BUILT (C-4/C-5). On a phone the viewer's two sticky bars cover a third of the screen
     (top bar 173 px + check footer 103 px of 812, measured). Status banners
     (idle prompt, storage full, stale version) are NOT sticky, so a student
     scrolled down never sees them.
-17. Teacher Analytics shows ops text ("run `pnpm backfill:census`", "stale
+17. ✅ BUILT (C-6; job-health reader open). Teacher Analytics shows ops text ("run `pnpm backfill:census`", "stale
     cache rows swept") and groups by block kind, not question.
-18. Progress / Analytics / Responses each say "Back to editor" and don't
+18. ✅ BUILT (C-7/C-8). Progress / Analytics / Responses each say "Back to editor" and don't
     link to each other; "Today" lives behind a link called "Practice".
 19. ✅ FIXED (with G-5). Stale copy: "Once student sign-in opens/launches" (`Classes.tsx` ~152, ~874).
-20. "+ Blank" says "at the cursor" but inserts at the end of the line
+20. ✅ BUILT (C-9). "+ Blank" says "at the cursor" but inserts at the end of the line
     (`FillInBlankView.tsx`).
-21. Block delete is one click on a hover icon; no Undo/Redo buttons anywhere.
+21. ✅ BUILT (C-10). Block delete is one click on a hover icon; no Undo/Redo buttons anywhere.
 
 **D. Accessibility and touch**
 22. Answer inputs lack `autoCapitalize/autoCorrect/spellCheck="off"`
@@ -165,8 +165,33 @@ already in this file. Ranked inside each group; the author picks the order.
 → "As built"; 0086 must be applied live before the push). **The filter bar:
 BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters.md)).
 **Group B: BUILT 2026-11-13** ([ui-review-group-b.md](docs/design/ui-review-group-b.md)
-→ "As built"). **Group C in design:** [ui-review-group-c.md](docs/design/ui-review-group-c.md)
-(C-1…C-10). D–E open.
+→ "As built"). **Group C: BUILT 2026-11-13** ([ui-review-group-c.md](docs/design/ui-review-group-c.md)
+→ "As built"; items 13–18, 20, 21; app + viewer only, no migration or
+deploy). One C-6 piece is OPEN — see "Analytics job health has no reader"
+below. D–E open.
+
+## Analytics job health has no reader (C-6, 2026-11-13)
+
+C-6 took the nightly-job line ("Maintenance last ran …", from
+`analytics_job_runs`) off the teacher Analytics page, to be read by the
+weekly CI-health routine instead. Building it showed the routine CANNOT: it is
+a cloud session with no connectors (repo-only on purpose), and the ledger
+lives only in the live database. Until the author picks a reader, a stopped
+nightly job is visible nowhere — the exact failure the line existed for
+(0022). Options: (a) a LOCAL scheduled task on the author's machine, where the
+Supabase connector already is, reading `analytics_job_runs` weekly; (b) the
+line back on the Analytics page for the author's account only (C-6's
+alternative); (c) attach Supabase to the cloud routine (not recommended: it
+can write to live). **Trigger:** the author's ruling; due before the first
+school term with real students.
+
+## Per-question analytics (C-6 follow-on, filed 2026-11-13)
+
+Analytics groups by question TYPE because the nightly census counts block
+kinds, not block ids. A per-question breakdown ("Q4: 12 of 30 right") needs
+the census to record block ids — a migration plus a rollup change.
+**Trigger:** a teacher asks which question their class got wrong, with
+students checking (class progress shows per-student answers already).
 
 ## Due dates (author, 2026-11-13)
 
