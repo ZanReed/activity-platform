@@ -15,7 +15,8 @@
 // what both of them actually say out loud.
 //
 // A bare number stays rem, which keeps every fence written before this change
-// meaning exactly what it meant, and matches what ⚙ → Print still displays.
+// meaning exactly what it meant. (The editor's fields show lines since D-7;
+// they store rem, so a bare-number fence and a field still agree.)
 //
 // ---- The constants, and why they are what they are --------------------------
 //

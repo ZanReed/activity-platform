@@ -192,7 +192,7 @@ export const slashMenuItems: SlashMenuItem[] = [
     },
     {
         title: 'Section break',
-        description: 'Start a new section. Optionally a checkpoint.',
+        description: 'Start a new section. Tick “Check here” to give it a Check.',
         keywords: ['section', 'break', 'divider', 'checkpoint'],
         group: 'Structure',
         subgroup: 'Layout',

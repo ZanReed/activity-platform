@@ -178,7 +178,7 @@ export default function ImportMarkdownDialog({
                             <code className="rounded bg-surface-2 px-1">
                                 {'{checkpoint}'}
                             </code>{' '}
-                            on a heading to start a checkpoint section, and{' '}
+                            on a heading to start a section with its own Check, and{' '}
                             <code className="rounded bg-surface-2 px-1">$…$</code>{' '}
                             for math. Or use <strong>Copy AI prompt</strong> to have an
                             assistant write it for you. Imported blocks are added to your

@@ -117,6 +117,13 @@ No migration or deploy. Differences from the rulings above:
   class-card control and every Bank entry's buttons. Names start with the
   visible words ("Roster: Algebra I", "Add to my library: Fractions 2"), so
   voice control still matches what's on screen.
+- **D-7 "Check here":** the box has a one-line note under it when ticked
+  ("Students check their answers at the end of this section"), and the other
+  places that said "checkpoint" to a teacher (submission-mode help, the slash
+  menu, the import dialog) now say "Check here". The submission-mode option
+  names ("Locked checkpoints" / "Free checkpoints") were left as they are:
+  renaming the modes was not part of the ruling. The `{checkpoint}` import
+  marker is syntax and stays.
 - **D-7:** work space shows and takes lines in the block drawer, the block's
   summary line and print settings (space between problems too). The column
   cell-height control still says rem: it wasn't one of the three, filed in

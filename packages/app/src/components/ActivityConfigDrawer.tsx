@@ -77,9 +77,9 @@ const DRAWER_TITLES: Record<ConfigKey, string> = {
 // these strings carried — "one submit at the end" named a submit that has not
 // existed since S9.
 const SUBMISSION_MODE_HELP: Record<ActivityMeta['submissionMode'], string> = {
-    single: 'One Check at the very end, covering the whole activity. Section checkpoints are ignored.',
-    locked: 'A Check at each checkpoint — and answers freeze once checked. There is no undo, and a re-publish is the only way to reset a class.',
-    free: 'A Check at each checkpoint, covering everything since the last one. Students can re-check as often as they like.',
+    single: 'One Check at the very end, covering the whole activity. Sections marked “Check here” are ignored.',
+    locked: 'A Check at each section marked “Check here” — and answers freeze once checked. There is no undo, and a re-publish is the only way to reset a class.',
+    free: 'A Check at each section marked “Check here”, covering everything since the last one. Students can re-check as often as they like.',
 };
 
 const ANSWER_FEEDBACK_HELP: Record<ActivityMeta['answerFeedback'], string> = {

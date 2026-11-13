@@ -138,6 +138,12 @@ export function SectionBreakView({
         <span>DoL</span>
         </label>
         </div>
+        {/* D-7: what "Check here" does, on screen (touch has no hover). */}
+        {isCheckpoint && !isDol && (
+            <p className="section-break__dol-note">
+            Students check their answers at the end of this section.
+            </p>
+        )}
         {/* D-7: DoL explained on screen, not only on hover. */}
         {isDol && (
             <p className="section-break__dol-note">
