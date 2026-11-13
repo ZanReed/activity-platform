@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import type { ActivityMeta, PrintConfig } from '@activity/schema';
-import { describeWorkSpace } from '../lib/workSpaceUnits';
+import { linesToRem, remToLines } from '../lib/workSpaceUnits';
 import { SELECT_CLASS, SETTINGS_HELP_CLASS, SETTINGS_LABEL_CLASS } from './settingsClasses';
 
 // The header toggles, in render order. `custom` is handled separately (it's a
@@ -154,27 +154,24 @@ export function PrintSettingsBody({
 
                 <PrintNumberField
                     id="print-problem-spacing"
-                    label="Space between problems (rem)"
-                    value={print.problemSpacing}
+                    label="Space between problems (lines)"
+                    value={remToLines(print.problemSpacing)}
                     min={0}
                     step={0.5}
-                    onCommit={(n) => setPrint({ problemSpacing: n })}
+                    onCommit={(n) => setPrint({ problemSpacing: linesToRem(n) })}
                 />
 
                 <PrintNumberField
                     id="print-work-space"
-                    // The stored unit is rem, and this control still shows it —
-                    // but the ```meta fence takes "3 lines" / "1in" / "2.5cm"
-                    // (ruling D6), so the help text names the equivalence
-                    // rather than leaving two surfaces teaching two
-                    // vocabularies. A full lines/in/cm picker here is a
-                    // recorded follow-up, not this slice.
-                    label="Work space per problem (rem)"
-                    help={`Default blank space below each problem — ${describeWorkSpace(print.workSpace)} (1 line ≈ 2rem ≈ 8mm). Override on individual problems in their settings.`}
-                    value={print.workSpace}
+                    // D-7 (ui-review-group-d.md): shown and typed in lines —
+                    // the unit the ```meta fence leads with ("3 lines", ruling
+                    // D6) — and stored as rem, as before.
+                    label="Work space per problem (lines)"
+                    help="Default blank space below each problem (1 line ≈ 8mm). Override on individual problems in their settings."
+                    value={remToLines(print.workSpace)}
                     min={0}
                     step={0.5}
-                    onCommit={(n) => setPrint({ workSpace: n })}
+                    onCommit={(n) => setPrint({ workSpace: linesToRem(n) })}
                 />
             </div>
 

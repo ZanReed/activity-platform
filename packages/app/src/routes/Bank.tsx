@@ -500,6 +500,8 @@ export default function Bank() {
                                                         type="button"
                                                         className={ACTION}
                                                         aria-expanded={open === 'preview'}
+                                                        // D-6: named per entry; visible words first.
+                                                        aria-label={`Preview: ${e.title}`}
                                                         onClick={() => toggle(e.id, 'preview')}
                                                     >
                                                         Preview
@@ -509,6 +511,7 @@ export default function Bank() {
                                                             type="button"
                                                             className={ACTION}
                                                             aria-expanded={open === 'guide'}
+                                                            aria-label={`Teacher guide: ${e.title}`}
                                                             onClick={() => toggle(e.id, 'guide')}
                                                         >
                                                             Teacher guide
@@ -518,6 +521,7 @@ export default function Bank() {
                                                         type="button"
                                                         onClick={() => void handleAdd(e)}
                                                         disabled={addingId !== null}
+                                                        aria-label={`${addingId === e.id ? 'Adding…' : 'Add to my library'}: ${e.title}`}
                                                         className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
                                                         {addingId === e.id ? 'Adding…' : 'Add to my library'}

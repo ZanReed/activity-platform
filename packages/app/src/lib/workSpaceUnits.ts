@@ -48,6 +48,16 @@ const REM_PER_CM = 96 / 2.54 / 16;
  */
 export const REM_PER_LINE = 2;
 
+/** A stored rem value in lines, for a control that shows lines (D-7). */
+export function remToLines(rem: number): number {
+    return Number((rem / REM_PER_LINE).toFixed(3));
+}
+
+/** Lines typed into a control, back to the stored rem. */
+export function linesToRem(lines: number): number {
+    return Number((lines * REM_PER_LINE).toFixed(3));
+}
+
 /** Trim float artifacts (2.5 * 2.3622 → 5.905511811023622). */
 function round(n: number): number {
     return Number(n.toFixed(3));

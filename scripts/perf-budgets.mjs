@@ -250,8 +250,13 @@ export const SHELL_SPEND = [
         change: 'UI review group C, Fable review fixes: the check tally counts questions left blank ("· 2 left blank"); a pinned banner sits under the measured top bar (ResizeObserver) instead of over it; join\'s Sign in again opens the account picker',
         bytes: 301,
     },
+    {
+        date: '2026-11-13',
+        change: 'UI review D-1…D-3 + review fix: blanks turn off autocorrect/spellcheck; the lock/DoL confirm moves focus to Cancel, Escape cancels, focus returns; the DoL status line carries the tally (pills are no longer live regions — that part shrank)',
+        bytes: 287,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 155491;
+export const SHELL_JS_BASELINE_BYTES = 155778;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

@@ -171,15 +171,16 @@ test('the shared Grading + Print drawer works on MC (work space + summary)', asy
     await expect(drawer.getByText('Worked solution')).toBeVisible();
 
     // Work space number → attr + the block's display-only summary line.
+    // D-7: shown and typed in lines; stored as rem (1 line = REM_PER_LINE).
     const workSpace = drawer.getByRole('spinbutton', {
-        name: 'Work space (rem)',
+        name: 'Work space (lines)',
     });
-    await workSpace.fill('4');
+    await workSpace.fill('2');
     await workSpace.blur();
     expect(await attrOfFirst(page, 'multipleChoice', 'workSpace')).toBe(4);
     await expect(
         page.locator('.mc-block .question-settings-summary'),
-    ).toHaveText('work space 4rem');
+    ).toHaveText('work space 2 lines');
 });
 
 test('the worked-solution rich field writes the solution attr', async ({
@@ -288,8 +289,8 @@ test('correspondence: the drawer has the worked solution, work space and numberi
     const drawer = page.locator(DRAWER);
     await expect(drawer.getByText('Worked solution', { exact: true })).toBeVisible();
     await expect(drawer.getByRole('combobox', { name: 'Number on the page' })).toBeVisible();
-    const workSpace = drawer.getByRole('spinbutton', { name: 'Work space (rem)' });
-    await workSpace.fill('3');
+    const workSpace = drawer.getByRole('spinbutton', { name: 'Work space (lines)' });
+    await workSpace.fill('1.5');
     await workSpace.blur();
     expect(await attrOfFirst(page, 'correspondence', 'workSpace')).toBe(3);
 });

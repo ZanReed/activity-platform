@@ -100,7 +100,13 @@ export function SectionBreakView({
         />
         <label
         className="section-break__checkpoint-label"
-        title={isDol ? 'A DoL is always a checkpoint: it has its own Check.' : undefined}
+        // D-7 (ui-review-group-d.md): "Checkpoint" said nothing about what it
+        // does; the box now says it, and the title says the rest.
+        title={
+            isDol
+                ? 'A DoL always has its own Check.'
+                : 'Students check their answers at the end of this section.'
+        }
         >
         <input
         type="checkbox"
@@ -111,7 +117,7 @@ export function SectionBreakView({
         onKeyDown={(e) => e.stopPropagation()}
         disabled={!isEditable || isDol}
         />
-        <span>Checkpoint</span>
+        <span>Check here</span>
         </label>
         <label
         className="section-break__checkpoint-label"
@@ -132,6 +138,12 @@ export function SectionBreakView({
         <span>DoL</span>
         </label>
         </div>
+        {/* D-7: DoL explained on screen, not only on hover. */}
+        {isDol && (
+            <p className="section-break__dol-note">
+            Demonstration of learning: the check that shows a student has the skill. One per activity.
+            </p>
+        )}
         {confirmOff && (
             <div className="section-break__confirm" role="alertdialog" aria-label="Remove the DoL">
             <span>

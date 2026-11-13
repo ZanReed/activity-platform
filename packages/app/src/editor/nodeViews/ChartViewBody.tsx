@@ -91,7 +91,8 @@ export default function ChartViewBody({ node, updateAttributes, editor }: NodeVi
             {source && (
                 <div className="graph-figure-source" contentEditable={false}>
                     <label className="graph-figure-source__label">
-                        Chart source — the same lines a ```chart fence takes
+                        {/* D-7: no fence syntax in the teacher's words. */}
+                        This chart as text — the lines a markdown import takes
                         <textarea
                             className="graph-figure-source__text"
                             value={source.text}

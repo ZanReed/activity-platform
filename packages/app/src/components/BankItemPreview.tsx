@@ -35,6 +35,7 @@ import { substituteSeededAnswers } from '@activity/viewer/seeded-print';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { supabase } from '../lib/supabase';
+import { fetchMisconceptionList } from '../lib/misconceptionList';
 import { parseNumericValue } from '../../../viewer/src/server/grading/numeric';
 
 type Loaded = { document: ActivityDocument; table: BankValueTable };
@@ -44,7 +45,7 @@ type State =
     | { phase: 'ready'; item: Loaded }
     | { phase: 'error'; message: string };
 
-interface MistakeRow {
+export interface MistakeRow {
     readonly match: string;
     readonly value: string;
     readonly misconception: string | null;
@@ -88,6 +89,9 @@ function firstAnswerByRow(item: Loaded): Array<number | null> {
 }
 
 export default function BankItemPreview({ itemId }: { itemId: string }) {
+    // D-7 (ui-review-group-d.md): misconceptions by description, from the
+    // mirrored registry (read once per page; ids stay if it can't be read).
+    const [misconceptionText, setMisconceptionText] = useState<ReadonlyMap<string, string>>(new Map());
     const [state, setState] = useState<State>({ phase: 'loading' });
     const [row, setRow] = useState(0);
 
@@ -135,6 +139,22 @@ export default function BankItemPreview({ itemId }: { itemId: string }) {
         () => (item && resolvedSections ? keyLines(item.document, resolvedSections.sections) : []),
         [item, resolvedSections],
     );
+    const namesMisconception = lines.some((l) => l.mistakes.some((m) => m.misconception));
+    useEffect(() => {
+        if (!namesMisconception) return;
+        let live = true;
+        fetchMisconceptionList()
+            .then((list) => {
+                if (!live) return;
+                const map = new Map<string, string>();
+                for (const e of list) if (e.description) map.set(e.id, e.description);
+                setMisconceptionText(map);
+            })
+            .catch(() => undefined); // the ids stay; nothing else depends on it
+        return () => {
+            live = false;
+        };
+    }, [namesMisconception]);
 
     const [extremes, setExtremes] = useState<{ min: number; max: number } | null>(null);
     useEffect(() => setExtremes(null), [itemId]);
@@ -218,21 +238,41 @@ export default function BankItemPreview({ itemId }: { itemId: string }) {
                     </AnswerKeyProvider>
                 )}
             </div>
-            {lines.some((l) => l.mistakes.length > 0) && (
-                <div className="bank-preview__mistakes">
-                    <p className="ch-notes-label">Mistakes at this sample</p>
-                    <ul>
-                        {lines.flatMap((l, i) =>
-                            l.mistakes.map((m, j) => (
-                                <li key={`${i}-${j}`}>
-                                    Blank {i + 1}: <code>!{m.match}</code> = <strong>{m.value}</strong>
-                                    {' '}(answer {l.answer}){m.misconception ? ` · ${m.misconception}` : ''}
-                                </li>
-                            )),
-                        )}
-                    </ul>
-                </div>
-            )}
+            <MistakeList lines={lines} misconceptionText={misconceptionText} />
+        </div>
+    );
+}
+
+/** The seeded mistake values at this sample, each with its misconception in
+ *  words (D-7): the description from the mirrored registry, the raw id on
+ *  hover, the id itself only when the registry has no description. */
+export function MistakeList({
+    lines,
+    misconceptionText,
+}: {
+    lines: ReadonlyArray<{ answer: string; mistakes: readonly MistakeRow[] }>;
+    misconceptionText: ReadonlyMap<string, string>;
+}) {
+    if (!lines.some((l) => l.mistakes.length > 0)) return null;
+    return (
+        <div className="bank-preview__mistakes">
+            <p className="ch-notes-label">Mistakes at this sample</p>
+            <ul>
+                {lines.flatMap((l, i) =>
+                    l.mistakes.map((m, j) => (
+                        <li key={`${i}-${j}`}>
+                            Blank {i + 1}: <code>!{m.match}</code> = <strong>{m.value}</strong>
+                            {' '}(answer {l.answer})
+                            {m.misconception ? (
+                                <span title={m.misconception}>
+                                    {' · '}
+                                    {misconceptionText.get(m.misconception) ?? m.misconception}
+                                </span>
+                            ) : null}
+                        </li>
+                    )),
+                )}
+            </ul>
         </div>
     );
 }

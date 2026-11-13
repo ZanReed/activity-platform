@@ -145,7 +145,7 @@ test('a negative work space is refused in the drawer', async ({ page }) => {
     await gear(page).click();
     await page.locator(BAR).getByRole('button', { name: 'Advanced' }).click();
     const drawer = page.locator(DRAWER);
-    const workSpace = drawer.getByRole('spinbutton', { name: 'Work space (rem)' });
+    const workSpace = drawer.getByRole('spinbutton', { name: 'Work space (lines)' });
     await workSpace.fill('-2');
     await workSpace.blur();
     await expect(drawer.getByRole('alert')).toHaveText("Can't be less than 0.");

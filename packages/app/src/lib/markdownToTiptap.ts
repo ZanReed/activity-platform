@@ -334,7 +334,7 @@ export interface ImportedMeta {
     /**
      * Blank hand-working space below EVERY problem, in rem — the activity-wide
      * `print.workSpace` default, same unit and same meaning as ⚙ → Print →
-     * "Work space per problem (rem)".
+     * "Work space per problem (lines)" (shown in lines since D-7; stored rem).
      *
      * THE FIRST NESTED KNOB THIS FENCE REACHES, and deliberately so. The
      * taxonomy slice drew the line at "flat enums only — the nested knobs

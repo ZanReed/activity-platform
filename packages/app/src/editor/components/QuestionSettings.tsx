@@ -1,3 +1,4 @@
+import { remToLines } from '../../lib/workSpaceUnits';
 import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
@@ -125,7 +126,8 @@ export function QuestionSettingsSummary({
 }) {
     const parts = [
         hasSolution && 'solution',
-        workSpace !== null && `work space ${workSpace}rem`,
+        // D-7: lines, as the drawer shows it (stored as rem).
+        workSpace !== null && `work space ${remToLines(workSpace)} line${remToLines(workSpace) === 1 ? '' : 's'}`,
     ].filter(Boolean);
     if (parts.length === 0) return null;
     return (

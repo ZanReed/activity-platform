@@ -126,7 +126,7 @@ describe('Activity Bank page', () => {
         h.copyBankActivity.mockResolvedValue('new-copy-id');
         renderBank();
         await screen.findByText('Naming Triangles');
-        fireEvent.click(screen.getAllByRole('button', { name: 'Add to my library' })[0]!);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Add to my library: / })[0]!);
         expect(await screen.findByText(/EDITOR \/activity\/new-copy-id Naming Triangles/)).toBeInTheDocument();
         expect(h.copyBankActivity).toHaveBeenCalledWith('a1');
     });
@@ -135,7 +135,7 @@ describe('Activity Bank page', () => {
         h.copyBankActivity.mockRejectedValue(new Error('That activity is not in the Activity Bank'));
         renderBank();
         await screen.findByText('Naming Triangles');
-        fireEvent.click(screen.getAllByRole('button', { name: 'Add to my library' })[1]!);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Add to my library: / })[1]!);
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Couldn’t add “Angle Sums”: That activity is not in the Activity Bank',
         );
@@ -158,7 +158,7 @@ describe('Activity Bank page', () => {
         });
         renderBank();
         await screen.findByText('Naming Triangles');
-        const guideButtons = screen.getAllByRole('button', { name: 'Teacher guide' });
+        const guideButtons = screen.getAllByRole('button', { name: /^Teacher guide: / });
         expect(guideButtons).toHaveLength(2); // a2 has no guide
         fireEvent.click(guideButtons[0]!);
         await waitFor(() =>
@@ -170,7 +170,7 @@ describe('Activity Bank page', () => {
     it('opens the preview for the row asked', async () => {
         renderBank();
         await screen.findByText('Unit Rates');
-        fireEvent.click(screen.getAllByRole('button', { name: 'Preview' })[2]!);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Preview: / })[2]!);
         expect(await screen.findByText('PREVIEW b1')).toBeInTheDocument();
     });
 

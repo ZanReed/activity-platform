@@ -363,6 +363,7 @@ interface BarButtonProps {
 
 function BarButton({ entry, editor, pos, primary }: BarButtonProps) {
     const Icon = entry.icon;
+    const off = entry.disabled?.(editor, pos) ?? false;
     return (
         <button
             type="button"
@@ -370,9 +371,14 @@ function BarButton({ entry, editor, pos, primary }: BarButtonProps) {
                 'block-command-bar__action' +
                 (primary ? ' block-command-bar__action--primary' : '')
             }
-            onClick={() => entry.onActivate(editor, pos)}
+            // aria-disabled, not `disabled`: a keyboard user standing on Move
+            // down when the block reaches the bottom keeps their focus (and
+            // the tooltip) instead of being dropped (Fable review of D-5).
+            onClick={() => {
+                if (!off) entry.onActivate(editor, pos);
+            }}
             title={entry.title}
-            disabled={entry.disabled?.(editor, pos) ?? false}
+            aria-disabled={off || undefined}
         >
             <Icon size={14} aria-hidden="true" />
             <span>{entry.label}</span>

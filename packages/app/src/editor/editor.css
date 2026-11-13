@@ -1228,6 +1228,16 @@
     background: var(--ed-ink-hover);
 }
 
+/* D-5: Move up on a column's first block (and Move down on its last) is
+   greyed, and keeps focus (aria-disabled rather than `disabled`). */
+.block-command-bar__action[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: default;
+}
+.block-command-bar__action[aria-disabled='true']:hover {
+    background: transparent;
+}
+
 /* Block-specific primary — accent fill; universal actions stay ghost. The fill
    carries --ed-white, so it rides -strong/-stronger (AA in both themes), not
    -accent: blue-500 under white is 3.7:1 and dark's blue-400 only 2.4:1. */
@@ -1838,6 +1848,13 @@
 
 .section-break__checkpoint-label:has(input:disabled) {
     cursor: default;
+    color: var(--ed-text-muted);
+}
+
+/* D-7: what a DoL is, on screen under the section's boxes. */
+.section-break__dol-note {
+    margin: 0;
+    font-size: 0.8125rem;
     color: var(--ed-text-muted);
 }
 

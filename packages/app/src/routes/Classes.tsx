@@ -598,6 +598,7 @@ function ClassCard({
             setAgeDraft(null);
             setEditingAge((s) => !s);
         }}
+        aria-label={`Change age confirmation: ${info.name}`}
         className="underline underline-offset-2 transition hover:text-strong"
         >
         Change age confirmation
@@ -609,6 +610,7 @@ function ClassCard({
             setDomainDraft(info.expectedDomain ?? '');
             setEditingDomain((s) => !s);
         }}
+        aria-label={`${info.expectedDomain ? 'Edit domain' : 'Set domain'}: ${info.name}`}
         className="underline underline-offset-2 transition hover:text-strong"
         >
         {info.expectedDomain ? 'Edit domain' : 'Set domain'}
@@ -675,6 +677,7 @@ function ClassCard({
         <button
         type="button"
         onClick={() => setConfirming('code')}
+        aria-label={`New code: ${info.name}`}
         title="Replace this code with a new one"
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
@@ -683,6 +686,7 @@ function ClassCard({
         <button
         type="button"
         onClick={() => setShowRoster((s) => !s)}
+        aria-label={`${showRoster ? 'Hide roster' : 'Roster'}: ${info.name}`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
         {showRoster ? 'Hide roster' : 'Roster'}
@@ -690,6 +694,7 @@ function ClassCard({
         <button
         type="button"
         onClick={() => setShowActivities((s) => !s)}
+        aria-label={`Activities (${activityCount}): ${info.name}`}
         aria-expanded={showActivities}
         className={`rounded-md border px-2.5 py-1 text-sm font-medium transition ${
             showActivities
@@ -706,19 +711,24 @@ function ClassCard({
             class-progress-view.md CP-1): beside Practice. */}
         <Link
         to={`/classes/${info.id}/progress`}
+        aria-label={`Progress: ${info.name}`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
         Progress
         </Link>
         <Link
         to={`/classes/${info.id}/tracker`}
+        aria-label={`Unit tracker: ${info.name}`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
         Unit tracker
         </Link>
-        {/* C-8: Today lives on this page; "Practice" alone hid it. */}
+        {/* C-8: Today lives on this page; "Practice" alone hid it.
+            D-6: every card control below is named "<visible words>: <class>",
+            so a list of cards is not a column of identical names. */}
         <Link
         to={`/classes/${info.id}/facts`}
+        aria-label={`Today & practice: ${info.name}`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
         >
         Today &amp; practice
@@ -726,6 +736,7 @@ function ClassCard({
         <button
         type="button"
         onClick={() => setConfirming('delete')}
+        aria-label={`Delete: ${info.name}`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-danger"
         >
         Delete

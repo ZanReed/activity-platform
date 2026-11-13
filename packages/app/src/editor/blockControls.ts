@@ -11,6 +11,7 @@ import { renderResetCrop } from './components/ImageDrawerFields';
 import { requestCropMode } from './components/cropMode';
 import { ArrowDown, ArrowUp, Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
 import { canMoveBlockAt, moveBlockAt } from './extensions/BlockReorderShortcuts';
+import { linesToRem, remToLines } from '../lib/workSpaceUnits';
 import { OPEN_IMAGE_POPOVER } from './extensions/Image';
 import { headerAttrsOf, headerChoiceOf, type HeaderChoice } from '../lib/tableAligns';
 
@@ -274,17 +275,19 @@ const questionAdvanced: AdvancedGroup[] = [
         fields: [
             {
                 kind: 'number',
-                label: 'Work space (rem)',
-                help: 'Blank space left below this problem when printed. Empty = the worksheet default.',
+                // D-7 (ui-review-group-d.md): shown and typed in LINES, the
+                // unit the import format leads with; stored as rem, as ever.
+                label: 'Work space (lines)',
+                help: 'Lines of blank space left below this problem when printed. Empty = the worksheet default.',
                 min: 0,
                 step: 0.5,
                 placeholder: 'default',
                 get: (node) =>
                     typeof node.attrs.workSpace === 'number'
-                        ? (node.attrs.workSpace as number)
+                        ? remToLines(node.attrs.workSpace as number)
                         : null,
                 set: (editor, pos, value) =>
-                    setNodeAttr(editor, pos, 'workSpace', value),
+                    setNodeAttr(editor, pos, 'workSpace', value === null ? null : linesToRem(value)),
             },
         ],
     },

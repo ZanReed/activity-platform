@@ -156,7 +156,7 @@ describe('the DoL checkbox (D-1, D-2)', () => {
         const editor = editorFor(SEEDED.replace('## Check {checkpoint dol}', '## Lesson {checkpoint}\n\nHi.\n\n## Check {checkpoint dol}'));
         const [lesson, check] = breakPositions(editor);
         render(<SectionBreakView {...viewProps(editor, check!)} />);
-        expect((screen.getByRole('checkbox', { name: /Checkpoint/ }) as HTMLInputElement).disabled).toBe(true);
+        expect((screen.getByRole('checkbox', { name: /Check here/ }) as HTMLInputElement).disabled).toBe(true);
         cleanup();
         render(<SectionBreakView {...viewProps(editor, lesson!)} />);
         expect((screen.getByLabelText('This section is the DoL') as HTMLInputElement).disabled).toBe(true);

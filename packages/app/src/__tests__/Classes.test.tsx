@@ -194,7 +194,7 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
         const statement = await screen.findByTestId('class-age-statement');
         expect(statement.textContent).toMatch(/^All students 13 or older · confirmed /);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Change age confirmation' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Change age confirmation: / }));
         const radios = screen.getAllByRole('radio') as HTMLInputElement[];
         // Nothing pre-picked, not even the statement the class carries now.
         expect(radios.some((r) => r.checked)).toBe(false);
@@ -232,7 +232,7 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
                     : { data: null, error: null },
             )) as never);
         renderClasses();
-        fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+        fireEvent.click(await screen.findByRole('button', { name: /^Delete: / }));
         const dialog = await screen.findByRole('alertdialog', { name: 'Delete Algebra I — Period 3?' });
         await waitFor(() => expect(within(dialog).getByText(/^2 students lose this class/)).toBeTruthy());
         expect(h.rpc).not.toHaveBeenCalledWith('soft_delete_class', expect.anything());
@@ -240,7 +240,7 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
         await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
         expect(screen.getByText('Algebra I — Period 3')).toBeTruthy();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Delete: / }));
         fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete class' }));
         await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('soft_delete_class', { p_class_id: 'class-1' }));
 
@@ -260,13 +260,13 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
     it('New code asks first; Cancel keeps the code', async () => {
         h.rpc.mockImplementation((() => Promise.resolve({ data: 'NEW234', error: null })) as never);
         renderClasses();
-        fireEvent.click(await screen.findByRole('button', { name: 'New code' }));
+        fireEvent.click(await screen.findByRole('button', { name: /^New code: / }));
         const dialog = await screen.findByRole('alertdialog', { name: 'Replace code QX7M2P?' });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
         await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
         expect(h.rpc).not.toHaveBeenCalledWith('regenerate_join_code', expect.anything());
 
-        fireEvent.click(screen.getByRole('button', { name: 'New code' }));
+        fireEvent.click(screen.getByRole('button', { name: /^New code: / }));
         fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Replace code' }));
         await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('regenerate_join_code', { p_class_id: 'class-1' }));
     });
@@ -320,9 +320,9 @@ describe('join link', () => {
             error: null,
         };
         renderClasses();
-        const link = await screen.findByRole('link', { name: 'Progress' });
+        const link = await screen.findByRole('link', { name: /^Progress: / });
         expect(link.getAttribute('href')).toBe('/classes/class-1/progress');
-        expect(screen.getByRole('link', { name: 'Today & practice' }).getAttribute('href')).toBe('/classes/class-1/facts');
+        expect(screen.getByRole('link', { name: /^Today & practice: / }).getAttribute('href')).toBe('/classes/class-1/facts');
     });
 
     it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {

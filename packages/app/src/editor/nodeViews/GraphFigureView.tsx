@@ -121,7 +121,8 @@ export default function GraphFigureView({
             {source && (
                 <div className="graph-figure-source" contentEditable={false}>
                     <label className="graph-figure-source__label">
-                        Figure source — the same lines a ```figure fence takes
+                        {/* D-7: no fence syntax in the teacher's words. */}
+                        This figure as text — the lines a markdown import takes
                         <textarea
                             className="graph-figure-source__text"
                             value={source.text}

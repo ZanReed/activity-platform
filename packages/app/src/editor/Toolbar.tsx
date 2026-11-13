@@ -185,6 +185,7 @@ export default function Toolbar({
                         !editor.isActive('definition'))
                 }
                 active={!inField && isMarkActive(editor, 'definition')}
+                pressed={!inField && isMarkActive(editor, 'definition')}
                 title="Define the selected term (adds a vocabulary definition)"
             >
                 Define

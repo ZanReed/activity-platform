@@ -456,7 +456,7 @@ describe('D-3 — a check is announced once', () => {
       fireEvent.click(checkButtons(container)[0]!);
     });
     expect(container.querySelectorAll('.viewer-state-pill').length).toBe(2);
-    const speaking = [...container.querySelectorAll('[aria-live], [role="status"]')].filter(
+    const speaking = Array.from(container.querySelectorAll('[aria-live], [role="status"]')).filter(
       (el) => (el.textContent ?? '').trim().length > 0,
     );
     expect(speaking.map((el) => el.textContent)).toEqual([
