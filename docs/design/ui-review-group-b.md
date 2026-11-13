@@ -103,9 +103,12 @@ Differences from the rulings above, and what the reviews changed:
   the nth section), blanks by id. Only a column's direct children count on
   both sides; the reference panel and teacher guide (separate editors) are not
   counted. A block set to "no number" or a custom label gets no "Qn".
-- **DoL "no skills" (B-1) can't fire yet:** a DoL ticked with no skills is
-  dropped on save (`SectionDol.skills` needs one), so the section publishes as
-  a plain checkpoint. Filed in TODOS for a ruling; the item-count rule works.
+- **DoL "no skills" (B-1):** a DoL ticked with no skills used to be dropped
+  on save (`SectionDol.skills` needed one), so the section published as a
+  plain checkpoint. **Ruled 2026-11-13 ("Keep it, refuse publish"):** a draft
+  may hold `skills: []`; publishing refuses it with "the DoL has no skills
+  chosen — Show me". Schema change, both server bundles rebuilt; no deploy
+  needed (a published version never holds an empty list).
 - **B-3 order:** Publish saves once, then refusals first, then the
   starting-answer check, then the G-3 republish confirm — the panels never
   show together. A graph whose answer is "No solution" is never flagged.

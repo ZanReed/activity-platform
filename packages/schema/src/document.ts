@@ -54,7 +54,12 @@ import { Row } from './layout.js';
 // hand-edit fingerprint on every file.
 //   skills   `dol_skills:` in order — item i (the i-th gradable block of the
 //            section) assesses skills[i]; skills[0] is the PRIMARY item, the
-//            only one the pass rule reads (C-151, DL-2).
+//            only one the pass rule reads (C-151, DL-2). May be EMPTY in a
+//            DRAFT (author ruling 2026-11-13): a teacher who ticks "This
+//            section is the DoL" before picking skills keeps the DoL across a
+//            save; the app's pre-publish check (lib/prePublishCheck.ts,
+//            dol-no-skills) refuses to publish it, so a published version
+//            never carries an empty list.
 //   seed     the section's OWN variables (DL-4), redrawn per attempt (DL-6):
 //            one valid-row table per group of linked variables, enumerated at
 //            import exactly as a bank template is (DL-3, BE-3). Answer-bearing:
@@ -63,7 +68,7 @@ import { Row } from './layout.js';
 //            is seeded, a seed variable reaches the primary block, and some
 //            group it uses has 2+ rows (DL-5, DE-8, DE-13).
 export const SectionDol = z.object({
-  skills: z.array(z.string().min(1).max(120)).min(1),
+  skills: z.array(z.string().min(1).max(120)),
   seed: z.object({ tables: z.array(BankValueTable).min(1) }).optional(),
   retake: z.boolean(),
 });

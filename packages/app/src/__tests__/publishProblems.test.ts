@@ -15,7 +15,7 @@ import { ActivityMeta } from '@activity/schema';
 import { getMarkdownImporter, type MarkdownImporter } from '../lib/markdownToTiptap';
 import { wrapBlocksStrict } from '../editor/strictGrid';
 import { buildEditorExtensions } from '../editor/editorExtensions';
-import { tiptapToActivity } from '../lib/serialize';
+import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { findPublishProblems, problemText, publishProblemsSentence } from '../lib/prePublishCheck';
 import { locateProblem, problemLabel, selectProblem } from '../editor/locateProblem';
 
@@ -148,6 +148,28 @@ describe('B-1: questions no student can get right are refused', () => {
         expect(findPublishProblems(sec([]))).toEqual([{ kind: 'dol-no-skills', section: 1 }]);
         expect(findPublishProblems(sec(['a', 'b']))).toEqual([{ kind: 'dol-item-count', section: 1, items: 1, skills: 2 }]);
         expect(findPublishProblems(sec(['a']))).toEqual([]);
+    });
+
+    it('a DoL ticked before any skill is chosen survives a save and is refused at publish (author ruling 2026-11-13)', () => {
+        const ed = editorFor('Intro.\n\n## Check {checkpoint}\n\nThe answer is {{7}}.');
+        let breakPos = -1;
+        ed.state.doc.forEach((node, offset) => {
+            if (node.type.name === 'sectionBreak') breakPos = offset;
+        });
+        expect(breakPos).toBeGreaterThanOrEqual(0);
+        const node = ed.state.doc.nodeAt(breakPos)!;
+        // What the DoL panel stores when the box is ticked with no skills yet.
+        ed.view.dispatch(ed.state.tr.setNodeMarkup(breakPos, undefined, { ...node.attrs, dol: { skills: [], retake: false } }));
+
+        const saved = tiptapToActivity(ed.getJSON(), META);
+        expect(saved.sections[1]?.dol).toEqual({ skills: [], retake: false });
+        // ...and it comes back on reload.
+        expect(JSON.stringify(activityToTiptap(saved))).toContain('"dol":{"skills":[],"retake":false}');
+
+        const problems = findPublishProblems(saved);
+        expect(problems).toEqual([{ kind: 'dol-no-skills', section: 1 }]);
+        expect(locateProblem(ed as never, problems[0]!)).toBe(breakPos);
+        expect(problemLabel(ed as never, problems[0]!, breakPos)).toBe('Section 2');
     });
 
     it('"Republish changed" gets one sentence that still says what is wrong', () => {
