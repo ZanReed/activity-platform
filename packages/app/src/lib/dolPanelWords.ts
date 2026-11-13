@@ -46,13 +46,13 @@ export interface DolPanelRead {
     refs: string[];
 }
 
-/** The section as a save stores it. The DoL attr is read with its skills
- *  forced valid, because a fresh DoL (no skill yet) would otherwise parse away. */
+/** The section as a save stores it. A leftover importer marker
+ *  ({ pending: true }) is read as a DoL with no skills, as serialize does. */
 export function readDolSection(slice: JSONContent): DolPanelRead {
     const content = (slice.content ?? []).map((node, i) => {
         if (i !== 0 || node.type !== 'sectionBreak') return node;
         const dol = (node.attrs?.dol ?? {}) as { skills?: unknown };
-        const skills = Array.isArray(dol.skills) && dol.skills.length > 0 ? dol.skills : ['_'];
+        const skills = Array.isArray(dol.skills) ? dol.skills : [];
         return { ...node, attrs: { ...node.attrs, dol: { retake: false, ...dol, skills } } };
     });
     const doc = tiptapToActivity({ type: 'doc', content }, { title: '' } as unknown as ActivityMeta);
@@ -69,7 +69,7 @@ export function readDolSection(slice: JSONContent): DolPanelRead {
 export function shapeText(p: DolShapeProblem): string {
     switch (p.code) {
         case 'no-skills':
-            return 'Pick the first item’s skill. The DoL isn’t saved until it has one.';
+            return 'Pick the first item’s skill. The activity can’t be published until the DoL has one.';
         case 'first-skill':
             return `The first skill is “${p.first}”, but the activity’s skill is “${p.primary}”.`;
         case 'item-count':

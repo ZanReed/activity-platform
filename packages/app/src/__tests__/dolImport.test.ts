@@ -105,7 +105,10 @@ describe('the `{checkpoint dol}` section (D65)', () => {
             'dol_skills: algebra.factorise.common-factor');
         const { doc, result } = toDoc(md);
         expect(result.dolProblems?.[0]).toContain('2 gradable items');
-        expect(dolOf(doc)).toBeUndefined();
+        // The unfinalized marker is kept as a DoL with no skills (ruling
+        // 2026-11-13): a paste keeps the DoL and publishing refuses it; the
+        // batch importer refuses the file on dolProblems before storing it.
+        expect(dolOf(doc)).toEqual({ skills: [], retake: false });
     });
 
     it('DL-1: the first DoL skill must be `skill:`', () => {

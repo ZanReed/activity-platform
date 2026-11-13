@@ -65,8 +65,8 @@ export function SectionBreakView({
 
     const setDol = (on: boolean) => {
         if (on) {
-            // A fresh DoL has no skills yet, so it isn't saved until the first
-            // one is picked (SectionDol needs one); the panel says so.
+            // A fresh DoL has no skills yet. The draft keeps it (ruling
+            // 2026-11-13); publishing refuses it until one is picked.
             updateAttributes({ dol: { skills: [], retake: false }, isCheckpoint: true });
         } else if (seeded && !confirmOff) {
             setConfirmOff(true);

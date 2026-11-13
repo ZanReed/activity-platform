@@ -117,7 +117,6 @@ export default function DolPanel({
     // live (Fable review: it is written by an effect, not before render).
     const [startedWithSkills] = useState(() => stored.length > 0);
     const locked = isCopy && startedWithSkills;
-    const [keptNote, setKeptNote] = useState(false);
     const [rows, setRows] = useState<string[]>(() => (stored.length > 0 ? stored : ['']));
     const storedKey = stored.join('\u0000');
     useEffect(() => {
@@ -130,13 +129,10 @@ export default function DolPanel({
         // Blank rows close up so each skill sits beside its item's number;
         // one trailing blank (a just-added row) stays to be picked.
         setRows(next[next.length - 1] === '' ? [...skills, ''] : skills.length > 0 ? skills : ['']);
-        // A DoL with numbers keeps its last skill rather than save with none,
-        // which would drop the whole DoL and its numbers (Fable review).
-        if (skills.length === 0 && dol.seed) {
-            setKeptNote(true);
-            return;
-        }
-        setKeptNote(false);
+        // An empty list is saved as it is (ruling 2026-11-13): the draft keeps
+        // the DoL and its numbers, and publishing refuses it until a skill is
+        // picked. (It used to keep the last skill, because an empty list
+        // dropped the whole DoL on save.)
         if (skills.join('\u0000') === storedKey) return;
         // Written in the stored shape: a leftover importer marker
         // ({ pending: true }) carries no `retake`, and serialize would drop it.
@@ -199,11 +195,6 @@ export default function DolPanel({
                 </button>
             )}
             {failed && <p role="status">Skill names couldn’t load; refresh to try again.</p>}
-            {keptNote && (
-                <p role="status">
-                    A DoL needs a skill, so it keeps “{labelOf(stored[0] ?? '') ?? stored[0]}” until you pick another.
-                </p>
-            )}
             {strays.length > 0 && (
                 <p className="section-break__dol-problems" role="alert" data-dol-activity-vars="true">
                     {activityVarText(strays)}

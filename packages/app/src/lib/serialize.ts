@@ -347,9 +347,15 @@ function sectionFromBreak(node: JSONContent): Section {
         section.title = rawTitle;
     }
     // The DoL marker (D65): carried verbatim on the break. A PENDING marker
-    // (the importer's, before dolImport finalized it) never reaches a stored
-    // Section — only a value the schema accepts does.
-    const dol = SectionDol.safeParse(node.attrs?.dol);
+    // (the importer's `{ pending: true }`, left when a paste had no
+    // `dol_skills:`) is stored as a DoL with no skills (ruling 2026-11-13), so
+    // the teacher keeps it and publishing refuses it until a skill is picked —
+    // it used to be dropped, publishing the section as a plain checkpoint.
+    // (The batch importer refuses such a file before it gets here.)
+    const rawDol = node.attrs?.dol as { pending?: unknown } | null | undefined;
+    const dol = SectionDol.safeParse(
+        rawDol && rawDol.pending === true ? { skills: [], retake: false } : rawDol,
+    );
     if (dol.success) section.dol = dol.data;
     return section;
 }

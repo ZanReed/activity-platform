@@ -181,7 +181,7 @@ describe('DolPanel (D-3, D-6)', () => {
         const pos = breakPositions(editor)[0]!;
         const onChange = vi.fn();
         render(<DolPanel dol={{ skills: [], retake: false }} editor={editor} getPos={() => pos} onChange={onChange} />);
-        expect(document.querySelector('[data-dol-problems]')!.textContent).toMatch(/isn’t saved until it has one/);
+        expect(document.querySelector('[data-dol-problems]')!.textContent).toMatch(/can’t be published until the DoL has one/);
         await screen.findByRole('option', { name: 'Adds fractions' });
         fireEvent.click(screen.getByRole('button', { name: 'Add a skill' }));
         fireEvent.change(screen.getByLabelText('Skill for item 1'), { target: { value: 's.one' } });
@@ -245,7 +245,10 @@ describe('Fable review 2026-11-12', () => {
         editor.destroy();
     });
 
-    it('P1: clearing a seeded DoL’s only skill keeps it, and says so', async () => {
+    // Was P1 (2026-11-12): clearing a seeded DoL's only skill kept it, because
+    // an empty list dropped the whole DoL on save. Since the 2026-11-13 ruling
+    // an empty list is saved, numbers and all, and publishing refuses it.
+    it('clearing a seeded DoL’s only skill saves an empty list and keeps its numbers', async () => {
         const editor = editorFor(SEEDED);
         const pos = breakPositions(editor)[0]!;
         const onChange = vi.fn();
@@ -253,8 +256,7 @@ describe('Fable review 2026-11-12', () => {
         render(<DolPanel dol={{ skills: ['s.one'], retake: true, seed }} editor={editor} getPos={() => pos} onChange={onChange} />);
         await screen.findByRole('option', { name: 'Adds fractions' });
         fireEvent.change(screen.getByLabelText('Skill for item 1'), { target: { value: '' } });
-        expect(onChange).not.toHaveBeenCalled();
-        expect(document.body.textContent).toMatch(/keeps “Adds fractions” until you pick another/);
+        expect(onChange).toHaveBeenLastCalledWith({ skills: [], retake: true, seed });
         editor.destroy();
     });
 

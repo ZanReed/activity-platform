@@ -172,6 +172,13 @@ describe('B-1: questions no student can get right are refused', () => {
         expect(problemLabel(ed as never, problems[0]!, breakPos)).toBe('Section 2');
     });
 
+    it('a pasted {checkpoint dol} with no dol_skills keeps its DoL and is refused at publish', () => {
+        const ed = editorFor('Intro.\n\n## Check {checkpoint dol}\n\nThe answer is {{7}}.');
+        const saved = tiptapToActivity(ed.getJSON(), META);
+        expect(saved.sections[1]?.dol).toEqual({ skills: [], retake: false });
+        expect(findPublishProblems(saved)).toEqual([{ kind: 'dol-no-skills', section: 1 }]);
+    });
+
     it('"Republish changed" gets one sentence that still says what is wrong', () => {
         expect(publishProblemsSentence([{ kind: 'mc-no-correct', block: { type: 'multiple_choice', index: 0 } }])).toBe(
             'Not published: no choice is marked correct.',
