@@ -52,6 +52,8 @@ import { Home, JoinClass } from './lib/landingRoutes';
 // =============================================================================
 
 const Activities = lazy(() => import('./routes/Activities'));
+// C-1: any unknown address (it rendered a blank page).
+const NotFound = lazy(() => import('./routes/NotFound'));
 const Classes = lazy(() => import('./routes/Classes'));
 const Bank = lazy(() => import('./routes/Bank'));
 const ChainHooks = lazy(() => import('./routes/ChainHooks'));
@@ -289,6 +291,7 @@ export default function App() {
         {import.meta.env.DEV && (
             <Route path="/dev/viewer" element={<DevViewer />} />
         )}
+        <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
         {/* Not inside an activity (author ruling D2, 2026-10-14): the

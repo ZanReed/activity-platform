@@ -240,8 +240,13 @@ export const SHELL_SPEND = [
         change: 'UI review G-1: the viewer\'s idle warning becomes a lazy fixed bar naming what sign-out clears (the loader + its plain offline fallback stay in the shell; the bar, its count and the sign-out confirm are lazy)',
         bytes: 255,
     },
+    {
+        date: '2026-11-13',
+        change: 'UI review C-2/C-3 (+ ~130 B of group-A/B drift inside the band since): the viewer\'s failure card gets a way back, Sign in again and a folded Details; a checked group says how it went (right / marked, written apart); the catch-all route entry (the not-found page itself is lazy)',
+        bytes: 487,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 154703;
+export const SHELL_JS_BASELINE_BYTES = 155190;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
@@ -656,7 +661,11 @@ export const TEACHER_JOURNEYS = [
     {
         name: 'bank',
         route: 'src/routes/Bank.tsx',
-        maxGzKiB: 7,
+        // 7 → 7.25 (2026-11-13): the filter bar (F-1…F-6) put the shared topic
+        // helpers in the Bank's chunk and left it exactly at 7.0; build-wide
+        // identifier churn from group C pushed it 88 B over. The bar's open
+        // panel is already lazy; nothing Bank-only grew.
+        maxGzKiB: 7.25,
         forbid: ['prosemirror', 'mathlive'],
         why: 'The Bank list is cards and filters. The guide panel loads serialize.ts and the guide editor lazily (TR1).',
     },

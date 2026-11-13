@@ -165,7 +165,45 @@ const defaultResolve = resolveBlockComponent;
  * and are pinned one-per-assertion in the component suite (F9b), so the
  * vocabulary cannot fracture across the two call sites that render it.
  */
-function groupStatusLabel(status: GroupStatus, locked: boolean): string {
+/** C-3: how a checked group went — counted from the check's own verdicts. */
+export interface CheckTally {
+  right: number;
+  /** Items the computer marked (correct + incorrect). */
+  marked: number;
+  /** Written answers recorded for the teacher. */
+  recorded: number;
+}
+
+export function groupTally(
+  sections: Readonly<Record<string, SectionStatus | undefined>>,
+  ids: readonly string[],
+): CheckTally | null {
+  const t: CheckTally = { right: 0, marked: 0, recorded: 0 };
+  for (const id of ids) {
+    const s = sections[id];
+    if (s?.phase !== 'checked') return null;
+    for (const item of Object.values(s.result.items)) {
+      if (item.verdict === 'recorded') t.recorded += 1;
+      else {
+        t.marked += 1;
+        if (item.verdict === 'correct') t.right += 1;
+      }
+    }
+  }
+  return t.marked + t.recorded > 0 ? t : null;
+}
+
+/** "4 of 6 right · 1 written answer goes to your teacher". */
+export function tallyText(t: CheckTally): string {
+  const parts: string[] = [];
+  if (t.marked > 0) parts.push(`${t.right} of ${t.marked} right`);
+  if (t.recorded > 0) {
+    parts.push(t.recorded === 1 ? '1 written answer goes to your teacher' : `${t.recorded} written answers go to your teacher`);
+  }
+  return parts.join(' · ');
+}
+
+function groupStatusLabel(status: GroupStatus, locked: boolean, tally: CheckTally | null = null): string {
   // 'locked' is checked before the phase in the two places it can appear
   // (a wholly-refused group reads 'error', a partly-refused one reads
   // 'partial'). It is the one kind that must never inherit retry copy: there
@@ -187,10 +225,14 @@ function groupStatusLabel(status: GroupStatus, locked: boolean): string {
       // Locked outranks the 2.2A notice, which cannot co-occur anyway: a
       // locked group freezes at press, so its answers cannot move while
       // queued. Stated once, at the moment it becomes true.
-      if (locked) return 'Checked and locked. You can’t change these answers.';
-      return status.answersChangedWhileQueued
-        ? 'Checked your latest answers.'
-        : 'Checked.';
+      {
+        // C-3: say how it went, not just that it happened.
+        const how = tally ? `: ${tallyText(tally)}` : '';
+        if (locked) return `Checked and locked${how}. You can’t change these answers.`;
+        return status.answersChangedWhileQueued
+          ? `Checked your latest answers${how}.`
+          : `Checked${how}.`;
+      }
     case 'partial': {
       const total = status.landed.length + status.unlanded.length;
       const missing = status.unlanded.length;
@@ -898,7 +940,8 @@ function CheckGroupRegion({
           >
             {blockedByCrash
               ? 'One question can’t be checked yet.'
-              : (dol ? dolStatusLabel(dol, sections[ids[0]!]) : null) ?? groupStatusLabel(status, locked)}
+              : (dol ? dolStatusLabel(dol, sections[ids[0]!]) : null) ??
+                groupStatusLabel(status, locked, groupTally(sections, ids))}
           </p>
           {dol && onDolPractice && dolPracticeOffered(dol, sections[ids[0]!]) ? (
             <button type="button" className="viewer-dol__practice" onClick={onDolPractice}>

@@ -94,6 +94,16 @@ test.describe('/join/:code (B12/E-9/P2-ruling)', () => {
     await page.goto(joinUrl(CODE));
     await expect(page.getByText(JOIN_ERROR_COPY.bad_code)).toBeVisible();
   });
+
+  // C-2 (ui-review-group-c.md): copy that says "sign in again" comes with the
+  // button that does it, not only a link home.
+  test('a school-account refusal offers Sign in again, and still a way home', async ({ page }) => {
+    await signInAs(page, { userId: E2E_STUDENT_ID, supabaseUrl: SUPABASE_URL });
+    await stubIdentityApi(page, { role: 'student', join: 'domainTemplate' });
+    await page.goto(joinUrl(CODE));
+    await expect(page.getByRole('button', { name: 'Sign in again' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to your classes' })).toBeVisible();
+  });
 });
 
 test.describe('join form on the student Home (board 1b + OV#1/#7)', () => {

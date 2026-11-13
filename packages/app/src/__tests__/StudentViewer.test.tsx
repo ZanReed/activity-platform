@@ -165,7 +165,9 @@ describe('failure screens (Q3A)', () => {
         ['unavailable', /isn.t available/i, false],
         ['offline', /offline/i, true],
         ['unservable', /couldn.t be opened/i, true],
-        ['unauthenticated', /sign in again/i, true],
+        // C-2: an expired session signs in again; "Try again" retried the
+        // dead session and could never work.
+        ['unauthenticated', /sign in again/i, false],
     ] as const;
 
     for (const [kind, heading, retryable] of cases) {

@@ -14,7 +14,7 @@ import { signInWithGoogle } from '../lib/auth';
 import { signOutEverything } from '../lib/studentAuth';
 import { joinClass, redeemJoinCode, type JoinedClass } from '../lib/classes';
 import { fetchClassMeta, type ClassMetaResult } from '../lib/classActivities';
-import { classifyRedeemError, LANDING_COPY, REDEEM_ERROR_COPY } from '../lib/authMessages';
+import { classifyRedeemError, LANDING_COPY, REDEEM_ERROR_COPY, type RedeemErrorKind } from '../lib/authMessages';
 import { normalizeJoinCodeInput } from '../components/JoinCodeForm';
 import {
   AccountUnavailableCard,
@@ -27,7 +27,7 @@ import {
 type JoinPhase =
   | { phase: 'joining' }
   | { phase: 'joined'; joined: JoinedClass }
-  | { phase: 'failed'; copy: string };
+  | { phase: 'failed'; copy: string; kind: RedeemErrorKind };
 
 export default function JoinClass() {
   const { code: rawCode } = useParams();
@@ -37,6 +37,8 @@ export default function JoinClass() {
   const navigate = useNavigate();
   const [join, setJoin] = useState<JoinPhase>({ phase: 'joining' });
   const attemptedFor = useRef<string | null>(null);
+  // C-2: "Try again" re-runs the join; bumping this re-arms the effect.
+  const [retries, setRetries] = useState(0);
   const isStudent = session !== null && roleStatus === 'ready' && role === 'student';
   // 0033 R2/R5-DR: a PENDING account arriving with a code auto-redeems, which
   // promotes and joins in one audited call. This is the flow's dominant path
@@ -88,9 +90,10 @@ export default function JoinClass() {
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
-        setJoin({ phase: 'failed', copy: REDEEM_ERROR_COPY[classifyRedeemError(message)] });
+        const kind = classifyRedeemError(message);
+        setJoin({ phase: 'failed', copy: REDEEM_ERROR_COPY[kind], kind });
       });
-  }, [canAttempt, isPending, code, retryRole]);
+  }, [canAttempt, isPending, code, retryRole, retries]);
 
   let body;
   if (loading || (session && (roleStatus === 'loading' || roleStatus === 'idle'))) {
@@ -186,7 +189,30 @@ export default function JoinClass() {
         <p role="alert" className="text-base text-strong">
           {join.copy}
         </p>
-        <Link to="/" className={`mt-4 inline-block ${BTN_PRIMARY}`}>
+        {/* C-2: the copy says "try again" / "sign in again", so the card does it. */}
+        {join.kind === 'signed_out' || join.kind === 'domain' ? (
+          <button
+            type="button"
+            className={`mt-4 w-full ${BTN_PRIMARY}`}
+            onClick={() => {
+              void signInWithGoogle({ redirectTo: window.location.href, includeDistrictHint: true });
+            }}
+          >
+            Sign in again
+          </button>
+        ) : join.kind === 'unknown' ? (
+          <button
+            type="button"
+            className={`mt-4 w-full ${BTN_PRIMARY}`}
+            onClick={() => {
+              attemptedFor.current = null;
+              setRetries((n) => n + 1);
+            }}
+          >
+            Try again
+          </button>
+        ) : null}
+        <Link to="/" className={`mt-3 inline-block ${join.kind === 'signed_out' || join.kind === 'domain' || join.kind === 'unknown' ? 'text-sm font-medium text-muted underline underline-offset-2' : BTN_PRIMARY}`}>
           Go to your classes
         </Link>
       </div>

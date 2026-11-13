@@ -649,7 +649,14 @@ export default function StudentViewer() {
   if (state.phase === 'loading') return <Skeleton slow={slow} onRetry={() => setAttempt((n) => n + 1)} />;
 
   if (state.phase === 'error') {
-    return <Failure kind={state.kind} message={state.message} onRetry={() => setAttempt((n) => n + 1)} />;
+    return (
+      <Failure
+        kind={state.kind}
+        message={state.message}
+        onRetry={() => setAttempt((n) => n + 1)}
+        backTo={backToToday}
+      />
+    );
   }
 
   if (!store) return <Skeleton slow={false} onRetry={() => setAttempt((n) => n + 1)} />;
@@ -1003,10 +1010,13 @@ function Failure({
   kind,
   message,
   onRetry,
+  backTo,
 }: {
   kind: ViewerErrorKind;
   message: string;
   onRetry: () => void;
+  /** Where "back" goes: Today when the student came from it (C-2). */
+  backTo: string | undefined;
 }) {
   const copy = FAILURE_COPY[kind];
   return (
@@ -1014,14 +1024,31 @@ function Failure({
       <div className="viewer-gate" role="alert" data-failure={kind}>
         <h1 className="viewer-gate__title">{copy.title}</h1>
         <p className="viewer-gate__body">{copy.body}</p>
-        {copy.retry ? (
+        {/* C-2: an expired session signs in again (retrying the dead session
+            could never work); otherwise Try again where it can help. */}
+        {kind === 'unauthenticated' ? (
+          <button type="button" className="viewer-section__check" onClick={() => void signInWithGoogle()}>
+            Sign in again
+          </button>
+        ) : copy.retry ? (
           <button type="button" className="viewer-section__check" onClick={onRetry}>
             Try again
           </button>
         ) : null}
+        {/* C-2: never a dead end — always a way back. */}
+        <p>
+          <Link to={backTo ?? '/'} className="viewer-topbar__back" data-failure-back>
+            {backTo ? '← Back to Today' : '← Back to my classes'}
+          </Link>
+        </p>
         {/* The raw message is for whoever a student shows this to, not for the
-            student — small, muted, and never the headline. */}
-        <p className="viewer-gate__detail">{message}</p>
+            student: behind Details, never on the face of the card. */}
+        {message ? (
+          <details className="viewer-gate__detail">
+            <summary>Details</summary>
+            {message}
+          </details>
+        ) : null}
       </div>
     </div>
   );

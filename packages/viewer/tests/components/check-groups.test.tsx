@@ -558,6 +558,25 @@ describe('F9b — the five new sentences, pinned verbatim', () => {
     expect(screen.getByText('Checked.')).toBeTruthy();
   });
 
+  it('C-3: a checked group says how it went (right / marked, written apart)', async () => {
+    const svc = service();
+    const base = svc.checkSection.bind(svc);
+    svc.checkSection = async (request) => {
+      const r = await base(request);
+      return { ...r, items: { a: { verdict: 'correct' }, b: { verdict: 'incorrect' }, c: { verdict: 'recorded' } } } as SectionCheckResult;
+    };
+    const store = createViewerStore({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION, checkService: svc });
+    const { container } = render(
+      <ViewerContainer document={docOfSections([true], 'free')} store={store} versionId={VERSION} />,
+    );
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    expect(container.querySelector('.viewer-section__status')!.textContent).toBe(
+      'Checked: 1 of 2 right · 1 written answer goes to your teacher.',
+    );
+  });
+
   it('group checked, `locked`: states the irreversibility once, when it becomes true', async () => {
     const { container } = setup(docOfSections([true], 'locked'));
     await pressCheck(groupsOf(container)[0]!);

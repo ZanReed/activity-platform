@@ -76,3 +76,29 @@ for (const count of [1, 3]) {
     expect(button.x - box.x).toBe(16);
   });
 }
+
+// C-4 (ui-review-group-c.md): on a phone the top bar scrolls away and the check
+// footer is one compact row. Before: top bar 173 px + footer 103 px of 812
+// pinned (34%). The share pinned once the student has scrolled is re-measured.
+test('scrolled on a phone, at most 12% of the screen stays pinned', async ({ page }) => {
+  await signInAs(page);
+  await stubActivityApi(page, { document: documentWithSections(3) as never });
+  await page.goto(activityUrl());
+  await expect(page.locator('.viewer-check-group__footer').first()).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 400));
+  const pinned = await page.evaluate(() => {
+    let total = 0;
+    for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+      const pos = getComputedStyle(el).position;
+      if (pos !== 'sticky' && pos !== 'fixed') continue;
+      const r = el.getBoundingClientRect();
+      // Only what is actually stuck in view counts.
+      if (r.height > 0 && r.bottom > 0 && r.top < window.innerHeight && (r.top <= 0 || r.bottom >= window.innerHeight - 1)) {
+        total += Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+      }
+    }
+    return total;
+  });
+  expect(pinned).toBeLessThanOrEqual(812 * 0.12);
+  expect(await page.locator('.viewer-topbar').evaluate((el) => getComputedStyle(el).position)).toBe('static');
+});

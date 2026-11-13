@@ -3244,3 +3244,41 @@
 .glossary-browse {
   margin-top: var(--space-3);
 }
+
+/* =============================================================================
+   C-4 (ui-review-group-c.md): on a phone, less of the screen is pinned. The
+   top bar (back link, title, unit, progress — 173 px measured) scrolls away
+   with the page instead of staying pinned, and the check footer pins as one
+   compact row. Before: 276 of 812 px pinned (34%). Chromebook width and up is
+   unchanged. viewer e2e (student lane, phone-pinned-share) re-measures it.
+   ============================================================================= */
+@media (max-width: 639.98px) {
+  .viewer-topbar {
+    position: static;
+  }
+}
+
+@media (max-width: 480px) {
+  .viewer-check-group__footer {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    /* Side padding stays 16px so the button lines up with the section's own
+       padding (check-bar-phone.e2e); only the height is trimmed. */
+    padding: var(--space-2) var(--space-4);
+  }
+  .viewer-check-group__footer .viewer-section__status {
+    flex: 1 1 8rem;
+  }
+}
+
+/* C-5: a status banner (storage full, stale version, session expired, …)
+   stays in view while it shows — before, it sat above the worksheet and a
+   student scrolled to question 12 never saw it. Above the top bar (z), like
+   the idle bar. One shows at a time (StudentViewer's banner order). */
+.viewer-banner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-banner);
+}
