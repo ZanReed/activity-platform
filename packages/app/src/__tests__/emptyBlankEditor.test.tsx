@@ -14,7 +14,7 @@ import { getMarkdownImporter, type MarkdownImporter } from '../lib/markdownToTip
 import { wrapBlocksStrict } from '../editor/strictGrid';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import BlankView from '../editor/nodeViews/BlankView';
-import { selectBlankById } from '../editor/selectBlankById';
+import { locateProblem, problemLabel, selectProblem } from '../editor/locateProblem';
 
 afterEach(cleanup);
 
@@ -49,11 +49,13 @@ describe('an empty blank in the editor (G-2)', () => {
             if (n.type.name === 'blank') ids.push(n.attrs.id as string);
         });
         expect(ids.length).toBe(2);
-        expect(selectBlankById(editor, ids[1]!)).toBe(true);
+        const second = { kind: 'empty-blank' as const, blankId: ids[1]! };
+        expect(problemLabel(editor as never, second, locateProblem(editor as never, second))).toBe('Q1');
+        expect(selectProblem(editor as never, second)).toBe(true);
         const sel = editor.state.selection;
         expect(sel).toBeInstanceOf(NodeSelection);
         expect((sel as NodeSelection).node.attrs.id).toBe(ids[1]);
-        expect(selectBlankById(editor, 'no-such-blank')).toBe(false);
+        expect(selectProblem(editor as never, { kind: 'empty-blank', blankId: 'no-such-blank' })).toBe(false);
         editor.destroy();
     });
 });

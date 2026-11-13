@@ -54,9 +54,16 @@ import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { PermanentSaveError, SaveConflictError, useAutosave } from '../lib/useAutosave';
 import { rowWritesSettled } from '../lib/pendingRowWrites';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
-import { findPublishProblems, publishProblemsSentence } from '../lib/prePublishCheck';
-import { selectBlankById } from '../editor/selectBlankById';
+import { findPublishProblems, problemText } from '../lib/prePublishCheck';
+import { locateProblem, problemLabel, selectProblem } from '../editor/locateProblem';
 import { REPUBLISH_COPY, hasLockedOrDol, isNoChanges, startedStudentCount } from '../lib/republishImpact';
+
+/** B-2: the publish refusal's list. */
+const PROBLEMS_SHOWN = 5;
+const PUBLISH_BLOCKED_COPY = {
+    heading: 'Not published. Fix these first:',
+    more: (n: number) => `and ${n} more`,
+} as const;
 
 /** G-8: what the editor says about its save. */
 const SAVE_COPY = {
@@ -1114,22 +1121,40 @@ export default function ActivityEditor() {
                 </div>
             )}
             {publishState.kind === 'blocked' && (
-                // G-2: what stops a publish, and a way straight to it.
+                // G-2 / B-2: what stops a publish, each with a way straight to it.
                 <div className="mt-2 flex justify-end" role="alert" data-publish-blocked>
-                <span className="text-xs text-danger">
-                {publishProblemsSentence(publishState.problems)}{' '}
-                <button
-                type="button"
-                className="font-medium underline underline-offset-2"
-                onClick={() => {
-                    const first = publishState.problems[0];
-                    // A blank deleted since: nothing to show, so drop the line.
-                    if (!editorInstance || !first || !selectBlankById(editorInstance, first.blankId)) clearBlocked();
-                }}
-                >
-                Show me
-                </button>
-                </span>
+                <div className="max-w-md text-xs text-danger">
+                <p className="font-medium">{PUBLISH_BLOCKED_COPY.heading}</p>
+                <ul className="mt-1 space-y-0.5">
+                {publishState.problems.slice(0, PROBLEMS_SHOWN).map((p, i) => {
+                    const pos = editorInstance ? locateProblem(editorInstance, p) : null;
+                    const label = editorInstance ? problemLabel(editorInstance, p, pos) : null;
+                    return (
+                        <li key={i} data-publish-problem={p.kind}>
+                        {label ? `${label} · ` : ''}
+                        {problemText(p)}
+                        {pos !== null && (
+                            <>
+                            {' — '}
+                            <button
+                            type="button"
+                            className="font-medium underline underline-offset-2"
+                            onClick={() => {
+                                if (!editorInstance || !selectProblem(editorInstance, p)) clearBlocked();
+                            }}
+                            >
+                            Show me
+                            </button>
+                            </>
+                        )}
+                        </li>
+                    );
+                })}
+                </ul>
+                {publishState.problems.length > PROBLEMS_SHOWN && (
+                    <p className="mt-0.5">{PUBLISH_BLOCKED_COPY.more(publishState.problems.length - PROBLEMS_SHOWN)}</p>
+                )}
+                </div>
                 </div>
             )}
 
