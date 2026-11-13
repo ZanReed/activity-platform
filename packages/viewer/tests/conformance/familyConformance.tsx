@@ -251,13 +251,19 @@ export function registerFamilyConformance(type: BlockType): void {
         ).toBe(before);
       });
 
-      it('announces its verdict transition through aria-live (6.1A)', async () => {
+      // D-3 (ui-review-group-d.md, reverses 6.1A): a pill is NOT a live
+      // region — one check would otherwise speak once per question. It says
+      // its verdict in words, read when the student reaches the question;
+      // the group status line is the one announcement.
+      it('shows its verdict in words, without a live region of its own (D-3)', async () => {
         const { store } = mount(Component, block, { defaultVerdict: 'correct' });
         const section = answerEverything(store, block);
         await store.checkSection(SECTION, section.items);
         await waitFor(() => expect(pills().length).toBeGreaterThan(0));
         for (const pill of pills()) {
-          expect(pill).toHaveAttribute('aria-live', 'polite');
+          expect(pill).not.toHaveAttribute('aria-live');
+          expect(pill).not.toHaveAttribute('role', 'status');
+          expect(pill.textContent?.trim()).toMatch(/\w/);
         }
       });
     }

@@ -14,10 +14,12 @@
 //                          NOT a verdict glyph (family spec: a student must
 //                          never read auto-grading into captured free text)
 //
-// Announcements: every pill transition announces via aria-live (ruling 6.1A).
-// The pill carries role="status" + aria-live="polite" so a change is spoken
-// without interrupting; the glyph is decorative (aria-hidden) because the
-// label already says the state in words.
+// Announcements: the pill is NOT a live region (D-3, ui-review-group-d.md,
+// 2026-11-13 — reverses ruling 6.1A). One check of a 10-blank section used to
+// speak 10+ times; the group's status line ("Checked: 7 of 10 right", C-3) is
+// now the one announcement. The pill still says its state in words, so a
+// screen-reader user hears it on reaching the question; the glyph is
+// decorative (aria-hidden) because the label already says the state.
 // =============================================================================
 
 export type PillState = 'correct' | 'incorrect' | 'pending' | 'recorded';
@@ -48,8 +50,6 @@ export function StatePill({ state, label }: StatePillProps) {
     <span
       className={`viewer-state-pill viewer-state-pill--${state}`}
       data-state={state}
-      role="status"
-      aria-live="polite"
     >
       <span className="viewer-state-pill__glyph" aria-hidden="true">
         {GLYPH[state]}

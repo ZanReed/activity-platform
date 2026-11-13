@@ -18,7 +18,7 @@ export const A11Y_STORIES: Partial<Record<BlockType, string>> = {
     'position within the equation ("gap 1 of 2"). The PROBLEM number is ' +
     'announced once by the block wrapper, which is a labelled group — not ' +
     'repeated on every gap (viewer-numbering D3). Values type as plain text; ' +
-    'verdicts are announced via the shared state-pill aria-live region.',
+    'verdicts read as words beside the question (the group status line announces the check once, D-3).',
   fill_in_blank:
     'Each blank is a text input in tab order, labeled with its sub-part ' +
     'and position ("Part b, blank 2 of 3") on a numbered multi-blank ' +
@@ -27,7 +27,8 @@ export const A11Y_STORIES: Partial<Record<BlockType, string>> = {
     'rather than repeated on every blank (viewer-numbering D3/N7). ' +
     'Hint and mistake ' +
     'affordances are buttons reachable by Tab; the opened popover traps ' +
-    'no focus and closes on Escape. Verdicts announce via aria-live.',
+    'no focus and closes on Escape. Verdicts read as words beside the ' +
+    'question; the group status line announces the check once (D-3).',
   interactive_graph:
     'The canvas is focusable; handles move by arrow keys with position ' +
     'narration to a visually-hidden aria-live region (a visible readout ' +
@@ -36,7 +37,7 @@ export const A11Y_STORIES: Partial<Record<BlockType, string>> = {
   multiple_choice:
     'Native radio (single) / checkbox (multi) inputs grouped in a ' +
     'fieldset whose legend is the prompt; full label click targets. ' +
-    'Standard arrow-key radio behavior; verdicts announce via aria-live.',
+    'Standard arrow-key radio behavior; verdicts read as words beside the question (the group status line announces the check once, D-3).',
   matching:
     'Pointer drag with a keyboard select-then-place grammar underneath: ' +
     'target cards are focusable, Space/Enter lifts, arrows choose a dock, ' +
@@ -47,8 +48,8 @@ export const A11Y_STORIES: Partial<Record<BlockType, string>> = {
     'screen reader, and touch with no custom grammar (the shipped ' +
     'matching affordance, generalized). Each select is labeled with its ' +
     'item and column ("Graph for item 2"); options carry the column\'s ' +
-    'derived letters. Verdicts announce via the shared state-pill ' +
-    'aria-live region.',
+    'derived letters. Verdicts read as words beside the question; the ' +
+    'group status line announces the check once (D-3).',
   ordering:
     'Rows are focusable and reorder via the shared lift grammar: ' +
     'Space/Enter lifts, arrows move the row, Space/Enter drops, Escape ' +
@@ -71,17 +72,20 @@ export const A11Y_STORIES: Partial<Record<BlockType, string>> = {
     'carries its sub-part letter ("Part b"), matching the (b) marker ' +
     'printed beside it; that marker is aria-hidden so it is not announced ' +
     'twice. The PROBLEM number is announced once by the block wrapper, ' +
-    'never repeated per cell (viewer-numbering D3). Verdicts announce via ' +
-    'the shared state-pill aria-live region.',
+    'never repeated per cell (viewer-numbering D3). Verdicts read as ' +
+    'words beside the question; the group status line announces the ' +
+    'check once (D-3).',
   self_explanation:
-    'A labeled textarea in tab order. On check the block announces ' +
-    '"Recorded — your teacher will review" via aria-live; never a verdict.',
+    'A labeled textarea in tab order. After a check it reads "Recorded — ' +
+    'your teacher will review" (the group status line announces the check ' +
+    'once, D-3); never a verdict.',
   short_answer:
-    'A labeled textarea in tab order. Recorded state announces via ' +
-    'aria-live; teacher feedback, once released, renders as a labeled ' +
+    'A labeled textarea in tab order. Recorded state reads as words (the ' +
+    'group status line announces the check, D-3); teacher feedback, once released, renders as a labeled ' +
     'region announced on arrival.',
   essay:
     'A labeled textarea in tab order. The live word counter is ' +
     'aria-live=polite and debounced so it never chatters per keystroke. ' +
-    'Recorded state and released teacher feedback announce via aria-live.',
+    'Recorded state reads as words (the group status line announces the ' +
+    'check, D-3); released teacher feedback announces on arrival.',
 };

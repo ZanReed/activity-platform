@@ -121,6 +121,13 @@ export function BlankInput({
         ref={inputRef}
         type="text"
         className="viewer-blank__input"
+        // D-1 (ui-review-group-d.md): the answer is left as typed — no phone
+        // capitalising or autocorrecting it, and no spellcheck underline
+        // telling the student a spelling answer is wrong before they check.
+        autoCapitalize="off"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
         value={value}
         // A keyed value is never editable: typing over it would leave the
         // printed key silently disagreeing with itself.

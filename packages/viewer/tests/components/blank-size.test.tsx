@@ -135,3 +135,18 @@ describe('blank input size', () => {
     expect(sizes(container)).toEqual(['6', '4']);
   });
 });
+
+// D-1 (ui-review-group-d.md): a phone must not rewrite the answer, and a
+// spellcheck underline must not give a spelling answer away before the check.
+describe('blank input is left as typed', () => {
+  it('turns off autocapitalise, autocorrect, autocomplete and spellcheck', () => {
+    const { container } = harness(
+      <FillInBlank block={prose({ answerType: 'text' }) as never} mode="screen" label={LABEL} />,
+    );
+    const input = container.querySelector('input.viewer-blank__input')!;
+    expect(input.getAttribute('autocapitalize')).toBe('off');
+    expect(input.getAttribute('autocorrect')).toBe('off');
+    expect(input.getAttribute('autocomplete')).toBe('off');
+    expect(input.getAttribute('spellcheck')).toBe('false');
+  });
+});

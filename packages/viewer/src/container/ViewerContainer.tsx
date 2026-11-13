@@ -33,6 +33,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -886,7 +887,30 @@ function CheckGroupRegion({
       ? `Check — try ${dol.form} of ${dol.allowance}`
       : checkButtonLabel(group.sections.length, locked);
 
+  // D-2 (ui-review-group-d.md): the confirm replaces the button that had
+  // focus, so focus moves with it — to Cancel, the safe choice — and comes
+  // back to Check on Cancel/Escape, or to the status line once it fires.
+  const confirmTextId = useId();
+  const checkRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const focusAfterConfirm = useRef<'check' | 'status' | null>(null);
+  useEffect(() => {
+    if (confirming) {
+      cancelRef.current?.focus();
+      return;
+    }
+    const target = focusAfterConfirm.current;
+    focusAfterConfirm.current = null;
+    if (target === 'check') checkRef.current?.focus();
+    else if (target === 'status') statusRef.current?.focus();
+  }, [confirming]);
+  const cancelConfirm = () => {
+    focusAfterConfirm.current = 'check';
+    setConfirming(false);
+  };
+
   const fire = () => {
+    if (confirming) focusAfterConfirm.current = 'status';
     setConfirming(false);
     void onCheck(group.sections, retrying ? status.unlanded : undefined);
   };
@@ -908,6 +932,7 @@ function CheckGroupRegion({
         <div className="viewer-section__footer viewer-check-group__footer">
           {showButton && !confirming ? (
             <button
+              ref={checkRef}
               type="button"
               className="viewer-section__check"
               disabled={status.phase === 'checking' || blockedByCrash}
@@ -929,8 +954,18 @@ function CheckGroupRegion({
             </button>
           ) : null}
           {confirming ? (
-            <div className="viewer-check-group__confirm" role="group">
-              <p className="viewer-check-group__confirm-text">
+            <div
+              className="viewer-check-group__confirm"
+              role="group"
+              aria-labelledby={confirmTextId}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.stopPropagation();
+                  cancelConfirm();
+                }
+              }}
+            >
+              <p className="viewer-check-group__confirm-text" id={confirmTextId}>
                 {dol
                   ? dolConfirmText(dol, unanswered)
                   : group.sections.length > 1
@@ -938,9 +973,10 @@ function CheckGroupRegion({
                     : 'Check and lock this section? You won’t be able to change your answers after this.'}
               </p>
               <button
+                ref={cancelRef}
                 type="button"
                 className="viewer-check-group__cancel"
-                onClick={() => setConfirming(false)}
+                onClick={cancelConfirm}
               >
                 Cancel
               </button>

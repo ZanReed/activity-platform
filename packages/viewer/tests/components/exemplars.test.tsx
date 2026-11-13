@@ -164,8 +164,9 @@ describe('MultipleChoice — the AUTO_GRADABLE template', () => {
     await store.checkSection(SECTION, { choices: [mcBlock.id] });
 
     await waitFor(() => expect(pill()).toHaveAttribute('data-state', 'correct'));
-    expect(pill()).toHaveAttribute('aria-live', 'polite');
-    expect(screen.getByRole('status')).toHaveTextContent('Correct');
+    // D-3: the pill says it in words but is not a live region.
+    expect(pill()).not.toHaveAttribute('aria-live');
+    expect(pill()).toHaveTextContent('Correct');
   });
 
   it('an incorrect verdict marks the attempt and NEVER changes the selection', async () => {
@@ -263,7 +264,7 @@ describe('ShortAnswer — the RECORDED template', () => {
     await store.checkSection(SECTION, { freeText: [saBlock.id] });
 
     await waitFor(() => expect(pill()).toHaveAttribute('data-state', 'recorded'));
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(pill()).toHaveTextContent(
       'Recorded — your teacher will review',
     );
   });

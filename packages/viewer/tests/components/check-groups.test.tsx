@@ -431,6 +431,75 @@ describe('F3b — “Check and lock” asks first, because there is no unlock', 
   });
 });
 
+// D-2 (ui-review-group-d.md): the confirm replaces the focused button, so
+// focus must move with it rather than fall to the page body.
+// D-3 (ui-review-group-d.md): one spoken summary per check. Counted the way a
+// screen reader meets them: live regions with something to say.
+describe('D-3 — a check is announced once', () => {
+  it('after checking a two-question section, one live region speaks', async () => {
+    const mc = fullDoc.sections
+      .flatMap((x) => x.rows)
+      .flatMap((r) => r.columns)
+      .flatMap((c) => c.blocks)
+      .find((b) => (b as { type?: string }).type === 'multiple_choice')!;
+    const doc = docOfSections([true], 'free');
+    (doc.sections[0]!.rows[0]!.columns[0]!.blocks as unknown[]).push({ ...(mc as object), id: 'mc-live' });
+    const svc = service();
+    const base = svc.checkSection.bind(svc);
+    svc.checkSection = async (request) => {
+      const r = await base(request);
+      return { ...r, items: { 'blk-0': { verdict: 'recorded' }, 'mc-live': { verdict: 'correct' } } } as SectionCheckResult;
+    };
+    const store = createViewerStore({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION, checkService: svc });
+    const { container } = render(<ViewerContainer document={doc} store={store} versionId={VERSION} />);
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    expect(container.querySelectorAll('.viewer-state-pill').length).toBe(2);
+    const speaking = [...container.querySelectorAll('[aria-live], [role="status"]')].filter(
+      (el) => (el.textContent ?? '').trim().length > 0,
+    );
+    expect(speaking.map((el) => el.textContent)).toEqual([
+      'Checked: 1 of 1 right · 1 written answer goes to your teacher.',
+    ]);
+  });
+});
+
+describe('D-2 — the lock confirm keeps keyboard focus', () => {
+  it('focus goes to Cancel, which is labelled by the question; Escape returns it to Check', async () => {
+    const { container, service: svc } = setup(docOfSections([true], 'locked'));
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    expect(document.activeElement).toBe(cancel);
+    expect(screen.getByRole('group', { name: /Check and lock this section\?/ })).toBeTruthy();
+    await act(async () => {
+      fireEvent.keyDown(cancel, { key: 'Escape' });
+    });
+    expect(svc.calls).toHaveLength(0);
+    expect(document.activeElement).toBe(checkButtons(container)[0]);
+  });
+
+  it('Cancel returns focus to Check; confirming moves it to the status line', async () => {
+    const { container } = setup(docOfSections([true], 'locked'));
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    });
+    expect(document.activeElement).toBe(checkButtons(container)[0]);
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    await act(async () => {
+      fireEvent.click(container.querySelector('.viewer-check-group__confirm-fire')!);
+    });
+    expect(document.activeElement).toBe(container.querySelector('.viewer-section__status'));
+  });
+});
+
 // -----------------------------------------------------------------------------
 // GUARD 9 — the partial group
 // -----------------------------------------------------------------------------
