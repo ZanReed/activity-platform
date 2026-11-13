@@ -397,3 +397,25 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 >
 > No pin bump: meta keys are not capabilities. We'll regenerate the
 > catalogue-authoring prompt once the key is agreed and send the new stamp.
+
+## As built
+
+**Step 1, migration 0088 (2026-11-13), not yet live.** Applied and verified on
+the local stack (verify-0088: A 5/5, B 10/10, C 6/6; verify-0082 with B6
+rewritten, 0084 and 0054 still green). Fable-reviewed: no P0; the fixes it
+asked for are in. Differences from the plan:
+
+- **Only adding is held to the year-end limit.** A row left beyond a shortened
+  year end can still be removed, or moved back inside it (review P1: it was
+  otherwise stuck until the activity left the class).
+- **`class_today` shows at most six**, first by position. A soft-deleted pick
+  frees a slot, so restoring it can leave seven rows; students never see
+  seven. The teacher's `class_plan` shows them all.
+- **Audit ops:** `use_today` / `clear_today` for today, as 0082 wrote them;
+  `plan_add` / `plan_remove` for other days; `move_plan`, `reorder_plan`.
+- **The class lock is `for no key update`**, so a planner write doesn't block a
+  student joining the class.
+- **`set_class_today` keeps 0084's `today_full`** by catching `day_full` in
+  its wrapper, so the shipped Today panel needs no change at the push.
+- Mutation-tested: counting hidden rows in the cap (B4 red), deleting every
+  past day (B7 and verify-0082 B6 red), holding removes to the limit (B3 red).

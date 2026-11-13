@@ -1,10 +1,12 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-13-draft-23` (draft-23: a deleted class can be restored, 0086 — see the student-account row). Windows below are the author-ruled S1 defaults
+> Version `2026-11-13-draft-24` (draft-24: a class's planned days, 0088 — see the class plan row; draft-23: a deleted class can be restored, 0086 — see the student-account row). Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
+>
+> `draft-24` (2026-11-13) adds the row for a **class's planned days** (`class_period_items`, migrations 0082 and 0088): teacher planning state, no student data. Today and later days are kept until the teacher removes them; of the past, only the latest planned day is kept, and an older one is removed at the class's next planner write (so a class that stops planning keeps its last day). Removed with the class row (CASCADE), and with the class's activity when it leaves the class.
 >
 > `draft-22` (2026-11-03) rules the window on a clip's first tries: **30 days after the first answer** (author ruling), by `prune_video_pause_tries` (migration 0080), built and not armed.
 >
@@ -142,6 +144,7 @@
 | Course glossary (`glossary_entry` — a teacher's course vocabulary; curriculum content, no student data; migration 0043) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0043.sql` §E). Terms dropped from the source file are RETIRED (`retired_at`), never deleted, so a published worksheet's marks keep resolving; nothing else removes a row |
 | Chain hook pools (`chain_hook` — a teacher's mirrored hook prompts and notes; curriculum content, no student data; migration 0057) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0057.sql` §B). Hooks dropped from the source file are RETIRED (`retired_at`), never deleted; nothing else removes a row |
 | Class hook marks (`class_hook_use` — which hook a class has heard, the date, who marked it; teacher planning state, no student data; migration 0057) | life of the class | the mark is made | the teacher unmarking deletes the row; otherwise FK `ON DELETE CASCADE` from `classes` — **inert today**, because class rows are never hard-deleted (see the class row below) |
+| Class planned days (`class_period_items` — which activities a class does on a day, in order; teacher planning state, no person named, no student data; migrations 0082, 0088) | today and later: until the teacher removes them; the past: only the latest planned day | the day is planned | an older past day is removed at the class's next planner write; removing the activity from the class removes its rows (FK CASCADE); otherwise FK `ON DELETE CASCADE` from `classes` — **inert today**, because class rows are never hard-deleted |
 | Practice-bank items (`practice_item` — a teacher's mirrored bank templates, their seeded-value tables and status; curriculum content, no student data; migration 0058) | **account lifetime** of the owning teacher | — | FK `ON DELETE CASCADE` from `users` (asserted by `verify-0058.sql` §C). Items dropped from the source file are RETIRED (`retired_at`), never deleted; nothing else removes a row |
 | Class row incl. 13+ assertion record | **at least** 400 days after deletion (the assertion should outlive the work it covered) | class deletion | **mechanism not yet built** — nothing purges class rows today, so they are retained indefinitely. Conservative for a compliance record (it names the teacher and the attestation, not students), but the window above is an intent, not a behavior |
 | Legacy localStorage (published pages) | never leaves the student device | — | student clears browser storage; page's own reset |

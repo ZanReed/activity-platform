@@ -124,17 +124,19 @@ begin
   if v_got is distinct from 'Not available' then raise exception 'FAIL B5: removed student got %', v_got; end if;
   n := n + 1;
 
-  -- B6 yesterday's pick has lapsed, and the next write clears it
+  -- B6 yesterday's pick has lapsed; the next write keeps only the latest
+  -- earlier day (0088, PP-2: "Last time … · Carry on today")
   perform set_config('request.jwt.claims', json_build_object('sub', v_t)::text, true);
   insert into class_period_items (class_id, on_date, activity_id, position)
-  values (v_k, v_today - 1, v_a[3], 1);
+  values (v_k, v_today - 1, v_a[3], 1), (v_k, v_today - 3, v_a[3], 1);
   if exists (select 1 from jsonb_array_elements(class_today(v_k)->'activities') e
               where (e->>'activity_id')::uuid = v_a[3]) then
     raise exception 'FAIL B6: yesterday''s pick is still today';
   end if;
   perform set_class_today(v_k, v_a[1], false);
-  if exists (select 1 from class_period_items where class_id = v_k and on_date < v_today) then
-    raise exception 'FAIL B6: the write left an earlier day';
+  if exists (select 1 from class_period_items where class_id = v_k and on_date < v_today - 1)
+     or not exists (select 1 from class_period_items where class_id = v_k and on_date = v_today - 1) then
+    raise exception 'FAIL B6: the write did not keep exactly the latest earlier day';
   end if;
   n := n + 1;
 

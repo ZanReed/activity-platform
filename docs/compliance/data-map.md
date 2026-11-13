@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-13-draft-53`. Mirrors migrations 0001–**0087**, verified
+> Version `2026-11-13-draft-54`. Mirrors migrations 0001–**0088**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-54` (2026-11-13) — 0088 adds NO personal data.** It adds `activities.minutes` (about how long an activity takes: about content, never a person), lets a teacher plan `class_period_items` on later days and keeps the latest past day instead of none (still no column names a person; who planned, moved or reordered is a `class.update` row in `audit_log`), and gives `users.timezone` (0036, documented below) its first write path, `set_my_timezone`, a teacher-only DEFINER function whose `user.update` audit row records that the zone changed but not the zone. docs/design/period-planner.md. The range moves to 0088 on that basis.
 >
 > **`draft-53` (2026-11-13) — 0087 adds NO personal data.** It adds `class_activities.due_on`, a due DATE on a class's activity (docs/design/due-dates.md): about the class, never a person, and it locks nothing. Who set it is a `class.update` row (`op: set_due`, old and new date) in the existing `audit_log` (actor = the teacher). `list_class_activities` returns the date and the class's local today to the class's own students; `class_local_date` gives a class's today to its teacher or students. The range moves to 0087 on that basis.
 >
