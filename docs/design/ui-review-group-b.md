@@ -1,6 +1,7 @@
 # UI review group B — teachers publish broken questions without knowing (design pass, 2026-11-13)
 
-Status: **PROPOSED, awaiting the author's rulings (B-1 … B-7).** Source:
+Status: **RULED 2026-11-13 (author: "Yes to all") and BUILT the same day** —
+see "As built" at the end. Originally proposed with Source:
 TODOS.md → "UI review 2026-11-13", group B (items 8, 9, 11, 12; item 10 was
 built with group A). Builds on G-2's `lib/prePublishCheck.ts`, which already
 runs on both publish paths (the editor's Publish/Republish and "Republish
@@ -90,3 +91,27 @@ Recommended:
 - **Step 3, app-only:** B-5 + B-6, small fixes.
 - No migration, no schema change, no deploy. Teacher-side only, so the student
   shell is untouched; the editor journey budget is checked each step.
+
+## As built (2026-11-13)
+
+Commits on `main`: 60be5f00 + b5e0f86e (B-1/B-2), 791a6054 (B-3/B-4),
+bfdda5cd + 64888df9 (B-5/B-6 and review fixes). A Fable review per step.
+Differences from the rulings above, and what the reviews changed:
+
+- **Locating (B-2):** serialize re-mints block and section ids on every save,
+  so problems are located by POSITION (the nth block of its type in a column,
+  the nth section), blanks by id. Only a column's direct children count on
+  both sides; the reference panel and teacher guide (separate editors) are not
+  counted. A block set to "no number" or a custom label gets no "Qn".
+- **DoL "no skills" (B-1) can't fire yet:** a DoL ticked with no skills is
+  dropped on save (`SectionDol.skills` needs one), so the section publishes as
+  a plain checkpoint. Filed in TODOS for a ruling; the item-count rule works.
+- **B-3 order:** Publish saves once, then refusals first, then the
+  starting-answer check, then the G-3 republish confirm — the panels never
+  show together. A graph whose answer is "No solution" is never flagged.
+  Known limit: the comparison is whole-interaction (changing only a tolerance
+  clears it), and a file whose real answer is the default asks every publish.
+- **B-6:** a refused value is marked on the field that was typed (not both),
+  and a negative work space is refused with a message rather than snapped to
+  0. A refused value held in the field is saved as soon as it becomes valid
+  (e.g. Max raised). Min/Max words also refuse part-word counts.

@@ -102,18 +102,18 @@ already in this file. Ranked inside each group; the author picks the order.
    check); a failed save has no retry, no `role="alert"`, no online listener.
 
 **B. Teachers publish broken questions without knowing**
-8. ◐ STARTED (G-2: `lib/prePublishCheck.ts` runs on both publish paths, one rule — empty blanks). **No pre-publish check.** `usePublish` only Zod-parses. Each block's own
+8. ✅ BUILT (G-2 + B-1/B-2: refusals for empty blanks, no correct choice, unmatched items/cells, unanswered maths gaps, DoL skill count; listed with Show me). **No pre-publish check.** `usePublish` only Zod-parses. Each block's own
    warning (MC with no correct choice, matching, gaps) is never gathered.
-9. **Graphs and number lines start with a made-up answer**
+9. ✅ BUILT (B-3/B-4: badge + "Check before publishing"). **Graphs and number lines start with a made-up answer**
    (`InteractiveGraph.ts:342` `[[0,0]]`, `NumberLine.ts:50` `[5]`) and no
    "answer not set" cue; a text blank chip has no "needs an answer" marker
    (maths gaps do).
 10. ✅ BUILT (G-3 "No changes", F-4 "Changed since publish"). No "unpublished changes" state: the header always shows green
     "Published vN"; "Republish" with nothing changed shows a red
     "Publish failed: Nothing to publish".
-11. Imported meta notes are hidden on an unpublished activity (the notes box
+11. ✅ BUILT (B-5). Imported meta notes are hidden on an unpublished activity (the notes box
     sits inside the `isPublished || success` block, `ActivityEditor.tsx` ~859).
-12. Drawer values that fail validation (min words > max, negative work space)
+12. ✅ BUILT (B-6). Drawer values that fail validation (min words > max, negative work space)
     stay shown but are dropped on save.
 
 **C. Dead ends and missing feedback**
@@ -164,8 +164,8 @@ already in this file. Ranked inside each group; the author picks the order.
 **Group A: BUILT 2026-11-13** ([ui-review-group-a.md](docs/design/ui-review-group-a.md)
 → "As built"; 0086 must be applied live before the push). **The filter bar:
 BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters.md)).
-Group B is in design ([ui-review-group-b.md](docs/design/ui-review-group-b.md));
-C–E open.
+**Group B: BUILT 2026-11-13** ([ui-review-group-b.md](docs/design/ui-review-group-b.md)
+→ "As built"). C–E open.
 
 ## A DoL turned on with no skills is silently dropped on save (found 2026-11-13, B-1 review)
 
