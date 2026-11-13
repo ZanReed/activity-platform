@@ -647,3 +647,26 @@ no migration, no deploy.
   `periodLine` description.
 - Mutation-tested: offering heard hooks (1 red); the chain page ignoring the class's
   day (2 red); the card trusting stale detail (1 red).
+
+**Step 5, the present view (PP-9; 2026-11-14):** no migration, no deploy.
+
+- `/classes/:classId/present` (`routes/ClassPresent.tsx`, lazy). Linked as "Present" from
+  the Today panel once today has a pick, and from the day card's hook (PP-8). Today's blocks
+  are large rows in §17's order, each with its time, then the total. The practice link and
+  join code are large at the top. The hook's prompt shows in full, and its teacher note
+  stays hidden until "Show note (on screen)". There are no names, progress, answers, clock
+  or timer. "We're here" highlights one row locally (keyed by block, so late rows can't
+  move it). Escape hides an open note first, then returns to Today & practice; key
+  repeats are ignored.
+- Nothing is fetched or shown until the role is known to be a teacher: `class_today` is
+  student-readable, so a loading role must not read it.
+- If `class_plan` fails, it presents today's titles (no hook, "time not set").
+- Browser-checked on the local stack with a plan row and a hook dated today. It showed the
+  join link + code, the full hook prompt with the note hidden, Unit Rates, Practice and
+  the total. Test data removed.
+- Fable-reviewed, no P0: nothing renders answers, names or progress, and the link matches
+  MixedPanel's. P1s fixed: the role gate was open while loading; the highlight was keyed
+  by index. P2s fixed: held Escape; `aria-controls` plus a live region for the note; tests
+  for the link text, the fallback and a loading role. P2 left: a hook from another unit
+  has no link to its own pool from Today (PP-8 points the hook at the present view).
+- Mutation-tested: the note always shown (1 red); the teacher fetch gate removed (1 red).

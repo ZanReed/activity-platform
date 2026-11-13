@@ -79,6 +79,8 @@ const FactsEntry = lazy(() => import('./routes/FactsEntry'));
 const FactsTeacher = lazy(() => import('./routes/FactsTeacher'));
 // Period planner PP-1 (0088): a class's next school days, teachers only.
 const ClassPlan = lazy(() => import('./routes/ClassPlan'));
+// PP-9: today's period on the projector, teachers only.
+const ClassPresent = lazy(() => import('./routes/ClassPresent'));
 // The unit tracker (curriculum D67): the student's page and the teacher's.
 const StudentTracker = lazy(() => import('./routes/UnitTracker').then((m) => ({ default: m.StudentTracker })));
 const TeacherTracker = lazy(() => import('./routes/UnitTracker').then((m) => ({ default: m.TeacherTracker })));
@@ -203,6 +205,14 @@ export default function App() {
         element={
             <RequireAuth>
             <ClassPlan />
+            </RequireAuth>
+        }
+        />
+        <Route
+        path="/classes/:classId/present"
+        element={
+            <RequireAuth>
+            <ClassPresent />
             </RequireAuth>
         }
         />

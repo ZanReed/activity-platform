@@ -165,11 +165,6 @@ export default function TodayPanel({
     const firstHook = day.hook_ids[0];
     const firstPrompt = firstHook ? prompts.get(firstHook) : undefined;
     const blocks = dayBlocks(day, shape, firstPrompt ? hookShortName(firstPrompt) : null);
-    // The hook block links to the HOOK's own unit (a strayed hook isn't the
-    // first activity's), so it isn't a second "Hooks for this unit".
-    const hookOwnChain = firstHook
-        ? Object.entries(hooks.chains).find(([, pool]) => pool.some((h) => h.id === firstHook))?.[0]
-        : undefined;
     const total = totalLine(dayTotal(day, shape));
     const onToday = new Set(today.map((a) => a.activity_id));
     const carry = (detail?.last_day?.activities ?? []).filter((a) => a.available && !onToday.has(a.activity_id));
@@ -183,8 +178,9 @@ export default function TodayPanel({
                         {blocks.map((b, i) => (
                             <li key={`${b.kind}-${b.activityId ?? i}`} data-block={b.kind}>
                                 <span className="ft-today-what">
-                                    {b.kind === 'hook' && hookOwnChain && firstPrompt ? (
-                                        <Link to={`/chains/${hookOwnChain}`}>Hook: {b.label}</Link>
+                                    {b.kind === 'hook' && firstPrompt ? (
+                                        // PP-8: the hook opens the present view, prompt full width.
+                                        <Link to={`/classes/${classId}/present`}>Hook: {b.label}</Link>
                                     ) : b.kind === 'hook' ? (
                                         firstPrompt ? `Hook: ${b.label}` : 'Hook'
                                     ) : (
@@ -233,6 +229,8 @@ export default function TodayPanel({
                 {hookChain ? <Link to={`/chains/${hookChain}`}>Hooks for this unit</Link> : null}
                 {/* PP-1: the Plan page, for any day after today. */}
                 <Link to={`/classes/${classId}/plan`}>Plan ahead</Link>
+                {/* PP-9: today on the projector. */}
+                {today.length > 0 ? <Link to={`/classes/${classId}/present`}>Present</Link> : null}
             </p>
             {saveError ? <p role="alert">{saveError}</p> : null}
             {choosing && options ? (

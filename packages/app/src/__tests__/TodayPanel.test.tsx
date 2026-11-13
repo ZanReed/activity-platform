@@ -208,7 +208,9 @@ describe('TodayPanel', () => {
             'Ratios|time not set',
         ]);
         expect(screen.getByText('About 32–33 min + Ratios (time not set)')).toBeTruthy();
-        expect(screen.getByRole('link', { name: /^Hook: Which is the better deal/ }).getAttribute('href')).toBe('/chains/chain.rates');
+        // PP-8: the hook opens the present view; "Present" is there once today has a pick.
+        expect(screen.getByRole('link', { name: /^Hook: Which is the better deal/ }).getAttribute('href')).toBe('/classes/c1/present');
+        expect(screen.getByRole('link', { name: 'Present' }).getAttribute('href')).toBe('/classes/c1/present');
     });
 
     it('PP-2: Carry on today puts last time\'s activity on today', async () => {
