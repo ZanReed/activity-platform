@@ -576,3 +576,30 @@ day card in the Today panel (PP-8).
   the top or bottom of a list; the error line sits at the top of the page.
 - Mutation-tested: an unset time counted as zero (2 red); the Go to range guard
   (1 red).
+
+**Step 4b-1, "Make it due this day" (PP-10) and "Carry on today" (PP-2), on the
+Plan page (2026-11-14, overnight run):** no migration, no deploy.
+
+- Make it due: on a planned, available activity in the class with no due date,
+  a button calls `set_class_activity_due(class, activity, that day)`; the row
+  then reads "Due Mon 16 Nov". After that the plan and the due date are
+  independent (a move doesn't move it). Clearing or changing it stays in the
+  class Activities panel (DD-2's field).
+- Carry on today: "Last time (Thu 12 Nov):" lists that day's activities, each
+  available one not already on today with "Carry on today" (`set_class_plan`
+  for the class's today; the cap and refusals are named as everywhere else).
+- **Where it differs from the doc, recorded rather than ruled:** PP-2 and the
+  GUI table put "Carry on today" on the **Today panel**. `class_today` doesn't
+  return the last day, so the panel needs a `class_plan` read. That read lands
+  with the panel's itemized day card (PP-8) in **4b-2**, together with the hook
+  picker (PP-7) and the chain page's "Planned" marks. Until then the Plan page,
+  linked from the panel as "Plan ahead", is where carry-on lives.
+- Browser-checked on the local stack: carry-on put Decimals on Fri 13 Nov
+  ("on today" replaced the button); Make it due wrote `due_on = 2026-11-13` and
+  the row read "Due Fri 13 Nov"; test data reverted.
+- Fable-reviewed, no P0. P1s fixed: the "Due …" line was untested; it is now
+  bound to render, and mutation-tested (dropping the refresh fails 1). The doc
+  mismatch is recorded above. P2s fixed: a failed options refresh keeps the
+  list; "not in this class" gets its own message. P2s left: no undo on the page
+  (the class panel clears a due date); a date set in another tab isn't seen
+  until reload; a weekend today carries onto the weekend.

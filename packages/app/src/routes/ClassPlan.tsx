@@ -41,6 +41,7 @@ import {
     type PlannedActivity,
 } from '../lib/classPlan';
 import { fetchSprintOverview } from '../lib/factSprint';
+import { setClassActivityDue } from '../lib/dueDates';
 import { fetchMixedSummary } from '../lib/mixedTeacher';
 
 const BTN =
@@ -88,20 +89,30 @@ export default function ClassPlan() {
         [classId],
     );
 
+    // This class's published activities: the Add list, and each one's due date
+    // (PP-10's "Make it due this day" reads it).
+    const loadOptions = useCallback(
+        () =>
+            listTeacherClassActivities()
+                .then((all) => setOptions(all.filter((a) => a.classId === classId && a.published)))
+                // A failed refresh keeps what the page had (review P2): an
+                // empty list would hide every Add option and due line.
+                .catch(() => undefined),
+        [classId],
+    );
+
     useEffect(() => {
         void load(null);
         void listClasses()
             .then((all) => setClassName(all.find((c) => c.id === classId)?.name ?? null))
             .catch(() => setClassName(null));
-        void listTeacherClassActivities()
-            .then((all) => setOptions(all.filter((a) => a.classId === classId && a.published)))
-            .catch(() => setOptions([]));
+        void loadOptions();
         // The total's parts: either read failing leaves that part out.
         void Promise.all([
             fetchSprintOverview(classId).catch(() => null),
             fetchMixedSummary(classId).catch(() => null),
         ]).then(([sprint, mixed]) => setShape(shapeFrom(sprint, mixed)));
-    }, [classId, load]);
+    }, [classId, load, loadOptions]);
 
     const write = async (fn: () => Promise<unknown>) => {
         setBusy(true);
@@ -117,6 +128,27 @@ export default function ClassPlan() {
             setBusy(false);
         }
     };
+
+    // PP-10: a one-click shortcut into the existing due field, never automatic.
+    // After it the two are independent: moving the plan does not move the due.
+    const makeDue = async (activityId: string, date: string) => {
+        setBusy(true);
+        setError(null);
+        try {
+            await setClassActivityDue(classId, activityId, date);
+        } catch (err) {
+            const m = err instanceof Error ? err.message : '';
+            setError(
+                /not in this class|not_in_class/i.test(m)
+                    ? "That activity isn't in this class any more."
+                    : "The due date didn't save. Check your connection, then try again.",
+            );
+        } finally {
+            await loadOptions();
+            setBusy(false);
+        }
+    };
+    const dueFor = useMemo(() => new Map(options.map((o) => [o.activityId, o.dueOn])), [options]);
 
     const byDate = useMemo(() => new Map((plan?.days ?? []).map((d) => [d.on_date, d])), [plan]);
     const dates = useMemo(
@@ -199,10 +231,12 @@ export default function ClassPlan() {
             )}
 
             {plan.last_day && start === plan.today && (
-                <p className="mt-4 text-sm text-muted" data-last-day>
-                    Last time ({dayLabel(plan.last_day.on_date)}):{' '}
-                    {plan.last_day.activities.map((a) => a.title).join(' · ') || 'nothing planned'}
-                </p>
+                <LastDay
+                    lastDay={plan.last_day}
+                    todayIds={new Set((byDate.get(plan.today)?.activities ?? []).map((a) => a.activity_id))}
+                    busy={busy}
+                    onCarry={(id) => write(() => setClassPlan(classId, plan.today, id, true))}
+                />
             )}
 
             <ol className="mt-4 space-y-3" aria-label="Planned days">
@@ -222,6 +256,8 @@ export default function ClassPlan() {
                         onRemove={(id) => write(() => setClassPlan(classId, d, id, false))}
                         onMove={(id, to) => write(() => moveClassPlanItem(classId, d, id, to))}
                         onReorder={(ids) => write(() => reorderClassPlan(classId, d, ids))}
+                        dueFor={dueFor}
+                        onMakeDue={(id) => void makeDue(id, d)}
                     />
                 ))}
             </ol>
@@ -259,6 +295,8 @@ function DayCard({
     onRemove,
     onMove,
     onReorder,
+    dueFor,
+    onMakeDue,
 }: {
     date: string;
     isToday: boolean;
@@ -273,6 +311,8 @@ function DayCard({
     onRemove: (activityId: string) => void;
     onMove: (activityId: string, to: string) => void;
     onReorder: (activityIds: string[]) => void;
+    dueFor: ReadonlyMap<string, string | null>;
+    onMakeDue: (activityId: string) => void;
 }) {
     const [choice, setChoice] = useState('');
     const [moving, setMoving] = useState<string | null>(null);
@@ -337,6 +377,8 @@ function DayCard({
                                 setMoving(null);
                             }}
                             onCancelMove={() => setMoving(null)}
+                            due={dueFor.get(a.activity_id)}
+                            onMakeDue={() => onMakeDue(a.activity_id)}
                         />
                     ))}
                 </ul>
@@ -401,6 +443,8 @@ function PlanRow({
     onMoveTo,
     onMove,
     onCancelMove,
+    due,
+    onMakeDue,
 }: {
     a: PlannedActivity;
     first: boolean;
@@ -417,6 +461,9 @@ function PlanRow({
     onMoveTo: (d: string) => void;
     onMove: () => void;
     onCancelMove: () => void;
+    /** The class activity's due date; undefined when it isn't in the class list. */
+    due: string | null | undefined;
+    onMakeDue: () => void;
 }) {
     return (
         <li className="py-2" data-plan-activity={a.activity_id}>
@@ -450,6 +497,17 @@ function PlanRow({
                     Remove
                 </button>
             </div>
+            {a.available && due !== undefined && (
+                <p className="mt-1 text-xs text-muted" data-plan-due>
+                    {due ? (
+                        `Due ${dayLabel(due)}`
+                    ) : (
+                        <button type="button" className={LINK} disabled={busy} onClick={onMakeDue} aria-label={`Make ${a.title} due this day`}>
+                            Make it due this day
+                        </button>
+                    )}
+                </p>
+            )}
             {moving && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     <label htmlFor={`move-${a.activity_id}`} className="text-muted">
@@ -473,5 +531,46 @@ function PlanRow({
                 </div>
             )}
         </li>
+    );
+}
+
+/** PP-2: the last day that had anything, read-only, with "Carry on today" for
+ *  each activity not already on today (an activity that ran over). */
+function LastDay({
+    lastDay,
+    todayIds,
+    busy,
+    onCarry,
+}: {
+    lastDay: { on_date: string; activities: PlannedActivity[] };
+    todayIds: ReadonlySet<string>;
+    busy: boolean;
+    onCarry: (activityId: string) => void;
+}) {
+    return (
+        <div className="mt-4 text-sm text-muted" data-last-day>
+            <p>Last time ({dayLabel(lastDay.on_date)}):</p>
+            <ul className="mt-1 space-y-1">
+                {lastDay.activities.map((a) => (
+                    <li key={a.activity_id} className="flex flex-wrap items-center gap-2">
+                        <span className={a.available ? 'text-strong' : 'line-through'}>{a.title}</span>
+                        {a.available &&
+                            (todayIds.has(a.activity_id) ? (
+                                <span className="text-xs">on today</span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className={LINK}
+                                    disabled={busy}
+                                    onClick={() => onCarry(a.activity_id)}
+                                    aria-label={`Carry on ${a.title} today`}
+                                >
+                                    Carry on today
+                                </button>
+                            ))}
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }

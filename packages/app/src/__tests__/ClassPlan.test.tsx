@@ -35,6 +35,7 @@ const act = (id: string, title: string, minutes: number | null, position = 1, av
 const h = vi.hoisted(() => ({
     rpc: vi.fn(),
     plan: null as unknown as ClassPlan,
+    dueA1: null as string | null,
 }));
 vi.mock('../lib/supabase', () => ({ supabase: { rpc: h.rpc } }));
 vi.mock('../components/TeacherNav', () => ({ TeacherNav: () => null }));
@@ -42,8 +43,9 @@ vi.mock('../components/TimezoneControl', () => ({ default: () => null }));
 vi.mock('../lib/classes', () => ({ listClasses: async () => [{ id: 'c1', name: '7A' }] }));
 vi.mock('../lib/classActivities', () => ({
     listTeacherClassActivities: async () => [
-        { classId: 'c1', activityId: 'a1', title: 'Unit rates', addedAt: '', published: true, dueOn: null },
-        { classId: 'c1', activityId: 'a2', title: 'Graphs', addedAt: '', published: true, dueOn: null },
+        { classId: 'c1', activityId: 'a1', title: 'Unit rates', addedAt: '', published: true, dueOn: h.dueA1 },
+        { classId: 'c1', activityId: 'a2', title: 'Graphs', addedAt: '', published: true, dueOn: '2026-11-20' },
+        { classId: 'c1', activityId: 'a9', title: 'Decimals', addedAt: '', published: true, dueOn: null },
         { classId: 'c1', activityId: 'a3', title: 'Draft one', addedAt: '', published: false, dueOn: null },
         { classId: 'c2', activityId: 'a4', title: 'Other class', addedAt: '', published: true, dueOn: null },
     ],
@@ -62,8 +64,15 @@ beforeEach(() => {
         days: [{ on_date: '2026-11-16', activities: [act('a1', 'Unit rates', 30, 1), act('a2', 'Graphs', null, 2)], hook_ids: [] }],
         last_day: { on_date: '2026-11-12', activities: [act('a9', 'Decimals', 25)] },
     };
+    h.dueA1 = null;
     h.rpc.mockReset();
-    h.rpc.mockImplementation(async () => ({ data: h.plan, error: null }));
+    h.rpc.mockImplementation(async (name: string, args?: { p_due_on?: string }) => {
+        if (name === 'set_class_activity_due') {
+            h.dueA1 = args?.p_due_on ?? null;
+            return { data: h.dueA1, error: null };
+        }
+        return { data: h.plan, error: null };
+    });
 });
 afterEach(cleanup);
 
@@ -84,7 +93,8 @@ describe('the Plan page', () => {
         const days = within(screen.getByRole('list', { name: 'Planned days' })).getAllByRole('heading', { level: 2 });
         expect(days).toHaveLength(10);
         expect(days.map((d) => d.textContent)).not.toContain('Sat 14 Nov');
-        expect(screen.getByText(/Last time \(Thu 12 Nov\): Decimals/)).toBeTruthy();
+        const last = document.querySelector('[data-last-day]') as HTMLElement;
+        expect(last.textContent).toMatch(/Last time \(Thu 12 Nov\):.*Decimals/);
     });
 
     it('a day shows its activities, their times, and the total (unset never counted as zero)', async () => {
@@ -100,10 +110,11 @@ describe('the Plan page', () => {
         renderPage();
         const card = await screen.findByRole('listitem', { name: 'Tue 17 Nov' });
         const select = within(card).getByLabelText('Add an activity on Tue 17 Nov') as HTMLSelectElement;
-        expect([...select.options].map((o) => o.text)).toEqual(['Add activity…', 'Unit rates', 'Graphs']);
+        expect([...select.options].map((o) => o.text)).toEqual(['Add activity…', 'Unit rates', 'Graphs', 'Decimals']);
         const monday = screen.getByRole('listitem', { name: 'Mon 16 Nov' });
         const mondaySelect = within(monday).getByLabelText('Add an activity on Mon 16 Nov') as HTMLSelectElement;
-        expect(mondaySelect.disabled).toBe(true); // both already on Monday
+        // Unit rates and Graphs are already on Monday: only Decimals is left.
+        expect([...mondaySelect.options].map((o) => o.text)).toEqual(['Add activity…', 'Decimals']);
         fireEvent.change(select, { target: { value: 'a2' } });
         fireEvent.click(within(card).getByRole('button', { name: 'Add' }));
         await waitFor(() =>
@@ -169,6 +180,45 @@ describe('the Plan page', () => {
         expect(within(card).getByText('no longer available')).toBeTruthy();
         expect(within(card).queryByText(/About/)).toBeNull();
         expect(within(card).getByRole('button', { name: 'Remove Unit rates' })).toBeTruthy();
+    });
+});
+
+describe('the Plan page: carry on and due dates (PP-2, PP-10)', () => {
+    it('Carry on today puts last time’s activity on the class’s today', async () => {
+        renderPage();
+        fireEvent.click(await screen.findByRole('button', { name: 'Carry on Decimals today' }));
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith(CLASS_PLAN_RPC.set, {
+                p_class_id: 'c1',
+                p_on_date: TODAY,
+                p_activity_id: 'a9',
+                p_on: true,
+            }),
+        );
+    });
+
+    it('an activity already on today is not offered again', async () => {
+        h.plan.days.push({ on_date: TODAY, activities: [act('a9', 'Decimals', 25)], hook_ids: [] });
+        renderPage();
+        await screen.findByText('on today');
+        expect(screen.queryByRole('button', { name: 'Carry on Decimals today' })).toBeNull();
+    });
+
+    it('Make it due this day sets that date; a due date already set is shown, not offered', async () => {
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Mon 16 Nov' });
+        expect(within(card).getByText('Due Fri 20 Nov')).toBeTruthy(); // Graphs
+        fireEvent.click(within(card).getByRole('button', { name: 'Make Unit rates due this day' }));
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('set_class_activity_due', {
+                p_class_id: 'c1',
+                p_activity_id: 'a1',
+                p_due_on: '2026-11-16',
+            }),
+        );
+        // The row then reads the class's due date, not the button (bound to RENDER).
+        expect(await within(card).findByText('Due Mon 16 Nov')).toBeTruthy();
+        expect(within(card).queryByRole('button', { name: 'Make Unit rates due this day' })).toBeNull();
     });
 });
 
