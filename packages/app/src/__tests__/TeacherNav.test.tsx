@@ -36,6 +36,7 @@ vi.mock('../lib/bank', () => ({
     BANK_LICENSE: 'CC BY-NC-SA 4.0',
     listBank: () => Promise.resolve([]),
     copyBankActivity: vi.fn(),
+    listMyBankCopies: () => Promise.resolve(new Map()),
     getBankTeacherGuide: vi.fn(),
     isBankLister: () => Promise.resolve(false),
     setActivityListing: vi.fn(),
