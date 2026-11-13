@@ -50,6 +50,10 @@ import {
     chainFolderOf,
     classifyUpdates,
     pathOnlyPayload,
+    minutesPayload,
+    needsMinutes,
+    minutesCapWarning,
+    CAP_KEY,
     consolidatesChainOf,
     planPracticeRegistry,
     MIXED_KEYS,
@@ -3292,7 +3296,7 @@ test('practice registry: all seven or none, nothing else, and check L\'s bounds 
     };
     const { mixed_wrong_drop: _drop, ...six } = MIXED_BODY;
     refuse(six, /missing mixed_wrong_drop/);
-    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed ten: mixed_extra/);
+    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed eleven: mixed_extra/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [1, 3, 3] }, /strictly increasing/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [0, 3] }, /each ≥ 1/);
     refuse({ ...MIXED_BODY, mixed_wrong_drop: 5 }, /less than the number of steps/);
@@ -3373,4 +3377,92 @@ test('§K B-198 / TP-8 (D65): a DoL misconception the skill\'s ratified bank nev
     // Clean when the bank binds every one.
     const full = { ...ratified, document: { sections: [{ rows: [{ columns: [{ blocks: [{ type: 'fill_in_blank', content: [blank('mis.a'), blank('mis.b')] }] }] }] }] } };
     assert.deepEqual(dolBankGaps([entry], [full]), []);
+});
+
+// =============================================================================
+// PP-5 (0088): `minutes:` — a row column, NOT_CONTENT, file wins, absent leaves
+// it alone; C-188/C-189: above the registry's duration_min WARNS, never refuses.
+// =============================================================================
+const TIMED = SAMPLE.replace('role: practice', 'role: practice\nminutes: 30');
+
+test('PP-5 the meta parser reads minutes: 1–120 and names anything else', () => {
+    assert.equal(convertOne(pipeline, TIMED, null, PATH).minutes, 30);
+    assert.equal(convertOne(pipeline, SAMPLE, null, PATH).minutes, null, 'absent is null, never a default');
+    for (const bad of ['0', '121', '30.5', 'about 30', '-5']) {
+        const out = convertOne(pipeline, SAMPLE.replace('role: practice', `role: practice\nminutes: ${bad}`), null, PATH);
+        assert.equal(out.minutes, null, `accepted ${bad}`);
+        assert.match(out.warnings.join('\n'), /minutes .* must be a whole number from 1 to 120/, `no warning for ${bad}`);
+    }
+    assert.equal(convertOne(pipeline, SAMPLE.replace('role: practice', 'role: practice\nminutes: 120'), null, PATH).minutes, 120);
+});
+
+test('PP-5 minutes never reach the document (a row column, like primary_skill)', () => {
+    const out = convertOne(pipeline, TIMED, null, PATH);
+    assert.equal(JSON.stringify(out.document).includes('"minutes"'), false);
+});
+
+test('PP-5 a minutes-only change on a PUBLISHED row is PATH ONLY and writes no draft', () => {
+    const row = storedRowFor(SAMPLE);
+    const published = { ...row, draft_content: null, current_version_id: 'v-9', minutes: null };
+    const out = convertOne(pipeline, TIMED, published, PATH);
+    const versions = new Map([['v-9', row.draft_content]]);
+    const r = classifyUpdates(
+        [{ file: fileAt(PATH), row: published, converted: out, moved: false, adoptsKey: false }],
+        (rw) => versions.get(rw.current_version_id) ?? null,
+        SCHEMA,
+    );
+    assert.deepEqual([r.pathOnly.length, r.unchanged.length, r.full.length], [1, 0, 0]);
+    assert.deepEqual(pathOnlyPayload(fileAt(PATH), out), {
+        source_path: PATH,
+        primary_skill: null,
+        consolidates_chain: null,
+        minutes: 30,
+    });
+    // The change is reported, like role.
+    assert.deepEqual(out.changes.filter((c) => c.field === 'minutes'), [{ field: 'minutes', from: null, to: 30 }]);
+});
+
+test('PP-5 the same minutes is UNCHANGED; an absent key never clears or rewrites the column', () => {
+    const row = storedRowFor(SAMPLE, { minutes: 30 });
+    const same = convertOne(pipeline, TIMED, row, PATH);
+    assert.equal(classifyUpdates([{ file: fileAt(PATH), row, converted: same, moved: false, adoptsKey: false }], () => null, SCHEMA).unchanged.length, 1);
+    const absent = convertOne(pipeline, SAMPLE, row, PATH);
+    assert.equal(needsMinutes({ row, converted: absent }), false);
+    assert.equal('minutes' in updatePayload(fileAt(PATH), absent), false, 'absent must not write NULL');
+    assert.equal('minutes' in pathOnlyPayload(fileAt(PATH), absent), false);
+    assert.equal(absent.changes.some((c) => c.field === 'minutes'), false);
+});
+
+test('PP-5 a CONTENT edit takes the full update and carries minutes with it; creates carry it', () => {
+    const row = storedRowFor(SAMPLE, { minutes: 20 });
+    const out = convertOne(pipeline, TIMED.replace('mitochondria', 'mitochondrion'), row, PATH);
+    const r = classifyUpdates([{ file: fileAt(PATH), row, converted: out, moved: false, adoptsKey: false }], () => null, SCHEMA);
+    assert.equal(r.full.length, 1);
+    assert.equal(updatePayload(fileAt(PATH), out).minutes, 30);
+    assert.deepEqual(minutesPayload(convertOne(pipeline, TIMED, null, PATH)), { minutes: 30 });
+    assert.deepEqual(minutesPayload(convertOne(pipeline, SAMPLE, null, PATH)), {});
+});
+
+test('C-189 the practice registry accepts duration_min (whole ≥ 1), keeps it OUT of the mirror, and hands it on as the cap', () => {
+    assert.equal(CAP_KEY, 'duration_min');
+    const plan = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, duration_min: 32 }));
+    assert.equal(plan.ok, true, plan.errors.join('; '));
+    assert.equal(plan.cap, 32);
+    assert.equal('duration_min' in plan.mirror.settings, false, 'mirrored settings stay within 0083\'s exact key count');
+    assert.equal(planPracticeRegistry(practiceRegistry(MIXED_BODY)).cap, null);
+    for (const bad of [0, 32.5, '32', -1]) {
+        const p = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, duration_min: bad }));
+        assert.equal(p.ok, false, `accepted ${bad}`);
+        assert.match(p.errors.join('; '), /duration_min must be a whole number ≥ 1/);
+    }
+});
+
+test('C-188 minutes above the cap WARN (never refuse); at or below, or with no cap, nothing', () => {
+    const at = (n) => ({ minutes: n });
+    assert.match(minutesCapWarning(at(40), 32), /minutes: 40 is above the activity cap \(duration_min 32\)/);
+    assert.equal(minutesCapWarning(at(32), 32), null);
+    assert.equal(minutesCapWarning(at(40), null), null, 'no registry, no cap, no warning');
+    assert.equal(minutesCapWarning(at(null), 32), null);
+    // A per-file warning, NOT a binding warning, so --strict does not fail on it.
+    assert.equal(isBindingWarning(minutesCapWarning(at(40), 32)), false);
 });

@@ -54,6 +54,7 @@
 // graph-kit's scorers, and for the same reason. Guarded by
 // scripts/tests/batch-import.test.mjs, which bundles this path for node and
 // runs it — a guard bound to OUTPUT, not to a declaration.
+import { MAX_ACTIVITY_MINUTES } from './activityMinutes';
 import {
     parseGraphFormula,
     parsePointList,
@@ -313,6 +314,14 @@ export interface ImportedMeta {
      * as "1 of 2". Position in the chain is never read.
      */
     chainRole?: 'part' | 'consolidation';
+    /**
+     * About how long a typical class takes over the whole activity, review
+     * through DoL, in whole minutes (`minutes:`, 1–120; period planner PP-5,
+     * agreed with the curriculum side in C-188). A ROW column
+     * (`activities.minutes`), never document meta: the batch importer writes it
+     * NOT_CONTENT, and a paste fills it only when the activity has none.
+     */
+    minutes?: number;
     /**
      * Names of `x_*` keys seen and deliberately ignored. The importer prints
      * these as a per-run receipt: the namespace is unvalidated BY DESIGN (it
@@ -3947,6 +3956,20 @@ function parseMetaFence(src: string, ctx: Ctx): void {
                     break;
                 }
                 meta.primarySkill = value;
+                break;
+            }
+            case 'minutes': {
+                // PP-5: whole minutes, 1–120. Out of range or not a whole
+                // number is named and ignored, never clamped: a clamped 120
+                // would put a made-up figure on a teacher's plan.
+                const n = /^\d+$/.test(value) ? Number(value) : NaN;
+                if (!(n >= 1 && n <= MAX_ACTIVITY_MINUTES)) {
+                    ctx.warnings.add(
+                        `Meta: minutes “${value}” must be a whole number from 1 to ${MAX_ACTIVITY_MINUTES}. Ignored.`,
+                    );
+                    break;
+                }
+                meta.minutes = n;
                 break;
             }
             case 'chain_role': {

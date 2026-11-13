@@ -48,6 +48,10 @@ const inertTaxonomy = {
     tagVocabulary: [],
 };
 
+// PP-5: the time field's props, inert here (its behaviour is tested in
+// ActivityMinutesField.test.tsx).
+const inertTime = { minutes: null, onCommit: async () => {}, fromFile: false };
+
 function renderDrawer(
     active: 'settings' | 'reference' | 'calculator' | 'guide' | null,
     onMetaChange: (next: ActivityMeta) => void = () => {},
@@ -79,6 +83,7 @@ function renderDrawer(
                 }
                 onGuideEditorUpdate={guide.onUpdate ?? (() => {})}
                 taxonomy={inertTaxonomy}
+                activityTime={inertTime}
             />
         </MemoryRouter>,
     );
@@ -217,6 +222,7 @@ describe('Settings — typography (meta.typography)', () => {
                     guideInitialContent={{ type: 'doc', content: [{ type: 'paragraph' }] }}
                     onGuideEditorUpdate={() => {}}
                     taxonomy={inertTaxonomy}
+                activityTime={inertTime}
                 />
             </MemoryRouter>,
         );
@@ -295,6 +301,7 @@ describe('activity taxonomy controls', () => {
                     guideEditorKey="test-guide-x"
                     guideInitialContent={{ type: 'doc', content: [{ type: 'paragraph' }] }}
                     onGuideEditorUpdate={() => {}}
+                    activityTime={inertTime}
                     taxonomy={{
                         tags: overrides.tags ?? [],
                         onTagsChange: overrides.onTagsChange ?? (() => {}),
@@ -431,6 +438,7 @@ describe('Teacher guide section — the unit-hooks line (0057, CH-7.3, 2.1A, RT5
                     onGuideEditorUpdate={() => {}}
                     activityId={activityId}
                     taxonomy={inertTaxonomy}
+                activityTime={inertTime}
                 />
             </MemoryRouter>
         );

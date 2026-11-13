@@ -49,7 +49,7 @@ describe('copyOwnActivity', () => {
     it('copies the draft as a new draft titled "(copy)", without its file identity', async () => {
         h.state.source = {
             title: 'Fractions 2', course: 'Algebra I', unit: 'U1', description: null, tags: ['fractions'],
-            pedagogical_role: 'lesson', draft_content: doc('Fractions 2'), current_version_id: 'v1',
+            pedagogical_role: 'lesson', minutes: 30, draft_content: doc('Fractions 2'), current_version_id: 'v1',
             source_path: 'y7/fractions.md', source_key: 'act.fractions', source_fingerprint: 'abc',
         };
         expect(await copyOwnActivity('a1', 'teacher-1')).toBe('new-1');
@@ -58,6 +58,8 @@ describe('copyOwnActivity', () => {
         expect((row.draft_content as { meta: { title: string } }).meta.title).toBe('Fractions 2 (copy)');
         expect(row.owner_id).toBe('teacher-1');
         expect(row.tags).toEqual(['fractions']);
+        // PP-5: the time is about the content, so the copy keeps it.
+        expect(row.minutes).toBe(30);
         // Not the file, not a Bank copy, not published.
         for (const k of ['source_path', 'source_key', 'source_fingerprint', 'copied_from_activity_id', 'status', 'current_version_id']) {
             expect(row).not.toHaveProperty(k);

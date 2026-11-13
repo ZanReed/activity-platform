@@ -39,6 +39,8 @@ export default function DevConfigDrawer() {
     // Row-native taxonomy (0037) — real state so the dev surface exercises the
     // chip input and role select the same way the editor does.
     const [tags, setTags] = useState<string[]>(['factoring', 'word problems']);
+    // PP-5: the time field, saved locally here (no row to write).
+    const [minutes, setMinutes] = useState<number | null>(30);
     const [pedagogicalRole, setPedagogicalRole] =
         useState<PedagogicalRole | null>('practice');
 
@@ -139,6 +141,11 @@ export default function DevConfigDrawer() {
                         content: [{ type: 'paragraph' }],
                     }}
                     onGuideEditorUpdate={setGuideJson}
+                    activityTime={{
+                        minutes,
+                        onCommit: async (next) => setMinutes(next),
+                        fromFile: false,
+                    }}
                     taxonomy={{
                         tags,
                         onTagsChange: setTags,

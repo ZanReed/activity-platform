@@ -453,6 +453,7 @@ const OUTLINE_ROWS = [
         id: 'o3', title: 'Radical Equations', status: 'published',
         updated_at: '2026-08-15T00:00:00Z', tags: [],
         pedagogical_role: null,
+        minutes: 35,
         course: 'Algebra II', unit: 'Unit 10: Radicals',
         draft_course: null, draft_unit: null,
     },
@@ -468,6 +469,17 @@ const OUTLINE_ROWS = [
 describe('Activities curriculum outline', () => {
     beforeEach(() => {
         h.listResult.current = { data: OUTLINE_ROWS, error: null };
+    });
+
+    // PP-5 (0088): the time shows on its row when set, and nothing when not
+    // (no guessed default), so the drawer field never ships without a reader.
+    it('shows a row\'s time when set, and no time when not', async () => {
+        renderList();
+        const link = await screen.findByRole('link', { name: 'Radical Equations' });
+        const row = link.parentElement!;
+        expect(row.textContent).toContain('about 35 min');
+        const other = screen.getByRole('link', { name: 'Factoring Trinomials' }).parentElement!;
+        expect(other.textContent).not.toMatch(/min\b/);
     });
 
     it('groups activities under natural-sorted unit headings, No unit last', async () => {

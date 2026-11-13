@@ -215,6 +215,9 @@ export const DOL_PRACTICE_KEY = 'dol_practice_items';
  * assembly PA-10). Both or neither. Nothing about how practice runs reads them.
  */
 export const PERIOD_KEYS = ['mixed_seconds_per_item', 'period_shapes'];
+/** C-189 (curriculum PR #92): `activity_defaults.duration_min`, the activity
+ *  cap. Optional; read for the `minutes:` warning, never mirrored. */
+export const CAP_KEY = 'duration_min';
 const PERIOD_BLOCK_KINDS = ['fluency', 'hook', 'activity', 'mixed'];
 
 /** What is wrong with the pair, by name. Exported for its tests. */
@@ -272,10 +275,10 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     const keys = Object.keys(body);
     const missing = MIXED_KEYS.filter((k) => !(k in body));
     const extra = keys.filter(
-        (k) => !MIXED_KEYS.includes(k) && k !== DOL_PRACTICE_KEY && !PERIOD_KEYS.includes(k),
+        (k) => !MIXED_KEYS.includes(k) && k !== DOL_PRACTICE_KEY && !PERIOD_KEYS.includes(k) && k !== CAP_KEY,
     );
     if (missing.length) errors.push(`${path}: body is missing ${missing.join(', ')} (all seven or none)`);
-    if (extra.length) errors.push(`${path}: body has keys outside the agreed ten: ${extra.join(', ')}`);
+    if (extra.length) errors.push(`${path}: body has keys outside the agreed eleven: ${extra.join(', ')}`);
     const int = (v) => typeof v === 'number' && Number.isInteger(v);
     const iv = body.mixed_step_intervals;
     if ('mixed_step_intervals' in body) {
@@ -293,6 +296,8 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
         errors.push(`${path}: ${DOL_PRACTICE_KEY} must be a whole number 2–8`);
     }
     errors.push(...periodKeyErrors(body, path));
+    const cap = body[CAP_KEY];
+    if (CAP_KEY in body && !(int(cap) && cap >= 1)) errors.push(`${path}: ${CAP_KEY} must be a whole number ≥ 1`);
     if (errors.length === 0) {
         const n = body.mixed_items_per_session;
         if (n < 1 || n > 50) errors.push(`${path}: mixed_items_per_session must be 1–50`);
@@ -307,6 +312,10 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     return {
         ok: true,
         errors: [],
+        // C-189: the activity cap, read by the importer's minutes warning and
+        // NOT mirrored — nothing in the app reads it, so it stays out of
+        // mixed_settings (and 0083's exact key count) until something does.
+        cap: CAP_KEY in body ? cap : null,
         mirror: {
             revision: json.header.revision,
             graph_version: generated.match(/\bv(\d[\w.-]*)/)?.[1] ?? null,
@@ -435,8 +444,35 @@ export function updatePayload(file, converted, now = new Date().toISOString()) {
         primary_skill: primarySkillOf(converted),
         // consolidates_chain (0066, D71): identity too, same reasons.
         consolidates_chain: consolidatesChainOf(file, converted),
+        // minutes (0088, period planner PP-5): row-native, NOT_CONTENT like
+        // primary_skill, so a minutes-only change goes to pathOnly and never
+        // writes a draft. An absent key leaves the column alone (tags' rule).
+        ...minutesPayload(converted),
         updated_at: now,
     };
+}
+
+/** PP-5: `{ minutes }` when the file states one, else nothing (absent leaves
+ *  the column alone, so a file can change its minutes but never clear them). */
+export function minutesPayload(converted) {
+    return converted.minutes == null ? {} : { minutes: converted.minutes };
+}
+
+/** Does the file state minutes that differ from the row's? (absent never does) */
+export function needsMinutes({ row, converted }) {
+    return converted.minutes != null && (row.minutes ?? null) !== converted.minutes;
+}
+
+/**
+ * C-188/C-189: an activity's `minutes:` above the graph's
+ * `activity_defaults.duration_min`, which reaches this side as the practice
+ * registry's `duration_min`. A WARNING, never a refusal (their ask: one bad
+ * estimate must not block an import; their own lint is the refusal). Null when
+ * the run has no registry cap or the file states no minutes.
+ */
+export function minutesCapWarning(converted, cap) {
+    if (cap == null || converted.minutes == null || converted.minutes <= cap) return null;
+    return `minutes: ${converted.minutes} is above the activity cap (duration_min ${cap}) — imported as written; the curriculum side's lint refuses this, so check the estimate.`;
 }
 
 /** The file's `skill:` as the row stores it (NULL when the file has none). */
@@ -461,6 +497,7 @@ const NOT_CONTENT = new Set([
     'source_fingerprint',
     'primary_skill',
     'consolidates_chain',
+    'minutes',
     'updated_at',
 ]);
 
@@ -528,6 +565,7 @@ export function pathOnlyPayload(file, converted) {
         ...(file.key ? { source_key: file.key } : {}),
         primary_skill: primarySkillOf(converted),
         consolidates_chain: consolidatesChainOf(file, converted),
+        ...minutesPayload(converted),
     };
 }
 
@@ -562,7 +600,9 @@ export function classifyUpdates(planned, currentContentFor, documentSchema) {
             contentKey(updatePayload(file, converted), documentSchema) ===
             contentKey(now, documentSchema);
         if (!same) full.push(entry);
-        else if (entry.moved || entry.adoptsKey || needsSkill(entry) || needsChain(entry)) pathOnly.push(entry);
+        else if (entry.moved || entry.adoptsKey || needsSkill(entry) || needsChain(entry) || needsMinutes(entry)) {
+            pathOnly.push(entry);
+        }
         else unchanged.push(entry);
     }
     return { pathOnly, unchanged, full };
@@ -1046,6 +1086,10 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         if (pedagogicalRole !== priorRole) {
             changes.push({ field: 'role', from: priorRole, to: pedagogicalRole });
         }
+        // PP-5: an absent key changes nothing, so only a stated value reports.
+        if (fence.minutes !== undefined && fence.minutes !== (existingRow.minutes ?? null)) {
+            changes.push({ field: 'minutes', from: existingRow.minutes ?? null, to: fence.minutes });
+        }
         if (JSON.stringify(meta.seedVars ?? null) !== JSON.stringify(priorSeedVars ?? null)) {
             changes.push({
                 field: 'seedVars',
@@ -1115,6 +1159,8 @@ export function convertOne(pipeline, markdown, existingRow, sourcePath, options 
         primarySkill: fence.primarySkill ?? null,
         supportingSkills: fence.supportingSkills ?? [],
         chainRole: fence.chainRole ?? 'part',
+        // PP-5: the activity's time estimate (row column, never the document).
+        minutes: fence.minutes ?? null,
         reservedKeys: fence.reservedKeys ?? [],
         // A file that states a unit DIFFERENT from its chain's registry title.
         // Presence alone is not an override — a file repeating its chain's
@@ -2609,7 +2655,7 @@ export function makeDb(url, key) {
                 `/activities?owner_id=eq.${ownerId}&deleted_at=is.null` +
                     '&select=id,source_path,source_key,status,title,tags,' +
                     'pedagogical_role,course,unit,draft_content,' +
-                    'source_fingerprint,current_version_id,primary_skill,consolidates_chain',
+                    'source_fingerprint,current_version_id,primary_skill,consolidates_chain,minutes',
             );
         },
 
@@ -3242,7 +3288,7 @@ async function main() {
             console.error('\n  The shape is the B-193 contract; a file outside it is an ask-back to the\n  curriculum side, not a fix in this file.\n');
             process.exit(1);
         }
-        practiceFile = { path: args.practiceRegistry, mirror: plan.mirror };
+        practiceFile = { path: args.practiceRegistry, mirror: plan.mirror, cap: plan.cap };
     }
 
     try {
@@ -3350,6 +3396,15 @@ async function main() {
         }
         // 0066: primary_skill is read to decide the path-only skill backfill.
         // Refused before any write, like the two above.
+        if (missingColumn === 'minutes') {
+            usage(
+                'The database is missing `activities.minutes`, which this importer\n' +
+                    '  writes from each file\'s `minutes:` (the period planner\'s time).\n\n' +
+                    '  Apply migration 0088 and re-run:\n' +
+                    '    supabase db push',
+            );
+            return;
+        }
         if (missingColumn === 'primary_skill' || missingColumn === 'consolidates_chain') {
             usage(
                 `The database is missing \`activities.${missingColumn}\`, which this importer\n` +
@@ -3523,6 +3578,10 @@ async function main() {
     };
     const glossaryReports = new Map();
     const record = (file, converted, row) => {
+        // C-188: above the cap WARNS (a per-file warning, so --strict does not
+        // fail on it); only a run given the practice registry knows the cap.
+        const overCap = minutesCapWarning(converted, practiceFile?.cap ?? null);
+        if (overCap) converted.warnings.push(overCap);
         collected.set(file.sourcePath, collectBindings(converted.document));
         glossaryReports.set(file.sourcePath, converted.glossary);
         catalogue.set(file.sourcePath, {
@@ -3998,7 +4057,8 @@ async function main() {
             `  path    ${file.sourcePath}  (content unchanged — path only` +
                 `${row.source_path && row.source_path !== file.sourcePath ? `, was ${row.source_path}` : ''}` +
                 `${needsSkill(entry) ? `, skill ${row.primary_skill ?? '(none)'} → ${primarySkillOf(entry.converted) ?? '(none)'}` : ''}` +
-                `${needsChain(entry) ? `, consolidates ${row.consolidates_chain ?? '(none)'} → ${consolidatesChainOf(file, entry.converted) ?? '(none)'}` : ''})`,
+                `${needsChain(entry) ? `, consolidates ${row.consolidates_chain ?? '(none)'} → ${consolidatesChainOf(file, entry.converted) ?? '(none)'}` : ''}` +
+                `${needsMinutes(entry) ? `, minutes ${row.minutes ?? '(none)'} → ${entry.converted.minutes}` : ''})`,
         );
     }
     for (const { file } of unchanged) {
@@ -4694,6 +4754,7 @@ async function main() {
                         source_key: file.key ?? null,
                         primary_skill: primarySkillOf(converted),
                         consolidates_chain: consolidatesChainOf(file, converted),
+                        ...minutesPayload(converted),
                         draft_content: converted.document,
                         tags: converted.tags,
                         pedagogical_role: converted.pedagogicalRole,

@@ -27,6 +27,7 @@ import { useScrollMemory } from '../lib/useScrollMemory';
 import { isBankLister, setActivityListing } from '../lib/bank';
 import { chainHooksPath, chainsWithHooks, fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
 import { republishCandidates } from '../lib/bulkRepublish';
+import { formatActivityMinutes } from '../lib/activityMinutes';
 
 interface ActivityRow {
     id: string;
@@ -37,6 +38,8 @@ interface ActivityRow {
     // caller for the tags column — the column and its reader ship together.
     tags: string[] | null;
     pedagogical_role: string | null;
+    // PP-5 (0088): the time estimate; shown when set, nothing when not.
+    minutes: number | null;
     // Publish-truth columns (taxonomy R1) PLUS the draft-side values, extracted
     // server-side by a PostgREST json path so the wire never carries 150 whole
     // documents. The outline groups draft-first — see lib/activityGrouping.ts
@@ -114,7 +117,7 @@ function fetchActivityRows() {
     return supabase
         .from('activities')
         .select(
-            'id, title, status, updated_at, tags, pedagogical_role, course, unit,' +
+            'id, title, status, updated_at, tags, pedagogical_role, minutes, course, unit,' +
             'source_path, visibility, copied_from_activity_id,' +
             'draft_course:draft_content->meta->>course,' +
             'draft_unit:draft_content->meta->>unit,' +
@@ -882,6 +885,11 @@ export default function Activities() {
                             >
                             <title>From the Activity Bank: this copy is yours</title>
                             </Import>
+                        )}
+                        {a.minutes != null && (
+                            <span className="text-xs text-faint" data-activity-minutes>
+                                {formatActivityMinutes(a.minutes)}
+                            </span>
                         )}
                         <RoleBadge role={a.pedagogical_role} />
                         {a.status !== 'published' && <StatusBadge status={a.status} />}

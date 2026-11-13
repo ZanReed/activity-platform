@@ -446,13 +446,13 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
   gate. None of the 15 activities in their drafts/ carries `minutes:` until the
   author sets each one.
 - **B-248 sent 2026-11-14: #92 NOT CLEAR, hold the merge.** Our importer
-  refuses it by name ("keys outside the agreed ten: duration_min"); the same
-  file without the key passes. 0083's `mixed_settings_ok` counts keys exactly,
-  so the database refuses it too. **Folded into step 2:** the importer accepts
-  `duration_min` (whole ≥ 1) and warns on `minutes:` above it, and a migration
-  (0089) relaxes `mixed_settings_ok`. That migration is applied live before any
-  import of a registry that carries the key (the 0073/0083 pattern). Then we
-  tell them to merge. Next C-190.
+  refused it by name ("keys outside the agreed ten: duration_min"); the same
+  file without the key passed. B-248 said a migration (0089) relaxing 0083's
+  `mixed_settings_ok` would come first. **Superseded when step 2 was built: no
+  0089.** The importer reads `duration_min` for the over-cap warning and keeps
+  it OUT of the mirror (nothing in the app reads the cap; YAGNI), so the
+  database's exact key count never sees it. #92 is clear once the importer is
+  pushed (B-249). Next C-190.
 
 ## As built
 
@@ -475,3 +475,37 @@ asked for are in. Differences from the plan:
   its wrapper, so the shipped Today panel needs no change at the push.
 - Mutation-tested: counting hidden rows in the cap (B4 red), deleting every
   past day (B7 and verify-0082 B6 red), holding removes to the limit (B3 red).
+
+**Step 2, `minutes:` end to end (2026-11-14, overnight run):** no migration,
+no deploy (0088 already holds the column; nothing in sanitize, viewer or grading
+changed).
+
+- **Importer** (`scripts/batch-import.mjs`): `minutes:` (1–120; anything else
+  warns and is ignored, never clamped) is NOT_CONTENT like `primary_skill`. A
+  minutes-only change goes to path-only and writes no draft; an absent key
+  writes nothing (`minutesPayload` → `{}`); creates carry it; the update report
+  and the path-only line name the change.
+- **The cap (C-189):** the practice registry may carry `duration_min` (whole ≥
+  1). The importer reads it for a per-file WARNING on any `minutes:` above it
+  (not a binding warning, so `--strict` doesn't fail) and keeps it out of
+  `mixed_settings`. **So no 0089**, which supersedes what B-248 promised.
+  Proven with a local dry run of curriculum PR #92's own file (revision b4d730f3):
+  accepted, the warning fired on a 40-minute probe, the mirror listed ten keys.
+- **Editor:** "About how long" in the settings drawer
+  (`components/ActivityMinutesField.tsx`) commits on blur or Enter through
+  `saveMinutes`, whose body is `minutesUpdate(next)` = `{ minutes }` alone,
+  pinned by its test. Browser-checked on the local stack: on a published activity with
+  no draft, setting 35 wrote `minutes = 35`, left `draft_content` NULL and
+  `updated_at` unmoved; the Activities row then read "about 35 min". A paste's
+  `minutes:` fills an unset time only (`mergeImportedMinutes`, D16), with its
+  own write.
+- **Copies:** "Make a copy" carries it (`lib/copyActivity.ts`, tested).
+- **Prompts:** the catalogue prompt says drafts never carry `minutes:` (the
+  approver sets it, C-189), and was regenerated. The teacher paste prompt teaches it only when the
+  teacher gave a time. `docs/markdown-import-format.md` documents it.
+- Fable-reviewed: P0 (the dev drawer route lacked the new prop, so typecheck was
+  red) was fixed. The P1 was this record's 0089. The P2s were also fixed: the
+  payload pin, the copy assertion, and the help text, which now says the import
+  replaces the value only if the file states one.
+- Mutation-tested: removing the row's time render (Activities test red);
+  dropping `minutes` from NOT_CONTENT (two PP-5 importer tests red).

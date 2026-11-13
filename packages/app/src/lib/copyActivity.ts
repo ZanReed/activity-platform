@@ -21,6 +21,8 @@ interface SourceRow {
     description: string | null;
     tags: string[] | null;
     pedagogical_role: string | null;
+    /** PP-5: the time is a fact about the content, so a copy keeps it. */
+    minutes: number | null;
     draft_content: unknown;
     current_version_id: string | null;
 }
@@ -33,7 +35,7 @@ export function copyTitle(title: string): string {
 export async function copyOwnActivity(sourceId: string, ownerId: string): Promise<string> {
     const { data: src, error } = await supabase
         .from('activities')
-        .select('title, course, unit, description, tags, pedagogical_role, draft_content, current_version_id')
+        .select('title, course, unit, description, tags, pedagogical_role, minutes, draft_content, current_version_id')
         .eq('id', sourceId)
         .single();
     if (error) throw new Error(error.message);
@@ -69,6 +71,7 @@ export async function copyOwnActivity(sourceId: string, ownerId: string): Promis
                 description: row.description,
                 tags: row.tags ?? [],
                 pedagogical_role: row.pedagogical_role,
+                minutes: row.minutes ?? null,
                 draft_content: draft,
             })
             .select('id')

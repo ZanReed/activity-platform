@@ -616,6 +616,9 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
     lesson   = core teaching content
     review   = spaced retrieval, not day-of-teaching content
     practice = an as-needed resource shelf
+- minutes: about how long a typical class takes, start to finish, in whole
+  minutes (1–120), e.g. `minutes: 30`. Include it ONLY when the teacher told
+  you a time; never estimate one.
 - Do NOT put role words (lesson/review/practice) in tags — they belong in
   role. Omit any key you are unsure about; a wrong guess is worse than a
   missing one, because metadata already set by hand is never overwritten.
@@ -721,6 +724,11 @@ DO NOT WRITE A unit: KEY
 - The unit an activity is filed under comes from its chain, through the
   catalogue's chain registry. Writing `unit:` in a file overrides that, and
   the import reports every file that does so. Leave it out.
+
+DO NOT WRITE A minutes: KEY
+- `minutes:` is the activity's time estimate, review through DoL. The person
+  who approves the activity sets it after reading it end to end; a drafted
+  value is the cap under another name. Leave it out of every draft.
 
 MISCONCEPTION BINDINGS
 - A wrong answer worth anticipating can name the misconception it senses, by

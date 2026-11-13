@@ -107,6 +107,7 @@ import {
 import { collectTagVocabulary, normalizeTags } from '../lib/normalizeTags';
 import { activityChangeKey } from '../lib/activityChangeKey';
 import { applyImportedMeta } from '../lib/applyImportedMeta';
+import { mergeImportedMinutes, minutesUpdate } from '../lib/activityMinutes';
 import type { ImportedMeta } from '../lib/markdownToTiptap';
 import {
     asPedagogicalRole,
@@ -125,6 +126,11 @@ interface ActivityLoadRow {
     // row directly rather than travelling through ActivityMeta.
     tags: string[] | null;
     pedagogical_role: string | null;
+    // PP-5 (0088): the time estimate. Row-native, written ALONE by the drawer
+    // field, never by autosave. source_path: a catalogue file's row, whose
+    // next import replaces an app edit (the field says so).
+    minutes: number | null;
+    source_path: string | null;
     // Set on a Bank copy (0054): the DoL panel shows a copy's skills read-only.
     copied_from_activity_id: string | null;
 }
@@ -254,6 +260,10 @@ export default function ActivityEditor() {
     // once alongside the activity; a stale-by-one-session list is fine (it only
     // drives suggestions), and refetching per keystroke would be absurd.
     const [tagVocabulary, setTagVocabulary] = useState<readonly string[]>([]);
+    // PP-5: NOT in changeKey and NOT in the autosave UPDATE — saveMinutes
+    // writes the column alone, so a time edit never drafts a published copy.
+    const [minutes, setMinutes] = useState<number | null>(null);
+    const [fromFile, setFromFile] = useState(false);
     // What a ```meta fence import declined to overwrite. Surfaced under the
     // header after an import so the author learns their value won rather than
     // wondering why the paste "did nothing"; cleared on the next import.
@@ -339,7 +349,7 @@ export default function ActivityEditor() {
             const { data, error } = await supabase
             .from('activities')
             .select(
-                'id, title, draft_content, current_version_id, tags, pedagogical_role, copied_from_activity_id, updated_at',
+                'id, title, draft_content, current_version_id, tags, pedagogical_role, minutes, source_path, copied_from_activity_id, updated_at',
             )
             .eq('id', id)
             .is('deleted_at', null)
@@ -366,6 +376,8 @@ export default function ActivityEditor() {
             // server and fire a spurious save on load.
             setTags(normalizeTags(row.tags ?? []));
             setPedagogicalRole(asPedagogicalRole(row.pedagogical_role));
+            setMinutes(row.minutes ?? null);
+            setFromFile(row.source_path != null);
 
             // Three-way load priority: draft > published version > fresh empty.
             // The draft path is the common case (any activity with in-progress
@@ -527,6 +539,23 @@ export default function ActivityEditor() {
     // ```reference fence content arrives separately and is APPENDED to the
     // reference panel (author-ruled: append, never replace — re-imports must
     // not clobber hand-authored panel content).
+    // PP-5: the time estimate's OWN write — `minutes` alone, no updated_at, so
+    // it neither drafts a published activity nor moves G-8's conflict baseline.
+    const saveMinutes = useCallback(
+        async (next: number | null) => {
+            if (!id) throw new Error('no activity');
+            const { data, error } = await supabase
+                .from('activities')
+                .update(minutesUpdate(next))
+                .eq('id', id)
+                .select('minutes');
+            if (error) throw new Error(error.message);
+            if (!data || data.length === 0) throw new Error('this activity is no longer available to edit');
+            setMinutes(next);
+        },
+        [id],
+    );
+
     const handleImportMarkdown = useCallback(
         (
             importedBlocks: JSONContent[],
@@ -620,10 +649,24 @@ export default function ActivityEditor() {
                     setPedagogicalRole(outcome.pedagogicalRole);
                     setCalculator(outcome.calculator);
                 }
-                setMetaImportNotes(outcome.warnings);
+                // PP-5: `minutes:` fills an unset time only (D16), with its
+                // own write; a failed write is a note, never a lost paste.
+                const merged = mergeImportedMinutes(importedMeta.minutes, minutes);
+                const notes = merged.warning ? [...outcome.warnings, merged.warning] : outcome.warnings;
+                setMetaImportNotes(notes);
+                if (merged.write !== undefined) {
+                    saveMinutes(merged.write).catch((err: unknown) => {
+                        setMetaImportNotes([
+                            ...notes,
+                            `Meta: the time (${merged.write} min) wasn’t saved: ${err instanceof Error ? err.message : 'try again'}. Set it in Activity settings.`,
+                        ]);
+                    });
+                }
             }
         },
         [
+            minutes,
+            saveMinutes,
             editorInstance,
             panelJson,
             panelTitle,
@@ -1282,6 +1325,7 @@ export default function ActivityEditor() {
                 onPedagogicalRoleChange: setPedagogicalRole,
                 tagVocabulary,
             }}
+            activityTime={{ minutes, onCommit: saveMinutes, fromFile }}
             />
 
             {importOpen && ImportDialog && (

@@ -47,7 +47,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```table ` fenced block | a table whose **headers run down the left** (`header: column`) — see below |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
 | a ` ```callout ` fenced block | a **tinted note box** — info / warning / success / note (see below) |
-| a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, type, submission mode, feedback, calculator — not a body block (see below) |
+| a ` ```meta ` fenced block | the activity's **metadata and settings** — title, course, unit, tags, Bank role, time (`minutes`), type, submission mode, feedback, calculator — not a body block (see below) |
 | a ` ```seed ` fenced block | **seeded per-student variables** — each student is served (and graded on) their own numbers; reference as `{name}` in prose, expressions in blank answers — not a body block (see below) |
 | a ` ```reference ` fenced block | the activity's **reference panel** (formula sheet students summon; prints at the top) — not a body block (see below) |
 | a ` ```teacher-guide ` fenced block | the activity's **teacher guide** — teacher-only notes, **never shown to students**; shown in the editor and on the printed answer key — not a body block (see below) |
@@ -706,6 +706,9 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
     lesson   = core teaching content
     review   = spaced retrieval, not day-of-teaching content
     practice = an as-needed resource shelf
+- minutes: about how long a typical class takes, start to finish, in whole
+  minutes (1–120), e.g. `minutes: 30`. Include it ONLY when the teacher told
+  you a time; never estimate one.
 - Do NOT put role words (lesson/review/practice) in tags — they belong in
   role. Omit any key you are unsure about; a wrong guess is worse than a
   missing one, because metadata already set by hand is never overwritten.
@@ -1468,6 +1471,7 @@ Plain `key: value` lines, one per line:
 | `unit` | where it sits in the year (e.g. `Quadratics`). Optional. |
 | `tags` | comma-separated topic labels, used to find activities **across** units. Normalized on the way in: lower-cased, trimmed, inner spaces collapsed, duplicates dropped. Accents and macrons are preserved. |
 | `role` | exactly one of `lesson`, `review`, or `practice` — how the activity is used in the sequence. Anything else warns and is skipped. |
+| `minutes` | about how long a typical class takes over the whole activity, review through DoL, in whole minutes `1`–`120` (e.g. `minutes: 30`). It leaves out the hook, the number-facts sprint, mixed practice and transitions: the class plan adds those as their own parts of the day. Anything else warns and is skipped, never clamped. **Not document content:** it lives on the activity row (`activities.minutes`, 0088), so in the app it fills an unset time only, with its own save, and through `pnpm import:batch` the file wins and a minutes-only change writes **no draft**. Removing the line leaves the last imported value in place: a file can change its time but not clear it. Without it the plan shows "time not set", never a guess. Catalogue files: the approver sets it, never the drafting model (agreed with the curriculum side, C-188/C-189). With `--practice-registry`, a value above the registry's `duration_min` (the activity cap) **warns** and imports as written. |
 
 ### Catalogue keys — only for files imported by `pnpm import:batch`
 
@@ -1548,7 +1552,7 @@ costing more than it saves.
 - **Nothing is ever overwritten.** A key applies **only where the activity has
   no value yet**: a title still reading "Untitled activity", an unset unit, an
   unclassified role, a course still on the default, a setting still on its
-  default, no calculator configured. If the paste disagrees with something you already set, your value
+  default, no calculator configured, no time set. If the paste disagrees with something you already set, your value
   wins and the import warning tells you what was ignored. This matters because
   an AI writing to this format will tend to emit a `meta` fence on *every*
   reply, including when you are only pasting one extra section into a finished

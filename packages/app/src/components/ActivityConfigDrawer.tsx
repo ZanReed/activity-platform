@@ -39,6 +39,7 @@ import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import TeacherGuideEditor from '../editor/TeacherGuideEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
 import TagChipInput from './TagChipInput';
+import ActivityMinutesField, { type ActivityTime } from './ActivityMinutesField';
 import { SELECT_CLASS, SETTINGS_HELP_CLASS, SETTINGS_LABEL_CLASS } from './settingsClasses';
 import { chainHooksPath, fetchMyChainHooks } from '../lib/chainHooks';
 import {
@@ -292,6 +293,7 @@ export function ConfigDrawer({
     onGuideEditorUpdate,
     activityId,
     taxonomy,
+    activityTime,
     bodyEditor,
 }: {
     active: ConfigKey | null;
@@ -310,6 +312,8 @@ export function ConfigDrawer({
     onGuideEditorUpdate: (json: JSONContent) => void;
     activityId?: string;
     taxonomy: RowTaxonomy;
+    /** PP-5: the time estimate, written on its own (never by autosave). */
+    activityTime: ActivityTime;
     /** The activity's main editor, for the seeded-variable panel's live reference checks. */
     bodyEditor?: TiptapEditor | null;
 }) {
@@ -371,6 +375,7 @@ export function ConfigDrawer({
                         meta={meta}
                         onChange={onMetaChange}
                         taxonomy={taxonomy}
+                        activityTime={activityTime}
                         bodyEditor={bodyEditor}
                         visible={active === 'settings'}
                     />
@@ -476,12 +481,14 @@ function ActivitySettingsBody({
     meta,
     onChange,
     taxonomy,
+    activityTime,
     bodyEditor,
     visible,
 }: {
     meta: ActivityMeta;
     onChange: (next: ActivityMeta) => void;
     taxonomy: RowTaxonomy;
+    activityTime: ActivityTime;
     bodyEditor?: TiptapEditor | null;
     /** The settings section is open (the drawer stays mounted when closed). */
     visible: boolean;
@@ -591,6 +598,8 @@ function ActivitySettingsBody({
                 onChange={taxonomy.onTagsChange}
                 vocabulary={taxonomy.tagVocabulary}
             />
+
+            <ActivityMinutesField {...activityTime} />
 
             <hr className="border-line" />
 
