@@ -68,6 +68,29 @@ describe('B-1: questions no student can get right are refused', () => {
         expect((ed.state.selection as NodeSelection).from).toBe(pos);
     });
 
+    it('locating skips blocks nested in a worked/faded example (they are not column blocks)', () => {
+        // A faded example's steps are fillInBlank nodes too, but the saved
+        // document stores them under `content`, so index 0 of fill_in_blank is
+        // the top-level question after it, not the first step.
+        const ed = editorFor('```faded\nSubtract 3.\nx = {{4}}\ny = {{5}}\n```\n\nThe answer is {{7}}.');
+        const p = { kind: 'math-gap-empty' as const, block: { type: 'fill_in_blank', index: 0 }, count: 1 };
+        const pos = locateProblem(ed as never, p);
+        expect(pos).not.toBeNull();
+        const $pos = ed.state.doc.resolve(pos!);
+        expect($pos.parent.type.name).toBe('column');
+        expect(ed.state.doc.nodeAt(pos!)?.textContent).toContain('The answer is');
+        expect(problemLabel(ed as never, p, pos)).toBe('Q2');
+    });
+
+    it('blocks in the reference panel or teacher guide are not counted as main-document blocks', () => {
+        const mc = (correct: boolean) => ({ type: 'multiple_choice', choices: [{ correct }, { correct: false }] });
+        const doc = {
+            referencePanel: { blocks: [mc(false)] },
+            sections: [{ rows: [{ columns: [{ blocks: [mc(true), mc(false)] }] }] }],
+        };
+        expect(findPublishProblems(doc)).toEqual([{ kind: 'mc-no-correct', block: { type: 'multiple_choice', index: 1 } }]);
+    });
+
     it('matching items and correspondence cells with no answer are counted', () => {
         const I1 = '11111111-1111-4111-8111-111111111111';
         const I2 = '22222222-2222-4222-8222-222222222222';

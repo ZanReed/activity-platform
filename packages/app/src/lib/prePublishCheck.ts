@@ -135,13 +135,18 @@ function sectionProblems(section: Obj, index: number): PublishProblem[] {
 export function findPublishProblems(draft: unknown): PublishProblem[] {
     const problems: PublishProblem[] = [];
     const seen = new Map<string, number>(); // block type → how many so far
-    const walk = (value: unknown, key: string | null): void => {
+    // `inSections`: only the main document's column blocks are counted and
+    // checked as blocks — the reference panel and teacher guide hold `blocks`
+    // too, but live in separate editors, so counting them would shift every
+    // index (Fable review). Blanks are checked everywhere (found by id).
+    const walk = (value: unknown, key: string | null, inSections = false): void => {
         if (Array.isArray(value)) {
             value.forEach((v, i) => {
-                // An element of a `blocks` array is a block: its own rules, plus
-                // the maths gaps anywhere inside it. Counted whether or not it
-                // has a problem, so the index matches the editor's walk.
-                if (key === 'blocks' && isObj(v) && typeof v.type === 'string') {
+                // An element of a column's `blocks` array is a block: its own
+                // rules, plus the maths gaps anywhere inside it. Counted whether
+                // or not it has a problem, so the index matches the editor's
+                // walk (which counts only nodes whose parent is a column).
+                if (inSections && key === 'blocks' && isObj(v) && typeof v.type === 'string') {
                     const index = seen.get(v.type) ?? 0;
                     seen.set(v.type, index + 1);
                     const ref: BlockRef = { type: v.type, index };
@@ -150,7 +155,7 @@ export function findPublishProblems(draft: unknown): PublishProblem[] {
                     if (gaps > 0) problems.push({ kind: 'math-gap-empty', block: ref, count: gaps });
                 }
                 if (key === 'sections' && isObj(v)) problems.push(...sectionProblems(v, i));
-                walk(v, null);
+                walk(v, null, inSections || key === 'sections');
             });
             return;
         }
@@ -159,7 +164,7 @@ export function findPublishProblems(draft: unknown): PublishProblem[] {
             if (value.answer.trim().length === 0) problems.push({ kind: 'empty-blank', blankId: value.id });
             return;
         }
-        for (const [k, v] of Object.entries(value)) walk(v, k);
+        for (const [k, v] of Object.entries(value)) walk(v, k, inSections);
     };
     walk(draft, null);
     return problems;

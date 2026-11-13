@@ -167,6 +167,18 @@ BUILT 2026-11-13** ([activity-list-filters.md](docs/design/activity-list-filters
 Group B is in design ([ui-review-group-b.md](docs/design/ui-review-group-b.md));
 C–E open.
 
+## A DoL turned on with no skills is silently dropped on save (found 2026-11-13, B-1 review)
+
+The DoL panel stores `dol: { skills: [], retake: false }` when a teacher ticks
+"This section is the DoL" before picking skills. `SectionDol.skills` requires
+at least one skill, so `serialize.ts` `sectionFromBreak` drops the whole `dol`:
+the toggle is gone after a reload, and the section publishes as an ordinary
+checkpoint. B-1's `dol-no-skills` refusal therefore never fires in the product
+(its test feeds a hand-built object). **Needs the author's call:** either let a
+draft hold `skills: []` (schema change; publishing then refuses it, as B-1
+already does) or keep the current shape and have the panel say the DoL isn't
+saved until a skill is chosen. **TRIGGER:** the author's ruling.
+
 ## Due dates (author, 2026-11-13)
 
 Wanted by the author even though the HoD asked to hold the wider planning work.

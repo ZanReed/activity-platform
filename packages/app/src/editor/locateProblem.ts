@@ -40,9 +40,12 @@ export function locateProblem(editor: Editor, p: PublishProblem): number | null 
         return found;
     }
     let seen = 0;
-    doc.descendants((node, pos) => {
+    doc.descendants((node, pos, parent) => {
         if (found !== null) return false;
-        if (schemaTypeOf(node.type.name) === p.block.type) {
+        // Only a column's direct children are `blocks` in the saved document;
+        // a math block inside a worked example, or a faded step, is stored
+        // under `content` and never counted there (Fable review).
+        if (parent?.type.name === 'column' && schemaTypeOf(node.type.name) === p.block.type) {
             if (seen === p.block.index) {
                 found = pos;
                 return false;
@@ -73,6 +76,9 @@ export function problemLabel(editor: Editor, p: PublishProblem, pos: number | nu
     }
     const node = editor.state.doc.nodeAt(blockPos);
     if (!node || PM_NAME_TO_SCHEMA_TYPE[node.type.name] === undefined) return null;
+    // A block the teacher set to no number, or a custom label, has no "Qn".
+    const mode = (node.attrs.label as { mode?: string } | undefined)?.mode;
+    if (mode === 'none' || mode === 'custom') return null;
     return `Q${problemNumberAt(editor, blockPos)}`;
 }
 
