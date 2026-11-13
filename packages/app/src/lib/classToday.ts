@@ -12,6 +12,8 @@ import { supabase } from './supabase';
 export interface TodayActivity {
     activity_id: string;
     title: string;
+    /** The activity's time estimate (0088, PP-5); null or absent = not set. */
+    minutes?: number | null;
 }
 
 export interface ClassToday {

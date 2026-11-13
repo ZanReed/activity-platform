@@ -16,7 +16,8 @@ import { stubMixedTeacherApi } from '../helpers/mixedTeacherStub';
 import { signInAs, stubIdentityApi } from '../helpers/studentSession';
 
 const LONG = 'Unit rates and comparing two different supermarket prices for the same thing';
-const A = { activity_id: 'aaaaaaaa-0000-4000-8000-000000000001', title: LONG };
+// Step 6: a time on the long title, so the 375px rows carry " · about 25 min" too.
+const A = { activity_id: 'aaaaaaaa-0000-4000-8000-000000000001', title: LONG, minutes: 25 };
 const B = { activity_id: 'aaaaaaaa-0000-4000-8000-000000000002', title: 'Ratios' };
 
 test.use({ viewport: { width: 375, height: 812 } });

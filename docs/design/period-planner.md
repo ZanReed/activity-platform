@@ -670,3 +670,16 @@ no migration, no deploy.
   for the link text, the fallback and a loading role. P2 left: a hook from another unit
   has no link to its own pool from Today (PP-8 points the hook at the present view).
 - Mutation-tested: the note always shown (1 red); the teacher fetch gate removed (1 red).
+
+**Step 6, minutes on the student Today list (2026-11-14):** no migration, no deploy. The
+student list on `/practice/CODE` now reads "Unit rates · about 25 min", from
+`class_today`'s `minutes` (0088 §D returns it to class members; verify-0088 B9 asserts
+the student value). With no time set it shows the title alone: never "time not set" and
+never a guess. Tested on rendered output (FactsEntry; mutation-tested, 1 red), and the
+student e2e now has a time on its long title at 375px (172/172 lanes). Fable-reviewed,
+no P0 or P1; a near-vacuous unit test was dropped.
+
+**The period planner build is complete (steps 1–6, PP-1–PP-12).** Open, by trigger: a
+quiz day (TODOS, C-188); the P2s left in each step's notes above; and the "Not checked
+yet" list (the 10-day window, the present view on a real projector, whether teachers
+notice that moving a plan doesn't move its due date).

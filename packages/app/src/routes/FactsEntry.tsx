@@ -112,7 +112,7 @@ interface MixedEntry {
 }
 
 /** Today's picks (PA-5), with this student's status on each. */
-type TodayPicks = { id: string; title: string; status: string | null }[];
+type TodayPicks = { id: string; title: string; status: string | null; minutes: number | null }[];
 
 type View =
     | { kind: 'loading' }
@@ -209,6 +209,9 @@ export default function FactsEntry() {
                         id: a.activity_id,
                         title: a.title,
                         status: label === 'Not started' ? null : label,
+                        // Step 6 (PP-5): "about N min" when set; nothing when not —
+                        // a student is never shown a guess or "time not set".
+                        minutes: a.minutes ?? null,
                     };
                 });
             } catch {
@@ -571,7 +574,7 @@ export default function FactsEntry() {
                                 state={backFromActivity}
                                 className={`mt-4 inline-block w-full ${BTN_PRIMARY}`}
                             >
-                                {label(row.title, null, row.status)}
+                                {label(row.title, row.minutes ?? null, row.status)}
                             </Link>
                         );
                     }

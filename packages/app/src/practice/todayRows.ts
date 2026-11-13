@@ -10,13 +10,14 @@
 export type TodayRow =
     | { kind: 'facts'; minutes: number; done: boolean }
     | { kind: 'hook' }
-    | { kind: 'activity'; id: string; title: string; status: string | null }
+    | { kind: 'activity'; id: string; title: string; status: string | null; minutes?: number | null }
     | { kind: 'practice'; minutes: string | null; done: boolean };
 
 export interface TodayInput {
     facts: { minutes: number; doneToday: number } | null;
     practice: { minutes: string | null; doneToday: number } | null;
-    activities: readonly { id: string; title: string; status: string | null }[];
+    /** `minutes` (period planner step 6): the activity's time, shown when set. */
+    activities: readonly { id: string; title: string; status: string | null; minutes?: number | null }[];
 }
 
 export function todayRows({ facts, practice, activities }: TodayInput): TodayRow[] {

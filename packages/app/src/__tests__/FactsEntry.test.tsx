@@ -455,6 +455,23 @@ describe('today (period assembly PA-5, PA-6, PA-7)', () => {
         expect(link.getAttribute('href')).toBe('/a/act-a');
     });
 
+    it('step 6: an activity shows its time when set, and nothing when not', async () => {
+        factsOn();
+        todayApi.fetchClassToday.mockResolvedValue({
+            on_date: '2026-11-04',
+            activities: [
+                { ...A, minutes: 25 },
+                { activity_id: 'act-b', title: 'Ratios', minutes: null },
+            ],
+        });
+        page();
+        await screen.findByRole('heading', { name: 'Today' });
+        expect(screen.getByRole('link', { name: 'Unit rates · about 25 min' })).toBeTruthy();
+        // No time: no "time not set" and never a guess, just the title.
+        expect(screen.getByRole('link', { name: 'Ratios' })).toBeTruthy();
+        expect(textOfMain()).not.toMatch(/not set/);
+    });
+
     it('nothing picked: the page is exactly as it was', async () => {
         factsOn();
         practiceOn();
