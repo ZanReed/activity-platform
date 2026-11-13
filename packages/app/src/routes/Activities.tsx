@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
-import { BarChart3, ClipboardCheck, Import, Library, Trash2, Users } from 'lucide-react';
+import { BarChart3, ClipboardCheck, Copy, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
 import { RepublishDialog } from '../components/RepublishDialog';
 import { listDeletedActivities, restoreActivity, type DeletedItem } from '../lib/recentlyDeleted';
@@ -9,6 +9,7 @@ import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
+import { copyOwnActivity } from '../lib/copyActivity';
 import { FILTER_KEYS, STATUS_OPTIONS, matchesQuery, parseStatus, topicGroups } from '../lib/listFilters';
 import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
@@ -258,6 +259,22 @@ export default function Activities() {
     const searchRef = useRef<HTMLInputElement | null>(null);
 
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    // E-1 (ui-review-group-e.md): "Make a copy" — a new draft, opened in the
+    // editor. The id being copied disables its button against a double click.
+    const [copyingId, setCopyingId] = useState<string | null>(null);
+    const handleCopy = async (activity: ActivityRow) => {
+        const ownerId = session?.user.id;
+        if (!ownerId) return;
+        setCopyingId(activity.id);
+        setActionError(null);
+        try {
+            const id = await copyOwnActivity(activity.id, ownerId);
+            navigate(`/activity/${id}`);
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Could not make the copy.');
+            setCopyingId(null);
+        }
+    };
     const [undoStack, setUndoStack] = useState<ActivityRow[]>([]);
     const [actionError, setActionError] = useState<string | null>(null);
     const undoTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -940,6 +957,16 @@ export default function Activities() {
                         >
                         <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
                         </Link>
+                        <button
+                        type="button"
+                        onClick={() => void handleCopy(a)}
+                        disabled={copyingId !== null}
+                        aria-label={`Make a copy of ${a.title}`}
+                        title="Make a copy"
+                        className={`${ICON_BUTTON} text-muted hover:text-strong disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                        <Copy aria-hidden="true" className="h-4 w-4" />
+                        </button>
                         <button
                         type="button"
                         onClick={() => {

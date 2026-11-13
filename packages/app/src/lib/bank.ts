@@ -43,6 +43,27 @@ export async function listBank(): Promise<BankEntry[]> {
     return (data ?? []) as BankEntry[];
 }
 
+/**
+ * The caller's own copies of listed activities (UI review E-1): Bank
+ * source id → the newest copy's id. 0054 stamps `copied_from_activity_id` on
+ * every Bank copy; a deleted copy doesn't count.
+ */
+export async function listMyBankCopies(ownerId: string): Promise<Map<string, string>> {
+    const { data, error } = await supabase
+        .from('activities')
+        .select('id, copied_from_activity_id, created_at')
+        .eq('owner_id', ownerId)
+        .not('copied_from_activity_id', 'is', null)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    const out = new Map<string, string>();
+    for (const r of (data ?? []) as { id: string; copied_from_activity_id: string }[]) {
+        out.set(r.copied_from_activity_id, r.id); // ascending, so the newest wins
+    }
+    return out;
+}
+
 /** The current version's teacher guide, or null (none, or not listed). */
 export async function getBankTeacherGuide(activityId: string): Promise<TeacherGuide | null> {
     const { data, error } = await supabase.rpc(BANK_TEACHER_GUIDE_RPC, {

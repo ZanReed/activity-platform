@@ -17,7 +17,7 @@ import { FILTER_KEYS, topicGroups } from '../lib/listFilters';
 import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import {
     BANK_LICENSE,
@@ -26,6 +26,7 @@ import {
     getMyPublicName,
     isBankLister,
     listBank,
+    listMyBankCopies,
     setPublicName,
     type BankEntry,
     type PublicName,
@@ -234,6 +235,24 @@ export default function Bank() {
     const [panel, setPanel] = useState<Panel>(null);
     const [addingId, setAddingId] = useState<string | null>(null);
     const [addError, setAddError] = useState<string | null>(null);
+    // E-1 (ui-review-group-e.md): which entries this teacher already copied.
+    // Adding again still works — a second copy is sometimes wanted — but asks.
+    const [myCopies, setMyCopies] = useState<ReadonlyMap<string, string>>(new Map());
+    const [confirmAgainId, setConfirmAgainId] = useState<string | null>(null);
+    const { session } = useSession();
+    const ownerId = session?.user.id ?? null;
+    useEffect(() => {
+        if (!ownerId) return;
+        let live = true;
+        listMyBankCopies(ownerId)
+            .then((m) => {
+                if (live) setMyCopies(m);
+            })
+            .catch(() => undefined); // no marker is the safe failure
+        return () => {
+            live = false;
+        };
+    }, [ownerId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -517,15 +536,51 @@ export default function Bank() {
                                                             Teacher guide
                                                         </button>
                                                     )}
+                                                    {myCopies.has(e.id) && (
+                                                        <Link
+                                                            to={`/activity/${myCopies.get(e.id)}`}
+                                                            className="text-xs font-medium text-success-strong underline underline-offset-2"
+                                                            aria-label={`In your library: open your copy of ${e.title}`}
+                                                        >
+                                                            In your library
+                                                        </Link>
+                                                    )}
+                                                    {confirmAgainId === e.id ? (
+                                                        <span className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label={`Add another copy of ${e.title}?`}>
+                                                            <span>You already have a copy. Add another?</span>
+                                                            <button
+                                                                type="button"
+                                                                autoFocus
+                                                                onClick={() => {
+                                                                    setConfirmAgainId(null);
+                                                                    void handleAdd(e);
+                                                                }}
+                                                                className="rounded-md bg-primary px-2.5 py-1 font-semibold text-white"
+                                                            >
+                                                                Add another
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setConfirmAgainId(null)}
+                                                                className="font-medium text-muted underline underline-offset-2"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </span>
+                                                    ) : (
                                                     <button
                                                         type="button"
-                                                        onClick={() => void handleAdd(e)}
+                                                        onClick={() => {
+                                                            if (myCopies.has(e.id)) setConfirmAgainId(e.id);
+                                                            else void handleAdd(e);
+                                                        }}
                                                         disabled={addingId !== null}
                                                         aria-label={`${addingId === e.id ? 'Adding…' : 'Add to my library'}: ${e.title}`}
                                                         className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
                                                         {addingId === e.id ? 'Adding…' : 'Add to my library'}
                                                     </button>
+                                                    )}
                                                 </div>
                                                 {e.author_name && (
                                                     <p className="mt-0.5 text-xs text-muted">by {e.author_name}</p>

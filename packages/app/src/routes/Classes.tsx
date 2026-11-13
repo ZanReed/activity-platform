@@ -15,6 +15,7 @@ import {
     listClassMembers,
     regenerateJoinCode,
     removeClassMember,
+    renameClass,
     reconfirmClassAge,
     softDeleteClass,
     updateClassDomain,
@@ -510,6 +511,7 @@ function ClassCard({
     onCodeChange,
     onDomainChange,
     onAgeChange,
+    onRenamed,
     onDeleted,
     onError,
 }: {
@@ -518,10 +520,31 @@ function ClassCard({
     onCodeChange: (id: string, code: string) => void;
     onDomainChange: (id: string, domain: string | null) => void;
     onAgeChange: (id: string, change: Pick<ClassInfo, 'includesUnder13' | 'ageAssertionAt' | 'assertionTextVersion'>) => void;
+    onRenamed: (id: string, name: string) => void;
     onDeleted: (id: string) => void;
     onError: (msg: string) => void;
 }) {
     const [showRoster, setShowRoster] = useState(false);
+    // E-1 (ui-review-group-e.md): rename in place. Enter saves, Escape
+    // cancels; an empty name is refused before it is sent.
+    const [nameDraft, setNameDraft] = useState<string | null>(null);
+    const [savingName, setSavingName] = useState(false);
+    const saveName = async () => {
+        if (nameDraft === null) return;
+        if (nameDraft.trim() === info.name) {
+            setNameDraft(null);
+            return;
+        }
+        setSavingName(true);
+        try {
+            onRenamed(info.id, await renameClass(info.id, nameDraft));
+            setNameDraft(null);
+        } catch (err) {
+            onError(err instanceof Error ? err.message : 'Could not rename the class.');
+        } finally {
+            setSavingName(false);
+        }
+    };
     // The "On students' Home" disclosure (board 3a). The count is COMMITTED
     // rows only (DR-3) — it derives from the shared page-level data, which
     // every mutation refetches, so it can never drift from the server.
@@ -580,7 +603,53 @@ function ClassCard({
         <li className="rounded-lg border border-line bg-canvas p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-        <span className="block truncate font-medium text-ink">{info.name}</span>
+        {nameDraft === null ? (
+            <span className="flex min-w-0 items-baseline gap-2">
+            <span className="block truncate font-medium text-ink">{info.name}</span>
+            <button
+            type="button"
+            onClick={() => setNameDraft(info.name)}
+            aria-label={`Rename: ${info.name}`}
+            className="shrink-0 text-xs font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+            >
+            Rename
+            </button>
+            </span>
+        ) : (
+            <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+                e.preventDefault();
+                void saveName();
+            }}
+            >
+            <input
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onKeyDown={(e) => {
+                if (e.key === 'Escape') setNameDraft(null);
+            }}
+            aria-label="Class name"
+            maxLength={120}
+            className="min-w-0 rounded-md border border-line-strong bg-canvas px-2 py-1 text-sm text-ink"
+            />
+            <button
+            type="submit"
+            disabled={savingName || nameDraft.trim() === ''}
+            className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-60"
+            >
+            {savingName ? 'Saving…' : 'Save'}
+            </button>
+            <button
+            type="button"
+            onClick={() => setNameDraft(null)}
+            className="text-xs font-medium text-muted underline underline-offset-2"
+            >
+            Cancel
+            </button>
+            </form>
+        )}
         <span className="block text-xs text-muted">
         Created {formatDate(info.createdAt)}
         {info.expectedDomain && <> · limited to @{info.expectedDomain}</>}
@@ -977,6 +1046,9 @@ export default function Classes() {
                     setClasses((prev) =>
                         prev.map((x) => (x.id === id ? { ...x, expectedDomain } : x)),
                     )
+                }
+                onRenamed={(id, name) =>
+                    setClasses((prev) => prev.map((x) => (x.id === id ? { ...x, name } : x)))
                 }
                 onDeleted={(id) => {
                     setClasses((prev) => prev.filter((x) => x.id !== id));

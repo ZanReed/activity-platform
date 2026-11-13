@@ -19,6 +19,7 @@ const h = vi.hoisted(() => ({
     copyBankActivity: vi.fn(),
     getBankTeacherGuide: vi.fn(),
     lister: { current: false },
+    myCopies: { current: new Map<string, string>() },
     publicName: { current: { name: null as string | null, optedIn: false } },
     setPublicName: vi.fn(),
 }));
@@ -27,6 +28,7 @@ vi.mock('../lib/bank', () => ({
     BANK_LICENSE: 'CC BY-NC-SA 4.0',
     listBank: h.listBank,
     copyBankActivity: h.copyBankActivity,
+    listMyBankCopies: () => Promise.resolve(h.myCopies.current),
     getBankTeacherGuide: h.getBankTeacherGuide,
     isBankLister: () => Promise.resolve(h.lister.current),
     getMyPublicName: () => Promise.resolve(h.publicName.current),
@@ -129,6 +131,25 @@ describe('Activity Bank page', () => {
         fireEvent.click(screen.getAllByRole('button', { name: /^Add to my library: / })[0]!);
         expect(await screen.findByText(/EDITOR \/activity\/new-copy-id Naming Triangles/)).toBeInTheDocument();
         expect(h.copyBankActivity).toHaveBeenCalledWith('a1');
+    });
+
+    // E-1 (ui-review-group-e.md): already copied → a marker, and adding again asks.
+    it('an entry already copied says "In your library", links to the copy, and asks before another', async () => {
+        h.myCopies.current = new Map([['a1', 'my-copy-id']]);
+        h.copyBankActivity.mockResolvedValue('second-copy-id');
+        renderBank();
+        await screen.findByText('Naming Triangles');
+        const marker = await screen.findByRole('link', { name: /^In your library: / });
+        expect(marker).toHaveAttribute('href', '/activity/my-copy-id');
+        fireEvent.click(screen.getAllByRole('button', { name: /^Add to my library: / })[0]!);
+        expect(h.copyBankActivity).not.toHaveBeenCalled();
+        expect(screen.getByText('You already have a copy. Add another?')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(h.copyBankActivity).not.toHaveBeenCalled();
+        fireEvent.click(screen.getAllByRole('button', { name: /^Add to my library: / })[0]!);
+        fireEvent.click(screen.getByRole('button', { name: 'Add another' }));
+        expect(await screen.findByText(/EDITOR \/activity\/second-copy-id/)).toBeInTheDocument();
+        h.myCopies.current = new Map();
     });
 
     it('a failed add says so and stays on the page', async () => {

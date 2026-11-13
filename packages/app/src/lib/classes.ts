@@ -205,6 +205,24 @@ export async function updateClassDomain(
     return (data as { expected_domain: string | null }).expected_domain;
 }
 
+/**
+ * Rename a class (UI review E-1). `name` is the one column a teacher may
+ * update directly (0027 grants `update (name)`; RLS keeps it to their own,
+ * undeleted classes). Returns the name as stored.
+ */
+export async function renameClass(classId: string, rawName: string): Promise<string> {
+    const name = rawName.trim();
+    if (name.length === 0) throw new Error('A class needs a name.');
+    const { data, error } = await supabase
+        .from('classes')
+        .update({ name })
+        .eq('id', classId)
+        .select('name')
+        .single();
+    if (error) throw new Error(error.message);
+    return (data as { name: string }).name;
+}
+
 /** Roster via the DEFINER RPC (ownership-gated server-side). */
 export async function listClassMembers(classId: string): Promise<ClassMember[]> {
     const { data, error } = await supabase.rpc('list_class_members', {

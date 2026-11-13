@@ -675,7 +675,11 @@ export const TEACHER_JOURNEYS = [
         // helpers in the Bank's chunk and left it exactly at 7.0; build-wide
         // identifier churn from group C pushed it 88 B over. The bar's open
         // panel is already lazy; nothing Bank-only grew.
-        maxGzKiB: 7.25,
+        // 7.25 → 7.5 (2026-11-13, UI review E-1): "In your library" — the
+        // teacher's own copies read (listMyBankCopies), the marker link and
+        // the inline "Add another?" ask. ~170 B, all Bank-only; no library
+        // crossed into the chunk.
+        maxGzKiB: 7.5,
         forbid: ['prosemirror', 'mathlive'],
         why: 'The Bank list is cards and filters. The guide panel loads serialize.ts and the guide editor lazily (TR1).',
     },

@@ -18,11 +18,22 @@ const h = vi.hoisted(() => {
     const listResult: { current: { data: unknown; error: unknown } } = {
         current: { data: [], error: null },
     };
+    const update = vi.fn();
     const from = vi.fn((table: string) => {
         if (table === 'classes') {
             const qb: Record<string, unknown> = {
                 select: () => qb,
                 order: () => Promise.resolve(listResult.current),
+                // E-1 rename: update(name).eq(id).select('name').single()
+                update: (patch: { name: string }) => {
+                    update(patch);
+                    const chain: Record<string, unknown> = {
+                        eq: () => chain,
+                        select: () => chain,
+                        single: () => Promise.resolve({ data: { name: patch.name }, error: null }),
+                    };
+                    return chain;
+                },
             };
             return qb;
         }
@@ -37,7 +48,7 @@ const h = vi.hoisted(() => {
         (): Promise<{ data: unknown; error: unknown }> =>
             Promise.resolve({ data: [], error: null }),
     );
-    return { listResult, from, rpc };
+    return { listResult, from, rpc, update };
 });
 
 vi.mock('../lib/supabase', () => ({
@@ -85,6 +96,7 @@ function createdRpcResult() {
 
 beforeEach(() => {
     h.listResult.current = { data: [], error: null };
+    h.update.mockClear();
     h.rpc.mockClear().mockImplementation(() => createdRpcResult());
 });
 afterEach(cleanup);
@@ -181,6 +193,24 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
             }],
             error: null,
         };
+    });
+
+    // E-1 (ui-review-group-e.md): rename a class in place.
+    it('Rename edits the name in place; Escape cancels; an empty name cannot be saved', async () => {
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: /^Rename: / }));
+        const input = screen.getByRole('textbox', { name: 'Class name' }) as HTMLInputElement;
+        fireEvent.change(input, { target: { value: '   ' } });
+        expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.keyDown(input, { key: 'Escape' });
+        expect(screen.queryByRole('textbox', { name: 'Class name' })).toBeNull();
+        expect(h.update).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Rename: / }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'Class name' }), { target: { value: '  Algebra 1B ' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        expect(await screen.findByRole('button', { name: 'Rename: Algebra 1B' })).toBeTruthy();
+        expect(h.update).toHaveBeenCalledWith({ name: 'Algebra 1B' });
     });
 
     it('the card says which statement the class carries, and re-confirming asks the server and updates it', async () => {
