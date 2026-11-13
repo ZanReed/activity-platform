@@ -152,7 +152,32 @@ function DraftField({
     const [error, setError] = useState<string | null>(null);
     useEffect(() => {
         setDraft(external);
+        setError(null);
     }, [external]);
+
+    const reasonFor = (n: number): string | null => {
+        if (field.kind !== 'number') return null;
+        if (field.min !== undefined && n < field.min) return `Can't be less than ${field.min}.`;
+        if (field.max !== undefined && n > field.max) return `Can't be more than ${field.max}.`;
+        return field.validate?.(node, n) ?? null;
+    };
+
+    // A refused value is re-checked when the block changes from elsewhere
+    // (e.g. Max raised after Min was refused): kept if it is now valid, so it
+    // isn't silently lost when the drawer closes (Fable review).
+    useEffect(() => {
+        if (!error || field.kind !== 'number') return;
+        const n = Number(draft.trim());
+        if (draft.trim() === '' || !Number.isFinite(n)) return;
+        const reason = reasonFor(n);
+        if (reason === null) {
+            setError(null);
+            field.set(editor, pos, n);
+        } else if (reason !== error) {
+            setError(reason);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [node]);
 
     const commit = () => {
         if (field.kind === 'number') {
@@ -163,12 +188,7 @@ function DraftField({
             }
             const n = Number(raw);
             if (!Number.isFinite(n)) return;
-            const reason =
-                field.min !== undefined && n < field.min
-                    ? `Can't be less than ${field.min}.`
-                    : field.max !== undefined && n > field.max
-                      ? `Can't be more than ${field.max}.`
-                      : (field.validate?.(node, n) ?? null);
+            const reason = reasonFor(n);
             setError(reason);
             if (reason) return;
             field.set(editor, pos, n);

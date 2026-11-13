@@ -549,7 +549,9 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                         min: 1,
                         placeholder: '—',
                         validate: (node, value) =>
-                            typeof node.attrs.wordMax === 'number' && value > (node.attrs.wordMax as number)
+                            !Number.isInteger(value)
+                                ? 'Use a whole number of words.'
+                                : typeof node.attrs.wordMax === 'number' && value > (node.attrs.wordMax as number)
                                 ? `Min can't be more than max (${node.attrs.wordMax as number}).`
                                 : null,
                         get: (node) =>
@@ -565,7 +567,9 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                         min: 1,
                         placeholder: '—',
                         validate: (node, value) =>
-                            typeof node.attrs.wordMin === 'number' && value < (node.attrs.wordMin as number)
+                            !Number.isInteger(value)
+                                ? 'Use a whole number of words.'
+                                : typeof node.attrs.wordMin === 'number' && value < (node.attrs.wordMin as number)
                                 ? `Max can't be less than min (${node.attrs.wordMin as number}).`
                                 : null,
                         get: (node) =>

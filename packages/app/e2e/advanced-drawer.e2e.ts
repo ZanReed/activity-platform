@@ -126,10 +126,18 @@ test('min words above max is refused in the drawer', async ({ page }) => {
     await expect(drawer.getByRole('alert')).toHaveText("Min can't be more than max (100).");
     await expect(minWords).toHaveAttribute('aria-invalid', 'true');
     expect(await attrOfFirst(page, 'essay', 'wordMin')).toBeNull();
-    await minWords.fill('80');
-    await minWords.blur();
+
+    // Raising Max makes the held Min valid: it is kept, not silently lost.
+    await maxWords.fill('200');
+    await maxWords.blur();
     await expect(drawer.getByRole('alert')).toHaveCount(0);
-    expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(80);
+    await expect.poll(() => attrOfFirst(page, 'essay', 'wordMin')).toBe(150);
+
+    // A part-word count is dropped on save, so it is refused here.
+    await minWords.fill('12.5');
+    await minWords.blur();
+    await expect(drawer.getByRole('alert')).toHaveText('Use a whole number of words.');
+    expect(await attrOfFirst(page, 'essay', 'wordMin')).toBe(150);
 });
 
 test('a negative work space is refused in the drawer', async ({ page }) => {

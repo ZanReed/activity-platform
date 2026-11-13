@@ -803,36 +803,43 @@ export default function ActivityEditor() {
         useEffect(() => setStartCheck(null), [changeKey]);
         const onPublishClick = async (opts: { startsChecked?: boolean } = {}) => {
             setCheckingStarted(true);
-            // Save first: the refusal (B-1), the starting-answer check (B-3)
-            // and the republish confirm (G-3) all read the document as it is
-            // now. A failed save, or anything that must be fixed, goes straight
-            // to publish(), which refuses and says why — refusals come before
-            // the softer check, so the two panels never show together.
-            const flushed = await flush();
-            const draft = lastPersistedDraft.current;
-            if (!flushed || (draft && findPublishProblems(draft).length > 0)) {
-                setCheckingStarted(false);
-                setStartCheck(null);
-                return publish();
-            }
-            if (!opts.startsChecked && editorInstance) {
-                const starts = findStartingAnswers(editorInstance);
-                if (starts.length > 0) {
-                    setCheckingStarted(false);
-                    setStartCheck(starts);
+            // try/finally: a throw in any check below must not leave Publish
+            // disabled until a reload (Fable review).
+            try {
+                // Save first: the refusal (B-1), the starting-answer check (B-3)
+                // and the republish confirm (G-3) all read the document as it
+                // is now. A failed save, or anything that must be fixed, goes
+                // straight to publish(), which refuses and says why — refusals
+                // come before the softer check, so the two never show together.
+                const flushed = await flush();
+                const draft = lastPersistedDraft.current;
+                if (!flushed || (draft && findPublishProblems(draft).length > 0)) {
+                    setStartCheck(null);
+                    void publish();
                     return;
                 }
-            }
-            setStartCheck(null);
-            const live = isPublished || publishState.kind === 'success';
-            if (!live || !id) {
+                if (!opts.startsChecked && editorInstance) {
+                    const starts = findStartingAnswers(editorInstance);
+                    if (starts.length > 0) {
+                        setStartCheck(starts);
+                        return;
+                    }
+                }
+                setStartCheck(null);
+                const live = isPublished || publishState.kind === 'success';
+                if (!live || !id) {
+                    void publish();
+                    return;
+                }
+                const started = await startedStudentCount(id);
+                if (started === 0) {
+                    void publish();
+                    return;
+                }
+                setRepublishConfirm({ started, locked: hasLockedOrDol(draft) });
+            } finally {
                 setCheckingStarted(false);
-                return publish();
             }
-            const started = await startedStudentCount(id);
-            setCheckingStarted(false);
-            if (started === 0) return publish();
-            setRepublishConfirm({ started, locked: hasLockedOrDol(draft) });
         };
 
         // A successful publish clears draft_content server-side; keep the
