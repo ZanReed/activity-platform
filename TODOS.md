@@ -175,7 +175,11 @@ only). The rest of group E is below, each with its trigger.
 
 ## Group E follow-ons (ruled 2026-11-13, "Yes to all")
 
-- **E-7 Due dates — IN DESIGN:** [due-dates.md](docs/design/due-dates.md) (DD-1…DD-9).
+- **E-7 Due dates — BUILT 2026-11-13** ([due-dates.md](docs/design/due-dates.md) → "As built"; 0087 must be applied live before the push). Filed from its rulings, each with a trigger:
+  - **One date for several activities at once.** Trigger: a teacher sets the same date on 4+ activities in one sitting.
+  - **A date per student (extensions).** Trigger: a teacher asks to give one student more time.
+  - **A cross-class "due this week" page.** Trigger: a teacher with more than one class asks for one (v1: each class card's count).
+  - **Due dates on the student's other surfaces** (the unit tracker, Today, the activity's top bar). Trigger: a student or teacher looks for the date there.
 - **E-2 Hide an activity without deleting it + E-3 archive a class** — one
   migration, after due dates: an RPC setting the unused `archived` status
   (students get the "not available" page, class rows the "No longer

@@ -20,7 +20,9 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**UI review 2026-11-13 (TODOS → "UI review"):** A + filter bar LIVE (0086 applied, verify-0086 5/5); B, C, D pushed, CI green; **E-1 + E-8 BUILT, unpushed, app only** (rename class, make a copy, Bank "In your library", paste/drop images, progress CSV, mode names). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). Next: due dates' design pass; the rest of E has triggers.
+**UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
+
+**Due dates BUILT 2026-11-13, unpushed** ([due-dates.md](docs/design/due-dates.md)). ⚠ **Apply 0087 live and run `pnpm verify:auth --target live --only verify-0087` (6 rows) BEFORE pushing (OV-7):** the UI selects `class_activities.due_on`, so pushed early the Classes page's activity panels, Add to class and the Today panel all fail. No Edge Function change, no deploy.
 
 **Playtest browser sweep (2026-11-12): nothing owed.** Three fixes and "Republish changed" pushed; the glossary re-imported live and all 21 republished (`report:stale` 0). Open low findings: [TODOS](TODOS.md) → "Playtest browser sweep".
 

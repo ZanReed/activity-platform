@@ -1,6 +1,7 @@
 # Due dates (design pass, 2026-11-13)
 
-Status: **PROPOSED, awaiting the author's rulings (DD-1 … DD-9).** Source:
+Status: **RULED 2026-11-13 (author: "Yes to all") and BUILT the same day** — see
+"As built" at the end; 0087 is applied live by the author before the push. Source:
 TODOS.md → "Due dates" (the author, 2026-11-13: "still a good feature to
 have"), and UI review group E-7. Each fact below was re-read in the code on
 2026-11-13.
@@ -107,3 +108,30 @@ step.
 - **Step 3, student:** the Home label, wording and order.
 - No Edge Function change, so no deploy. The student shell is measured (the
   Home row is in it).
+
+## As built (2026-11-13)
+
+Commits on `main`: 66c88045 + bf735cc4 (0087 and its verify), 19ea204a (step
+2, teacher), eeedd456 (step 3, student, and step 2's review fixes), plus the
+close-out commit. A Fable review per step; each change mutation-tested.
+Differences from the plan:
+
+- **The teacher reads `due_on` straight from `class_activities`** (its SELECT
+  policy covers the column) instead of `class_progress` gaining it: copying
+  that 150-line function to add one field was the larger risk. The student
+  list (`list_class_activities`) carries `due_on` and `class_today`, the
+  class's date, so a Home with several classes needs no extra round trip;
+  `class_local_date` gives a teacher's page the class's day (all of a
+  teacher's classes share the teacher's zone, so one read serves the page).
+- **The timezone test runs in fresh Node processes** under NZ and US zones:
+  Node caches its default zone, so the first in-process test passed even with
+  the UTC guard removed (found by mutation). The pure date helpers live in an
+  import-free `dueWords.ts` for that.
+- **"That day has passed"** needs the class's today before any row has a
+  date, so it is read whenever the teacher has rows (the first build read it
+  only when one was dated, and its test fixture hid that).
+- **The CSV** gains a due column per activity only when the class has dates.
+- **Finished** = the student's Home says "Done" (current or earlier version);
+  a dated row's label goes then. Unknown progress counts as unfinished.
+- Budgets: the Classes page 12.5 → 14.25 KiB (reason in the file); the
+  student shell +34 B, inside its band.
