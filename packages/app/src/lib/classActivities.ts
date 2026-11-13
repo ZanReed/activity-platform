@@ -61,6 +61,8 @@ export interface TeacherClassActivity {
     title: string;
     addedAt: string;
     published: boolean;
+    /** Due date in the class's timezone, 'YYYY-MM-DD', or null (0087). */
+    dueOn: string | null;
 }
 
 /**
@@ -80,7 +82,7 @@ export async function listTeacherClassActivities(): Promise<TeacherClassActivity
     const { data, error } = await supabase
         .from('class_activities')
         .select(
-            'class_id, activity_id, added_at, activities(title, status, deleted_at, current_version_id), classes!inner(teacher_id)',
+            'class_id, activity_id, added_at, due_on, activities(title, status, deleted_at, current_version_id), classes!inner(teacher_id)',
         )
         .eq('classes.teacher_id', uid)
         .order('added_at', { ascending: false })
@@ -90,6 +92,7 @@ export async function listTeacherClassActivities(): Promise<TeacherClassActivity
         class_id: string;
         activity_id: string;
         added_at: string;
+        due_on: string | null;
         activities:
             | { title: string; status: string; deleted_at: string | null; current_version_id: string | null }
             | { title: string; status: string; deleted_at: string | null; current_version_id: string | null }[]
@@ -101,6 +104,7 @@ export async function listTeacherClassActivities(): Promise<TeacherClassActivity
             classId: r.class_id,
             activityId: r.activity_id,
             addedAt: r.added_at,
+            dueOn: r.due_on ?? null,
             title: a?.title ?? '(activity)',
             published:
                 a != null &&

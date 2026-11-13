@@ -55,6 +55,14 @@ const net = vi.hoisted(() => {
     };
 });
 vi.mock('../lib/supabase', () => ({ supabase: net.supabase }));
+// Due dates (DD-4): none unless a test sets them.
+const dueMock = vi.hoisted(() => ({
+    current: { byActivity: new Map<string, string>(), today: null as string | null },
+}));
+vi.mock('../lib/dueDates', async (orig) => ({
+    ...(await orig<typeof import('../lib/dueDates')>()),
+    fetchClassDue: vi.fn(async () => dueMock.current),
+}));
 // D65: the activity page also reads who holds the DoL pass; none unless a
 // test says so.
 const dol = vi.hoisted(() => ({ passes: vi.fn(async (): Promise<unknown[]> => []) }));
@@ -151,6 +159,34 @@ afterEach(() => {
 
 describe('the class grid (CP-2, DR-1, DR-9, DR-10)', () => {
     noNetwork();
+    // DD-4 (docs/design/due-dates.md): the date in the header; after it, a
+    // quiet marker on cells that aren't done — never on a done one.
+    it('shows the due date, and marks unfinished cells once it has passed', async () => {
+        dueMock.current = { byActivity: new Map([[A1, '2027-02-10']]), today: '2027-02-12' };
+        api.fetchClassProgress.mockResolvedValue(grid());
+        classPage();
+        const done = await screen.findByRole('link', { name: 'Ana Lee, Fractions 2: done, 80 percent' });
+        expect(done.querySelector('[data-past-due]')).toBeNull();
+        expect(screen.getByRole('link', { name: 'Ben Carter, Fractions 2: started, 2 of 4 sections, not done by the due date' })).toBeTruthy();
+        const caleb = screen.getByRole('row', { name: /Caleb Wu/ });
+        expect(within(caleb).getByText('not started, not done by the due date')).toBeTruthy();
+        // Decimals has no date: no marker on it.
+        expect(screen.getByRole('link', { name: 'Ana Lee, Decimals: started, 2 of 5 sections, on an older version' })).toBeTruthy();
+        expect(document.querySelectorAll('[data-due-head]')).toHaveLength(1);
+        expect(document.querySelector('[data-due-head]')!.textContent).toBe('Due 10 Feb');
+        dueMock.current = { byActivity: new Map(), today: null };
+    });
+
+    it('before the date: the header says when, and nothing is marked', async () => {
+        dueMock.current = { byActivity: new Map([[A1, '2027-02-12']]), today: '2027-02-10' };
+        api.fetchClassProgress.mockResolvedValue(grid());
+        classPage();
+        await screen.findByRole('link', { name: 'Ana Lee, Fractions 2: done, 80 percent' });
+        expect(document.querySelector('[data-due-head]')!.textContent).toBe('Due Fri');
+        expect(document.querySelectorAll('[data-past-due]')).toHaveLength(0);
+        dueMock.current = { byActivity: new Map(), today: null };
+    });
+
     it('shows each status in glyph + words, with full accessible names', async () => {
         api.fetchClassProgress.mockResolvedValue(grid());
         classPage();

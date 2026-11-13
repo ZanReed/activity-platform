@@ -2,7 +2,7 @@
 // progressCsv.ts — class progress as a CSV (UI review E-1,
 // docs/design/ui-review-group-e.md)
 // -----------------------------------------------------------------------------
-// One row per student, two columns per activity, from the grid the page
+// One row per student, three columns per activity (due date, DD-4, then), from the grid the page
 // already loaded (nothing new is fetched), read through the grid's OWN
 // `cellStatus` so the file says what the cell says (Fable review of E-1):
 //   "<title> — sections checked"   "3 of 5", "3 of 5 (older version)" for
@@ -28,10 +28,10 @@ export function csvField(value: string | number | null | undefined): string {
     return `"${s.replace(/"/g, '""')}"`;
 }
 
-export function classProgressCsv(grid: ClassProgress): string {
+export function classProgressCsv(grid: ClassProgress, due?: ReadonlyMap<string, string>): string {
     const header = ['Student'];
     for (const a of grid.activities) {
-        header.push(`${a.title} — sections checked`, `${a.title} — % right`);
+        header.push(`${a.title} — due`, `${a.title} — sections checked`, `${a.title} — % right`);
     }
     const cellFor = new Map(grid.cells.map((c) => [`${c.student_id}|${c.activity_id}`, c]));
     const rows = grid.students.map((st) => {
@@ -39,6 +39,7 @@ export function classProgressCsv(grid: ClassProgress): string {
         for (const a of grid.activities) {
             const status = cellStatus(cellFor.get(`${st.student_id}|${a.activity_id}`));
             const older = status.older ? ' (older version)' : '';
+            out.push(due?.get(a.activity_id) ?? null); // DD-4: YYYY-MM-DD, sorts in a spreadsheet
             out.push(
                 status.kind === 'none'
                     ? null

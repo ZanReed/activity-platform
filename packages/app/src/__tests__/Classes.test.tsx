@@ -59,6 +59,12 @@ const ca = vi.hoisted(() => ({ list: vi.fn(async () => []) }));
 vi.mock('../lib/classActivities', async (importActual) => ({
     ...(await importActual<typeof import('../lib/classActivities')>()),
     listTeacherClassActivities: ca.list,
+    listPublishedActivities: async () => [],
+}));
+// DD-4: the class's today, for the "due this week" count.
+vi.mock('../lib/dueDates', async (orig) => ({
+    ...(await orig<typeof import('../lib/dueDates')>()),
+    classLocalDate: vi.fn(async () => '2026-11-13'),
 }));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({
@@ -193,6 +199,24 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
             }],
             error: null,
         };
+    });
+
+    // DD-4 (docs/design/due-dates.md): the card counts what's due this week.
+    it('the card says how many activities are due in the next 7 days, and links to progress', async () => {
+        const row = (activityId: string, dueOn: string | null) => ({
+            classId: 'class-1', activityId, title: activityId, addedAt: '2026-11-01T00:00:00Z', published: true, dueOn,
+        });
+        ca.list.mockResolvedValue([
+            row('a-today', '2026-11-13'),
+            row('a-thu', '2026-11-19'),
+            row('a-next', '2026-11-20'), // 7 days out: not "this week"
+            row('a-past', '2026-11-12'),
+            row('a-none', null),
+        ] as never);
+        renderClasses();
+        const link = await screen.findByRole('link', { name: /^2 due this week: / });
+        expect(link.getAttribute('href')).toBe('/classes/class-1/progress');
+        ca.list.mockResolvedValue([]);
     });
 
     // E-1 (ui-review-group-e.md): rename a class in place.

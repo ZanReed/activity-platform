@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
@@ -552,6 +553,11 @@ function ClassCard({
     const activityCount = activities.rows.filter(
         (r) => r.classId === info.id,
     ).length;
+    // DD-4 (docs/design/due-dates.md): the v1 "due this week" view — a count
+    // of this class's activities due in the next 7 days, linking to progress.
+    const dueThisWeek = activities.rows.filter(
+        (r) => r.classId === info.id && r.published && isDueThisWeek(r.dueOn, activities.today),
+    ).length;
     // Domain edit (T4/D-4): a typo'd domain bricks joining, so it is
     // editable in place — through the audited RPC, since widening/clearing
     // the pin loosens the admission boundary.
@@ -773,6 +779,16 @@ function ClassCard({
         >
         Activities ({activityCount})
         </button>
+        {dueThisWeek > 0 && (
+            <Link
+            to={`/classes/${info.id}/progress`}
+            aria-label={`${dueThisWeek} due this week: ${info.name}`}
+            className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+            data-due-this-week
+            >
+            {dueThisWeek} due this week
+            </Link>
+        )}
         {/* The class's practice page (number-facts snapshot, daily facts,
             mixed practice) is its own lazy page (D43 slice 1, DR-17 / S-4;
             mixed practice S4-2): a snapshot's live view goes on a projector. */}

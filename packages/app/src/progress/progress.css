@@ -94,6 +94,21 @@
   margin-top: 2px;
 }
 
+/* Due dates (DD-4): the date under the column's counts, and a quiet glyph on
+   a cell that isn't done once the date has passed — muted, never red (a
+   label, not a verdict). */
+.cp-due {
+  color: var(--color-muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+.cp-pastdue {
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
 .cp-cell {
   align-items: center;
   background: none;

@@ -24,6 +24,7 @@
 // loading/error states (DR-9a) render from that shared status.
 // =============================================================================
 
+import { classLocalDate, daysUntil, dueWords, setClassActivityDue } from '../lib/dueDates';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { groupByUnit, sortForOutline } from '../lib/activityGrouping';
 import {
@@ -65,6 +66,9 @@ export interface TeacherActivitiesData {
     status: TeacherActivitiesStatus;
     rows: TeacherClassActivity[];
     options: PublishedActivityOption[];
+    /** The teacher's classes' today, 'YYYY-MM-DD' (0087; one zone for all of
+     *  a teacher's classes), or null until known / when there are no rows. */
+    today: string | null;
     reload: () => Promise<void>;
 }
 
@@ -76,6 +80,7 @@ export function useTeacherClassActivities(): TeacherActivitiesData {
     const [status, setStatus] = useState<TeacherActivitiesStatus>('loading');
     const [rows, setRows] = useState<TeacherClassActivity[]>([]);
     const [options, setOptions] = useState<PublishedActivityOption[]>([]);
+    const [today, setToday] = useState<string | null>(null);
 
     const reload = useCallback(async () => {
         try {
@@ -86,6 +91,12 @@ export function useTeacherClassActivities(): TeacherActivitiesData {
             setRows(nextRows);
             setOptions(nextOptions);
             setStatus('ready');
+            // Due labels need the class's day (DD-6). Only when a row has a
+            // date — no extra read for a teacher who never sets one.
+            const dated = nextRows.find((r) => r.dueOn !== null);
+            if (dated) {
+                classLocalDate(dated.classId).then(setToday, () => setToday(null));
+            }
         } catch {
             setStatus('error');
         }
@@ -95,7 +106,7 @@ export function useTeacherClassActivities(): TeacherActivitiesData {
         void reload();
     }, [reload]);
 
-    return { status, rows, options, reload };
+    return { status, rows, options, today, reload };
 }
 
 interface UndoEntry {
@@ -288,6 +299,9 @@ export default function ClassActivitiesPanel({
                 <span className="text-xs text-muted">
                 {row.published ? `Added ${formatListDate(row.addedAt)}` : DEAD_ROW_COPY}
                 </span>
+                {row.published && (
+                    <DueControl row={row} today={data.today} onSaved={() => void data.reload()} />
+                )}
                 <button
                 type="button"
                 onClick={() => void handleRemove(row)}
@@ -397,5 +411,84 @@ export default function ClassActivitiesPanel({
         can also open a published activity.
         </p>
         </div>
+    );
+}
+
+/**
+ * DD-2 (docs/design/due-dates.md): a row's due date — "No due date" or
+ * "Due Fri", which opens a date field with Save, Clear and Cancel. A date that
+ * has passed is allowed (a teacher may be recording one) and says so.
+ */
+function DueControl({
+    row,
+    today,
+    onSaved,
+}: {
+    row: TeacherClassActivity;
+    today: string | null;
+    onSaved: () => void;
+}) {
+    const [draft, setDraft] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const save = async (value: string | null) => {
+        setSaving(true);
+        setError(null);
+        try {
+            await setClassActivityDue(row.classId, row.activityId, value);
+            setDraft(null);
+            onSaved();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not save the date.');
+        } finally {
+            setSaving(false);
+        }
+    };
+    if (draft === null) {
+        return (
+            <button
+                type="button"
+                onClick={() => setDraft(row.dueOn ?? today ?? '')}
+                aria-label={`${row.dueOn ? `Due ${today ? dueWords(row.dueOn, today) : row.dueOn}` : 'No due date'}: change for ${row.title}`}
+                className="text-xs font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+                data-due-control
+            >
+                {row.dueOn ? `Due ${today ? dueWords(row.dueOn, today) : row.dueOn}` : 'No due date'}
+            </button>
+        );
+    }
+    const passed = draft !== '' && today !== null && daysUntil(draft, today) < 0;
+    return (
+        <span className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label={`Due date for ${row.title}`}>
+            <input
+                type="date"
+                value={draft}
+                autoFocus
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') setDraft(null);
+                }}
+                aria-label={`Due date for ${row.title}`}
+                className="rounded-md border border-line-strong bg-canvas px-1.5 py-0.5 text-xs text-ink"
+            />
+            <button
+                type="button"
+                disabled={saving || draft === ''}
+                onClick={() => void save(draft)}
+                className="rounded-md bg-primary px-2 py-0.5 font-semibold text-white disabled:opacity-60"
+            >
+                {saving ? 'Saving…' : 'Save'}
+            </button>
+            {row.dueOn && (
+                <button type="button" disabled={saving} onClick={() => void save(null)} className="font-medium text-muted underline underline-offset-2">
+                    Clear
+                </button>
+            )}
+            <button type="button" onClick={() => setDraft(null)} className="font-medium text-muted underline underline-offset-2">
+                Cancel
+            </button>
+            {passed && <span className="text-muted">That day has passed.</span>}
+            {error && <span className="text-danger" role="alert">{error}</span>}
+        </span>
     );
 }

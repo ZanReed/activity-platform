@@ -14,6 +14,7 @@
 // Every scope rule is 0061's (verify-0061); this file formats.
 // =============================================================================
 
+import { dueWords, fetchClassDue, isPastDue, type ClassDue } from '../lib/dueDates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { classProgressCsv, classProgressFileName } from '../lib/progressCsv';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
@@ -51,6 +52,8 @@ interface Loaded {
     grid: ClassProgressData;
     /** null when the misconception read failed: the grid still shows. */
     mis: ClassMisconceptions | null;
+    /** null when the due-date read failed: the grid still shows (DD-4). */
+    due: ClassDue | null;
 }
 
 export default function ClassProgress() {
@@ -58,11 +61,14 @@ export default function ClassProgress() {
     const location = useLocation();
     const base = `/classes/${classId}/progress`;
     const loaded = useProgressLoad<Loaded>(async () => {
-        const [grid, mis] = await Promise.all([
+        const [grid, mis, due] = await Promise.all([
             fetchClassProgress(classId),
             fetchMisconceptions(classId).catch(() => null),
+            // DD-4: the class's due dates and its today. A failure only costs
+            // the labels; the grid still shows.
+            fetchClassDue(classId).catch(() => null),
         ]);
-        return { grid, mis };
+        return { grid, mis, due };
     }, [classId]);
     const [hideNames, setHideNames] = useHideNames();
     const [leastDone, setLeastDone] = useLeastDoneFirst();
@@ -146,7 +152,9 @@ function Body({
             </p>
         );
     }
-    const { grid, mis } = loaded.data;
+    const { grid, mis, due } = loaded.data;
+    const dueOf = (aid: string) => due?.byActivity.get(aid) ?? null;
+    const today = due?.today ?? null;
 
     if (grid.students.length === 0) {
         return (
@@ -216,7 +224,7 @@ function Body({
                 <button
                     type="button"
                     data-progress-csv
-                    onClick={() => downloadText(classProgressFileName(grid.class.name), classProgressCsv(grid))}
+                    onClick={() => downloadText(classProgressFileName(grid.class.name), classProgressCsv(grid, due?.byActivity))}
                     className="text-sm font-medium text-strong underline underline-offset-2"
                 >
                     Download CSV
@@ -239,6 +247,11 @@ function Body({
                                     <th key={a.activity_id} scope="col" className="cp-colhead">
                                         <span className="cp-clamp">{a.title}</span>
                                         <span className="cp-counts">{tallyWords(t)}</span>
+                                        {dueOf(a.activity_id) && today && (
+                                            <span className="cp-due" data-due-head>
+                                                Due {dueWords(dueOf(a.activity_id)!, today)}
+                                            </span>
+                                        )}
                                     </th>
                                 );
                             })}
@@ -267,6 +280,7 @@ function Body({
                                                 cellKey={`${s.student_id}:${a.activity_id}`}
                                                 selected={selected === `${s.student_id}:${a.activity_id}`}
                                                 gradeHref={responsesHref(a.activity_id, here)}
+                                                pastDue={isPastDue(dueOf(a.activity_id), today)}
                                             />
                                         </td>
                                     ))}
@@ -307,6 +321,7 @@ export function Cell({
     cellKey,
     selected,
     gradeHref,
+    pastDue = false,
 }: {
     status: CellStatus;
     cell: { to_grade: number } | null;
@@ -316,12 +331,22 @@ export function Cell({
     cellKey: string;
     selected: boolean;
     gradeHref: string;
+    /** DD-4: the due date has passed and this cell isn't done. A quiet glyph
+     *  on screen, words for a screen reader; never on a done cell. */
+    pastDue?: boolean;
 }) {
+    const late = pastDue && status.kind !== 'done';
+    const lateMark = late ? (
+        <span className="cp-pastdue" title="Not done by the due date" data-past-due>
+            <span aria-hidden="true">◷</span>
+        </span>
+    ) : null;
     if (status.kind === 'none') {
         return (
             <span className="cp-none">
                 <span aria-hidden="true">—</span>
-                <span className="sr-only">not started</span>
+                <span className="sr-only">{late ? 'not started, not done by the due date' : 'not started'}</span>
+                {lateMark}
             </span>
         );
     }
@@ -333,10 +358,11 @@ export function Cell({
                 className={`cp-cell${status.kind === 'done' ? ' cp-done' : ''}`}
                 data-cell={cellKey}
                 data-current={selected ? 'true' : undefined}
-                aria-label={`${name}, ${title}: ${cellWords(status)}`}
+                aria-label={`${name}, ${title}: ${cellWords(status)}${late ? ', not done by the due date' : ''}`}
                 {...(status.kind === 'started_unknown' ? { title: 'Checked before progress totals were recorded' } : {})}
             >
                 <CellFace status={status} />
+                {lateMark}
             </Link>
             {toGrade > 0 && (
                 <Link to={gradeHref} className="cp-chip">

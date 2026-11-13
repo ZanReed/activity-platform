@@ -35,6 +35,13 @@ vi.mock('../lib/classActivities', async (importOriginal) => {
     };
 });
 
+// DD-2: the due-date write door.
+const due = vi.hoisted(() => ({ set: vi.fn(async (_c: string, _a: string, d: string | null) => d) }));
+vi.mock('../lib/dueDates', async (orig) => ({
+    ...(await orig<typeof import('../lib/dueDates')>()),
+    setClassActivityDue: due.set,
+    classLocalDate: vi.fn(async () => '2026-11-13'),
+}));
 import ClassActivitiesPanel, {
     ADD_REFUSED_COPY,
     ALL_ADDED_COPY,
@@ -60,12 +67,14 @@ function data(overrides: Partial<TeacherActivitiesData> = {}): TeacherActivities
                 title: 'Linear equations practice',
                 addedAt: new Date().toISOString(),
                 published: true,
+                dueOn: null,
             },
         ],
         options: [],
+        today: '2026-11-13',
         reload: vi.fn(async () => {}),
         ...overrides,
-    };
+    } as TeacherActivitiesData;
 }
 
 beforeEach(() => {
@@ -145,6 +154,7 @@ describe('states (DR-7 / DR-9b,d)', () => {
                     title: 'Slope from two points',
                     addedAt: new Date().toISOString(),
                     published: false,
+                    dueOn: null,
                 },
             ],
         });
@@ -245,5 +255,40 @@ describe('the picker groups by unit, with "Add whole unit" (assign-to-class A5)'
         fireEvent.click(screen.getByRole('button', { name: 'Add' }));
         await waitFor(() => expect(h.addMany).toHaveBeenCalledWith(CLASS_ID, ['i1', 'i2']));
         expect(d.reload).toHaveBeenCalled();
+    });
+});
+
+// DD-2 (docs/design/due-dates.md): a row's due date, set, cleared or left.
+describe('due dates (DD-2)', () => {
+    it('"No due date" opens a date field; Save sets it and reloads; a passed day is allowed and said', async () => {
+        due.set.mockClear();
+        const d = data();
+        render(<ClassActivitiesPanel classId={CLASS_ID} data={d} />);
+        fireEvent.click(screen.getByRole('button', { name: /^No due date: change for / }));
+        const input = screen.getByLabelText('Due date for Linear equations practice', { selector: 'input' }) as HTMLInputElement;
+        fireEvent.change(input, { target: { value: '2026-11-10' } });
+        expect(screen.getByText('That day has passed.')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(due.set).toHaveBeenCalledWith(CLASS_ID, ACT_ID, '2026-11-10'));
+        await waitFor(() => expect(d.reload).toHaveBeenCalled());
+    });
+
+    it('a dated row says when, and Clear sends null', async () => {
+        due.set.mockClear();
+        const d = data();
+        d.rows[0]!.dueOn = '2026-11-17';
+        render(<ClassActivitiesPanel classId={CLASS_ID} data={d} />);
+        fireEvent.click(screen.getByRole('button', { name: /^Due Tue: change for / }));
+        fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+        await waitFor(() => expect(due.set).toHaveBeenCalledWith(CLASS_ID, ACT_ID, null));
+    });
+
+    it('Escape and Cancel leave it as it was', () => {
+        due.set.mockClear();
+        render(<ClassActivitiesPanel classId={CLASS_ID} data={data()} />);
+        fireEvent.click(screen.getByRole('button', { name: /^No due date: / }));
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(screen.getByRole('button', { name: /^No due date: / })).toBeTruthy();
+        expect(due.set).not.toHaveBeenCalled();
     });
 });

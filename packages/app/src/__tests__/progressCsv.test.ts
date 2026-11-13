@@ -39,20 +39,20 @@ const grid: ClassProgress = {
 const parse = (csv: string) => csv.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
 
 describe('classProgressCsv', () => {
-    it('one row per student, two columns per activity, quoted', () => {
-        const lines = parse(classProgressCsv(grid));
+    it('one row per student, three columns per activity (due, sections, % right), quoted', () => {
+        const lines = parse(classProgressCsv(grid, new Map([['a1', '2026-11-20']])));
         expect(lines[0]).toBe(
-            '"Student","Fractions, part 1 — sections checked","Fractions, part 1 — % right","Ratios — sections checked","Ratios — % right"',
+            '"Student","Fractions, part 1 — due","Fractions, part 1 — sections checked","Fractions, part 1 — % right","Ratios — due","Ratios — sections checked","Ratios — % right"',
         );
         // A comma and quotes in a name survive: quotes doubled, field quoted.
-        expect(lines[1]).toBe('"O\'Neil, ""Sam""","5 of 5","70","2 of 4 (older version)",""');
+        expect(lines[1]).toBe('"O\'Neil, ""Sam""","2026-11-20","5 of 5","70","","2 of 4 (older version)",""');
     });
 
     it('defuses a name a spreadsheet would run as a formula', () => {
         const lines = parse(classProgressCsv(grid));
         expect(lines[2]!.startsWith('"\'=HYPERLINK(""x"")"')).toBe(true);
         // A started cell carries no percent; an unknown total says so.
-        expect(lines[2]).toBe('"\'=HYPERLINK(""x"")","started (total not recorded)","","1 of 5",""');
+        expect(lines[2]).toBe('"\'=HYPERLINK(""x"")","","started (total not recorded)","","","1 of 5",""');
     });
 
     it('starts with a BOM and uses CRLF, for Excel', () => {
