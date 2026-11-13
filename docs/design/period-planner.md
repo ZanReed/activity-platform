@@ -457,7 +457,11 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
   carries the new prompt stamp.
 - **B-250 sent 2026-11-14, after the author pushed `main` to e82c8246:** #92 cleared to
   merge; prompt stamp `ae85b0c3`, sha256 `d647ec2e…3eb0` (re-derived from the raw URL
-  and `git show origin/main`, byte-identical). Notion stamp row refreshed. Next C-191.
+  and `git show origin/main`, byte-identical). Notion stamp row refreshed.
+- **C-191 (2026-11-14):** #92 merged at their `ddae4b0` (registry `b4d730f3`, 11 keys;
+  graph v0.19.8 unchanged); they verified our stamp. Repo stamp row refreshed to `ddae4b0`
+  (re-derived). Owed: mirror `b4d730f3` on the next `--practice-registry` import. Their #93
+  (builder/lint) is open for the author. Nothing open between us; next B-251 / C-192.
 
 ## As built
 
