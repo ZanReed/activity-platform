@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { UNSAVED_STARTER_KIT_MARKS } from './starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import 'mathlive';
@@ -42,6 +43,7 @@ export default function TeacherGuideEditor({
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
+                ...UNSAVED_STARTER_KIT_MARKS,
                 blockquote: false,
                 codeBlock: false,
                 horizontalRule: false,

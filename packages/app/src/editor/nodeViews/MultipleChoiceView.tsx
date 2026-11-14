@@ -11,6 +11,7 @@ import {
     ImagePlus,
     X,
 } from 'lucide-react';
+import { RowMoveButtons, moveAt } from './RowMoveButtons';
 import { renderGraphSvg } from '@activity/graph-kit/static-svg';
 import type { AxisConfig, Drawable } from '@activity/schema';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
@@ -447,6 +448,11 @@ export default function MultipleChoiceView({
         ]);
     };
 
+    const moveChoice = (index: number, delta: -1 | 1) => {
+        const next = moveAt(choices, index, delta);
+        if (next) commitChoices(next);
+    };
+
     const removeChoice = (choiceId: string) => {
         if (choices.length <= 2) return;
         commitChoices(choices.filter((c) => c.id !== choiceId));
@@ -587,6 +593,13 @@ export default function MultipleChoiceView({
                                             />
                                         )}
                                     </button>
+                                    <RowMoveButtons
+                                        index={index}
+                                        count={choices.length}
+                                        what={`choice ${LETTERS[index % 26]}`}
+                                        disabled={!isEditable}
+                                        onMove={(delta) => moveChoice(index, delta)}
+                                    />
                                     <button
                                         type="button"
                                         className="mc-block__row-btn"

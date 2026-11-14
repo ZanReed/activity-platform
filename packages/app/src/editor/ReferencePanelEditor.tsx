@@ -5,6 +5,7 @@ import {
     type JSONContent,
 } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { UNSAVED_STARTER_KIT_MARKS } from './starterKitOptions';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
@@ -70,6 +71,7 @@ export default function ReferencePanelEditor({
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
+                ...UNSAVED_STARTER_KIT_MARKS,
                 blockquote: false,
                 codeBlock: false,
             }),

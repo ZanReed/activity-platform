@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { UNSAVED_STARTER_KIT_MARKS } from '../starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import type { DefinitionBlock } from '@activity/schema';
@@ -66,7 +67,7 @@ export default function DefinitionEditDialog({
 
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({ blockquote: false, codeBlock: false }),
+            StarterKit.configure({ ...UNSAVED_STARTER_KIT_MARKS, blockquote: false, codeBlock: false }),
             MathInline,
             MathBlock,
             Subscript,

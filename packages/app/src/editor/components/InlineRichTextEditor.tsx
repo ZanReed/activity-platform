@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { UNSAVED_STARTER_KIT_MARKS } from '../starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { MathInline } from '../extensions/MathInline';
@@ -84,6 +85,7 @@ export default function InlineRichTextEditor({
             // StarterKit v3 bundles the underline mark, so the top toolbar's
             // full mark set (B/I/U/<>/sub/sup) works on nested fields too.
             StarterKit.configure({
+                ...UNSAVED_STARTER_KIT_MARKS,
                 heading: false,
                 bulletList: false,
                 orderedList: false,

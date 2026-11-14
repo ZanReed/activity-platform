@@ -399,7 +399,7 @@ describe('F3b — “Check and lock” asks first, because there is no unlock', 
     expect(svc.calls).toHaveLength(0);
     expect(
       screen.getByText(
-        'Check and lock this section? You won’t be able to change your answers after this.',
+        'Check and lock this section? One question is still blank. You won’t be able to change your answers after this.',
       ),
     ).toBeTruthy();
   });
@@ -411,9 +411,56 @@ describe('F3b — “Check and lock” asks first, because there is no unlock', 
     });
     expect(
       screen.getByText(
-        'Check and lock these 3 sections? You won’t be able to change your answers after this.',
+        'Check and lock these 3 sections? 3 questions are still blank. You won’t be able to change your answers after this.',
       ),
     ).toBeTruthy();
+  });
+
+  it('an answered section says nothing about blanks', async () => {
+    const { container } = setup(docOfSections([true], 'locked'));
+    await act(async () => {
+      fireEvent.change(inputsOf(container)[0]!.querySelector('textarea, input')!, { target: { value: 'my answer' } });
+    });
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    expect(
+      screen.getByText(
+        'Check and lock this section? You won’t be able to change your answers after this.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('a matching question placed and then cleared counts as blank', async () => {
+    const matching = fullDoc.sections
+      .flatMap((sec) => sec.rows)
+      .flatMap((r) => r.columns)
+      .flatMap((c) => c.blocks)
+      .find((b) => (b as { type?: string }).type === 'matching')! as unknown as {
+      id: string;
+      items: { id: string }[];
+      targets: { id: string }[];
+    };
+    const base = docOfSections([true], 'locked');
+    const doc = {
+      ...base,
+      sections: [
+        {
+          ...base.sections[0]!,
+          rows: [{ ...base.sections[0]!.rows[0]!, columns: [{ ...base.sections[0]!.rows[0]!.columns[0]!, blocks: [matching] }] }],
+        },
+      ],
+    } as unknown as SanitizedActivityDocument;
+    const { container, store } = setup(doc);
+    const item = matching.items[0]!.id;
+    await act(async () => {
+      store.setMatch(matching.id, item, matching.targets[0]!.id);
+      store.setMatch(matching.id, item, null);
+    });
+    await act(async () => {
+      fireEvent.click(checkButtons(container)[0]!);
+    });
+    expect(screen.getByText(/One question is still blank\./)).toBeTruthy();
   });
 
   it('Cancel fires no RPC and freezes nothing', async () => {

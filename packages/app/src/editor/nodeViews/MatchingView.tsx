@@ -8,6 +8,7 @@ import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMatchSide } from '../extensions/Matching';
 import { Image as ImageIcon, ImagePlus, X } from 'lucide-react';
+import { RowMoveButtons, moveAt } from './RowMoveButtons';
 import { ChoiceFigureEditor, ChoiceFigureThumbnail } from './MultipleChoiceView';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
@@ -121,6 +122,11 @@ export default function MatchingView({
         updateAttributes({
             targets: [...targets, { id: crypto.randomUUID(), content: [] }],
         });
+    };
+
+    const moveSide = (side: 'items' | 'targets', index: number, delta: -1 | 1) => {
+        const next = moveAt(side === 'items' ? items : targets, index, delta);
+        if (next) updateAttributes({ [side]: next });
     };
 
     const removeItem = (itemId: string) => {
@@ -271,6 +277,13 @@ export default function MatchingView({
                                         ))}
                                     </select>
                                     {figureToggle(item, `item ${index + 1}`)}
+                                    <RowMoveButtons
+                                        index={index}
+                                        count={items.length}
+                                        what={`item ${index + 1}`}
+                                        disabled={!isEditable}
+                                        onMove={(delta) => moveSide('items', index, delta)}
+                                    />
                                     <button
                                         type="button"
                                         className="mc-block__row-btn"
@@ -323,6 +336,13 @@ export default function MatchingView({
                                         />
                                     </div>
                                     {figureToggle(target, `option ${index + 1}`)}
+                                    <RowMoveButtons
+                                        index={index}
+                                        count={targets.length}
+                                        what={`option ${index + 1}`}
+                                        disabled={!isEditable}
+                                        onMove={(delta) => moveSide('targets', index, delta)}
+                                    />
                                     <button
                                         type="button"
                                         className="mc-block__row-btn"

@@ -7,7 +7,8 @@ import PromptField from '../components/PromptField';
 import InlineRichTextEditor from '../components/InlineRichTextEditor';
 import type { InlineNodes } from '../../lib/serialize';
 import type { EditorOrderItem } from '../extensions/Ordering';
-import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { RowMoveButtons, moveAt } from './RowMoveButtons';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
 import { ProblemNumberGutter } from './problemNumberGutter';
@@ -60,13 +61,8 @@ export default function OrderingView({
     };
 
     const move = (index: number, delta: -1 | 1) => {
-        const to = index + delta;
-        if (to < 0 || to >= items.length) return;
-        const next = items.slice();
-        const [item] = next.splice(index, 1);
-        if (!item) return;
-        next.splice(to, 0, item);
-        commitItems(next);
+        const next = moveAt(items, index, delta);
+        if (next) commitItems(next);
     };
 
     const addItem = () => {
@@ -115,28 +111,13 @@ export default function OrderingView({
                                             ariaLabel={`Step ${index + 1}`}
                                         />
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="mc-block__row-btn"
-                                        onClick={() => move(index, -1)}
-                                        aria-label={`Move step ${index + 1} up`}
-                                        title="Move up"
-                                        disabled={!isEditable || index === 0}
-                                    >
-                                        <ArrowUp size={14} aria-hidden="true" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="mc-block__row-btn"
-                                        onClick={() => move(index, 1)}
-                                        aria-label={`Move step ${index + 1} down`}
-                                        title="Move down"
-                                        disabled={
-                                            !isEditable || index === items.length - 1
-                                        }
-                                    >
-                                        <ArrowDown size={14} aria-hidden="true" />
-                                    </button>
+                                    <RowMoveButtons
+                                        index={index}
+                                        count={items.length}
+                                        what={`step ${index + 1}`}
+                                        disabled={!isEditable}
+                                        onMove={(delta) => move(index, delta)}
+                                    />
                                     <button
                                         type="button"
                                         className="mc-block__row-btn"

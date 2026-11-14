@@ -6,6 +6,7 @@ import type { InlineNodes } from '../../lib/serialize';
 import type { EditorMatchSide } from '../extensions/Matching';
 import type { EditorTargetColumn } from '../extensions/Correspondence';
 import { Image as ImageIcon, ImagePlus, X } from 'lucide-react';
+import { RowMoveButtons, moveAt } from './RowMoveButtons';
 import { ChoiceFigureEditor, ChoiceFigureThumbnail } from './MultipleChoiceView';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { problemNumberAt } from '../problemNumbering';
@@ -132,6 +133,15 @@ export default function CorrespondenceView({
             items: items.filter((i) => i.id !== itemId),
             key: nextKey,
         });
+    };
+
+    const moveItem = (index: number, delta: -1 | 1) => {
+        const next = moveAt(items, index, delta);
+        if (next) updateAttributes({ items: next });
+    };
+
+    const moveCard = (columnId: string, index: number, delta: -1 | 1) => {
+        patchColumn(columnId, (c) => ({ ...c, targets: moveAt(c.targets, index, delta) ?? c.targets }));
     };
 
     const addCard = (columnId: string) => {
@@ -338,6 +348,13 @@ export default function CorrespondenceView({
                                             [item.id]: !prev[item.id],
                                         })),
                                     )}
+                                    <RowMoveButtons
+                                        index={index}
+                                        count={items.length}
+                                        what={`item ${index + 1}`}
+                                        disabled={!isEditable}
+                                        onMove={(delta) => moveItem(index, delta)}
+                                    />
                                     <button
                                         type="button"
                                         className="mc-block__row-btn"
@@ -440,6 +457,15 @@ export default function CorrespondenceView({
                                                         [target.id]: !prev[target.id],
                                                     })),
                                             )}
+                                            <RowMoveButtons
+                                                index={index}
+                                                count={column.targets.length}
+                                                what={`column ${ci + 1} card ${index + 1}`}
+                                                disabled={!isEditable}
+                                                onMove={(delta) =>
+                                                    moveCard(column.id, index, delta)
+                                                }
+                                            />
                                             <button
                                                 type="button"
                                                 className="mc-block__row-btn"

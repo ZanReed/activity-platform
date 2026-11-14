@@ -14,6 +14,7 @@
 
 import type { Extensions } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import { UNSAVED_STARTER_KIT_MARKS } from './starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { Doc } from './extensions/Doc';
@@ -68,6 +69,7 @@ export function buildEditorExtensions({
         // Replaces StarterKit's Document (content `block+`).
         Doc,
         StarterKit.configure({
+            ...UNSAVED_STARTER_KIT_MARKS,
             // Our strict-grid Doc (above) owns the top node.
             document: false,
             // TrailingNode ensures the doc ends with a paragraph — invalid at the

@@ -345,10 +345,31 @@ function dolPracticeOffered(dol: DolServedState, status: SectionStatus | undefin
 }
 
 /** The DoL confirm (DE-14): which try this is, and what is still blank. */
+/** True when a stored response holds no answer at all. A cleared matching or
+ * correspondence question is stored as `{}`, so emptiness is checked all the
+ * way down, not only at the top. (Graphs are judged by their points, above.) */
+function isBlankResponse(v: unknown): boolean {
+  if (v === undefined || v === null) return true;
+  if (typeof v === 'string') return v.trim() === '';
+  if (Array.isArray(v)) return v.every(isBlankResponse);
+  if (typeof v === 'object') return Object.values(v as Record<string, unknown>).every(isBlankResponse);
+  return false;
+}
+
+function blankNote(unanswered: number): string {
+  return unanswered === 0 ? '' : unanswered === 1 ? ' One question is still blank.' : ` ${unanswered} questions are still blank.`;
+}
+
 function dolConfirmText(dol: DolServedState, unanswered: number): string {
   const which = dol.allowance > 1 ? `This is try ${dol.form} of ${dol.allowance}.` : 'You get one try.';
-  const blank = unanswered === 0 ? '' : unanswered === 1 ? ' One question is still blank.' : ` ${unanswered} questions are still blank.`;
-  return `Check your answers now? ${which}${blank} You won’t be able to change them after this.`;
+  return `Check your answers now? ${which}${blankNote(unanswered)} You won’t be able to change them after this.`;
+}
+
+/** Locking is one-way too, so its confirm says how many questions are still
+ * blank, the same way the DoL confirm does. */
+function lockConfirmText(sectionCount: number, unanswered: number): string {
+  const ask = sectionCount > 1 ? `Check and lock these ${sectionCount} sections?` : 'Check and lock this section?';
+  return `${ask}${blankNote(unanswered)} You won’t be able to change your answers after this.`;
 }
 
 /** The button's words. It NAMES ITS SCOPE (D1) so the visible region and the
@@ -468,7 +489,14 @@ export function ViewerContainer({
         for (const category of RESPONSE_CATEGORIES) {
           for (const id of s.items[category] ?? []) {
             const v = responses[category]?.[id];
-            if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) n += 1;
+            // A graph's work always names its interaction, so it is blank when
+            // nothing is placed and "cannot be graphed" isn't chosen.
+            const blank =
+              category === 'graphs' && v !== undefined
+                ? !(v as { noSolution?: boolean }).noSolution &&
+                  ((v as { points?: unknown[] }).points ?? []).length === 0
+                : isBlankResponse(v);
+            if (blank) n += 1;
           }
         }
       }
@@ -962,7 +990,7 @@ function CheckGroupRegion({
                 // the student and not for the teacher, and a republish is the
                 // only one there is — which resets every student.
                 // D65 DE-14: a DoL press spends an attempt, so it asks first
-                // too — and says how many questions are still blank.
+                // too. Both confirms say how many questions are still blank.
                 if ((locked || dol) && !retrying) {
                   setUnanswered(unansweredIn(group.sections));
                   setConfirming(true);
@@ -987,9 +1015,7 @@ function CheckGroupRegion({
               <p className="viewer-check-group__confirm-text" id={confirmTextId}>
                 {dol
                   ? dolConfirmText(dol, unanswered)
-                  : group.sections.length > 1
-                    ? `Check and lock these ${group.sections.length} sections? You won’t be able to change your answers after this.`
-                    : 'Check and lock this section? You won’t be able to change your answers after this.'}
+                  : lockConfirmText(group.sections.length, unanswered)}
               </p>
               <button
                 ref={cancelRef}
