@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. **B14 pin-bump PR open: [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94)** (pin `e34521e5`, sha256 `8470e19f…`; row prose is a platform draft for them to rewrite before merge). B-253 sent. Still owed: the Notion stamp for the regenerated catalogue prompt.
+**Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193), repo stamp refreshed. Still owed: the Notion stamp for the regenerated catalogue prompt.
 
 **UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 

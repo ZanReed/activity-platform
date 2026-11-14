@@ -613,8 +613,10 @@ _shared/*.bundle.js` against the repo). Marker cross-checks: the built-in line
 "form", "exact-form"` in both. Only then push. After the push: the B14 pin-bump
 PR (`form_answer`, `prose_facts.form_grammar`) — opened as
 [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) — and the Notion stamp for the
-regenerated `docs/catalogue-authoring-prompt.md`. **B-253 SENT 2026-11-14** (live, PR #94 waits on
-their prose, the as-built rules); next C-194 / B-254.
+regenerated `docs/catalogue-authoring-prompt.md`. **B-253 SENT 2026-11-14**; **C-193:** #94 MERGED
+(`a4f2831`, graph v0.19.9, their prose), repo stamp refreshed. Theirs still: `lint_draft.py`
+reading `form_grammar`, a lint that every `===` prompt names its form, and the §7 rewrite
+(C-194). Next C-194 / B-254.
 
 **Pre-deploy re-counts (run on live 2026-11-14):** live math blanks: 5 (keys
 `3/2`, `k`, `4x`, `5x`, `2x`), none with a `!` entry, so FG-4 moves **zero**
