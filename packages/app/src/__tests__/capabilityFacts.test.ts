@@ -213,6 +213,32 @@ describe('prose_facts.dol_grammar (D65) is what the parser reads', () => {
   });
 });
 
+describe('prose_facts.form_grammar (D60) is what the parser and grader read', () => {
+  it('each published spelling lands as form grading', async () => {
+    const { FORM_GRAMMAR, FORM_WRONG_MATCH } = await import('../lib/blankSyntax');
+    const { FORM_WRONG_MATCH: GRADER } = await import('../../../viewer/src/server/grading/blanks');
+    const convert = await getMarkdownImporter();
+    const published = capabilityFacts().prose_facts.form_grammar as typeof FORM_GRAMMAR;
+    expect(published).toEqual(FORM_GRAMMAR);
+    // The blank sigil.
+    const blank = convert(`Factorise: {{${published.blank_sigil}6(3x-2) | ${published.reserved_match} :: One product.}}`);
+    const json = JSON.stringify(blank.blocks);
+    expect(json).toContain('"equivalence":"form"');
+    expect(json).toContain(`"match":"${FORM_WRONG_MATCH}"`);
+    expect([...blank.warnings]).toEqual([]);
+    // The reserved match is the grader's.
+    expect(published.reserved_match).toBe(`!${GRADER}`);
+    // The gap spelling, with its placeholder filled.
+    const gap = convert(`$$4a \\times 3b = ${published.gap_spelling.replace('…', '12ab')}$$`);
+    expect(JSON.stringify(gap.blocks)).toContain('"equivalence":"form"');
+  });
+  it('form_answer scores per blank, like fill_blank', () => {
+    const row = capabilityFacts().capabilities.form_answer!;
+    expect(row.reached_by).toEqual({ inline: 'form' });
+    expect(row.grading).toEqual(capabilityFacts().capabilities.fill_blank!.grading);
+  });
+});
+
 describe('practice_bank (MP-15) is what the bank parser reads', () => {
   const kindProblems = async (metaLine: string) => {
     const { parseBankFile } = await import('../lib/bankImport');

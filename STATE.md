@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
+**Form grading (D60) BUILT 2026-11-14, UNPUSHED, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). In order: (1) `pnpm deploy:check` and `pnpm deploy:get-activity`, each hash-verified (download, `shasum` `_shared/*.bundle.js`; markers: the built-in line in grading, `"value", "form", "exact-form"` in viewer); (2) only then push — an old function refuses any `form` content; (3) after the push, the B14 pin-bump PR (`form_answer`, `form_grammar`) and the Notion stamp for the regenerated catalogue prompt; (4) B-253 if wanted.
+
 **UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 
 **Due dates LIVE 2026-11-13** ([due-dates.md](docs/design/due-dates.md)): pushed, 0087 applied, verify-0087 6/6 on live.
@@ -34,7 +36,7 @@ Author-only: pushes, deploys, migrations.
 
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
-**Period assembly LIVE (0081–0084).** **Period planner** ([period-planner.md](docs/design/period-planner.md) → As built): 0088 LIVE; steps 2–5 LIVE 2026-11-14; step 6 BUILT, unpushed. **Build complete** once pushed; next: real-classroom checks (doc → Not checked yet). #92 merged (C-191); next `--practice-registry` import mirrors `b4d730f3`. Next B-251.
+**Period assembly LIVE (0081–0084).** **Period planner** ([period-planner.md](docs/design/period-planner.md) → As built): 0088 LIVE; steps 2–5 LIVE 2026-11-14; step 6 BUILT, unpushed. **Build complete** once pushed; next: real-classroom checks (doc → Not checked yet). #92 merged (C-191); next `--practice-registry` import mirrors `b4d730f3`.
 
 **0064, 0065, function pin, `/assets/` header, reopen reuse (audit #9) LIVE**, hash-verified. **Audit #14 region pin LIVE** (3b0c51cd), log-verified 2026-11-12.
 
@@ -50,8 +52,6 @@ Author-only: pushes, deploys, migrations.
 **OWED: Gate 4 and the `display_name` one-row fix** (the D24 counsel read was answered 2026-10-06, below). *(Named, not counted — a hand-maintained tally in a section that gets replaced is a number with an expiry date.)*
 
 
-**The daily facts practice (D43 slice 2, LIVE 2026-10-06) and the 0048 apply (prune DISARMED)** are closed records, moved to [HISTORY.md](docs/HISTORY.md) on 2026-10-07; what is still owed on the prune is the D24 paragraph below and TODOS → the ARMING checklist.
-
 **PRACTICE BLOCKS (D43) — slice 1, per-family grouping and two-part checks are LIVE (2026-10-05)** and author-confirmed: migrations 0044 to 0047, registry revision `d0144e8d…`. Device checks T11/D6 WAIT for school devices (author has none; TODOS). Owed by the author: counsel's ANSWER to Q11 (sent, the author confirmed 2026-10-06; Q11(b) is step 1 of the prune's arming); the year-level placement by 1 November 2026. [practice-blocks.md](docs/design/practice-blocks.md) has every ruling and "as built" section.
 
 **AI-grading pilot: infrastructure LIVE-VERIFIED, model half PARKED
@@ -64,8 +64,6 @@ PARKED until the box (README, in order): vLLM → `worker:check` OK → E2b
 golden run → provider flip → `worker:run`; D7 step 2 + batch-confirm
 behind those. **NOT parked:** D7 step 1 hand-grading — needs only student
 checks (today 0, roster 1; §5.1's volume rule governs).
-
-**Glossary LIVE (2026-09-28)** — nothing owed; v2 asks 2–3 in TODOS.
 
 **D24 counsel read — ANSWERED (reported by the author 2026-10-06): "current measures are sufficient", covering the whole packet, Q1 to Q11.** No written opinion is in the repo; the record is the note at the top of [counsel-review-packet.md](docs/compliance/counsel-review-packet.md). What it changes: the counsel step of BOTH arming checklists is answered (Q10 for `prune_section_checks`, Q11(b) for `prune_fact_practice`); neither is armed. The author ruled to START the number-facts prune's arming checklist: first dry-run report read 2026-10-06 (nothing to remove); **the second is due on or after 2026-10-13**; no schedule is created without his explicit yes ([TODOS.md](TODOS.md) → the ARMING checklist). The author also reported, asked directly, that **counsel cleared under-13 use**; he ruled U-1 to U-4 and approved the wording, and it is BUILT (migration 0053, the two-choice class form, the re-confirm control, the privacy page and pack; DECISIONS → "Under-13 use, by school authorization"). 0053 was applied by the author and verified live (273 rows, 26 scripts); the page is pushed and the author confirmed it on live ("1-5 all good"). Step 4 of the checklist is done: migration 0052 aligned the two pre-0048 checks to the class's end date + 30 days.
 
@@ -92,8 +90,6 @@ function versions all became commands). **Read it live, every time:**
 ⚠ **"No real student data exists yet" is NO LONGER TRUE** — one real second
 account is enrolled (the author's own throwaway, so the compliance answers stay
 cheap to change, but the sentence that made them free has expired).
-
-**Archived to [HISTORY.md](docs/HISTORY.md):** all S9 author stations, the station HEADs (OV-DX-9), the closed gate-9 ledger, and this session's 0034 apply + purge-liveness + CI narrative.
 
 ## Standing constraints & watch items (current arc)
 

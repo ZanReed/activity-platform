@@ -30,6 +30,16 @@ export const UNIT_CLAUSE_RE = /^(.*?)\s+unit:\s*(.*)$/i;
 // FORM_WRONG_MATCH (viewer grading/blanks.ts); pinned equal by a test.
 export const FORM_WRONG_MATCH = 'form-wrong';
 
+// Form grading's authoring grammar (D60, form-grading.md FG-7/FG-12) — what
+// the curriculum side's draft lint reads as prose_facts.form_grammar. Each
+// value is the parser's own: capabilityFacts.test.ts imports a snippet built
+// from each and asserts it lands as a form blank / form gap / reserved match.
+export const FORM_GRAMMAR = {
+    blank_sigil: '===',
+    gap_spelling: '\\gap[form]{…}',
+    reserved_match: `!${FORM_WRONG_MATCH}`,
+} as const;
+
 // The parsed shape of a blank's brace contents, BEFORE any Tiptap/inline
 // construction. Pure string work so it unit-tests without a ctx or the editor
 // schema. Each consumer turns it into a node its own way (the importer resolves

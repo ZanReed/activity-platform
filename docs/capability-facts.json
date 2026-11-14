@@ -178,6 +178,17 @@
         "inline": "blanks"
       }
     },
+    "form_answer": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "auto",
+        "captures_response": true,
+        "score_shape": "boolean"
+      },
+      "reached_by": {
+        "inline": "form"
+      }
+    },
     "gap_equation": {
       "status": "shipped",
       "grading": {
@@ -441,6 +452,11 @@
       "math_reference": "\\seed{name}",
       "rows_stored_per_group": 500,
       "combination_cap_per_group": 10000
+    },
+    "form_grammar": {
+      "blank_sigil": "===",
+      "gap_spelling": "\\gap[form]{…}",
+      "reserved_match": "!form-wrong"
     }
   }
 }

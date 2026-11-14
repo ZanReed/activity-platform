@@ -36,6 +36,9 @@ export type GuiSurface =
 export const GUI_SURFACES: Record<keyof typeof JOIN, GuiSurface> = {
     fill_blank: { slash: 'Fill in the blank' },
     gap_equation: { file: 'editor/nodeViews/MathPromptControls.tsx', marker: 'in-equation gaps' },
+    // The blank popover's Equivalence choice (also the gap settings button,
+    // which reuses the popover); its wrong-form field writes `!form-wrong`.
+    form_answer: { file: 'editor/components/BlankEditPopover.tsx', marker: 'Equal, and in this form' },
     definition: { file: 'editor/Toolbar.tsx', marker: 'setDefinition()' },
     graph: { slash: 'Interactive graph' },
     draggable_curve: { file: 'editor/nodeViews/InteractiveGraphView.tsx', marker: '<option value="transform_curve">' },

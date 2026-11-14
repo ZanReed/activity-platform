@@ -1,7 +1,8 @@
 # Form grading: "equivalent AND in the stated form" (design pass, 2026-11-14)
 
 Status: **RULED 2026-11-14 (author: "Yes to all FG items"): FG-1 to FG-14 as
-recommended.** Not built; build next in the six steps of "Build shape". Letter
+recommended.** **BUILT 2026-11-14, steps 1–5, unpushed** ("As built" below;
+pending author actions in STATE.md). Letter
 B-251 SENT 2026-11-14; C-192 answered it, and the author RULED its amendments
 A1–A5 the same day ("Amendments from C-192" below, which OUTRANK FG-1, FG-2
 and FG-3 where they differ). B-252 sent with the answers.
@@ -593,6 +594,61 @@ Bank copies.
    `pnpm facts:capabilities`); pushed; **then** the pin-bump PR on the
    curriculum repo and the Notion stamp row refresh.
 6. **The letter** (below), if the author sends it, after step 5's push.
+
+## As built (2026-11-14)
+
+Steps 1–5 committed on `main`, unpushed; each had a Fable review, and every
+major finding was fixed in a follow-up commit (`fix(grading)`, `fix(import)`).
+
+**Pending author, in order:** `pnpm deploy:check` and `pnpm deploy:get-activity`,
+both hash-verified (download into a temp dir, `shasum -a 256
+_shared/*.bundle.js` against the repo). Marker cross-checks: the built-in line
+"isn't in the form the question asks for" in the grading bundle, `"value",
+"form", "exact-form"` in both. Only then push. After the push: the B14 pin-bump
+PR (`form_answer`, `prose_facts.form_grammar`), the Notion stamp for the
+regenerated `docs/catalogue-authoring-prompt.md`, and B-253 if wanted.
+
+**Pre-deploy re-counts (run on live 2026-11-14):** live math blanks: 5 (keys
+`3/2`, `k`, `4x`, `5x`, `2x`), none with a `!` entry, so FG-4 moves **zero**
+sensor counts on live work. Live gap keys: 5 (`4`, `0`, `4x`, `0`, `0`), so the
+mixed-number re-reading (`2(1)/(3)` was 2/3, is 7/3) changes no live mark.
+Practice and DoL items: no math blanks or gaps.
+
+**Where the build departs from, or settles, the text above:**
+- **Letters join by implicit multiplication, not `*`** (step-1 review): `1/ab`
+  stays 1/(ab) and `x^ab` stays x^(ab), as when `ab` was one symbol. A letter
+  before a bracket does become `x*(…)` (it was a broken call before).
+- **Key-side folding (FG-6) needs a SEED number**: a bracketed literal, the
+  spelling `bindSeedNames` gives every bound value. An authored literal key
+  (`3*4`, `1x`) keeps its form as written. A bracketed literal in an unseeded
+  key (`2*(-3)`) is folded like a seed — known, low.
+- **FG-14:** the raw value is held to length and bracket balance; the tower,
+  operator (implicit products counted) and depth caps run on the tokenized
+  string, so `x^2y^3` is not a tower. The tree caps are in `math-form.ts`
+  (`MAX_SHAPE_NODES` 256, `MAX_SHAPE_DEPTH` 96), not `guards.ts`.
+- **FG-5:** a prose-less matched `!` entry keeps its `mis.*` and takes
+  `!form-wrong`'s message; a `~` duplicate already in another slot's form gets
+  neither `!form-wrong` nor the line.
+- **Gaps show feedback now** (display and inline maths) — before, nothing
+  rendered a gap's feedback, so the built-in line would never have reached one.
+  Shell spend +270 B recorded in `scripts/perf-budgets.mjs`.
+- **Accepted by rule 2's sort, against FG-3's wording:** `x2` ≡ `2x` (factor
+  order is never form). `-(-x)` ≡ `x` on the student side (sign algebra).
+- **FG-6 importer checks** run over bank and DoL seed rows. An unparseable row
+  is a hard problem in both (the bank's fail under `--strict` only; a DoL's
+  skip the file in every run). The `e` warning skips declared seed names, and
+  runs on the bound key for banks and DoLs. `seedReferences` (graph-kit) makes
+  `g(p*x - q)` count as a use of `g`.
+- **GUI:** the roster row landed with the capability in step 5 (the roster is
+  keyed by `JOIN`). The "form" badge is on blank chips; a form GAP has no
+  badge (the ruling says chips) — its state shows in Answer settings.
+- **The browser lane** (`e2e/student/form-grading.e2e.ts`) derives its stub
+  reply from the real grader and was mutation-tested red.
+- **For the pin-bump PR / letter:** `form_grammar.gap_spelling` uses a literal
+  U+2026 `…` as its placeholder (as FG-12 wrote it), where `dol_grammar`'s
+  `\seed{name}` uses ASCII — their `lint_draft.py` must read it as UTF-8.
+- `FORM_REWRITES_REV` is tree-shaken out of the bundles, so it is not a deploy
+  marker; use the strings above.
 
 ## Not checked yet
 

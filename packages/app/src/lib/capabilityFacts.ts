@@ -44,6 +44,7 @@ import {
 import { BLANK_MODIFIERS, FENCES } from './importFormatRegistry';
 import { CHECKPOINT_RE } from './markdownToTiptap';
 import { DOL_GRAMMAR } from './dolImport';
+import { FORM_GRAMMAR } from './blankSyntax';
 import { BANK_KIND } from './bankImport';
 import { BANK_COMBINATION_CAP } from '@activity/schema/bank-seed';
 import {
@@ -113,6 +114,11 @@ const graphProbe = (interaction: string) => ({
 export const JOIN: Record<string, Join> = {
     fill_blank: { inline: 'blanks', probe: { type: 'fill_in_blank' }, scoring: 'auto', response: zr(BlankResponse) },
     gap_equation: { inline: 'gap', probe: { type: 'math_block', prompts: [{}] }, scoring: 'auto', response: zr(BlankResponse) },
+    // D60 (form-grading.md FG-12): "equivalent AND in the stated form". A
+    // grammar on the blank and the gap, not a block: `{{===…}}` and
+    // `\gap[form]{…}`, graded per blank like fill_blank. Its grammar is
+    // prose_facts.form_grammar; the curriculum side writes the row's prose.
+    form_answer: { inline: 'form', probe: { type: 'fill_in_blank' }, scoring: 'auto', response: zr(BlankResponse) },
     // One student-facing affordance, two authoring paths: `[[term :: meaning]]`
     // inline and the ```definitions fence. Neither adds a gradeable block.
     definition: { inline: 'definition', fence: 'definitions', probe: null, scoring: 'none' },
@@ -311,6 +317,7 @@ export function capabilityFacts() {
                 meta_keys: [...DOL_GRAMMAR.meta_keys],
                 combination_cap_per_group: BANK_COMBINATION_CAP,
             },
+            form_grammar: { ...FORM_GRAMMAR },
         },
     };
 }
