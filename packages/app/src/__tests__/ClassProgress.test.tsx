@@ -86,6 +86,7 @@ import ActivityResponses from '../routes/ActivityResponses';
 import AnswerPanel from '../progress/AnswerPanel';
 import {
     cellStatus,
+    lastCheckAgo,
     leastDoneFirst,
     pseudonyms,
     safeProgressPath,
@@ -496,6 +497,41 @@ describe('Responses: Back to progress (DR-8)', () => {
         responses(`/activity/${A1}/responses?from=${encodeURIComponent(`/activity/${A1}/progress`)}`);
         expect(screen.getByRole('link', { name: '← My activities' })).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Progress' }).getAttribute('href')).toBe(`/activity/${A1}/progress`);
+    });
+});
+
+describe('the Last check column', () => {
+    noNetwork();
+    it('names each student\'s newest check across activities; Not yet for none', async () => {
+        api.fetchClassProgress.mockResolvedValue(
+            grid({
+                cells: [
+                    cell('s1', A1, { last_checked_at: '2027-02-01T09:00:00Z' }),
+                    cell('s1', A2, { last_checked_at: '2027-02-05T09:00:00Z' }),
+                    cell('s2', A1, { last_checked_at: null }),
+                ],
+            }),
+        );
+        classPage();
+        const ana = await screen.findByRole('row', { name: /Ana Lee/ });
+        expect(ana.querySelector('[data-last-check] time')?.getAttribute('dateTime')).toBe('2027-02-05T09:00:00Z');
+        expect(ana.querySelector('[data-last-check]')?.textContent).toBe(lastCheckAgo('2027-02-05T09:00:00Z'));
+        const ben = screen.getByRole('row', { name: /Ben Carter/ });
+        expect(ben.querySelector('[data-last-check]')?.textContent).toBe('Not yet');
+        expect(screen.getByRole('columnheader', { name: 'Last check' })).toBeTruthy();
+    });
+
+    it('lastCheckAgo counts calendar days, then gives a date', () => {
+        const now = new Date(2027, 1, 12, 8, 0);
+        expect(lastCheckAgo(null, now)).toBe('Not yet');
+        expect(lastCheckAgo(new Date(2027, 1, 12, 7, 0).toISOString(), now)).toBe('Today');
+        expect(lastCheckAgo(new Date(2027, 1, 11, 23, 30).toISOString(), now)).toBe('Yesterday');
+        expect(lastCheckAgo(new Date(2027, 1, 9, 12, 0).toISOString(), now)).toBe('3 days ago');
+        // Another year names it.
+        expect(lastCheckAgo(new Date(2026, 10, 3, 12, 0).toISOString(), now)).toContain('2026');
+        expect(lastCheckAgo(new Date(2027, 1, 1, 12, 0).toISOString(), now)).toBe(
+            new Date(2027, 1, 1, 12, 0).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+        );
     });
 });
 

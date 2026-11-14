@@ -316,6 +316,37 @@ export function leastDoneFirst<T>(rows: readonly T[], tallyOf: (row: T) => Tally
         .map((x) => x.row);
 }
 
+// ---- A student's last check (the grid's "Last check" column) ----------------
+
+/** The newest check this student made on anything the class was set. */
+export function studentLastCheck(cells: readonly ProgressCell[], studentId: string): string | null {
+    let latest: string | null = null;
+    for (const c of cells) {
+        if (c.student_id !== studentId || !c.last_checked_at) continue;
+        if (latest === null || Date.parse(c.last_checked_at) > Date.parse(latest)) latest = c.last_checked_at;
+    }
+    return latest;
+}
+
+/** "Today", "Yesterday", "3 days ago", then a date ("12 Nov"); "Not yet" for
+ * none. Days are this device's calendar days: a quick read of who has gone
+ * quiet, not a record (the cell panel has the exact times). */
+export function lastCheckAgo(iso: string | null, now: Date = new Date()): string {
+    if (!iso) return 'Not yet';
+    const then = new Date(iso);
+    const day = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    const days = Math.round((day(now) - day(then)) / 86_400_000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return then.toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        // "12 Nov" alone could be last year's.
+        ...(then.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+    });
+}
+
 // ---- Hide names (CP-5) -------------------------------------------------------
 
 /** "Student 4": numbered by the roster's name order, so the number a teacher

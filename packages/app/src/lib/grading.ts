@@ -187,3 +187,15 @@ export function releaseLabel(count: number, who: string): string {
 export function unreleasedBadge(count: number): string {
   return `${count} unreleased`;
 }
+
+/** The unsaved-grade prompt and the Next control (teacher-grading.md D8).
+ *  Here, not beside the queue helpers: the Responses page and its lazy
+ *  GradePanel both read it, and a module only they share folds into the
+ *  page's chunk. */
+export const NEXT_COPY = {
+  next: 'Next to grade',
+  discardTitle: 'Discard unsaved grade?',
+  discardBody: 'The points and feedback you entered for this response have not been saved.',
+  discardConfirm: 'Discard',
+  keepCancel: 'Keep editing',
+} as const;

@@ -46,25 +46,27 @@
 //    queue still loads — drafts are advisory, grading is the product.
 // =============================================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { HIDE_NAMES_KEY, pseudonyms, readFlag, safeProgressPath, writeFlag } from '../lib/classProgress';
 import { groupRows, nextOwedKey, rowKey } from '../lib/responsesQueue';
 import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/responsesLabels';
 import {
+  NEXT_COPY,
   RESPONSES_COPY as COPY,
   fetchGradingQueue,
   releaseGrades,
-  releaseLabel,
-  saveCheckGrade,
   unreleasedBadge,
-  type CriterionEntry,
   type GradingQueueRow,
 } from '../lib/grading';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
+// The grading panel opens on a click, so it is its own chunk; the page warms
+// it as soon as the queue arrives, so the first click does not wait for it.
+const loadGradePanel = () => import('../components/GradePanel');
+const GradePanel = lazy(loadGradePanel);
 import { RELEASE_ALL_COPY, releaseEach } from '../lib/releaseAll';
-import { DOL_PASS_COPY, baseLevelMet, fetchDolPassStatus, setDolPass, type DolPassRow } from '../lib/dolPass';
+import { fetchDolPassStatus, type DolPassRow } from '../lib/dolPass';
 import {
   ASSIST_COPY,
   confirmSuggestion,
@@ -79,7 +81,6 @@ import {
   relativeTime,
   type AssistDisplay,
   type AssistStatus,
-  type RejectReason,
   type RubricCriterionSpec,
   type SuggestionRow,
 } from '../lib/gradingAssist';
@@ -104,14 +105,11 @@ function needsGrading(row: GradingQueueRow): boolean {
 // to hide and keeps the plain "Not in your classes".
 type NameOf = (row: GradingQueueRow) => string;
 
-/** The unsaved-grade prompt and the Next control (teacher-grading.md D8). */
-const NEXT_COPY = {
-  next: 'Next to grade',
-  discardTitle: 'Discard unsaved grade?',
-  discardBody: 'The points and feedback you entered for this response have not been saved.',
-  discardConfirm: 'Discard',
-  keepCancel: 'Keep editing',
-} as const;
+/** The assist values the lazy GradePanel uses (see its import note). */
+const ASSIST_API = { ASSIST_COPY, confirmSuggestion, deriveAssistDisplay, rejectSuggestion };
+
+/** The student picker's value for everyone outside the teacher's classes. */
+const OUTSIDE = '__outside__';
 
 
 const CHIP: Record<RowStatus, { label: string; className: string }> = {
@@ -217,6 +215,10 @@ export default function ActivityResponses() {
   const [pending, setPending] = useState<string | null>(null);
   // Set when Next opened the panel, so focus lands in it rather than on <body>.
   const [focusPanel, setFocusPanel] = useState(false);
+  // Narrowing the list: one student (an id, or OUTSIDE for every student the
+  // teacher shares no class with), and "Only my classes".
+  const [student, setStudent] = useState<string>('');
+  const [mineOnly, setMineOnly] = useState(false);
   const choose = (k: string, viaNext = false) => {
     if (k === selected) return;
     if (dirty) {
@@ -286,6 +288,8 @@ export default function ActivityResponses() {
       setRefreshError(null);
       setLoading(false);
       void hydrateAssist(queue);
+      // Warm the panel's chunk while the teacher reads the list.
+      if (queue.length > 0) void loadGradePanel().catch(() => undefined);
       void (async () => {
         try {
           const versions = [...new Set(queue.map((r) => r.activity_version_id))];
@@ -321,9 +325,15 @@ export default function ActivityResponses() {
       needsGrading(row) && !dolOptionals.has(`${row.activity_version_id}:${row.block_id}`),
     [dolOptionals],
   );
+  const shownFor = useCallback(
+    (row: GradingQueueRow) =>
+      (!mineOnly || row.in_your_class) &&
+      (student === '' || (student === OUTSIDE ? row.student_label === null : row.student_id === student)),
+    [mineOnly, student],
+  );
   const visible = useMemo(
-    () => (rows ?? []).filter((row) => (needsOnly ? owed(row) : true)),
-    [rows, needsOnly, owed],
+    () => (rows ?? []).filter((row) => shownFor(row) && (needsOnly ? owed(row) : true)),
+    [rows, needsOnly, owed, shownFor],
   );
 
   /** Section → question → rows (D4 by-question grouping); see groupRows. */
@@ -350,9 +360,85 @@ export default function ActivityResponses() {
           : row.student_label,
     [hideNames, alias],
   );
-  const nextKey = useMemo(() => nextOwedKey(rows ?? [], selected, owed), [rows, selected, owed]);
+  // Next never opens a row the student filters hide.
+  const nextKey = useMemo(
+    () => nextOwedKey(rows ?? [], selected, (row) => owed(row) && shownFor(row)),
+    [rows, selected, owed, shownFor],
+  );
+  // The student picker: named students by the name this page shows (Hide
+  // names applied), then one entry for everyone outside the teacher's classes.
+  const studentOptions = useMemo(() => {
+    const named = new Map<string, string>();
+    let outside = false;
+    for (const row of rows ?? []) {
+      if (row.student_label === null) outside = true;
+      else named.set(row.student_id, nameOf(row));
+    }
+    const list = [...named].map(([value, label]) => ({ value, label }));
+    list.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+    if (outside) list.push({ value: OUTSIDE, label: COPY.notInYourClass });
+    return list;
+  }, [rows, nameOf]);
+  const someOutside = (rows ?? []).some((row) => !row.in_your_class);
+  // J / K: the next / previous response in the list as shown, when the
+  // teacher is not typing and no dialog is up. Through choose(), so unsaved
+  // entries still ask. Positions are read over the WHOLE queue, so a row that
+  // just left the filtered list (saved with Needs grading on) still has one.
+  const fullOrder = useMemo(() => [...groupRows(rows ?? []).values()].flatMap((q) => [...q.values()].flat()), [rows]);
+  const chooseRef = useRef(choose);
+  chooseRef.current = choose;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if ((key !== 'j' && key !== 'k') || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      const shown = new Set(visible.map(rowKey));
+      const at = fullOrder.findIndex((r) => rowKey(r) === selected);
+      const pick =
+        key === 'j'
+          ? fullOrder.slice(at + 1).find((r) => shown.has(rowKey(r)))
+          : at < 0
+            ? [...fullOrder].reverse().find((r) => shown.has(rowKey(r)))
+            : fullOrder.slice(0, at).reverse().find((r) => shown.has(rowKey(r)));
+      if (!pick) return;
+      e.preventDefault();
+      const wasDirty = dirtyRef.current;
+      chooseRef.current(rowKey(pick));
+      // Keep the keyboard on the list. Not while the discard question is
+      // coming: Keep editing must return to where the teacher was.
+      if (!wasDirty) {
+        [...document.querySelectorAll<HTMLElement>('[data-row-key]')]
+          .find((el) => el.getAttribute('data-row-key') === rowKey(pick))
+          ?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [fullOrder, visible, selected]);
+  // A filter that hides the open response closes it, unless it holds unsaved
+  // entries (then it stays open until saved or left: never lose typed work).
+  useEffect(() => {
+    if (!selected || dirty) return;
+    const open = (rows ?? []).find((r) => rowKey(r) === selected);
+    if (open && !shownFor(open)) setSelected(null);
+    // Only a FILTER change should close it, not a save or a refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownFor]);
+  // A picked student who has left the queue (a refresh) is not a filter the
+  // picker can show any more: back to everyone.
+  useEffect(() => {
+    if (student !== '' && rows && !studentOptions.some((o) => o.value === student)) setStudent('');
+  }, [rows, student, studentOptions]);
 
   const outstanding = (rows ?? []).filter(owed).length;
+  // With a student filter on, the header counts what the teacher can see,
+  // and names the whole queue beside it.
+  const filtering = student !== '' || mineOnly;
+  const outstandingShown = filtering ? (rows ?? []).filter((r) => owed(r) && shownFor(r)).length : outstanding;
   // Every optional explanation the filter hides, a REVISED one (graded, then
   // changed) included — it used to vanish with no note (playtest sweep 2026-11-12).
   const optionalUnmarked = (rows ?? []).filter(
@@ -430,7 +516,10 @@ export default function ActivityResponses() {
                 made "All caught up" ambiguous to read and to assert. */}
             {outstanding > 0 && (
               <p className="text-sm font-semibold text-strong" data-outstanding={outstanding}>
-                {outstanding} need grading
+                {outstandingShown} need grading
+                {filtering && outstandingShown !== outstanding && (
+                  <span className="font-normal text-muted"> · {outstanding} in all</span>
+                )}
               </p>
             )}
             <label className="flex items-center gap-1.5 text-sm text-muted">
@@ -449,6 +538,28 @@ export default function ActivityResponses() {
               />
               Hide names
             </label>
+            {studentOptions.length > 1 && (
+              <select
+                value={student}
+                onChange={(e) => setStudent(e.target.value)}
+                aria-label="Student"
+                className="min-h-9 rounded-md border border-line-strong bg-canvas px-2 text-sm text-ink"
+              >
+                <option value="">All students</option>
+                {studentOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {someOutside && (
+              <label className="flex items-center gap-1.5 text-sm text-muted">
+                <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} />
+                Only my classes
+              </label>
+            )}
+            <span className="text-xs text-faint [@media(pointer:coarse)]:hidden">J / K: next / previous response</span>
             {optionalUnmarked > 0 && (
               <p className="text-sm text-muted" data-optional-unmarked={optionalUnmarked}>
                 {optionalUnmarked === 1 ? '1 optional explanation' : `${optionalUnmarked} optional explanations`}: marking
@@ -519,6 +630,29 @@ export default function ActivityResponses() {
 
           {rows.length === 0 ? (
             <EmptyState title={COPY.emptyTitle} body={COPY.emptyBody} />
+          ) : visible.length === 0 && (student !== '' || mineOnly) ? (
+            // The student filters hid everything: say that, not "all caught
+            // up", which would speak for responses the teacher cannot see.
+            <EmptyState
+              title="Nothing here for this selection"
+              body={
+                (needsOnly ? 'Nothing left to grade for the students you picked.' : 'No responses from the students you picked.') +
+                // Never swallow the release reminder "All caught up" carries.
+                (totalUnreleased > 0 ? ` ${unreleasedBadge(totalUnreleased)}.` : '')
+              }
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStudent('');
+                    setMineOnly(false);
+                  }}
+                  className="min-h-[44px] text-sm font-semibold text-strong underline underline-offset-2"
+                >
+                  Show everyone
+                </button>
+              }
+            />
           ) : visible.length === 0 ? (
             // Distinct from the empty state above, and it names the remainder:
             // finishing the grading must not silently skip releasing it.
@@ -579,6 +713,7 @@ export default function ActivityResponses() {
                                 key={rowKey(row)}
                                 type="button"
                                 onClick={() => choose(rowKey(row))}
+                                data-row-key={rowKey(row)}
                                 aria-current={rowKey(row) === selected ? true : undefined}
                                 className={`flex min-h-[44px] w-full items-center gap-2 border-b border-line px-3 py-2 text-left last:border-b-0 ${
                                   rowKey(row) === selected ? 'bg-surface-2' : ''
@@ -616,6 +751,7 @@ export default function ActivityResponses() {
 
               <div className="md:flex-1">
                 {current ? (
+                  <Suspense fallback={<p className="rounded-lg border border-line bg-canvas p-6 text-sm text-muted">Loading…</p>}>
                   <GradePanel
                     key={rowKey(current)}
                     row={current}
@@ -635,7 +771,9 @@ export default function ActivityResponses() {
                     onDirtyChange={setDirty}
                     onNext={nextKey ? () => choose(nextKey, true) : null}
                     autoFocus={focusPanel}
+                    assist={ASSIST_API}
                   />
+                  </Suspense>
                 ) : (
                   <p className="rounded-lg border border-line bg-canvas p-6 text-sm text-muted">
                     Pick a response to grade.
@@ -680,571 +818,6 @@ function EmptyState({
       <h2 className="text-lg font-bold text-ink">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted">{body}</p>
       {action ? <div className="mt-4">{action}</div> : null}
-    </div>
-  );
-}
-
-/** The draft mark (DR-1): italic + a visible "AI draft" tag beside the field
- *  it describes, cleared the moment the teacher touches that field. A style
- *  alone would not survive grayscale or a screen reader; the tag is text. */
-function DraftMark() {
-  return (
-    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted" data-draft-mark>
-      {ASSIST_COPY.aiDraft}
-    </span>
-  );
-}
-
-/**
- * The grading panel. Entries live in local state until Save — explicit by
- * ruling — and a failed save KEEPS them: losing a teacher's typed rubric to a
- * network blip is the worst outcome this screen has, so the error renders
- * beside the button and the same payload can be retried.
- *
- * PRE-FILL MODE (DR-1/2/3): when an ungraded row has a pending high-confidence
- * draft, entries initialize from it, each field wears the draft mark until
- * touched, and Save routes through confirm_grade_suggestion — the server
- * writes grade + resolution in ONE transaction and derives confirmed-vs-edited
- * itself. The rubric spec (labels, maxPoints) comes from the PINNED version,
- * so a first-time manual grade renders rubric rows too.
- */
-/** What Save would send, as a comparable string (D8's dirty check). An
- *  emptied criterion feedback box already stores undefined (its onChange),
- *  so it compares equal to one never typed in. */
-function gradeSnapshot(
-  entries: readonly CriterionEntry[],
-  general: string,
-  tickTouched: boolean | null,
-  struck: ReadonlySet<string>,
-): string {
-  return JSON.stringify([
-    [...entries]
-      .sort((a, b) => a.criterionId.localeCompare(b.criterionId)),
-    general,
-    tickTouched,
-    [...struck].sort(),
-  ]);
-}
-
-function GradePanel({
-  row,
-  activityId,
-  suggestion,
-  rubric,
-  question,
-  dol,
-  name,
-  onSaved,
-  onDirtyChange,
-  onNext,
-  autoFocus,
-}: {
-  row: GradingQueueRow;
-  activityId: string;
-  suggestion: SuggestionRow | undefined;
-  rubric: RubricCriterionSpec[] | null;
-  /** "Q13 · Explain to Tama why…", or null while the document is unread. */
-  question: string | null;
-  /** D65: this row is the DoL's primary item; the student's current pass. */
-  dol: { pass: DolPassRow | null } | null;
-  /** The student as this page names them (Hide names applied). */
-  name: string;
-  onSaved: () => Promise<void>;
-  /** Reports whether the panel holds entries Save has not sent. */
-  onDirtyChange: (dirty: boolean) => void;
-  /** Opens the next response still to grade; null when none is left. */
-  onNext: (() => void) | null;
-  /** Move focus into the panel when it opens (it was opened by Next). */
-  autoFocus: boolean;
-}) {
-  const display = deriveAssistDisplay(suggestion, row.graded);
-  const prefill = display.kind === 'prefill' ? display.suggestion : null;
-
-  // The rubric the inputs render against: the pinned spec, else whatever a
-  // saved grade already carries (maxPoints is denormalized on grades, 0034).
-  const spec: RubricCriterionSpec[] = useMemo(() => {
-    if (rubric && rubric.length > 0) return rubric;
-    return (row.criteria ?? []).map((c) => ({
-      id: c.criterionId,
-      label: c.criterionId,
-      maxPoints: c.maxPoints,
-    }));
-  }, [rubric, row.criteria]);
-
-  const [entries, setEntries] = useState<CriterionEntry[]>(() => {
-    const source = row.graded ? row.criteria : prefill ? prefill.criteria : row.criteria;
-    return (source ?? []).map((c) => ({
-      criterionId: c.criterionId,
-      earned: c.earned,
-      feedback: c.feedback ?? undefined,
-    }));
-  });
-  const [general, setGeneral] = useState(
-    () => (row.graded ? row.general_feedback : prefill?.general_feedback_draft) ?? '',
-  );
-  // DR-1: which fields still wear the draft mark. Keyed 'pts:<id>',
-  // 'fb:<id>', 'general'. Starts full in pre-fill mode, empties on touch.
-  const [drafted, setDrafted] = useState<Set<string>>(() => {
-    if (!prefill) return new Set();
-    const marks = new Set<string>();
-    for (const c of prefill.criteria) {
-      marks.add(`pts:${c.criterionId}`);
-      if (c.feedback) marks.add(`fb:${c.criterionId}`);
-    }
-    if (prefill.general_feedback_draft) marks.add('general');
-    return marks;
-  });
-  const [struck, setStruck] = useState<Set<string>>(new Set());
-  const [rejecting, setRejecting] = useState(false);
-  const [rejected, setRejected] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [outcome, setOutcome] = useState<string | null>(null);
-  const [releasing, setReleasing] = useState(false);
-  const [evidenceFor, setEvidenceFor] = useState<string | null>(null);
-  // D65 DL-11: the "DoL passed" tick. Untouched (null) it FOLLOWS the
-  // prefill — every base-level line at full marks — so the common case is the
-  // one Save; a teacher's touch takes over. An auto pass is fixed.
-  const [tickTouched, setTickTouched] = useState<boolean | null>(null);
-  const storedPass = dol?.pass ?? null;
-  const prefillTick = storedPass === null && baseLevelMet(spec, entries);
-  const ticked = tickTouched ?? (storedPass !== null || prefillTick);
-
-  // D8: what Save would send, against what was last loaded or saved. An
-  // untouched pre-fill is not dirty (DR-3): the baseline IS the pre-fill.
-  const snapshot = gradeSnapshot(entries, general, tickTouched, struck);
-  const [baseline, setBaseline] = useState(snapshot);
-  const dirty = snapshot !== baseline;
-  useEffect(() => {
-    onDirtyChange(dirty);
-  }, [dirty, onDirtyChange]);
-  // A panel that goes away (its row left the queue on a refresh) holds
-  // nothing any more, so it must not leave the page believing it does.
-  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
-  // Closing or reloading the tab with an unsaved grade asks the browser's
-  // own question. (In-app links are not guarded: BrowserRouter has no
-  // blocker. See the header comment.)
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
-  const panelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!autoFocus) return;
-    const panel = panelRef.current;
-    (panel?.querySelector<HTMLElement>('input:not([disabled]), textarea') ?? panel)?.focus();
-    // Mount only: focus is placed once, when Next opens the panel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const touch = (mark: string) =>
-    setDrafted((prev) => {
-      if (!prev.has(mark)) return prev;
-      const next = new Set(prev);
-      next.delete(mark);
-      return next;
-    });
-
-  function setEntry(criterionId: string, patch: Partial<CriterionEntry>) {
-    setEntries((prev) => {
-      const existing = prev.find((p) => p.criterionId === criterionId);
-      const merged: CriterionEntry = {
-        criterionId,
-        earned: existing?.earned ?? 0,
-        feedback: existing?.feedback,
-        ...patch,
-      };
-      return [...prev.filter((p) => p.criterionId !== criterionId), merged];
-    });
-  }
-
-  async function save() {
-    const sent = snapshot;
-    setSaving(true);
-    setSaveError(null);
-    setOutcome(null);
-    try {
-      if (prefill && !rejected) {
-        // Confirm = the existing Save (DR-3). The server computes the DR-2
-        // diff against the stored draft; the client only reports strikes.
-        const result = await confirmSuggestion({
-          suggestionId: prefill.suggestion_id,
-          expectedUpdatedAt: prefill.updated_at,
-          criteria: entries,
-          generalFeedback: general,
-          struckMis: [...struck],
-        });
-        setOutcome(
-          result === 'confirmed' ? ASSIST_COPY.savedConfirmed : ASSIST_COPY.savedEdited,
-        );
-      } else {
-        await saveCheckGrade({
-          checkId: row.check_id,
-          blockId: row.block_id,
-          criteria: entries,
-          generalFeedback: general,
-        });
-      }
-      // The pass rides the same Save (DL-11): set it when ticked and absent,
-      // clear it when unticked and the pass is a TEACHER's (an auto one stands).
-      if (dol && storedPass?.source !== 'auto') {
-        if (ticked && storedPass === null) await setDolPass(row.check_id, true);
-        else if (!ticked && storedPass?.source === 'teacher') await setDolPass(row.check_id, false);
-      }
-      setBaseline(sent);
-      await onSaved();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('suggestion_changed')) {
-        // EH-5: the draft moved under the teacher. Never guess whose values
-        // won — reload the row and let them look again.
-        setSaveError(ASSIST_COPY.draftChanged);
-        await onSaved();
-      } else {
-        // Entries stay in state on purpose — see the panel's doc comment.
-        setSaveError(COPY.saveFailed);
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function reject(reason: RejectReason | null) {
-    if (!prefill) return;
-    setSaving(true);
-    setSaveError(null);
-    try {
-      await rejectSuggestion({
-        suggestionId: prefill.suggestion_id,
-        expectedUpdatedAt: prefill.updated_at,
-        reason,
-      });
-      // DR-8: reject clears the drafted values to a blank rubric — the row
-      // becomes a plain manual row, in place, without losing the selection.
-      setEntries([]);
-      setGeneral('');
-      setDrafted(new Set());
-      setStruck(new Set());
-      // The cleared panel is the new saved state: rejecting is not an edit.
-      setBaseline(gradeSnapshot([], '', tickTouched, new Set()));
-      setRejecting(false);
-      setRejected(true);
-      setOutcome(ASSIST_COPY.draftRejected);
-      await onSaved();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setSaveError(message.includes('suggestion_changed') ? ASSIST_COPY.draftChanged : COPY.saveFailed);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function release() {
-    setReleasing(true);
-    try {
-      await releaseGrades(activityId, row.student_id);
-      await onSaved();
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setReleasing(false);
-    }
-  }
-
-  // DR-10: the teacher-only provenance trail on graded rows.
-  const provenance =
-    row.graded && display.kind === 'provenance'
-      ? display.suggestion.status === 'edited'
-        ? ASSIST_COPY.provenanceEdited
-        : display.suggestion.status === 'confirmed'
-          ? ASSIST_COPY.provenanceUnedited
-          : display.suggestion.status === 'rejected'
-            ? ASSIST_COPY.provenanceRejected
-            : null
-      : null;
-
-  return (
-    <div ref={panelRef} tabIndex={-1} data-grade-panel className="rounded-lg border border-line bg-canvas p-4 focus:outline-none">
-      {question ? <p className="mb-1 text-sm font-medium text-ink">{question}</p> : null}
-      <p className="text-xs text-muted">
-        {name} · attempt {row.attempt_number}
-      </p>
-
-      {/* DR-1: the response comes FIRST — a teacher who reads the draft
-          before the work is a teacher whose edit-rate stops meaning much. */}
-      <div className="mt-2 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink">
-        {row.response_text ?? <em className="text-muted">{COPY.noAnswer}</em>}
-      </div>
-
-      {display.kind === 'abstain' && (
-        <p
-          className="mt-2 rounded border border-line bg-surface px-2 py-1 text-xs text-muted"
-          data-assist="abstain"
-        >
-          {ASSIST_COPY.abstain}
-        </p>
-      )}
-
-      {prefill && !rejected && (
-        <p className="mt-2 text-xs italic text-muted" data-assist="draft-note">
-          {ASSIST_COPY.draftNote}
-        </p>
-      )}
-
-      {spec.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-2">
-          {spec.map((criterion) => {
-            const entry = entries.find((e) => e.criterionId === criterion.id);
-            return (
-              <li key={criterion.id} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <label className="flex-1" htmlFor={`pts-${criterion.id}`}>
-                    {criterion.label}
-                  </label>
-                  {drafted.has(`pts:${criterion.id}`) && <DraftMark />}
-                  <input
-                    id={`pts-${criterion.id}`}
-                    type="number"
-                    min={0}
-                    max={criterion.maxPoints}
-                    value={entry?.earned ?? ''}
-                    onChange={(e) => {
-                      touch(`pts:${criterion.id}`);
-                      // Clamp here as well as server-side: the server refuses
-                      // an out-of-range score (0034 §C), and a field that lets
-                      // a teacher type 9 into a 4-point criterion only to
-                      // bounce it on Save is a worse way to say the same
-                      // thing.
-                      const raw = Number(e.target.value);
-                      const earned = Number.isFinite(raw)
-                        ? Math.min(Math.max(raw, 0), criterion.maxPoints)
-                        : 0;
-                      setEntry(criterion.id, { earned });
-                    }}
-                    className={`w-16 rounded-md border border-line-strong px-2 py-1 text-center ${
-                      drafted.has(`pts:${criterion.id}`) ? 'italic text-muted' : ''
-                    }`}
-                  />
-                  <span className="text-muted">/ {criterion.maxPoints}</span>
-                </div>
-                {(entry?.feedback !== undefined || prefill) && (
-                  <div className="mt-1 flex items-center gap-2 pl-4">
-                    <label className="sr-only" htmlFor={`fb-${criterion.id}`}>
-                      {ASSIST_COPY.criterionFeedback} — {criterion.label}
-                    </label>
-                    {drafted.has(`fb:${criterion.id}`) && <DraftMark />}
-                    <input
-                      id={`fb-${criterion.id}`}
-                      type="text"
-                      placeholder={ASSIST_COPY.criterionFeedback}
-                      value={entry?.feedback ?? ''}
-                      onChange={(e) => {
-                        touch(`fb:${criterion.id}`);
-                        setEntry(criterion.id, {
-                          feedback: e.target.value === '' ? undefined : e.target.value,
-                        });
-                      }}
-                      className={`w-full rounded-md border border-line px-2 py-1 text-xs ${
-                        drafted.has(`fb:${criterion.id}`) ? 'italic text-muted' : ''
-                      }`}
-                    />
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-
-      {/* DR-4: individually strikeable observation chips. Confirmed by
-          default WITH the grade; a strike disagrees with one observation
-          without rejecting the draft. Strikes are edits (the server counts
-          them) and per-tag telemetry. */}
-      {prefill && !rejected && prefill.misconception_notes.length > 0 && (
-        <div className="mt-3" data-assist="misconceptions">
-          <p className="text-xs font-semibold text-strong">
-            {ASSIST_COPY.misconceptionsHeading}
-          </p>
-          <p className="text-xs text-muted">{ASSIST_COPY.strikeHint}</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {prefill.misconception_notes.map((note) => {
-              const isStruck = struck.has(note.misId);
-              return (
-                <button
-                  key={note.misId}
-                  type="button"
-                  aria-pressed={isStruck}
-                  onClick={() =>
-                    setStruck((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(note.misId)) next.delete(note.misId);
-                      else next.add(note.misId);
-                      return next;
-                    })
-                  }
-                  onFocus={() => setEvidenceFor(note.misId)}
-                  onMouseEnter={() => setEvidenceFor(note.misId)}
-                  className={`min-h-[44px] rounded-full border px-3 text-xs font-medium ${
-                    isStruck
-                      ? 'border-line bg-surface text-muted line-through'
-                      : 'border-line-strong bg-surface-2 text-strong'
-                  }`}
-                >
-                  {note.misId}
-                </button>
-              );
-            })}
-          </div>
-          {evidenceFor && (
-            <p className="mt-1 text-xs text-muted" data-assist="evidence">
-              {/* Evidence renders as TEXT, never markup (design §4b/D-security). */}
-              {prefill.misconception_notes.find((n) => n.misId === evidenceFor)?.evidence ??
-                ''}
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="mt-3 flex items-center gap-2">
-        <label className="block text-sm font-semibold text-strong" htmlFor="general-feedback">
-          {COPY.generalFeedback}
-        </label>
-        {drafted.has('general') && <DraftMark />}
-      </div>
-      <textarea
-        id="general-feedback"
-        value={general}
-        onChange={(e) => {
-          touch('general');
-          setGeneral(e.target.value);
-        }}
-        className={`mt-1 w-full rounded-md border border-line px-3 py-2 text-sm ${
-          drafted.has('general') ? 'italic text-muted' : ''
-        }`}
-        rows={3}
-      />
-
-      {dol && (
-        <div className="mt-3 rounded-md border border-line px-3 py-2" data-dol-pass>
-          <label className="flex min-h-[44px] items-center gap-2 text-sm font-medium text-strong">
-            <input
-              type="checkbox"
-              checked={ticked}
-              disabled={storedPass?.source === 'auto'}
-              onChange={(e) => setTickTouched(e.target.checked)}
-            />
-            {DOL_PASS_COPY.label}
-          </label>
-          <p className="text-xs text-muted">
-            {storedPass?.source === 'auto'
-              ? DOL_PASS_COPY.auto
-              : tickTouched === null && prefillTick
-                ? DOL_PASS_COPY.prefill
-                : DOL_PASS_COPY.hint}
-          </p>
-        </div>
-      )}
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving}
-          className="min-h-[44px] rounded-md bg-ink px-4 text-sm font-semibold text-canvas disabled:opacity-45"
-        >
-          {saving ? COPY.saving : COPY.save}
-        </button>
-        {onNext && (
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={saving}
-            className="min-h-[44px] rounded-md border border-line-strong px-4 text-sm font-semibold text-strong disabled:opacity-45"
-          >
-            {NEXT_COPY.next}
-          </button>
-        )}
-        {prefill && !rejected && !rejecting && (
-          <button
-            type="button"
-            onClick={() => setRejecting(true)}
-            className="min-h-[44px] rounded-md border border-line px-4 text-sm font-medium text-muted"
-          >
-            {ASSIST_COPY.rejectDraft}
-          </button>
-        )}
-        {row.graded && !row.released_at && (
-          <button
-            type="button"
-            onClick={() => void release()}
-            disabled={releasing}
-            className="min-h-[44px] rounded-md border border-line-strong px-4 text-sm font-semibold text-strong disabled:opacity-45"
-          >
-            {releaseLabel(1, name)}
-          </button>
-        )}
-      </div>
-
-      {/* DR-8: the one-tap reason — optional, three fixed causes, per-rev
-          telemetry. Inline, not a modal: rejecting a draft is a small act. */}
-      {rejecting && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5" data-assist="reject-reasons">
-          <span className="text-xs text-muted">{ASSIST_COPY.rejectWhy}</span>
-          {(Object.keys(ASSIST_COPY.rejectReasons) as RejectReason[]).map((reason) => (
-            <button
-              key={reason}
-              type="button"
-              onClick={() => void reject(reason)}
-              className="min-h-[44px] rounded border border-line px-2 text-xs text-strong"
-            >
-              {ASSIST_COPY.rejectReasons[reason]}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => void reject(null)}
-            className="min-h-[44px] rounded border border-line px-2 text-xs text-muted"
-          >
-            {ASSIST_COPY.rejectNoReason}
-          </button>
-          <button
-            type="button"
-            onClick={() => setRejecting(false)}
-            className="min-h-[44px] px-2 text-xs text-muted underline underline-offset-2"
-          >
-            {ASSIST_COPY.rejectCancel}
-          </button>
-        </div>
-      )}
-
-      {/* The released state is PERSISTENT chrome, not a toast: edits to an
-          already-released grade go live immediately (G4), and a teacher
-          reworking a score deserves to know they are editing in public. */}
-      {row.released_at && (
-        <p className="mt-2 text-xs font-semibold text-strong">{COPY.releasedNote}</p>
-      )}
-
-      {/* DR-10: provenance, teacher-facing only — student attribution never
-          changes (D9). */}
-      {provenance && (
-        <p className="mt-2 text-xs text-muted" data-assist="provenance">
-          {provenance}
-        </p>
-      )}
-
-      {/* DR-11: outcomes announce. role=status is polite — it reports, it
-          does not interrupt the next row's grading. */}
-      <p role="status" className="mt-2 text-xs font-medium text-strong">
-        {outcome ?? ''}
-      </p>
-
-      {saveError && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {saveError}
-        </p>
-      )}
     </div>
   );
 }

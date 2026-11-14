@@ -24,9 +24,11 @@ import {
     fetchClassProgress,
     fetchMisconceptions,
     leastDoneFirst,
+    lastCheckAgo,
     pseudonyms,
     responsesHref,
     tally,
+    studentLastCheck,
     tallyWords,
     type CellStatus,
     type ClassMisconceptions,
@@ -274,6 +276,11 @@ function Body({
                             <th scope="col" className="cp-rowtotal">
                                 Done
                             </th>
+                            {/* Who has gone quiet, at a glance: the newest check
+                                on anything this class was set. */}
+                            <th scope="col" className="cp-rowtotal">
+                                Last check
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -302,6 +309,18 @@ function Body({
                                     ))}
                                     <td className="cp-rowtotal">
                                         done {t.done} of {grid.activities.length}
+                                    </td>
+                                    <td className="cp-rowtotal" data-last-check>
+                                        {(() => {
+                                            const at = studentLastCheck(grid.cells, s.student_id);
+                                            return at ? (
+                                                <time dateTime={at} title={new Date(at).toLocaleString()}>
+                                                    {lastCheckAgo(at)}
+                                                </time>
+                                            ) : (
+                                                lastCheckAgo(null)
+                                            );
+                                        })()}
                                     </td>
                                 </tr>
                             );

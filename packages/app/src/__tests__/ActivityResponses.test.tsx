@@ -571,3 +571,115 @@ describe('Hide names, Next to grade, and the unsaved-grade prompt (D8)', () => {
     expect(nextOwedKey([MAYA, ARI], null, owed)).toBe('chk-1:blk-1');
   });
 });
+
+describe('narrowing the list: one student, only my classes, J / K', () => {
+  const MAYA = row();
+  const ARI = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example', checked_at: '2026-08-16T00:00:00Z' });
+  const STRANGER = row({
+    check_id: 'chk-3', student_id: 'stu-3', student_label: null, in_your_class: false,
+    checked_at: '2026-08-17T00:00:00Z', response_text: 'from outside',
+  });
+  const listed = () => [...document.querySelectorAll('[data-row-key]')].map((b) => b.getAttribute('data-row-key'));
+  const header = () => document.querySelector('[data-grade-panel] p.text-xs')?.textContent ?? '';
+
+  beforeEach(() => window.localStorage.removeItem('progress.hideNames'));
+
+  it('the student picker shows one student; outside students share one entry', async () => {
+    setup([MAYA, ARI, STRANGER]);
+    const picker = (await screen.findByRole('combobox', { name: 'Student' })) as HTMLSelectElement;
+    expect([...picker.options].map((o) => o.textContent)).toEqual([
+      'All students', 'ari@school.example', 'maya@school.example', COPY.notInYourClass,
+    ]);
+    fireEvent.change(picker, { target: { value: 'stu-2' } });
+    expect(listed()).toEqual(['chk-2:blk-1']);
+    fireEvent.change(picker, { target: { value: '__outside__' } });
+    expect(listed()).toEqual(['chk-3:blk-1']);
+  });
+
+  it('Only my classes hides students outside them, and appears only when there are some', async () => {
+    setup([MAYA, ARI, STRANGER]);
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Only my classes' }));
+    expect(listed()).toEqual(['chk-1:blk-1', 'chk-2:blk-1']);
+    cleanup();
+    setup([MAYA, ARI]);
+    await screen.findByRole('combobox', { name: 'Student' });
+    expect(screen.queryByRole('checkbox', { name: 'Only my classes' })).toBeNull();
+  });
+
+  it('a selection that hides everything says so, and Show everyone undoes it', async () => {
+    setup([MAYA, row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example', graded: true, graded_at: 'x' })]);
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Student' }), { target: { value: 'stu-2' } });
+    expect(screen.getByText('Nothing here for this selection')).toBeTruthy();
+    expect(screen.queryByText(COPY.allCaughtTitle)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show everyone' }));
+    expect(listed()).toEqual(['chk-1:blk-1']);
+  });
+
+  it('Next to grade skips a row the picker hides', async () => {
+    setup([MAYA, ARI, STRANGER]);
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Only my classes' }));
+    fireEvent.click(screen.getByRole('button', { name: /ari@school\.example/ }));
+    await waitFor(() => expect(header()).toContain('ari@school.example'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    // Wraps to Maya, not on to the hidden outside row.
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+  });
+
+  it('a filter that hides the open response closes it, unless it holds unsaved work', async () => {
+    setup([MAYA, ARI, STRANGER]);
+    fireEvent.click(await screen.findByRole('button', { name: /maya@school\.example/ }));
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Student' }), { target: { value: 'stu-2' } });
+    await waitFor(() => expect(document.querySelector('[data-grade-panel]')).toBeNull());
+    fireEvent.change(screen.getByRole('combobox', { name: 'Student' }), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /maya@school\.example/ }));
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+    fireEvent.change(screen.getByLabelText(COPY.generalFeedback), { target: { value: 'typed' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Student' }), { target: { value: 'stu-2' } });
+    expect(header()).toContain('maya@school.example');
+    expect((screen.getByLabelText(COPY.generalFeedback) as HTMLTextAreaElement).value).toBe('typed');
+  });
+
+  it('with a student picked, the header counts what is shown and names the whole queue', async () => {
+    setup([MAYA, ARI, STRANGER]);
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Student' }), { target: { value: 'stu-2' } });
+    const head = document.querySelector('[data-outstanding]')!;
+    expect(head.textContent).toBe('1 need grading · 3 in all');
+  });
+
+  it('the picker uses Student N while Hide names is on', async () => {
+    window.localStorage.setItem('progress.hideNames', '1');
+    setup([MAYA, ARI, STRANGER]);
+    const picker = (await screen.findByRole('combobox', { name: 'Student' })) as HTMLSelectElement;
+    expect([...picker.options].map((o) => o.textContent)).toEqual(['All students', 'Student 1', 'Student 2', COPY.notInYourClass]);
+  });
+
+  it('J and K do nothing while a dialog is open', async () => {
+    // A graded, unreleased row puts "Release all graded" up; its dialog is modal.
+    setup([MAYA, row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example', graded: true, graded_at: 'x' })]);
+    fireEvent.click(await screen.findByRole('button', { name: /Release all graded/ }));
+    await screen.findByRole('alertdialog');
+    fireEvent.keyDown(document.body, { key: 'j' });
+    expect(document.querySelector('[data-grade-panel]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    fireEvent.keyDown(document.body, { key: 'j' });
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+  });
+
+  it('J and K step through the list as shown, but not while typing', async () => {
+    setup([MAYA, ARI, STRANGER]);
+    await screen.findByRole('combobox', { name: 'Student' });
+    fireEvent.keyDown(document.body, { key: 'j' });
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+    fireEvent.keyDown(document.body, { key: 'j' });
+    await waitFor(() => expect(header()).toContain('ari@school.example'));
+    expect(document.activeElement?.getAttribute('data-row-key')).toBe('chk-2:blk-1');
+    fireEvent.keyDown(document.body, { key: 'k' });
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+    // In the feedback box, j is a letter.
+    const fb = screen.getByLabelText(COPY.generalFeedback);
+    fireEvent.keyDown(fb, { key: 'j' });
+    expect(header()).toContain('maya@school.example');
+  });
+});
