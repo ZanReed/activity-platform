@@ -28,6 +28,7 @@ import {
 } from '../lib/classPlan';
 import { fetchSprintOverview, type SprintOverview } from '../lib/factSprint';
 import { fetchMixedSummary, type MixedSummary } from '../lib/mixedTeacher';
+import { PRESENT_FROM_CLASSES } from '../lib/presentFrom';
 import { useSession } from '../lib/SessionContext';
 
 export default function ClassPresent() {
@@ -40,7 +41,9 @@ export default function ClassPresent() {
     const location = useLocation();
     const facts = `/classes/${classId}/facts`;
     // Opened from the Classes card, Back returns there; otherwise to Today & practice.
-    const back = (location.state as { from?: unknown } | null)?.from === '/classes' ? '/classes' : facts;
+    const back = (location.state as { from?: unknown } | null)?.from === PRESENT_FROM_CLASSES
+            ? PRESENT_FROM_CLASSES
+            : facts;
 
     const [cls, setCls] = useState<ClassInfo | null>(null);
     const [today, setToday] = useState<ClassToday | null>(null);

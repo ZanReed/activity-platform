@@ -12,7 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 
 const h = vi.hoisted(() => {
     const listResult: { current: { data: unknown; error: unknown } } = {
@@ -392,6 +392,28 @@ describe('join link', () => {
         const link = await screen.findByRole('link', { name: 'Present today: Algebra I — Period 3' });
         expect(link.getAttribute('href')).toBe('/classes/class-1/present');
         expect(link.textContent).toBe('Present today');
+    });
+
+    it('"Present today" tells the present view it came from Classes (so Back returns here)', async () => {
+        h.listResult.current = {
+            data: [{ id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
+                     age_assertion_at: '2026-08-12T00:00:00Z', created_at: '2026-08-12T00:00:00Z' }],
+            error: null,
+        };
+        const { PRESENT_FROM_CLASSES } = await import('../lib/presentFrom');
+        function Probe() {
+            return <p data-testid="probe">{JSON.stringify(useLocation().state)}</p>;
+        }
+        render(
+            <MemoryRouter initialEntries={['/classes']}>
+                <Routes>
+                    <Route path="/classes" element={<Classes />} />
+                    <Route path="/classes/:classId/present" element={<Probe />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        fireEvent.click(await screen.findByRole('link', { name: 'Present today: Algebra I — Period 3' }));
+        expect(JSON.parse((await screen.findByTestId('probe')).textContent ?? 'null')).toEqual({ from: PRESENT_FROM_CLASSES });
     });
 
     it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {

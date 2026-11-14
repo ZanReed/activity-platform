@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
-const h = vi.hoisted(() => ({ role: 'teacher' as string | null, planFails: false, todayCalls: 0 }));
+const h = vi.hoisted(() => ({ role: 'teacher' as string | null, planFails: false, noPicks: false, todayCalls: 0 }));
 vi.mock('../lib/SessionContext', () => ({ useSession: () => ({ role: h.role }) }));
 vi.mock('../lib/classes', () => ({
     listClasses: async () => [{ id: 'c1', name: '7A', joinCode: 'ABC123' }],
@@ -19,7 +19,7 @@ vi.mock('../lib/classes', () => ({
 vi.mock('../lib/classToday', () => ({
     fetchClassToday: async () => (h.todayCalls++, {
         on_date: '2026-11-16',
-        activities: [{ activity_id: 'a1', title: 'Unit rates' }],
+        activities: h.noPicks ? [] : [{ activity_id: 'a1', title: 'Unit rates' }],
     }),
 }));
 vi.mock('../lib/classPlan', async (orig) => ({
@@ -78,6 +78,7 @@ function renderPage(from?: string) {
 beforeEach(() => {
     h.role = 'teacher';
     h.planFails = false;
+    h.noPicks = false;
     h.todayCalls = 0;
 });
 afterEach(cleanup);
@@ -130,6 +131,14 @@ describe('the present view', () => {
         expect(screen.getByRole('link', { name: 'Back (Esc)' }).getAttribute('href')).toBe('/classes');
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(await screen.findByText('Classes page')).toBeTruthy();
+    });
+
+    it('with nothing picked, it says so and links to Today & practice', async () => {
+        h.noPicks = true;
+        h.planFails = true;
+        renderPage('/classes');
+        expect(await screen.findByText(/Nothing is picked for today/)).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Today & practice page' }).getAttribute('href')).toBe('/classes/c1/facts');
     });
 
     it('a student sees nothing of the plan', async () => {

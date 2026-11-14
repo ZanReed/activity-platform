@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
+import { PRESENT_FROM_CLASSES } from '../lib/presentFrom';
 import { TeacherNav } from '../components/TeacherNav';
 import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
 import { useSession } from '../lib/SessionContext';
@@ -808,12 +809,14 @@ function ClassCard({
         >
         Unit tracker
         </Link>
-        {/* PP-9: the projector view, as its own button on the card (author
+        {/* D-6: every card control is named "<visible words>: <class>",
+            so a list of cards is not a column of identical names.
+            PP-9: the projector view, as its own button on the card (author
             2026-11-14: a link under the Today day card did not say what it was
             for). Back from it returns here. */}
         <Link
         to={`/classes/${info.id}/present`}
-        state={{ from: '/classes' }}
+        state={{ from: PRESENT_FROM_CLASSES }}
         aria-label={`Present today: ${info.name}`}
         title="Show today's period on the projector"
         className="rounded-md border border-line-strong bg-canvas px-2.5 py-1 text-sm font-medium text-ink transition hover:bg-surface"
@@ -821,9 +824,7 @@ function ClassCard({
         >
         Present today
         </Link>
-        {/* C-8: Today lives on this page; "Practice" alone hid it.
-            D-6: every card control below is named "<visible words>: <class>",
-            so a list of cards is not a column of identical names. */}
+        {/* C-8: Today lives on this page; "Practice" alone hid it. */}
         <Link
         to={`/classes/${info.id}/facts`}
         aria-label={`Today & practice: ${info.name}`}

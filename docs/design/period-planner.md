@@ -692,3 +692,8 @@ Classes; from Today & practice, they return there as before. The view's "nothing
 line now links to Today & practice. No migration, no deploy. Tested on rendered output
 (Classes, ClassPresent); the back-path guard was mutation-tested (1 red). Cold verify
 green, lanes 174/174.
+Fable-reviewed, no P0 or P1. Its P2s are fixed: the hand-off from the card to the
+view is now tested by clicking the button (`lib/presentFrom.ts` holds the one value,
+and dropping the link's state turns 1 test red), and the empty-state link has a test.
+It also noted that a student who opens `/classes` sees the teacher controls. That was
+true before this change, and this button shows them only "This page is for teachers."
