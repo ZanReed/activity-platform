@@ -4,6 +4,7 @@ import { TeacherNav } from '../components/TeacherNav';
 import { BarChart3, ClipboardCheck, Copy, Import, Library, Trash2, Users } from 'lucide-react';
 import { AddToClassPanel, classesHolding, unitMembership, useClassMembership } from '../components/AddToClass';
 import { RepublishDialog } from '../components/RepublishDialog';
+import ActivityRowMenu from '../components/ActivityRowMenu';
 import { listDeletedActivities, restoreActivity, type DeletedItem } from '../lib/recentlyDeleted';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
@@ -131,6 +132,9 @@ function fetchActivityRows() {
 // G-6's confirm is loaded on first use: the Activities journey has no room
 // for it in the first download (perf-budgets: journey activities).
 const ConfirmDialog = lazy(() => import('../components/ConfirmDialog'));
+// The ⋯ menu's Preview: the published version, static, under the row. Lazy:
+// the viewer is paid for only when a teacher opens one.
+const BankPreview = lazy(() => import('../components/BankPreview'));
 // Loaded only when something has been deleted (perf-budgets journeys).
 const RecentlyDeleted = lazy(() => import('../components/RecentlyDeleted'));
 
@@ -157,6 +161,8 @@ export default function Activities() {
     // Which add-to-class panel is open: `unit:<key>`, a row id, or none. One
     // at a time, so the page never grows a column of open panels.
     const [classPanel, setClassPanel] = useState<string | null>(null);
+    // The one row whose preview is open (the ⋯ menu's Preview).
+    const [previewId, setPreviewId] = useState<string | null>(null);
     const location = useLocation();
 
     const [activities, setActivities] = useState<ActivityRow[]>([]);
@@ -856,11 +862,13 @@ export default function Activities() {
                         treatment fails the hard rules at 150 rows: the
                         decoration IS the noise. Structure comes from the
                         header above; the row carries only content. */}
-                    <ul className="mt-1.5 overflow-hidden rounded-lg border border-line bg-canvas">
+                    {/* No overflow-hidden: it clipped each row's ⋯ menu. The
+                        first and last rows round their own hover instead. */}
+                    <ul className="mt-1.5 rounded-lg border border-line bg-canvas">
                     {group.rows.map((a, i) => (
                         <li
                         key={a.id}
-                        className={`flex flex-wrap items-center gap-x-3 px-3.5 py-2 transition hover:bg-surface-2 ${
+                        className={`flex flex-wrap items-center gap-x-3 px-3.5 py-2 transition first:rounded-t-lg last:rounded-b-lg hover:bg-surface-2 ${
                             i > 0 ? 'border-t border-line' : ''
                         }`}
                         >
@@ -965,6 +973,14 @@ export default function Activities() {
                         >
                         <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
                         </Link>
+                        <ActivityRowMenu
+                        activityId={a.id}
+                        title={a.title}
+                        published={a.status === 'published'}
+                        previewOpen={previewId === a.id}
+                        onTogglePreview={() => setPreviewId((cur) => (cur === a.id ? null : a.id))}
+                        buttonClassName={`${ICON_BUTTON} text-muted hover:text-strong`}
+                        />
                         {/* Not on a Bank copy (Fable review of E-1): a client insert
                             can't carry `copied_from_*` (the provenance guard), so a
                             copy of a copy would lose its DoL, practice and glossary
@@ -1005,6 +1021,32 @@ export default function Activities() {
                         <Trash2 aria-hidden="true" className="h-4 w-4" />
                         </button>
                         </span>
+                        {previewId === a.id && a.status === 'published' && (
+                            <div className="mt-2 basis-full pb-1" data-row-preview>
+                            <p className="mb-1.5 text-xs text-muted">
+                            What students see: the published version, with nothing to press.
+                            {changedIds.has(a.id) && (
+                                <>
+                                {' '}
+                                <span className="font-medium text-strong" data-preview-unpublished>
+                                You have unpublished changes; students still see this version.
+                                </span>
+                                </>
+                            )}
+                            {' '}
+                            <button
+                            type="button"
+                            onClick={() => setPreviewId(null)}
+                            className="font-medium underline underline-offset-2 hover:text-strong"
+                            >
+                            Hide preview
+                            </button>
+                            </p>
+                            <Suspense fallback={<p className="text-sm text-muted">Loading the preview…</p>}>
+                            <BankPreview activityId={a.id} />
+                            </Suspense>
+                            </div>
+                        )}
                         {classPanel === a.id && (
                             <AddToClassPanel
                             targets={[a]}

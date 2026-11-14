@@ -98,6 +98,12 @@ vi.mock('../components/AddToClass', async (importActual) => {
     };
 });
 
+// The ⋯ menu's Preview renders the real viewer in print mode; here, a stand-in
+// that names the activity it was asked for.
+vi.mock('../components/BankPreview', () => ({
+    default: ({ activityId }: { activityId: string }) => <div data-testid="preview-of">{activityId}</div>,
+}));
+
 import Activities from '../routes/Activities';
 
 const ROWS = [
@@ -1005,5 +1011,38 @@ describe('Republish changed (R-1..R-7)', () => {
         expect(within(dialog).getByText('Constant k: Nothing to publish')).toBeInTheDocument();
         fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
         expect(await screen.findByRole('button', { name: 'Republish changed (1)' })).toBeInTheDocument();
+    });
+});
+
+describe('the row ⋯ menu (author ruling 2026-11-15)', () => {
+    it('Preview opens the published version under its row; Hide preview closes it', async () => {
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'More for Review' }));
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }));
+        const preview = await screen.findByTestId('preview-of');
+        expect(preview.textContent).toBe('a2');
+        expect(preview.closest('li')?.textContent).toContain('Review');
+        // No draft edits on this row: no unpublished-changes line.
+        expect(document.querySelector('[data-preview-unpublished]')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Hide preview' }));
+        expect(screen.queryByTestId('preview-of')).toBeNull();
+    });
+
+    it('Preview warns when the activity has unpublished changes', async () => {
+        h.listResult.current = {
+            data: [{ id: 'a2', title: 'Review', status: 'published', updated_at: '2026-07-09T00:00:00Z', draft_schema: 3 }],
+            error: null,
+        };
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'More for Review' }));
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }));
+        await screen.findByTestId('preview-of');
+        expect(document.querySelector('[data-preview-unpublished]')?.textContent).toContain('unpublished changes');
+    });
+
+    it('a draft row offers Print only', async () => {
+        renderList();
+        fireEvent.click(await screen.findByRole('button', { name: 'More for Warm Up' }));
+        expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Print']);
     });
 });

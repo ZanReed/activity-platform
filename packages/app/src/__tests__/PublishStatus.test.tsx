@@ -19,7 +19,8 @@ import {
     screen,
 } from '@testing-library/react';
 
-import PublishStatus, { viewerShareUrl } from '../components/PublishStatus';
+import PublishStatus from '../components/PublishStatus';
+import { viewerShareUrl } from '../lib/shareUrl';
 
 // The line probes listClasses() on mount (the "Add to class" link is absent
 // for a teacher with no classes). Unmocked, that probe was a real request —

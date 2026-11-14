@@ -26,12 +26,9 @@ import {
     shareActivityToClass,
 } from '../lib/classActivities';
 import { supabase } from '../lib/supabase';
+import { viewerShareUrl } from '../lib/shareUrl';
 
-/** The canonical share URL for an activity: the viewer route on this origin.
- * This is what teachers hand to students — never a storage or backend URL. */
-export function viewerShareUrl(activityId: string): string {
-    return `${window.location.origin}/a/${activityId}`;
-}
+// The share URL has one definition: lib/shareUrl.
 
 export default function PublishStatus({
     activityId,

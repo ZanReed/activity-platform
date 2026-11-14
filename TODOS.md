@@ -429,9 +429,10 @@ This entry said the stylesheet sat 38 bytes under a 15.0 KiB cap (2026-10-14). T
 
 ## Adding activities to a class: the two deferred items (assign-to-class.md, ruled 2026-10-14)
 
-A1–A6 are BUILT (see the doc's "As built"). Two items wait on a trigger:
+A1–A6 are BUILT (see the doc's "As built"). Three items wait on a trigger:
 
 - **A4(b): students' Home grouped by unit, in teaching order.** Today the Home is newest first (DR-1), and a unit add is sent last-first so it reads in teaching order (A4(a)). A single activity added later sits on top. **Trigger:** a class has two or more units on its Home and students report not finding the current one. Needs a `list_class_activities` change plus a migration, and it reverses DR-1, so it needs a design pass.
+- **A8: pick any set of activities and add them to a class in one go** (filed 2026-11-15, author: "skip it for now"). A whole unit already goes in from its header's Add to class; this is checkboxes on the rows and an "Add N to a class" bar reusing `AddToClassPanel`, which already takes several targets. **Trigger:** a teacher needs a set that is not one unit (say, three activities from two units) and adds them one by one.
 - **A7: publish from the Activities list without opening the editor.** **Trigger:** a teacher has to open more than one draft in a row only to publish it for a class. Bank copies are published when they are copied, so today this only affects the teacher's own drafts.
 
 ## THE AUTHOR'S TEST QUEUE — build run of 2026-10-04
