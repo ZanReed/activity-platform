@@ -600,7 +600,13 @@ Bank copies.
 Steps 1–5 committed on `main`, unpushed; each had a Fable review, and every
 major finding was fixed in a follow-up commit (`fix(grading)`, `fix(import)`).
 
-**Pending author, in order:** `pnpm deploy:check` and `pnpm deploy:get-activity`,
+**DEPLOYED and hash-verified 2026-11-14:** each function downloaded alone into
+its own temp dir; `grading-server.bundle.js` (check-activity) and
+`viewer-server.bundle.js` (get-activity) are byte-identical to the repo at
+`e34521e5` (sha256 `dab75852…` / `504f23ea…`), both markers present,
+`verify_jwt` true / false. Push is now safe.
+
+**Pending author, in order (deploys done):** `pnpm deploy:check` and `pnpm deploy:get-activity`,
 both hash-verified (download into a temp dir, `shasum -a 256
 _shared/*.bundle.js` against the repo). Marker cross-checks: the built-in line
 "isn't in the form the question asks for" in the grading bundle, `"value",
