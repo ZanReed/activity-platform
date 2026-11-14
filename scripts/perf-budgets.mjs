@@ -708,7 +708,11 @@ export const TEACHER_JOURNEYS = [
         // names) and due dates DD-2/DD-4 (each row's due control, the class's
         // today, "N due this week"; dueDates + dueWords 0.67 KiB). Measured
         // 14.0: every added chunk is the feature's own, none crossed a line.
-        maxGzKiB: 14.25,
+        // 14.25 → 14.5 (2026-11-14, author: "yes, raise it"): HEADROOM, not
+        // growth. Main measured 14.245 and the same code 14.233–14.253
+        // across rebuilds — the chunk hash names inside import specifiers
+        // move the gzip total by ~0.02 — so the cap failed at random.
+        maxGzKiB: 14.5,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A list of classes, no editor.',
     },
