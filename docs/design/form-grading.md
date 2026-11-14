@@ -2,8 +2,9 @@
 
 Status: **RULED 2026-11-14 (author: "Yes to all FG items"): FG-1 to FG-14 as
 recommended.** Not built; build next in the six steps of "Build shape". Letter
-B-251 SENT 2026-11-14 on the author's go-ahead (opening line updated to say
-ruled); replies (a)–(c) owed as C-192.
+B-251 SENT 2026-11-14; C-192 answered it, and the author RULED its amendments
+A1–A5 the same day ("Amendments from C-192" below, which OUTRANK FG-1, FG-2
+and FG-3 where they differ). B-252 sent with the answers.
 A Fable review of the draft (2026-11-14) confirmed the code facts and found two
 more live parse defects (`x(x+2)` read as a function call; MathLive's
 `\frac{2}{3}x` read as `2/(3x)`), an overclaim in seeded form (constants were
@@ -219,7 +220,8 @@ both sides after the look-alike fold and the `²` fold, as an explicit list (the
 - **Accepted, and the letter says so:** `a*12*b` for `12ab` (order of factors is
   not form), and `2÷3` for `2/3` (MathLive's `\div` is `/`).
 - *Not* on the list, deliberately: distributing, collecting, cancelling,
-  constant folding, `x/2` ≡ `½x`. Each one is exactly a form some skill grades.
+  constant folding. Each one is exactly a form some skill grades. (`x/2` ≡ `½x`
+  WAS on this line; amendment A2 moved it onto the list.)
 
 **FG-3 · Single-letter variables (fixes the live defect). Recommended: in
 EVERY math blank and gap, value mode included, a run of letters that is not a
@@ -418,6 +420,51 @@ canonicaliser also caps tree size and depth (a node-count limit next to the
 existing ones in [guards.ts](../../packages/viewer/src/server/grading/guards.ts)).
 - *Alternative:* none worth listing; this is the S4-B3 rule applied to the new
   paths, and the review's point is that the draft left them open.
+
+## Amendments from C-192 (RULED by the author 2026-11-14, "Yes to all")
+
+The curriculum side's answer to B-251. Their reason, which the rulings adopt:
+the two errors are not equally costly. A forgotten alternate tells a correct
+student, authoritatively, that the answer "isn't in the form the question asks
+for", and the teacher's count shows an authoring gap as a student error; an
+over-generous rule at worst marks an unusual but complete answer right.
+
+- **A1 · Default stance (amends FG-1).** The key still states the form, but the
+  shape rule carries EVERY variant the skill does not grade as form. An author
+  who wants one form only narrows the item by its LAYOUT (numeric blanks inside
+  the structure, §7's first carrier, `{{=-4}}(x + {{=2}})`) or by exact
+  alternates. No new syntax. Every prompt on a form blank names the form in
+  words; their draft lint checks it.
+- **A2 · Fraction coefficients (new FG-2 rule 9).** A product over a NUMERIC
+  denominator is that fraction as a coefficient: `x/2` ≡ `½x` ≡ `(1/2)x`,
+  `2x/3` ≡ `⅔x` ≡ `(2/3)x`. Leaves are never folded, so `4x/6` is `(4/6)x`
+  and stays wrong form for `⅔x` (simplest form holds). A LETTER denominator
+  (`4b/a`, algebra.terms.divide) is unchanged.
+- **A3 · Sign through a bracket (new FG-2 rule 10).** Negating two factors of
+  a product is the same shape: `−6(2−3x)` ≡ `6(3x−2)`, `−x(2−xy³)` ≡
+  `x(xy³−2)`, and `−6(3x−2)` ≡ `6(2−3x)`. Implemented as a canonical sign per
+  sum factor (after FG-2 rule 2's sort; leading term positive, the sign moved to
+  the product's front) with the parity of negations kept. It applies on both
+  sides and to `!` bindings (FG-4), so `!2(9x-6)` also catches `−2(6−9x)`.
+- **A4 · Mixed numbers (widens FG-2 rule 8 and FG-3).** A mixed number of
+  integers is the same shape as its improper fraction: `1⅓` ≡ `4/3`, while
+  `1 2/6` ≡ `8/6` stays wrong form for `4/3`. The tokenizer reads three new
+  spellings as a mixed number, in every math blank (widening-only, because
+  each is a parse failure today, which marks a correct answer WRONG, not wrong
+  form): an integer, a space, then `n/m` (`1 1/3`); an integer followed by a
+  vulgar-fraction glyph (`1⅓`; the glyphs `½ ⅓ ⅔ ¼ ¾ ⅕…⅞` map to `(n)/(m)`
+  in `math-form.ts` only, never in `normalize.ts`, whose NFKC exclusion
+  stands); and MathLive's `2(1)/(3)` as before. A lone glyph (`⅓`) is `1/3`.
+  Bound check: a mixed number counts as two leaves for FG-14.
+- **A5 · "Right value, wrong form" as its own outcome: FG-11 STANDS.** It stays
+  `incorrect`; an authored `!form-wrong … mis.*` counts it per item. ⚠ Known
+  tension, accepted: their rule is that `!form-wrong` is written only when the
+  skill has something more specific to say, so most wrong-form answers are NOT
+  counted separately in v1. `reason: 'form'` stays filed, its trigger widened
+  to "a teacher OR the curriculum side asks for the count where no
+  `!form-wrong` is authored".
+- **Accepted as is:** the built-in line (FG-5 step 4) is the default and
+  `!form-wrong` is optional; named wrong forms keep their own bindings.
 
 ## The GUI (every feature ships with one)
 
