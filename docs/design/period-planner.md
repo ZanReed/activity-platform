@@ -364,9 +364,9 @@ the teacher paste prompt (`markdownImportPrompt.ts`) and
 
 ## Not checked yet
 
-- Whether 10 days is the right window for a teacher who plans a unit at a time.
-- How the present view reads on a real projector (contrast, distance).
-- Whether teachers notice that moving a plan doesn't move its due date.
+- ~~Whether 10 days is the right window~~ — the author: "ten days seems fine" (2026-11-14).
+- How the present view reads on a real projector (contrast, distance). **The author checks it.**
+- Whether teachers notice that moving a plan doesn't move its due date. **The author checks it.**
 
 ## The letter (SENT 2026-11-13 as B-246, with a summary of PP-1…PP-12, to the curriculum session the author confirmed; answered by C-188, 2026-11-14)
 
