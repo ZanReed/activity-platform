@@ -21,6 +21,9 @@ import {
     filterFeedbackForCommit,
     stripList,
     type MistakeFeedbackPair,
+    FORM_WRONG_MATCH,
+    formWrongOf,
+    mistakeRowsOf,
 } from './blankPopoverLogic';
 import MisconceptionField from './MisconceptionField';
 
@@ -141,8 +144,18 @@ export default function BlankEditPopover({
     // the nested editors, so they aren't held as draft string state here —
     // mistakeFeedback is kept only to drive the row UI (match inputs + which
     // rows exist); each feedback body is owned by its nested editor.
+    // The reserved `!form-wrong` entry (form grading, FG-5) is NOT a row: it
+    // has its own field under the mistakes list, so the rows hold the rest and
+    // every commit puts the two back together (commitFeedback).
+    // Only a MATH blank splits it out: on a text blank a literal "form-wrong"
+    // is an ordinary row the teacher can see and delete (step-4 review).
     const [mistakeFeedback, setMistakeFeedback] = useState<MistakeFeedbackPair[]>(
-        initialMistakeFeedback ?? [],
+        initialAnswerType === 'math'
+            ? mistakeRowsOf(initialMistakeFeedback)
+            : (initialMistakeFeedback ?? []),
+    );
+    const [formWrong, setFormWrong] = useState<MistakeFeedbackPair | undefined>(
+        initialAnswerType === 'math' ? formWrongOf(initialMistakeFeedback) : undefined,
     );
     // Grouping flag commits immediately on toggle (no draft/flush), like the
     // acceptable-answer remove path.
@@ -219,7 +232,14 @@ export default function BlankEditPopover({
             setAnswer(initialAnswer);
             setAnswerError(null);
             setAcceptableAnswers(initialAcceptableAnswers);
-            setMistakeFeedback(initialMistakeFeedback ?? []);
+            setMistakeFeedback(
+                initialAnswerType === 'math'
+                    ? mistakeRowsOf(initialMistakeFeedback)
+                    : (initialMistakeFeedback ?? []),
+            );
+            setFormWrong(
+                initialAnswerType === 'math' ? formWrongOf(initialMistakeFeedback) : undefined,
+            );
             setInterchangeable(initialInterchangeable);
             setAnswerType(initialAnswerType);
             setEquivalence(
@@ -468,9 +488,38 @@ export default function BlankEditPopover({
     // non-empty match string and feedback content or a misconception id;
     // half-finished rows stay in the draft (so the UI keeps them) but are
     // dropped from the committed attr until complete.
-    const commitFeedback = (next: MistakeFeedbackPair[]) => {
+    const commitFeedback = (
+        next: MistakeFeedbackPair[],
+        nextFormWrong: MistakeFeedbackPair | undefined = formWrong,
+    ) => {
         setMistakeFeedback(next);
-        onChange({ mistakeFeedback: filterFeedbackForCommit(next) });
+        setFormWrong(nextFormWrong);
+        // A row whose match is the reserved word never doubles the wrong-form
+        // entry: while the field owns it, such a row is not committed.
+        const rows = nextFormWrong ? mistakeRowsOf(next) : next;
+        onChange({
+            mistakeFeedback: filterFeedbackForCommit(
+                nextFormWrong ? [...rows, nextFormWrong] : rows,
+            ),
+        });
+    };
+
+    // The wrong-form message (FG-5): writes the reserved `!form-wrong` entry.
+    // Empty prose and no misconception = no entry, so the student gets the
+    // built-in line.
+    const updateFormWrongFeedback = (nodes: InlineNodes) => {
+        commitFeedback(mistakeFeedback, {
+            match: FORM_WRONG_MATCH,
+            feedback: nodes,
+            ...(formWrong?.misconceptionId ? { misconceptionId: formWrong.misconceptionId } : {}),
+        });
+    };
+    const updateFormWrongMisconception = (id: string | undefined) => {
+        commitFeedback(mistakeFeedback, {
+            match: FORM_WRONG_MATCH,
+            feedback: formWrong?.feedback ?? [],
+            ...(id ? { misconceptionId: id } : {}),
+        });
     };
 
     const updateFeedbackMatch = (index: number, value: string) => {
@@ -526,6 +575,13 @@ export default function BlankEditPopover({
     const handleAnswerTypeChange = (next: 'text' | 'numeric' | 'math') => {
         if (next === answerType) return;
         setAnswerType(next);
+        // Leaving math leaves form grading: the reserved wrong-form entry goes
+        // with the equivalence (it could never fire on a text/numeric blank).
+        const dropFormWrong =
+            next !== 'math' && formWrong
+                ? { mistakeFeedback: filterFeedbackForCommit(mistakeFeedback) }
+                : {};
+        if (next !== 'math') setFormWrong(undefined);
         if (next === 'text') {
             // Text clears tolerance + equivalence + unit — all meaningless on a
             // text blank and would silently reappear if numeric/math came back.
@@ -538,6 +594,7 @@ export default function BlankEditPopover({
                 unit: undefined,
                 acceptableUnits: undefined,
                 equivalence: undefined,
+                ...dropFormWrong,
             });
             initialToleranceRef.current = undefined;
             initialUnitRef.current = undefined;
@@ -545,7 +602,7 @@ export default function BlankEditPopover({
         } else if (next === 'numeric') {
             // Numeric keeps tolerance; equivalence is math-only → cleared.
             setEquivalence('value');
-            onChange({ answerType: 'numeric', equivalence: undefined });
+            onChange({ answerType: 'numeric', equivalence: undefined, ...dropFormWrong });
         } else {
             // Math: default equivalence to 'value' (stored as absent). Tolerance
             // carries over (it's valid for both numeric and math); the unit is
@@ -567,7 +624,17 @@ export default function BlankEditPopover({
     const handleEquivalenceChange = (next: 'value' | 'form') => {
         setEquivalence(next);
         // 'value' is the default → store as undefined so value-mode blanks stay
-        // attr-free (round-trip parity); 'form' is stored explicitly.
+        // attr-free (round-trip parity); 'form' is stored explicitly. Going
+        // back to "Any equal form" is the REMOVE path (form-grading.md, The
+        // GUI): the form flag and the wrong-form entry both go.
+        if (next === 'value' && formWrong) {
+            setFormWrong(undefined);
+            onChange({
+                equivalence: undefined,
+                mistakeFeedback: filterFeedbackForCommit(mistakeFeedback),
+            });
+            return;
+        }
         onChange({ equivalence: next === 'form' ? 'form' : undefined });
     };
 
@@ -768,13 +835,21 @@ export default function BlankEditPopover({
                                 aria-label="Math equivalence mode"
                             >
                                 <option value="value">
-                                    Any equivalent form
+                                    Any equal form
                                 </option>
                                 <option value="form">
-                                    Exact form only
+                                    Equal, and in this form
                                 </option>
                             </select>
                         </label>
+                    )}
+                    {answerType === 'math' && equivalence === 'form' && (
+                        <div className="blank-edit-popover__sublabel" data-form-help="true">
+                            The answer and each acceptable answer are the forms
+                            you’ll accept — order and spacing don’t matter, but
+                            2(9x-6) is wrong for 6(3x-2). Say the form in the
+                            question.
+                        </div>
                     )}
                     {(answerType === 'numeric' || answerType === 'math') && (
                         <label className="blank-edit-popover__field">
@@ -918,6 +993,9 @@ export default function BlankEditPopover({
                                 If the student types one of these wrong
                                 answers, show the matching feedback instead
                                 of the generic hint.
+                                {answerType === 'math' && equivalence === 'form'
+                                    ? ' A wrong answer matches in any order, not only as typed.'
+                                    : ''}
                             </div>
                             <div className="blank-edit-popover__list">
                                 {feedbackRows.map((pair, index) => {
@@ -988,6 +1066,31 @@ export default function BlankEditPopover({
                                 })}
                             </div>
                         </div>
+
+                        {answerType === 'math' && equivalence === 'form' && (
+                            <div className="blank-edit-popover__field" data-form-wrong-field="true">
+                                <span className="blank-edit-popover__label">
+                                    If it’s equal but in the wrong form
+                                </span>
+                                <div className="blank-edit-popover__sublabel">
+                                    Shown when the answer is right but not in an
+                                    accepted form. Leave empty to show: “That’s
+                                    equal to the answer, but it isn’t in the form
+                                    the question asks for.”
+                                </div>
+                                <InlineRichTextEditor
+                                    key={`fw-${blankId}`}
+                                    value={formWrong?.feedback ?? []}
+                                    onChange={updateFormWrongFeedback}
+                                    ariaLabel="Wrong-form message"
+                                />
+                                <MisconceptionField
+                                    value={formWrong?.misconceptionId}
+                                    onChange={updateFormWrongMisconception}
+                                    context="an equal answer in the wrong form"
+                                />
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className="blank-edit-popover__field">

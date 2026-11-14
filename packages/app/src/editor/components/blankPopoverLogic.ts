@@ -14,6 +14,7 @@
 // =============================================================================
 
 import type { InlineNodes } from '../../lib/serialize';
+import { FORM_WRONG_MATCH } from '../../lib/blankSyntax';
 
 export interface MistakeFeedbackPair {
   match: string;
@@ -264,4 +265,27 @@ export function isSameBlankSelection(
     prev.equivalence === next.equivalence &&
     prev.canGroupWithPrevious === next.canGroupWithPrevious
   );
+}
+
+// ---- form grading's reserved entry (FG-5) -----------------------------------
+
+/** The reserved mistake match of a form blank; the grader's FORM_WRONG_MATCH,
+ * pinned equal by formImport.test.ts through blankSyntax. */
+export { FORM_WRONG_MATCH };
+
+const isFormWrong = (p: MistakeFeedbackPair): boolean =>
+  p.match.trim().toLowerCase() === FORM_WRONG_MATCH;
+
+/** The mistake ROWS the popover lists: every entry but the reserved one. */
+export function mistakeRowsOf(
+  entries: MistakeFeedbackPair[] | undefined,
+): MistakeFeedbackPair[] {
+  return (entries ?? []).filter((p) => !isFormWrong(p));
+}
+
+/** The reserved `!form-wrong` entry, edited in its own field. */
+export function formWrongOf(
+  entries: MistakeFeedbackPair[] | undefined,
+): MistakeFeedbackPair | undefined {
+  return (entries ?? []).find(isFormWrong);
 }

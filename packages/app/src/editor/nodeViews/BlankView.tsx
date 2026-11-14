@@ -47,13 +47,18 @@ export default function BlankView({ node, selected }: NodeViewProps) {
     // the hover tooltip below; the chip carries no marker (see editor.css).
     const numeric = node.attrs.answerType === 'numeric';
     const tolerance = node.attrs.tolerance as number | undefined;
+    // Form grading (D60): a "form" badge so a teacher scanning the activity
+    // sees which blanks hold the form (form-grading.md, The GUI).
+    const form = node.attrs.answerType === 'math' && node.attrs.equivalence === 'form';
     const width = deriveBlankWidth(answer);
 
     // Hover tooltip: grouping note takes priority (it's the less obvious fact);
     // then the numeric-mode note; otherwise acceptable answers when present.
     const tooltip = grouped
         ? 'Interchangeable with the previous blank — answers count in any order'
-        : numeric
+        : form
+          ? 'Equal, and in this form — an equal answer in another form is marked wrong'
+          : numeric
             ? `Numeric answer — equivalent forms count${
                   tolerance !== undefined ? `, tolerance ±${tolerance}` : ''
               }`
@@ -65,12 +70,19 @@ export default function BlankView({ node, selected }: NodeViewProps) {
         <NodeViewWrapper
             className={`blank-chip${selected ? ' is-selected' : ''}${
                 grouped ? ' is-grouped' : ''
-            }${numeric ? ' is-numeric' : ''}${empty ? ' is-empty' : ''}`}
+            }${numeric ? ' is-numeric' : ''}${form ? ' is-form' : ''}${empty ? ' is-empty' : ''}`}
             data-blank-id={node.attrs.id ?? ''}
             title={empty ? 'This blank needs an answer before you can publish' : tooltip}
         >
             {/* G-2: an empty blank is kept in the draft, and says so. */}
-            <span className="blank-chip__answer">{empty ? 'needs an answer' : answer}</span>
+            <span className="blank-chip__answer">
+                {empty ? 'needs an answer' : answer}
+                {form ? (
+                    <span className="blank-chip__badge" data-form-badge="true">
+                        form
+                    </span>
+                ) : null}
+            </span>
             <span
                 className="blank-chip__underline"
                 style={{ width: `${width}ch` }}

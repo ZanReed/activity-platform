@@ -2933,6 +2933,20 @@ img.mc-block__figure-preview {
     border-color: var(--ed-accent-soft); /* blue-300 */
 }
 
+/* Form grading (D60): a small "form" badge inside the chip, so a teacher can
+ * see which blanks hold the form. Text, not colour alone (survives grayscale
+ * and reads to a screen reader as part of the chip). */
+.blank-chip__badge {
+    margin-left: 0.3em;
+    padding: 0 0.3em;
+    border: 1px solid var(--ed-border);
+    border-radius: 0.2rem;
+    font-size: 0.75em;
+    font-weight: 600;
+    color: var(--ed-accent-text);
+    vertical-align: 0.05em;
+}
+
 /* Numeric mode has NO marker on the chip (author, 2026-10-04: the green "#"
  * that sat to the chip's right read as stray punctuation in the sentence). The
  * mode is on the chip's hover tooltip and in its popover. `.is-numeric` stays
