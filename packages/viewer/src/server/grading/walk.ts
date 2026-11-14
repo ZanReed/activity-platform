@@ -131,6 +131,13 @@ export const GRAPH_TYPES = new Set([
   'data_plot',
 ]);
 
+/** 'form' grades equal-AND-in-the-key's-form (form-grading.md); the retired
+ * 'exact-form' is the same mode (FG-8 — upgradeActivityDocument already maps
+ * it, this is the belt to that brace for a document that skipped the upgrade). */
+function equivalenceOf(v: unknown): 'value' | 'form' {
+  return v === 'form' || v === 'exact-form' ? 'form' : 'value';
+}
+
 /** Project a raw BlankToken onto the grading key shape. */
 function blankTokenToKey(node: Record<string, unknown>): BlankKey {
   const answer = typeof node.answer === 'string' ? node.answer : '';
@@ -148,7 +155,7 @@ function blankTokenToKey(node: Record<string, unknown>): BlankKey {
     answerType:
       answerType === 'numeric' || answerType === 'math' ? answerType : 'text',
     tolerance: typeof node.tolerance === 'number' ? node.tolerance : 0,
-    equivalence: node.equivalence === 'exact-form' ? 'exact-form' : 'value',
+    equivalence: equivalenceOf(node.equivalence),
     mistakeFeedback: Array.isArray(node.mistakeFeedback)
       ? (node.mistakeFeedback as Array<{
           match: string;
@@ -189,7 +196,7 @@ function mathPromptToKey(node: Record<string, unknown>): BlankKey {
     answers: [answer, ...acceptable],
     answerType: 'math',
     tolerance: typeof node.tolerance === 'number' ? node.tolerance : 0,
-    equivalence: node.equivalence === 'exact-form' ? 'exact-form' : 'value',
+    equivalence: equivalenceOf(node.equivalence),
     mistakeFeedback: [],
     hint: undefined,
     // A gap never joins an interchangeable run: the flag is a BlankToken field.
@@ -211,7 +218,7 @@ function mathPromptToKey(node: Record<string, unknown>): BlankKey {
  * A value OUTSIDE them is a shape the schema cannot author — coercing it
  * silently changes grading semantics (e.g. a math answer graded byte-wise). */
 const ANSWER_TYPES = new Set(['text', 'numeric', 'math']);
-const EQUIVALENCES = new Set(['value', 'exact-form']);
+const EQUIVALENCES = new Set(['value', 'form', 'exact-form']);
 
 /** present-with-the-wrong-shape, the rule's one predicate: absent is always
  * fine (authored-empty), a bad shape never is. */

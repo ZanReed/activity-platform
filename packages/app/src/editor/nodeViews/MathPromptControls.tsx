@@ -134,7 +134,10 @@ export default function MathPromptControls({
           initialTolerance={prompt.tolerance}
           initialUnit={undefined}
           initialAcceptableUnits={undefined}
-          initialEquivalence={prompt.equivalence}
+          // Bridge until the form-grading GUI (step 4): the popover still
+          // names the form mode by its retired spelling, which the grader and
+          // upgradeActivityDocument read as 'form' (FG-8).
+          initialEquivalence={prompt.equivalence === 'form' ? 'exact-form' : prompt.equivalence}
           canGroupWithPrevious={false}
           onChange={(attrs) => {
             const patch: Partial<MathPrompt> = {};

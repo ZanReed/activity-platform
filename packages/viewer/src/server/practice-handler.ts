@@ -49,7 +49,7 @@ import {
 } from '../check/wire.js';
 import { gradeSection } from './grading/index.js';
 import { graphTakesInput } from './grading/graphs.js';
-import { evaluateSeededKeys } from './grading/seededKeys.js';
+import { displaySeededEntry } from '../seeded/resolveEntry.js';
 import { inventorySection, type RawSection } from './grading/walk.js';
 import { sanitizeActivityDocument } from '../sanitize/sanitize.js';
 import { applyServeShuffles } from '../sanitize/shuffle.js';
@@ -375,9 +375,13 @@ function answersOf(slot: Slot): PracticeAnswers {
   const inv = inventorySection(slot.raw.sections![0]!);
   const blanks: PracticeAnswers['blanks'] = {};
   for (const { keys } of inv.blankGroupsByBlock) {
-    for (const key of evaluateSeededKeys(keys, slot.values)) {
-      const answer = key.answers[0];
-      if (answer === undefined) continue;
+    for (const key of keys) {
+      const authored = key.answers[0];
+      if (authored === undefined) continue;
+      // The released answer is SHOWN, so it gets the display form (FG-6):
+      // a seeded `{{===g*(p*x - q)}}` reads `6(3x - 2)`, not the bound
+      // `(6)*((3)*x-(2))`. The same function print uses.
+      const answer = displaySeededEntry(authored, key.answerType, slot.values);
       blanks[key.id] = { answer, ...(key.unit ? { unit: key.unit } : {}) };
     }
   }

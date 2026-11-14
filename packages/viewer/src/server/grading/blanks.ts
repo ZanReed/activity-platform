@@ -30,8 +30,8 @@
 //      change marks on activities that are already live.
 // =============================================================================
 
-import { mathEquivalent } from '@activity/graph-kit/scorers';
-import { checkExpressionSafety } from './guards.js';
+import { mathEquivalent, tokenizeMath } from '@activity/graph-kit/scorers';
+import { checkExpressionSafety, MAX_TOKENIZED_LENGTH } from './guards.js';
 import {
   splitUnitEntry,
   normalizeUnit,
@@ -69,8 +69,10 @@ export interface BlankKey {
    * be right — a missing unit is wrong, which is the diagnostic. */
   unit?: string;
   acceptableUnits?: string[];
-  /** Only consulted for answerType 'math'. Absent ⇒ 'value'. */
-  equivalence: 'value' | 'exact-form';
+  /** Only consulted for answerType 'math'. Absent ⇒ 'value'. 'form' is
+   * "equal AND in the key's form" (D60, docs/design/form-grading.md); the
+   * retired 'exact-form' is projected to 'form' by the walk. */
+  equivalence: 'value' | 'form';
   /** Per-wrong-answer feedback. MathPrompts never carry it. `misconceptionId`
    * is the entry's opaque `mis.*` tag, returned on the check verdict. */
   mistakeFeedback: Array<{
@@ -154,6 +156,51 @@ function valueMatchesKey(value: number, key: BlankKey): boolean {
   return false;
 }
 
+/**
+ * The student's math value, read by form grading's tokenizer and BOUNDED, or
+ * null when it trips a bound (FG-14, ruling S4-B3). Called ONCE per value, and
+ * a null means no engine work of any kind follows — no sampling, no mistake
+ * matching, no shape, no `!form-wrong`: the value is simply `incorrect`.
+ *
+ * The raw value is held to the ordinary caps first (so the tokenizer never
+ * sees an unbounded string), then the TOKENIZED string is held to them again,
+ * with its implicit products counted, because the tokenizer splits letters:
+ * 256 letters are 255 multiplications, which the raw count never saw.
+ */
+function boundedMathValue(student: string): string | null {
+  // `x²` ≡ `x^2` on both sides (Fable review P1, 2026-10-17): every blank
+  // shows a ² key, and the math engine reads only `^2`. Same widening-only
+  // fold as text blanks (D7); a bare `x2` is still never a superscript.
+  const folded = foldSuperscriptGlyphs(student);
+  if (!checkExpressionSafety(folded).ok) return null;
+  const tokenized = tokenizeMath(folded);
+  if (!tokenized) return null;
+  if (
+    !checkExpressionSafety(tokenized, {
+      maxLength: MAX_TOKENIZED_LENGTH,
+      countImplicitProducts: true,
+    }).ok
+  ) {
+    return null;
+  }
+  return tokenized;
+}
+
+/** A key or `!` entry, prepared the way scoring compares it. */
+const prepareMathEntry = (entry: string): string =>
+  foldSuperscriptGlyphs(prepareKeyValue(entry));
+
+/** Is the (bounded, tokenized) value value-equal to any key entry? The FG-5
+ * "right value" test behind `!form-wrong` and the built-in line. */
+function valueMatchesMathKey(tokenized: string, key: BlankKey): boolean {
+  const tolerance = coerceTolerance(key.tolerance);
+  for (const entry of key.answers) {
+    const prepared = prepareMathEntry(entry);
+    if (prepared && mathEquivalent(tokenized, prepared, { tolerance })) return true;
+  }
+  return false;
+}
+
 function scoreMath(student: string, key: BlankKey): boolean {
   // Bound the student's expression before the engine compiles and samples it
   // ~56 times (ruling S4-B3). Server-side this is shared compute, and the
@@ -161,19 +208,14 @@ function scoreMath(student: string, key: BlankKey): boolean {
   // `9^9^9^9`. A rejected expression scores wrong rather than raising: a
   // student who trips a bound gets an ordinary incorrect mark, not a failed
   // check for their whole section.
-  if (!checkExpressionSafety(student).ok) return false;
-
-  // `x²` ≡ `x^2` on both sides (Fable review P1, 2026-10-17): every blank
-  // shows a ² key, and the math engine reads only `^2`. Same widening-only
-  // fold as text blanks (D7); a bare `x2` is still never a superscript.
-  const folded = foldSuperscriptGlyphs(student);
+  const tokenized = boundedMathValue(student);
+  if (tokenized === null) return false;
   const tolerance = coerceTolerance(key.tolerance);
-  // exact-form is retired into form (FG-8); step 2 of the build wires 'form'.
-  const mode = key.equivalence === 'exact-form' ? 'form' : 'value';
+  const mode = key.equivalence === 'form' ? 'form' : 'value';
   for (const entry of key.answers) {
-    const prepared = foldSuperscriptGlyphs(prepareKeyValue(entry));
+    const prepared = prepareMathEntry(entry);
     // Parity: falsy entries are skipped rather than compared.
-    if (prepared && mathEquivalent(folded, prepared, { mode, tolerance })) {
+    if (prepared && mathEquivalent(tokenized, prepared, { mode, tolerance })) {
       return true;
     }
   }
@@ -330,6 +372,8 @@ export function matchMistakeEntry(
   const needle = prepared.toLowerCase();
   if (needle === '') return null;
 
+  if (key.answerType === 'math') return matchMathMistake(prepared, key);
+
   // On a NUMERIC blank, compare as numbers within the blank's tolerance —
   // reusing the same parser and closeness test that scoring uses, never a
   // second implementation (policy P2). An author who anticipates "divided the
@@ -429,21 +473,132 @@ export function matchMistakeEntry(
   return null;
 }
 
+/** The reserved `!form-wrong` match (FG-5): fires only when the answer IS
+ * value-equal to a key entry but in none of the keys' forms. A reserved token,
+ * like units.ts's `!unit-missing`, so a student who literally types
+ * "form-wrong" never summons it (the string pass skips it). */
+export const FORM_WRONG_MATCH = 'form-wrong';
+
+/** FG-5 step 4, the built-in line a form blank shows when the value is right,
+ * the form is not, and nothing more specific was authored. A deliberate,
+ * form-blanks-only departure from ruling 2.1A's "hintless ✗ = mark-only": a
+ * student with the right value and a bare ✗ concludes the grader is broken. */
+export const FORM_WRONG_LINE =
+  "That's equal to the answer, but it isn't in the form the question asks for.";
+
+const isFormWrongMatch = (match: string): boolean =>
+  match.trim().toLowerCase() === FORM_WRONG_MATCH;
+
+/**
+ * FG-4: a `!` entry on a MATH blank matches by MEANING, not spelling. On a
+ * form blank it matches when the answer is value-equal to the entry AND has
+ * its shape (`!2(9x-6)` catches `2(9x - 6)`, `(9x-6)*2`, `-2(6-9x)`); on a
+ * value blank, value equivalence alone (the verdict is already false, so
+ * anything equal to the mistake IS the mistake). Per entry, in order, the
+ * plain string pass is the fallback — it keeps every match that worked before
+ * (matching lowercases, the engine doesn't: `!X` must still catch `x`) and
+ * catches a non-math entry (`!no solution`). First match wins, as before.
+ * A value that trips the bound (FG-14) matches nothing.
+ */
+function matchMathMistake(
+  prepared: string,
+  key: BlankKey,
+): BlankKey['mistakeFeedback'][number] | null {
+  const tokenized = boundedMathValue(prepared);
+  if (tokenized === null) return null;
+  const mode = key.equivalence === 'form' ? 'form' : 'value';
+  const tolerance = coerceTolerance(key.tolerance);
+  const foldedNeedle = foldSuperscriptGlyphs(prepared.toLowerCase());
+  for (const entry of key.mistakeFeedback) {
+    if (isFormWrongMatch(entry.match)) continue;
+    const match = prepareMathEntry(entry.match);
+    if (match && mathEquivalent(tokenized, match, { mode, tolerance })) return entry;
+    if (foldSuperscriptGlyphs(trimValue(prepareKeyValue(entry.match)).toLowerCase()) === foldedNeedle) {
+      return entry;
+    }
+  }
+  return null;
+}
+
+/** The outcome of a WRONG blank: what the student is told and which
+ * misconception it reads as. Empty for a correct or unscored blank. */
+export interface BlankOutcome {
+  feedback?: unknown[];
+  misconceptionId?: string;
+}
+
+/**
+ * Feedback + misconception for one blank, by FG-5's precedence:
+ *   1. a matching `!` entry (FG-4), with its message and `mis.*`;
+ *   2. else, on a FORM blank whose value is right, the `!form-wrong` entry;
+ *   3. else the `?hint`;
+ *   4. else, on a form blank whose value is right, FORM_WRONG_LINE.
+ * An entry with a binding and no prose still sends its `mis.*` but falls
+ * through to the next step for the message (the `!21 :: mis.x` rule).
+ *
+ * `group` is the blank's `~` run (FG-4): `!form-wrong` and the built-in line
+ * fire when the value is value-equal to ANY slot's key in it, so a student who
+ * typed `x+1+1` into the `x+3` slot of a pair keyed `x+2`, `x+3` still learns
+ * it is a form matter. Each slot's OWN `!` and `!form-wrong` entries are used.
+ */
+export function selectBlankOutcome(
+  raw: string,
+  key: BlankKey,
+  verdict: BlankVerdict,
+  group: readonly BlankKey[] = [key],
+): BlankOutcome {
+  if (verdict !== false) return {};
+  const mistake = matchMistakeEntry(raw, key);
+  let misconceptionId = mistake?.misconceptionId;
+  if (mistake && mistake.feedback.length > 0) {
+    return { feedback: mistake.feedback, ...(misconceptionId ? { misconceptionId } : {}) };
+  }
+
+  // The form outcome: right value, wrong form. Computed only for a form
+  // blank, and only on a bounded value (a null skips all of it, FG-14).
+  let wrongForm = false;
+  if (key.answerType === 'math' && key.equivalence === 'form') {
+    const tokenized = boundedMathValue(prepareStudentValue(raw));
+    wrongForm =
+      tokenized !== null &&
+      group.some((slot) => slot.answerType === 'math' && valueMatchesMathKey(tokenized, slot));
+  }
+  // A matched `!` entry outranks `!form-wrong` (step 1 before 2), even one
+  // with no prose: its `mis.*` is the reading.
+  if (wrongForm && !mistake) {
+    const formWrong = key.mistakeFeedback.find((m) => isFormWrongMatch(m.match));
+    if (formWrong) {
+      misconceptionId ??= formWrong.misconceptionId;
+      if (formWrong.feedback.length > 0) {
+        return { feedback: formWrong.feedback, ...(misconceptionId ? { misconceptionId } : {}) };
+      }
+    }
+  }
+  const mis = misconceptionId ? { misconceptionId } : {};
+  if (key.hint) return { feedback: key.hint, ...mis };
+  if (wrongForm) {
+    return { feedback: [{ type: 'text', text: FORM_WRONG_LINE }], ...mis };
+  }
+  return mis;
+}
+
 /** The matched entry's misconception id for a WRONG answer, or undefined.
- * Same gate as selectBlankFeedback: only a `false` verdict can carry one. */
+ * Same gate and precedence as selectBlankOutcome (it is that function's id). */
 export function selectBlankMisconception(
   raw: string,
   key: BlankKey,
   verdict: BlankVerdict,
+  group?: readonly BlankKey[],
 ): string | undefined {
-  if (verdict !== false) return undefined;
-  return matchMistakeEntry(raw, key)?.misconceptionId;
+  return selectBlankOutcome(raw, key, verdict, group).misconceptionId;
 }
 
 /**
  * The feedback to return for one blank, following the runtime's precedence:
  * a matching mistakeFeedback entry wins; otherwise the generic hint; otherwise
- * nothing (mark-only, which ruling 2.1A names as the designed default).
+ * nothing (mark-only, which ruling 2.1A names as the designed default) — and,
+ * on a FORM blank only, FG-5's `!form-wrong` and built-in line (see
+ * selectBlankOutcome, which this reads).
  *
  * The hint fallback is RULED, not invented: 2.1A specifies the check response
  * as "{verdict, optional feedback} sourced from existing authored hint /
@@ -457,13 +612,11 @@ export function selectBlankFeedback(
   raw: string,
   key: BlankKey,
   verdict: BlankVerdict,
+  group?: readonly BlankKey[],
 ): unknown[] | undefined {
-  if (verdict !== false) return undefined;
-  const mistake = matchMistakeFeedback(raw, key);
   // An entry may carry a binding and NO prose (`!21 :: mis.x`) — the author
   // wanted the sensor, not a message. That is not targeted feedback, so it
   // falls through to the hint like any unmatched wrong answer, and the empty
   // array never reaches the wire as a feedback field with nothing in it.
-  if (mistake && mistake.length > 0) return mistake;
-  return key.hint ?? undefined;
+  return selectBlankOutcome(raw, key, verdict, group).feedback;
 }

@@ -34,8 +34,7 @@ import {
   groupBlanks,
   scoreBlank,
   scoreBlankGroup,
-  selectBlankFeedback,
-  selectBlankMisconception,
+  selectBlankOutcome,
   type BlankKey,
 } from './blanks.js';
 import {
@@ -116,11 +115,13 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
       group.forEach((key, i) => {
         const verdict = verdicts[i];
         if (verdict === null || verdict === undefined) return; // unanswered
-        const feedback = selectBlankFeedback(raws[i] ?? '', key, verdict);
-        const misconceptionId = selectBlankMisconception(
+        // One outcome per blank (FG-5 precedence); `group` lets a `~` run's
+        // wrong-form value find its key in any slot (FG-4).
+        const { feedback, misconceptionId } = selectBlankOutcome(
           raws[i] ?? '',
           key,
           verdict,
+          group,
         );
         items[key.id] = {
           verdict: verdict ? 'correct' : 'incorrect',

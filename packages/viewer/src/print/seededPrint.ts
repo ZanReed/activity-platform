@@ -18,7 +18,10 @@ import { deriveSeedValues, type SeedValues } from '../sanitize/seedValues.js';
 import type { SeedVar } from '@activity/schema';
 import { substituteBySection } from '../sanitize/substitute.js';
 import { deriveDolValues, findDolSection } from '../sanitize/dolForm.js';
-import { resolveSeededEntry } from '../seeded/resolveEntry.js';
+// displaySeededEntry, not resolveSeededEntry: every caller of this walk SHOWS
+// the key (print, the teacher's view, the Bank preview), so a seeded math key
+// prints folded — `6(3x - 2)`, never `(6)*((3)*x-(2))` (form-grading FG-6).
+import { displaySeededEntry as resolveSeededEntry } from '../seeded/resolveEntry.js';
 
 type AnswerType = 'text' | 'numeric' | 'math';
 

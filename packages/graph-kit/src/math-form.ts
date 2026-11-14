@@ -56,8 +56,9 @@ export const FORM_REWRITES: readonly string[] = Object.freeze([
 /** Cap on shape-tree nodes (FG-14). Far above any authored answer (`6(3x-2)` is
  * 7 nodes); the student side is already bounded to 64 operators by the grader. */
 export const MAX_SHAPE_NODES = 256;
-/** Cap on shape-tree depth (FG-14). The grader bounds student nesting at 16. */
-export const MAX_SHAPE_DEPTH = 48;
+/** Cap on shape-tree depth (FG-14). A left-associated chain counts as depth,
+ * so this sits above the grader's 64-operator cap on a student value. */
+export const MAX_SHAPE_DEPTH = 96;
 
 // ---- 1. the tokenizer --------------------------------------------------------
 
@@ -116,7 +117,7 @@ const MIXED_TYPED_RE = new RegExp(
 );
 // (b) MathLive / glyph: integer directly followed by `(n)/(m)` — `2(1)/(3)`.
 const MIXED_MATHLIVE_RE = new RegExp(
-  ALONE + String.raw`(\d+)\((\d+)\)\/\((\d+)\)`,
+  ALONE + String.raw`(\d+)\s*\((\d+)\)\/\((\d+)\)`,
   'g',
 );
 
@@ -148,8 +149,15 @@ function groupMathLiveFractions(s: string): string {
         }
       }
       if (open < 0) continue;
-      const before = open > 0 ? (out[open - 1] ?? '') : '';
-      if (/[A-Za-z0-9_.)]/.test(before)) continue; // a call, or already grouped
+      // A bracket that belongs to a call is left alone (`sqrt(2)/(3)x`); one
+      // after a coefficient or a letter is MathLive's `2\frac{x}{3}y` and is
+      // grouped too (Fable review, step 1), as is one after a bracket.
+      const head = out.slice(0, open);
+      if (/[_.]$/.test(head)) continue;
+      const word = /[A-Za-z]+$/.exec(head)?.[0];
+      if (word !== undefined && FUNCTION_NAMES.some((f) => word.endsWith(f))) continue;
+      // Already grouped by an earlier pass: `((A)/(n))`.
+      if (head.endsWith('(') && out.slice(m.index + m[0].length).startsWith(')')) continue;
       const end = m.index + m[0].length;
       const group = out.slice(open, end);
       out = `${out.slice(0, open)}(${group})*${out.slice(end)}`;
@@ -209,28 +217,39 @@ function splitIdentifiers(s: string): string {
     }
     i += letters.length;
     const rest = s.slice(i);
-    const callNext = /^\(/.test(rest);
+    const callNext = /^\s*\(/.test(rest);
+    const immediateCall = rest.startsWith('(');
     const spaceNext = /^\s+\S/.test(rest);
+    // Letters are joined by a SPACE (math.js's implicit multiplication), never
+    // by `*`: implicit multiplication binds tighter than `/`, so `1/ab` must
+    // stay 1/(ab) — an explicit `*` would read it as b/a (Fable review of step
+    // 1, the one major finding). After `^` the whole run is bracketed, so
+    // `x^ab` stays x^(ab), as when `ab` was one symbol.
     let emitted: string[];
+    let starAfter = false;
     if (letters === 'mod') {
       emitted = ['mod'];
     } else if (FUNCTION_SET.has(letters) && spaceNext && !callNext) {
       emitted = [letters]; // `sin x` — the engine's own reading, kept
-    } else if (callNext) {
-      const fn = FUNCTION_NAMES.find((f) => letters.endsWith(f));
-      if (fn !== undefined) {
-        const prefix = letters.slice(0, letters.length - fn.length);
-        emitted = [...splitLetters(prefix), fn];
-      } else {
-        emitted = splitLetters(letters);
-        emitted[emitted.length - 1] += '*'; // a letter before a bracket multiplies
-      }
+    } else if (immediateCall && FUNCTION_NAMES.some((f) => letters.endsWith(f))) {
+      const fn = FUNCTION_NAMES.find((f) => letters.endsWith(f)) ?? letters;
+      emitted = [...splitLetters(letters.slice(0, letters.length - fn.length)), fn];
     } else {
       emitted = splitLetters(letters);
+      // A letter before a bracket multiplies (`x(x+2)`, spaced or not) —
+      // math.js reads `x(` as a CALL. An explicit `*` is used here: what it
+      // replaces was always a broken call, so no reading that worked before
+      // can move, and `x*(` is stable under a second pass.
+      starAfter = callNext;
     }
-    out += emitted.join('*');
-    // A letter before digits multiplies: `x2` → `x*2`.
-    if (/^\d/.test(rest) && !out.endsWith('*')) out += '*';
+    let run = emitted.join(' ');
+    if (emitted.length > 1 && /\^\s*$/.test(out)) run = `(${run})`;
+    if (starAfter) run += '*';
+    // Space-separate from a neighbouring word or number so nothing re-merges
+    // (`2 x`, `x 2`): a letter before digits multiplies (`x2` → `x 2`).
+    if (/[A-Za-z0-9)]$/.test(out)) out += ' ';
+    out += run;
+    if (/^[0-9.]/.test(rest)) out += ' ';
   }
   return out;
 }
@@ -243,6 +262,9 @@ export function tokenizeMath(input: string): string {
   let s = input.replace(OPERATOR_GLYPH_RE, (g) => OPERATOR_GLYPHS.get(g) ?? g);
   s = s.replace(VULGAR_RE, (g) => VULGAR.get(g) ?? g);
   s = normalizeAsciiMath(s);
+  // normalizeAsciiMath re-pads `mod` on every pass; collapse it so the
+  // tokenizer is idempotent (FG-14 length counts run on the tokenized string).
+  s = s.replace(/\s*\bmod\b\s*/g, ' mod ');
   if (!s) return '';
   s = s.replace(MIXED_TYPED_RE, (all, w: string, n: string, d: string) => improper(w, n, d) ?? all);
   s = s.replace(MIXED_MATHLIVE_RE, (all, w: string, n: string, d: string) => improper(w, n, d) ?? all);
@@ -255,7 +277,9 @@ export function tokenizeMath(input: string): string {
 
 /** Our own small AST, converted from math.js's at once (bounded). */
 type Raw =
-  | { k: 'num'; v: number }
+  /** `s`: a SEED literal — a bracketed number, which is how bindSeedNames
+   * writes every bound value (`(6)`), or the fold of one. Only these fold. */
+  | { k: 'num'; v: number; s?: true }
   | { k: 'sym'; name: string }
   | { k: 'add' | 'sub' | 'mul' | 'div' | 'pow' | 'mod'; a: Raw; b: Raw }
   | { k: 'neg' | 'paren'; a: Raw }
@@ -346,10 +370,19 @@ const constOf = (r: Raw): number | null => {
  * - `1*t` → `t`, `(-1)*t` → `-t`, `t^1` → `t`, `t^0` → `1`, `t+0`/`0+t` → `t`,
  *   `t-0` → `t`, `0-t` → `-t`, a `0*t` term → `0`, `-(-k)` → `k`;
  * - brackets around a lone number or letter go (`(6)` → `6`).
+ * Each fold and clean-up needs a SEED number in it — a bracketed number, the
+ * spelling bindSeedNames gives every bound value — so an authored literal key
+ * (`3*4`, `1x`) keeps its form exactly as written.
  * The STUDENT side gets none of this: a student who writes `1x` or `4*3ab` has
  * not finished simplifying.
  */
 function foldKey(r: Raw): Raw {
+  const seed = (v: number): Raw => ({ k: 'num', v, s: true });
+  /** The value of a SEED number (bracketed, or folded from one), else null. */
+  const seedOf = (x: Raw): number | null => {
+    const u = unparen(x);
+    return u.k === 'num' && u.s ? u.v : null;
+  };
   switch (r.k) {
     case 'num':
     case 'sym':
@@ -357,50 +390,55 @@ function foldKey(r: Raw): Raw {
     case 'paren': {
       const a = foldKey(r.a);
       const u = unparen(a);
-      // Brackets around one number or letter are not shape (rule 1); the
-      // printer re-brackets a negative number where it needs to.
-      if (u.k === 'num' || u.k === 'sym') return u;
+      // A bracketed number is a seed literal (bindSeedNames writes `(6)`), and
+      // its brackets are not shape (rule 1); so are a letter's. The printer
+      // re-brackets a negative number where it needs to.
+      if (u.k === 'num') return seed(u.v);
+      if (u.k === 'sym') return u;
       return { k: 'paren', a };
     }
     case 'fn':
       return { k: 'fn', name: r.name, args: r.args.map(foldKey) };
     case 'neg': {
       const a = foldKey(r.a);
-      const c = constOf(a);
-      if (c !== null) return { k: 'num', v: -c };
       const u = unparen(a);
+      if (u.k === 'num') return u.s ? seed(-u.v) : { k: 'num', v: -u.v };
       if (u.k === 'neg') return u.a; // -(-k) → k
       return { k: 'neg', a };
     }
     default: {
       const a = foldKey(r.a);
       const b = foldKey(r.b);
+      // Fold only where a SEED is involved: an author's literal `3*4` in a
+      // form key IS the form wanted (Fable review of step 1, finding 4).
       const ca = constOf(a);
       const cb = constOf(b);
-      if (ca !== null && cb !== null) {
-        if (r.k === 'add') return { k: 'num', v: ca + cb };
-        if (r.k === 'sub') return { k: 'num', v: ca - cb };
-        if (r.k === 'mul') return { k: 'num', v: ca * cb };
+      const sa = seedOf(a);
+      const sb = seedOf(b);
+      if (ca !== null && cb !== null && (sa !== null || sb !== null)) {
+        if (r.k === 'add') return seed(ca + cb);
+        if (r.k === 'sub') return seed(ca - cb);
+        if (r.k === 'mul') return seed(ca * cb);
       }
       switch (r.k) {
         case 'mul':
-          if (ca === 0 || cb === 0) return { k: 'num', v: 0 };
-          if (ca === 1) return b;
-          if (cb === 1) return a;
-          if (ca === -1) return foldKey({ k: 'neg', a: b });
-          if (cb === -1) return foldKey({ k: 'neg', a });
+          if (sa === 0 || sb === 0) return seed(0);
+          if (sa === 1) return b;
+          if (sb === 1) return a;
+          if (sa === -1) return foldKey({ k: 'neg', a: b });
+          if (sb === -1) return foldKey({ k: 'neg', a });
           break;
         case 'add':
-          if (ca === 0) return b;
-          if (cb === 0) return a;
+          if (sa === 0) return b;
+          if (sb === 0) return a;
           break;
         case 'sub':
-          if (cb === 0) return a;
-          if (ca === 0) return foldKey({ k: 'neg', a: b });
+          if (sb === 0) return a;
+          if (sa === 0) return foldKey({ k: 'neg', a: b });
           break;
         case 'pow':
-          if (cb === 1) return a;
-          if (cb === 0) return { k: 'num', v: 1 };
+          if (sb === 1) return a;
+          if (sb === 0) return seed(1);
           break;
         default:
           break;
@@ -627,8 +665,11 @@ function print(r: Raw): string {
           ? `(${print(rb)})`
           : print(rb);
       // Juxtapose like a worksheet (`12ab`, `6(3x - 2)`) unless the right
-      // factor starts with a digit, which would merge into the left one.
-      return /^[0-9.]/.test(right) ? `${left} × ${right}` : `${left}${right}`;
+      // factor starts with a digit (it would merge into the left one) or the
+      // letters either side would spell a name (`a` + `sin(x)` is `asin(x)`,
+      // `m`+`a`+`x` is `max`, `p`+`i` is `pi`: Fable review of step 1).
+      if (/^[0-9.]/.test(right) || spellsName(left, right)) return `${left} × ${right}`;
+      return `${left}${right}`;
     }
     case 'div': {
       const wrap = (x: Raw): string => (atomic(x) ? print(x) : `(${print(x)})`);
@@ -642,6 +683,26 @@ function print(r: Raw): string {
     case 'mod':
       return `${print(r.a)} mod ${print(r.b)}`;
   }
+}
+
+/** Would writing `left` and `right` side by side join letters into a
+ * protected name (`pi`, a function) that neither side meant? */
+function spellsName(left: string, right: string): boolean {
+  const tail = /[A-Za-z]+$/.exec(left)?.[0] ?? '';
+  const head = /^[A-Za-z]+/.exec(right)?.[0] ?? '';
+  if (!tail || !head) return false;
+  const joined = tail + head;
+  // `xx` is AsciiMath's times sign (normalizeAsciiMath reads `x x` joined as
+  // `*`), so it is a name for this purpose too.
+  const names = ['pi', 'xx', 'mod', ...FUNCTION_NAMES];
+  // A name inside one side alone was already there; only one that straddles
+  // the join is new.
+  for (const n of names) {
+    for (let at = joined.indexOf(n); at !== -1; at = joined.indexOf(n, at + 1)) {
+      if (at < tail.length && at + n.length > tail.length) return true;
+    }
+  }
+  return false;
 }
 
 function printSubRight(r: Raw): string {

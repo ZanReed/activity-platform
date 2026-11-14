@@ -147,7 +147,7 @@ describe('the corpus itself is well-formed', () => {
     const modes = new Set(
       BLANK_CASES.flatMap((c) => c.blanks.map((b) => b.equivalence ?? 'value')),
     );
-    expect(modes).toEqual(new Set(['value', 'exact-form']));
+    expect(modes).toEqual(new Set(['value', 'form']));
   });
 
   it('covers the unscored outcome in every family that can produce it', () => {

@@ -25,6 +25,14 @@
  * bounding parse cost. */
 const MAX_EXPRESSION_LENGTH = 256;
 
+/** Length cap for an expression AFTER form grading's tokenizer (FG-14), which
+ * joins split letters with a space (an implicit product): the RAW value is
+ * held to MAX_EXPRESSION_LENGTH first, so a tokenized value can at most
+ * double. Every operator, exponent and depth cap below applies to the
+ * tokenized string, with its implicit products counted as operators, so
+ * `aaaa…` (256 letters) counts as 255 multiplications, not zero. */
+export const MAX_TOKENIZED_LENGTH = MAX_EXPRESSION_LENGTH * 2;
+
 /** Cap on exponentiation operators overall. Generous: a long polynomial is a
  * legitimate answer and every term may carry a power, so this bounds total
  * parse work without penalizing ordinary algebra.
@@ -68,8 +76,17 @@ export type ExpressionCheck = { ok: true } | ExpressionRejection;
  * Purely syntactic and allocation-free: it must be much cheaper than the
  * evaluation it guards, or it becomes the bottleneck it was meant to prevent.
  */
-export function checkExpressionSafety(expression: string): ExpressionCheck {
-  if (expression.length > MAX_EXPRESSION_LENGTH) {
+/** Implicit multiplications in a string: `12 a b` (space-joined, the form
+ * grading tokenizer's spelling), `2x`, `)(`, `x)2`. Each is a product the
+ * engine performs, so a tokenized value is charged for it (FG-14). */
+const IMPLICIT_PRODUCT_RE =
+  /[A-Za-z0-9.)]\s+(?=[A-Za-z0-9.(])|[0-9.](?=[A-Za-z(])|\)(?=[A-Za-z0-9.(])/g;
+
+export function checkExpressionSafety(
+  expression: string,
+  opts: { maxLength?: number; countImplicitProducts?: boolean } = {},
+): ExpressionCheck {
+  if (expression.length > (opts.maxLength ?? MAX_EXPRESSION_LENGTH)) {
     return { ok: false, reason: 'too_long' };
   }
   if (EXPONENT_TOWER_RE.test(expression)) {
@@ -114,6 +131,9 @@ export function checkExpressionSafety(expression: string): ExpressionCheck {
   }
 
   if (depth !== 0) return { ok: false, reason: 'unbalanced' };
+  if (opts.countImplicitProducts) {
+    operators += (expression.match(IMPLICIT_PRODUCT_RE) ?? []).length;
+  }
   if (exponents > MAX_EXPONENT_OPERATORS) {
     return { ok: false, reason: 'too_many_exponents' };
   }

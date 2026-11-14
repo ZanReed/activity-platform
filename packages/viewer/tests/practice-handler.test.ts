@@ -419,6 +419,20 @@ describe('practice', () => {
     expect(await res.json()).toEqual({ error: 'Not available' });
   });
 
+  it('a seeded FORM blank releases its answer folded (form-grading FG-6), and grades the form', async () => {
+    const doc = seededItem();
+    const blank = (doc.sections[0]!.rows[0]!.columns[0]!.blocks[0]!.content as Array<Record<string, unknown>>)[1]!;
+    Object.assign(blank, { answer: 'g*(p*x - q)', answerType: 'math', equivalence: 'form' });
+    const snapshots = [{ seq: 1, document: doc, row_values: { g: 6, p: 3, q: 2 } }];
+    const wrongForm = await harness({}, { snapshots }).handler(post(checkBody({ responses: { blanks: { [BLANK]: '18x - 12' } } })));
+    const body = await wrongForm.json();
+    expect(body.items[BLANK]).toMatchObject({ verdict: 'incorrect' });
+    expect(JSON.stringify(body.items[BLANK].feedback)).toContain('isn’t in the form'.replace('’', "'"));
+    expect(body.answers.blanks[BLANK]).toEqual({ answer: '6(3x - 2)' });
+    const right = await harness({}, { snapshots }).handler(post(checkBody({ responses: { blanks: { [BLANK]: '(3x-2)6' } } })));
+    expect((await right.json()).items[BLANK]).toMatchObject({ verdict: 'correct' });
+  });
+
   it('a wrong try carries the mistake, its misconception id, and the answer', async () => {
     const h = harness({}, { snapshots: [{ seq: 1, document: seededItem({ mistake: true }), row_values: { a: 3 } }] });
     const res = await h.handler(post(checkBody({ responses: { blanks: { [BLANK]: '5' } } })));

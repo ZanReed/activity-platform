@@ -69,6 +69,12 @@ const SimpleMark = z.discriminatedUnion('type', [
 // wire shape. A gap is inherently a math answer, so there is no `answerType`
 // here — `equivalence` + `tolerance` are the same grading knobs a 'math'
 // BlankToken carries, reused verbatim. See docs/design/math-blanks.md (Model A).
+/** The math-blank / math-gap equivalence vocabulary. 'exact-form' is the
+ * retired spelling of 'form' (form-grading FG-8), kept parseable for old
+ * exports; nothing writes it any more. */
+export const MathEquivalence = z.enum(['value', 'form', 'exact-form']);
+export type MathEquivalence = z.infer<typeof MathEquivalence>;
+
 export const MathPrompt = z.object({
   // Matches the `\placeholder[id]{}` marker in the owning node's latex. NOT a
   // uuid: MathLive placeholder ids may not contain spaces/special characters
@@ -80,8 +86,12 @@ export const MathPrompt = z.object({
   // Alternative acceptable forms ("also accept"). Empty array is the common case.
   acceptableAnswers: z.array(z.string()).default([]),
   // Equivalence mode: 'value' (default, any expression that evaluates equal) or
-  // 'exact-form' (normalized-string match). Absent = 'value'. Mirrors BlankToken.
-  equivalence: z.enum(['value', 'exact-form']).optional(),
+  // 'form' (equal AND in the key's form — docs/design/form-grading.md). Absent
+  // = 'value'. 'exact-form' is RETIRED (FG-8): still accepted so an old export
+  // imports, and upgradeActivityDocument maps it to 'form' on read. Mirrors
+  // BlankToken. An unknown value is REFUSED — which is what makes an old
+  // function refuse a 'form' document, so the deploy order is a rule.
+  equivalence: MathEquivalence.optional(),
   // Absolute sampling tolerance. Absent = no extra slack. Mirrors BlankToken.
   tolerance: z.number().min(0).optional(),
 });
@@ -549,9 +559,10 @@ export const BlankToken = z.object({
   unit: z.string().min(1).optional(),
   acceptableUnits: z.array(z.string()).optional(),
   // Equivalence mode for 'math' blanks: 'value' (default, any expression that
-  // evaluates equal) or 'exact-form' (normalized-string match — "write it in
-  // this form"). Only meaningful when answerType is 'math'; absent = 'value'.
-  equivalence: z.enum(['value', 'exact-form']).optional(),
+  // evaluates equal) or 'form' ({{===…}}: equal AND in the key's form, D60 —
+  // docs/design/form-grading.md). Only meaningful when answerType is 'math';
+  // absent = 'value'. 'exact-form' is retired into 'form' (see MathPrompt).
+  equivalence: MathEquivalence.optional(),
 });
 export type BlankToken = z.infer<typeof BlankToken>;
 

@@ -426,13 +426,10 @@ describe('math blanks', () => {
     expect(scoreBlank('3a', math(['2a']))).toBe(false);
   });
 
-  it('demands the literal form under exact-form equivalence', () => {
-    expect(
-      scoreBlank('a+a', math(['2a'], { equivalence: 'exact-form' })),
-    ).toBe(false);
-    expect(
-      scoreBlank('2a', math(['2a'], { equivalence: 'exact-form' })),
-    ).toBe(true);
+  it("demands the key's form under form equivalence (exact-form retired, FG-8)", () => {
+    expect(scoreBlank('a+a', math(['2a'], { equivalence: 'form' }))).toBe(false);
+    expect(scoreBlank('2a', math(['2a'], { equivalence: 'form' }))).toBe(true);
+    expect(scoreBlank('a*2', math(['2a'], { equivalence: 'form' }))).toBe(true);
   });
 
   it('always returns a real verdict — the runtime null is a loading state the server never has', () => {

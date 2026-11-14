@@ -51,6 +51,35 @@ interface UpgradeStep {
 // see the header for why v1 deliberately has no entry.
 const UPGRADES: readonly UpgradeStep[] = [];
 
+/**
+ * Form grading FG-8: the retired equivalence 'exact-form' reads as 'form'
+ * (widening-only — anything that string-matched also shape-matches — and zero
+ * stored uses on 2026-11-14). An in-version fold, not a chain step: it changes
+ * no schemaVersion. Copy-on-write; returns the input itself when nothing moved.
+ */
+export function retireExactForm(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    let changed = false;
+    const out = node.map((n) => {
+      const r = retireExactForm(n);
+      if (r !== n) changed = true;
+      return r;
+    });
+    return changed ? out : node;
+  }
+  if (node === null || typeof node !== 'object') return node;
+  const obj = node as Record<string, unknown>;
+  let out: Record<string, unknown> | null = null;
+  for (const [k, v] of Object.entries(obj)) {
+    const r = k === 'equivalence' && v === 'exact-form' ? 'form' : retireExactForm(v);
+    if (r !== v) {
+      out ??= { ...obj };
+      out[k] = r;
+    }
+  }
+  return out ?? obj;
+}
+
 export interface UpgradeResult {
   /** The document, parsed and validated at the CURRENT schema. */
   doc: ActivityDocument;
@@ -97,6 +126,8 @@ export function upgradeActivityDocument(raw: unknown): UpgradeResult {
     current = step.run(current);
     at += 1;
   }
+
+  current = retireExactForm(current) as Record<string, unknown>;
 
   const parsed = ActivityDocument.safeParse(current);
   if (!parsed.success) {

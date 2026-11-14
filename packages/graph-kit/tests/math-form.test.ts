@@ -176,7 +176,7 @@ describe('A4 · mixed numbers', () => {
     expect(tokenizeMath('1 1/3')).toBe('(4/3)');
     expect(tokenizeMath('1⅓')).toBe('(4/3)');
     expect(tokenizeMath('2(1)/(3)')).toBe('(7/3)');
-    expect(tokenizeMath('1 1/3x')).toBe('(4/3)x');
+    expect(tokenizeMath('1 1/3x')).toBe('(4/3) x');
   });
   it('a whole part that does not stand alone is not read as one', () => {
     expect(tokenizeMath('x^2 1/2')).not.toContain('(5/2)');
@@ -195,7 +195,7 @@ describe('the review’s parse rows, pinned (FG-3 + FG-2 rule 7)', () => {
   });
   it('a letter before a bracket multiplies', () => {
     expect(tokenizeMath('x(x+2)')).toBe('x*(x+2)');
-    expect(tokenizeMath('ab(c+d)')).toBe('a*b*(c+d)');
+    expect(tokenizeMath('ab(c+d)')).toBe('a b*(c+d)');
     check([
       ['x(x+2)', 'x^2+2x', true, false],
       ['3x(x+2)', '3x^2+6x', true, false],
@@ -203,8 +203,8 @@ describe('the review’s parse rows, pinned (FG-3 + FG-2 rule 7)', () => {
     ]);
   });
   it('a letter before digits multiplies', () => {
-    expect(tokenizeMath('x2')).toBe('x*2');
-    expect(tokenizeMath('2x3')).toBe('2x*3');
+    expect(tokenizeMath('x2')).toBe('x 2');
+    expect(tokenizeMath('2x3')).toBe('2 x 3');
     check([['x2', '2x', true, true]]);
   });
   it('-2^2 is -(2^2): a sign never crosses a power', () => {
@@ -238,8 +238,8 @@ describe('the review’s parse rows, pinned (FG-3 + FG-2 rule 7)', () => {
     ]);
   });
   it('protected names stay whole; e stays Euler’s number; scientific notation keeps its e', () => {
-    expect(tokenizeMath('pir^2')).toBe('pi*r^2');
-    expect(tokenizeMath('xsin(x)')).toBe('x*sin(x)');
+    expect(tokenizeMath('pir^2')).toBe('pi r^2');
+    expect(tokenizeMath('xsin(x)')).toBe('x sin(x)');
     expect(tokenizeMath('sqrt(x)')).toBe('sqrt(x)');
     expect(tokenizeMath('1e3')).toBe('1e3');
     expect(tokenizeMath('10 mod 3')).toMatch(/^10\s+mod\s+3$/);
@@ -255,6 +255,39 @@ describe('the review’s parse rows, pinned (FG-3 + FG-2 rule 7)', () => {
       ['3 * 4a', '12a', true, false],
       ['x^2y^3', 'y^3x^2', true, true],
     ]);
+  });
+});
+
+describe('Fable review of step 1: precedence and spacing rows', () => {
+  it('splitting letters never changes precedence after / or ^ (value mode, widening-only)', () => {
+    check([
+      ['1/(ab)', '1/ab', true, true],
+      ['a/(bc)', 'a/bc', true, true],
+      ['(ab)/(cd)', 'ab/cd', true, true],
+      ['x/(2yz)', 'x/2yz', true, true],
+      ['x/(2y)', 'x/2y', true, true],
+      ['x^(ab)', 'x^ab', true, true],
+    ]);
+    // `1/x(x+2)` was a CALL of x (always wrong); it now reads (1/x)·(x+2), the
+    // explicit product — the one widening the review named in this family.
+    expect(value('(x+2)/x', '1/x(x+2)')).toBe(true);
+  });
+  it('a space between a letter and a bracket is still a product', () => {
+    check([
+      ['x (x+2)', 'x^2+2x', true, false],
+      ['a b (c+d)', 'ab(c+d)', true, true],
+    ]);
+  });
+  it('MathLive fraction after a coefficient or a letter is one factor', () => {
+    check([
+      ['2(x)/(3)y', '2x/3*y', true, false],
+      ['2(x)/(3)y', '2*(x/3)*y', true, true],
+      ['a(2)/(3)b', '(2/3)ab', true, true],
+    ]);
+    expect(tokenizeMath('sqrt(2)/(3)x')).toContain('sqrt(2)');
+  });
+  it('a glyph after a space is still a mixed number', () => {
+    check([['1 ⅓', '4/3', true, true]]);
   });
 });
 
@@ -298,6 +331,23 @@ describe('FG-6 · key-side folding and clean-up', () => {
       expect({ k, shown, ok: form(shown, k) }).toEqual({ k, shown, ok: true });
     }
   });
+  it('folds only SEED arithmetic: an authored all-number key keeps its form', () => {
+    // Seed binding always brackets a value (`(6)`); an author's `3*4` has no
+    // brackets, so it is the form wanted (Fable review of step 1, finding 4).
+    check([
+      ['3*4', '3*4', true, true],
+      ['12', '3*4', true, false],
+      ['2*2*3', '2*2*3', true, true],
+      ['12', '(3)*(4)', true, true],
+      ['1x', '1x', true, true],
+    ]);
+  });
+  it('displayFormKey never prints a different expression (no accidental names)', () => {
+    for (const k of ['a*sin(x)', 'm*a*x*(y+1)', 'p*i', 's*i*n', '(2)*e*x']) {
+      const shown = displayFormKey(k) ?? '';
+      expect({ k, shown, ok: form(shown, k) }).toEqual({ k, shown, ok: true });
+    }
+  });
   it('foldCollapsesBracket names a seed row that collapses the form', () => {
     expect(foldCollapsesBracket('(6)*((3)*x-(0))')).toBe(true);
     expect(foldCollapsesBracket('(6)*((3)*x-(2))')).toBe(false);
@@ -311,10 +361,10 @@ describe('FG-14 · the bound', () => {
     expect(sameShape(big, big)).toBe(false);
   });
   it('letters are split before anything counts them', () => {
-    // 256 letters become 255 multiplications — what the grader's operator
-    // count sees (it checks the TOKENIZED string).
+    // 256 letters become 256 factors joined by 255 implicit products — what
+    // the grader's bound counts on the TOKENIZED string (guards.ts).
     const tok = tokenizeMath('a'.repeat(256));
-    expect((tok.match(/\*/g) ?? []).length).toBe(255);
+    expect(tok.split(' ')).toHaveLength(256);
   });
   it('unshapeable input is never a form match', () => {
     for (const bad of ['', '((', '[1,2]', 'x=2', 'x<2']) {
@@ -404,11 +454,27 @@ describe('properties', () => {
     }
   });
 
+  it('a displayed key is always a correct answer for its key', () => {
+    const r = rng(99);
+    const letters = ['a', 'b', 'x', 'p', 'i', 'm', 's', 'n'];
+    for (let i = 0; i < 300; i++) {
+      const t = gen(r, 3);
+      // Mix in bracketed (seed-style) numbers and name-forming letters.
+      const key = show(t, null)
+        .replace(/\b(2|3)\b/g, (d) => (r() < 0.5 ? `(${d})` : d))
+        .replace(/\ba\b/g, () => letters[Math.floor(r() * letters.length)] ?? 'a');
+      const shown = displayFormKey(key);
+      if (shown === null) continue;
+      expect({ key, shown, ok: form(shown, key) }).toEqual({ key, shown, ok: true });
+    }
+  });
+
   it('tokenizeMath is idempotent', () => {
     const r = rng(42);
     const samples = [
       '12ab', 'x(x+2)', '(2)/(3)x', '1 1/3', '1⅓', '2(1)/(3)x', 'x2', 'pir^2',
       'sin x', 'xsin(x)', '½x', '3 × 4', '1e3', '-6(2-3x)', 'ab(c+d)',
+      '10 mod 3', 'x (x+2)', '2(x)/(3)y', '1 ⅓', 'x^ab', '1/ab', 'a b (c+d)',
     ];
     for (let i = 0; i < 100; i++) samples.push(show(gen(r, 3), r));
     for (const s of samples) {

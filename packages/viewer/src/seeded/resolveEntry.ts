@@ -14,7 +14,7 @@
 // the evaluator cannot resolve stays as its bound string.
 // =============================================================================
 
-import { compileFunction } from '@activity/graph-kit/scorers';
+import { compileFunction, displayFormKey } from '@activity/graph-kit/scorers';
 import { bindSeedNames } from '../sanitize/substitute.js';
 import type { SeedValues } from '../sanitize/seedValues.js';
 
@@ -32,4 +32,21 @@ export function resolveSeededEntry(
     if (Number.isFinite(v)) return String(v);
   }
   return bound;
+}
+
+/**
+ * A key entry as a STUDENT or TEACHER should see it (form-grading FG-6): the
+ * resolved entry, and for a SEEDED math entry the folded form a worksheet
+ * writes — `(6)*((3)*x-(2))` → `6(3x - 2)`, `((4)*(3))ab` → `12ab`. The one
+ * function every display surface uses (print answer key, practice's released
+ * answer), so they cannot differ. An unseeded entry is shown as authored.
+ */
+export function displaySeededEntry(
+  entry: string,
+  answerType: 'text' | 'numeric' | 'math',
+  values: SeedValues,
+): string {
+  const resolved = resolveSeededEntry(entry, answerType, values);
+  if (answerType !== 'math' || resolved === entry) return resolved;
+  return displayFormKey(resolved) ?? resolved;
 }

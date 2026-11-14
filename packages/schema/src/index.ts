@@ -23,6 +23,7 @@ export {
   TextNode,
   InlineMathNode,
   MathPrompt,
+  MathEquivalence,
   HardBreakNode,
   BlankToken,
   InlineNode,
@@ -178,6 +179,7 @@ export {
   ACTIVITY_SCHEMA_VERSION,
   UpgradeError,
   upgradeActivityDocument,
+  retireExactForm,
 } from './upgrade.js';
 export type { UpgradeResult } from './upgrade.js';
 
