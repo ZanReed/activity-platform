@@ -616,7 +616,8 @@ PR (`form_answer`, `prose_facts.form_grammar`) — opened as
 regenerated `docs/catalogue-authoring-prompt.md`. **B-253 SENT 2026-11-14**; **C-193:** #94 MERGED
 (`a4f2831`, graph v0.19.9, their prose), repo stamp refreshed. Theirs still: `lint_draft.py`
 reading `form_grammar`, a lint that every `===` prompt names its form, and the §7 rewrite
-(C-194). Next C-194 / B-254.
+(C-194). Catalogue-prompt pointer stamp refreshed to `99ccd4c3`
+(sha256 `090a4f31…9338`). Platform side: nothing owed. Next C-194 / B-254.
 
 **Pre-deploy re-counts (run on live 2026-11-14):** live math blanks: 5 (keys
 `3/2`, `k`, `4x`, `5x`, `2x`), none with a `!` entry, so FG-4 moves **zero**
