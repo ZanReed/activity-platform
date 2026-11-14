@@ -728,6 +728,22 @@ export function displayFormKey(expr: string): string | null {
  * True when a bracket in the BOUND key holds a sum and the same bracket after
  * folding no longer does (`6(3x - 0)` → `6(3x)`). The importer warns on it
  * (FG-6): the seed row has collapsed the form the item asks for. */
+function hasSym(r: Raw): boolean {
+  switch (r.k) {
+    case 'sym':
+      return true;
+    case 'num':
+      return false;
+    case 'paren':
+    case 'neg':
+      return hasSym(r.a);
+    case 'fn':
+      return r.args.some(hasSym);
+    default:
+      return hasSym(r.a) || hasSym(r.b);
+  }
+}
+
 export function foldCollapsesBracket(expr: string): boolean {
   const tokenized = tokenizeMath(expr);
   const raw = tokenized ? parseRaw(tokenized) : null;
@@ -738,8 +754,11 @@ export function foldCollapsesBracket(expr: string): boolean {
       case 'sym':
         return 0;
       case 'paren': {
+        // Only a bracket whose sum has a LETTER in it is form; an all-number
+        // bracket is seed arithmetic, which FG-6 folds by design (`(a+b)x` →
+        // `6x` is not a collapse — Fable review, step 3).
         const u = unparen(r.a);
-        return (u.k === 'add' || u.k === 'sub' ? 1 : 0) + count(r.a);
+        return ((u.k === 'add' || u.k === 'sub') && hasSym(u) ? 1 : 0) + count(r.a);
       }
       case 'neg':
         return count(r.a);
@@ -750,6 +769,73 @@ export function foldCollapsesBracket(expr: string): boolean {
     }
   };
   return count(foldKey(raw)) < count(raw);
+}
+
+/**
+ * A factorise-shaped key, read off its FOLDED tree (FG-6's importer checks):
+ * a product of factors with exactly one bracketed sum. `outer` is the product
+ * of its numeric factors (1 when there are none), `letters` whether a
+ * non-numeric factor sits outside the bracket, and `coefficients` the
+ * absolute numeric coefficient of each term in the bracket — null when any is
+ * not an integer (a gcd says nothing then). Null when the key is not that
+ * shape. `6(3x - (-2))` (a negative seed) reads as outer 6, [3, 2].
+ */
+export function factorKeyParts(
+  expr: string,
+): { outer: number; letters: boolean; coefficients: number[] | null } | null {
+  const tokenized = tokenizeMath(expr);
+  const raw = tokenized ? parseRaw(tokenized) : null;
+  if (!raw) return null;
+  const folded = foldKey(raw);
+  const factors: Raw[] = [];
+  let sign = 1;
+  const flatMul = (r: Raw): void => {
+    const u = unparen(r);
+    if (u.k === 'mul') {
+      flatMul(u.a);
+      flatMul(u.b);
+    } else if (u.k === 'neg') {
+      sign = -sign;
+      flatMul(u.a);
+    } else {
+      factors.push(r);
+    }
+  };
+  flatMul(folded);
+  // A BRACKETED sum with a letter in it — a top-level `-6x + 10` is not one.
+  const isSum = (r: Raw): boolean => {
+    if (r.k !== 'paren') return false;
+    const u = unparen(r);
+    return (u.k === 'add' || u.k === 'sub') && hasSym(u);
+  };
+  const sums = factors.filter(isSum);
+  if (sums.length !== 1) return null;
+  let outer = sign;
+  let letters = false;
+  for (const f of factors) {
+    if (isSum(f)) continue;
+    const u = unparen(f);
+    if (u.k === 'num') outer *= u.v;
+    else letters = true;
+  }
+  const terms: Raw[] = [];
+  const flatSum = (r: Raw): void => {
+    const u = unparen(r);
+    if (u.k === 'add' || u.k === 'sub') {
+      flatSum(u.a);
+      flatSum(u.b);
+    } else terms.push(u);
+  };
+  flatSum(sums[0] as Raw);
+  const coef = (r: Raw): number => {
+    const u = unparen(r);
+    if (u.k === 'num') return Math.abs(u.v);
+    if (u.k === 'neg') return coef(u.a);
+    if (u.k === 'mul') return coef(u.a) * coef(u.b);
+    return 1;
+  };
+  const cs = terms.map(coef);
+  return { outer, letters, coefficients: cs.every(Number.isInteger) ? cs : null };
 }
 
 // ---- 4. the predicate --------------------------------------------------------

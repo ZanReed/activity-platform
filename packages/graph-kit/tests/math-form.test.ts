@@ -9,6 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  factorKeyParts,
   tokenizeMath,
   mathShape,
   sameShape,
@@ -348,9 +349,21 @@ describe('FG-6 · key-side folding and clean-up', () => {
       expect({ k, shown, ok: form(shown, k) }).toEqual({ k, shown, ok: true });
     }
   });
+  it('factorKeyParts reads a factorise key off its folded tree', () => {
+    expect(factorKeyParts('(6)*((3)*x-(2))')).toEqual({ outer: 6, letters: false, coefficients: [3, 2] });
+    expect(factorKeyParts('(6)*((3)*x-(-2))')).toEqual({ outer: 6, letters: false, coefficients: [3, 2] });
+    expect(factorKeyParts('(1)*((3)*x-(2))')).toEqual({ outer: 1, letters: false, coefficients: [3, 2] });
+    expect(factorKeyParts('(2)*x*((3)*x-(4))')).toEqual({ outer: 2, letters: true, coefficients: [3, 4] });
+    expect(factorKeyParts('2(0.5x - 3)')?.coefficients).toBeNull();
+    expect(factorKeyParts('-6x + 10')).toBeNull();
+    expect(factorKeyParts('(2)/(3)')).toBeNull();
+  });
   it('foldCollapsesBracket names a seed row that collapses the form', () => {
     expect(foldCollapsesBracket('(6)*((3)*x-(0))')).toBe(true);
     expect(foldCollapsesBracket('(6)*((3)*x-(2))')).toBe(false);
+    // An all-number bracket is seed arithmetic, folded by design.
+    expect(foldCollapsesBracket('((2)+(4))x')).toBe(false);
+    expect(foldCollapsesBracket('a^((2)+(3))')).toBe(false);
   });
 });
 

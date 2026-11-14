@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { convertLatexToAsciiMath } from 'mathlive/ssr';
-import {
+import { seedReferences,
   evaluate,
   normalizeAsciiMath,
   compileFunction,
@@ -347,5 +347,13 @@ describe('reserved seed names cover every bare-name builtin (BE-7)', () => {
       'divide', 'factorial', 'ln', 'logBase', 'multiply', 'nCr', 'nPr', 'nthRoot',
       'sec', 'sinh', 'subtract', 'tanh', 'unaryMinus', 'unaryPlus',
     ]);
+  });
+});
+
+describe('seedReferences (form grading, step 3 review)', () => {
+  it('counts a called non-provided name as a reference, never a provided function', () => {
+    expect(seedReferences('g(p*x - q)').sort()).toEqual(['g', 'p', 'q', 'x']);
+    expect(seedReferences('sin(x) + sqrt(a)').sort()).toEqual(['a', 'x']);
+    expect(seedReferences('')).toEqual([]);
   });
 });

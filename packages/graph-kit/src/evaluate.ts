@@ -372,6 +372,34 @@ export function freeVariables(ascii: string): string[] {
   return [...names];
 }
 
+/**
+ * The names an expression REFERS to, for seed bookkeeping: its free variables
+ * PLUS any called name the engine does not provide. math.js reads `g(p*x - q)`
+ * as a call of `g`, but form grading's tokenizer (math-form.ts, FG-3) reads a
+ * letter before a bracket as a product, and bindSeedNames binds that `g` — so
+ * the importer must count it as a reference too (Fable review, step 3).
+ * Returns [] for empty or unparseable input.
+ */
+export function seedReferences(ascii: string): string[] {
+  const names = new Set(freeVariables(ascii));
+  const expr = normalizeAsciiMath(ascii);
+  if (!expr) return [...names];
+  let root: { traverse(cb: (n: unknown) => void): void };
+  try {
+    root = math.parse(expr) as typeof root;
+  } catch {
+    return [...names];
+  }
+  const provided = new Set([...PROVIDED_NAMES, 'logBase', 'nthRoot']);
+  root.traverse((node) => {
+    const n = node as { isFunctionNode?: boolean; fn?: { isSymbolNode?: boolean; name?: string } };
+    if (n.isFunctionNode && n.fn?.isSymbolNode && typeof n.fn.name === 'string' && !provided.has(n.fn.name)) {
+      names.add(n.fn.name);
+    }
+  });
+  return [...names];
+}
+
 // ---- Cross-row definitions, MINIMUM scope (ruled 2026-08-23) ----------------
 // `a = 10` on one row makes `a*2` on the next read "= 20" instead of silently
 // plotting the horizontal line y = 20 (which is what it did — a row with no x

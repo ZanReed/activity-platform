@@ -33,7 +33,9 @@ import type { JSONContent } from '@tiptap/core';
 import { ActivityDocument, createEmptyDocument } from '@activity/schema';
 import type { BankSeedSpec, BankValueTable } from '@activity/schema/bank-seed';
 import { bankRowValues } from '@activity/schema/bank-seed';
-import { freeVariables } from '@activity/graph-kit/scorers';
+// seedReferences, not freeVariables: `g(p*x - q)` refers to `g` (it is a
+// product under form grading's tokenizer, and bindSeedNames binds it).
+import { seedReferences as freeVariables } from '@activity/graph-kit/scorers';
 import { substituteSeededAnswers } from '@activity/viewer/seeded-print';
 import {
     parseNumericValue,

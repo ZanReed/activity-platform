@@ -14,7 +14,9 @@
 
 import { isGradeable, type Block, type Section } from '@activity/schema';
 import type { BankValueTable } from '@activity/schema/bank-seed';
-import { freeVariables } from '@activity/graph-kit/scorers';
+// seedReferences, not freeVariables: `g(p*x - q)` refers to `g` (it is a
+// product under form grading's tokenizer, and bindSeedNames binds it).
+import { seedReferences as freeVariables } from '@activity/graph-kit/scorers';
 
 const BRACE = /\{([a-z][a-z0-9_]*)\}/g;
 const SEED_MACRO = /\\seed\{([a-z][a-z0-9_]*)\}/g;

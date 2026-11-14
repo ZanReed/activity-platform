@@ -24,6 +24,7 @@
 
 import {
     displayFormKey,
+    factorKeyParts,
     foldCollapsesBracket,
     mathEquivalent,
     mathShape,
@@ -40,9 +41,12 @@ const isReserved = (match: string): boolean =>
 /** Letter runs that read `e` as a pronumeral but the engine reads as Euler's
  * number: a run of two or more letters with an `e` in it, which is not a
  * provided name (`exp`, `sec`, `ceil`, …). */
-function bareEulerRun(expr: string): string | null {
-    for (const m of expr.matchAll(/[A-Za-z]+/g)) {
-        const run = m[0];
+function bareEulerRun(expr: string, declared: ReadonlySet<string>): string | null {
+    for (const m of expr.matchAll(/[A-Za-z][A-Za-z0-9_]*/g)) {
+        // A declared seed name (`base`, `rate`) is bound to a number before any
+        // letter is split, so its `e` is never read (Fable review, step 3).
+        if (declared.has(m[0])) continue;
+        const run = /^[A-Za-z]+/.exec(m[0])?.[0] ?? '';
         if (run.length < 2 || !run.includes('e')) continue;
         if (PROVIDED_NAMES.includes(run)) continue;
         return run;
@@ -50,7 +54,12 @@ function bareEulerRun(expr: string): string | null {
     return null;
 }
 
-export function mathBlankWarnings(spec: BlankSpec): string[] {
+/**
+ * `declared`: the seed names in scope, or null when they are not known at this
+ * point (a bank template or a DoL, whose seed fence the importer reads later —
+ * there the `e` check runs on the BOUND key, in formSeedFindings).
+ */
+export function mathBlankWarnings(spec: BlankSpec, declared: ReadonlySet<string> | null = new Set()): string[] {
     const warnings: string[] = [];
     const form = spec.equivalence === 'form';
     const label = form ? 'Form blank' : 'Math blank';
@@ -59,7 +68,7 @@ export function mathBlankWarnings(spec: BlankSpec): string[] {
         if (form && mathShape(k, 'key') === null) {
             warnings.push(`${label}: the answer “${k}” can’t be read as maths, so no answer can ever match it.`);
         }
-        const run = bareEulerRun(k);
+        const run = declared ? bareEulerRun(k, declared) : null;
         if (run) {
             warnings.push(
                 `${label}: “${k}” has an “e” in “${run}” — the grader reads a lone e as Euler’s number (2.718…), not a letter. Use another letter for a pronumeral.`,
@@ -130,23 +139,6 @@ function collect(doc: unknown): { blanks: FormBlank[]; latex: string[] } {
 
 const gcd = (a: number, b: number): number => (b === 0 ? Math.abs(a) : gcd(b, a % b));
 
-/** The integer coefficients of a folded factorise key's ONE bracket, and its
- * outer numeric factor, read off the displayed form (`6(3x - 2)` → outer 6,
- * coefficients [3, 2]). Null when the key is not a numeric factor times a
- * single bracket of a sum. */
-function factorParts(shown: string): { outer: number; coefficients: number[] } | null {
-    const m = /^(-?\d+)?\s*\(([^()]+)\)$/.exec(shown.trim());
-    if (!m) return null;
-    const outer = m[1] === undefined ? 1 : Number(m[1]);
-    const terms = (m[2] ?? '').split(/\s*[+-]\s*/).filter((t) => t.length > 0);
-    if (terms.length < 2) return null;
-    const coefficients = terms.map((t) => {
-        const c = /^(\d+)/.exec(t);
-        return c ? Number(c[1]) : 1;
-    });
-    return { outer, coefficients };
-}
-
 export interface FormSeedFindings {
     problems: string[];
     warnings: string[];
@@ -177,14 +169,22 @@ export function formSeedFindings(
     // FG-3: a declared single-letter name in a form key is bound there; if the
     // same letter also stands bare in the item's maths, the author probably
     // meant the pronumeral in one of the two places.
-    const bareMath = latex.join(' ').replace(/\\seed\{[^}]*\}/g, '');
+    // Letters standing in the item's maths: `\seed{…}` and TeX commands
+    // removed, then every letter of every run (`4ab` stands `a` and `b`).
+    const bareLetters = new Set(
+        latex
+            .join(' ')
+            .replace(/\\seed\{[^}]*\}/g, '')
+            .replace(/\\[A-Za-z]+/g, ' ')
+            .match(/[A-Za-z]/g) ?? [],
+    );
     for (const b of blanks) {
         for (const name of declared) {
             if (name.length !== 1) continue;
             const alone = new RegExp(`(?<![A-Za-z])${name}(?![A-Za-z])`);
             const inKey = [b.answer, ...b.acceptableAnswers].some((k) => alone.test(k));
             if (!inKey) continue;
-            if (new RegExp(`(?<![A-Za-z\\\\])${name}(?![A-Za-z])`).test(bareMath)) {
+            if (bareLetters.has(name)) {
                 warnings.push(
                     `${where}: the seed name “${name}” is bound in the form answer “${b.answer}” AND appears as a bare letter in the item’s maths — if the maths means the letter ${name}, rename the seed; if it means the number, write \\seed{${name}}.`,
                 );
@@ -212,17 +212,21 @@ export function formSeedFindings(
                 if (foldCollapsesBracket(bound)) {
                     once('collapse', b, `${where}: at ${at} the form answer “${entry}” collapses a bracket (“${displayFormKey(bound) ?? bound}”) — that row no longer asks for the form. Add a \`where\` that rules it out.`, warnings);
                 }
-                const shown = displayFormKey(bound);
-                const parts = shown ? factorParts(shown) : null;
+                const shown = displayFormKey(bound) ?? bound;
+                const parts = factorKeyParts(bound);
                 if (parts) {
-                    // An authored `g*(…)` / `g(…)` whose factor folded to ±1.
-                    if (Math.abs(parts.outer) === 1 && /^\s*-?[A-Za-z0-9]+\s*\*?\s*\(/.test(entry)) {
-                        once('outer-one', b, `${where}: at ${at} the outer factor of “${entry}” is 1, so the answer is “${shown}” — not a factorisation. Add \`where\` to keep the factor above 1.`, warnings);
+                    // An authored `g*(…)` / `g(…)` whose numeric factor folded to ±1.
+                    if (Math.abs(parts.outer) === 1 && !parts.letters) {
+                        once('outer-one', b, `${where}: at ${at} the outer factor of “${entry}” is 1, so the answer is “${shown}” — not a factorisation. Add a \`where\` line that keeps the factor above 1.`, warnings);
                     }
-                    const g = parts.coefficients.reduce(gcd, 0);
+                    const g = parts.coefficients ? parts.coefficients.reduce(gcd, 0) : 0;
                     if (g > 1) {
-                        once('gcd', b, `${where}: at ${at} the bracket in “${shown}” still has the common factor ${g}, so the key itself is not the highest common factor. Add \`where gcd(…) == 1\` over the bracket’s coefficients.`, warnings);
+                        once('gcd', b, `${where}: at ${at} the bracket in “${shown}” still has the common factor ${g}, so the key itself is not the highest common factor. Add a \`where\` line that rules these rows out.`, warnings);
                     }
+                }
+                const run = bareEulerRun(bound, declared);
+                if (run) {
+                    once('euler', b, `${where}: the form answer “${entry}” has an “e” in “${run}” once bound — the grader reads a lone e as Euler’s number (2.718…), not a letter.`, warnings);
                 }
             }
         }

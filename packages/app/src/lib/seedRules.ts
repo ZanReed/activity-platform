@@ -13,7 +13,9 @@
 
 import type { JSONContent } from '@tiptap/core';
 import { RESERVED_SEED_NAMES, type SeedVarSpec } from '@activity/schema';
-import { freeVariables } from '@activity/graph-kit/scorers';
+// seedReferences, not freeVariables: `g(p*x - q)` refers to `g` (it is a
+// product under form grading's tokenizer, and bindSeedNames binds it).
+import { seedReferences as freeVariables } from '@activity/graph-kit/scorers';
 
 export type SeedVarProblem =
     | { code: 'name-shape' }

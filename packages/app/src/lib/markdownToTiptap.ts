@@ -1966,7 +1966,14 @@ function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | n
     // mistakes, a form key that won't parse) — importer-only, kept out of the
     // editor input rule's bundle.
     if (spec.answerType === 'math') {
-        for (const w of mathBlankWarnings(spec)) ctx.warnings.add(w);
+        // Seed names are known here only for an activity (meta seedVars); a
+        // bank template's or DoL's seed fence is read later, so their `e`
+        // check runs on the bound key (formSeedFindings).
+        const declared =
+            ctx.bankSection || ctx.dolSeedSrc !== undefined
+                ? null
+                : new Set((ctx.meta?.seedVars ?? []).map((v) => v.name));
+        for (const w of mathBlankWarnings(spec, declared)) ctx.warnings.add(w);
     }
     const attrs: Record<string, unknown> = {
         id: crypto.randomUUID(),

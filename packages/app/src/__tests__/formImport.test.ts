@@ -143,4 +143,44 @@ describe('FG-6 · seeded form keys over every stored row', () => {
         );
         expect(f.warnings.join()).toMatch(/seed name “a” is bound in the form answer/);
     });
+
+    it('step-3 review: an all-number bracket is folded seed arithmetic, not a collapse', () => {
+        const r = parse(bank('a: list 2, 3\nb: list 4, 5\nn: list 2\nm: list 3', '## t1\n\nCollect: {{===(a+b)x}}\n\n## t2\n\nIndex law: {{===x^(n+m)}}'));
+        expect(r.warnings.filter((w) => /collapses a bracket/.test(w))).toEqual([]);
+    });
+    it('step-3 review: g(…) without a star is a reference to g, and its g = 1 row warns', () => {
+        const r = parse(bank('g: list 1, 3\np: list 2', '## t1\n\nFactorise: {{===g(p*x - 1)}}'));
+        expect(r.warnings.join('\n')).not.toMatch(/“g” is declared but no template uses it/);
+        expect(r.warnings.join('\n')).toMatch(/at g=1, p=2 the outer factor of “g\(p\*x - 1\)” is 1/);
+    });
+    it('step-3 review: a negative seed in the bracket is still checked for a common factor', () => {
+        const r = parse(bank('g: list 3\np: list 4\nq: list -2', '## t1\n\nFactorise: {{===g*(p*x - q)}}'));
+        expect(r.warnings.join('\n')).toMatch(/still has the common factor 2/);
+    });
+    it('step-3 review: the seed-letter warning sees adjacent letters (4ab)', () => {
+        const f = formSeedFindings(
+            [
+                { type: 'math_inline', latex: 'Simplify 4ab' },
+                { type: 'blank', answer: '(a*b)x', answerType: 'math', equivalence: 'form' },
+            ],
+            [{ a: 2, b: 3 }],
+            't1',
+            new Set(['a', 'b']),
+        );
+        expect(f.warnings.join()).toMatch(/seed name “a” is bound/);
+    });
+});
+
+describe('step-3 review: the e warning knows declared seed names', () => {
+    it('an activity seed named base is bound, so no Euler warning', () => {
+        const r = convert('```seed\nbase: int 2..9\nh: int 2..9\n```\n\nArea: {{==base*h/2}}');
+        expect([...r.warnings].join()).not.toMatch(/Euler|specs are/);
+    });
+    it('a bank template defers the check to the bound key', () => {
+        const r = parseBankFile(
+            '```meta\nkind: bank\nstatus: draft\nskill: algebra.x\n```\n\n```seed\nbase: list 4\n```\n\n## t1\n\nArea: {{==base*2}}',
+            { stem: 'algebra.x', importer: convert },
+        );
+        expect(r.warnings.join()).not.toMatch(/Euler/);
+    });
 });
