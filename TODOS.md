@@ -263,6 +263,17 @@ teacher plans a quiz into a day, or the first quiz file reaches the catalogue.
 day), with `quiz.duration_min` read from the graph mirror, never a copy (D25).
 It needs its own design pass and the GUI rule.
 
+## A student on /classes sees the teacher's card controls (found 2026-11-14)
+
+The Fable review of "Present today" (0b7af3c0) found that a student who goes to
+`/classes` sees their class's card with the teacher controls on it (Rename, New
+code, Present today, and so on). Nothing leaks: every action is refused by the
+server, and Present today only says "This page is for teachers." But the page
+looks broken to them. **Trigger:** a student reaches `/classes` (a shared link,
+a typed URL), or the next change to `Classes.tsx`. **Shape:** a student
+gets the "This page is for teachers." screen on the whole route, or a
+student-only list with no controls.
+
 ## Due dates (author, 2026-11-13)
 
 Wanted by the author even though the HoD asked to hold the wider planning work.
