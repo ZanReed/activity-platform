@@ -1,5 +1,11 @@
 # Math blanks — fill-in-the-blank *inside* an equation — design
 
+> ⚠ **ANNOTATION (2026-11-14): `exact-form` is RETIRED.** Every `exact-form` below is history.
+> Form grading (D60, [form-grading.md](form-grading.md), FG-8) replaced it with `equivalence: 'form'`
+> — `{{===…}}` / `\gap[form]{…}`, "equal AND in the key's form", shape-matched rather than
+> string-matched. The schema still parses a stored `exact-form`, and `upgradeActivityDocument`
+> reads it as `form`; the editor no longer offers "Exact form only".
+
 > ⚠ **ANNOTATION (drift audit 2026-08-17), two things.** (1) The deploy steps this line names —
 > **`upload:graph-kit`** (with its committed manifest) and **`deploy:publish`** — no longer exist:
 > the R2 upload scripts and their manifest target died at S9 Drop 4 / D-13, and `publish-activity`
