@@ -15,7 +15,7 @@ import { AnswerKeyContext } from '../answer-key/context.js';
 import { mathPromptsSurface } from '../blocks/kitSurfaces.js';
 import { StatePill } from '../blocks/StatePill.js';
 import { useViewer, useViewerSelector } from '../container/context.js';
-import { InlineMath } from './InlineContent.js';
+import { InlineContent, InlineMath } from './InlineContent.js';
 
 /**
  * KaTeX can't parse a gap marker: an empty box reads, a red error doesn't. On a
@@ -45,16 +45,22 @@ export default function InlineMathGaps({ node }: { node: Record<string, unknown>
   const initial = useRef(
     Object.fromEntries(promptIds.map((id) => [id, store.getState().responses.blanks[id] ?? ''])),
   );
-  const verdicts = useViewerSelector((s) => {
+  // The gaps' results, as a string so the selector compares by value: each
+  // gap's verdict and its feedback (FG-5's built-in line reaches a gap too).
+  const resultsKey = useViewerSelector((s) => {
     for (const status of Object.values(s.sections ?? {})) {
-      const items = (status as { phase?: string; result?: { items?: Record<string, { verdict: string }> } })
-        .result?.items;
+      const items = (
+        status as { phase?: string; result?: { items?: Record<string, { verdict: string; feedback?: unknown[] }> } }
+      ).result?.items;
       if (items && promptIds.some((id) => items[id])) {
-        return promptIds.map((id) => items[id]?.verdict ?? '').join(',');
+        return JSON.stringify(
+          promptIds.map((id) => (items[id] ? { v: items[id]!.verdict, f: items[id]!.feedback ?? null } : null)),
+        );
       }
     }
-    return '';
+    return '[]';
   });
+  const results = JSON.parse(resultsKey) as Array<{ v: string; f: unknown[] | null } | null>;
 
   useEffect(() => {
     const el = hostRef.current;
@@ -97,12 +103,18 @@ export default function InlineMathGaps({ node }: { node: Record<string, unknown>
       <span className="viewer-math-gaps__static" data-field-mounted={mounted ? 'true' : 'false'}>
         <InlineMath latex={staticLatex(latex, answers)} />
       </span>
-      {verdicts
-        .split(',')
-        .filter(Boolean)
-        .map((v, i) => (
-          <StatePill key={i} state={v === 'correct' ? 'correct' : 'incorrect'} />
-        ))}
+      {results.map((r, i) =>
+        r ? (
+          <span key={i} className="viewer-math-gap-result">
+            <StatePill state={r.v === 'correct' ? 'correct' : 'incorrect'} />
+            {r.f ? (
+              <span className="viewer-blank__feedback" data-feedback="server">
+                <InlineContent nodes={r.f as never} />
+              </span>
+            ) : null}
+          </span>
+        ) : null,
+      )}
     </span>
   );
 }

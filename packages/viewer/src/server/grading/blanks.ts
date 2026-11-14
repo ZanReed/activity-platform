@@ -172,7 +172,11 @@ function boundedMathValue(student: string): string | null {
   // shows a ² key, and the math engine reads only `^2`. Same widening-only
   // fold as text blanks (D7); a bare `x2` is still never a superscript.
   const folded = foldSuperscriptGlyphs(student);
-  if (!checkExpressionSafety(folded).ok) return null;
+  // The RAW value is held to length and balance only: its shape caps (the
+  // tower, operator and depth counts) are run on the tokenized string, where
+  // `x^2y^3` reads as `x^2 y^3` — on the raw string `^2y^` looked like a
+  // tower and refused a correct index-law answer (Fable review, step 2).
+  if (!checkExpressionSafety(folded, { lengthAndBalanceOnly: true }).ok) return null;
   const tokenized = tokenizeMath(folded);
   if (!tokenized) return null;
   if (
@@ -559,13 +563,19 @@ export function selectBlankOutcome(
   let wrongForm = false;
   if (key.answerType === 'math' && key.equivalence === 'form') {
     const tokenized = boundedMathValue(prepareStudentValue(raw));
+    // …and in no slot's FORM: a `~` duplicate (`x+2` typed twice for a pair
+    // keyed `x+2`, `x+3`) is a duplicate, not a form matter (Fable review).
     wrongForm =
       tokenized !== null &&
-      group.some((slot) => slot.answerType === 'math' && valueMatchesMathKey(tokenized, slot));
+      group.some((slot) => slot.answerType === 'math' && valueMatchesMathKey(tokenized, slot)) &&
+      !group.some(
+        (slot) => slot.answerType === 'math' && slot.equivalence === 'form' && scoreMath(tokenized, slot),
+      );
   }
-  // A matched `!` entry outranks `!form-wrong` (step 1 before 2), even one
-  // with no prose: its `mis.*` is the reading.
-  if (wrongForm && !mistake) {
+  // A matched `!` entry outranks `!form-wrong` (step 1 before 2): its `mis.*`
+  // is the reading. One with no prose falls through to the next step for the
+  // MESSAGE, which is `!form-wrong`'s (ruled reading of FG-5, step 2 review).
+  if (wrongForm) {
     const formWrong = key.mistakeFeedback.find((m) => isFormWrongMatch(m.match));
     if (formWrong) {
       misconceptionId ??= formWrong.misconceptionId;

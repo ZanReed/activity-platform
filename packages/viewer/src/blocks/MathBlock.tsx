@@ -176,11 +176,18 @@ export default function MathBlock({
           {phase === 'checking' ? <StatePill state="pending" label="Checking…" /> : null}
           {prompts.map((prompt) => {
             const result = checkedItems?.[prompt.id];
+            // A gap's feedback (form grading's built-in "equal, but not in the
+            // form" line, FG-5) is shown like a blank's — before 2026-11-14 a
+            // gap never carried any, so nothing rendered it.
             return result ? (
-              <StatePill
-                key={prompt.id}
-                state={result.verdict === 'correct' ? 'correct' : 'incorrect'}
-              />
+              <span key={prompt.id} className="viewer-math-gap-result" data-gap-id={prompt.id}>
+                <StatePill state={result.verdict === 'correct' ? 'correct' : 'incorrect'} />
+                {result.feedback ? (
+                  <span className="viewer-blank__feedback" data-feedback="server">
+                    <InlineContent nodes={result.feedback} />
+                  </span>
+                ) : null}
+              </span>
             ) : null;
           })}
         </>

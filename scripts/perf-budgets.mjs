@@ -255,8 +255,13 @@ export const SHELL_SPEND = [
         change: 'UI review D-1…D-3 + review fix: blanks turn off autocorrect/spellcheck; the lock/DoL confirm moves focus to Cancel, Escape cancels, focus returns; the DoL status line carries the tally (pills are no longer live regions — that part shrank)',
         bytes: 287,
     },
+    {
+        date: '2026-11-14',
+        change: 'Form grading (D60) steps 2–3 (+ in-band drift): a math gap shows the feedback its check returns (the FG-5 "equal, but not in the form" line), in the display-maths block, which the shell carries',
+        bytes: 270,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 155778;
+export const SHELL_JS_BASELINE_BYTES = 156048;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

@@ -84,10 +84,27 @@ const IMPLICIT_PRODUCT_RE =
 
 export function checkExpressionSafety(
   expression: string,
-  opts: { maxLength?: number; countImplicitProducts?: boolean } = {},
+  opts: {
+    maxLength?: number;
+    countImplicitProducts?: boolean;
+    /** Only the length and bracket-balance checks (form grading's raw pass:
+     * the shape caps run on the tokenized string instead, FG-14). */
+    lengthAndBalanceOnly?: boolean;
+  } = {},
 ): ExpressionCheck {
   if (expression.length > (opts.maxLength ?? MAX_EXPRESSION_LENGTH)) {
     return { ok: false, reason: 'too_long' };
+  }
+  if (opts.lengthAndBalanceOnly) {
+    let d = 0;
+    for (const ch of expression) {
+      if (ch === '(' || ch === '[' || ch === '{') d += 1;
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        d -= 1;
+        if (d < 0) return { ok: false, reason: 'unbalanced' };
+      }
+    }
+    return d === 0 ? { ok: true } : { ok: false, reason: 'unbalanced' };
   }
   if (EXPONENT_TOWER_RE.test(expression)) {
     return { ok: false, reason: 'exponent_tower' };

@@ -113,14 +113,22 @@ describe('FG-5 precedence', () => {
     expect(grade('FORM-WRONG', k)).toEqual({ verdict: false });
   });
 
-  it('a matching ! entry outranks !form-wrong, even one with no prose', () => {
+  it('a matching ! entry outranks !form-wrong; a prose-less one keeps its mis.* and takes !form-wrong’s message', () => {
     const k = key(['6(3x-2)'], {
       mistakeFeedback: [mis('2(9x-6)', null, 'mis.factorise.not-highest'), formWrong],
       hint: text('Look for the largest factor.'),
     });
     expect(grade('2(9x-6)', k)).toEqual({
       verdict: false,
-      feedback: text('Look for the largest factor.'),
+      feedback: text('Write it as one product.'),
+      misconceptionId: 'mis.factorise.not-highest',
+    });
+    const withProse = key(['6(3x-2)'], {
+      mistakeFeedback: [mis('2(9x-6)', 'Not the highest.', 'mis.factorise.not-highest'), formWrong],
+    });
+    expect(grade('2(9x-6)', withProse)).toEqual({
+      verdict: false,
+      feedback: text('Not the highest.'),
       misconceptionId: 'mis.factorise.not-highest',
     });
   });
@@ -186,6 +194,15 @@ describe('FG-14: a value that trips the bound does no mistake, shape or form wor
     expect(grade(huge, k)).toEqual({ verdict: false });
     expect(spy).not.toHaveBeenCalled();
   });
+  it('index-law answers written without spaces are not read as towers', () => {
+    for (const k of ['x^2y^3', '6a^2b^3', 'm^3n^2', '2x^2y^2']) {
+      expect({ k, ...grade(k, key([k])) }).toEqual({ k, verdict: true });
+    }
+    expect(grade('x²y³', key(['x^2y^3']))).toEqual({ verdict: true });
+    expect(grade('3^2x^2', key(['9x^2'], { equivalence: 'value' }))).toEqual({ verdict: true });
+    // …and a real tower is still refused, with no further work.
+    expect(grade('9^9^9^9', key(['x']))).toEqual({ verdict: false });
+  });
   it('a long but ordinary answer is inside the bound after the split', () => {
     const long = '3x^2y + 2xy^2 - 5xy + 7x - 4y + 12abc - 9a^2b + 1';
     expect(grade(long, key([long]))).toEqual({ verdict: true });
@@ -214,6 +231,13 @@ describe('the ~ group rule (FG-4)', () => {
     expect(selectBlankOutcome(raws2[0]!, a, v2[0]!, group)).toEqual({ feedback: text('A: collect the numbers.') });
     // Without the group, slot b alone would see x+1+1 as just wrong.
     expect(selectBlankOutcome('x+1+1', b, false)).toEqual({});
+    // A DUPLICATE in another slot's form is not a form matter.
+    for (const dup of [['x+2', 'x+2'], ['x+2', '2+x'], ['x+3', 'x+3']] as const) {
+      const v = scoreBlankGroup(group, [...dup]);
+      const wrongAt = v.indexOf(false);
+      const slot = group[wrongAt]!;
+      expect({ dup, outcome: selectBlankOutcome(dup[wrongAt]!, slot, false, group) }).toEqual({ dup, outcome: {} });
+    }
   });
 });
 
