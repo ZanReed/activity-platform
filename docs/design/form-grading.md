@@ -611,8 +611,10 @@ both hash-verified (download into a temp dir, `shasum -a 256
 _shared/*.bundle.js` against the repo). Marker cross-checks: the built-in line
 "isn't in the form the question asks for" in the grading bundle, `"value",
 "form", "exact-form"` in both. Only then push. After the push: the B14 pin-bump
-PR (`form_answer`, `prose_facts.form_grammar`), the Notion stamp for the
-regenerated `docs/catalogue-authoring-prompt.md`, and B-253 if wanted.
+PR (`form_answer`, `prose_facts.form_grammar`) — opened as
+[ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) — and the Notion stamp for the
+regenerated `docs/catalogue-authoring-prompt.md`. **B-253 SENT 2026-11-14** (live, PR #94 waits on
+their prose, the as-built rules); next C-194 / B-254.
 
 **Pre-deploy re-counts (run on live 2026-11-14):** live math blanks: 5 (keys
 `3/2`, `k`, `4x`, `5x`, `2x`), none with a `!` entry, so FG-4 moves **zero**
