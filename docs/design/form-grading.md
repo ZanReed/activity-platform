@@ -1,6 +1,8 @@
 # Form grading: "equivalent AND in the stated form" (design pass, 2026-11-14)
 
-Status: **DESIGN, awaiting the author's yes/no on FG-1 to FG-14.** Not built.
+Status: **RULED 2026-11-14 (author: "Yes to all FG items"): FG-1 to FG-14 as
+recommended.** Not built; build next in the six steps of "Build shape". Letter
+B-251 is drafted below and goes only on the author's go-ahead.
 A Fable review of the draft (2026-11-14) confirmed the code facts and found two
 more live parse defects (`x(x+2)` read as a function call; MathLive's
 `\frac{2}{3}x` read as `2/(3x)`), an overclaim in seeded form (constants were
@@ -523,7 +525,7 @@ Bank copies.
 - Cold typecheck (delete `.tsbuildinfo`) before the final `pnpm verify`.
 - A Fable review per build step.
 
-## Build shape (if all yes)
+## Build shape (ruled 2026-11-14)
 
 1. **Engine** (graph-kit leaf `math-form.ts`, exported through the
    `@activity/graph-kit/scorers` subpath, never the barrel): the tokenizer
