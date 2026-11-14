@@ -123,7 +123,7 @@ export { parseGraphFormula } from './formula.js';
 // key expression ("(6)*(1.75)") to the literal the numeric compare expects.
 // compileFunction is already pure mathjs/number — no size change to the
 // grading bundle, which carried it transitively via formula.
-export { compileFunction, freeVariables } from './evaluate.js';
+export { compileFunction, freeVariables, PROVIDED_NAMES } from './evaluate.js';
 
 export {
   compileMistakeMatchers,

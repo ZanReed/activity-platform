@@ -228,7 +228,7 @@ export interface SelectedBlankState {
   unit: string | undefined;
   acceptableUnits: string[] | undefined;
   /** Math equivalence mode (a node attr; only for 'math', undefined = 'value'). */
-  equivalence: 'value' | 'exact-form' | undefined;
+  equivalence: 'value' | 'form' | undefined;
   /**
    * Structural, NOT an attr: whether a previous blank exists in the same
    * fill_in_blank block, so the popover can offer the grouping checkbox. The

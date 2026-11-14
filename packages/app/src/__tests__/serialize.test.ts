@@ -2793,7 +2793,8 @@ describe('attrs-stored inline content sanitize', () => {
         const blank = block.content[0]!;
         if (blank.type !== 'blank') throw new Error('unreachable');
         expect(blank.answerType).toBe('math');
-        expect(blank.equivalence).toBe('exact-form');
+        // The retired 'exact-form' attr saves as 'form' (FG-8).
+        expect(blank.equivalence).toBe('form');
         expect(blank.tolerance).toBe(0.001);
         expect(() => ActivityDocument.parse(activity)).not.toThrow();
 
@@ -2809,8 +2810,14 @@ describe('attrs-stored inline content sanitize', () => {
         };
         const backBlank = findBlank(back)?.attrs;
         expect(backBlank?.answerType).toBe('math');
-        expect(backBlank?.equivalence).toBe('exact-form');
+        expect(backBlank?.equivalence).toBe('form');
         expect(backBlank?.tolerance).toBe(0.001);
+        // …and 'form' round-trips byte-stably (a stale editor build would
+        // drop it and silently widen the marks — form-grading.md).
+        const again = tiptapToActivity(back, META);
+        const b2 = flatBlocks(again.sections[0]!)[0]!;
+        if (b2.type !== 'fill_in_blank') throw new Error('unreachable');
+        expect(b2.content[0]).toMatchObject({ answerType: 'math', equivalence: 'form' });
     });
 
     it('a value-mode math blank stores no equivalence attr (default parity)', () => {

@@ -109,7 +109,8 @@ describe('math_block prompts — serialize', () => {
     // Find the mathBlock anywhere in the reloaded tree.
     const json = JSON.stringify(back);
     expect(json).toContain('"id":"d"');
-    expect(json).toContain('"equivalence":"exact-form"');
+    // A gap's retired 'exact-form' saves as 'form' (FG-8).
+    expect(json).toContain('"equivalence":"form"');
     expect(json).toContain('"tolerance":0.01');
   });
 });

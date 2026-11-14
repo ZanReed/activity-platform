@@ -90,6 +90,8 @@ import { parseVideoFence } from './videoFence';
 import { finalizeVideos } from './videoImport';
 import { parseNumberLineInterval } from '../editor/numberLineFormula';
 import { parseBlankSpec } from './blankSyntax';
+import { mathBlankWarnings } from './formRules';
+import { mathShape } from '@activity/graph-kit/scorers';
 import {
     splitMisconceptionBinding,
     suspectWarning,
@@ -710,31 +712,43 @@ function extractMath(src: string): { text: string; spans: MathSpan[] } {
 // (8, 8.0, 4+4) is accepted — no alternates syntax needed. Balanced-brace scan,
 // so `\gap{\frac{1}{2}}` works. `|`-alternates are deliberately NOT parsed here
 // (a `|` is a real LaTeX token — |x| absolute value); richer knobs
-// (acceptableAnswers, exact-form, tolerance) are editor-only.
-const GAP_MARKER = '\\gap{';
+// (acceptableAnswers, tolerance) are editor-only. ONE option is read:
+// `\gap[form]{12ab}` (LaTeX's own optional-argument spelling, so it never
+// collides with an answer) holds the gap to its key's FORM — equal AND in that
+// form (form-grading.md FG-7). Still no `!` and no seeds in a gap (C-163).
+const GAP_RE = /\\gap(?:\[([^\]]*)\])?\{/g;
 
 interface ImportedMathPrompt {
     id: string;
     answer: string;
     acceptableAnswers: string[];
+    equivalence?: 'form';
 }
 
 function resolveMathGaps(
     latex: string,
     ctx: Ctx,
 ): { latex: string; prompts: ImportedMathPrompt[] } {
-    if (!latex.includes(GAP_MARKER)) return { latex, prompts: [] };
+    if (!latex.includes('\\gap')) return { latex, prompts: [] };
     const prompts: ImportedMathPrompt[] = [];
     let out = '';
     let i = 0;
     while (i < latex.length) {
-        const start = latex.indexOf(GAP_MARKER, i);
-        if (start === -1) {
+        GAP_RE.lastIndex = i;
+        const m = GAP_RE.exec(latex);
+        if (!m) {
             out += latex.slice(i);
             break;
         }
+        const start = m.index;
         out += latex.slice(i, start);
-        const open = start + GAP_MARKER.length - 1; // index of the `{`
+        const option = m[1]?.trim();
+        if (option !== undefined && option !== 'form') {
+            ctx.warnings.add(
+                `Math gap: \\gap[${option}]{…} — the only option is [form] (equal AND in the answer's form); graded as a plain gap.`,
+            );
+        }
+        const open = start + m[0].length - 1; // index of the `{`
         let depth = 0;
         let j = open;
         for (; j < latex.length; j++) {
@@ -756,7 +770,13 @@ function resolveMathGaps(
         out += '\\placeholder[' + id + ']{' + answerLatex + '}';
         const answer = latexToAscii(answerLatex).trim();
         if (answer.length > 0) {
-            prompts.push({ id, answer, acceptableAnswers: [] });
+            const form = option === 'form';
+            if (form && mathShape(answer, 'key') === null) {
+                ctx.warnings.add(
+                    `Math gap: the form answer \\gap[form]{${answerLatex}} can't be read as maths, so no answer can ever match it.`,
+                );
+            }
+            prompts.push({ id, answer, acceptableAnswers: [], ...(form ? { equivalence: 'form' as const } : {}) });
         } else {
             ctx.warnings.add(
                 'Math gap: a \\gap{…} needs an answer inside the braces — left as an empty gap.',
@@ -1942,12 +1962,19 @@ function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | n
     const spec = parseBlankSpec(unprotectBlankText(canonRaw), unprotectBlankText(altsRaw));
     if (!spec) return null;
     for (const w of spec.warnings) ctx.warnings.add(w);
+    // Math-blank checks that need the engine (FG-3's `e`, FG-4's duplicate
+    // mistakes, a form key that won't parse) — importer-only, kept out of the
+    // editor input rule's bundle.
+    if (spec.answerType === 'math') {
+        for (const w of mathBlankWarnings(spec)) ctx.warnings.add(w);
+    }
     const attrs: Record<string, unknown> = {
         id: crypto.randomUUID(),
         answer: spec.canonical,
         acceptableAnswers: spec.acceptableAnswers,
         interchangeableWithPrevious: spec.interchangeableWithPrevious,
         answerType: spec.answerType,
+        ...(spec.equivalence !== undefined ? { equivalence: spec.equivalence } : {}),
         ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
         ...(spec.unit !== undefined ? { unit: spec.unit } : {}),
         ...(spec.acceptableUnits !== undefined

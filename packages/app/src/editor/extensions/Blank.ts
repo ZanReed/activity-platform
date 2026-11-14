@@ -71,7 +71,7 @@ declare module '@tiptap/core' {
                     tolerance: number | undefined;
                     unit: string | undefined;
                     acceptableUnits: string[] | undefined;
-                    equivalence: 'value' | 'exact-form' | undefined;
+                    equivalence: 'value' | 'form' | undefined;
                     hint: unknown[] | undefined;
                     mistakeFeedback:
                         | Array<{ match: string; feedback: unknown[]; misconceptionId?: string }>
@@ -153,17 +153,19 @@ export const Blank = Node.create({
                         ? { 'data-answer-type': attributes.answerType }
                         : {},
             },
-            // Math equivalence mode ('value' default | 'exact-form'). Only
-            // meaningful when answerType is 'math'; undefined = 'value'.
+            // Math equivalence mode ('value' default | 'form' — {{===…}},
+            // equal AND in the key's form, D60). Only meaningful when
+            // answerType is 'math'; undefined = 'value'. A pasted
+            // 'exact-form' (retired, FG-8) reads as 'form'.
             equivalence: {
-                default: undefined as 'value' | 'exact-form' | undefined,
-                parseHTML: (element) =>
-                    element.getAttribute('data-equivalence') === 'exact-form'
-                        ? 'exact-form'
-                        : undefined,
+                default: undefined as 'value' | 'form' | undefined,
+                parseHTML: (element) => {
+                    const v = element.getAttribute('data-equivalence');
+                    return v === 'form' || v === 'exact-form' ? 'form' : undefined;
+                },
                 renderHTML: (attributes) =>
-                    attributes.equivalence === 'exact-form'
-                        ? { 'data-equivalence': 'exact-form' }
+                    attributes.equivalence === 'form'
+                        ? { 'data-equivalence': 'form' }
                         : {},
             },
             tolerance: {

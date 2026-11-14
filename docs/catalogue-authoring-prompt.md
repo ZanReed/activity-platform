@@ -63,6 +63,17 @@ FILL-IN-THE-BLANK
 - For a MATH answer graded by expression equivalence (2a, a+a and a*2 all
   count as equal), use two equals signs:  simplify to {{==2a}}. Combine with
   the tilde as {{~==2a}}.
+- When the FORM of the answer is the point (factorised, expanded, simplified,
+  simplest form), use THREE equals signs and write the answer in that form:
+  factorise 18x - 12 = {{===6(3x-2)}}. An equal answer in the same form
+  counts, whatever the order of terms and factors or the spacing (6(3x-2),
+  (3x-2)6 and -6(2-3x) all count); an equal answer in another form, such as
+  18x-12 or 2(9x-6), is marked wrong. Name the form in the question. A
+  !wrong :: message is matched in any order or spacing:
+    {{===12ab | !7ab :: You added the numbers instead of multiplying}}
+  The reserved !form-wrong :: message fires when the answer is equal but not
+  in the form; with none, the student is told it is equal but not in the
+  form the question asks for. No tolerance and no unit: on a form blank.
 - Add an optional HINT a student can open when stuck by starting a bar-segment
   with ?:  {{Paris | ?It starts with P}}. One hint per blank.
 - Give targeted feedback for a specific wrong answer with a bar-segment written
@@ -86,6 +97,7 @@ MATH (write real LaTeX)
   the missing part (ideal for a faded example's "complete the step"):
     $$2x = \gap{8}$$   then   $$x = \gap{4}$$
   The answer is graded by math equivalence, so 8, 8.0, and 4+4 all count.
+  To hold a gap to the FORM of its answer, write \gap[form]{12ab}.
 
 DEFINITIONS (a tappable vocabulary term with a pop-up explanation)
 - Wrap a term and its meaning in double square brackets, split by ::

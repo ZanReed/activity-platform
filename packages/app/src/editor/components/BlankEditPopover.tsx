@@ -82,7 +82,7 @@ interface BlankEditPopoverProps {
     initialTolerance: number | undefined;
     initialUnit: string | undefined;
     initialAcceptableUnits: string[] | undefined;
-    initialEquivalence: 'value' | 'exact-form' | undefined;
+    initialEquivalence: 'value' | 'form' | undefined;
     // Whether a previous blank exists in this block; gates the grouping
     // checkbox (the first blank in a block has nothing to group with).
     canGroupWithPrevious: boolean;
@@ -101,7 +101,7 @@ interface BlankEditPopoverProps {
             tolerance: number | undefined;
             unit: string | undefined;
             acceptableUnits: string[] | undefined;
-            equivalence: 'value' | 'exact-form' | undefined;
+            equivalence: 'value' | 'form' | undefined;
             hint: InlineNodes | undefined;
             mistakeFeedback: MistakeFeedbackPair[] | undefined;
         }>,
@@ -153,8 +153,8 @@ export default function BlankEditPopover({
     const [answerType, setAnswerType] = useState<'text' | 'numeric' | 'math'>(
         initialAnswerType,
     );
-    const [equivalence, setEquivalence] = useState<'value' | 'exact-form'>(
-        initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
+    const [equivalence, setEquivalence] = useState<'value' | 'form'>(
+        initialEquivalence === 'form' ? 'form' : 'value',
     );
     const [toleranceDraft, setToleranceDraft] = useState(
         initialTolerance !== undefined ? String(initialTolerance) : '',
@@ -223,7 +223,7 @@ export default function BlankEditPopover({
             setInterchangeable(initialInterchangeable);
             setAnswerType(initialAnswerType);
             setEquivalence(
-                initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
+                initialEquivalence === 'form' ? 'form' : 'value',
             );
             setToleranceDraft(
                 initialTolerance !== undefined ? String(initialTolerance) : '',
@@ -552,7 +552,7 @@ export default function BlankEditPopover({
             // numeric-only and clears.
             setUnitDraft('');
             setEquivalence(
-                initialEquivalence === 'exact-form' ? 'exact-form' : 'value',
+                initialEquivalence === 'form' ? 'form' : 'value',
             );
             onChange({
                 answerType: 'math',
@@ -564,11 +564,11 @@ export default function BlankEditPopover({
         }
     };
 
-    const handleEquivalenceChange = (next: 'value' | 'exact-form') => {
+    const handleEquivalenceChange = (next: 'value' | 'form') => {
         setEquivalence(next);
         // 'value' is the default → store as undefined so value-mode blanks stay
-        // attr-free (round-trip parity); 'exact-form' is stored explicitly.
-        onChange({ equivalence: next === 'exact-form' ? 'exact-form' : undefined });
+        // attr-free (round-trip parity); 'form' is stored explicitly.
+        onChange({ equivalence: next === 'form' ? 'form' : undefined });
     };
 
     const commitTolerance = () => {
@@ -760,8 +760,8 @@ export default function BlankEditPopover({
                                 value={equivalence}
                                 onChange={(e) =>
                                     handleEquivalenceChange(
-                                        e.target.value === 'exact-form'
-                                            ? 'exact-form'
+                                        e.target.value === 'form'
+                                            ? 'form'
                                             : 'value',
                                     )
                                 }
@@ -770,7 +770,7 @@ export default function BlankEditPopover({
                                 <option value="value">
                                     Any equivalent form
                                 </option>
-                                <option value="exact-form">
+                                <option value="form">
                                     Exact form only
                                 </option>
                             </select>

@@ -44,6 +44,7 @@ import type { ImportGlossaryEntry, MarkdownImporter } from './markdownToTiptap';
 import { wrapBlocksStrict } from '../editor/strictGrid';
 import { tiptapToActivity } from './serialize';
 import { enumerateTemplate, parseBankSeedFence, templateVariables } from './bankSeed';
+import { formSeedFindings } from './formRules';
 
 const BANK_HEADING = /^[a-z][a-z0-9-]*$/;
 
@@ -549,6 +550,14 @@ export function parseBankFile(markdown: string, options: ParseBankFileOptions): 
                 problems.push(`${where} at ${at}: ${problem} (PB-8).`);
                 break;
             }
+        }
+
+        // FG-6: every stored row of a seeded FORM key (form-grading.md).
+        {
+            const rows = table.rows.map((_, row) => bankRowValues(table, row));
+            const f = formSeedFindings(doc.sections, rows, where, vars as Set<string>);
+            problems.push(...f.problems);
+            warnings.push(...f.warnings);
         }
 
         // BE-6: a DERIVED value shown in prose must not render as float noise.

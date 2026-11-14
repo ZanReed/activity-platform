@@ -110,8 +110,8 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 ? (node.attrs.acceptableUnits as string[])
                 : undefined;
             const equivalence =
-                node.attrs.equivalence === 'exact-form'
-                    ? 'exact-form'
+                node.attrs.equivalence === 'form'
+                    ? 'form'
                     : undefined;
 
             // Structural: can this blank group with a previous one? Only when an
@@ -182,7 +182,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 tolerance: number | undefined;
                 unit: string | undefined;
                 acceptableUnits: string[] | undefined;
-                equivalence: 'value' | 'exact-form' | undefined;
+                equivalence: 'value' | 'form' | undefined;
                 hint: InlineNodes | undefined;
                 mistakeFeedback:
                     | Array<{ match: string; feedback: InlineNodes; misconceptionId?: string }>

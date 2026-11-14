@@ -318,6 +318,11 @@ export const BLANK_MODIFIERS: BlankModifierSpec[] = [
         example: 'simplify to {{==2a}}.',
     },
     {
+        syntax: '{{===expr}}',
+        summary: 'a form blank: equal AND in the answer’s form (order and spacing aside)',
+        example: 'factorise 18x - 12 = {{===6(3x-2)}}.',
+    },
+    {
         syntax: '{{answer | ?hint}}',
         summary: 'a hint the student can open when stuck',
         example: 'The capital is {{Paris | ?It starts with P}}.',

@@ -260,7 +260,7 @@ describe('isSameBlankSelection', () => {
     expect(
       isSameBlankSelection(
         make({ answerType: 'math' }),
-        make({ answerType: 'math', equivalence: 'exact-form' }),
+        make({ answerType: 'math', equivalence: 'form' }),
       ),
     ).toBe(false);
   });

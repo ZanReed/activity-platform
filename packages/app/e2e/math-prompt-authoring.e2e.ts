@@ -98,7 +98,7 @@ test('the Answer settings popover configures the gap grading (trimmed to math)',
 
     // Configure exact-form + a tolerance — both write onto the prompt (real
     // change + blur, so commit-on-blur fires).
-    await pop.getByLabel('Math equivalence mode').selectOption('exact-form');
+    await pop.getByLabel('Math equivalence mode').selectOption('form');
     await pop.getByLabel('Comparison tolerance').fill('0.5');
     await pop.getByLabel('Comparison tolerance').blur();
 
@@ -109,7 +109,7 @@ test('the Answer settings popover configures the gap grading (trimmed to math)',
                 id: 'g',
                 answer: '2a',
                 acceptableAnswers: [],
-                equivalence: 'exact-form',
+                equivalence: 'form',
                 tolerance: 0.5,
             },
         ]);

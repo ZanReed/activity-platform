@@ -174,7 +174,13 @@ function readMathPrompts(node: JSONContent): MathPrompt[] {
     const out: MathPrompt[] = [];
     for (const entry of raw) {
         const parsed = MathPromptSchema.safeParse(entry);
-        if (parsed.success) out.push(parsed.data);
+        if (!parsed.success) continue;
+        // The retired 'exact-form' saves as 'form' (form-grading FG-8).
+        out.push(
+            parsed.data.equivalence === 'exact-form'
+                ? { ...parsed.data, equivalence: 'form' }
+                : parsed.data,
+        );
     }
     return out;
 }
@@ -1524,8 +1530,13 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
         ) {
             result.tolerance = rawTolerance;
         }
-        if (node.attrs?.equivalence === 'exact-form') {
-            result.equivalence = 'exact-form';
+        // 'form' ({{===…}}, D60). The retired 'exact-form' (an old draft's
+        // attr) is saved as 'form' — FG-8, widening-only.
+        if (
+            node.attrs?.equivalence === 'form' ||
+            node.attrs?.equivalence === 'exact-form'
+        ) {
+            result.equivalence = 'form';
         }
     }
 
@@ -2296,9 +2307,12 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
     if (node.acceptableUnits !== undefined) {
         attrs.acceptableUnits = node.acceptableUnits;
     }
-    // Math equivalence: only 'exact-form' is stored (value is the default and
-    // maps to an absent attr, keeping round-trip equality for value-mode blanks).
-    if (node.equivalence === 'exact-form') attrs.equivalence = 'exact-form';
+    // Math equivalence: only 'form' is stored (value is the default and maps
+    // to an absent attr, keeping round-trip equality for value-mode blanks).
+    // A stored 'exact-form' (retired, FG-8) loads as 'form'.
+    if (node.equivalence === 'form' || node.equivalence === 'exact-form') {
+        attrs.equivalence = 'form';
+    }
     if (node.hint !== undefined) attrs.hint = node.hint;
     if (node.mistakeFeedback !== undefined) {
         attrs.mistakeFeedback = node.mistakeFeedback;

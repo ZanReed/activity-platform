@@ -26,6 +26,10 @@ export const TOLERANCE_RE = /^(.*?)\s*(?:±|\+-)\s*(\d*\.?\d+)$/;
 // (commas separate alternates; `|` cannot appear inside a segment).
 export const UNIT_CLAUSE_RE = /^(.*?)\s+unit:\s*(.*)$/i;
 
+// The reserved mistake match of a form blank (FG-5) — mirrors the grader's
+// FORM_WRONG_MATCH (viewer grading/blanks.ts); pinned equal by a test.
+export const FORM_WRONG_MATCH = 'form-wrong';
+
 // The parsed shape of a blank's brace contents, BEFORE any Tiptap/inline
 // construction. Pure string work so it unit-tests without a ctx or the editor
 // schema. Each consumer turns it into a node its own way (the importer resolves
@@ -35,6 +39,9 @@ export const UNIT_CLAUSE_RE = /^(.*?)\s+unit:\s*(.*)$/i;
 export interface BlankSpec {
     canonical: string;
     answerType: 'text' | 'numeric' | 'math';
+    // `{{===…}}`: equal AND in the key's form (D60, form-grading.md FG-7).
+    // Only on a math blank; absent = value equivalence.
+    equivalence?: 'form';
     tolerance?: number;
     // Unit-bearing numeric blank ({{=1.5 unit: km/h, kph}}): the canonical
     // unit + normalized-equal alternates. Numeric only; on text/math blanks
@@ -62,6 +69,7 @@ export interface BlankSpec {
 //   ~<answer>   canonical: interchangeable with the PREVIOUS blank (grouping)
 //   =<answer>   canonical: NUMERIC (0.5 = 1/2 = .50), optional "± tol"/"+- tol"
 //   ==<answer>  canonical: MATH expression equivalence (2a ≡ a+a), via graph-kit
+//   ===<answer> canonical: MATH, equal AND in this form (6(3x-2), not 18x-12)
 //   ?<text>     a HINT (one per blank; a second warns + wins)
 //   !<wrong> :: <feedback>   an anticipated-mistake pair (repeatable); the `::`
 //               delimiter matches ```mc / ```graph, so a `match` may contain `=`
@@ -94,7 +102,28 @@ export function parseBlankSpec(
     let tolerance: number | undefined;
     let unit: string | undefined;
     let acceptableUnits: string[] | undefined;
-    if (canonical.startsWith('==')) {
+    let equivalence: 'form' | undefined;
+    if (canonical.startsWith('===')) {
+        // FG-7: `===` is tested before `==`. A form has no tolerance and no
+        // unit — both are refused with a named warning, never half-applied.
+        answerType = 'math';
+        equivalence = 'form';
+        canonical = canonical.slice(3).trim();
+        const unitMatch = UNIT_CLAUSE_RE.exec(canonical);
+        if (unitMatch && unitMatch[1] !== undefined) {
+            canonical = unitMatch[1].trim();
+            warnings.push(
+                'Fill-in-the-blank: a form blank ({{===…}}) can’t take a "unit:" clause — ignored. Use a numeric blank {{=…}} for a quantity with a unit.',
+            );
+        }
+        const tolMatch = TOLERANCE_RE.exec(canonical);
+        if (tolMatch && tolMatch[1] && tolMatch[1].trim().length > 0) {
+            canonical = tolMatch[1].trim();
+            warnings.push(
+                'Fill-in-the-blank: a form blank ({{===…}}) can’t take a "+-" tolerance — ignored. A form is written exactly; use {{==…}} or {{=…}} for a tolerance.',
+            );
+        }
+    } else if (canonical.startsWith('==')) {
         answerType = 'math';
         canonical = canonical.slice(2).trim();
     } else if (canonical.startsWith('=')) {
@@ -199,9 +228,21 @@ export function parseBlankSpec(
         acceptableAnswers.push(seg);
     }
 
+    // `!form-wrong` is reserved (FG-5): it fires only on a form blank, when the
+    // value is right and the form is not. Anywhere else it never fires.
+    if (
+        equivalence !== 'form' &&
+        mistakes.some((m) => m.match.trim().toLowerCase() === FORM_WRONG_MATCH)
+    ) {
+        warnings.push(
+            'Fill-in-the-blank: “!form-wrong” only fires on a form blank ({{===…}}) — on this blank it never will.',
+        );
+    }
+
     return {
         canonical,
         answerType,
+        ...(equivalence !== undefined ? { equivalence } : {}),
         ...(tolerance !== undefined ? { tolerance } : {}),
         ...(unit !== undefined ? { unit } : {}),
         ...(acceptableUnits !== undefined ? { acceptableUnits } : {}),
@@ -232,6 +273,7 @@ export interface BlankNodeAttrs {
     acceptableAnswers: string[];
     interchangeableWithPrevious: boolean;
     answerType: 'text' | 'numeric' | 'math';
+    equivalence?: 'form';
     tolerance?: number;
     unit?: string;
     acceptableUnits?: string[];
@@ -249,6 +291,7 @@ export function blankAttrsFromSpec(spec: BlankSpec): BlankNodeAttrs {
         acceptableAnswers: spec.acceptableAnswers,
         interchangeableWithPrevious: spec.interchangeableWithPrevious,
         answerType: spec.answerType,
+        ...(spec.equivalence !== undefined ? { equivalence: spec.equivalence } : {}),
         ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
         ...(spec.unit !== undefined ? { unit: spec.unit } : {}),
         ...(spec.acceptableUnits !== undefined

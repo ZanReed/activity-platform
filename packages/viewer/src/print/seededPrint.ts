@@ -122,3 +122,8 @@ export function seedForForm<T>(doc: T, baseSeed: string, dolForm = 1): { served:
   } as unknown as T;
   return { served, keyed };
 }
+
+/** The BOUND key entry (seed names replaced, nothing folded) — what the grader
+ * compares. Re-exported for the importer's seed-row checks (formRules.ts),
+ * which must see the bound form, not the display one. */
+export { resolveSeededEntry as bindSeededEntry } from '../seeded/resolveEntry.js';

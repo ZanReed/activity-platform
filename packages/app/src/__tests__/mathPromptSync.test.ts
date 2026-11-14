@@ -129,7 +129,7 @@ describe('buildMathPrompts (reconcile core)', () => {
         id: 'd',
         answer: 'old',
         acceptableAnswers: ['a+a'],
-        equivalence: 'exact-form' as const,
+        equivalence: 'form' as const,
         tolerance: 0.01,
       },
     ];
@@ -138,7 +138,7 @@ describe('buildMathPrompts (reconcile core)', () => {
         id: 'd',
         answer: '2a', // answer refreshed from the field
         acceptableAnswers: ['a+a'], // config preserved
-        equivalence: 'exact-form',
+        equivalence: 'form',
         tolerance: 0.01,
       },
     ]);

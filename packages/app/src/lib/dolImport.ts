@@ -30,9 +30,11 @@
 import type { JSONContent } from '@tiptap/core';
 import { isGradeable, type Block, type SectionDol } from '@activity/schema';
 import type { BankValueTable } from '@activity/schema/bank-seed';
+import { bankRowValues } from '@activity/schema/bank-seed';
 import { collectSeedRefs, dolRetakeFrom, dolShapeProblems } from './dolRules';
 import { tiptapBlockToActivity } from './serialize';
 import { enumerateTemplate, parseBankSeedFence, type ParsedBankSeed } from './bankSeed';
+import { formSeedFindings } from './formRules';
 
 /** The most valid rows one group stores (DE-17). */
 export const DOL_ROWS_STORED = 500;
@@ -274,6 +276,13 @@ export function finalizeDol(input: DolImportInput): DolImportResult {
             }
             if (problems.length === 0 && built.length > 0) {
                 tables = built;
+                // FG-6: every stored row of a seeded FORM key (form-grading.md).
+                for (const table of built) {
+                    const rows = table.rows.map((_, i) => bankRowValues(table, i));
+                    const f = formSeedFindings(dolNodes, rows, 'DoL', dolVars);
+                    problems.push(...f.problems);
+                    warnings.push(...f.warnings);
+                }
                 // DE-8 + DE-13: the primary block must use a DoL variable whose
                 // group can produce a different row.
                 const primaryRefs = primary ? collectSeedRefs(primary.node) : new Set<string>();

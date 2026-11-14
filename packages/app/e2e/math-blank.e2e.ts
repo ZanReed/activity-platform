@@ -67,8 +67,8 @@ test('choosing Math reveals equivalence + tolerance and writes answerType=math',
     expect((await readBlankAttrs(page)).answerType).toBe('math');
 
     // Exact-form equivalence writes the attr; value-mode leaves it undefined.
-    await pop.getByLabel('Math equivalence mode').selectOption('exact-form');
-    expect((await readBlankAttrs(page)).equivalence).toBe('exact-form');
+    await pop.getByLabel('Math equivalence mode').selectOption('form');
+    expect((await readBlankAttrs(page)).equivalence).toBe('form');
 
     // Switching back to Text clears the math-only attrs.
     await pop.getByRole('radio', { name: 'Text' }).check();

@@ -180,6 +180,25 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'form blank {{===expr}}',
+        fragment: '{{===6(3x-2)}}',
+        md: 'factorise 18x - 12 = {{===6(3x-2)}}.',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs).toMatchObject({ answer: '6(3x-2)', answerType: 'math', equivalence: 'form' });
+        },
+    },
+    {
+        name: 'form blank mistake {{===12ab | !7ab :: …}}',
+        fragment: '{{===12ab | !7ab :: You added the numbers instead of multiplying}}',
+        md: 'Simplify: {{===12ab | !7ab :: You added the numbers instead of multiplying}}',
+        check: (b) => {
+            const blank = nodesOfType(b, 'blank')[0]!;
+            expect(blank.attrs).toMatchObject({ answer: '12ab', equivalence: 'form' });
+            expect((blank.attrs!.mistakeFeedback as Array<{ match: string }>)[0]!.match).toBe('7ab');
+        },
+    },
+    {
         name: 'blank hint {{answer | ?hint}}',
         fragment: '{{Paris | ?It starts with P}}',
         md: 'The capital is {{Paris | ?It starts with P}}.',
@@ -254,6 +273,15 @@ const CLAIMS: Claim[] = [
             const mb = b.find((n) => n.type === 'mathBlock')!;
             expect(mb).toBeDefined();
             expect((mb.attrs!.prompts as unknown[]).length).toBe(1);
+        },
+    },
+    {
+        name: 'form gap \\gap[form]{answer}',
+        fragment: '\\gap[form]{12ab}',
+        md: '$$4a \\times 3b = \\gap[form]{12ab}$$',
+        check: (b) => {
+            const mb = b.find((n) => n.type === 'mathBlock')!;
+            expect((mb.attrs!.prompts as Array<Record<string, unknown>>)[0]).toMatchObject({ equivalence: 'form' });
         },
     },
     {
