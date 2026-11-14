@@ -683,3 +683,12 @@ no P0 or P1; a near-vacuous unit test was dropped.
 quiz day (TODOS, C-188); the P2s left in each step's notes above; and the "Not checked
 yet" list (the 10-day window, the present view on a real projector, whether teachers
 notice that moving a plan doesn't move its due date).
+
+**After the build, a "Present today" button on each class card (2026-11-14, author):** the
+author found the present view, but a link under the Today day card didn't say what it was
+for. Each class card on `/classes` now has a bordered **Present today** button (tooltip:
+"Show today's period on the projector"). Opened from there, Back and Escape return to
+Classes; from Today & practice, they return there as before. The view's "nothing picked"
+line now links to Today & practice. No migration, no deploy. Tested on rendered output
+(Classes, ClassPresent); the back-path guard was mutation-tested (1 red). Cold verify
+green, lanes 174/174.

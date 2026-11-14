@@ -8,11 +8,12 @@
 // answers and this page is on a projector. No student names, no progress, no
 // answers, no clock, no timer. "We're here" highlights one row locally: nothing
 // is saved or sent (not the lesson player PA-2 refused). Escape or Back returns
-// to the class's Today & practice page.
+// to where it was opened from: the Classes card's "Present today" button, or
+// the class's Today & practice page.
 // =============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
 import { listClasses, type ClassInfo } from '../lib/classes';
 import { fetchClassToday, type ClassToday } from '../lib/classToday';
@@ -36,7 +37,10 @@ export default function ClassPresent() {
     // Nothing is read or shown until the role is known to be a teacher (review
     // P1: class_today is student-readable, so a loading role must not fetch).
     const isTeacher = role === 'teacher';
-    const back = `/classes/${classId}/facts`;
+    const location = useLocation();
+    const facts = `/classes/${classId}/facts`;
+    // Opened from the Classes card, Back returns there; otherwise to Today & practice.
+    const back = (location.state as { from?: unknown } | null)?.from === '/classes' ? '/classes' : facts;
 
     const [cls, setCls] = useState<ClassInfo | null>(null);
     const [today, setToday] = useState<ClassToday | null>(null);
@@ -171,7 +175,11 @@ export default function ClassPresent() {
 
             {view.blocks.length === 0 ? (
                 <p className="mt-10 text-2xl text-muted">
-                    Nothing is picked for today. Pick one on the Today &amp; practice page.
+                    Nothing is picked for today. Pick one on the{' '}
+                    <Link to={facts} className="underline underline-offset-2 hover:text-strong">
+                        Today &amp; practice page
+                    </Link>
+                    .
                 </p>
             ) : (
                 <ol className="mt-8 space-y-3" role="list" aria-label="Today's period">

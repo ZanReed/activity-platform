@@ -382,6 +382,18 @@ describe('join link', () => {
         expect(screen.getByRole('link', { name: /^Today & practice: / }).getAttribute('href')).toBe('/classes/class-1/facts');
     });
 
+    it('each class has a "Present today" button to its projector view (PP-9)', async () => {
+        h.listResult.current = {
+            data: [{ id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
+                     age_assertion_at: '2026-08-12T00:00:00Z', created_at: '2026-08-12T00:00:00Z' }],
+            error: null,
+        };
+        renderClasses();
+        const link = await screen.findByRole('link', { name: 'Present today: Algebra I — Period 3' });
+        expect(link.getAttribute('href')).toBe('/classes/class-1/present');
+        expect(link.textContent).toBe('Present today');
+    });
+
     it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {
         const { joinUrlFor } = await import('../routes/Classes');
         const path = new URL(joinUrlFor('ABC123')).pathname;

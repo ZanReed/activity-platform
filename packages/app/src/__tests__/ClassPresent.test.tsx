@@ -63,10 +63,11 @@ vi.mock('../lib/mixedTeacher', () => ({
 
 import ClassPresent from '../routes/ClassPresent';
 
-function renderPage() {
+function renderPage(from?: string) {
     return render(
-        <MemoryRouter initialEntries={['/classes/c1/present']}>
+        <MemoryRouter initialEntries={[{ pathname: '/classes/c1/present', state: from ? { from } : null }]}>
             <Routes>
+                <Route path="/classes" element={<p>Classes page</p>} />
                 <Route path="/classes/:classId/present" element={<ClassPresent />} />
                 <Route path="/classes/:classId/facts" element={<p>Today and practice page</p>} />
             </Routes>
@@ -121,6 +122,14 @@ describe('the present view', () => {
         await screen.findByRole('list', { name: "Today's period" });
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(await screen.findByText('Today and practice page')).toBeTruthy();
+    });
+
+    it('opened from the Classes card, Escape and Back return to Classes', async () => {
+        renderPage('/classes');
+        await screen.findByRole('list', { name: "Today's period" });
+        expect(screen.getByRole('link', { name: 'Back (Esc)' }).getAttribute('href')).toBe('/classes');
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(await screen.findByText('Classes page')).toBeTruthy();
     });
 
     it('a student sees nothing of the plan', async () => {
