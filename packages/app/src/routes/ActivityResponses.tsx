@@ -24,8 +24,11 @@
 //
 // Save is EXPLICIT (no autosave): grading is a deliberate act, an autosaving
 // rubric would flood the audit trail with keystrokes, and the editor's
-// flush-on-close bug class is not worth re-importing. Leaving a row with
-// unsaved entries prompts rather than silently discarding.
+// flush-on-close bug class is not worth re-importing. Switching to another
+// row (a click or Next) with unsaved entries prompts rather than silently
+// discarding, and so does closing or reloading the tab. The page's own links
+// (the results tabs, back links) are NOT guarded: BrowserRouter has no
+// navigation blocker.
 //
 // THE AI-ASSIST LAYER (0042; ai-grading-assist.md §4b DR-1..12) rides this
 // surface without changing its rulings:
@@ -45,7 +48,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { safeProgressPath } from '../lib/classProgress';
+import { HIDE_NAMES_KEY, pseudonyms, readFlag, safeProgressPath, writeFlag } from '../lib/classProgress';
+import { groupRows, nextOwedKey, rowKey } from '../lib/responsesQueue';
 import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/responsesLabels';
 import {
   RESPONSES_COPY as COPY,
@@ -94,9 +98,21 @@ function needsGrading(row: GradingQueueRow): boolean {
   return statusOf(row) !== 'graded';
 }
 
-function studentName(row: GradingQueueRow): string {
-  return row.student_label ?? COPY.notInYourClass;
-}
+// Hide names (the progress pages' switch, same device-remembered choice):
+// "Student 4" in place of every name on the page, numbered by name order so
+// the number holds still. A student outside the teacher's classes has no name
+// to hide and keeps the plain "Not in your classes".
+type NameOf = (row: GradingQueueRow) => string;
+
+/** The unsaved-grade prompt and the Next control (teacher-grading.md D8). */
+const NEXT_COPY = {
+  next: 'Next to grade',
+  discardTitle: 'Discard unsaved grade?',
+  discardBody: 'The points and feedback you entered for this response have not been saved.',
+  discardConfirm: 'Discard',
+  keepCancel: 'Keep editing',
+} as const;
+
 
 const CHIP: Record<RowStatus, { label: string; className: string }> = {
   needs_grading: {
@@ -187,6 +203,30 @@ export default function ActivityResponses() {
   const [needsOnly, setNeedsOnly] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The progress pages' Hide names, same device-remembered key. Read here
+  // rather than through progress/common's hook, which would load that whole
+  // shared chunk into this page for two lines.
+  const [hideNames, setHideNamesState] = useState(() => readFlag(HIDE_NAMES_KEY));
+  const setHideNames = (on: boolean) => {
+    setHideNamesState(on);
+    writeFlag(HIDE_NAMES_KEY, on);
+  };
+  // D8: switching rows with unsaved entries asks first. `dirty` is the open
+  // panel's report; `pending` is the row waiting on the answer.
+  const [dirty, setDirty] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  // Set when Next opened the panel, so focus lands in it rather than on <body>.
+  const [focusPanel, setFocusPanel] = useState(false);
+  const choose = (k: string, viaNext = false) => {
+    if (k === selected) return;
+    if (dirty) {
+      setPending(k);
+      setFocusPanel(viaNext);
+      return;
+    }
+    setFocusPanel(viaNext);
+    setSelected(k);
+  };
 
   // Each assist hydration carries a generation, so a slow one from an earlier
   // save never overwrites the result of a later one.
@@ -286,32 +326,31 @@ export default function ActivityResponses() {
     [rows, needsOnly, owed],
   );
 
-  /** Section → question → rows. Insertion order follows the RPC's ordering
-   *  (version-desc then section then block); WITHIN a question, rows order
-   *  oldest-submission-first (DR-7's fairness rule, applied at the level the
-   *  D4 by-question grouping leaves free). */
-  const groups = useMemo(() => {
-    const bySection = new Map<string, Map<string, GradingQueueRow[]>>();
-    for (const row of visible) {
-      const questions = bySection.get(row.section_id) ?? new Map();
-      questions.set(row.block_id, [...(questions.get(row.block_id) ?? []), row]);
-      bySection.set(row.section_id, questions);
-    }
-    for (const questions of bySection.values()) {
-      for (const blockRows of questions.values()) {
-        blockRows.sort(
-          (a, b) => new Date(a.checked_at).getTime() - new Date(b.checked_at).getTime(),
-        );
-      }
-    }
-    return bySection;
-  }, [visible]);
+  /** Section → question → rows (D4 by-question grouping); see groupRows. */
+  const groups = useMemo(() => groupRows(visible), [visible]);
 
-  const key = (row: GradingQueueRow) => `${row.check_id}:${row.block_id}`;
   const current = useMemo(
-    () => (rows ?? []).find((row) => key(row) === selected) ?? null,
+    () => (rows ?? []).find((row) => rowKey(row) === selected) ?? null,
     [rows, selected],
   );
+
+  const alias = useMemo(
+    () =>
+      pseudonyms(
+        (rows ?? []).flatMap((r) => (r.student_label === null ? [] : [{ student_id: r.student_id, name: r.student_label }])),
+      ),
+    [rows],
+  );
+  const nameOf: NameOf = useCallback(
+    (row) =>
+      row.student_label === null
+        ? COPY.notInYourClass
+        : hideNames
+          ? (alias.get(row.student_id) ?? 'Student')
+          : row.student_label,
+    [hideNames, alias],
+  );
+  const nextKey = useMemo(() => nextOwedKey(rows ?? [], selected, owed), [rows, selected, owed]);
 
   const outstanding = (rows ?? []).filter(owed).length;
   // Every optional explanation the filter hides, a REVISED one (graded, then
@@ -325,11 +364,11 @@ export default function ActivityResponses() {
     const map = new Map<string, { count: number; label: string }>();
     for (const row of rows ?? []) {
       if (!row.graded || row.released_at) continue;
-      const entry = map.get(row.student_id) ?? { count: 0, label: studentName(row) };
+      const entry = map.get(row.student_id) ?? { count: 0, label: nameOf(row) };
       map.set(row.student_id, { count: entry.count + 1, label: entry.label });
     }
     return map;
-  }, [rows]);
+  }, [rows, nameOf]);
 
   // G-4: asks first; a failure part-way keeps the queue on screen and names
   // who didn't get theirs, with a retry for just them.
@@ -401,6 +440,14 @@ export default function ActivityResponses() {
                 onChange={(e) => setNeedsOnly(e.target.checked)}
               />
               {COPY.needsGrading}
+            </label>
+            <label className="flex items-center gap-1.5 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={hideNames}
+                onChange={(e) => setHideNames(e.target.checked)}
+              />
+              Hide names
             </label>
             {optionalUnmarked > 0 && (
               <p className="text-sm text-muted" data-optional-unmarked={optionalUnmarked}>
@@ -529,16 +576,16 @@ export default function ActivityResponses() {
                             ) : null}
                             {blockRows.map((row) => (
                               <button
-                                key={key(row)}
+                                key={rowKey(row)}
                                 type="button"
-                                onClick={() => setSelected(key(row))}
-                                aria-current={key(row) === selected ? true : undefined}
+                                onClick={() => choose(rowKey(row))}
+                                aria-current={rowKey(row) === selected ? true : undefined}
                                 className={`flex min-h-[44px] w-full items-center gap-2 border-b border-line px-3 py-2 text-left last:border-b-0 ${
-                                  key(row) === selected ? 'bg-surface-2' : ''
+                                  rowKey(row) === selected ? 'bg-surface-2' : ''
                                 }`}
                               >
                                 <span className="text-sm font-semibold text-ink">
-                                  {studentName(row)}
+                                  {nameOf(row)}
                                 </span>
                                 <span className="flex-1 truncate text-xs text-muted">
                                   {row.response_text ?? (
@@ -552,7 +599,7 @@ export default function ActivityResponses() {
                                 )}
                                 <AssistFlag
                                   display={deriveAssistDisplay(
-                                    suggestionByKey.get(key(row)),
+                                    suggestionByKey.get(rowKey(row)),
                                     row.graded,
                                   )}
                                 />
@@ -570,10 +617,10 @@ export default function ActivityResponses() {
               <div className="md:flex-1">
                 {current ? (
                   <GradePanel
-                    key={key(current)}
+                    key={rowKey(current)}
                     row={current}
                     activityId={id}
-                    suggestion={suggestionByKey.get(key(current))}
+                    suggestion={suggestionByKey.get(rowKey(current))}
                     rubric={
                       rubrics.get(`${current.activity_version_id}:${current.block_id}`) ?? null
                     }
@@ -583,7 +630,11 @@ export default function ActivityResponses() {
                         ? { pass: dolPasses.get(current.student_id) ?? null }
                         : null
                     }
+                    name={nameOf(current)}
                     onSaved={refresh}
+                    onDirtyChange={setDirty}
+                    onNext={nextKey ? () => choose(nextKey, true) : null}
+                    autoFocus={focusPanel}
                   />
                 ) : (
                   <p className="rounded-lg border border-line bg-canvas p-6 text-sm text-muted">
@@ -592,6 +643,22 @@ export default function ActivityResponses() {
                 )}
               </div>
             </div>
+          )}
+          {pending && (
+            <ConfirmDialog
+              title={NEXT_COPY.discardTitle}
+              confirmLabel={NEXT_COPY.discardConfirm}
+              cancelLabel={NEXT_COPY.keepCancel}
+              danger
+              onCancel={() => setPending(null)}
+              onConfirm={() => {
+                setDirty(false);
+                setSelected(pending);
+                setPending(null);
+              }}
+            >
+              <p>{NEXT_COPY.discardBody}</p>
+            </ConfirmDialog>
           )}
         </>
       )}
@@ -641,6 +708,24 @@ function DraftMark() {
  * itself. The rubric spec (labels, maxPoints) comes from the PINNED version,
  * so a first-time manual grade renders rubric rows too.
  */
+/** What Save would send, as a comparable string (D8's dirty check). An
+ *  emptied criterion feedback box already stores undefined (its onChange),
+ *  so it compares equal to one never typed in. */
+function gradeSnapshot(
+  entries: readonly CriterionEntry[],
+  general: string,
+  tickTouched: boolean | null,
+  struck: ReadonlySet<string>,
+): string {
+  return JSON.stringify([
+    [...entries]
+      .sort((a, b) => a.criterionId.localeCompare(b.criterionId)),
+    general,
+    tickTouched,
+    [...struck].sort(),
+  ]);
+}
+
 function GradePanel({
   row,
   activityId,
@@ -648,7 +733,11 @@ function GradePanel({
   rubric,
   question,
   dol,
+  name,
   onSaved,
+  onDirtyChange,
+  onNext,
+  autoFocus,
 }: {
   row: GradingQueueRow;
   activityId: string;
@@ -658,7 +747,15 @@ function GradePanel({
   question: string | null;
   /** D65: this row is the DoL's primary item; the student's current pass. */
   dol: { pass: DolPassRow | null } | null;
+  /** The student as this page names them (Hide names applied). */
+  name: string;
   onSaved: () => Promise<void>;
+  /** Reports whether the panel holds entries Save has not sent. */
+  onDirtyChange: (dirty: boolean) => void;
+  /** Opens the next response still to grade; null when none is left. */
+  onNext: (() => void) | null;
+  /** Move focus into the panel when it opens (it was opened by Next). */
+  autoFocus: boolean;
 }) {
   const display = deriveAssistDisplay(suggestion, row.graded);
   const prefill = display.kind === 'prefill' ? display.suggestion : null;
@@ -713,6 +810,35 @@ function GradePanel({
   const prefillTick = storedPass === null && baseLevelMet(spec, entries);
   const ticked = tickTouched ?? (storedPass !== null || prefillTick);
 
+  // D8: what Save would send, against what was last loaded or saved. An
+  // untouched pre-fill is not dirty (DR-3): the baseline IS the pre-fill.
+  const snapshot = gradeSnapshot(entries, general, tickTouched, struck);
+  const [baseline, setBaseline] = useState(snapshot);
+  const dirty = snapshot !== baseline;
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+  // A panel that goes away (its row left the queue on a refresh) holds
+  // nothing any more, so it must not leave the page believing it does.
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
+  // Closing or reloading the tab with an unsaved grade asks the browser's
+  // own question. (In-app links are not guarded: BrowserRouter has no
+  // blocker. See the header comment.)
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!autoFocus) return;
+    const panel = panelRef.current;
+    (panel?.querySelector<HTMLElement>('input:not([disabled]), textarea') ?? panel)?.focus();
+    // Mount only: focus is placed once, when Next opens the panel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const touch = (mark: string) =>
     setDrafted((prev) => {
       if (!prev.has(mark)) return prev;
@@ -735,6 +861,7 @@ function GradePanel({
   }
 
   async function save() {
+    const sent = snapshot;
     setSaving(true);
     setSaveError(null);
     setOutcome(null);
@@ -766,6 +893,7 @@ function GradePanel({
         if (ticked && storedPass === null) await setDolPass(row.check_id, true);
         else if (!ticked && storedPass?.source === 'teacher') await setDolPass(row.check_id, false);
       }
+      setBaseline(sent);
       await onSaved();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -799,6 +927,8 @@ function GradePanel({
       setGeneral('');
       setDrafted(new Set());
       setStruck(new Set());
+      // The cleared panel is the new saved state: rejecting is not an edit.
+      setBaseline(gradeSnapshot([], '', tickTouched, new Set()));
       setRejecting(false);
       setRejected(true);
       setOutcome(ASSIST_COPY.draftRejected);
@@ -836,10 +966,10 @@ function GradePanel({
       : null;
 
   return (
-    <div className="rounded-lg border border-line bg-canvas p-4">
+    <div ref={panelRef} tabIndex={-1} data-grade-panel className="rounded-lg border border-line bg-canvas p-4 focus:outline-none">
       {question ? <p className="mb-1 text-sm font-medium text-ink">{question}</p> : null}
       <p className="text-xs text-muted">
-        {studentName(row)} · attempt {row.attempt_number}
+        {name} · attempt {row.attempt_number}
       </p>
 
       {/* DR-1: the response comes FIRST — a teacher who reads the draft
@@ -1026,6 +1156,16 @@ function GradePanel({
         >
           {saving ? COPY.saving : COPY.save}
         </button>
+        {onNext && (
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={saving}
+            className="min-h-[44px] rounded-md border border-line-strong px-4 text-sm font-semibold text-strong disabled:opacity-45"
+          >
+            {NEXT_COPY.next}
+          </button>
+        )}
         {prefill && !rejected && !rejecting && (
           <button
             type="button"
@@ -1042,7 +1182,7 @@ function GradePanel({
             disabled={releasing}
             className="min-h-[44px] rounded-md border border-line-strong px-4 text-sm font-semibold text-strong disabled:opacity-45"
           >
-            {releaseLabel(1, studentName(row))}
+            {releaseLabel(1, name)}
           </button>
         )}
       </div>

@@ -719,7 +719,11 @@ export const TEACHER_JOURNEYS = [
     {
         name: 'responses',
         route: 'src/routes/ActivityResponses.tsx',
-        maxGzKiB: 37,
+        // 37 → 38 (2026-11-15, author: "yes, raise and commit"): Hide names,
+        // Next to grade and the unsaved-grade prompt (teacher-grading.md D8)
+        // measured 36.9 → 37.6. Already trimmed once: Hide names reads the
+        // flag directly instead of loading progress/common (−1.3 KiB).
+        maxGzKiB: 38,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard of the whole class: it never seeds (studentId null), so it must not reach the evaluator (T4) or the editor.',
     },

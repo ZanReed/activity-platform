@@ -372,3 +372,26 @@ export async function listMyClasses(): Promise<JoinedClass[]> {
         };
     });
 }
+
+// ---- Shared by the Classes page, its lazy roster, and the join link ---------
+
+export function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
+
+/**
+ * The join URL for a code. ONE definition, because the teacher-facing copy
+ * control, the B14 regenerate after-state, and anything that later emails or
+ * prints a link must all produce the same string — a hand-assembled URL in a
+ * second place is how a shared link quietly stops matching the route (P2).
+ * Origin-relative on purpose: it is correct on localhost and in production
+ * without an env var, and it is the same origin the SPA already serves
+ * `/join/:code` from (App.tsx).
+ */
+export function joinUrlFor(code: string): string {
+    return `${window.location.origin}/join/${code}`;
+}

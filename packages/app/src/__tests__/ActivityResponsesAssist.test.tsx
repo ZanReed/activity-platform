@@ -445,3 +445,31 @@ describe('deriveAssistDisplay (DR-6, the state table in one function)', () => {
     ).toBe('provenance');
   });
 });
+
+describe('the unsaved-grade prompt and a draft (D8 × DR-3)', () => {
+  const ARI = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example', checked_at: '2026-08-16T00:00:00Z' });
+
+  it('an untouched pre-fill is not unsaved: Next goes straight on', async () => {
+    setup([row(), ARI], [suggestion()]);
+    await openFirstRow();
+    expect((screen.getByLabelText(COPY.generalFeedback) as HTMLTextAreaElement).value).toBe('Good comparison overall.');
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    await waitFor(() => expect(screen.getByText(/ari@school\.example · attempt/)).toBeTruthy());
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('rejecting a draft is not an edit: Next goes straight on', async () => {
+    setup([row(), ARI], [suggestion()]);
+    await openFirstRow();
+    fireEvent.click(screen.getByRole('button', { name: ASSIST_COPY.rejectDraft }));
+    fireEvent.click(screen.getByRole('button', { name: ASSIST_COPY.rejectReasons.wrong_points }));
+    await waitFor(() => expect(h.reject).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Next to grade' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    await waitFor(() => expect(screen.getByText(/ari@school\.example · attempt/)).toBeTruthy());
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+});

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
 import { PRESENT_FROM_CLASSES } from '../lib/presentFrom';
@@ -13,17 +13,18 @@ import {
     AGE_STATEMENT_PROMPT,
     AGE_STATEMENTS,
     createClass,
+    formatDate,
+    joinUrlFor,
     listClasses,
     listClassMembers,
     regenerateJoinCode,
-    removeClassMember,
     renameClass,
     reconfirmClassAge,
     softDeleteClass,
     updateClassDomain,
     type ClassInfo,
-    type ClassMember,
 } from '../lib/classes';
+import { countActiveStudents, joinInstructions } from '../lib/classTeacher';
 
 // Teacher-side class management (S1, identity lane). The one non-negotiable
 // piece of UX here is the AGE STATEMENT (ruling 3.1C; two choices since U-1,
@@ -34,34 +35,19 @@ import {
 // plumbing for the viewer arc (students join via code; codes are classroom-
 // public and regenerable).
 
-function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
-}
+// formatDate and joinUrlFor live in lib/classes, shared with the lazy roster.
 
-/**
- * The join URL for a code. ONE definition, because the teacher-facing copy
- * control, the B14 regenerate after-state, and anything that later emails or
- * prints a link must all produce the same string — a hand-assembled URL in a
- * second place is how a shared link quietly stops matching the route (P2).
- * Origin-relative on purpose: it is correct on localhost and in production
- * without an env var, and it is the same origin the SPA already serves
- * `/join/:code` from (App.tsx).
- */
-export function joinUrlFor(code: string): string {
-    return `${window.location.origin}/join/${code}`;
-}
+// The projector view of a code (lazy: a click loads it).
+const JoinBoard = lazy(() => import('../components/JoinBoard'));
 
-function JoinCode({ code }: { code: string }) {
+function JoinCode({ code, className }: { code: string; className: string }) {
     // TWO affordances, deliberately, because teachers distribute a class code
     // two different ways: they READ IT ALOUD (hence the large spaced monospace
     // chip, which copies the bare code) and they POST IT (hence Copy link,
     // which yields the /join/:code deep link B12 ruled and the B14 dialog's
     // "the old link no longer works" copy already presumes exists).
     const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+    const [board, setBoard] = useState(false);
     const flash = (what: 'code' | 'link') => {
         setCopied(what);
         setTimeout(() => setCopied(null), 1500);
@@ -101,320 +87,26 @@ function JoinCode({ code }: { code: string }) {
         >
         {copied === 'link' ? 'Link copied' : 'Copy link'}
         </button>
-        </>
-    );
-}
-
-function Roster({
-    info,
-    onCodeChange,
-}: {
-    info: ClassInfo;
-    onCodeChange: (id: string, code: string) => void;
-}) {
-    const [members, setMembers] = useState<ClassMember[] | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    // B14: removal is a DIALOG with two explicit actions, never a one-click
-    // (the lockout half — regenerate — must be offered where remove happens).
-    const [removing, setRemoving] = useState<ClassMember | null>(null);
-
-    const load = async () => {
-        try {
-            setMembers(await listClassMembers(info.id));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not load roster.');
-        }
-    };
-
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const m = await listClassMembers(info.id);
-                if (!cancelled) setMembers(m);
-            } catch (err) {
-                if (!cancelled) {
-                    setError(
-                        err instanceof Error ? err.message : 'Could not load roster.',
-                    );
-                }
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [info.id]);
-
-    if (error) return <p className="mt-2 text-sm text-danger">{error}</p>;
-    if (members === null)
-        return <p className="mt-2 text-sm text-muted">Loading roster…</p>;
-
-    const active = members.filter((m) => m.removedAt === null);
-    if (active.length === 0)
-        return (
-            <p className="mt-2 text-sm text-muted">
-            No students yet. Share the join code —
-            students sign in with their school Google account and enter it.
-            </p>
-        );
-
-    return (
-        <>
-        <ul className="mt-2 divide-y divide-line">
-        {active.map((m) => (
-            <li
-            key={m.studentId}
-            className="flex items-center justify-between gap-3 py-2"
-            >
-            <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-strong">
-            {m.displayName ?? m.email}
-            </span>
-            <span className="block truncate text-xs text-muted">
-            {m.email} · joined {formatDate(m.joinedAt)}
-            </span>
-            </span>
-            <button
-            type="button"
-            onClick={() => setRemoving(m)}
-            // D-6: 30 rows of "Remove" are 30 identical buttons to a screen
-            // reader; the name says whose. The visible word stays "Remove".
-            aria-label={`Remove ${m.displayName ?? m.email}`}
-            className="shrink-0 px-1 py-2.5 text-sm font-medium text-muted underline underline-offset-2 transition hover:text-danger"
-            >
-            Remove
-            </button>
-            </li>
-        ))}
-        </ul>
-        {removing && (
-            <RemoveStudentDialog
-            member={removing}
-            info={info}
-            onClose={() => setRemoving(null)}
-            onRemoved={(newCode) => {
-                setRemoving(null);
-                if (newCode) onCodeChange(info.id, newCode);
-                void load();
-            }}
-            />
+        <button
+        type="button"
+        onClick={() => setBoard(true)}
+        aria-label={`Show on board: ${className}`}
+        title="Show the code full screen, for the projector"
+        className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+        >
+        Show on board
+        </button>
+        {board && (
+            <Suspense fallback={null}>
+            <JoinBoard className={className} code={code} url={joinUrlFor(code)} instructions={joinInstructions(className, code, joinUrlFor(code))} onClose={() => setBoard(false)} />
+            </Suspense>
         )}
         </>
     );
 }
 
-/**
- * B14's two-action removal (design board 5a/5b): "Remove" and "Remove & get
- * a new class code" as EXPLICIT stacked choices — no default, plain vs
- * danger encodes the severity, consequence sublines make the choice legible.
- * Focus: opens on the safe action, trapped, Esc cancels, returns to the
- * invoking control (the browser restores it when the dialog unmounts is NOT
- * guaranteed — we do it by hand). Errors render IN the dialog: a page-level
- * message is invisible behind a modal backdrop (design OV#12).
- */
-function RemoveStudentDialog({
-    member,
-    info,
-    onClose,
-    onRemoved,
-}: {
-    member: ClassMember;
-    info: ClassInfo;
-    onClose: () => void;
-    onRemoved: (newCode: string | null) => void;
-}) {
-    const [busy, setBusy] = useState<'remove' | 'lockout' | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    // Board 5b: the after-state. The flow's whole point is invalidating the
-    // posted link, so it ends by handing the teacher BOTH re-postable forms of
-    // the new code — the code to read aloud and the link to paste.
-    const [newCode, setNewCode] = useState<string | null>(null);
-    const [copied, setCopied] = useState<'code' | 'link' | null>(null);
-    const dialogRef = useRef<HTMLDivElement>(null);
-    const firstActionRef = useRef<HTMLButtonElement>(null);
-    const invokerRef = useRef<HTMLElement | null>(null);
-
-    useEffect(() => {
-        invokerRef.current = document.activeElement as HTMLElement | null;
-        firstActionRef.current?.focus();
-        return () => invokerRef.current?.focus();
-    }, []);
-
-    const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-        if (e.key === 'Escape') {
-            e.stopPropagation();
-            if (!busy) {
-                if (newCode) onRemoved(newCode);
-                else onClose();
-            }
-            return;
-        }
-        if (e.key !== 'Tab') return;
-        // Minimal trap: cycle within the dialog's focusable controls.
-        const nodes = dialogRef.current?.querySelectorAll<HTMLElement>(
-            'button:not([disabled])',
-        );
-        if (!nodes || nodes.length === 0) return;
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        if (!first || !last) return;
-        if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-        }
-    };
-
-    const removeOnly = async () => {
-        setBusy('remove');
-        setError(null);
-        try {
-            await removeClassMember(info.id, member.studentId);
-            onRemoved(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not remove — check your connection and try again.');
-            setBusy(null);
-        }
-    };
-
-    const removeAndRegenerate = async () => {
-        setBusy('lockout');
-        setError(null);
-        try {
-            await removeClassMember(info.id, member.studentId);
-            const code = await regenerateJoinCode(info.id);
-            setNewCode(code);
-            setBusy(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not remove — check your connection and try again.');
-            setBusy(null);
-        }
-    };
-
-    const studentLabel = member.displayName ?? member.email;
-
-    return (
-        <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-ink/35 p-6"
-        role="presentation"
-        >
-        <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={newCode ? `${studentLabel} removed` : `Remove ${studentLabel} from ${info.name}?`}
-        onKeyDown={onKeyDown}
-        className="w-full max-w-md rounded-lg border border-line bg-canvas p-6 shadow-lg"
-        >
-        {newCode ? (
-            <>
-            <h2 className="text-lg font-bold text-ink">{studentLabel} removed</h2>
-            <p className="mt-2 text-sm text-muted">
-            The old link no longer works. Share this new code — or the new link —
-            with your class:
-            </p>
-            <div className="mt-3 flex items-center gap-3">
-            <span className="rounded-md border border-line bg-surface px-3 py-1.5 font-mono text-lg font-semibold tracking-[0.2em] text-ink">
-            {newCode}
-            </span>
-            <button
-            ref={firstActionRef}
-            type="button"
-            onClick={() => {
-                void navigator.clipboard?.writeText(newCode).then(() => {
-                    setCopied('code');
-                    setTimeout(() => setCopied(null), 1500);
-                }).catch(() => undefined);
-            }}
-            className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
-            >
-            {copied === 'code' ? 'Copied' : 'Copy code'}
-            </button>
-            <button
-            type="button"
-            onClick={() => {
-                // Same helper the class card uses — the regenerated link must
-                // be byte-identical to the one the teacher copies elsewhere.
-                void navigator.clipboard?.writeText(joinUrlFor(newCode)).then(() => {
-                    setCopied('link');
-                    setTimeout(() => setCopied(null), 1500);
-                }).catch(() => undefined);
-            }}
-            className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
-            >
-            {copied === 'link' ? 'Copied' : 'Copy link'}
-            </button>
-            <button
-            type="button"
-            onClick={() => onRemoved(newCode)}
-            className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
-            >
-            Done
-            </button>
-            </div>
-            </>
-        ) : (
-            <>
-            <h2 className="text-lg font-bold text-ink">
-            Remove {studentLabel} from {info.name}?
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-            They keep their past work. With the current code{' '}
-            <span className="rounded border border-line bg-surface-2 px-1.5 py-0.5 font-mono text-xs tracking-[0.15em]">
-            {info.joinCode}
-            </span>{' '}
-            they could rejoin later.
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-            <button
-            ref={firstActionRef}
-            type="button"
-            disabled={busy !== null}
-            onClick={() => void removeOnly()}
-            aria-label="Remove"
-            className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-left text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
-            >
-            {busy === 'remove' ? 'Removing…' : 'Remove'}
-            {/* aria-label keeps the accessible NAME the action; the
-                consequence subline reads as content, not name. */}
-            <span className="block text-xs font-normal text-muted">
-            Can rejoin with the current code
-            </span>
-            </button>
-            <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => void removeAndRegenerate()}
-            aria-label="Remove and get a new class code"
-            className="rounded-md bg-danger px-4 py-2.5 text-left text-sm font-medium text-white shadow-sm transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
-            >
-            {busy === 'lockout' ? 'Removing…' : 'Remove & get a new class code'}
-            <span className="block text-xs font-normal opacity-85">
-            Prevents rejoin — the posted link stops working for future joins
-            </span>
-            </button>
-            <button
-            type="button"
-            disabled={busy !== null}
-            onClick={onClose}
-            className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
-            >
-            Cancel
-            </button>
-            </div>
-            {error && (
-                <p role="alert" className="mt-3 text-sm text-danger">
-                {error}
-                </p>
-            )}
-            </>
-        )}
-        </div>
-        </div>
-    );
-}
+// The roster panel and its remove dialog load when Roster is first opened.
+const Roster = lazy(() => import('../components/ClassRoster'));
 
 /** The two age statements as a required choice with NOTHING picked by default
  *  (U-1): the teacher's own selection is the confirmation. Used by the
@@ -510,6 +202,8 @@ function DeleteClassDialog({
 function ClassCard({
     info,
     activities,
+    studentCount,
+    onStudentCount,
     onCodeChange,
     onDomainChange,
     onAgeChange,
@@ -519,6 +213,9 @@ function ClassCard({
 }: {
     info: ClassInfo;
     activities: TeacherActivitiesData;
+    /** Current students; undefined when the count could not be read. */
+    studentCount: number | undefined;
+    onStudentCount: (id: string, n: number) => void;
     onCodeChange: (id: string, code: string) => void;
     onDomainChange: (id: string, domain: string | null) => void;
     onAgeChange: (id: string, change: Pick<ClassInfo, 'includesUnder13' | 'ageAssertionAt' | 'assertionTextVersion'>) => void;
@@ -527,6 +224,8 @@ function ClassCard({
     onError: (msg: string) => void;
 }) {
     const [showRoster, setShowRoster] = useState(false);
+    // "Roster (24)": how many students are in, at a glance, like Activities (N).
+    const rosterLabel = studentCount === undefined ? 'Roster' : `Roster (${studentCount})`;
     // E-1 (ui-review-group-e.md): rename in place. Enter saves, Escape
     // cancels; an empty name is refused before it is sent.
     const [nameDraft, setNameDraft] = useState<string | null>(null);
@@ -749,7 +448,7 @@ function ClassCard({
         )}
         </div>
         <span className="flex min-w-0 flex-wrap items-center gap-3">
-        <JoinCode code={info.joinCode} />
+        <JoinCode code={info.joinCode} className={info.name} />
         <button
         type="button"
         onClick={() => setConfirming('code')}
@@ -762,10 +461,11 @@ function ClassCard({
         <button
         type="button"
         onClick={() => setShowRoster((s) => !s)}
-        aria-label={`${showRoster ? 'Hide roster' : 'Roster'}: ${info.name}`}
+        aria-label={`${showRoster ? 'Hide roster' : rosterLabel}: ${info.name}`}
         className="text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+        data-student-count={studentCount}
         >
-        {showRoster ? 'Hide roster' : 'Roster'}
+        {showRoster ? 'Hide roster' : rosterLabel}
         </button>
         <button
         type="button"
@@ -873,7 +573,11 @@ function ClassCard({
             onConfirm={handleDelete}
             />
         )}
-        {showRoster && <Roster info={info} onCodeChange={onCodeChange} />}
+        {showRoster && (
+            <Suspense fallback={<p className="mt-2 text-sm text-muted">Loading roster…</p>}>
+            <Roster info={info} onCodeChange={onCodeChange} onCount={(n) => onStudentCount(info.id, n)} />
+            </Suspense>
+        )}
         {showActivities && (
             <ClassActivitiesPanel classId={info.id} data={activities} />
         )}
@@ -889,6 +593,14 @@ export default function Classes() {
     const [classes, setClasses] = useState<ClassInfo[]>([]);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
+    // Each card's "Roster (N)". A failed read just leaves the numbers off.
+    const [studentCounts, setStudentCounts] = useState<ReadonlyMap<string, number>>(new Map());
+    const refreshCounts = () => {
+        countActiveStudents().then(setStudentCounts, () => undefined);
+    };
+    useEffect(refreshCounts, []);
+    const setCount = (id: string, n: number) =>
+        setStudentCounts((prev) => (prev.get(id) === n ? prev : new Map(prev).set(id, n)));
     const [actionError, setActionError] = useState<string | null>(null);
     // ONE fetch pair for every card's "On students' Home" section (rows +
     // picker options); mutations inside any panel refetch it (DR-3).
@@ -923,6 +635,7 @@ export default function Classes() {
         // policy hides a deleted class's), so re-read them with the class.
         const [list] = await Promise.all([listClasses(), classActivities.reload()]);
         setClasses(list);
+        refreshCounts();
         setUndo((u) => (u?.id === id ? null : u));
         refreshDeleted();
     };
@@ -962,6 +675,7 @@ export default function Classes() {
                 includesUnder13: ageChoice,
             });
             setClasses((prev) => [info, ...prev]);
+            setCount(info.id, 0);
             setShowCreate(false);
             setName('');
             setDomain('');
@@ -1083,6 +797,8 @@ export default function Classes() {
                 key={c.id}
                 info={c}
                 activities={classActivities}
+                studentCount={studentCounts.get(c.id)}
+                onStudentCount={setCount}
                 onCodeChange={(id, code) =>
                     setClasses((prev) =>
                         prev.map((x) => (x.id === id ? { ...x, joinCode: code } : x)),

@@ -72,6 +72,7 @@ vi.mock('../lib/gradingAssist', async (importOriginal) => ({
 }));
 
 import ActivityResponses from '../routes/ActivityResponses';
+import { nextOwedKey } from '../lib/responsesQueue';
 import { RESPONSES_COPY as COPY, type GradingQueueRow } from '../lib/grading';
 import { DOL_PASS_COPY } from '../lib/dolPass';
 import { createEmptyDocument, createShortAnswerBlock } from '@activity/schema';
@@ -162,7 +163,7 @@ describe('the queue', () => {
     await waitFor(() => expect(screen.getByText(/1 optional explanation/)).toBeTruthy());
     expect(screen.queryByText(/need grading/)).toBeNull();
     expect(screen.queryByText(base.student_label as string)).toBeNull();
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Needs grading' }));
     await waitFor(() => expect(screen.getByText(base.student_label as string)).toBeTruthy());
   });
 
@@ -480,5 +481,93 @@ describe('what the queue calls a section and a question', () => {
     setup([row({ activity_version_id: VERSION, section_id: 'sec-raw-id' })]);
     await waitFor(() => expect(screen.getByText(BASE.student_label as string)).toBeTruthy());
     expect(document.body.textContent).not.toContain('sec-raw-id');
+  });
+});
+
+describe('Hide names, Next to grade, and the unsaved-grade prompt (D8)', () => {
+  const MAYA = row();
+  const ARI = row({
+    check_id: 'chk-2',
+    student_id: 'stu-2',
+    student_label: 'ari@school.example',
+    checked_at: '2026-08-16T00:00:00Z',
+  });
+  const header = () => document.querySelector('[data-grade-panel] p.text-xs')?.textContent ?? '';
+
+  beforeEach(() => window.localStorage.removeItem('progress.hideNames'));
+  afterEach(() => window.localStorage.removeItem('progress.hideNames'));
+
+  async function openFirst(rows: GradingQueueRow[]) {
+    setup(rows);
+    const first = await screen.findByRole('button', { name: /maya@school\.example/ });
+    fireEvent.click(first);
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+  }
+
+  it('Hide names takes every name off the page, the open panel included', async () => {
+    await openFirst([MAYA, ARI]);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hide names' }));
+    await waitFor(() => expect(document.body.textContent).not.toContain('maya@school.example'));
+    expect(document.body.textContent).not.toContain('ari@school.example');
+    // Numbered by name order: ari before maya.
+    expect(screen.getByRole('button', { name: /Student 1/ }).textContent).toContain('the slope');
+    expect(header()).toContain('Student 2');
+    expect(window.localStorage.getItem('progress.hideNames')).toBe('1');
+  });
+
+  it('Next to grade opens the next response and puts focus in it', async () => {
+    await openFirst([MAYA, ARI]);
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    await waitFor(() => expect(header()).toContain('ari@school.example'));
+    expect(document.activeElement).toBe(screen.getByLabelText(COPY.generalFeedback));
+    // Wraps back to the top: maya is still owed.
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    await waitFor(() => expect(header()).toContain('maya@school.example'));
+  });
+
+  it('leaving a row with unsaved entries asks first; Keep editing keeps them', async () => {
+    await openFirst([MAYA, ARI]);
+    fireEvent.change(screen.getByLabelText(COPY.generalFeedback), { target: { value: 'half typed' } });
+    fireEvent.click(screen.getByRole('button', { name: /ari@school\.example/ }));
+    expect(await screen.findByRole('alertdialog', { name: /Discard unsaved grade/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect((screen.getByLabelText(COPY.generalFeedback) as HTMLTextAreaElement).value).toBe('half typed');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(header()).toContain('ari@school.example'));
+    expect((screen.getByLabelText(COPY.generalFeedback) as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('a saved grade is not unsaved: Next goes straight on', async () => {
+    await openFirst([MAYA, ARI]);
+    fireEvent.change(screen.getByLabelText(COPY.generalFeedback), { target: { value: 'done' } });
+    h.queue.mockResolvedValue([row({ graded: true, graded_at: 'x', general_feedback: 'done' }), ARI]);
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.save).toHaveBeenCalledTimes(1));
+    // Wait for the re-read: Maya's LIST row (name, then her answer) leaves the
+    // filtered list, and Next is enabled again (it is disabled while a save
+    // runs). The panel's "Release 1 graded to maya…" button stays, on purpose.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /maya@school\.example.*the slope/ })).toBeNull(),
+    );
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Next to grade' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    // Next still knows where Maya's row was.
+    fireEvent.click(screen.getByRole('button', { name: 'Next to grade' }));
+    await waitFor(() => expect(header()).toContain('ari@school.example'));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('nextOwedKey goes forward, wraps, skips what is graded, and stops at the last', () => {
+    const graded = row({ check_id: 'chk-3', graded: true, checked_at: '2026-08-17T00:00:00Z' });
+    const owed = (r: GradingQueueRow) => !r.graded;
+    expect(nextOwedKey([MAYA, ARI, graded], 'chk-1:blk-1', owed)).toBe('chk-2:blk-1');
+    expect(nextOwedKey([MAYA, ARI, graded], 'chk-2:blk-1', owed)).toBe('chk-1:blk-1');
+    expect(nextOwedKey([MAYA, ARI, graded], 'chk-3:blk-1', owed)).toBe('chk-1:blk-1');
+    expect(nextOwedKey([MAYA, graded], 'chk-1:blk-1', owed)).toBeNull();
+    expect(nextOwedKey([MAYA, ARI], null, owed)).toBe('chk-1:blk-1');
   });
 });

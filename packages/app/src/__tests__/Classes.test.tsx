@@ -18,12 +18,20 @@ const h = vi.hoisted(() => {
     const listResult: { current: { data: unknown; error: unknown } } = {
         current: { data: [], error: null },
     };
+    // countActiveStudents: classes?select=id,class_members(count) — rejected
+    // unless a test sets it, so the cards show plain "Roster" by default.
+    const countResult: { current: Promise<{ data: unknown; error: unknown }> | null } = { current: null };
     const update = vi.fn();
     const from = vi.fn((table: string) => {
         if (table === 'classes') {
             const qb: Record<string, unknown> = {
                 select: () => qb,
                 order: () => Promise.resolve(listResult.current),
+                // Bound to its arguments: the count must leave removed students out.
+                is: (column: string, value: unknown) =>
+                    column === 'class_members.removed_at' && value === null
+                        ? (countResult.current ?? Promise.reject(new Error('no count in this test')))
+                        : Promise.reject(new Error(`count without the removed filter: ${column}`)),
                 // E-1 rename: update(name).eq(id).select('name').single()
                 update: (patch: { name: string }) => {
                     update(patch);
@@ -48,7 +56,7 @@ const h = vi.hoisted(() => {
         (): Promise<{ data: unknown; error: unknown }> =>
             Promise.resolve({ data: [], error: null }),
     );
-    return { listResult, from, rpc, update };
+    return { listResult, countResult, from, rpc, update };
 });
 
 vi.mock('../lib/supabase', () => ({
@@ -78,6 +86,7 @@ vi.mock('../lib/SessionContext', () => ({
 
 import Classes from '../routes/Classes';
 import { AGE_STATEMENT_PROMPT, AGE_STATEMENTS, ASSERTION_TEXT_VERSION } from '../lib/classes';
+import { joinInstructions } from '../lib/classTeacher';
 
 function renderClasses() {
     return render(
@@ -105,6 +114,7 @@ function createdRpcResult() {
 
 beforeEach(() => {
     h.listResult.current = { data: [], error: null };
+    h.countResult.current = null;
     h.update.mockClear();
     h.rpc.mockClear().mockImplementation(() => createdRpcResult());
 });
@@ -417,7 +427,7 @@ describe('join link', () => {
     });
 
     it('the link matches the route App.tsx registers (a mismatch is a dead posted link)', async () => {
-        const { joinUrlFor } = await import('../routes/Classes');
+        const { joinUrlFor } = await import('../lib/classes');
         const path = new URL(joinUrlFor('ABC123')).pathname;
         // App.tsx: <Route path="/join/:code" ... />
         expect(path).toBe('/join/ABC123');
@@ -449,5 +459,93 @@ describe('the timezone control (PP-11)', () => {
         await screen.findByRole('heading', { name: 'My classes' });
         await new Promise((r) => setTimeout(r, 20));
         expect(screen.queryByText(/Days follow/)).toBeNull();
+    });
+});
+
+describe('the roster: count, search, removed, and the board', () => {
+    const CLASS = {
+        id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
+        age_assertion_at: '2026-08-12T00:00:00Z', assertion_text_version: '2026-08-15-draft-3',
+        includes_under_13: false, created_at: '2026-08-12T00:00:00Z',
+    };
+    const member = (i: number, removed: string | null = null) => ({
+        student_id: `s${i}`, display_name: `Student Name ${i}`, email: `kid${i}@school.org`,
+        joined_at: '2026-08-12T00:00:00Z', removed_at: removed,
+    });
+    function membersAre(list: ReturnType<typeof member>[]) {
+        h.rpc.mockImplementation(((name: string) =>
+            Promise.resolve(name === 'list_class_members' ? { data: list, error: null } : { data: null, error: null })) as never);
+    }
+    beforeEach(() => {
+        h.listResult.current = { data: [CLASS], error: null };
+    });
+
+    it('the card counts current students; a failed count leaves the number off', async () => {
+        h.countResult.current = Promise.resolve({ data: [{ id: 'class-1', class_members: [{ count: 24 }] }], error: null });
+        renderClasses();
+        expect(await screen.findByRole('button', { name: 'Roster (24): Algebra I — Period 3' })).toBeTruthy();
+        cleanup();
+        h.countResult.current = null;
+        renderClasses();
+        expect(await screen.findByRole('button', { name: 'Roster: Algebra I — Period 3' })).toBeTruthy();
+    });
+
+    it('opening the roster brings the count up to date', async () => {
+        h.countResult.current = Promise.resolve({ data: [{ id: 'class-1', class_members: [{ count: 1 }] }], error: null });
+        membersAre([member(1), member(2), member(3, '2026-10-01T00:00:00Z')]);
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: 'Roster (1): Algebra I — Period 3' }));
+        await screen.findByText('Student Name 2');
+        fireEvent.click(screen.getByRole('button', { name: /^Hide roster/ }));
+        expect(await screen.findByRole('button', { name: 'Roster (2): Algebra I — Period 3' })).toBeTruthy();
+    });
+
+    it('a long roster gets a search box; removed students sit under Removed (n)', async () => {
+        membersAre([...Array.from({ length: 11 }, (_, i) => member(i + 1)), member(99, '2026-10-01T00:00:00Z')]);
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: /^Roster/ }));
+        const search = await screen.findByRole('searchbox', { name: 'Search the roster: Algebra I — Period 3' });
+        fireEvent.change(search, { target: { value: 'kid11@' } });
+        expect(screen.getAllByRole('button', { name: /^Remove Student Name/ }).map((b) => b.getAttribute('aria-label'))).toEqual([
+            'Remove Student Name 11',
+        ]);
+        fireEvent.change(search, { target: { value: 'nobody' } });
+        expect(screen.getByText('No student matches “nobody”.')).toBeTruthy();
+        const removed = document.querySelector('[data-roster-removed]') as HTMLElement;
+        expect(within(removed).getByText('Removed (1)')).toBeTruthy();
+        expect(within(removed).getByText('Student Name 99')).toBeTruthy();
+    });
+
+    it('a short roster has no search box', async () => {
+        membersAre([member(1), member(2)]);
+        renderClasses();
+        fireEvent.click(await screen.findByRole('button', { name: /^Roster/ }));
+        await screen.findByText('Student Name 1');
+        expect(screen.queryByRole('searchbox')).toBeNull();
+        expect(document.querySelector('[data-roster-removed]')).toBeNull();
+    });
+
+    it('Show on board puts the code full screen; Copy instructions gives the words; Escape closes', async () => {
+        const writeText = vi.fn(() => Promise.resolve());
+        Object.assign(navigator, { clipboard: { writeText } });
+        renderClasses();
+        const open = await screen.findByRole('button', { name: 'Show on board: Algebra I — Period 3' });
+        open.focus();
+        fireEvent.click(open);
+        const board = await screen.findByRole('dialog', { name: 'Join code for Algebra I — Period 3' });
+        expect(within(board).getByText('QX7M2P')).toBeTruthy();
+        expect(within(board).getByText(`${window.location.host}/join/QX7M2P`)).toBeTruthy();
+        fireEvent.click(within(board).getByRole('button', { name: 'Copy instructions' }));
+        await waitFor(() =>
+            expect(writeText).toHaveBeenCalledWith(
+                joinInstructions('Algebra I — Period 3', 'QX7M2P', `${window.location.origin}/join/QX7M2P`),
+            ),
+        );
+        expect(joinInstructions('7A', 'AB', 'u')).toBe(
+            'To join 7A: open u and sign in with your school Google account. The class code is AB.',
+        );
+        fireEvent.keyDown(board, { key: 'Escape' });
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(document.activeElement).toBe(open);
     });
 });
