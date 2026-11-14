@@ -135,8 +135,7 @@ const math = create({
   modDependencies,
 } as Parameters<typeof create>[0]);
 
-math.import(
-  {
+const PROVIDED = {
     pi: Math.PI,
     e: Math.E,
     sin: (x: number) => (trigGate(), Math.sin(toRad(x))),
@@ -186,9 +185,27 @@ math.import(
     max: (...xs: number[]) => Math.max(...spread('max', xs)),
     mean: (...xs: number[]) =>
       spread('mean', xs).reduce((s, v) => s + v, 0) / xs.length,
-  },
-  { override: true },
-);
+};
+math.import(PROVIDED, { override: true });
+
+/** Every function and constant name this engine provides (`sin`, `nCr`, `pi`,
+ * `e`, …), DERIVED from the object handed to math.import so the two can never
+ * drift (policy P4). math-form.ts reads it to know which letter runs are a
+ * name and not a product of single-letter pronumerals (form-grading FG-3). */
+export const PROVIDED_NAMES: readonly string[] = Object.freeze(Object.keys(PROVIDED));
+
+/** The math.js parse tree of an ALREADY-NORMALIZED expression, or null when it
+ * does not parse. Pure; the caller owns any normalization. The tree is the
+ * engine's own node type, deliberately left `unknown`: math-form.ts converts it
+ * to its own small AST at once rather than leak math.js types further. */
+export function parseNormalized(expr: string): unknown {
+  if (!expr) return null;
+  try {
+    return math.parse(expr);
+  } catch {
+    return null;
+  }
+}
 
 // MathLive serializes multi-letter identifiers it doesn't know as SPACED
 // letters — a student typing floor(2.7) yields "f l o o r(2.7)", nCr(5,2)

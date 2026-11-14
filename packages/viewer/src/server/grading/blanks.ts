@@ -168,7 +168,8 @@ function scoreMath(student: string, key: BlankKey): boolean {
   // fold as text blanks (D7); a bare `x2` is still never a superscript.
   const folded = foldSuperscriptGlyphs(student);
   const tolerance = coerceTolerance(key.tolerance);
-  const mode = key.equivalence === 'exact-form' ? 'exact-form' : 'value';
+  // exact-form is retired into form (FG-8); step 2 of the build wires 'form'.
+  const mode = key.equivalence === 'exact-form' ? 'form' : 'value';
   for (const entry of key.answers) {
     const prepared = foldSuperscriptGlyphs(prepareKeyValue(entry));
     // Parity: falsy entries are skipped rather than compared.

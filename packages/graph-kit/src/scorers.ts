@@ -25,6 +25,22 @@
 export { mathEquivalent } from './math-equivalent.js';
 export type { EquivalenceMode, MathEquivalentOptions } from './math-equivalent.js';
 
+// Form grading (D60, docs/design/form-grading.md): the tokenizer the grader
+// bounds BEFORE any engine work (FG-14), the shape predicate, and the folded
+// key a student is shown. `mathjs/number` only, via evaluate.ts.
+export {
+  tokenizeMath,
+  mathShape,
+  sameShape,
+  displayFormKey,
+  foldCollapsesBracket,
+  FORM_REWRITES,
+  FORM_REWRITES_REV,
+  MAX_SHAPE_NODES,
+  MAX_SHAPE_DEPTH,
+} from './math-form.js';
+export type { FormSide } from './math-form.js';
+
 // 2-D graph scorers.
 export {
   scorePoints,

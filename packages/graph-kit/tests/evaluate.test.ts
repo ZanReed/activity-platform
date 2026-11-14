@@ -307,7 +307,9 @@ import { BANK_RESERVED_SEED_NAMES } from '@activity/schema/bank-seed';
 
 function callableNames(): string[] {
   const src = readFileSync(fileURLToPath(new URL('../src/evaluate.ts', import.meta.url)), 'utf8');
-  const importBlock = /\nmath\.import\(\s*\{([\s\S]*?)\n\s*\},\s*\{\s*override/.exec(src)?.[1] ?? '';
+  // The object handed to math.import (named PROVIDED since form grading, so
+  // math-form.ts can derive PROVIDED_NAMES from it).
+  const importBlock = /\nconst PROVIDED = \{([\s\S]*?)\n\};\nmath\.import\(PROVIDED/.exec(src)?.[1] ?? '';
   const imported = [...importBlock.matchAll(/^ {4}([A-Za-z][A-Za-z0-9]*)\s*[:,]/gm)].map((m) => m[1]!);
   const createBlock = /\nconst math = create\(\{([\s\S]*?)\}/.exec(src)?.[1] ?? '';
   const deps = [...createBlock.matchAll(/([A-Za-z]+)Dependencies/g)].map((m) => m[1]!);

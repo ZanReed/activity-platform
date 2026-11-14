@@ -68,15 +68,41 @@ describe('mathEquivalent — value mode', () => {
   });
 });
 
-describe('mathEquivalent — exact-form mode', () => {
-  it('accepts only the same normalized form', () => {
-    expect(mathEquivalent('2a', '2a', { mode: 'exact-form' })).toBe(true);
-    expect(mathEquivalent('2 a', '2a', { mode: 'exact-form' })).toBe(true); // whitespace-insensitive
+describe('mathEquivalent — form mode (exact-form RETIRED, FG-8)', () => {
+  it('accepts the same form, whitespace- and order-insensitively', () => {
+    expect(mathEquivalent('2a', '2a', { mode: 'form' })).toBe(true);
+    expect(mathEquivalent('2 a', '2a', { mode: 'form' })).toBe(true);
+    expect(mathEquivalent('a*2', '2*a', { mode: 'form' })).toBe(true); // exact-form refused this
   });
 
-  it('rejects an unsimplified / re-associated form that value-mode would accept', () => {
-    expect(mathEquivalent('a+a', '2a', { mode: 'exact-form' })).toBe(false);
-    expect(mathEquivalent('a*2', '2*a', { mode: 'exact-form' })).toBe(false);
+  it('rejects an unsimplified form that value mode accepts', () => {
+    expect(mathEquivalent('a+a', '2a', { mode: 'form' })).toBe(false);
+    expect(mathEquivalent('a+a', '2a')).toBe(true);
+  });
+
+  it('anything exact-form accepted, form accepts (the upgrade is widening-only)', () => {
+    for (const [s, k] of [['2a', '2a'], ['2 a', '2a'], ['x^2 + 1', 'x^2+1'], ['6(3x-2)', '6(3x-2)']]) {
+      expect(mathEquivalent(s!, k!, { mode: 'form' })).toBe(true);
+    }
+  });
+});
+
+describe('FG-3 in value mode: letters singly, a letter before a bracket multiplies', () => {
+  it('fixes the live defects', () => {
+    expect(mathEquivalent('12ba', '12ab')).toBe(true);
+    expect(mathEquivalent('12*a*b', '12ab')).toBe(true);
+    expect(mathEquivalent('x(x+2)', 'x^2+2x')).toBe(true);
+    expect(mathEquivalent('3x(x+2)', '3x^2+6x')).toBe(true);
+    expect(mathEquivalent('x*(x+2)', 'x(x+2)')).toBe(true);
+    expect(mathEquivalent('(2)/(3)x', '2x/3')).toBe(true);
+    expect(mathEquivalent('1 1/3', '4/3')).toBe(true);
+    expect(mathEquivalent('⅓', '1/3')).toBe(true);
+  });
+  it('the five live math-blank keys still grade as before', () => {
+    for (const k of ['3/2', '2x', '5x', '4x', 'k']) expect(mathEquivalent(k, k)).toBe(true);
+    expect(mathEquivalent('1.5', '3/2')).toBe(true);
+    expect(mathEquivalent('x+x', '2x')).toBe(true);
+    expect(mathEquivalent('3x', '2x')).toBe(false);
   });
 });
 

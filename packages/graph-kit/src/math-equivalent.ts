@@ -25,15 +25,19 @@
 //     negative, asymptote) — a shared undefined point is not a disagreement.
 // =============================================================================
 
-import { normalizeAsciiMath, compileFunction, freeVariables } from './evaluate.js';
+import { compileFunction, freeVariables } from './evaluate.js';
+import { sameShape, tokenizeMath } from './math-form.js';
 
-export type EquivalenceMode = 'value' | 'exact-form';
+/** 'exact-form' is RETIRED (form-grading FG-8): the schema still accepts it on
+ * an old document and `upgradeActivityDocument` maps it to 'form'. */
+export type EquivalenceMode = 'value' | 'form';
 
 export interface MathEquivalentOptions {
   /**
    * 'value' (default) — any expression that EVALUATES equal passes.
-   * 'exact-form' — the normalized strings must match (for "write it in this
-   * form / don't simplify" items). Whitespace-insensitive.
+   * 'form' — equal AND in the key's form (math-form.ts, form-grading.md FG-1):
+   * the same shape up to FG-2's closed list of rewrites, with FG-6's folding on
+   * the key side.
    */
   mode?: EquivalenceMode;
   /** Absolute comparison tolerance; a 1e-6 relative slack is always added on
@@ -84,20 +88,36 @@ export function mathEquivalent(
   opts: MathEquivalentOptions = {},
 ): boolean {
   const mode = opts.mode ?? 'value';
-  const ns = normalizeAsciiMath(student);
-  const nk = normalizeAsciiMath(key);
+  // FG-3 / A4: both sides are read by the form tokenizer FIRST, in every mode —
+  // `12ab` is 12·a·b (not one symbol `ab`), `x(x+2)` a product (not a call),
+  // `(2)/(3)x` one coefficient, `1 1/3` a mixed number. Idempotent, so a caller
+  // that already tokenized (the grader's bound check, FG-14) costs nothing more.
+  const ns = tokenizeMath(student);
+  const nk = tokenizeMath(key);
   if (!ns || !nk) return false;
+  if (mode === 'form') {
+    // Form ⇒ value by construction: the shape is checked only on an answer that
+    // is already value-equal. Cheap shape first is NOT taken, deliberately —
+    // the value test is what the property tests pin as the floor.
+    return valueEquivalent(ns, nk, opts) && sameShape(ns, nk);
+  }
+  return valueEquivalent(ns, nk, opts);
+}
 
-  // Identical normalized strings pass in BOTH modes (cheap win).
+function valueEquivalent(
+  ns: string,
+  nk: string,
+  opts: MathEquivalentOptions,
+): boolean {
+  // Identical tokenized strings are equal (cheap win).
   if (stripSpace(ns) === stripSpace(nk)) return true;
-  if (mode === 'exact-form') return false;
 
-  // ---- value mode: numeric-sampling equivalence ----
-  const fs = compileFunction(student);
-  const fk = compileFunction(key);
+  // ---- numeric-sampling equivalence ----
+  const fs = compileFunction(ns);
+  const fk = compileFunction(nk);
   if (!fs || !fk) return false;
 
-  const vars = [...new Set([...freeVariables(student), ...freeVariables(key)])];
+  const vars = [...new Set([...freeVariables(ns), ...freeVariables(nk)])];
   const tol = opts.tolerance ?? 0;
   const target = opts.samples ?? 12;
 
