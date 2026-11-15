@@ -40,6 +40,17 @@ import GridRowMenuHost from './components/GridRowMenuHost';
 import { FieldFocusContext } from './components/fieldFocus';
 import { imageFilesIn, pastedImageFiles, placeImages } from './imagePasteDrop';
 import { uploadImage } from '../lib/uploadImage';
+import { ImageUploadContext } from './components/imageUpload';
+
+// Loaded on first use, in the handler rather than React.lazy (the
+// ActivityEditor import dialog's reason: a lazy() rejection after a deploy
+// would blank the editor with no error boundary; a handler shows a message).
+type FindBarComponent = typeof import('./components/FindReplaceBar').default;
+type ShortcutsComponent = typeof import('./components/ShortcutsDialog').default;
+const loadFindBar = () => import('./components/FindReplaceBar').then((m) => m.default);
+const loadShortcuts = () => import('./components/ShortcutsDialog').then((m) => m.default);
+const TOOL_LOAD_FAILED = 'Couldn’t open it. Refresh the page and try again.';
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 interface EditorProps {
     initialContent: JSONContent;
@@ -126,6 +137,46 @@ export default function Editor({
     // editorProps (fixed at mount), so they read the activity through a ref.
     const activityIdRef = useRef(activityId);
     activityIdRef.current = activityId;
+    // Find and replace + the shortcuts list (2026-11-15), each loaded on first use.
+    const [FindBar, setFindBar] = useState<FindBarComponent | null>(null);
+    const [findOpen, setFindOpen] = useState(false);
+    const [Shortcuts, setShortcuts] = useState<ShortcutsComponent | null>(null);
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
+    const [toolError, setToolError] = useState<string | null>(null);
+    const openFind = () => {
+        setToolError(null);
+        // Already open: keep what is typed, just go back to the Find box.
+        const box = document.querySelector<HTMLInputElement>('[data-find-input]');
+        if (findOpen && box) {
+            box.focus();
+            box.select();
+            return;
+        }
+        loadFindBar()
+            .then((C) => {
+                setFindBar(() => C);
+                setFindOpen(true);
+            })
+            .catch(() => setToolError(TOOL_LOAD_FAILED));
+    };
+    const openShortcuts = () => {
+        setToolError(null);
+        loadShortcuts()
+            .then((C) => {
+                setShortcuts(() => C);
+                setShortcutsOpen(true);
+            })
+            .catch(() => setToolError(TOOL_LOAD_FAILED));
+    };
+    // The uploader the figure slots use (ImageUploadContext); null until saved.
+    const imageUploader = useCallback(
+        (file: File) => {
+            const id = activityIdRef.current;
+            if (!id) return Promise.reject(new Error('Images can be added once the activity is saved.'));
+            return uploadImage(id, file);
+        },
+        [],
+    );
     const [imageStatus, setImageStatus] = useState<
         { kind: 'uploading' } | { kind: 'error'; message: string } | null
     >(null);
@@ -404,11 +455,35 @@ export default function Editor({
         // FieldFocusContext reaches the NodeViews through EditorContent's
         // React portals, so nested fields anywhere in the doc report here.
         <FieldFocusContext.Provider value={reportFieldFocus}>
+        <ImageUploadContext.Provider value={activityId ? imageUploader : null}>
         <div
             className="rounded-lg border border-line bg-canvas shadow-sm"
             style={typographyVars}
+            // ⌘F and ⌘/ (2026-11-15). Capture phase: nested fields stop their
+            // keydowns from bubbling, and these must work inside them too.
+            onKeyDownCapture={(e) => {
+                // ⌘ on a Mac (Ctrl+F there is "cursor forward"), Ctrl elsewhere.
+                const mod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+                if (!mod || e.altKey) return;
+                // Not from inside a dialog or popover (portals bubble here too).
+                if ((e.target as Element | null)?.closest?.('[role="dialog"], [role="alertdialog"], [aria-modal="true"]')) return;
+                const key = e.key.toLowerCase();
+                if (key === 'f' && !e.shiftKey) {
+                    e.preventDefault();
+                    openFind();
+                } else if (key === '/' || e.key === '?') {
+                    e.preventDefault();
+                    openShortcuts();
+                }
+            }}
         >
-            <Toolbar editor={editor} fieldEditor={fieldEditor} />
+            <Toolbar editor={editor} fieldEditor={fieldEditor} onFind={openFind} onShortcuts={openShortcuts} />
+            {toolError && (
+                <p className="px-3 pt-2 text-xs text-danger" role="alert">
+                    {toolError}
+                </p>
+            )}
+            {shortcutsOpen && Shortcuts && <Shortcuts onClose={() => setShortcutsOpen(false)} />}
             <div
                 ref={canvasRef}
                 className={`relative p-6${
@@ -461,6 +536,7 @@ export default function Editor({
                         </button>
                     </div>
                 </DragHandle>
+                {findOpen && FindBar && <FindBar editor={editor} onClose={() => setFindOpen(false)} />}
                 <EditorContent editor={editor} />
                 {/* First-run "Start here" — one-tap starters on a brand-new
                     empty activity (doc-empty + session latch, above). */}
@@ -572,6 +648,7 @@ export default function Editor({
                 <GridRowMenuHost editor={editor} />
             </div>
         </div>
+        </ImageUploadContext.Provider>
         </FieldFocusContext.Provider>
     );
 }

@@ -10,7 +10,7 @@ import { renderNumberLineSettings } from './components/NumberLineSettings';
 import { renderResetCrop } from './components/ImageDrawerFields';
 import { requestCropMode } from './components/cropMode';
 import { ArrowDown, ArrowUp, Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
-import { canMoveBlockAt, moveBlockAt } from './extensions/BlockReorderShortcuts';
+import { canMoveBlockAt, duplicateBlockAt, moveBlockAt } from './extensions/BlockReorderShortcuts';
 import { linesToRem, remToLines } from '../lib/workSpaceUnits';
 import { OPEN_IMAGE_POPOVER } from './extensions/Image';
 import { headerAttrsOf, headerChoiceOf, type HeaderChoice } from '../lib/tableAligns';
@@ -169,14 +169,6 @@ export interface BlockControls {
 // primaries. They are NOT part of any descriptor's `primary` (a block's primary
 // is its own 1-2 actions). Move (the gutter grip) is a later stage.
 
-function duplicateBlock(editor: Editor, pos: number): void {
-    const node = editor.state.doc.nodeAt(pos);
-    if (!node) return;
-    editor
-        .chain()
-        .insertContentAt(pos + node.nodeSize, node.toJSON())
-        .run();
-}
 
 function deleteBlock(editor: Editor, pos: number): void {
     const node = editor.state.doc.nodeAt(pos);
@@ -205,7 +197,12 @@ export const universalActions: ReadonlyArray<ControlEntry> = [
         onActivate: (editor, pos) => void moveBlockAt(editor, pos, 'down'),
         disabled: (editor, pos) => !canMoveBlockAt(editor, pos, 'down'),
     },
-    { label: 'Duplicate', icon: Copy, onActivate: duplicateBlock },
+    {
+        label: 'Duplicate',
+        icon: Copy,
+        title: 'Duplicate (⌘D)',
+        onActivate: (editor, pos) => void duplicateBlockAt(editor, pos, 'keep'),
+    },
     { label: 'Delete', icon: Trash2, onActivate: deleteBlock },
 ];
 
@@ -449,6 +446,27 @@ const imageCaptionField: AdvancedField = {
     set: (editor, pos, value) => setNodeAttr(editor, pos, 'caption', value),
 };
 
+// Graph figure: the same two fields. Before 2026-11-15 they could only be set
+// by typing `alt:` / `caption:` lines in the figure's source text.
+const figureAltField: AdvancedField = {
+    kind: 'text',
+    label: 'Alt text',
+    help: 'Describe the figure for screen readers, e.g. “Triangle ABC with a right angle at B”.',
+    placeholder: 'Describe the figure',
+    get: (node) => (node.attrs.alt as string | null) ?? '',
+    // null, not '': the attr's empty value, so an unset field saves no `alt`.
+    set: (editor, pos, value) => setNodeAttr(editor, pos, 'alt', value.trim() === '' ? null : value),
+};
+
+const figureCaptionField: AdvancedField = {
+    kind: 'text',
+    label: 'Caption',
+    help: 'Shown above the figure, e.g. the letter a question names it by.',
+    placeholder: 'e.g. Figure A',
+    get: (node) => (node.attrs.caption as string | null) ?? '',
+    set: (editor, pos, value) => setNodeAttr(editor, pos, 'caption', value.trim() === '' ? null : value),
+};
+
 // Clears crop+srcAspect only, leaving width/align (CR-S4).
 const resetCropField: AdvancedField = {
     kind: 'custom',
@@ -682,6 +700,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // Alt / Caption / Reset crop live in the Advanced drawer (image-crop.md's
     // "caption/alt → drawer" decomposition).
     fillInBlank: { primary: [], advanced: questionAdvancedWithNumbering },
+    graphFigure: {
+        primary: [],
+        advanced: [{ group: 'Description', fields: [figureAltField, figureCaptionField] }],
+    },
     image: {
         primary: [
             {

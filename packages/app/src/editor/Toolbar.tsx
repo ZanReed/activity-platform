@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
-import { Redo2, Undo2 } from 'lucide-react';
+import { Keyboard, Redo2, Search, Undo2 } from 'lucide-react';
 import ColumnWidthPicker from './components/ColumnWidthPicker';
 import CellHeightControl from './components/CellHeightControl';
 import InsertMenu from './components/InsertMenu';
@@ -37,6 +37,9 @@ interface ToolbarProps {
     // block styles + marks + inline math, nothing to insert, no Define (the
     // guide editor registers no definition mark).
     variant?: 'activity' | 'reference' | 'definition' | 'guide';
+    /** The activity editor's Find and Keyboard-shortcuts buttons (2026-11-15). */
+    onFind?: () => void;
+    onShortcuts?: () => void;
 }
 
 // Three tiers (editor toolbar reorganization, 2026-07-08):
@@ -54,6 +57,8 @@ export default function Toolbar({
     editor,
     fieldEditor = null,
     variant = 'activity',
+    onFind,
+    onShortcuts,
 }: ToolbarProps) {
     if (!editor) return null;
 
@@ -311,6 +316,20 @@ export default function Toolbar({
                         Row below
                     </ToolbarButton>
                 </>
+            )}
+            {(onFind || onShortcuts) && (
+                <div className="ml-auto flex gap-1">
+                    {onFind && (
+                        <ToolbarButton onClick={onFind} title="Find and replace (⌘F)" label="Find and replace">
+                            <Search size={14} aria-hidden="true" />
+                        </ToolbarButton>
+                    )}
+                    {onShortcuts && (
+                        <ToolbarButton onClick={onShortcuts} title="Keyboard shortcuts (⌘/)" label="Keyboard shortcuts">
+                            <Keyboard size={14} aria-hidden="true" />
+                        </ToolbarButton>
+                    )}
+                </div>
             )}
         </div>
     );

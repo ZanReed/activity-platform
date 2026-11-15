@@ -9,6 +9,9 @@ import { activeBlockAt } from '../strictGrid';
  *
  *   Mod-Shift-ArrowUp:   move current block up
  *   Mod-Shift-ArrowDown: move current block down
+ *   Mod-d:               duplicate the current block (2026-11-15; the command
+ *                        bar's Duplicate). Overrides the browser's "bookmark
+ *                        this page" only while the caret is in a block.
  *
  * Mod = Cmd on macOS, Ctrl elsewhere. Matches Tiptap's move-node-button
  * convention for cross-tool muscle-memory consistency.
@@ -28,9 +31,40 @@ export const BlockReorderShortcuts = Extension.create({
         return {
             'Mod-Shift-ArrowUp': () => moveBlock(this.editor, 'up'),
                                                       'Mod-Shift-ArrowDown': () => moveBlock(this.editor, 'down'),
+            'Mod-d': () => duplicateCurrentBlock(this.editor),
         };
     },
 });
+
+/**
+ * Insert a copy of the block at `pos` right after it. Shared by ⌘D and the
+ * command bars' Duplicate. `select`: 'keep' leaves the selection on the
+ * original (what the bars always did); 'node' selects the copy; a number puts
+ * the caret that far into the copy, where it was in the original.
+ */
+export function duplicateBlockAt(editor: Editor, pos: number, select: 'keep' | 'node' | number): boolean {
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node) return false;
+    const at = pos + node.nodeSize;
+    const tr = editor.state.tr.insert(at, node);
+    if (select === 'node') tr.setSelection(NodeSelection.create(tr.doc, at));
+    else if (select !== 'keep') {
+        tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(at + select, at + node.nodeSize - 1))));
+    }
+    editor.view.dispatch(tr.scrollIntoView());
+    return true;
+}
+
+function duplicateCurrentBlock(editor: Editor): boolean {
+    const { selection } = editor.state;
+    // A selected block (Esc, or a click on an atom) whose parent is a column.
+    if (selection instanceof NodeSelection && selection.$from.parent.type.name === 'column') {
+        return duplicateBlockAt(editor, selection.from, 'node');
+    }
+    const active = activeBlockAt(editor.state);
+    if (!active) return false;
+    return duplicateBlockAt(editor, active.pos, Math.max(0, selection.$from.pos - active.pos));
+}
 
 function moveBlock(editor: Editor, direction: 'up' | 'down'): boolean {
     const { state, view } = editor;

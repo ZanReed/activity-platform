@@ -2194,7 +2194,14 @@
     display: flex;
     gap: 0.4rem;
 }
-.mc-block__figure-actions button {
+.mc-block__figure-upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+.mc-block__figure-actions button,
+.mc-block__figure-upload button {
     font-size: 0.75rem;
     padding: 0.15rem 0.5rem;
     border: 1px solid var(--ed-border-strong); /* slate-300 */
@@ -4700,4 +4707,20 @@ img.mc-block__figure-preview {
     text-decoration: underline;
     text-underline-offset: 2px;
     color: inherit;
+}
+
+/* Find and replace (FindHighlight.ts). The current match is outlined as well
+   as filled, so it stays distinct without colour (forced-colors, grayscale). */
+.find-match {
+    background: var(--color-warning-bg-2);
+    border-radius: 2px;
+}
+.find-match--current {
+    background: var(--color-warning-border-2);
+    outline: 2px solid var(--color-warning-strong);
+    outline-offset: 0;
+}
+@media (forced-colors: active) {
+    .find-match { background: Mark; color: MarkText; }
+    .find-match--current { outline-color: Highlight; }
 }

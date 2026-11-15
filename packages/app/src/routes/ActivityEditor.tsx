@@ -58,6 +58,7 @@ import { findPublishProblems, problemText } from '../lib/prePublishCheck';
 import { locateProblem, problemLabel, selectProblem } from '../editor/locateProblem';
 import { STARTING_ANSWER_COPY, findStartingAnswers, type StartingAnswer } from '../editor/startingAnswers';
 import { REPUBLISH_COPY, hasLockedOrDol, isNoChanges, startedStudentCount } from '../lib/republishImpact';
+import { DISCARD_COPY, discardDraft } from '../lib/discardDraft';
 
 /** B-2: the publish refusal's list. */
 const PROBLEMS_SHOWN = 5;
@@ -835,6 +836,27 @@ export default function ActivityEditor() {
             saving: status === 'saving',
         });
 
+        // "Discard changes" (2026-11-15): back to the published version.
+        const [discardOpen, setDiscardOpen] = useState(false);
+        const canDiscard =
+            (isPublished || publishState.kind === 'success') &&
+            !noChanges &&
+            publishState.kind !== 'publishing' &&
+            status !== 'conflict';
+        const onDiscard = async () => {
+            if (!id) return;
+            // Let any save in flight land first, so the guard below compares
+            // against the row as it really is.
+            // A failed flush leaves the editor dirty, and the reload below
+            // would then stop on the unsaved-changes prompt over a cleared draft.
+            if (!(await flush())) throw new Error(DISCARD_COPY.unsaved);
+            await discardDraft(id, knownUpdatedAt.current);
+            // Reopen from the published version: the one load path, so every
+            // editor, the autosave baseline and the publish state start clean.
+            // The teacher asked for this, so it is not a reload under them.
+            window.location.reload();
+        };
+
         // G-3: republishing asks first when students have started (their
         // sections start unchecked on the new version).
         const [republishConfirm, setRepublishConfirm] = useState<{ started: number | null; locked: boolean } | null>(null);
@@ -1089,8 +1111,33 @@ export default function ActivityEditor() {
             )}
             </div>
 
+            {discardOpen && (
+                <Suspense fallback={null}>
+                <ConfirmDialog
+                title={DISCARD_COPY.title}
+                confirmLabel={DISCARD_COPY.confirm}
+                cancelLabel={DISCARD_COPY.cancel}
+                danger
+                onCancel={() => setDiscardOpen(false)}
+                onConfirm={onDiscard}
+                >
+                <p>{DISCARD_COPY.body}</p>
+                <p>{DISCARD_COPY.kept}</p>
+                </ConfirmDialog>
+                </Suspense>
+            )}
             {(isPublished || publishState.kind === 'success') && (
-                <div className="mt-2 flex justify-end">
+                <div className="mt-2 flex flex-wrap items-baseline justify-end gap-x-3">
+                {canDiscard && (
+                    <button
+                    type="button"
+                    data-discard-draft
+                    onClick={() => setDiscardOpen(true)}
+                    className="text-xs font-medium text-muted underline underline-offset-2 hover:text-ink"
+                    >
+                    {DISCARD_COPY.button}
+                    </button>
+                )}
                 <PublishStatus
                 activityId={id}
                 version={

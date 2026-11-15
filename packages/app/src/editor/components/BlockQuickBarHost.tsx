@@ -4,6 +4,7 @@ import { TextSelection } from 'prosemirror-state';
 import { Trash2, Copy, Settings, Eye, EyeOff } from 'lucide-react';
 import { OPEN_BLOCK_SETTINGS, hasConfigurableControls } from '../blockControls';
 import { blockAncestor } from '../strictGrid';
+import { duplicateBlockAt } from '../extensions/BlockReorderShortcuts';
 import { selectedBlock } from '../selectedBlock';
 import { usePreviewToggle } from './usePreviewToggle';
 
@@ -217,14 +218,7 @@ export default function BlockQuickBarHost({
         setDeletedToast(Date.now());
     };
 
-    const duplicateBlock = () => {
-        const node = editor.state.doc.nodeAt(activePos);
-        if (!node) return;
-        editor
-            .chain()
-            .insertContentAt(activePos + node.nodeSize, node.toJSON())
-            .run();
-    };
+    const duplicateBlock = () => void duplicateBlockAt(editor, activePos, 'keep');
 
     // ⚙ selects the block AND opens settings mode in one go (the meta tells the
     // command-bar host to skip straight past action mode).
@@ -288,7 +282,7 @@ export default function BlockQuickBarHost({
             <button
                 type="button"
                 className="block-quickbar__btn"
-                title="Duplicate block"
+                title="Duplicate block (⌘D)"
                 aria-label="Duplicate block"
                 onClick={duplicateBlock}
             >

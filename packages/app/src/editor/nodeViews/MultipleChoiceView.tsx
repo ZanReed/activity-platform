@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
+import { ImageUploadContext } from '../components/imageUpload';
 import {
     NodeViewWrapper,
     type NodeViewProps,
@@ -107,6 +108,30 @@ export function ChoiceFigureEditor({
     onDone?: () => void;
 }) {
     const { image, graph } = choice;
+    // Upload (2026-11-15): absent where there is no activity to file it under.
+    const upload = useContext(ImageUploadContext);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    // The upload takes a while; anything edited meanwhile (this picture's alt,
+    // another choice) must survive it, so the commit reads the props as they
+    // are THEN, not as they were when the file was picked.
+    const latest = useRef({ image, onImage });
+    latest.current = { image, onImage };
+    const takeFile = async (file: File) => {
+        if (!upload || !image) return;
+        setUploading(true);
+        setUploadError(null);
+        try {
+            const src = await upload(file);
+            const now = latest.current;
+            if (now.image) now.onImage({ ...now.image, src });
+        } catch (err) {
+            setUploadError(err instanceof Error ? err.message : 'Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
     // Live preview through the EXACT engine the published page uses — the
     // renderer is pure, so this is a string transform, no I/O. The editor-side
     // attr types are structural twins of the schema shapes (the save boundary
@@ -141,7 +166,7 @@ export function ChoiceFigureEditor({
                         disabled={disabled}
                         onClick={() => onImage({ src: '', alt: '' })}
                     >
-                        + Image (URL)
+                        + Image
                     </button>
                     <button
                         type="button"
@@ -156,8 +181,37 @@ export function ChoiceFigureEditor({
             )}
             {image && (
                 <div className="mc-block__figure-section">
+                    {upload && (
+                        <div className="mc-block__figure-upload">
+                            <button
+                                type="button"
+                                disabled={disabled || uploading}
+                                onClick={() => fileRef.current?.click()}
+                                aria-label={`Upload a picture for ${label}`}
+                            >
+                                {uploading ? 'Uploading…' : image.src ? 'Upload a different picture' : 'Upload a picture'}
+                            </button>
+                            <input
+                                ref={fileRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+                                hidden
+                                data-figure-file
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) void takeFile(file);
+                                    e.target.value = '';
+                                }}
+                            />
+                            {uploadError && (
+                                <span className="mc-block__figure-hint" role="alert">
+                                    {uploadError}
+                                </span>
+                            )}
+                        </div>
+                    )}
                     <label className="mc-block__figure-field">
-                        <span>Image URL</span>
+                        <span>{upload ? 'or image URL' : 'Image URL'}</span>
                         <input
                             type="url"
                             value={image.src}
@@ -184,7 +238,7 @@ export function ChoiceFigureEditor({
                     </label>
                     {!isValidUrl(image.src) && (
                         <span className="mc-block__figure-hint">
-                            Paste a full image URL — the figure is left off the
+                            {upload ? 'Upload a picture or paste' : 'Paste'} a full image URL — the figure is left off the
                             published page until it&apos;s valid.
                         </span>
                     )}

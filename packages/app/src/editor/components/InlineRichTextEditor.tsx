@@ -79,6 +79,14 @@ export default function InlineRichTextEditor({
     reportRef.current = reportFocus;
     const onBlurRef = useRef(onBlur);
     onBlurRef.current = onBlur;
+    // A field must show a value changed from OUTSIDE (find and replace, undo
+    // of an attr change) — otherwise its next keystroke would write the old
+    // text back over the change. Two refs, because some callers do not commit
+    // per keystroke (the definition popover keeps its draft in a ref, so its
+    // `value` prop stays put while the teacher types): resync only when the
+    // PROP itself changed, and not to what this field just emitted.
+    const lastProp = useRef(JSON.stringify(value));
+    const knownValue = useRef(lastProp.current);
 
     const editor = useEditor({
         extensions: [
@@ -104,13 +112,38 @@ export default function InlineRichTextEditor({
                 { type: 'paragraph', content: activityInlineToTiptap(value) },
             ],
         },
-        onUpdate: ({ editor }) => onChange(docToInline(editor.getJSON())),
+        onUpdate: ({ editor }) => {
+            const next = docToInline(editor.getJSON());
+            knownValue.current = JSON.stringify(next);
+            onChange(next);
+        },
         onFocus: ({ editor }) => reportRef.current(editor, true),
         onBlur: ({ editor }) => {
             reportRef.current(editor, false);
             onBlurRef.current?.();
         },
     });
+
+    useEffect(() => {
+        if (!editor || editor.isDestroyed) return;
+        const json = JSON.stringify(value);
+        if (json === lastProp.current) return;
+        lastProp.current = json;
+        if (json === knownValue.current) return; // our own emit, echoed back
+        knownValue.current = json;
+        editor
+            .chain()
+            // Not an edit made in this field, so ⌘Z here must not undo it.
+            .command(({ tr }) => {
+                tr.setMeta('addToHistory', false);
+                return true;
+            })
+            .setContent(
+                { type: 'doc', content: [{ type: 'paragraph', content: activityInlineToTiptap(value) }] },
+                { emitUpdate: false },
+            )
+            .run();
+    }, [editor, value]);
 
     // Unmounting while focused (e.g. the feedback disclosure collapses) must
     // release the toolbar back to the main editor.
