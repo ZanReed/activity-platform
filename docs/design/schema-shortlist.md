@@ -1,0 +1,146 @@
+# Schema shortlist — design pass (2026-11-15)
+
+The nine items left on the 2026-11-13 low-hanging-feature hunt that need a
+schema field, a migration or a new server path. Each was re-checked against
+the code on 2026-11-15 (evidence below is file:line at that date).
+
+**RULED 2026-11-15 (author):** S1-b (i) — ignore case by default, with the
+catalogue scan before deploy; S8-a (i) — the preview really checks, nothing
+saved; S7-a — https only. **Scope of this arc: S1–S5.** S6–S8 are designed
+and waiting (S7/S8 already ruled); S9 gets its own design pass. The other
+sub-decisions below stand as recommended unless the author changes one.
+
+Every item ships with a GUI (CLAUDE.md → Working style). Cross-cutting costs
+the author should know before ruling:
+
+- **A new field the importer learns** joins `capabilityFacts.ts`'s `JOIN`, so
+  `docs/capability-facts.json` changes and a **pin-bump PR on the curriculum
+  repo** follows (CLAUDE.md → Standing constraints). Items 1, 2, 3, 4, 5.
+- **A grading change** needs `pnpm bundle:grading-server` and a
+  **`check-activity` redeploy** (author). Items 1, 5.
+- **A sanitize/registry change** needs `pnpm bundle:viewer-server` and a
+  **`get-activity` redeploy** (author). Items 2, 3, 4, 5.
+- **A migration** is applied by the author before any UI that calls it is
+  pushed (OV-7). Items 6, 7, 8.
+- **New student-derived data** updates `docs/compliance/data-map.md` and
+  `retention-policy.md` in the same commit. Item 6.
+
+## The items, in the recommended order
+
+### S1. Case-insensitive text blanks — small/medium
+
+**Today:** scoring is case-sensitive (`viewer/src/server/grading/blanks.ts:94`,
+"case and spacing stay exact"); mistake feedback is already case-blind
+(`blanks.ts:353`). "Paris" vs "paris" is marked wrong. No per-blank option
+(`schema/src/inline.ts:491`).
+
+- **S1-a** A per-blank `caseSensitive` flag on text blanks (numeric, math and
+  form blanks are unaffected — case means nothing or something else there).
+- **S1-b — the real decision: the DEFAULT.** (i) absent = case-INSENSITIVE
+  (the change teachers expect; existing published text blanks start accepting
+  "paris" on their next check), with `caseSensitive: true` to opt back in; or
+  (ii) absent = sensitive as today, new blanks get insensitive from the
+  editor. **Recommended (i)**, plus a one-off scan of the catalogue for text
+  answers where case could matter (chemical symbols, proper nouns that clash
+  with common words) before the deploy, reported to the author.
+- **S1-c** GUI: "Match case" checkbox in the blank popover; importer key
+  `{{Paris | case}}` (exact syntax to settle with the curriculum side).
+
+### S2. Print space for short answer and essay — small/medium
+
+**Today:** no field; paper boxes are a fixed `6em` / `12em` (viewer.css
+~2480). Every other question has `workSpace` (`fill-in-blank.ts:37` …) wired
+through `--print-work-space` and guarded in `printExpectations.ts:944`.
+
+- **S2-a** Reuse `workSpace` (same unit, same drawer control "Work space
+  (lines)", same activity-wide default) — not a new concept. Absent = today's
+  box heights. **Recommended.**
+
+### S3. A hint on multiple choice, matching and ordering — medium
+
+**Today:** only blanks have hints, shown after a wrong check
+(`blanks.ts:538/588/608`); MC has per-choice feedback; matching and ordering
+have a worked `solution` only.
+
+- **S3-a** A block-level `hint` (inline rich text), returned by the server
+  ONLY on a wrong verdict, exactly like a blank's hint — stripped by sanitize,
+  never served before Check. **Recommended.**
+- **S3-b** For MC, the per-choice feedback (when the wrong choice has some)
+  wins over the block hint, mirroring mistakeFeedback-before-hint on blanks.
+
+### S4. Filter the grading queue by class — small/medium
+
+**Today:** `list_grading_queue` returns `in_your_class` (any class) but no
+class id (`0034_check_grades.sql:445`); changing its signature is ruled out
+(`0042:1292`).
+
+- **S4-a** A sibling read (RPC) returning student → class ids for the
+  caller's classes holding this activity; the Responses page adds a "Class"
+  picker next to Student and joins client-side. **Recommended.**
+
+### S5. Move a student to another class — small/medium
+
+**Today:** remove (teacher RLS update on `removed_at`) and rejoin with a code
+(`0014_classes.sql:84/182/238`). Checks carry no class (`0020:58`), so a move
+never touches a student's work.
+
+- **S5-a** One audited DEFINER RPC `move_class_member(student, from, to)`:
+  both classes must be the caller's; removes and adds atomically (reactivating
+  an old row when one exists). **Recommended.**
+- **S5-b** Only between the same teacher's classes. Cross-teacher moves stay
+  remove + rejoin with the other teacher's code.
+- **S5-c** GUI: "Move to…" on a roster row (`ClassRoster.tsx`), confirm names
+  both classes and says the student's work stays.
+
+### S6. Text alignment and a highlight colour — medium each
+
+**Today:** neither exists anywhere; tables have per-column alignment only.
+
+- **S6-a** Alignment (left / centre / right) on paragraphs and headings, as a
+  block attr. **Recommended.**
+- **S6-b** Highlight: ONE colour (a highlighter yellow), as a mark. On paper
+  and in forced colours it must still read, so it prints as a grey fill plus
+  an underline. Several colours are a later wish. **Recommended: one.**
+
+### S7. Links — medium
+
+**Today:** no link mark; StarterKit's is switched off so it can't be made
+and lost (`starterKitOptions.ts`); the importer drops URLs with a warning
+(`markdownToTiptap.ts:1673`).
+
+- **S7-a** A `link` mark carrying `href`, **https only** (and `mailto:`?),
+  checked by the schema and again by sanitize; opens in a new tab with
+  `rel="noopener noreferrer"`. **Recommended: https only.**
+- **S7-b** Print shows the link text followed by the address in small type,
+  so paper keeps it.
+- **S7-c** Students leave the activity when they click one (new tab). A
+  teacher-facing note says so; no allowlist of sites in v1.
+
+### S8. Preview the whole draft as a student — medium
+
+**Today:** previews are per block (editor) or print-mode (Bank, My
+activities). `DevViewer` renders documents with a mock checker, dev only.
+
+- **S8-a** "Preview as student" in the editor header opens the DRAFT in the
+  real viewer, screen mode. **Checking:** (i) runs the real grading engine in
+  the browser, lazily, so Check shows real ✓/✗ — nothing is recorded; or
+  (ii) Check is switched off with a note. **Recommended (i)** — the point of a
+  preview is seeing feedback; the engine loads only when a teacher opens the
+  preview, never in the student shell.
+
+### S9. "I'm stuck" — a student flags their teacher — medium/large
+
+**Today:** nothing. The nearest is the teacher's derived "Who to see first"
+list (0068).
+
+- **S9-a** New student-derived data (who, which activity/section, when,
+  optional note?), so it needs its own design pass: the data map, retention,
+  whether a free-text note is allowed (moderation, under-13s), and where the
+  teacher sees it (Responses? Progress? Today?). **Recommended: its own design
+  pass after S1–S8, not built in this arc.**
+
+## Recommended build order
+
+S1 → S2 → S3 (one viewer/grading drop: one grading redeploy, one viewer
+redeploy, one pin bump) → S4 → S5 (one migration drop) → S6 → S7 → S8, and
+S9 as a separate design pass.
