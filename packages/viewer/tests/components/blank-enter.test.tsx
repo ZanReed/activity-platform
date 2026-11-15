@@ -100,3 +100,22 @@ describe('a field that freezes under the cursor', () => {
     expect(keys()).toHaveLength(0);
   });
 });
+
+describe('Enter outside a worksheet', () => {
+  it('is left alone where it has nowhere to go, so a form (mixed practice) still submits', () => {
+    harness(
+      <form>
+        {/* Mixed practice: a check group with no Check button of its own. */}
+        <div data-check-group="g1">
+          <FillInBlank block={fib('f1', ['b1']) as never} mode="screen" />
+        </div>
+      </form>,
+    );
+    const input = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    input.focus();
+    const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    input.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(input);
+  });
+});

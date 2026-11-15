@@ -559,7 +559,7 @@ export default function ActivityResponses() {
                 Only my classes
               </label>
             )}
-            <span className="text-xs text-faint [@media(pointer:coarse)]:hidden">J / K: next / previous response</span>
+            <span className="text-xs text-muted [@media(pointer:coarse)]:hidden">J / K: next / previous response</span>
             {optionalUnmarked > 0 && (
               <p className="text-sm text-muted" data-optional-unmarked={optionalUnmarked}>
                 {optionalUnmarked === 1 ? '1 optional explanation' : `${optionalUnmarked} optional explanations`}: marking

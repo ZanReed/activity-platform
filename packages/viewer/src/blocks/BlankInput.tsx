@@ -125,9 +125,10 @@ export function BlankInput({
     if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) return;
     const input = event.currentTarget;
-    const scope = input.closest('[data-check-group]') ?? input.closest('[data-section-id]');
+    // Only on a worksheet, where every section sits in a check group. Anywhere
+    // else (mixed practice's form) Enter keeps its own meaning: submit.
+    const scope = input.closest('[data-check-group]');
     if (!scope) return;
-    event.preventDefault();
     // Maths answer boxes count too (a MathLive field), so Enter never skips one.
     // A frozen section is a disabled <fieldset>, so :enabled (and the
     // fieldset check, for maths fields) skips its fields rather than landing
@@ -135,9 +136,14 @@ export function BlankInput({
     const blanks = Array.from(
       scope.querySelectorAll<HTMLElement>('input.viewer-blank__input:enabled:not([readonly]), math-field:not([read-only])'),
     ).filter((el) => el === input || !el.closest('fieldset:disabled'));
-    const next = blanks[blanks.indexOf(input) + 1];
-    if (next) next.focus();
-    else scope.querySelector<HTMLButtonElement>('.viewer-section__check:not([disabled])')?.focus();
+    const target =
+      blanks[blanks.indexOf(input) + 1] ??
+      scope.querySelector<HTMLButtonElement>('.viewer-section__check:not([disabled])');
+    // Nowhere to go (mixed practice checks from its own form, with no Check
+    // button in the group): Enter keeps its usual meaning and submits.
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
   };
 
   // Only an editable blank ever opens (onFocus), so open alone gates the tray.
