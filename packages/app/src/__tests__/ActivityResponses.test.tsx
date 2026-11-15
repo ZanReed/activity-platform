@@ -39,6 +39,9 @@ const h = vi.hoisted(() => ({
 
 // The section and question words come from each version's document, read
 // through the page-session cache. Empty by default: no document, no heading.
+// The Class picker's rosters (S4): none by default, so no picker.
+const rosters = vi.hoisted(() => ({ current: [] as { id: string; name: string; students: Set<string> }[] }));
+vi.mock('../lib/classTeacher', () => ({ listClassRosters: () => Promise.resolve(rosters.current) }));
 vi.mock('../lib/activityTitle', () => ({ fetchActivityTitle: () => Promise.resolve(null) }));
 vi.mock('../lib/versionContent', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/versionContent')>()),
@@ -594,6 +597,30 @@ describe('narrowing the list: one student, only my classes, J / K', () => {
     expect(listed()).toEqual(['chk-2:blk-1']);
     fireEvent.change(picker, { target: { value: '__outside__' } });
     expect(listed()).toEqual(['chk-3:blk-1']);
+  });
+
+  it('the Class picker narrows to one class; a student in two classes shows in both (S4)', async () => {
+    rosters.current = [
+      { id: 'k7a', name: '7A', students: new Set(['stu-1']) },
+      { id: 'k7b', name: '7B', students: new Set(['stu-1', 'stu-2']) },
+      { id: 'k9', name: '9 Maths', students: new Set(['stu-9']) }, // nobody here in this queue
+    ];
+    setup([MAYA, ARI, STRANGER]);
+    const picker = (await screen.findByRole('combobox', { name: 'Class' })) as HTMLSelectElement;
+    expect([...picker.options].map((o) => o.textContent)).toEqual(['All classes', '7A', '7B']);
+    fireEvent.change(picker, { target: { value: 'k7a' } });
+    expect(listed()).toEqual(['chk-1:blk-1']);
+    fireEvent.change(picker, { target: { value: 'k7b' } });
+    expect(listed()).toEqual(['chk-1:blk-1', 'chk-2:blk-1']);
+    rosters.current = [];
+  });
+
+  it('no Class picker for a teacher with one class in the queue', async () => {
+    rosters.current = [{ id: 'k7a', name: '7A', students: new Set(['stu-1', 'stu-2']) }];
+    setup([MAYA, ARI]);
+    await screen.findByRole('combobox', { name: 'Student' });
+    expect(screen.queryByRole('combobox', { name: 'Class' })).toBeNull();
+    rosters.current = [];
   });
 
   it('Only my classes hides students outside them, and appears only when there are some', async () => {

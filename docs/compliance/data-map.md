@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-13-draft-54`. Mirrors migrations 0001–**0088**, verified
+> Version `2026-11-15-draft-55`. Mirrors migrations 0001–**0089**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-55` (2026-11-15) — 0089 adds NO personal data.** It adds `move_class_member`, a teacher-only DEFINER function that moves a student between two of the SAME teacher's classes: it sets `removed_at` on one `class_members` row and adds or reactivates another (both documented below), and writes a `class.update` row in `audit_log` (op `move_member`, naming the student and both classes). No new column or table; a student's checks carry no class and are untouched. docs/design/schema-shortlist.md S5. The range moves to 0089 on that basis.
 >
 > **`draft-54` (2026-11-13) — 0088 adds NO personal data.** It adds `activities.minutes` (about how long an activity takes: about content, never a person), lets a teacher plan `class_period_items` on later days and keeps the latest past day instead of none (still no column names a person; who planned, moved or reordered is a `class.update` row in `audit_log`), and gives `users.timezone` (0036, documented below) its first write path, `set_my_timezone`, a teacher-only DEFINER function whose `user.update` audit row records that the zone changed but not the zone. docs/design/period-planner.md. The range moves to 0088 on that basis.
 >

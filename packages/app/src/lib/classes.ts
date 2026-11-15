@@ -261,6 +261,17 @@ export async function removeClassMember(
     if (error) throw new Error(error.message);
 }
 
+/** Move a student to another of the caller's classes (0089, S5): out of one,
+ *  into the other, in one audited step. Their work is untouched. */
+export async function moveClassMember(studentId: string, fromClassId: string, toClassId: string): Promise<void> {
+    const { error } = await supabase.rpc('move_class_member', {
+        p_student_id: studentId,
+        p_from_class: fromClassId,
+        p_to_class: toClassId,
+    });
+    if (error) throw new Error(error.message);
+}
+
 /** Soft delete via RPC (same 0008 pattern as activities). */
 export async function softDeleteClass(classId: string): Promise<void> {
     const { error } = await supabase.rpc('soft_delete_class', {

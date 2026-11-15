@@ -7,10 +7,12 @@
 // =============================================================================
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useDialogFocus } from '../lib/useDialogFocus';
 import {
     formatDate,
     joinUrlFor,
     listClassMembers,
+    moveClassMember,
     regenerateJoinCode,
     removeClassMember,
     type ClassInfo,
@@ -24,12 +26,19 @@ export default function Roster({
     info,
     onCodeChange,
     onCount,
+    moveTargets = [],
+    onMoved,
 }: {
     info: ClassInfo;
     onCodeChange: (id: string, code: string) => void;
     /** The current-student count, each time the roster is read. */
     onCount: (n: number) => void;
+    /** The teacher's OTHER classes, for "Move to…" (0089, S5). */
+    moveTargets?: ReadonlyArray<{ id: string; name: string }>;
+    /** After a move: the page re-reads its class counts. */
+    onMoved?: () => void;
 }) {
+    const [moving, setMoving] = useState<ClassMember | null>(null);
     const [members, setMembers] = useState<ClassMember[] | null>(null);
     const [query, setQuery] = useState('');
     useEffect(() => {
@@ -136,6 +145,17 @@ export default function Roster({
             {m.email} · joined {formatDate(m.joinedAt)}
             </span>
             </span>
+            <span className="flex shrink-0 items-center gap-3">
+            {moveTargets.length > 0 && (
+                <button
+                type="button"
+                onClick={() => setMoving(m)}
+                aria-label={`Move ${m.displayName ?? m.email} to another class`}
+                className="px-1 py-2.5 text-sm font-medium text-muted underline underline-offset-2 transition hover:text-strong"
+                >
+                Move
+                </button>
+            )}
             <button
             type="button"
             onClick={() => setRemoving(m)}
@@ -146,10 +166,24 @@ export default function Roster({
             >
             Remove
             </button>
+            </span>
             </li>
         ))}
         </ul>
         {removedList}
+        {moving && (
+            <MoveStudentDialog
+            member={moving}
+            from={info}
+            targets={moveTargets}
+            onClose={() => setMoving(null)}
+            onMoved={() => {
+                setMoving(null);
+                void load();
+                onMoved?.();
+            }}
+            />
+        )}
         {removing && (
             <RemoveStudentDialog
             member={removing}
@@ -163,6 +197,110 @@ export default function Roster({
             />
         )}
         </>
+    );
+}
+
+/**
+ * "Move to…" (0089, schema-shortlist.md S5): one of the teacher's other
+ * classes, then one confirm that names both classes and says the work stays.
+ * Errors (a full class, a class limited to another domain) show IN the dialog.
+ */
+function MoveStudentDialog({
+    member,
+    from,
+    targets,
+    onClose,
+    onMoved,
+}: {
+    member: ClassMember;
+    from: ClassInfo;
+    targets: ReadonlyArray<{ id: string; name: string }>;
+    onClose: () => void;
+    onMoved: () => void;
+}) {
+    const [to, setTo] = useState(targets[0]?.id ?? '');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const onKeyDown = useDialogFocus(dialogRef, () => !busy && onClose(), 'select');
+    const label = member.displayName ?? member.email;
+    const toName = targets.find((t) => t.id === to)?.name ?? '';
+    const move = async () => {
+        setBusy(true);
+        setError(null);
+        try {
+            await moveClassMember(member.studentId, from.id, to);
+            onMoved();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not move the student.');
+            setBusy(false);
+        }
+    };
+    return (
+        <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-ink/35 p-6"
+        role="presentation"
+        onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !busy) onClose();
+        }}
+        onKeyDown={onKeyDown}
+        >
+        <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="move-student-title"
+        data-move-dialog
+        className="w-full max-w-md rounded-lg border border-line bg-canvas p-6 shadow-lg outline-none"
+        >
+        <h2 id="move-student-title" className="text-lg font-bold text-ink">
+        Move {label}
+        </h2>
+        <label className="mt-3 block text-sm text-muted">
+        From {from.name} to
+        <select
+        value={to}
+        onChange={(e) => setTo(e.target.value)}
+        disabled={busy}
+        className="mt-1 block w-full rounded-md border border-line-strong bg-canvas px-2 py-1.5 text-sm text-ink"
+        >
+        {targets.map((t) => (
+            <option key={t.id} value={t.id}>
+            {t.name}
+            </option>
+        ))}
+        </select>
+        </label>
+        <p className="mt-3 text-sm text-muted">
+        They leave {from.name} and join {toName}. Their checked work stays with them; this
+        class&rsquo;s practice history stays here.
+        </p>
+        {error && (
+            <p className="mt-3 text-sm text-danger" role="alert">
+            {error}
+            </p>
+        )}
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <button
+        type="button"
+        onClick={onClose}
+        disabled={busy}
+        className="min-h-11 rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm hover:bg-surface"
+        >
+        Cancel
+        </button>
+        <button
+        type="button"
+        onClick={() => void move()}
+        disabled={busy || !to}
+        className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-hover disabled:opacity-50"
+        >
+        {busy ? 'Moving…' : `Move to ${toName}`}
+        </button>
+        </div>
+        </div>
+        </div>
     );
 }
 

@@ -28,6 +28,34 @@ export async function countActiveStudents(): Promise<Map<string, number>> {
     return out;
 }
 
+/** One of the teacher's classes and its current students (removed excluded). */
+export interface ClassRoster {
+    id: string;
+    name: string;
+    students: ReadonlySet<string>;
+}
+
+/**
+ * Every class of the teacher's with its current students' ids, in one read
+ * (the embedded class_members rows, removed ones filtered, as above). Responses
+ * filters its queue by class with it (schema-shortlist.md S4): the queue rows
+ * carry no class, and a student can be in two classes.
+ */
+export async function listClassRosters(): Promise<ClassRoster[]> {
+    const { data, error } = await supabase
+        .from('classes')
+        .select('id, name, class_members(student_id)')
+        .is('deleted_at', null)
+        .is('class_members.removed_at', null)
+        .order('name');
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as { id: string; name: string; class_members?: { student_id: string }[] }[]).map((c) => ({
+        id: c.id,
+        name: c.name,
+        students: new Set((c.class_members ?? []).map((m) => m.student_id)),
+    }));
+}
+
 /** The words a teacher posts for students. One definition, tested. */
 export function joinInstructions(className: string, code: string, url: string): string {
     return `To join ${className}: open ${url} and sign in with your school Google account. The class code is ${code}.`;

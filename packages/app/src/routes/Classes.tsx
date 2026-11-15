@@ -210,6 +210,8 @@ function ClassCard({
     onRenamed,
     onDeleted,
     onError,
+    moveTargets = [],
+    onMembersMoved,
 }: {
     info: ClassInfo;
     activities: TeacherActivitiesData;
@@ -222,6 +224,9 @@ function ClassCard({
     onRenamed: (id: string, name: string) => void;
     onDeleted: (id: string) => void;
     onError: (msg: string) => void;
+    /** The teacher's other classes, for the roster's "Move to…" (S5). */
+    moveTargets?: ReadonlyArray<{ id: string; name: string }>;
+    onMembersMoved?: () => void;
 }) {
     const [showRoster, setShowRoster] = useState(false);
     // "Roster (24)": how many students are in, at a glance, like Activities (N).
@@ -575,7 +580,13 @@ function ClassCard({
         )}
         {showRoster && (
             <Suspense fallback={<p className="mt-2 text-sm text-muted">Loading roster…</p>}>
-            <Roster info={info} onCodeChange={onCodeChange} onCount={(n) => onStudentCount(info.id, n)} />
+            <Roster
+            info={info}
+            onCodeChange={onCodeChange}
+            onCount={(n) => onStudentCount(info.id, n)}
+            moveTargets={moveTargets}
+            {...(onMembersMoved ? { onMoved: onMembersMoved } : {})}
+            />
             </Suspense>
         )}
         {showActivities && (
@@ -799,6 +810,10 @@ export default function Classes() {
                 activities={classActivities}
                 studentCount={studentCounts.get(c.id)}
                 onStudentCount={setCount}
+                moveTargets={classes.filter((x) => x.id !== c.id).map((x) => ({ id: x.id, name: x.name }))}
+                onMembersMoved={() => {
+                    countActiveStudents().then(setStudentCounts, () => undefined);
+                }}
                 onCodeChange={(id, code) =>
                     setClasses((prev) =>
                         prev.map((x) => (x.id === id ? { ...x, joinCode: code } : x)),

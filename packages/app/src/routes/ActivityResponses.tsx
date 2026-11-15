@@ -50,6 +50,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useParams, useSearchParams } from 'react-router';
 import { HIDE_NAMES_KEY, pseudonyms, readFlag, safeProgressPath, writeFlag } from '../lib/classProgress';
 import { groupRows, nextOwedKey, rowKey } from '../lib/responsesQueue';
+import { listClassRosters, type ClassRoster } from '../lib/classTeacher';
 import { emptyQueueLabels, fetchQueueLabels, type QueueLabels } from '../lib/responsesLabels';
 import {
   NEXT_COPY,
@@ -219,6 +220,21 @@ export default function ActivityResponses() {
   // teacher shares no class with), and "Only my classes".
   const [student, setStudent] = useState<string>('');
   const [mineOnly, setMineOnly] = useState(false);
+  // S4 (schema-shortlist.md): one of the teacher's classes. The queue rows
+  // carry no class, so the rosters are read beside them; a failed read just
+  // means no Class picker.
+  const [klass, setKlass] = useState<string>('');
+  const [rosters, setRosters] = useState<ClassRoster[]>([]);
+  useEffect(() => {
+    let live = true;
+    listClassRosters().then(
+      (r) => live && setRosters(r),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
   const choose = (k: string, viaNext = false) => {
     if (k === selected) return;
     if (dirty) {
@@ -325,11 +341,16 @@ export default function ActivityResponses() {
       needsGrading(row) && !dolOptionals.has(`${row.activity_version_id}:${row.block_id}`),
     [dolOptionals],
   );
+  const classStudents = useMemo(
+    () => (klass === '' ? null : (rosters.find((r) => r.id === klass)?.students ?? new Set<string>())),
+    [klass, rosters],
+  );
   const shownFor = useCallback(
     (row: GradingQueueRow) =>
       (!mineOnly || row.in_your_class) &&
+      (classStudents === null || classStudents.has(row.student_id)) &&
       (student === '' || (student === OUTSIDE ? row.student_label === null : row.student_id === student)),
-    [mineOnly, student],
+    [mineOnly, student, classStudents],
   );
   const visible = useMemo(
     () => (rows ?? []).filter((row) => shownFor(row) && (needsOnly ? owed(row) : true)),
@@ -380,6 +401,11 @@ export default function ActivityResponses() {
     return list;
   }, [rows, nameOf]);
   const someOutside = (rows ?? []).some((row) => !row.in_your_class);
+  // Only classes with someone in this queue; the picker shows from two.
+  const classOptions = useMemo(
+    () => rosters.filter((r) => (rows ?? []).some((row) => r.students.has(row.student_id))),
+    [rosters, rows],
+  );
   // J / K: the next / previous response in the list as shown, when the
   // teacher is not typing and no dialog is up. Through choose(), so unsaved
   // entries still ask. Positions are read over the WHOLE queue, so a row that
@@ -433,11 +459,14 @@ export default function ActivityResponses() {
   useEffect(() => {
     if (student !== '' && rows && !studentOptions.some((o) => o.value === student)) setStudent('');
   }, [rows, student, studentOptions]);
+  useEffect(() => {
+    if (klass !== '' && rows && !classOptions.some((c) => c.id === klass)) setKlass('');
+  }, [rows, klass, classOptions]);
 
   const outstanding = (rows ?? []).filter(owed).length;
   // With a student filter on, the header counts what the teacher can see,
   // and names the whole queue beside it.
-  const filtering = student !== '' || mineOnly;
+  const filtering = student !== '' || mineOnly || klass !== '';
   const outstandingShown = filtering ? (rows ?? []).filter((r) => owed(r) && shownFor(r)).length : outstanding;
   // Every optional explanation the filter hides, a REVISED one (graded, then
   // changed) included — it used to vanish with no note (playtest sweep 2026-11-12).
@@ -538,6 +567,21 @@ export default function ActivityResponses() {
               />
               Hide names
             </label>
+            {classOptions.length > 1 && (
+              <select
+                value={klass}
+                onChange={(e) => setKlass(e.target.value)}
+                aria-label="Class"
+                className="min-h-9 rounded-md border border-line-strong bg-canvas px-2 text-sm text-ink"
+              >
+                <option value="">All classes</option>
+                {classOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
             {studentOptions.length > 1 && (
               <select
                 value={student}
@@ -646,6 +690,7 @@ export default function ActivityResponses() {
                   onClick={() => {
                     setStudent('');
                     setMineOnly(false);
+                    setKlass('');
                   }}
                   className="min-h-[44px] text-sm font-semibold text-strong underline underline-offset-2"
                 >

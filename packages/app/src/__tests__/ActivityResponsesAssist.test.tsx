@@ -36,6 +36,9 @@ const h = vi.hoisted(() => ({
   reject: vi.fn(),
 }));
 
+// The Class picker's rosters (S4): none by default, so no picker.
+const rosters = vi.hoisted(() => ({ current: [] as { id: string; name: string; students: Set<string> }[] }));
+vi.mock('../lib/classTeacher', () => ({ listClassRosters: () => Promise.resolve(rosters.current) }));
 vi.mock('../lib/activityTitle', () => ({ fetchActivityTitle: () => Promise.resolve(null) }));
 vi.mock('../lib/grading', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/grading')>()),
