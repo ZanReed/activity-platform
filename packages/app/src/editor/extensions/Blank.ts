@@ -68,6 +68,7 @@ declare module '@tiptap/core' {
                     acceptableAnswers: string[];
                     interchangeableWithPrevious: boolean;
                     answerType: 'text' | 'numeric' | 'math';
+                    caseSensitive: true | undefined;
                     tolerance: number | undefined;
                     unit: string | undefined;
                     acceptableUnits: string[] | undefined;
@@ -152,6 +153,15 @@ export const Blank = Node.create({
                     attributes.answerType === 'math'
                         ? { 'data-answer-type': attributes.answerType }
                         : {},
+            },
+            // "Match case" on a TEXT blank (S1, 2026-11-15): true or absent.
+            // Absent = case ignored. serialize.ts drops it off other types.
+            caseSensitive: {
+                default: undefined as true | undefined,
+                parseHTML: (element) =>
+                    element.getAttribute('data-case-sensitive') === 'true' ? true : undefined,
+                renderHTML: (attributes) =>
+                    attributes.caseSensitive === true ? { 'data-case-sensitive': 'true' } : {},
             },
             // Math equivalence mode ('value' default | 'form' — {{===…}},
             // equal AND in the key's form, D60). Only meaningful when

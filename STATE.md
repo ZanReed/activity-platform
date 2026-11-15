@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Shortlist batches 1–7 (2026-11-15): PUSH owed** — `b91edc12`…`4beb3734`; verify and the student + a11y lanes green. No migration or deploy. Author checks: the join board on a projector; class counts and roster once students join; Discard and find-and-replace on a real activity.
+**Schema shortlist S1–S5 (2026-11-15, [schema-shortlist.md](docs/design/schema-shortlist.md)) — IN THIS ORDER, before any push:** (1) apply **0089** live, `verify-0089` green; (2) `pnpm deploy:get-activity` and `pnpm deploy:check`, hash-verified against the committed bundles; (3) THEN push — the SPA's Hint field and "Match case" box must not go live first (a hint published under the old get-activity reaches students). Text blanks ignore case once check-activity lands (catalogue scanned: nothing needs `^`). Owed to the curriculum side by letter: `{{^…}}` and the `hint:` line.
 
 **Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
 
@@ -266,7 +266,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-11-15 — the low-hanging feature shortlist, built in seven batches: editor (row reorder, find and replace, ⌘D, shortcuts list, figure alt/caption, choice picture upload, Discard changes), teacher screens (roster, join board, Responses filters and J/K, Bank Add unit, class count on My activities), student (answered + Next, text size, resume, Enter between blanks, Continue, Hide done, high contrast, calculator extras). Five size caps raised by ruling (reasons in `perf-budgets.mjs`). NEXT: the schema-sized items left on the shortlist, when one is wanted.
+**Last updated:** 2026-11-15 — the feature shortlist: batches 1–7 shipped (app-only, pushed, CI green); schema items S1–S5 built, waiting on the deploy order under Pending. NEXT: S6–S8 when wanted ([schema-shortlist.md](docs/design/schema-shortlist.md)); S9 needs its own design pass.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 

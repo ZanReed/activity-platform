@@ -261,6 +261,7 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
       },
     ],
     solution: sentinelInline(),
+    hint: sentinelInline(), // S3: RELEASABLE — stripped on read, returned by a wrong check
   });
 
   const itemA = uuid();
@@ -281,6 +282,7 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     ],
     key: { [itemA]: targetA, [itemB]: targetB },
     solution: sentinelInline(),
+    hint: sentinelInline(), // S3: RELEASABLE — stripped on read, returned by a wrong check
   });
 
   const corrItemA = uuid();
@@ -337,6 +339,7 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
       { id: uuid(), content: [text('sixth')] },
     ],
     solution: sentinelInline(),
+    hint: sentinelInline(), // S3: RELEASABLE — stripped on read, returned by a wrong check
   });
 
   const nlBase = () => ({

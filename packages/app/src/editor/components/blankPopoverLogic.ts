@@ -223,6 +223,8 @@ export interface SelectedBlankState {
   /** Answer interpretation mode (a node attr; 'text' is the default). 'math'
    *  grades by expression equivalence via the lazy graph-kit (Model B). */
   answerType: 'text' | 'numeric' | 'math';
+  /** "Match case" on a text blank (a node attr; S1). */
+  caseSensitive: boolean;
   /** Numeric/math comparison tolerance (a node attr; undefined = exact). */
   tolerance: number | undefined;
   /** Unit-bearing numeric blank: required unit + alternates (node attrs). */
@@ -259,6 +261,7 @@ export function isSameBlankSelection(
     prev.mistakeFeedback === next.mistakeFeedback &&
     prev.interchangeableWithPrevious === next.interchangeableWithPrevious &&
     prev.answerType === next.answerType &&
+    prev.caseSensitive === next.caseSensitive &&
     prev.tolerance === next.tolerance &&
     prev.unit === next.unit &&
     listsEqual(prev.acceptableUnits ?? [], next.acceptableUnits ?? []) &&

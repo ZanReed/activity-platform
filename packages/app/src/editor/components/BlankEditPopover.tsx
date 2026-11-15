@@ -86,6 +86,8 @@ interface BlankEditPopoverProps {
     initialUnit: string | undefined;
     initialAcceptableUnits: string[] | undefined;
     initialEquivalence: 'value' | 'form' | undefined;
+    /** "Match case" on a text blank (S1). Absent = case ignored. */
+    initialCaseSensitive?: boolean;
     // Whether a previous blank exists in this block; gates the grouping
     // checkbox (the first blank in a block has nothing to group with).
     canGroupWithPrevious: boolean;
@@ -101,6 +103,7 @@ interface BlankEditPopoverProps {
             acceptableAnswers: string[];
             interchangeableWithPrevious: boolean;
             answerType: 'text' | 'numeric' | 'math';
+            caseSensitive: true | undefined;
             tolerance: number | undefined;
             unit: string | undefined;
             acceptableUnits: string[] | undefined;
@@ -130,6 +133,7 @@ export default function BlankEditPopover({
     initialUnit,
     initialAcceptableUnits,
     initialEquivalence,
+    initialCaseSensitive = false,
     canGroupWithPrevious,
     mathPromptMode = false,
     onChange,
@@ -160,6 +164,7 @@ export default function BlankEditPopover({
     // Grouping flag commits immediately on toggle (no draft/flush), like the
     // acceptable-answer remove path.
     const [interchangeable, setInterchangeable] = useState(initialInterchangeable);
+    const [caseSensitive, setCaseSensitive] = useState(initialCaseSensitive);
     // Answer mode (text/numeric/math) commits immediately on change (like
     // grouping); tolerance is draft-then-flush (like answer) since it's typed.
     // Equivalence (math only) also commits immediately.
@@ -241,6 +246,7 @@ export default function BlankEditPopover({
                 initialAnswerType === 'math' ? formWrongOf(initialMistakeFeedback) : undefined,
             );
             setInterchangeable(initialInterchangeable);
+            setCaseSensitive(initialCaseSensitive);
             setAnswerType(initialAnswerType);
             setEquivalence(
                 initialEquivalence === 'form' ? 'form' : 'value',
@@ -600,9 +606,11 @@ export default function BlankEditPopover({
             initialUnitRef.current = undefined;
             initialAcceptableUnitsRef.current = undefined;
         } else if (next === 'numeric') {
-            // Numeric keeps tolerance; equivalence is math-only → cleared.
+            // Numeric keeps tolerance; equivalence is math-only → cleared, and
+            // so is "Match case" (text-only).
             setEquivalence('value');
-            onChange({ answerType: 'numeric', equivalence: undefined, ...dropFormWrong });
+            setCaseSensitive(false);
+            onChange({ answerType: 'numeric', equivalence: undefined, caseSensitive: undefined, ...dropFormWrong });
         } else {
             // Math: default equivalence to 'value' (stored as absent). Tolerance
             // carries over (it's valid for both numeric and math); the unit is
@@ -611,7 +619,9 @@ export default function BlankEditPopover({
             setEquivalence(
                 initialEquivalence === 'form' ? 'form' : 'value',
             );
+            setCaseSensitive(false);
             onChange({
+                caseSensitive: undefined,
                 answerType: 'math',
                 unit: undefined,
                 acceptableUnits: undefined,
@@ -803,6 +813,24 @@ export default function BlankEditPopover({
                                 </label>
                             ))}
                         </div>
+                    )}
+                    {answerType === 'text' && !mathPromptMode && (
+                        <label className="blank-edit-popover__checkbox" data-match-case>
+                            <input
+                                type="checkbox"
+                                checked={caseSensitive}
+                                onChange={(e) => {
+                                    setCaseSensitive(e.target.checked);
+                                    onChange({ caseSensitive: e.target.checked ? true : undefined });
+                                }}
+                            />
+                            <span className="blank-edit-popover__label">Match case</span>
+                            <span className="blank-edit-popover__sublabel">
+                                {caseSensitive
+                                    ? 'Capitals must match (Mg is right, mg is not).'
+                                    : 'Capitals don’t matter: Paris and paris both count.'}
+                            </span>
+                        </label>
                     )}
                     {answerType === 'numeric' && (
                         <div className="blank-edit-popover__sublabel">

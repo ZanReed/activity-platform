@@ -2482,12 +2482,13 @@
   .viewer-essay__input {
     border: 1px solid var(--vw-color-ink) !important;
     background: none !important;
-    min-height: 6em;
+    min-height: var(--print-answer-space, 6em);
     resize: none;
   }
 
+  /* The teacher's own box height (S2) wins over both defaults. */
   .viewer-essay__input {
-    min-height: 12em;
+    min-height: var(--print-answer-space, 12em);
   }
 
   /* ---- Treatment: figure --------------------------------------------------- */

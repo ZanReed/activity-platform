@@ -39,6 +39,11 @@ export const OrderingBlock = z.object({
   items: z.array(OrderingItem).min(2),
   // MC-parity problem chrome (one problem shape, one dashboard row shape).
   solution: z.array(InlineNode).optional(),
+  // A nudge shown after a WRONG check (schema-shortlist.md S3, 2026-11-15).
+  // Stricter than a blank's hint, which is served to students: this one is
+  // stripped from what they are served and returned only by a wrong check.
+  // Absent = the plain ✗.
+  hint: z.array(InlineNode).optional(),
   skills: z.array(z.string()).default([]),
   workSpace: z.number().min(0).optional(),
 });

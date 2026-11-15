@@ -147,9 +147,16 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     const misconceptionIds = verdict
       ? []
       : selectChoiceMisconceptions(selected, mc.choices);
+    // S3: a wrong answer gets the block's hint unless a WRONG chosen option
+    // has feedback of its own — that is the more specific word (the blank
+    // rule: mistake feedback before hint). A RIGHT chosen option's feedback
+    // ("Yes, 4 is even") doesn't count: on a multi-select it would otherwise
+    // hide the hint from a student who also picked a wrong one.
+    const wrongSaidSomething = mc.choices.some((c) => !c.correct && perChoice.has(c.id));
+    const shown = !verdict && mc.hint && !wrongSaidSomething ? [...feedback, ...mc.hint] : feedback;
     items[mc.blockId] = {
       verdict: verdict ? 'correct' : 'incorrect',
-      ...(feedback.length ? { feedback: sanitizeOut(feedback) } : {}),
+      ...(shown.length ? { feedback: sanitizeOut(shown) } : {}),
       ...(misconceptionIds.length ? { misconceptionIds } : {}),
     };
   }
@@ -160,7 +167,10 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     if (pairs === undefined) continue;
     const score = scoreMatching(pairs, m.key, m.itemIds);
     if (score.verdict === null) continue;
-    items[m.blockId] = { verdict: score.verdict ? 'correct' : 'incorrect' };
+    items[m.blockId] = {
+      verdict: score.verdict ? 'correct' : 'incorrect',
+      ...(!score.verdict && m.hint ? { feedback: sanitizeOut(m.hint) } : {}),
+    };
   }
 
   // ---- correspondence -------------------------------------------------------
@@ -179,7 +189,10 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     const served = input.servedOrderings?.[o.blockId] ?? o.authoredOrder;
     const verdict = scoreOrdering(submitted, o.authoredOrder, served);
     if (verdict === null) continue;
-    items[o.blockId] = { verdict: verdict ? 'correct' : 'incorrect' };
+    items[o.blockId] = {
+      verdict: verdict ? 'correct' : 'incorrect',
+      ...(!verdict && o.hint ? { feedback: sanitizeOut(o.hint) } : {}),
+    };
   }
 
   // ---- graph family ---------------------------------------------------------

@@ -1280,10 +1280,11 @@ describe('superscript units and text (docs/design/superscript-units.md)', () => 
     expect(gradeOne(text('y³'), 'y^3')?.verdict).toBe('correct');
   });
 
-  it('D7: a bare digit is never a superscript, and case still counts', () => {
+  it('D7: a bare digit is never a superscript; case counts only with "Match case" (S1)', () => {
     expect(gradeOne(text('x^2'), 'x2')?.verdict).toBe('incorrect');
     expect(gradeOne(text('x²'), 'x2')?.verdict).toBe('incorrect');
-    expect(gradeOne(text('x^2'), 'X²')?.verdict).toBe('incorrect');
+    expect(gradeOne(text('x^2'), 'X²')?.verdict).toBe('correct');
+    expect(gradeOne({ ...text('x^2'), caseSensitive: true }, 'X²')?.verdict).toBe('incorrect');
   });
 
   // Fable review P1: the ² key is on math blanks too, and the engine reads ^2.

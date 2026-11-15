@@ -62,6 +62,9 @@ export interface BlankKey {
   answers: string[];
   /** Absent ⇒ 'text'. A MathPrompt is always 'math'. */
   answerType: 'text' | 'numeric' | 'math';
+  /** TEXT blanks only: true = "Match case". Absent/false = case is ignored
+   * (author ruling 2026-11-15, schema-shortlist.md S1). */
+  caseSensitive?: boolean;
   tolerance: number;
   /** Required unit for a numeric blank ({{=1.5 unit: km/h}}). Absent ⇒ the
    * blank grades on the value alone (every pre-existing numeric blank).
@@ -91,11 +94,21 @@ export type BlankVerdict = boolean | null;
 
 // ---- single-blank scoring ---------------------------------------------------
 
+/** A numeric blank's word answers ("no solution"): equal ignoring case. */
+function sameWords(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 function scoreText(student: string, key: BlankKey): boolean {
-  // `x²` ≡ `x^2` on both sides (ruling D7); case and spacing stay exact.
-  const folded = foldSuperscriptGlyphs(student);
+  // `x²` ≡ `x^2` on both sides (ruling D7); spacing stays exact. Case is
+  // ignored unless the blank says "Match case" (S1, 2026-11-15).
+  const fold = (v: string) => {
+    const f = foldSuperscriptGlyphs(v);
+    return key.caseSensitive ? f : f.toLowerCase();
+  };
+  const folded = fold(student);
   for (const entry of key.answers) {
-    if (foldSuperscriptGlyphs(prepareKeyValue(entry)) === folded) return true;
+    if (fold(prepareKeyValue(entry)) === folded) return true;
   }
   return false;
 }
@@ -122,7 +135,7 @@ function scoreNumeric(student: string, key: BlankKey): boolean {
       return false;
     }
     for (const entry of key.answers) {
-      if (prepareKeyValue(entry) === student) return true;
+      if (sameWords(prepareKeyValue(entry), student)) return true;
     }
     return false;
   }
@@ -134,9 +147,10 @@ function scoreNumeric(student: string, key: BlankKey): boolean {
     const entryValue = parseNumericValue(prepared);
     if (entryValue !== null && studentValue !== null) {
       if (numericallyClose(studentValue, entryValue, tolerance)) return true;
-    } else if (prepared === student) {
-      // Either side isn't a number: fall back to exact string equality, which
-      // is what lets a key entry like "no solution" score on a numeric blank.
+    } else if (sameWords(prepared, student)) {
+      // Either side isn't a number: fall back to string equality, which is
+      // what lets a key entry like "no solution" score on a numeric blank —
+      // case ignored, as on a text blank since S1 (2026-11-15).
       return true;
     }
   }
@@ -350,10 +364,10 @@ export function scoreBlankGroup(
 /**
  * Pick the mistakeFeedback entry for a wrong answer, or null.
  *
- * Matching is trim + lowercase on BOTH sides, first match wins. Deliberately
- * LOOSER than scoring (which is case-sensitive): a student shouldn't lose
- * targeted help over capitalization, even though they can lose the mark for it.
- * That asymmetry is intentional in the runtime and is preserved here.
+ * Matching is trim + lowercase on BOTH sides, first match wins. Since S1
+ * (2026-11-15) scoring ignores case too, unless a blank says "Match case" —
+ * and then the mistake match is still case-blind: a student shouldn't lose
+ * targeted help over capitalization even where they lose the mark for it.
  *
  * The caller must only invoke this when the verdict is `false`. A correct or
  * unscored answer clears feedback — a stale "you probably forgot to

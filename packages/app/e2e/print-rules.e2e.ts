@@ -375,6 +375,27 @@ test.describe('structural print rules', () => {
         }
     });
 
+    for (const type of ['short_answer', 'essay'] as const) {
+        test(`structure/answer-box-space — a sized ${type} prints its box at that height`, async ({ page }) => {
+            // workspace=1 puts workSpace = 4rem on the FIRST block only. On a
+            // writing box that is the box's height, NOT padding below it.
+            await page.goto(`/dev/viewer?type=${type}&workspace=1`);
+            await page.emulateMedia({ media: 'print' });
+            const box = page.locator('.viewer-short-answer__input, .viewer-essay__input').first();
+            await expect(box).toBeAttached();
+            const rootPx = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+            const minHeight = await box.evaluate((el) => parseFloat(getComputedStyle(el).minHeight));
+            expect(minHeight).toBeCloseTo(4 * rootPx, 0);
+            // Not ALSO padding below the question: the activity default is 0,
+            // and the sized value must not leak into --print-work-space.
+            const padding = await page
+                .locator('.viewer-block[data-block-category="question"]')
+                .first()
+                .evaluate((el) => parseFloat(getComputedStyle(el).paddingBottom));
+            expect(padding).toBeLessThan(4 * rootPx);
+        });
+    }
+
     test('figure/planeless — a Y7 geometry figure prints capped, with its marks and "Not to scale"', async ({
         page,
     }) => {

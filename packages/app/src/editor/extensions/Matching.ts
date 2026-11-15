@@ -141,6 +141,25 @@ export const Matching = Node.create({
                         : {};
                 },
             },
+            // S3 (2026-11-15): shown after a WRONG check; stripped from what
+            // students are served. Same storage as solution.
+            hint: {
+                default: null as unknown[] | null,
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-hint');
+                    if (!raw) return null;
+                    try {
+                        const parsed = JSON.parse(raw);
+                        return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+                    } catch {
+                        return null;
+                    }
+                },
+                renderHTML: (attributes) => {
+                    const v = attributes.hint as unknown[] | null;
+                    return Array.isArray(v) && v.length > 0 ? { 'data-hint': JSON.stringify(v) } : {};
+                },
+            },
             solution: {
                 default: null as unknown[] | null,
                 parseHTML: (element) => {

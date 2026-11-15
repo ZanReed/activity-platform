@@ -203,6 +203,7 @@ describe('isSameBlankSelection', () => {
     mistakeFeedback: mistake,
     interchangeableWithPrevious: false,
     answerType: 'text',
+    caseSensitive: false,
     tolerance: undefined,
     unit: undefined,
     acceptableUnits: undefined,

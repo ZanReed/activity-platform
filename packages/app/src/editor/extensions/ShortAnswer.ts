@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import FreeResponseView from '../nodeViews/FreeResponseView';
-import { answerFieldAttrs } from './freeResponseAttrs';
+import { answerFieldAttrs, answerSpaceAttr } from './freeResponseAttrs';
 import { labelNodeAttr } from '../labelNodeAttr';
 
 // ============================================================================
@@ -70,6 +70,7 @@ export const ShortAnswer = Node.create({
                         : {},
             },
             ...answerFieldAttrs(),
+            ...answerSpaceAttr(),
             ...labelNodeAttr,
         };
     },

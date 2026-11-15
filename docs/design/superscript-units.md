@@ -469,7 +469,7 @@ Approval readiness: PASS — R1 (D2), R2 (D3), R3 (D4), R4 (D5), R5 (D6), R6 (D7
 
 1. `units.ts`: keep `normalizeUnit` byte-for-byte (the exact pass); add `canonicalUnit` = normalizeUnit, then ² ³ → ^2 ^3 BEFORE the operator-space collapse, then a letter followed by 2/3 at a token end → ^n; `unitAccepted` compares canonical (SU-1).
 2. `blanks.ts` `matchMistakeEntry`: the authored-match loop runs twice, exact then canonical (SU-2); reserved matches unchanged.
-3. Text-blank comparator: ² ³ ≡ ^2 ^3 on both sides, no trailing-digit fold, case and spacing unchanged (D7). Not in normalize.ts's lookalike map.
+3. Text-blank comparator: ² ³ ≡ ^2 ^3 on both sides, no trailing-digit fold, case and spacing unchanged (D7). *(Case changed later, by ruling: text blanks ignore case unless "Match case" — schema-shortlist.md S1, 2026-11-15.)* Not in normalize.ts's lookalike map.
 4. New `blocks/BlankInput.tsx`, used by FillInBlank.tsx and Table.tsx (D2): the input plus a ² ³ tray on every EDITABLE blank, numeric and text (SU-3 widened by D6); none on print or the answer key; visible while focus is inside the blank's wrapper; Tab order input → ² → ³ (D3); insert at the remembered caret and return focus; tray placed per the design review (DR-1, DR-6: beside → below → above, avoiding other blanks; supersedes D4), pointer taps keep focus (DR-2), quiet token spec (DR-3), `--z-inline-tray` (DR-4), screen-reader note (DR-5). Buttons insert the ² glyph (SU-4), named "Insert squared" / "Insert cubed".
 5. `viewer.css`: tray styles; hidden in print.
 6. Tests 1–6 (Section 3) plus text rows: x² ≡ x^2 both ways, x2 ≠ x², X² ≠ x^2, a text-blank tray in the component test. Mutation-test each guard.

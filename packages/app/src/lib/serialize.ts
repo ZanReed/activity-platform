@@ -665,12 +665,20 @@ function tiptapShortAnswerToActivity(node: JSONContent): ShortAnswerBlock {
         type: 'short_answer',
         prompt: tiptapInlineToActivity(node.content ?? []),
         ...readAnswerFields(node),
+        ...readAnswerSpace(node),
     };
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
     const rubric = sanitizeRubric(node.attrs?.rubric);
     if (rubric) block.rubric = rubric;
     return block;
+}
+
+/** The printed box height (S2): carried only when set, so a block the teacher
+ *  never sized serializes exactly as before. */
+function readAnswerSpace(node: JSONContent): { workSpace?: number } {
+    const raw = node.attrs?.workSpace;
+    return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? { workSpace: raw } : {};
 }
 
 // Attrs-stored rubric → schema shape. Sanitized PER CRITERION (not whole-rubric
@@ -699,6 +707,7 @@ function tiptapEssayToActivity(node: JSONContent): EssayBlock {
         type: 'essay',
         prompt: tiptapInlineToActivity(node.content ?? []),
         ...readAnswerFields(node),
+        ...readAnswerSpace(node),
     };
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
@@ -950,6 +959,9 @@ function tiptapMultipleChoiceToActivity(node: JSONContent): MultipleChoiceBlock 
     if (solution.length > 0) {
         block.solution = solution;
     }
+    // S3: the question's hint, only when there is one.
+    const hint = sanitizeInlineNodes(attrs.hint);
+    if (hint.length > 0) block.hint = hint;
     const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
         block.workSpace = rawWorkSpace;
@@ -1034,6 +1046,9 @@ function tiptapMatchingToActivity(node: JSONContent): MatchingBlock {
     if (solution.length > 0) {
         block.solution = solution;
     }
+    // S3: the question's hint, only when there is one.
+    const hint = sanitizeInlineNodes(attrs.hint);
+    if (hint.length > 0) block.hint = hint;
     const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
         block.workSpace = rawWorkSpace;
@@ -1164,6 +1179,9 @@ function tiptapOrderingToActivity(node: JSONContent): OrderingBlock {
     if (solution.length > 0) {
         block.solution = solution;
     }
+    // S3: the question's hint, only when there is one.
+    const hint = sanitizeInlineNodes(attrs.hint);
+    if (hint.length > 0) block.hint = hint;
     const rawWorkSpace = attrs.workSpace;
     if (typeof rawWorkSpace === 'number' && rawWorkSpace >= 0) {
         block.workSpace = rawWorkSpace;
@@ -1490,6 +1508,16 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
             node.attrs?.interchangeableWithPrevious === true,
     };
 
+    // "Match case" (S1): a TEXT blank only, and only when on, so every other
+    // blank serializes without a phantom key.
+    if (
+        node.attrs?.caseSensitive === true &&
+        node.attrs?.answerType !== 'numeric' &&
+        node.attrs?.answerType !== 'math'
+    ) {
+        result.caseSensitive = true;
+    }
+
     // Numeric answer mode: carried only when set so text blanks (the common
     // case, and every pre-existing document) serialize without phantom keys.
     // Tolerance rides only with numeric — a stray tolerance on a text blank
@@ -1766,6 +1794,7 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     rubric: block.rubric ?? null,
                     answer: block.answer ?? null,
                     solution: block.solution ?? null,
+                    workSpace: block.workSpace ?? null,
                 },
                 content: activityInlineToTiptap(block.prompt),
             };
@@ -1781,6 +1810,7 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                     rubric: block.rubric ?? null,
                     answer: block.answer ?? null,
                     solution: block.solution ?? null,
+                    workSpace: block.workSpace ?? null,
                 },
                 content: activityInlineToTiptap(block.prompt),
             };
@@ -2003,6 +2033,7 @@ function activityMultipleChoiceToTiptap(block: MultipleChoiceBlock): JSONContent
             multiSelect: block.multiSelect,
             lockChoiceOrder: block.lockChoiceOrder === true,
             solution: block.solution ?? null,
+            hint: block.hint ?? null,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
         },
@@ -2021,6 +2052,7 @@ function activityMatchingToTiptap(block: MatchingBlock): JSONContent {
             targets: block.targets,
             key: block.key,
             solution: block.solution ?? null,
+            hint: block.hint ?? null,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
         },
@@ -2053,6 +2085,7 @@ function activityOrderingToTiptap(block: OrderingBlock): JSONContent {
             id: block.id,
             items: block.items,
             solution: block.solution ?? null,
+            hint: block.hint ?? null,
             skills: block.skills,
             workSpace: block.workSpace ?? null,
         },
@@ -2302,6 +2335,7 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
         // field → 'text' keeps editor JSON stable across round trips.
         answerType: node.answerType ?? 'text',
     };
+    if (node.caseSensitive === true) attrs.caseSensitive = true;
     if (node.tolerance !== undefined) attrs.tolerance = node.tolerance;
     if (node.unit !== undefined) attrs.unit = node.unit;
     if (node.acceptableUnits !== undefined) {

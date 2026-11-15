@@ -104,6 +104,13 @@ export const renderSolutionField = inlineAttrField(
     'Shown to students after the section is checked. Supports bold, italic, and inline math.',
 );
 
+/** Multiple choice / matching / ordering: the hint (S3, 2026-11-15). */
+export const renderHintField = inlineAttrField(
+    'hint',
+    'Hint',
+    'Shown to students only after a wrong check, to nudge them before they try again. On multiple choice, a chosen option’s own feedback is shown instead when it has some.',
+);
+
 /** Short answer / essay: the teacher's model answer (GUI sweep item 3). */
 export const renderModelAnswerField = inlineAttrField(
     'answer',

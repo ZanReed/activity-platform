@@ -51,6 +51,8 @@ export const BLANK_SECRET_FIELDS = [
   // unit would prompt the very recall the unit-bearing blank tests.
   'unit',
   'acceptableUnits',
+  // How the key is matched is grading config, like tolerance (S1, 2026-11-15).
+  'caseSensitive',
 ] as const;
 
 /** MathPrompt fields stripped wherever a prompts array appears (math_block
@@ -237,6 +239,8 @@ export const blockRegistry: BlockRegistry = {
         'choices[].feedback',
         'choices[].misconceptionId',
         'solution',
+        // S3 (2026-11-15): returned only by a wrong check, like a blank's.
+        'hint',
       ],
     },
     print: {
@@ -258,7 +262,7 @@ export const blockRegistry: BlockRegistry = {
     category: 'question',
     numbered: 'always',
     analyticsKey: 'matching',
-    sanitize: { strip: ['key', 'solution'] },
+    sanitize: { strip: ['key', 'solution', 'hint'] },
     // A9/E3: conditional, and declared as such — the bank drops its
     // unbreakability once it holds figures. See PrintSpec.breakInside.
     print: { breakInside: 'avoid-unless-figures', treatment: 'letter-bank' },
@@ -285,7 +289,7 @@ export const blockRegistry: BlockRegistry = {
     numbered: 'always',
     analyticsKey: 'ordering',
     sanitize: {
-      strip: ['solution'],
+      strip: ['solution', 'hint'],
       // The authored items order IS the key — the server serves a shuffle
       // (stable per version + student so reloads don't reshuffle).
       serveShuffled: ['items'],

@@ -20,6 +20,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `{{answer}}` | a fill-in-the-blank with that answer |
 | `{{answer\|alt1\|alt2}}` | a blank whose alternates after `\|` are also accepted |
 | `{{~answer}}` | a blank interchangeable with the one before it — answers count in any order |
+| `{{^answer}}` | a text blank that **matches case** (`Mg`, not `mg`). Without `^`, text blanks ignore capitals: `{{Paris}}` accepts `paris` (author ruling 2026-11-15). Text blanks only; order with the tilde is `{{~^Mg}}` |
 | `{{=answer}}` | a **numeric** blank — equivalent forms (`0.5`, `1/2`, `.50`) all count |
 | `{{=answer +- tol}}` | a numeric blank accepting answers within ± `tol` |
 | `{{==expr}}` | a **math** blank — graded by expression equivalence (`2a` ≡ `a+a` ≡ `a*2`) |
@@ -136,6 +137,8 @@ FILL-IN-THE-BLANK
 - When two blanks may be answered in either order (e.g. factoring), mark the
   second one with a leading tilde:  (x + {{2}})(x + {{~3}}). Each answer still
   counts once, so 2 and 3 in either order is right but 2 and 2 is not.
+- Text answers ignore capitals: {{Paris}} also accepts paris. When capitals
+  matter (a chemical symbol), put ^ first:  the symbol for magnesium is {{^Mg}}.
 - Always put a real answer inside the braces (an empty {{}} is ignored).
 - Every blank shows the student ² and ³ keys. On a text blank x² and x^2
   match each other, but x2 never matches x² (it could mean 2x).
@@ -334,6 +337,7 @@ MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice ques
   (marking more than one (x) also makes it multi-select automatically).
 - Optional feedback after :: on any choice is shown to a student who picks it.
 - Optional line:  solution: <worked explanation>
+- Optional line:  hint: <a nudge shown only after a wrong check>
 - options: keep-order keeps the choices in the order written (they shuffle
   otherwise). Use it when the order carries meaning: the letters of figures
   above the question, or "all of the above".
@@ -357,6 +361,7 @@ MATCHING (a fenced block with the `match` tag becomes a matching question)
   the letters yourself.
 - Optional line:  solution: <worked explanation>. Several items may share one
   option (categorization-style) — always allowed.
+- Optional line:  hint: <a nudge shown only after a wrong check>
 - Either side may include $inline$ math or an image ![alt](https://…).
 - A side can be a static graph — "match the graph to its equation". Use -> as
   the separator (the graph formula contains =):  graph: line y = 2x -> slope 2
@@ -389,6 +394,7 @@ ORDERING (a fenced block with the `order` tag becomes a put-in-order question)
 - Leading numbers like "1." are optional decoration — the listed order is
   what counts.
 - Optional line:  solution: <worked explanation>
+- Optional line:  hint: <a nudge shown only after a wrong check>
 
 LEARNING OBJECTIVES (a fenced block with the `objectives` tag becomes a goals list)
 - ```objectives … ``` with one objective per line:

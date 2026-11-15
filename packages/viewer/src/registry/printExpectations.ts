@@ -944,6 +944,10 @@ export const structuralPrintRoster: readonly {
     rule: 'A PROBLEM that overrides the activity work space reaches paper with its own value — the override shadows --print-work-space on the block wrapper, and was a dead declaration from S9 Drop 4 until 2026-08-21.',
   },
   {
+    id: 'structure/answer-box-space',
+    rule: "A SHORT ANSWER or ESSAY the teacher sized prints its writing box at that height (S2, 2026-11-15) — the box is the work space, so the value sizes the box rather than padding below it, and an unsized box keeps its standard height.",
+  },
+  {
     id: 'structure/ruled-grid',
     rule: 'A row the teacher ruled draws its box and dividers, resolving the tri-state against meta.print.gridLines — boxed regions to write in or cut out. Ported from the retired renderer; unread by any student-facing surface between S9 Drop 4 and 2026-08-21.',
   },

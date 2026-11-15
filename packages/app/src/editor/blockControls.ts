@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { LucideIcon } from 'lucide-react';
 import { renderRubricField } from './components/RubricEditor';
-import { renderModelAnswerField, renderSolutionField } from './components/QuestionSettings';
+import { renderHintField, renderModelAnswerField, renderSolutionField } from './components/QuestionSettings';
 import { renderDataPlotSettings } from './components/DataPlotSettings';
 import { renderGraphSettings } from './components/GraphSettings';
 import { renderNumberLineSettings } from './components/NumberLineSettings';
@@ -290,6 +290,27 @@ const questionAdvanced: AdvancedGroup[] = [
     },
 ];
 
+// --- Answer space (short answer + essay, S2 2026-11-15) ---------------------
+// The same field as a question's "Work space", but on these two blocks it is
+// the HEIGHT OF THE BOX the student writes in on paper (the box is the space).
+const answerSpaceGroup: AdvancedGroup = {
+    group: 'Print',
+    fields: [
+        {
+            kind: 'number',
+            label: 'Answer space (lines)',
+            help: 'How tall the printed box students write in is. Empty = the standard box.',
+            min: 1,
+            step: 0.5,
+            placeholder: 'default',
+            get: (node) =>
+                typeof node.attrs.workSpace === 'number' ? remToLines(node.attrs.workSpace as number) : null,
+            set: (editor, pos, value) =>
+                setNodeAttr(editor, pos, 'workSpace', value === null ? null : linesToRem(value)),
+        },
+    ],
+};
+
 // --- Numbering (every numbered question block) -----------------------------
 // Decouples "is this graded?" from "does it wear a problem number?". Auto = a
 // numbered problem (default). Custom = authored text, out of the number
@@ -364,6 +385,14 @@ const questionAdvancedWithNumbering: AdvancedGroup[] = [
     ...questionAdvanced,
     numberingGroup,
 ];
+
+/** Multiple choice, matching and ordering add a Hint to Grading (S3,
+ *  2026-11-15). Fill-in-the-blank's hints are per blank, in its popover. */
+const hintedQuestionAdvanced: AdvancedGroup[] = questionAdvancedWithNumbering.map((g) =>
+    g.group === 'Grading'
+        ? { ...g, fields: [...g.fields, { kind: 'custom' as const, label: 'Hint', render: renderHintField }] }
+        : g,
+);
 
 /** Keep this question's choices in the order they were written (S5.5 D17A).
  *
@@ -576,7 +605,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         // E7 made this block page-numbered, and until the schema carried
         // `label` there was no way for an author to opt a reflection-style
         // short answer out of the worksheet's numbering.
-        advanced: [{ group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] }, numberingGroup],
+        advanced: [{ group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] }, answerSpaceGroup, numberingGroup],
     },
     essay: {
         primary: [],
@@ -624,6 +653,7 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
                 ],
             },
             { group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] },
+            answerSpaceGroup,
             // Numbering — see the note on shortAnswer; both blocks became
             // page-numbered at answer-key ruling E7 and gained the field at
             // viewer-numbering N6.
@@ -639,14 +669,14 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     multipleChoice: {
         primary: [],
         simple: [multiSelectField, lockChoiceOrderField],
-        advanced: questionAdvancedWithNumbering,
+        advanced: hintedQuestionAdvanced,
     },
-    matching: { primary: [], advanced: questionAdvancedWithNumbering },
+    matching: { primary: [], advanced: hintedQuestionAdvanced },
     // Correspondence carries the same solution / workSpace / label attrs
     // (GUI sweep item 6, ruled 2026-11-13); it had no drawer entry, so all
     // three were import-only.
     correspondence: { primary: [], advanced: questionAdvancedWithNumbering },
-    ordering: { primary: [], advanced: questionAdvancedWithNumbering },
+    ordering: { primary: [], advanced: hintedQuestionAdvanced },
     // interactive_graph settings are interaction-dependent (per-type tolerance
     // rows, display is axis-only) → one custom drawer field (GraphSettings).
     interactiveGraph: {

@@ -98,6 +98,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     : node.attrs.answerType === 'math'
                       ? 'math'
                       : 'text';
+            const caseSensitive = node.attrs.caseSensitive === true;
             const tolerance =
                 typeof node.attrs.tolerance === 'number'
                     ? (node.attrs.tolerance as number)
@@ -142,6 +143,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                     unit,
                     acceptableUnits,
                     equivalence,
+                    caseSensitive,
                     canGroupWithPrevious,
                 };
                 return isSameBlankSelection(prev, next) ? prev : next;
@@ -179,6 +181,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
                 acceptableAnswers: string[];
                 interchangeableWithPrevious: boolean;
                 answerType: 'text' | 'numeric' | 'math';
+                caseSensitive: true | undefined;
                 tolerance: number | undefined;
                 unit: string | undefined;
                 acceptableUnits: string[] | undefined;
@@ -220,6 +223,7 @@ export default function BlankPopoverHost({ editor }: BlankPopoverHostProps) {
             initialUnit={selectedBlank.unit}
             initialAcceptableUnits={selectedBlank.acceptableUnits}
             initialEquivalence={selectedBlank.equivalence}
+            initialCaseSensitive={selectedBlank.caseSensitive}
             canGroupWithPrevious={selectedBlank.canGroupWithPrevious}
             onChange={handleChange}
             onClose={handleClose}

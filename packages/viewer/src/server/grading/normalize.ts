@@ -19,10 +19,11 @@
 //
 // THE SET IS CLOSED AND DELIBERATELY TINY. Everything below is a pair of
 // characters a reader cannot tell apart in a worksheet. Explicitly NOT here:
-//   * case folding          — `X` vs `x` is a real distinction in algebra, and
-//                             the runtime's case sensitivity is documented as
-//                             deliberate ("matches teacher expectations for
-//                             math"). Changing it would change marks.
+//   * case folding          — not a lookalike. It DID change, by ruling, in
+//                             the text-blank comparator itself (blanks.ts
+//                             scoreText, S1 2026-11-15: case ignored unless
+//                             "Match case"), never here: this map stays the
+//                             characters a reader cannot tell apart.
 //   * whitespace collapsing — interior spacing is significant (`x+1` and
 //                             `x + 1` are different answers unless the teacher
 //                             authored both), so collapsing would silently

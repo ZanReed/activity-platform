@@ -85,6 +85,9 @@ export interface GradableInventory {
   multipleChoice: Array<{
     blockId: string;
     correctIds: string[];
+    /** The block's hint (S3): returned on a wrong check when no selected
+     *  choice carried feedback of its own. */
+    hint?: unknown[];
     choices: Array<{
       id: string;
       correct?: boolean;
@@ -96,6 +99,7 @@ export interface GradableInventory {
     blockId: string;
     key: Record<string, string>;
     itemIds: string[];
+    hint?: unknown[];
   }>;
   correspondence: Array<{
     blockId: string;
@@ -104,7 +108,7 @@ export interface GradableInventory {
     itemIds: string[];
     columnIds: string[];
   }>;
-  ordering: Array<{ blockId: string; authoredOrder: string[] }>;
+  ordering: Array<{ blockId: string; authoredOrder: string[]; hint?: unknown[] }>;
   graphs: Array<{ blockId: string; block: RawGraphBlock }>;
   /** Every free-text block in the section — recorded, never judged. */
   freeText: string[];
@@ -138,6 +142,11 @@ function equivalenceOf(v: unknown): 'value' | 'form' {
   return v === 'form' || v === 'exact-form' ? 'form' : 'value';
 }
 
+/** A question block's hint (S3), when it has a non-empty one. */
+function hintOf(block: Record<string, unknown>): { hint?: unknown[] } {
+  return Array.isArray(block.hint) && block.hint.length > 0 ? { hint: block.hint as unknown[] } : {};
+}
+
 /** Project a raw BlankToken onto the grading key shape. */
 function blankTokenToKey(node: Record<string, unknown>): BlankKey {
   const answer = typeof node.answer === 'string' ? node.answer : '';
@@ -154,6 +163,7 @@ function blankTokenToKey(node: Record<string, unknown>): BlankKey {
     answers: [answer, ...acceptable],
     answerType:
       answerType === 'numeric' || answerType === 'math' ? answerType : 'text',
+    ...(node.caseSensitive === true ? { caseSensitive: true } : {}),
     tolerance: typeof node.tolerance === 'number' ? node.tolerance : 0,
     equivalence: equivalenceOf(node.equivalence),
     mistakeFeedback: Array.isArray(node.mistakeFeedback)
@@ -428,6 +438,7 @@ function visit(
         : [];
       inv.multipleChoice.push({
         blockId: id,
+        ...hintOf(block),
         correctIds: choices
           .filter((c) => c.correct === true)
           .map((c) => String(c.id)),
@@ -463,6 +474,7 @@ function visit(
       checkItemIds(items, id, problems);
       inv.matching.push({
         blockId: id,
+        ...hintOf(block),
         key: (block.key as Record<string, string>) ?? {},
         itemIds: items.map((i) => String(i.id)),
       });
@@ -519,7 +531,7 @@ function visit(
       checkItemIds(items, id, problems);
       // The authored order IS the key — available only because this walks the
       // raw document rather than the served one.
-      inv.ordering.push({ blockId: id, authoredOrder: items.map((i) => String(i.id)) });
+      inv.ordering.push({ blockId: id, authoredOrder: items.map((i) => String(i.id)), ...hintOf(block) });
       break;
     }
     case 'table': {

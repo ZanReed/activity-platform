@@ -105,10 +105,31 @@ export const BLANK_CASES: BlankCase[] = [
     expect: ['correct'],
   },
   {
-    name: 'text: case matters — X and x are different in algebra',
-    blanks: [{ answers: ['X'] }],
-    typed: ['x'],
+    // Was "case matters — X and x are different in algebra" until the author's
+    // ruling of 2026-11-15 (schema-shortlist.md S1): a text blank ignores case
+    // unless it says "Match case". Algebra belongs in a math blank ({{==…}}).
+    name: 'text: case is ignored by default — Paris and paris match',
+    blanks: [{ answers: ['Paris'] }],
+    typed: ['paris'],
+    expect: ['correct'],
+  },
+  {
+    name: 'numeric: a word answer ignores case like a text blank (S1)',
+    blanks: [{ answers: ['5', 'No solution'], answerType: 'numeric' }],
+    typed: ['no solution'],
+    expect: ['correct'],
+  },
+  {
+    name: 'text: "Match case" keeps Mg and mg apart',
+    blanks: [{ answers: ['Mg'], caseSensitive: true }],
+    typed: ['mg'],
     expect: ['incorrect'],
+  },
+  {
+    name: 'text: "Match case" still accepts the exact answer',
+    blanks: [{ answers: ['Mg'], caseSensitive: true }],
+    typed: ['Mg'],
+    expect: ['correct'],
   },
   {
     name: 'text: interior spacing is significant',

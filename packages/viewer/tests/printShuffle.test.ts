@@ -388,7 +388,14 @@ describe('the declaration is where it is for a reason', () => {
     // bundles regenerate in the same commit; the get-activity and check-activity
     // redeploys are pending author actions, and no ```video file may be imported
     // before they are live.
-    expect(SANITIZER_REV).toBe('3-a76ad77c');
+    //
+    // MOVED 2026-11-15, deliberately: '3-a76ad77c' → '3-be7914fd'. S1
+    // (schema-shortlist.md) added `caseSensitive` to BLANK_SECRET_FIELDS and S3
+    // added `hint` to the multiple_choice, matching and ordering strips. Both
+    // bundles regenerate in the same commit; the get-activity and check-activity
+    // redeploys are pending author actions, and no file using `{{^…}}` or a
+    // question `hint:` may be imported before they are live.
+    expect(SANITIZER_REV).toBe('3-be7914fd');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

@@ -98,6 +98,11 @@ export const MultipleChoiceBlock = z.object({
   // Worked explanation for the whole problem, revealed post-check regardless
   // of correctness (same contract as FillInBlankBlock.solution).
   solution: z.array(InlineNode).optional(),
+  // A nudge shown after a WRONG check (schema-shortlist.md S3, 2026-11-15).
+  // Stricter than a blank's hint, which is served to students: this one is
+  // stripped from what they are served and returned only by a wrong check.
+  // Absent = the plain ✗.
+  hint: z.array(InlineNode).optional(),
   skills: z.array(z.string()).default([]),
   // Per-problem print work-space override (rem); absent = inherit the
   // activity-level default (see FillInBlankBlock.workSpace for the CSS

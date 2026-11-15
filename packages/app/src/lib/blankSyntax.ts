@@ -59,6 +59,8 @@ export interface BlankSpec {
     unit?: string;
     acceptableUnits?: string[];
     interchangeableWithPrevious: boolean;
+    // `{{^Mg}}`: a text blank that matches case. Text only.
+    caseSensitive?: true;
     acceptableAnswers: string[];
     // Raw hint text (each consumer builds the InlineNode[] its own way).
     hint: string | null;
@@ -80,6 +82,8 @@ export interface BlankSpec {
 //   =<answer>   canonical: NUMERIC (0.5 = 1/2 = .50), optional "± tol"/"+- tol"
 //   ==<answer>  canonical: MATH expression equivalence (2a ≡ a+a), via graph-kit
 //   ===<answer> canonical: MATH, equal AND in this form (6(3x-2), not 18x-12)
+//   ^<answer>   canonical: a TEXT blank that matches case (Mg, not mg). Text
+//               blanks ignore case otherwise (S1, author ruling 2026-11-15).
 //   ?<text>     a HINT (one per blank; a second warns + wins)
 //   !<wrong> :: <feedback>   an anticipated-mistake pair (repeatable); the `::`
 //               delimiter matches ```mc / ```graph, so a `match` may contain `=`
@@ -113,6 +117,13 @@ export function parseBlankSpec(
     let unit: string | undefined;
     let acceptableUnits: string[] | undefined;
     let equivalence: 'form' | undefined;
+    // `^` = "Match case" (S1). After `~`, before the answer-type sigils; it
+    // means nothing on a numeric or math blank, which say so below.
+    let caseSensitive: true | undefined;
+    if (canonical.startsWith('^')) {
+        caseSensitive = true;
+        canonical = canonical.slice(1).trim();
+    }
     if (canonical.startsWith('===')) {
         // FG-7: `===` is tested before `==`. A form has no tolerance and no
         // unit — both are refused with a named warning, never half-applied.
@@ -166,6 +177,12 @@ export function parseBlankSpec(
         }
     }
     if (canonical.length === 0) return null;
+    if (caseSensitive && answerType !== 'text') {
+        caseSensitive = undefined;
+        warnings.push(
+            'Fill-in-the-blank: “^” (match case) is for text answers only — ignored on a number or maths blank.',
+        );
+    }
 
     const acceptableAnswers: string[] = [];
     let hint: string | null = null;
@@ -257,6 +274,7 @@ export function parseBlankSpec(
         ...(unit !== undefined ? { unit } : {}),
         ...(acceptableUnits !== undefined ? { acceptableUnits } : {}),
         interchangeableWithPrevious,
+        ...(caseSensitive ? { caseSensitive } : {}),
         acceptableAnswers,
         hint,
         mistakes,
@@ -283,6 +301,7 @@ export interface BlankNodeAttrs {
     acceptableAnswers: string[];
     interchangeableWithPrevious: boolean;
     answerType: 'text' | 'numeric' | 'math';
+    caseSensitive?: true;
     equivalence?: 'form';
     tolerance?: number;
     unit?: string;
@@ -301,6 +320,7 @@ export function blankAttrsFromSpec(spec: BlankSpec): BlankNodeAttrs {
         acceptableAnswers: spec.acceptableAnswers,
         interchangeableWithPrevious: spec.interchangeableWithPrevious,
         answerType: spec.answerType,
+        ...(spec.caseSensitive ? { caseSensitive: true as const } : {}),
         ...(spec.equivalence !== undefined ? { equivalence: spec.equivalence } : {}),
         ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
         ...(spec.unit !== undefined ? { unit: spec.unit } : {}),

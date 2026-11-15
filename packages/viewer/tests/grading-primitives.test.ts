@@ -85,8 +85,10 @@ describe('typographic normalization (ruling G1)', () => {
     expect(scoreBlank('​42​', blank(['42']))).toBe(true);
   });
 
-  it('does NOT fold case — a deliberate non-goal, since X and x differ in algebra', () => {
-    expect(scoreBlank('x', blank(['X']))).toBe(false);
+  it('folds case on a text blank unless it says "Match case" (S1, 2026-11-15)', () => {
+    expect(scoreBlank('paris', blank(['Paris']))).toBe(true);
+    expect(scoreBlank('mg', blank(['Mg'], { caseSensitive: true }))).toBe(false);
+    expect(scoreBlank('Mg', blank(['Mg'], { caseSensitive: true }))).toBe(true);
   });
 
   it('does NOT collapse interior whitespace — spacing is significant', () => {
@@ -199,9 +201,10 @@ describe('numeric blanks', () => {
     expect(scoreBlank(String(0.1 + 0.2), numeric(['0.3']))).toBe(true);
   });
 
-  it('falls back to exact text for a non-numeric key entry like "no solution"', () => {
+  it('falls back to text for a non-numeric key entry like "no solution", ignoring case (S1)', () => {
     expect(scoreBlank('no solution', numeric(['no solution']))).toBe(true);
-    expect(scoreBlank('No Solution', numeric(['no solution']))).toBe(false);
+    expect(scoreBlank('No Solution', numeric(['no solution']))).toBe(true);
+    expect(scoreBlank('no answer', numeric(['no solution']))).toBe(false);
   });
 
   it('normalizes a unicode minus before parsing', () => {

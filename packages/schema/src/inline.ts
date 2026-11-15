@@ -544,6 +544,14 @@ export const BlankToken = z.object({
   // the runtime lazy-loads the graph-kit and compares by numeric-sampling
   // equivalence (2a ≡ a+a ≡ a*2), NOT string match. See docs/design/math-blanks.md.
   answerType: z.enum(['text', 'numeric', 'math']).optional(),
+  // A TEXT blank's case rule (author ruling 2026-11-15, schema-shortlist.md
+  // S1). Absent = case is IGNORED ("paris" matches "Paris") — a ruled change
+  // from the old exact match. `true` = "Match case" (Mg vs mg). Meaningless on
+  // numeric and math blanks, which never read it. Answer-key material: rides
+  // BLANK_SECRET_FIELDS. Optional, so older documents re-serialize unchanged.
+  // (A boolean, not literal(true): a hand-written `false` must not fail the
+  // whole document's parse. Only `true` is ever saved.)
+  caseSensitive: z.boolean().optional(),
   // Absolute comparison tolerance. For 'numeric': |typed - key| <= tolerance.
   // For 'math': the absolute tolerance passed to the sampling comparison.
   // Absent = exact equality (numeric) / no extra slack (math).

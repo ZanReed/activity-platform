@@ -98,11 +98,19 @@ const answerFields = {
   solution: z.array(InlineNode).optional(),
 };
 
+// The printed writing box's height, in rem (schema-shortlist.md S2,
+// 2026-11-15). The same field and unit every other question's `workSpace`
+// uses, but on these two blocks it sizes the BOX the student writes in rather
+// than adding space below the question (the box is the work space). Absent =
+// the default box: 6em for a short answer, 12em for an essay. Print only.
+const answerSpace = { workSpace: z.number().min(0).optional() };
+
 export const ShortAnswerBlock = z.object({
   id: z.string().uuid(),
   type: z.literal('short_answer'),
   prompt: z.array(InlineNode),
   placeholder: z.string().optional(),
+  ...answerSpace,
   rubric: Rubric.optional(),
   ...answerFields,
   ...labelFields,
@@ -128,6 +136,7 @@ export const EssayBlock = z.object({
   prompt: z.array(InlineNode),
   placeholder: z.string().optional(),
   wordCountHint: WordCountHint.optional(),
+  ...answerSpace,
   rubric: Rubric.optional(),
   ...answerFields,
   ...labelFields,

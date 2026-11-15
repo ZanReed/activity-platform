@@ -46,13 +46,15 @@ export interface ColumnLayout {
 }
 
 export interface BlockLayout {
+  readonly type?: string | undefined;
   readonly width?: number | undefined;
   readonly align?: 'left' | 'center' | 'right' | undefined;
   /**
    * Reserved hand-working space below THIS problem, in rem — the per-problem
    * override of `meta.print.workSpace`. Declared on fill_in_blank, ordering,
    * matching and multiple_choice; absent everywhere else and on every block the
-   * teacher did not size.
+   * teacher did not size. On short_answer and essay it is the height of the
+   * writing BOX instead (S2, 2026-11-15) — see blockStyle.
    */
   readonly workSpace?: number | undefined;
 }
@@ -128,7 +130,11 @@ export function blockStyle(block: BlockLayout): CSSProperties {
   //
   // Inert on screen: nothing outside `@media print` reads the property.
   if (block.workSpace !== undefined) {
-    style['--print-work-space'] = `${formatNumber(block.workSpace)}rem`;
+    // A writing box IS its work space (S2): the value sizes the box, through
+    // its own property so the activity-wide --print-work-space (space BELOW a
+    // question) never resizes a box it was not set on.
+    const boxed = block.type === 'short_answer' || block.type === 'essay';
+    style[boxed ? '--print-answer-space' : '--print-work-space'] = `${formatNumber(block.workSpace)}rem`;
   }
 
   return style as CSSProperties;

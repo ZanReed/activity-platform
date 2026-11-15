@@ -154,16 +154,16 @@ export type SanitizeBlockType<B> = B extends { type: 'math_block' }
             questionShape?: SanitizedQuestionShape;
           }
         : B extends { type: 'multiple_choice'; choices: readonly (infer C)[] }
-          ? Omit<DeepSanitizeInline<B>, 'solution' | 'choices'> & {
+          ? Omit<DeepSanitizeInline<B>, 'solution' | 'hint' | 'choices'> & {
               choices: Omit<
                 DeepSanitizeInline<C>,
                 'correct' | 'feedback' | 'misconceptionId'
               >[];
             }
           : B extends { type: 'matching' }
-            ? Omit<DeepSanitizeInline<B>, 'key' | 'solution'>
+            ? Omit<DeepSanitizeInline<B>, 'key' | 'solution' | 'hint'>
             : B extends { type: 'ordering' }
-              ? Omit<DeepSanitizeInline<B>, 'solution'>
+              ? Omit<DeepSanitizeInline<B>, 'solution' | 'hint'>
               : B extends { type: 'number_line' }
                 ? Omit<DeepSanitizeInline<B>, 'solution' | 'interaction'> & {
                     interaction: SanitizedNumberLineInteraction;

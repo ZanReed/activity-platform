@@ -51,3 +51,22 @@ export function answerFieldAttrs() {
         solution: jsonAttr('solution', 'data-solution'),
     };
 }
+
+/** The printed writing box's height in rem (S2, schema-shortlist.md): the
+ *  schema's `workSpace` on short_answer / essay. null = the default box. */
+export function answerSpaceAttr() {
+    return {
+        workSpace: {
+            default: null as number | null,
+            parseHTML: (element: HTMLElement) => {
+                const raw = element.getAttribute('data-work-space');
+                const n = raw === null ? NaN : Number(raw);
+                return Number.isFinite(n) && n >= 0 ? n : null;
+            },
+            renderHTML: (attributes: Record<string, unknown>) =>
+                typeof attributes.workSpace === 'number'
+                    ? { 'data-work-space': String(attributes.workSpace) }
+                    : {},
+        },
+    };
+}

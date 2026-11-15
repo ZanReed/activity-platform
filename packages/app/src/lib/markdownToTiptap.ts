@@ -1981,6 +1981,7 @@ function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | n
         acceptableAnswers: spec.acceptableAnswers,
         interchangeableWithPrevious: spec.interchangeableWithPrevious,
         answerType: spec.answerType,
+        ...(spec.caseSensitive ? { caseSensitive: true } : {}),
         ...(spec.equivalence !== undefined ? { equivalence: spec.equivalence } : {}),
         ...(spec.tolerance !== undefined ? { tolerance: spec.tolerance } : {}),
         ...(spec.unit !== undefined ? { unit: spec.unit } : {}),
@@ -2361,6 +2362,7 @@ function inlineSchemaContent(placeholdered: string, ctx: Ctx): InlineNode[] {
 //   ( ) 3 :: Check your addition.     (a choice; optional "::" feedback)
 //   (x) 4                             (x marks a correct choice)
 //   solution: Add the ones.           (optional worked solution)
+//   hint: Count again.                (optional; shown after a wrong check)
 // Parens ( ) author a single-answer question; square brackets [ ] author
 // "select all that apply". Mixing is tolerated: ANY square bracket — or more
 // than one correct choice — makes the block multi-select (a single-select
@@ -2375,6 +2377,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
+    let hint: InlineNode[] | null = null;
     let sawSquare = false;
     let keepOrder = false;
     const choices: {
@@ -2464,7 +2467,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             continue;
         }
 
-        const m = /^(prompt|solution|options):\s*(.*)$/i.exec(line);
+        const m = /^(prompt|solution|hint|options):\s*(.*)$/i.exec(line);
         if (!m) {
             return fail(
                 `unrecognized line "${line}" (choices look like "( ) text" or "(x) text")`,
@@ -2477,6 +2480,10 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
                 break;
             case 'solution':
                 if (value) solution = schemaInlineContent(value, ctx);
+                break;
+            case 'hint':
+                // S3: shown after a wrong check (schema-shortlist.md).
+                if (value) hint = schemaInlineContent(value, ctx);
                 break;
             case 'options':
                 for (const opt of value
@@ -2508,6 +2515,7 @@ function parseMcFence(src: string, ctx: Ctx): JSONContent | null {
             choices,
             multiSelect,
             solution,
+            ...(hint ? { hint } : {}),
             skills: [],
             workSpace: null,
             ...(keepOrder ? { lockChoiceOrder: true } : {}),
@@ -2750,6 +2758,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
+    let hint: InlineNode[] | null = null;
     type Side = {
         id: string;
         content: InlineNode[];
@@ -2788,7 +2797,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
         const line = rawLine.trim();
         if (!line) continue;
 
-        const directive = /^(prompt|solution|options):\s*(.*)$/i.exec(line);
+        const directive = /^(prompt|solution|hint|options):\s*(.*)$/i.exec(line);
         if (directive) {
             const value = (directive[2] ?? '').trim();
             switch ((directive[1] ?? '').toLowerCase()) {
@@ -2797,6 +2806,10 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
                     break;
                 case 'solution':
                     if (value) solution = schemaInlineContent(value, ctx);
+                    break;
+                case 'hint':
+                    // S3: shown after a wrong check (schema-shortlist.md).
+                    if (value) hint = schemaInlineContent(value, ctx);
                     break;
                 case 'options':
                     for (const opt of value
@@ -2861,6 +2874,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
             targets,
             key,
             solution,
+            ...(hint ? { hint } : {}),
             skills: [],
             workSpace: null,
         },
@@ -2884,13 +2898,14 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
 
     let prompt = '';
     let solution: InlineNode[] | null = null;
+    let hint: InlineNode[] | null = null;
     const items: { id: string; content: InlineNode[] }[] = [];
 
     for (const rawLine of src.split('\n')) {
         const line = rawLine.trim();
         if (!line) continue;
 
-        const directive = /^(prompt|solution|options):\s*(.*)$/i.exec(line);
+        const directive = /^(prompt|solution|hint|options):\s*(.*)$/i.exec(line);
         if (directive) {
             const value = (directive[2] ?? '').trim();
             switch ((directive[1] ?? '').toLowerCase()) {
@@ -2899,6 +2914,10 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
                     break;
                 case 'solution':
                     if (value) solution = schemaInlineContent(value, ctx);
+                    break;
+                case 'hint':
+                    // S3: shown after a wrong check (schema-shortlist.md).
+                    if (value) hint = schemaInlineContent(value, ctx);
                     break;
                 case 'options':
                     for (const opt of value
@@ -2924,6 +2943,7 @@ function parseOrderFence(src: string, ctx: Ctx): JSONContent | null {
             id: '',
             items,
             solution,
+            ...(hint ? { hint } : {}),
             skills: [],
             workSpace: null,
         },
