@@ -20,13 +20,15 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
+**Shortlist batches 1–7 (2026-11-15): PUSH owed** — `b91edc12`…`4beb3734`; verify and the student + a11y lanes green. No migration or deploy. Author checks: the join board on a projector; class counts and roster once students join; Discard and find-and-replace on a real activity.
+
 **Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
 
 **UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 
 **Due dates LIVE 2026-11-13** ([due-dates.md](docs/design/due-dates.md)): pushed, 0087 applied, verify-0087 6/6 on live.
 
-**Playtest browser sweep (2026-11-12): nothing owed.** Three fixes and "Republish changed" pushed; the glossary re-imported live and all 21 republished (`report:stale` 0). Open low findings: [TODOS](TODOS.md) → "Playtest browser sweep".
+**Playtest browser sweep (2026-11-12): nothing owed.** Open low findings: [TODOS](TODOS.md) → "Playtest browser sweep".
 
 **GUI rule (2026-11-12): all three gaps LIVE** (video, seeded variables, DoL; pushed, CI green). [TODOS](TODOS.md) → GUI gaps.
 
@@ -264,7 +266,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-11-12 — first signed-in browser sweep with `pnpm playtest` (~30 features). Fixed and pushed: Responses names sections and questions (1acc0861); a revised answer no longer says "Reviewed" (15f458ab, shell cap 158.6 → 158.7 by ruling); glossary prose joins (4b30bdb5, re-imported live); My activities' "Republish changed" (38306f40). Live: all 21 republished, `report:stale` 0. NEXT: period planner design pass (unchanged); the sweep's low findings wait in TODOS.
+**Last updated:** 2026-11-15 — the low-hanging feature shortlist, built in seven batches: editor (row reorder, find and replace, ⌘D, shortcuts list, figure alt/caption, choice picture upload, Discard changes), teacher screens (roster, join board, Responses filters and J/K, Bank Add unit, class count on My activities), student (answered + Next, text size, resume, Enter between blanks, Continue, Hide done, high contrast, calculator extras). Five size caps raised by ruling (reasons in `perf-budgets.mjs`). NEXT: the schema-sized items left on the shortlist, when one is wanted.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
