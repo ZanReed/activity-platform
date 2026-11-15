@@ -98,7 +98,8 @@ export default function InlineMathGaps({ node }: { node: Record<string, unknown>
   }, [latex, hasKey]);
 
   return (
-    <span className="viewer-math-gaps" data-math-gaps="true">
+    // data-gap-ids: the student top bar's Next finds a gap by its id here.
+    <span className="viewer-math-gaps" data-math-gaps="true" data-gap-ids={promptIds.join(' ')}>
       <span ref={hostRef} className="viewer-math-gaps__field" />
       <span className="viewer-math-gaps__static" data-field-mounted={mounted ? 'true' : 'false'}>
         <InlineMath latex={staticLatex(latex, answers)} />

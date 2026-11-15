@@ -10,7 +10,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { progressLabel, type ActivityProgress } from '../lib/classActivities';
 
@@ -106,5 +106,55 @@ describe('Home shows a status per activity (S2)', () => {
         const link = await screen.findByRole('link', { name: /Integers 2/ });
         expect(within(link).getByText(/^Added /)).toBeInTheDocument();
         expect(screen.queryByText('Not started')).toBeNull();
+    });
+});
+
+describe('Continue and Hide done (2026-11-15)', () => {
+    beforeEach(() => {
+        window.localStorage.clear();
+        h.progress.current = [
+            p({ activityId: 'a-done', sectionsTotal: 2, sectionsChecked: 2 }),
+            p({ activityId: 'a-half', sectionsTotal: 2, sectionsChecked: 1 }),
+        ];
+    });
+    afterEach(() => window.localStorage.clear());
+
+    it('offers the activity last opened on this device while it is unfinished', async () => {
+        window.localStorage.setItem('student-last-opened:stu-1', 'a-half');
+        const { container } = renderHome();
+        const card = await waitFor(() => {
+            const el = container.querySelector('[data-continue]');
+            if (!el) throw new Error('no card yet');
+            return el;
+        });
+        expect(card).toHaveAttribute('href', '/a/a-half');
+        expect(card).toHaveTextContent('Integers 2');
+    });
+
+    it('offers nothing when the last one is finished, or another student opened it', async () => {
+        window.localStorage.setItem('student-last-opened:stu-1', 'a-done');
+        window.localStorage.setItem('student-last-opened:someone-else', 'a-half');
+        const { container } = renderHome();
+        await screen.findByText('Integers 1');
+        await screen.findByText(/Done ✓/);
+        expect(container.querySelector('[data-continue]')).toBeNull();
+    });
+
+    it('Hide done folds finished work away, says how much, and is remembered', async () => {
+        renderHome();
+        fireEvent.click(await screen.findByRole('button', { name: 'Hide done' }));
+        expect(screen.queryByText('Integers 1')).toBeNull();
+        expect(screen.getByText('1 done activity hidden')).toBeInTheDocument();
+        expect(window.localStorage.getItem('student-home-hide-done:stu-1')).toBe('1');
+        cleanup();
+        renderHome();
+        expect(await screen.findByRole('button', { name: 'Show done' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('a finished activity with feedback ready is never hidden', async () => {
+        h.progress.current = [p({ activityId: 'a-done', sectionsTotal: 2, sectionsChecked: 2, feedbackReleased: true })];
+        window.localStorage.setItem('student-home-hide-done:stu-1', '1');
+        renderHome();
+        expect(await screen.findByText('Integers 1')).toBeInTheDocument();
     });
 });

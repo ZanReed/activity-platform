@@ -265,8 +265,13 @@ export const SHELL_SPEND = [
         change: 'In-band drift from the 2026-11-15 shortlist batches 1–4 (253 B: chiefly batch 1\'s lock confirm counting blank answers, which lives in the viewer the shell carries, plus hash-name churn), crossed by batch 5 (6 B: the Bank and empty-library changes are lazy route code)',
         bytes: 259,
     },
+    {
+        date: '2026-11-15',
+        change: 'Student shortlist batch 7: the viewer top bar\'s "N of M answered" + Next (with the shared answered helper), A− / A+ text size, reopening where the student left off, Enter moving between blanks, the tray closing on freeze, and math-gap anchors',
+        bytes: 1630,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 156307;
+export const SHELL_JS_BASELINE_BYTES = 157937;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
@@ -298,7 +303,11 @@ export const SHELL_SPEND_BAND_BYTES = 256;
  * TIGHTEN THIS AGAIN the moment anything shrinks it, in the same commit, the
  * way slice 1 did.
  */
-export const SHELL_CSS_GZ_KIB = 16.5;
+// RAISED 16.5 -> 16.75 on 2026-11-15 (author approved), at 16.58 KiB
+// measured: the student top bar's A− / A+ and Next, the forced-colours rules
+// for blank verdicts, Ctrl+P keeping the paper at its own size, and the new
+// utility classes batches 5–7 added to the one Tailwind sheet.
+export const SHELL_CSS_GZ_KIB = 16.75;
 
 /**
  * Service-worker precache budgets (S8 ruling D10; TODO ruling D19).
@@ -648,7 +657,11 @@ export const TEACHER_JOURNEYS = [
         // 8 → 8.25 (2026-11-13, due dates DD-3): the Home row's due label,
         // its order, and waiting for progress to settle (dueWords.ts 0.3 KiB,
         // shared with the teacher pages). Measured just over 8.0; no library.
-        maxGzKiB: 8.25,
+        // 8.25 → 8.75 (2026-11-15, author approved): the "Continue where you
+        // left off" card and Hide done (with its per-class count). Measured
+        // 8.5; the prefs module it reads is shared with the viewer, so no
+        // library crossed in.
+        maxGzKiB: 8.75,
         forbid: ['prosemirror', 'mathlive', 'mathjs', 'katex'],
         why: 'The signed-in landing for students and teachers. Preloaded by URL from index.html; must stay a list, never a heavy library.',
     },

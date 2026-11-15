@@ -155,6 +155,7 @@ export default function MathBlock({
       data-block-type="math_block"
       data-block-id={block.id}
       data-has-gaps={hasGaps ? 'true' : 'false'}
+      {...(hasGaps ? { 'data-gap-ids': prompts.map((p) => p.id).join(' ') } : {})}
       data-phase={phase}
     >
       {hasGaps ? <div ref={hostRef} data-math-prompts="true" /> : null}

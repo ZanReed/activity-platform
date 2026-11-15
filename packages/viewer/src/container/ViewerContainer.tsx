@@ -54,7 +54,7 @@ import type {
 import type { SectionItemIds, ViewerStore } from '../store/store.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { DolServedState } from '../sanitize/dolForm.js';
-import { RESPONSE_CATEGORIES } from '../store/store.js';
+import { unansweredItems } from './answered.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { dolOptionalBlockIds } from './dolOptional.js';
 import { ViewerProvider } from './context.js';
@@ -345,16 +345,6 @@ function dolPracticeOffered(dol: DolServedState, status: SectionStatus | undefin
 }
 
 /** The DoL confirm (DE-14): which try this is, and what is still blank. */
-/** True when a stored response holds no answer at all. A cleared matching or
- * correspondence question is stored as `{}`, so emptiness is checked all the
- * way down, not only at the top. (Graphs are judged by their points, above.) */
-function isBlankResponse(v: unknown): boolean {
-  if (v === undefined || v === null) return true;
-  if (typeof v === 'string') return v.trim() === '';
-  if (Array.isArray(v)) return v.every(isBlankResponse);
-  if (typeof v === 'object') return Object.values(v as Record<string, unknown>).every(isBlankResponse);
-  return false;
-}
 
 function blankNote(unanswered: number): string {
   return unanswered === 0 ? '' : unanswered === 1 ? ' One question is still blank.' : ` ${unanswered} questions are still blank.`;
@@ -482,26 +472,7 @@ export function ViewerContainer({
   // D65 DE-14: questions with no answer yet, read from the store at the
   // moment of the confirm (not a subscription — nothing renders from it).
   const unansweredIn = useCallback(
-    (secs: readonly SectionIndex[]) => {
-      const responses = store.getState().responses as unknown as Record<string, Record<string, unknown> | undefined>;
-      let n = 0;
-      for (const s of secs) {
-        for (const category of RESPONSE_CATEGORIES) {
-          for (const id of s.items[category] ?? []) {
-            const v = responses[category]?.[id];
-            // A graph's work always names its interaction, so it is blank when
-            // nothing is placed and "cannot be graphed" isn't chosen.
-            const blank =
-              category === 'graphs' && v !== undefined
-                ? !(v as { noSolution?: boolean }).noSolution &&
-                  ((v as { points?: unknown[] }).points ?? []).length === 0
-                : isBlankResponse(v);
-            if (blank) n += 1;
-          }
-        }
-      }
-      return n;
-    },
+    (secs: readonly SectionIndex[]) => unansweredItems(store.getState().responses, secs).length,
     [store],
   );
 

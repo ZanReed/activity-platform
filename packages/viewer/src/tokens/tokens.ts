@@ -77,6 +77,7 @@ export const staticTokens = [
   '--type-h2',
   '--type-h3',
   '--type-body',
+  '--viewer-text-scale',
   '--type-small',
   '--type-meta',
   '--type-fine',

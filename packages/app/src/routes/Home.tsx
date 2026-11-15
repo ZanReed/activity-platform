@@ -27,6 +27,7 @@ import {
   BTN_SECONDARY,
 } from '../components/AuthScreens';
 import { JoinCodeForm } from '../components/JoinCodeForm';
+import { lastOpenedActivity, readHideDone, writeHideDone } from '../lib/studentViewPrefs';
 
 // SHELL-SLIMMING RUNG 3 (2026-10-18): the two Home branches a signed-in student
 // on their way to a worksheet never reaches are LAZY, so they leave the student
@@ -261,6 +262,9 @@ function StudentHome({ email }: { email: string }) {
   const [activities, setActivities] = useState<ActivitiesState>({ phase: 'loading' });
   const [idlePrompt, setIdlePrompt] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  // 2026-11-15: finished work can be folded away (remembered on the device).
+  // A finished activity whose feedback is ready stays: that is news.
+  const [hideDone, setHideDone] = useState(() => (session ? readHideDone(session.user.id) : false));
   // Status per activity (student review S2, 0059). A SEPARATE read from the
   // list, like the list is separate from the classes (DR-9): if it fails the
   // student still gets every activity, with its date instead of a status.
@@ -314,6 +318,19 @@ function StudentHome({ email }: { email: string }) {
   }, []);
 
   const joined = state.phase === 'ready' ? state.classes : [];
+  const foldable = (r: StudentClassActivity) => {
+    const p = progress?.get(r.activityId);
+    return progressSettled && isFinished(p) && !p?.feedbackReleased;
+  };
+  const anyFoldable = activities.phase === 'ready' && activities.rows.some(foldable);
+  // "Continue" (2026-11-15): the activity last opened on this device, while it
+  // is still in a class and not finished. Waits for progress, so a finished
+  // one never flashes up.
+  const lastId = session ? lastOpenedActivity(session.user.id) : null;
+  const continueRow =
+    lastId && activities.phase === 'ready' && progressSettled && progress
+      ? activities.rows.find((r) => r.activityId === lastId && !isFinished(progress?.get(r.activityId)))
+      : undefined;
 
   if (state.phase === 'loading') {
     return (
@@ -348,20 +365,55 @@ function StudentHome({ email }: { email: string }) {
           </div>
         </div>
       ) : (
+        <>
+        {continueRow ? (
+          <Link
+            to={`/a/${continueRow.activityId}`}
+            data-continue
+            className="flex min-h-[44px] flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border border-line bg-canvas px-6 py-4 shadow-sm hover:bg-surface"
+          >
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-muted">Continue where you left off</span>
+              <span className="block text-base font-semibold text-ink underline underline-offset-2">
+                {continueRow.title}
+              </span>
+            </span>
+            {progress?.get(continueRow.activityId) ? (
+              <span className="text-xs text-muted">{progressLabel(progress.get(continueRow.activityId)!)}</span>
+            ) : null}
+          </Link>
+        ) : null}
         <div className="rounded-lg border border-line bg-canvas p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-ink">Your classes</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <h2 className="text-xl font-bold text-ink">Your classes</h2>
+            {anyFoldable || hideDone ? (
+              <button
+                type="button"
+                aria-pressed={hideDone}
+                onClick={() => {
+                  if (session) writeHideDone(session.user.id, !hideDone);
+                  setHideDone(!hideDone);
+                }}
+                className="text-sm font-medium text-muted underline underline-offset-2 hover:text-strong"
+              >
+                {hideDone ? 'Show done' : 'Hide done'}
+              </button>
+            ) : null}
+          </div>
           {/* Class headers ALWAYS render (DR-9d — they confirm the join
               worked), even while activities load or fail; the per-class
               empty line is THE empty state. Headers stay non-links: no
               class page exists (ruled, not an oversight). */}
           {joined.map((c) => {
             // DD-3: due and unfinished first, soonest first; then newest added.
-            const rows =
+            const allRows =
               activities.phase === 'ready'
                 ? progressSettled
                   ? orderForHome(activities.rows.filter((r) => r.classId === c.classId), progress)
                   : activities.rows.filter((r) => r.classId === c.classId)
                 : [];
+            const rows = hideDone ? allRows.filter((r) => !foldable(r)) : allRows;
+            const folded = allRows.length - rows.length;
             return (
               <div key={c.classId} className="mt-3">
                 <h3 className="font-bold text-ink">{c.name}</h3>
@@ -392,7 +444,7 @@ function StudentHome({ email }: { email: string }) {
                   Your progress
                 </Link>
                 {activities.phase === 'ready' &&
-                  (rows.length === 0 ? (
+                  (rows.length === 0 && folded === 0 ? (
                     <p className="ml-5 py-1.5 text-sm text-muted">
                       Nothing here yet — your teacher hasn&apos;t added activities.
                     </p>
@@ -437,6 +489,11 @@ function StudentHome({ email }: { email: string }) {
                           </Link>
                         </li>
                       ))}
+                      {folded > 0 ? (
+                        <li className="ml-5 py-1.5 text-xs text-muted" data-folded={c.classId}>
+                          {folded === 1 ? '1 done activity hidden' : `${folded} done activities hidden`}
+                        </li>
+                      ) : null}
                     </ul>
                   ))}
               </div>
@@ -493,6 +550,7 @@ function StudentHome({ email }: { email: string }) {
             </button>
           )}
         </div>
+        </>
       )}
     </div>
   );

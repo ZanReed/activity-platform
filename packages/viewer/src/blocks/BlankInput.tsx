@@ -28,7 +28,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react';
-import type { ChangeEvent, FocusEvent } from 'react';
+import type { ChangeEvent, FocusEvent, KeyboardEvent } from 'react';
 import type { ItemVerdict } from '../check/wire.js';
 
 type TrayModule = typeof import('./SuperscriptTray.js');
@@ -86,6 +86,11 @@ export function BlankInput({
 
   useEffect(() => {
     if (editable) prefetchTray();
+    // A field frozen while the cursor is in it (Enter, then a check that
+    // locks; a queued check landing) fires no blur in Chromium, so the tray
+    // would stay up, inert, beside the frozen answer (TODOS, found
+    // 2026-10-23). Freezing closes it.
+    else setOpen(false);
   }, [editable]);
 
   useEffect(() => {
@@ -110,6 +115,29 @@ export function BlankInput({
     // focus on Tab (blank-superscript.e2e.ts, the D3 row, mutation-tested).
     if (next && fieldRef.current?.contains(next)) return;
     setOpen(false);
+  };
+
+  // Enter (author ruling 2026-11-15): on to the next blank this Check
+  // covers; from the last one, to the Check button — focused, never pressed,
+  // so a stray Enter cannot check or lock anything.
+  const onEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    // keyCode 229: Safari's IME commit Enter reports isComposing false.
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.keyCode === 229) return;
+    if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) return;
+    const input = event.currentTarget;
+    const scope = input.closest('[data-check-group]') ?? input.closest('[data-section-id]');
+    if (!scope) return;
+    event.preventDefault();
+    // Maths answer boxes count too (a MathLive field), so Enter never skips one.
+    // A frozen section is a disabled <fieldset>, so :enabled (and the
+    // fieldset check, for maths fields) skips its fields rather than landing
+    // on one that cannot take focus.
+    const blanks = Array.from(
+      scope.querySelectorAll<HTMLElement>('input.viewer-blank__input:enabled:not([readonly]), math-field:not([read-only])'),
+    ).filter((el) => el === input || !el.closest('fieldset:disabled'));
+    const next = blanks[blanks.indexOf(input) + 1];
+    if (next) next.focus();
+    else scope.querySelector<HTMLButtonElement>('.viewer-section__check:not([disabled])')?.focus();
   };
 
   // Only an editable blank ever opens (onFocus), so open alone gates the tray.
@@ -138,6 +166,7 @@ export function BlankInput({
         size={size}
         {...(verdict ? { 'data-verdict': verdict, 'aria-invalid': verdict === 'incorrect' } : {})}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
+        onKeyDown={onEnter}
       />
       {editable ? (
         // DR-5: a screen reader learns the keys exist the first time it lands

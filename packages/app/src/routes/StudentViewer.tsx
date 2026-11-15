@@ -53,6 +53,8 @@ import {
   restoreEarlierWork,
   findUnsentWork,
   indexDocument,
+  questionCount,
+  unansweredItems,
   loadAnyCachedDocument,
   loadCachedDocument,
   reusableCachedDocument,
@@ -68,6 +70,7 @@ import type {
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
 import { functionsBase, supabase } from '../lib/supabase';
+import { TEXT_SCALES, scrollBelowTopbar, useResumePlace, useTextScale } from '../lib/studentViewPrefs';
 import {
   CHECK_ACTIVITY_FUNCTION,
   GET_ACTIVITY_FUNCTION,
@@ -608,10 +611,12 @@ export default function StudentViewer() {
    * same definition the server's section_total uses (0059), pinned equal by
    * viewer/tests/section-total-agreement.test.ts.
    */
-  const progressSectionIds = useMemo(
-    () => (servedDocument ? indexDocument(servedDocument).sections.map((sec) => sec.sectionId) : []),
+  const progressSections = useMemo(
+    () => (servedDocument ? indexDocument(servedDocument).sections : []),
     [servedDocument],
   );
+  const progressSectionIds = useMemo(() => progressSections.map((sec) => sec.sectionId), [progressSections]);
+  const totalQuestions = useMemo(() => questionCount(progressSections), [progressSections]);
   const subscribeProgress = useCallback(
     (onChange: () => void) => (store ? store.subscribe(onChange) : () => {}),
     [store],
@@ -621,6 +626,50 @@ export default function StudentViewer() {
       ? progressSectionIds.filter((id) => store.getState().sections[id]?.phase === 'checked').length
       : 0,
   );
+  // 2026-11-15: "5 of 12 answered" beside the sections count.
+  const unansweredCount = useSyncExternalStore(subscribeProgress, () =>
+    store ? unansweredItems(store.getState().responses, progressSections).length : 0,
+  );
+  /** Next: the first unanswered question in a section not yet checked, else
+   *  the first section not yet checked. Focus goes to it, so a keyboard user
+   *  lands where they can type. */
+  const goToNext = useCallback(() => {
+    if (!store) return;
+    const { sections, responses } = store.getState();
+    const open = progressSections.filter((sec) => sections[sec.sectionId]?.phase !== 'checked');
+    // The first open section with an unanswered question; within it, the one
+    // highest on the PAGE (the list is by kind, not position). An item with no
+    // element on screen is skipped rather than leaving Next dead.
+    const items = unansweredItems(responses, open);
+    const firstSection = items[0]?.sectionId;
+    // Matched by value, not a selector string: ids are authored data.
+    const byData = (attr: 'blankId' | 'blockId' | 'sectionId', value: string) =>
+      Array.from(document.querySelectorAll<HTMLElement>(`[data-${attr.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())}]`)).find(
+        (n) => n.dataset[attr] === value,
+      ) ?? null;
+    // A gap inside maths has no blank of its own: its host lists its ids.
+    const gapHost = (id: string) =>
+      Array.from(document.querySelectorAll<HTMLElement>('[data-gap-ids]')).find((n) =>
+        (n.dataset.gapIds ?? '').split(' ').includes(id),
+      ) ?? null;
+    const found = items
+      .filter((it) => it.sectionId === firstSection)
+      .map((it) =>
+        it.category === 'blanks' ? (byData('blankId', it.id) ?? gapHost(it.id)) : byData('blockId', it.id),
+      )
+      .filter((n): n is HTMLElement => n !== null)
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+    const el =
+      found[0] ??
+      (firstSection ? byData('sectionId', firstSection) : open[0] ? byData('sectionId', open[0].sectionId) : null);
+    if (!el) return;
+    scrollBelowTopbar(el);
+    el.querySelector<HTMLElement>('input:enabled, math-field, textarea:enabled, select:enabled, button:enabled, [tabindex="0"]')?.focus({
+      preventScroll: true,
+    });
+  }, [store, progressSections]);
+  const [textStep, setTextStep] = useTextScale(sessionUserId);
+  useResumePlace(sessionUserId, activityId, state.phase === 'ready' && store !== null);
 
   // The signed-in half of the S8 timing contract (ruling D2). Fires on the
   // commit in which the worksheet itself first renders: `store` is non-null
@@ -712,16 +761,60 @@ export default function StudentViewer() {
               <p className="viewer-topbar__meta">{topbarMeta.join(' · ')}</p>
             ) : null}
             {progressSectionIds.length > 0 ? (
-              <p className="viewer-topbar__meta" data-progress role="status">
-                {checkedCount} of {progressSectionIds.length}{' '}
-                {progressSectionIds.length === 1 ? 'section' : 'sections'} checked
+              <p className="viewer-topbar__meta" data-progress>
+                {/* Only the sections count is live: the answered count changes
+                    with every keystroke and would talk over the student. */}
+                <span role="status">
+                  {checkedCount} of {progressSectionIds.length}{' '}
+                  {progressSectionIds.length === 1 ? 'section' : 'sections'} checked
+                </span>
+                {totalQuestions > 0 ? (
+                  <span data-answered>{` · ${totalQuestions - unansweredCount} of ${totalQuestions} answered`}</span>
+                ) : null}
+                {checkedCount < progressSectionIds.length ? (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="viewer-topbar__next"
+                      onClick={goToNext}
+                      aria-label="Go to the next unanswered question"
+                      data-progress-next
+                    >
+                      Next ↓
+                    </button>
+                  </>
+                ) : null}
               </p>
             ) : null}
           </div>
-          {/* Ruling 7.3A wants this in the completion panel and the chip menu;
-              neither exists yet, so it lives in the bar that does (S5-3). The
-              action is the same one those will call. */}
-          <PrintButton iconOnly />
+          <div className="viewer-topbar__tools" role="group" aria-label="Text size and print">
+            {/* 2026-11-15: text size, remembered on this device. */}
+            <button
+              type="button"
+              className="viewer-print-action viewer-print-action--icon"
+              aria-label="Smaller text"
+              title="Smaller text"
+              disabled={textStep === 0}
+              onClick={() => setTextStep(textStep - 1)}
+            >
+              A−
+            </button>
+            <button
+              type="button"
+              className="viewer-print-action viewer-print-action--icon"
+              aria-label="Larger text"
+              title="Larger text"
+              disabled={textStep === TEXT_SCALES.length - 1}
+              onClick={() => setTextStep(textStep + 1)}
+            >
+              A+
+            </button>
+            {/* Ruling 7.3A wants this in the completion panel and the chip menu;
+                neither exists yet, so it lives in the bar that does (S5-3). The
+                action is the same one those will call. */}
+            <PrintButton iconOnly />
+          </div>
         </div>
       </header>
       {/* BANNER ORDER IS THE DEDUP RULE (outside-voice finding 13; rebuilt as

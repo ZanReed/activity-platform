@@ -859,10 +859,63 @@ describe('progress and the end of the activity (student review S5)', () => {
         h.load.current = served();
         const { container } = renderRoute(ACTIVITY);
         await waitFor(() => expect(container.querySelector('[data-progress]')).not.toBeNull());
-        expect(container.querySelector('[data-progress]')!.textContent).toBe(
+        expect(container.querySelector('[data-progress] [role="status"]')!.textContent).toBe(
             `0 of ${n} ${n === 1 ? 'section' : 'sections'} checked`,
         );
+        // One blank per section in this fixture.
+        expect(container.querySelector('[data-answered]')!.textContent).toBe(` · 0 of ${n} answered`);
         expect(container.querySelector('[data-complete]')).toBeNull();
+    });
+
+    it('counts answers as the student types, and Next goes to the first empty one in an unchecked section', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        seedChecked([index.sections[0]!.sectionId]); // Part 1 already checked
+        const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+        const { container } = renderRoute(ACTIVITY);
+        const next = await screen.findByRole('button', { name: 'Go to the next unanswered question' });
+        fireEvent.click(next);
+        const part2Blank = index.sections[1]!.items.blanks![0]!;
+        expect((document.activeElement as HTMLElement).closest('[data-blank-id]')?.getAttribute('data-blank-id')).toBe(part2Blank);
+        expect(scrollTo).toHaveBeenCalled();
+        fireEvent.change(document.activeElement!, { target: { value: '3' } });
+        await waitFor(() =>
+            expect(container.querySelector('[data-answered]')!.textContent).toContain(`1 of ${n} answered`),
+        );
+        scrollTo.mockRestore();
+    });
+
+    it('A+ / A− change the text size, remembered on the device; no Next once all are checked', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        seedChecked(index.sections.map((sec) => sec.sectionId));
+        const { unmount } = renderRoute(ACTIVITY);
+        const smaller = await screen.findByRole('button', { name: 'Smaller text' });
+        expect(smaller).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Larger text' }));
+        expect(document.documentElement.style.getPropertyValue('--viewer-text-scale')).toBe('1.15');
+        expect(window.localStorage.getItem(`viewer-text-scale:${STUDENT_ID}`)).toBe('1');
+        expect(screen.queryByRole('button', { name: 'Go to the next unanswered question' })).toBeNull();
+        unmount();
+        // Off the page, no teacher screen inherits it.
+        expect(document.documentElement.style.getPropertyValue('--viewer-text-scale')).toBe('');
+    });
+
+    it('reopening scrolls back to the section the student last worked in', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        const part2 = index.sections[1]!.sectionId;
+        window.localStorage.setItem(`viewer-resume:${STUDENT_ID}:${ACTIVITY}`, part2);
+        const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+        const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+            cb(0);
+            return 0;
+        });
+        renderRoute(ACTIVITY);
+        await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+        expect(window.localStorage.getItem(`student-last-opened:${STUDENT_ID}`)).toBe(ACTIVITY);
+        scrollTo.mockRestore();
+        raf.mockRestore();
     });
 
     it('every section checked → the completion panel, with the way home', async () => {
@@ -871,7 +924,7 @@ describe('progress and the end of the activity (student review S5)', () => {
         seedChecked(index.sections.map((sec) => sec.sectionId));
         const { container } = renderRoute(ACTIVITY);
         await waitFor(() => expect(container.querySelector('[data-complete]')).not.toBeNull());
-        expect(container.querySelector('[data-progress]')!.textContent).toBe(
+        expect(container.querySelector('[data-progress] [role="status"]')!.textContent).toContain(
             `${n} of ${n} ${n === 1 ? 'section' : 'sections'} checked`,
         );
         expect(screen.getByRole('heading', { name: 'All sections checked ✓' })).toBeInTheDocument();

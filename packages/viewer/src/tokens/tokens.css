@@ -170,6 +170,9 @@
   --type-h2: 1.25em;      /* also section titles */
   --type-h3: 1.1em;
   --type-body: 1em;
+  /* The student's A− / A+ (2026-11-15): StudentViewer sets it inline on
+     <html>, which outranks this default. viewer.css `.viewer` multiplies it. */
+  --viewer-text-scale: 1;
   --type-small: 0.95em;   /* prompts, feedback panels, buttons */
   --type-meta: 0.875em;   /* captions, meta rows, counters */
   --type-fine: 0.8em;     /* fallback cues, fine print */

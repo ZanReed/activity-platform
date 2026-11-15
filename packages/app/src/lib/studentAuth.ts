@@ -21,6 +21,7 @@
 // =============================================================================
 
 import { VIEWER_STORAGE_PREFIX } from '@activity/viewer';
+import { STUDENT_PLACE_PREFIXES } from './studentViewPrefs';
 import { supabase } from './supabase';
 
 // Namespace prefix for everything the viewer persists on-device. IMPORTED, not
@@ -52,7 +53,10 @@ function purgePrefixed(storage: Storage): void {
     const doomed: string[] = [];
     for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
-        if (key !== null && key.startsWith(VIEWER_STORAGE_PREFIX)) doomed.push(key);
+        // Plus the "where you left off" keys (2026-11-15): they name activities.
+        if (key !== null && [VIEWER_STORAGE_PREFIX, ...STUDENT_PLACE_PREFIXES].some((p) => key.startsWith(p))) {
+            doomed.push(key);
+        }
     }
     for (const key of doomed) storage.removeItem(key);
 }

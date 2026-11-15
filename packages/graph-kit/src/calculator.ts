@@ -23,6 +23,7 @@ import { fitModel, type RegressionModel } from './regression.js';
 import { equationText, r2Text } from './fit-format.js';
 import { createDataTable, type DataTableHandle } from './data-table.js';
 import { createExpressionList } from './expression-list.js';
+import { fractionText, pushHistory, type CalcHistoryEntry } from './calc-extras.js';
 import { GK_CHROME, GK_CHROME_DARK, detectBoardTheme } from './graph-colors.js';
 import type { GkChromeRole } from './graph-colors.js';
 // Type-only — erased at build time, so the static JSXGraph dependency in
@@ -202,6 +203,10 @@ interface PanelGeom {
   splitBasis?: string;
 }
 const remembered: PanelGeom = {};
+// Scientific history (2026-11-15). Closing and reopening keeps it; a new
+// mount (another activity, another student after sign-in) starts it empty,
+// so earlier answers never carry into a different activity or a quiz.
+let history: CalcHistoryEntry[] = [];
 
 // Minimal view of MathLive's global virtual-keyboard singleton (graphing mode
 // configures it to render inside the panel with a single, matrix-free layout).
@@ -275,6 +280,7 @@ export function mountCalculator(
   rawConfig?: unknown,
   hooks: MountHooks = {},
 ): CalculatorHandle {
+  history = []; // a fresh mount starts a fresh history (see its declaration)
   injectStyles();
   configureMathLive();
   const cfg = readConfig(rawConfig);
@@ -332,6 +338,64 @@ export function mountCalculator(
 
   // Output: scientific shows a numeric result; graphing shows a plot board.
   const result = el('div', 'gk-cal-result', { 'aria-live': 'polite' });
+  // 2026-11-15, scientific only: a fraction ⇄ decimal view of the result, Copy,
+  // and a history of finished lines (tap one to use its answer).
+  let lastValue: number | null = null;
+  let asFraction = false;
+  const resultRow = el('div', 'gk-cal-result-row');
+  const resultTools = el('div', 'gk-cal-result-tools');
+  const fracBtn = el('button', 'gk-cal-mini', { type: 'button' });
+  const copyBtn = el('button', 'gk-cal-mini', { type: 'button' });
+  copyBtn.textContent = 'Copy';
+  resultTools.append(fracBtn, copyBtn);
+  resultRow.append(resultTools, result);
+  const historyList = el('ol', 'gk-cal-history', { 'aria-label': 'Earlier answers' });
+  function showValue(): void {
+    if (lastValue === null) {
+      resultTools.hidden = true;
+      return;
+    }
+    const frac = fractionText(lastValue);
+    if (frac === null) asFraction = false;
+    result.textContent = '= ' + (asFraction && frac ? frac : formatValue(lastValue));
+    resultTools.hidden = false;
+    fracBtn.hidden = frac === null;
+    fracBtn.textContent = asFraction ? 'Decimal' : 'Fraction';
+    fracBtn.setAttribute('aria-label', asFraction ? 'Show as a decimal' : 'Show as a fraction');
+  }
+  function renderHistory(): void {
+    historyList.replaceChildren(
+      ...history.map((h) => {
+        const li = el('li', '');
+        const b = el('button', 'gk-cal-history-item', { type: 'button' });
+        b.textContent = `= ${formatValue(h.value)}`;
+        b.title = 'Use this answer';
+        b.setAttribute('aria-label', `Use ${formatValue(h.value)}`);
+        b.addEventListener('click', () => {
+          field.insert(formatValue(h.value));
+          field.focus();
+          recompute();
+        });
+        li.append(b);
+        return li;
+      }),
+    );
+    historyList.hidden = history.length === 0;
+  }
+  fracBtn.addEventListener('click', () => {
+    asFraction = !asFraction;
+    showValue();
+  });
+  copyBtn.addEventListener('click', () => {
+    if (lastValue === null) return;
+    void navigator.clipboard?.writeText(formatValue(lastValue)).then(
+      () => {
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => (copyBtn.textContent = 'Copy'), 1500);
+      },
+      () => undefined,
+    );
+  });
   const graphEl = el('div', 'gk-cal-graph');
   let boardController: BoardController | null = null;
 
@@ -447,9 +511,14 @@ export function mountCalculator(
       allowLogExp: cfg.allowLogExp,
     });
     if (r.ok) {
-      result.textContent = '= ' + formatValue(r.value);
+      lastValue = r.value;
       result.dataset.state = 'ok';
-    } else if (r.error) {
+      showValue();
+      return;
+    }
+    lastValue = null;
+    showValue();
+    if (r.error) {
       result.textContent = r.error;
       result.dataset.state = 'err';
     } else {
@@ -476,7 +545,13 @@ export function mountCalculator(
         allowTrig: cfg.allowTrig,
         allowLogExp: cfg.allowLogExp,
       });
-      if (r.ok) target.value = formatValue(r.value); // chain from the result
+      if (r.ok) {
+        if (!graphing) {
+          history = pushHistory(history, { latex: target.value, value: r.value });
+          renderHistory();
+        }
+        target.value = formatValue(r.value); // chain from the result
+      }
     }
     target.focus();
     if (graphing) exprList?.rebuild();
@@ -572,7 +647,9 @@ export function mountCalculator(
     panel.append(header, body);
     panel.dataset.view = 'expr';
   } else {
-    panel.append(header, field, result, keypad);
+    panel.append(header, field, resultRow, keypad, historyList);
+    showValue();
+    renderHistory();
   }
 
   if (!graphing) field.addEventListener('input', recompute);
@@ -927,6 +1004,23 @@ ${chromeVarBlock(GK_CHROME_DARK)}
   font-variant-numeric: tabular-nums; padding: 0 0.2rem; color: var(--gk-ink-strong);
 }
 .gk-cal-result[data-state='err'] { color: var(--gk-error); font-size: 0.85rem; }
+.gk-cal-result-row { display: flex; align-items: center; gap: 0.4rem; }
+.gk-cal-result-row .gk-cal-result { flex: 1; }
+.gk-cal-result-tools { display: flex; gap: 0.25rem; }
+.gk-cal-result-tools[hidden], .gk-cal-mini[hidden], .gk-cal-history[hidden] { display: none; }
+.gk-cal-mini {
+  font-size: 0.75rem; padding: 0.1rem 0.4rem; border: 1px solid var(--gk-border);
+  border-radius: 4px; background: var(--gk-surface); color: var(--gk-ink); cursor: pointer;
+}
+.gk-cal-history {
+  list-style: none; margin: 0.4rem 0 0; padding: 0.3rem 0 0;
+  border-top: 1px solid var(--gk-border); max-height: 6.5rem; overflow-y: auto;
+}
+.gk-cal-history-item {
+  width: 100%; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums;
+  padding: 0.1rem 0.3rem; border: none; background: none; color: var(--gk-muted); cursor: pointer;
+}
+.gk-cal-history-item:hover { color: var(--gk-ink); background: var(--gk-surface); }
 .gk-cal-graph {
   width: 100%; height: 200px;
   position: relative; /* anchors the on-graph nav buttons */

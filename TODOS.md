@@ -495,7 +495,10 @@ One entry per issue the author reports while testing a hand-off: what he saw, wh
 - **Charts — per-series colour.** Dropped from the schema (no authoring surface). Trigger: an activity whose text refers to a series by colour.
 - **Shell — live sign-out.** The auth-js stubs are proven by the lanes; one live Google sign-in and sign-out on the deployed app is the remaining check.
 
-## A `locked` activity leaves the blank's ² ³ tray open beside a frozen answer (found 2026-10-23, mixed practice slice 3)
+## ✅ FIXED 2026-11-15 (Enter-to-check trigger fired): A `locked` activity leaves the blank's ² ³ tray open beside a frozen answer (found 2026-10-23, mixed practice slice 3)
+
+**Fixed:** `BlankInput` closes the tray when the field turns read-only (`blank-enter.test.tsx`, mutation-tested). Enter itself was ruled to move to the next blank and then FOCUS Check, never press it, so Enter no longer freezes a field under the cursor. The Chromium e2e row the fix shape asked for was not added; the unit test covers the read-only flip, which is the same event in jsdom and Chromium (no blur either way).
+
 
 Chromium fires no `blur` when a focused input becomes disabled, and `BlankInput`'s tray closes only on blur. So any path that freezes a section while the cursor is in a blank (Enter-to-check, or a check fired from a queue) leaves the tray up, inert, beside the frozen answer. A mouse click on "Check and lock" moves focus to the button first, so it does not happen there. Mixed practice works around it in its runner: focus moves to the question heading before Check, and `mixed-practice.e2e.ts` asserts the tray is gone (mutation-tested). **Trigger:** the next viewer slice that touches `BlankInput` or the freeze, or a report from a locked quiz. Fix shape: close the tray when the field becomes disabled (or when its section's phase freezes), guarded by a Chromium e2e row.
 

@@ -25,7 +25,10 @@
   background: var(--vw-color-page);
   color: var(--vw-color-ink);
   font-family: var(--activity-font-family, var(--vw-font-body));
-  font-size: var(--activity-font-size, var(--type-body));
+  /* --viewer-text-scale: the student's A− / A+ (2026-11-15), set on <html>
+     by the app and remembered per device. Everything below is in em, so the
+     whole worksheet scales from this one line. */
+  font-size: calc(var(--activity-font-size, var(--type-body)) * var(--viewer-text-scale, 1));
   line-height: var(--leading);
   min-height: 100%;
   padding: var(--space-6) var(--space-4);
@@ -1951,6 +1954,8 @@
 
   .viewer {
     background: none;
+    /* Ctrl+P on the page: the student's A+ is for the screen, not the paper. */
+    font-size: var(--activity-font-size, var(--type-body));
     padding: 0;
   }
 
@@ -3293,4 +3298,39 @@
   .viewer-banner {
     top: 0;
   }
+}
+
+/* ---- High contrast (Windows forced colours), 2026-11-15 --------------------
+   Forced colours replace every author colour with the system's few, so a
+   verdict shown by fill and border colour alone (a blank's) disappears.
+   These rules carry it in border STYLE instead, as print already does for
+   callouts: right = a double line, wrong = a dashed one. The pills keep their
+   ✓ / ✗ glyphs and get an edge so they read as badges. */
+@media (forced-colors: active) {
+  .viewer-blank__input[data-verdict='correct'] {
+    border-bottom: 3px double;
+  }
+  .viewer-blank__input[data-verdict='incorrect'] {
+    border-bottom: 2px dashed;
+  }
+  .viewer-state-pill {
+    border: 1px solid;
+  }
+}
+
+/* The top bar's tools (2026-11-15): A− / A+ beside Print, and "Next ↓" as a
+   text button. The whole bar is hidden in print already. */
+.viewer-topbar__tools {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.viewer-topbar__next {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
 }

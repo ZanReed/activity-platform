@@ -267,6 +267,7 @@ export type {
 // S3 V4 — the container shell: document indexing, the per-block error
 // boundary, and the worksheet renderer that owns section checking.
 export { indexDocument } from './container/blockIndex.js';
+export { questionCount, unansweredItems, type UnansweredItem } from './container/answered.js';
 export type { DocumentIndex, SectionIndex } from './container/blockIndex.js';
 // Activity flow modes (F1) — the checkpoint fold that decides where Check
 // buttons render and what each one covers.

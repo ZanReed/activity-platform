@@ -47,6 +47,16 @@ describe('signOutEverything', () => {
         expect(signOutMock).toHaveBeenCalledOnce();
     });
 
+    it('also purges "where you left off" (it names activities), and keeps the text size', async () => {
+        localStorage.setItem('viewer-resume:stu-1:act-1', 'sec-2');
+        localStorage.setItem('student-last-opened:stu-1', 'act-1');
+        localStorage.setItem('viewer-text-scale:stu-1', '2');
+        await signOutEverything();
+        expect(localStorage.getItem('viewer-resume:stu-1:act-1')).toBeNull();
+        expect(localStorage.getItem('student-last-opened:stu-1')).toBeNull();
+        expect(localStorage.getItem('viewer-text-scale:stu-1')).toBe('2');
+    });
+
     it('purges storage BEFORE a failing signOut throws', async () => {
         localStorage.setItem(`${VIEWER_STORAGE_PREFIX}buffer:abc`, 'work');
         signOutMock.mockResolvedValue({ error: { message: 'network down' } });
