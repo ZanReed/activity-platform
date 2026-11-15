@@ -98,6 +98,9 @@ function StatusBadge({ status }: { status: ActivityRow['status'] }) {
     );
 }
 
+/** The class door's face: a count, never the names (author, 2026-11-15). */
+const inClassesLabel = (n: number) => (n === 1 ? 'In 1 class' : `In ${n} classes`);
+
 // The Bank role badge (0037 pedagogical_role). Absent when unclassified —
 // "no role" is a legitimate state and deserves no placeholder chrome.
 function RoleBadge({ role }: { role: string | null }) {
@@ -821,37 +824,48 @@ export default function Activities() {
                     {drafts > 0 && ` · ${drafts} draft${drafts === 1 ? '' : 's'}`}
                     </span>
                     <span className="ml-auto flex flex-wrap items-baseline justify-end gap-x-3 gap-y-1 whitespace-nowrap">
-                    {(() => {
+                    {group.rows.some((r) => r.status === 'published') && (() => {
                         // A6: which classes hold this unit, and how much of it.
+                        // A COUNT on the door, not the names (author,
+                        // 2026-11-15: a list of classes took too much room);
+                        // the names are its tooltip and the panel it opens.
                         const ids = (fullUnits.get(group.key) ?? group.rows)
                             .filter((r) => r.status === 'published')
                             .map((r) => r.id);
                         const held = unitMembership(membership, ids);
-                        if (held.length === 0) return null;
+                        const names = held
+                            .map(({ cls, count }) =>
+                                count === ids.length ? cls.name : `${cls.name} (${count}/${ids.length})`,
+                            )
+                            .join(', ');
+                        const unitName = group.unit ?? 'No unit';
                         return (
-                            <span className="text-xs text-muted" data-unit-membership>
-                            In{' '}
-                            {held
-                                .map(({ cls, count }) =>
-                                    count === ids.length ? cls.name : `${cls.name} (${count}/${ids.length})`,
-                                )
-                                .join(' · ')}
-                            </span>
-                        );
-                    })()}
-                    {group.rows.some((r) => r.status === 'published') && (
                         <button
                         type="button"
                         aria-expanded={classPanel === `unit:${group.key}`}
-                        aria-label={`Add unit ${group.unit ?? 'No unit'} to a class`}
+                        aria-label={
+                            held.length > 0
+                                ? `Unit ${unitName}: in ${names}. Change classes`
+                                : `Add unit ${unitName} to a class`
+                        }
+                        title={held.length > 0 ? `In ${names}` : undefined}
+                        data-unit-membership={held.length > 0 ? names : undefined}
                         onClick={() =>
                             setClassPanel((cur) => (cur === `unit:${group.key}` ? null : `unit:${group.key}`))
                         }
                         className="text-xs font-medium text-ink underline underline-offset-2 hover:text-strong"
                         >
-                        Add to class…
+                        {held.length > 0
+                            ? inClassesLabel(held.length) +
+                              // The partial counts were on screen before; on a
+                              // tablet a tooltip never shows, so say there are some.
+                              (held.some(({ count }) => count < ids.length)
+                                  ? ` (${held.filter(({ count }) => count < ids.length).length} partly)`
+                                  : '')
+                            : 'Add to class…'}
                         </button>
-                    )}
+                        );
+                    })()}
                     {chainsWithHooks(chainHooks, group.rows.map((r) => r.id)).map((chain) => (
                         <Link
                         key={chain}
@@ -950,10 +964,11 @@ export default function Activities() {
                                         ? `${a.title}: on Home in ${held.map((c) => c.name).join(', ')}. Change classes`
                                         : `Add ${a.title} to a class`
                                 }
+                                title={held.length > 0 ? `On Home in ${held.map((c) => c.name).join(', ')}` : undefined}
                                 onClick={() => setClassPanel((cur) => (cur === a.id ? null : a.id))}
                                 className="text-xs font-medium text-muted underline underline-offset-2 hover:text-strong"
                                 >
-                                {held.length > 0 ? held.map((c) => c.name).join(' · ') : 'Add to class'}
+                                {held.length > 0 ? inClassesLabel(held.length) : 'Add to class'}
                                 </button>
                             );
                         })()}

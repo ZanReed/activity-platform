@@ -139,7 +139,10 @@ function renderPage() {
 
 async function openUnitPanel() {
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Add unit Integers to a class' }));
+    // The door's name says the classes once membership loads.
+    fireEvent.click(
+        await screen.findByRole('button', { name: /^(Add unit Integers to a class|Unit Integers: in .+\. Change classes)$/ }),
+    );
     return screen.getByRole('group', { name: 'Add Integers to a class' });
 }
 
@@ -208,7 +211,7 @@ describe('add a unit to a class from My activities (A1–A4)', () => {
 });
 
 describe('class membership on My activities (A6) and the row door', () => {
-    it('a unit header names the classes holding it, with a count when partial', async () => {
+    it('a unit header counts the classes holding it; the names, partial ones counted, are its tooltip', async () => {
         h.state.held = [
             { class_id: 'c7b', activity_id: 'a1' },
             { class_id: 'c7b', activity_id: 'a2' },
@@ -220,16 +223,19 @@ describe('class membership on My activities (A6) and the row door', () => {
             if (!el) throw new Error('no membership line yet');
             return el;
         });
-        expect(line).toHaveTextContent('In 7A (1/2) · 7B');
+        expect(line).toHaveTextContent('In 2 classes (1 partly)');
+        expect(line).toHaveAttribute('title', 'In 7A (1/2), 7B');
+        expect(line).toHaveAccessibleName(/in 7A \(1\/2\), 7B\. Change classes/);
     });
 
-    it('a published row names its classes; a draft row has no door', async () => {
+    it('a published row counts its classes (names in the label and tooltip); a draft row has no door', async () => {
         h.state.held = [{ class_id: 'c7b', activity_id: 'a1' }];
         renderPage();
         const door = await screen.findByRole('button', {
             name: "Integers 1: Opposites: on Home in 7B. Change classes",
         });
-        expect(door).toHaveTextContent('7B');
+        expect(door).toHaveTextContent('In 1 class');
+        expect(door).toHaveAttribute('title', 'On Home in 7B');
         expect(screen.getByRole('button', { name: 'Add Integers 2: Adding to a class' })).toHaveTextContent('Add to class');
         expect(screen.queryByRole('button', { name: /Integers 3: Subtracting to a class/ })).toBeNull();
     });
