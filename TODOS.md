@@ -337,6 +337,10 @@ Bank stranger path, AI pre-fill (needs seeded suggestions), the DoL pass tick
 (no catalogue rubric has levels). **Can't be:** Google sign-in, school
 devices, live-only cron/prunes, paper.
 
+## Bank copies lose teaching order in My activities (Fable review of the Bank unit add, 2026-11-15)
+
+A Bank copy has no `source_path` (0054 never copies it), so My activities sorts a unit's copies by `updated_at`, newest first (`activityGrouping.ts` compareForOutline). The Bank's Add unit copies last lesson first, so a freshly added unit reads in teaching order, but the order is not durable: a copy the teacher already had sorts by its own older date (a partial unit add shows L1, L3, L2), and editing or republishing any copy moves it to the top of its unit. A durable fix would carry a sort key across the copy (for example the source's position in its chain, stamped by `copy_bank_activity`) — a migration, so not built with the add. **Trigger:** a teacher teaching from Bank copies reports the unit out of order, or reorders copies by hand.
+
 ## A per-unit "Republish unit" link (R-7, "Republish changed", 2026-11-12)
 
 My activities has "Republish changed (N)" in its header (`lib/bulkRepublish.ts`,

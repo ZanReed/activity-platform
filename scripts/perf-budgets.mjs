@@ -260,8 +260,13 @@ export const SHELL_SPEND = [
         change: 'Form grading (D60) steps 2–3 (+ in-band drift): a math gap shows the feedback its check returns (the FG-5 "equal, but not in the form" line), in the display-maths block, which the shell carries',
         bytes: 270,
     },
+    {
+        date: '2026-11-15',
+        change: 'In-band drift from the 2026-11-15 shortlist batches 1–4 (253 B: chiefly batch 1\'s lock confirm counting blank answers, which lives in the viewer the shell carries, plus hash-name churn), crossed by batch 5 (6 B: the Bank and empty-library changes are lazy route code)',
+        bytes: 259,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 156048;
+export const SHELL_JS_BASELINE_BYTES = 156307;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
@@ -687,7 +692,11 @@ export const TEACHER_JOURNEYS = [
         // teacher's own copies read (listMyBankCopies), the marker link and
         // the inline "Add another?" ask. ~170 B, all Bank-only; no library
         // crossed into the chunk.
-        maxGzKiB: 7.5,
+        // 7.5 → 8.75 (2026-11-15, author approved): adds stay on the page
+        // ("Added · Open it") and each unit heading gets "Add unit" with its
+        // ask, progress, stop-on-failure and done lines. Measured 8.4; all
+        // Bank-only code, no library crossed in.
+        maxGzKiB: 8.75,
         forbid: ['prosemirror', 'mathlive'],
         why: 'The Bank list is cards and filters. The guide panel loads serialize.ts and the guide editor lazily (TR1).',
     },

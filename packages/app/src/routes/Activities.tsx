@@ -736,9 +736,44 @@ export default function Activities() {
             Couldn't load activities: {listError}
             </p>
         ) : activities.length === 0 ? (
-            <p className="text-muted">
-            No activities yet. Create your first one to get started.
+            /* The empty library is a new teacher's first screen, so it names
+               the two ways in and the step after (where students come from). */
+            <section
+            aria-labelledby="empty-library-heading"
+            data-empty-library
+            className="rounded-lg border border-line bg-canvas p-5"
+            >
+            <h2 id="empty-library-heading" className="text-base font-semibold text-ink">
+            No activities yet
+            </h2>
+            <ul className="mt-3 space-y-3 text-sm text-muted">
+            <li>
+            <Link to="/bank" className="font-medium text-strong underline underline-offset-2">
+            Browse the Activity Bank
+            </Link>
+            : ready-made activities in teaching order. A copy is yours and already published,
+            so you can share it with a class straight away.
+            </li>
+            <li>
+            <button
+            type="button"
+            onClick={handleCreate}
+            disabled={creating}
+            className="font-medium text-strong underline underline-offset-2 disabled:opacity-60"
+            >
+            Create an activity
+            </button>
+            : start from a blank page, or use Import in the editor to paste markdown.
+            </li>
+            </ul>
+            <p className="mt-4 border-t border-line pt-3 text-sm text-muted">
+            To give students an activity, add it to a class in{' '}
+            <Link to="/classes" className="font-medium text-strong underline underline-offset-2">
+            My classes
+            </Link>
+            , where each class has a join code to give them.
             </p>
+            </section>
         ) : filteredToNothing ? (
             <p className="text-muted">
             No activities match the current filter.{' '}

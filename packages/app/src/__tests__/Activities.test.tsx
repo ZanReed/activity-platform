@@ -1046,3 +1046,20 @@ describe('the row ⋯ menu (author ruling 2026-11-15)', () => {
         expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Print']);
     });
 });
+
+describe('the empty library', () => {
+    it('points a new teacher at the Bank, a blank activity, and My classes', async () => {
+        h.listResult.current = { data: [], error: null };
+        renderList();
+        const panel = await screen.findByRole('region', { name: 'No activities yet' });
+        expect(within(panel).getByRole('link', { name: 'Browse the Activity Bank' })).toHaveAttribute('href', '/bank');
+        expect(within(panel).getByRole('link', { name: 'My classes' })).toHaveAttribute('href', '/classes');
+        expect(within(panel).getByRole('button', { name: 'Create an activity' })).toBeEnabled();
+    });
+
+    it('is not shown once there is an activity', async () => {
+        renderList();
+        await screen.findAllByText('Warm Up');
+        expect(document.querySelector('[data-empty-library]')).toBeNull();
+    });
+});

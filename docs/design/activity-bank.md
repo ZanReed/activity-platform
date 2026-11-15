@@ -120,7 +120,8 @@ publishing decision, not file content.
 course, unit, tags, role, updated_at, and the chain order from `source_path`
 so a unit reads in teaching order). Never `draft_content`, never the document.
 Filter by course / unit / role / tag, title search. Card actions: **Preview**,
-**Teacher guide**, **Add to my library** (BK-2: added = ready to share).
+**Teacher guide**, **Add to my library** (BK-2: added = ready to share), and
+**Add unit** on each unit heading (amended 2026-11-15, see below).
 A "From the Activity Bank" marker on copies in the teacher's own list.
 `tags` gets the GIN index 0037 deferred to "the Bank's catalog RPC migration".
 
@@ -215,8 +216,15 @@ applied (OV-7).
   nothing to press, costs the student shell nothing (it lives in the teacher
   chunk), and uses the same sanitized document students get. The underlying
   gap is filed in TODOS.
-- **The editor** shows a one-time note after "Add to my library": the copy is
-  yours, already published, share it from My classes.
+- **The editor** shows a one-time note when a teacher opens a copy from the
+  Bank's "Added · Open it" link: the copy is yours, already published, share
+  it from My classes.
+- **Amended 2026-11-15 (author ruling):** "Add to my library" no longer leaves
+  the Bank. The row turns into "Added · Open it". Each unit heading with two or
+  more entries has **Add unit** ("Add these N" under a filter), which asks
+  first, skips entries the teacher already copied, and copies the rest last
+  lesson first so My activities' newest-first order lists them in teaching
+  order. It stops at the first failure; running it again adds the rest.
 - **Not browser-verified before apply**: the dev server reads the live
   database, where 0054 is not applied, and local sign-in is Google-only. The
   database is proven by `verify-0054` (local), the UI by component tests
