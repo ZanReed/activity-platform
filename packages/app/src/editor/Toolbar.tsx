@@ -1,10 +1,11 @@
 import type { Editor } from '@tiptap/react';
 import type { ReactNode } from 'react';
-import { Keyboard, Redo2, Search, Undo2 } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Highlighter, Keyboard, Redo2, Search, Undo2 } from 'lucide-react';
 import ColumnWidthPicker from './components/ColumnWidthPicker';
 import CellHeightControl from './components/CellHeightControl';
 import InsertMenu from './components/InsertMenu';
 import TextStylePicker from './components/TextStylePicker';
+import LinkButton from './components/LinkButton';
 import { topLevelRowAt } from './strictGrid';
 
 // editor.isActive(markName) returns false when a mark is "armed" on a collapsed
@@ -112,6 +113,31 @@ export default function Toolbar({
             {/* Block styles are main-document transforms — disabled while a
                 nested field has focus (a hint can't become a heading). */}
             <TextStylePicker editor={editor} disabled={inField} />
+            {/* S6-a: alignment is a paragraph / heading setting, so it is
+                main-document only, like the style picker. Not in the
+                definition dialog, whose blocks have no alignment. */}
+            {variant !== 'definition' &&
+                (['left', 'center', 'right'] as const).map((a) => {
+                    const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+                    const on =
+                        a === 'left'
+                            ? !editor.isActive({ textAlign: 'center' }) && !editor.isActive({ textAlign: 'right' })
+                            : editor.isActive({ textAlign: a });
+                    const name = a === 'left' ? 'Align left' : a === 'center' ? 'Centre' : 'Align right';
+                    return (
+                        <ToolbarButton
+                            key={a}
+                            onClick={() => editor.chain().focus().setTextAlign(a).run()}
+                            disabled={inField || !editor.can().setTextAlign(a)}
+                            active={!inField && on}
+                            pressed={!inField && on}
+                            title={name}
+                            label={name}
+                        >
+                            <Icon size={14} aria-hidden="true" />
+                        </ToolbarButton>
+                    );
+                })}
 
             <Divider />
 
@@ -169,6 +195,17 @@ export default function Toolbar({
             >
                 X<sup>2</sup>
             </ToolbarButton>
+            <ToolbarButton
+                onClick={() => target.chain().focus().toggleHighlight().run()}
+                active={isMarkActive(target, 'highlight')}
+                pressed={isMarkActive(target, 'highlight')}
+                title="Highlight (⌘⇧H)"
+                label="Highlight"
+            >
+                <Highlighter size={14} aria-hidden="true" />
+            </ToolbarButton>
+            {/* Not in the definition dialog: a definition can't hold a link. */}
+            {variant !== 'definition' && <LinkButton target={target} />}
             {/*
               Define — applies the inline vocabulary-definition mark to the
               selection and opens the edit popover (DefinitionPopoverHost). A

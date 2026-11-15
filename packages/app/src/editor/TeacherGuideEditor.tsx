@@ -17,6 +17,8 @@ import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { UNSAVED_STARTER_KIT_MARKS } from './starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
+import { Highlight } from './extensions/Highlight';
+import { TextAlign } from './extensions/TextAlign';
 import Superscript from '@tiptap/extension-superscript';
 import 'mathlive';
 import Toolbar from './Toolbar';
@@ -51,6 +53,8 @@ export default function TeacherGuideEditor({
             MathInline,
             MathBlock,
             Subscript,
+            Highlight,
+            TextAlign,
             Superscript,
         ],
         content: initialContent,

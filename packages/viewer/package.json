@@ -16,7 +16,8 @@
     "./viewer.css": "./src/styles/viewer.css",
     "./fixtures/leak": "./src/fixtures/leakFixture.ts",
     "./seeded-print": "./src/print/seededPrint.ts",
-    "./seed-values": "./src/sanitize/seedValues.ts"
+    "./seed-values": "./src/sanitize/seedValues.ts",
+    "./draft-preview": "./src/preview/draftPreview.ts"
   },
   "scripts": {
     "test": "vitest run",

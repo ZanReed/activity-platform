@@ -35,6 +35,7 @@
 //     definition body and pushes its target onto the dialog's stack.
 // =============================================================================
 
+import { isHttpsHref } from '../sanitize/https.js';
 import { Suspense, lazy, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { GLOSSARY_LINK_MARK } from '@activity/schema';
@@ -60,6 +61,8 @@ const MARK_ORDER = [
   'code',
   'subscript',
   'superscript',
+  'highlight',
+  'link',
 ] as const;
 
 type MarkLike = { type: string; [key: string]: unknown };
@@ -169,6 +172,18 @@ function wrapMark(mark: MarkLike, child: ReactNode, text: string): ReactNode {
       return <sub>{child}</sub>;
     case 'superscript':
       return <sup>{child}</sup>;
+    case 'highlight':
+      return <mark className="viewer-highlight">{child}</mark>;
+    case 'link':
+      // S7: https only (the sanitizer drops anything else before it gets
+      // here); a new tab, and the page it opens can't reach back into ours.
+      return isHttpsHref(mark.href) ? (
+        <a className="viewer-link" href={mark.href} target="_blank" rel="noopener noreferrer">
+          {child}
+        </a>
+      ) : (
+        child
+      );
     case 'definition':
       return (
         <DefinitionTerm mark={mark} text={text}>

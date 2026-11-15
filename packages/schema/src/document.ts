@@ -74,14 +74,24 @@ export const SectionDol = z.object({
 });
 export type SectionDol = z.infer<typeof SectionDol>;
 
-export const Section = z.object({
+// Explicit interface + annotation for the same reason as ActivityDocument
+// below (TS7056): the inferred Section type outgrew tsc's declaration limit
+// when the mark union gained `highlight` (2026-11-15). Structurally identical
+// to what inference produced, and checked against the object schema.
+export interface Section {
+  id: string;
+  title?: string | undefined;
+  isCheckpoint: boolean;
+  dol?: SectionDol | undefined;
+  rows: Row[];
+}
+export const Section: z.ZodType<Section, z.ZodTypeDef, unknown> = z.object({
   id: z.string().uuid(),
-                                title: z.string().optional(),
-                                isCheckpoint: z.boolean().default(false),
-                                dol: SectionDol.optional(),
-                                rows: z.array(Row),
+  title: z.string().optional(),
+  isCheckpoint: z.boolean().default(false),
+  dol: SectionDol.optional(),
+  rows: z.array(Row),
 });
-export type Section = z.infer<typeof Section>;
 
 // Meta: the activity's title, course, unit, etc. Not used in rendering of
 // the body — drives the published HTML's <title> and header banner.

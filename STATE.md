@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Schema shortlist S1–S5 (2026-11-15, [schema-shortlist.md](docs/design/schema-shortlist.md)) — IN THIS ORDER, before any push:** (1) apply **0089** live, `verify-0089` green; (2) `pnpm deploy:get-activity` and `pnpm deploy:check`, hash-verified against the committed bundles; (3) THEN push — the SPA's Hint field and "Match case" box must not go live first (a hint published under the old get-activity reaches students). Text blanks ignore case once check-activity lands (catalogue scanned: nothing needs `^`). Owed to the curriculum side by letter: `{{^…}}` and the `hint:` line.
+**Schema shortlist S1–S5 LIVE (2026-11-15):** 0089 applied + verified, both functions deployed and hash-verified, pushed, CI green. Owed to the curriculum side by letter: `{{^…}}` and the `hint:` line. **S6–S8 (alignment, highlight, https links, Preview as student) — IN THIS ORDER, before any push:** `pnpm deploy:get-activity` and `pnpm deploy:check`, hash-verified against the committed bundles (SANITIZER_ALGO_REV 3 → 4); THEN push. No migration. Then tell the curriculum side `[text](https://…)` links are kept.
 
 **Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
 

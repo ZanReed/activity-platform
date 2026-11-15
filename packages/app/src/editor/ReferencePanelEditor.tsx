@@ -8,6 +8,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { UNSAVED_STARTER_KIT_MARKS } from './starterKitOptions';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import Subscript from '@tiptap/extension-subscript';
+import { Highlight } from './extensions/Highlight';
+import { TextAlign } from './extensions/TextAlign';
 import Superscript from '@tiptap/extension-superscript';
 import 'mathlive';
 import Toolbar from './Toolbar';
@@ -78,6 +80,8 @@ export default function ReferencePanelEditor({
             MathInline,
             MathBlock,
             Subscript,
+            Highlight,
+            TextAlign,
             Superscript,
             // Underline is bundled by StarterKit v3 — registering it again
             // duplicates the 'underline' mark. The toolbar's U button uses

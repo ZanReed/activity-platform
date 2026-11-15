@@ -669,7 +669,8 @@ ACTIVITY SETTINGS (optional, same ```meta fence)
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
-- Don't use tables, blockquotes, links, or any code block inside the activity
+- Links:  [the text](https://full-address). https only; students open them in a new tab.
+- Don't use tables, blockquotes, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,

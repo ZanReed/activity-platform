@@ -11,5 +11,8 @@ export const HeadingBlock = z.object({
   type: z.literal('heading'),
   level: HeadingLevel,
   content: z.array(InlineNode),
+  // Left / centre / right (schema-shortlist.md S6-a, 2026-11-15). Absent =
+  // left, so older documents re-serialize unchanged.
+  align: z.enum(['center', 'right']).optional(),
 });
 export type HeadingBlock = z.infer<typeof HeadingBlock>;

@@ -4724,3 +4724,20 @@ img.mc-block__figure-preview {
     .find-match { background: Mark; color: MarkText; }
     .find-match--current { outline-color: Highlight; }
 }
+
+/* Links (S7) and highlight (S6-b) inside the editor, so a teacher can see
+   them. Tailwind's preflight resets <a> to plain text. */
+.ProseMirror a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.ProseMirror mark.editor-highlight {
+    background: #fef08a;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: currentColor;
+}
+@media (prefers-color-scheme: dark) {
+    .ProseMirror mark.editor-highlight { background: #713f12; }
+}

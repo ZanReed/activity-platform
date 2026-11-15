@@ -38,6 +38,8 @@ export const SIMPLE_MARK_TYPES = [
   'code',
   'subscript',
   'superscript',
+  // One highlighter colour (schema-shortlist.md S6-b, 2026-11-15).
+  'highlight',
 ] as const;
 export type SimpleMarkType = (typeof SIMPLE_MARK_TYPES)[number];
 
@@ -47,6 +49,7 @@ const UnderlineMark = z.object({ type: z.literal('underline') });
 const CodeMark = z.object({ type: z.literal('code') });
 const SubscriptMark = z.object({ type: z.literal('subscript') });
 const SuperscriptMark = z.object({ type: z.literal('superscript') });
+const HighlightMark = z.object({ type: z.literal('highlight') });
 
 // The attribute-free marks as a union. Definition content (below) allows only
 // these — a definition can be formatted but cannot itself contain a nested
@@ -58,6 +61,7 @@ const SimpleMark = z.discriminatedUnion('type', [
   CodeMark,
   SubscriptMark,
   SuperscriptMark,
+  HighlightMark,
 ]);
 
 // ---- Math prompt (Model A: in-equation blank) -------------------------------
@@ -411,6 +415,20 @@ export function upgradeDefinitionMark(m: Record<string, unknown>): unknown {
   return { ...rest, content: content ?? [] };
 }
 
+// A link (schema-shortlist.md S7, author ruling 2026-11-15: https ONLY). The
+// viewer opens it in a new tab with rel="noopener noreferrer"; paper prints
+// the address after the text. The sanitizer re-checks the protocol on the way
+// out, because the read path does not schema-parse.
+export const LinkMark = z.object({
+  type: z.literal('link'),
+  href: z
+    .string()
+    .max(2000)
+    .url()
+    .refine((h) => h.startsWith('https://'), { message: 'Links must start with https://' }),
+});
+export type LinkMark = z.infer<typeof LinkMark>;
+
 export const Mark = z.preprocess(
   (m) => {
     // Legacy: marks were bare strings ('bold').
@@ -431,6 +449,8 @@ export const Mark = z.preprocess(
     CodeMark,
     SubscriptMark,
     SuperscriptMark,
+    HighlightMark,
+    LinkMark,
     DefinitionMark,
   ]),
 );

@@ -18,7 +18,11 @@ import type { BlockComponentProps } from '../registry/types.js';
 
 export default function Paragraph({ block }: BlockComponentProps<ParagraphBlock>) {
   return (
-    <p className="viewer-paragraph" data-block-type="paragraph">
+    <p
+      className="viewer-paragraph"
+      data-block-type="paragraph"
+      {...(block.align ? { 'data-align': block.align, style: { textAlign: block.align } } : {})}
+    >
       <InlineContent nodes={block.content} />
     </p>
   );

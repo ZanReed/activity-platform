@@ -22,6 +22,7 @@ export const SHORTCUT_GROUPS: ReadonlyArray<{ title: string; rows: ReadonlyArray
             ['⌘B  ⌘I  ⌘U', 'Bold, italic, underline'],
             ['⌘E', 'Code'],
             ['⌘,  ⌘.', 'Subscript, superscript'],
+            ['⌘⇧H', 'Highlight'],
         ],
     },
     {

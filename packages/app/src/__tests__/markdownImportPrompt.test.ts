@@ -608,7 +608,8 @@ describe('documented "not supported" list ↔ converter', () => {
     const cases: { name: string; md: string }[] = [
         { name: 'fenced code blocks', md: '```\ncode\n```' },
         { name: 'blockquotes', md: '> quoted' },
-        { name: 'links', md: 'see [docs](https://example.com)' },
+        // Since S7 (2026-11-15) an https link is kept; only other schemes degrade.
+        { name: 'non-https links', md: 'see [docs](http://example.com)' },
     ];
 
     it.each(cases)('$name degrade with a warning, never crash', ({ md }) => {
@@ -623,7 +624,7 @@ describe('documented "not supported" list ↔ converter', () => {
 
     it('the doc actually lists these as unsupported', () => {
         const lower = DOC.toLowerCase();
-        for (const word of ['code blocks', 'blockquotes', 'links']) {
+        for (const word of ['code blocks', 'blockquotes', 'non-https links']) {
             expect(lower).toContain(word);
         }
     });

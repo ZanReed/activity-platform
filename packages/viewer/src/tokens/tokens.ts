@@ -48,6 +48,7 @@ export const colorTokens = [
   '--state-pending-ink',
   '--state-pending-border',
   '--state-pending-surface',
+  '--vw-highlight',
   '--state-recorded-ink',
   '--state-recorded-border',
   '--state-recorded-surface',

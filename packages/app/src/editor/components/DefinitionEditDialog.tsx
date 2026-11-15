@@ -4,6 +4,7 @@ import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { UNSAVED_STARTER_KIT_MARKS } from '../starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
+import { Highlight } from '../extensions/Highlight';
 import Superscript from '@tiptap/extension-superscript';
 import type { DefinitionBlock } from '@activity/schema';
 import Toolbar from '../Toolbar';
@@ -67,10 +68,13 @@ export default function DefinitionEditDialog({
 
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({ ...UNSAVED_STARTER_KIT_MARKS, blockquote: false, codeBlock: false }),
+            // No links here: a definition's text takes simple marks only
+            // (schema), and a link would fail the whole paragraph on save.
+            StarterKit.configure({ ...UNSAVED_STARTER_KIT_MARKS, link: false, blockquote: false, codeBlock: false }),
             MathInline,
             MathBlock,
             Subscript,
+            Highlight,
             Superscript,
             Image,
             GraphFigure,

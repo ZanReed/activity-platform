@@ -31,6 +31,7 @@
 // problem.
 // =============================================================================
 
+import { canonicalHttpsUrl } from '../editor/starterKitOptions';
 import type {
     ActivityDocument,
     ActivityMeta,
@@ -439,6 +440,7 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
                 id: crypto.randomUUID(),
                 type: 'paragraph',
                 content: tiptapInlineToActivity(node.content ?? []),
+                ...alignOf(node),
             };
 
         case 'heading': {
@@ -449,6 +451,7 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
                 type: 'heading',
                 level,
                 content: tiptapInlineToActivity(node.content ?? []),
+                ...alignOf(node),
             };
         }
 
@@ -1585,6 +1588,12 @@ function tiptapBlankToActivity(node: JSONContent): BlankToken | null {
     return result;
 }
 
+/** S6-a: a paragraph's or heading's alignment, only when not left. */
+function alignOf(node: JSONContent): { align?: 'center' | 'right' } {
+    const a = node.attrs?.textAlign;
+    return a === 'center' || a === 'right' ? { align: a } : {};
+}
+
 function extractMarks(
     marks?: Array<{ type: string; attrs?: Record<string, unknown> | null }>,
 ): Mark[] {
@@ -1611,6 +1620,10 @@ function extractMarks(
                 mark.glossaryKey = glossaryKey;
             }
             out.push(mark);
+        } else if (m.type === 'link') {
+            // S7: https only — anything else keeps its text and loses the link.
+            const href = canonicalHttpsUrl(m.attrs?.href);
+            if (href) out.push({ type: 'link', href });
         } else if (SUPPORTED_SIMPLE_MARKS.has(m.type as SimpleMarkType)) {
             out.push({ type: m.type } as Mark);
         }
@@ -1675,13 +1688,14 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
         case 'paragraph':
             return {
                 type: 'paragraph',
+                ...(block.align ? { attrs: { textAlign: block.align } } : {}),
                 content: activityInlineToTiptap(block.content),
             };
 
         case 'heading':
             return {
                 type: 'heading',
-                attrs: { level: block.level },
+                attrs: { level: block.level, ...(block.align ? { textAlign: block.align } : {}) },
                 content: activityInlineToTiptap(block.content),
             };
 
@@ -2159,7 +2173,9 @@ function activityInlineNodeToTiptap(node: InlineNode): JSONContent {
                 type: 'text',
                 text: node.text,
                 marks: node.marks.map((m) =>
-                    m.type === 'definition'
+                    m.type === 'link'
+                        ? { type: 'link', attrs: { href: m.href } }
+                        : m.type === 'definition'
                         ? {
                               type: 'definition',
                               attrs: {

@@ -148,6 +148,14 @@ list (0068).
 - **S5** Migration **0089** `move_class_member` + `verify-0089` (5 rows, mutation-tested), audited as `class.update` op `move_member`; roster "Move" dialog.
 - **Deploy order** (STATE → Pending): 0089 live → get-activity + check-activity redeployed and hash-verified → push. SANITIZER_REV moved.
 
+## As built (S6–S8, 2026-11-15)
+
+- **S6-a** `align: 'center' | 'right'` on paragraph and heading blocks (left = absent); the TextAlign extension in the main, reference-panel and teacher-guide editors (so none drops it); toolbar Align left / Centre / Align right. Viewer sets `text-align` and `data-align`.
+- **S6-b** `highlight` joins SIMPLE_MARK_TYPES; the Highlight mark in all five editors (main, nested fields, reference panel, guide, definition dialog), toolbar button + ⌘⇧H. Viewer `<mark class="viewer-highlight">`: a fill (`--vw-highlight`, grey on paper) PLUS an underline, and `Mark`/`MarkText` in forced colours, so it reads without colour.
+- **S7** `link` mark `{ href }`, https only (S7-a ruling), checked four times: the schema (refine), StarterKit's link options (`isAllowedUri` — a pasted javascript: link is never made), the save (serialize), and the sanitizer's in-band walk (SANITIZER_ALGO_REV 3 → 4, so cached rows written before the rule die). Opens in a new tab, `rel="noopener noreferrer"`; print writes the address after the text. Toolbar Link box (a bare `example.com` becomes https; http/javascript refused with a reason). The importer keeps `[text](https://…)` and drops other schemes with a warning. No editor-click opens a link.
+- **S8** "Preview" in the editor header (lazy; the grader loads only then): viewer `preview/draftPreview.ts` serves the draft as a student gets it (sanitized, seeded numbers drawn, orderings shuffled, seed specs removed) and checks it in the browser with `gradeSection` against the same numbers. Nothing is recorded. "Another student" redraws a seeded draft. Known limit, said in the banner: a DoL section is checked as an ordinary section.
+- **Deploy order** (STATE → Pending): get-activity + check-activity redeployed and hash-verified BEFORE the push — a link or highlight published under the old functions would reach students unchecked by the new sanitizer rule.
+
 ## Recommended build order
 
 S1 → S2 → S3 (one viewer/grading drop: one grading redeploy, one viewer

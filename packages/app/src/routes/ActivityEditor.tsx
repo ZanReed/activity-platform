@@ -28,7 +28,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
-import { FileText, ClipboardPaste, Globe } from 'lucide-react';
+import { FileText, ClipboardPaste, Globe, Eye } from 'lucide-react';
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/react';
 import {
     ActivityDocument,
@@ -99,6 +99,11 @@ import Editor from '../editor/Editor';
 type ImportDialogComponent = typeof import('../components/ImportMarkdownDialog').default;
 const loadImportDialog = (): Promise<ImportDialogComponent> =>
     import('../components/ImportMarkdownDialog').then((m) => m.default);
+// S8 "Preview as student": the student viewer + the grader, loaded on click
+// for the same reason as the import dialog above.
+type DraftPreviewComponent = typeof import('../components/DraftPreview').default;
+const loadDraftPreview = (): Promise<DraftPreviewComponent> =>
+    import('../components/DraftPreview').then((m) => m.default);
 import {
     ConfigButtons,
     ConfigDrawer,
@@ -711,8 +716,10 @@ export default function ActivityEditor() {
     // Serializes the current state and writes the draft. draft_content and the
     // title column are written together so the activity list (which reads the
     // column) never drifts from meta.title.
-    const save = async (opts?: { force?: boolean }) => {
-        if (!tiptapJson || !meta || !id) return;
+    // The document as it stands in the editor — what a save writes and what
+    // "Preview as student" shows. null until the editor has reported.
+    const currentDocument = (): ActivityDocument | null => {
+        if (!tiptapJson || !meta) return null;
         // meta.title is z.string().min(1); a blank title would make the saved
         // draft fail validation on the next load. Fall back to a placeholder.
         // course is z.string().min(1) (0037/R1: it is stamped into the
@@ -724,13 +731,39 @@ export default function ActivityEditor() {
             title: meta.title.trim() || 'Untitled activity',
             course: meta.course.trim() || 'Algebra II',
         };
-        const doc = tiptapToActivity(
+        return tiptapToActivity(
             tiptapJson,
             safeMeta,
             panelFromEditor(panelJson, panelTitle),
             calculator,
             guideJson ? tiptapToTeacherGuide(guideJson) : undefined,
         );
+    };
+
+    // S8: the open preview (its component, loaded on first use, and the draft
+    // it shows, frozen at the moment Preview was pressed).
+    const [preview, setPreview] = useState<{ Component: DraftPreviewComponent; draft: ActivityDocument } | null>(null);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+    const openPreview = async () => {
+        setPreviewError(null);
+        const draft = currentDocument();
+        const parsed = draft ? ActivityDocument.safeParse(draft) : null;
+        if (!parsed?.success) {
+            setPreviewError('This draft can’t be previewed yet. Check for a problem marked in the editor.');
+            return;
+        }
+        try {
+            const Component = await loadDraftPreview();
+            setPreview({ Component, draft: parsed.data });
+        } catch {
+            setPreviewError('Couldn’t open the preview. Refresh the page and try again.');
+        }
+    };
+
+    const save = async (opts?: { force?: boolean }) => {
+        if (!tiptapJson || !meta || !id) return;
+        const doc = currentDocument();
+        const safeMeta = doc!.meta;
         const parsed = ActivityDocument.safeParse(doc);
         if (!parsed.success) {
             // Shouldn't happen — serialize produces valid docs and the title is
@@ -1056,7 +1089,25 @@ export default function ActivityEditor() {
             disabled={!editorInstance}
             title="Paste markdown and convert it to activity blocks"
             />
+            <HeaderButton
+            icon={<Eye size={18} />}
+            label="Preview"
+            onClick={() => void openPreview()}
+            onIntent={() => {
+                loadDraftPreview().catch(() => {});
+            }}
+            disabled={!editorInstance}
+            title="See this draft as a student would, and check answers. Nothing is saved."
+            />
             </div>
+            {preview && (
+                <preview.Component draft={preview.draft} activityId={id ?? ''} onClose={() => setPreview(null)} />
+            )}
+            {previewError && (
+                <p className="mt-1 text-xs text-danger" role="alert">
+                {previewError}
+                </p>
+            )}
             {/*
               Save state rides ON the Publish button, not a separate text
               element beside it — an inline "Saving…" was widening the group and

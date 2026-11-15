@@ -1361,11 +1361,16 @@ describe('graceful degradation', () => {
         expect(result.warnings.some((w) => /quote/i.test(w))).toBe(true);
     });
 
-    it('keeps link text, drops the URL, and warns', () => {
-        const result = convert('see [the docs](https://example.com)');
-        const para = result.blocks[0]!;
-        expect(para.content).toEqual([{ type: 'text', text: 'see the docs' }]);
-        expect(result.warnings.some((w) => /link/i.test(w))).toBe(true);
+    it('keeps an https link (S7) and, for any other scheme, keeps the text, drops the URL, and warns', () => {
+        const kept = convert('see [the docs](https://example.com)');
+        expect(kept.blocks[0]!.content).toEqual([
+            { type: 'text', text: 'see ' },
+            { type: 'text', text: 'the docs', marks: [{ type: 'link', attrs: { href: 'https://example.com/' } }] },
+        ]);
+        expect(kept.warnings).toEqual([]);
+        const dropped = convert('see [the docs](http://example.com)');
+        expect(dropped.blocks[0]!.content).toEqual([{ type: 'text', text: 'see the docs' }]);
+        expect(dropped.warnings.some((w) => /link/i.test(w))).toBe(true);
     });
 
     it('does not throw on empty input', () => {

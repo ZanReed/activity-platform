@@ -3335,3 +3335,37 @@
   padding: 0;
   text-decoration: underline;
 }
+
+/* Highlight (S6-b, 2026-11-15): one highlighter colour. On paper, in
+   grayscale and in forced colours it must still read, so it is a fill AND an
+   underline: the fill alone vanishes when colours are replaced. */
+.viewer-highlight {
+  background: var(--vw-highlight);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--vw-color-ink-muted);
+  text-underline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .viewer-highlight {
+    background: Mark;
+    color: MarkText;
+  }
+}
+
+/* Links (S7, 2026-11-15): https only, opened in a new tab. Paper cannot be
+   clicked, so print writes the address after the text. */
+.viewer-link {
+  color: var(--vw-color-accent, inherit);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media print {
+  .viewer-link::after {
+    content: ' (' attr(href) ')';
+    font-size: var(--type-fine);
+    word-break: break-all;
+  }
+}

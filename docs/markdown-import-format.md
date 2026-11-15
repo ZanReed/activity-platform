@@ -16,6 +16,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | `#`, `##`, `###` | Heading levels 1–3 (`####`+ clamp to 3) |
 | a blank line between blocks | separate blocks — this is how you separate problems |
 | `**bold**`, `*italic*`, `` `code` `` | text formatting |
+| `[text](https://…)` | a link — **https only** (anything else keeps its text and drops the address, with a note). Students open it in a new tab; paper prints the address after the text (2026-11-15) |
 | `-` / `*` / `+` lists, `1.` lists, indent to nest | bullet / ordered lists |
 | `{{answer}}` | a fill-in-the-blank with that answer |
 | `{{answer\|alt1\|alt2}}` | a blank whose alternates after `\|` are also accepted |
@@ -91,7 +92,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 
 ## Not supported (degrades to plain text, with a warning)
 
-Fenced/indented code blocks, blockquotes, raw HTML, links (the link text is kept, the URL dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. **A `{{…}}` blank inside a degraded construct is masked to `______`**, so a degraded paragraph can be published without leaking a blank's key. ⚠ The masking covers `{{…}}` specs ONLY — an unrecognized FENCE (e.g. a fence tag this app version doesn't know yet) degrades with its raw content verbatim, and for fences whose line layout IS the answer key (` ```match ` pairs, and any future fence with the same property) that means the key imports as visible text. Check the degrade notes in the dialog before publishing a paste that used a fence.
+Fenced/indented code blocks, blockquotes, raw HTML, non-https links (the link text is kept, the address dropped), and strikethrough. These import as plain paragraphs/text and surface a note in the dialog so you can fix them by hand. **A `{{…}}` blank inside a degraded construct is masked to `______`**, so a degraded paragraph can be published without leaking a blank's key. ⚠ The masking covers `{{…}}` specs ONLY — an unrecognized FENCE (e.g. a fence tag this app version doesn't know yet) degrades with its raw content verbatim, and for fences whose line layout IS the answer key (` ```match ` pairs, and any future fence with the same property) that means the key imports as visible text. Check the degrade notes in the dialog before publishing a paste that used a fence.
  (Callouts import via the ` ```callout ` fence and columns via ` ```columns ` — see below. Lists, headings and images *inside* a worked/faded example or a column **do** import as of 2026-08-21 — see the fence sections.)
 
 ## Worked example
@@ -766,7 +767,8 @@ ACTIVITY SETTINGS (optional, same ```meta fence)
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
 - Images:  ![a short description](https://full-image-url)
-- Don't use tables, blockquotes, links, or any code block inside the activity
+- Links:  [the text](https://full-address). https only; students open them in a new tab.
+- Don't use tables, blockquotes, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,

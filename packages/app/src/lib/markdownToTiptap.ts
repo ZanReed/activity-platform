@@ -54,6 +54,7 @@
 // graph-kit's scorers, and for the same reason. Guarded by
 // scripts/tests/batch-import.test.mjs, which bundles this path for node and
 // runs it — a guard bound to OUTPUT, not to a declaration.
+import { canonicalHttpsUrl } from '../editor/starterKitOptions';
 import { MAX_ACTIVITY_MINUTES } from './activityMinutes';
 import {
     parseGraphFormula,
@@ -1638,6 +1639,7 @@ function mapInline(
     const out: JSONContent[] = [];
     const marks: string[] = [];
     let warnedLink = false;
+    const openLinks: boolean[] = [];
 
     for (const tok of tokens) {
         switch (tok.type) {
@@ -1670,15 +1672,33 @@ function mapInline(
             case 'hardbreak':
                 out.push({ type: 'hardBreak' });
                 break;
-            case 'link_open':
-            case 'link_close':
-                if (!warnedLink) {
-                    ctx.warnings.add(
-                        'Links aren’t supported — kept the text, dropped the URL.',
-                    );
-                    warnedLink = true;
+            case 'link_open': {
+                // S7 (2026-11-15): an https link is kept; anything else keeps
+                // its text and drops the address, with one warning.
+                const href = canonicalHttpsUrl(attrGet(tok, 'href') ?? '');
+                if (href) {
+                    marks.push(`${LINK_MARK_PREFIX}${href}`);
+                    openLinks.push(true);
+                } else {
+                    openLinks.push(false);
+                    if (!warnedLink) {
+                        ctx.warnings.add('Only https links are kept — kept the text, dropped the address.');
+                        warnedLink = true;
+                    }
                 }
                 break;
+            }
+            case 'link_close': {
+                if (openLinks.pop()) {
+                    for (let i = marks.length - 1; i >= 0; i--) {
+                        if (marks[i]!.startsWith(LINK_MARK_PREFIX)) {
+                            marks.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
             case 'image':
                 // Paragraph images are lifted to image blocks before mapInline
                 // sees them; reaching here means a heading or list item, where an
@@ -2002,10 +2022,21 @@ function makeBlank(canonRaw: string, altsRaw: string, ctx: Ctx): JSONContent | n
     return { type: 'blank', attrs };
 }
 
+// A link rides the string mark list as `link:<href>` (S7), expanded here.
+const LINK_MARK_PREFIX = 'link:';
+
 function textNode(text: string, marks: string[]): JSONContent {
     const unique = [...new Set(marks)];
     return unique.length > 0
-        ? { type: 'text', text, marks: unique.map((type) => ({ type })) }
+        ? {
+              type: 'text',
+              text,
+              marks: unique.map((m) =>
+                  m.startsWith(LINK_MARK_PREFIX)
+                      ? { type: 'link', attrs: { href: m.slice(LINK_MARK_PREFIX.length) } }
+                      : { type: m },
+              ),
+          }
         : { type: 'text', text };
 }
 

@@ -27,6 +27,8 @@
 // can't be handled by the cache.
 // =============================================================================
 
+import { isHttpsHref } from './https.js';
+export { isHttpsHref };
 import type { ActivityDocument, Block } from '@activity/schema';
 import {
   BLANK_SECRET_FIELDS,
@@ -60,7 +62,11 @@ import type {
 // `teacherGuide` (curriculum D50, docs/design/teacher-guides.md TG-3). No block
 // declaration changed, so the computed rev would not have moved; without this
 // bump a cached row written before the strip would keep serving the guide.
-export const SANITIZER_ALGO_REV = 3;
+// 3 -> 4 (2026-11-15, schema-shortlist.md S7): the in-band walk began DROPPING
+// any `link` mark whose href is not https. A defence beside the schema's own
+// check (the handlers do not schema-parse), and a new rule, so cached rows
+// written before it must not survive it.
+export const SANITIZER_ALGO_REV = 4;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */
@@ -141,6 +147,13 @@ function stripInBandSecrets(value: unknown): void {
 
   if (obj.type === 'blank') {
     for (const field of BLANK_SECRET_FIELDS) delete obj[field];
+  }
+  // S7: a link reaches a student only as https. Anything else — javascript:,
+  // data:, http:, a missing href — loses the link and keeps its text.
+  if (obj.type === 'text' && Array.isArray(obj.marks)) {
+    obj.marks = (obj.marks as unknown[]).filter(
+      (m) => !(m && typeof m === 'object' && (m as { type?: unknown }).type === 'link' && !isHttpsHref((m as { href?: unknown }).href)),
+    );
   }
   if (
     typeof obj.type === 'string' &&

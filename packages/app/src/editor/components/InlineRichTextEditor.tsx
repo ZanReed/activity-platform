@@ -3,6 +3,7 @@ import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { UNSAVED_STARTER_KIT_MARKS } from '../starterKitOptions';
 import Subscript from '@tiptap/extension-subscript';
+import { Highlight } from '../extensions/Highlight';
 import Superscript from '@tiptap/extension-superscript';
 import { MathInline } from '../extensions/MathInline';
 import { FieldFocusContext } from './fieldFocus';
@@ -103,6 +104,7 @@ export default function InlineRichTextEditor({
                 horizontalRule: false,
             }),
             Subscript,
+            Highlight,
             Superscript,
             MathInline,
         ],

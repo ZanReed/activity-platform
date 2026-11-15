@@ -395,7 +395,12 @@ describe('the declaration is where it is for a reason', () => {
     // bundles regenerate in the same commit; the get-activity and check-activity
     // redeploys are pending author actions, and no file using `{{^…}}` or a
     // question `hint:` may be imported before they are live.
-    expect(SANITIZER_REV).toBe('3-be7914fd');
+    //
+    // MOVED 2026-11-15 again: '3-be7914fd' → '4-89b016b0'. S7 bumped
+    // SANITIZER_ALGO_REV 3 → 4 (the in-band walk now drops non-https links).
+    // Both bundles regenerate in the same commit; get-activity and
+    // check-activity redeploys are pending author actions, BEFORE the push.
+    expect(SANITIZER_REV).toBe('4-89b016b0');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

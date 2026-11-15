@@ -16,7 +16,12 @@ export default function Heading({ block }: BlockComponentProps<HeadingBlock>) {
   const tag = `h${Math.min(6, block.level + 2)}`;
   return createElement(
     tag,
-    { className: 'viewer-heading', 'data-block-type': 'heading', 'data-level': block.level },
+    {
+      className: 'viewer-heading',
+      'data-block-type': 'heading',
+      'data-level': block.level,
+      ...(block.align ? { 'data-align': block.align, style: { textAlign: block.align } } : {}),
+    },
     <InlineContent nodes={block.content} />,
   );
 }

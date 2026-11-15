@@ -122,6 +122,7 @@
   --state-pending-ink: #92400e;
   --state-pending-border: #f59e0b;
   --state-pending-surface: #fef3c7;
+  --vw-highlight: #fef08a; /* S6-b highlighter */
 
   /* recorded-ink is slate-600, NOT slate-500 like --vw-color-ink-muted: it renders
    * ON --state-recorded-surface (slate-100), where slate-500 is 4.36:1 — sub-AA.
@@ -298,6 +299,7 @@
     --state-pending-ink: #fbbf24;
     --state-pending-border: #fbbf24;
     --state-pending-surface: #451a03;
+    --vw-highlight: #713f12; /* S6-b highlighter */
 
     --state-recorded-ink: #94a3b8;
     --state-recorded-border: #334155;
@@ -363,6 +365,7 @@
   --state-pending-ink: #fbbf24;
   --state-pending-border: #fbbf24;
   --state-pending-surface: #451a03;
+  --vw-highlight: #713f12; /* S6-b highlighter */
 
   --state-recorded-ink: #94a3b8;
   --state-recorded-border: #334155;
@@ -425,6 +428,7 @@
     --state-pending-ink: #000000;
     --state-pending-border: #000000;
     --state-pending-surface: transparent;
+    --vw-highlight: #e6e6e6; /* S6-b highlighter (paper: grey) */
 
     --state-recorded-ink: #000000;
     --state-recorded-border: #000000;
