@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Schema shortlist S1–S8 LIVE (2026-11-16):** both functions deployed and hash-verified, pushed at `cf1d1edd`, CI green; prompt stamp refreshed; B-255 sent (`^`, `hint:`, https links). **S9 "Ask my teacher" BUILT, UNPUSHED ([ask-my-teacher.md](docs/design/ask-my-teacher.md), ST-1..14 ruled): apply 0090 live and run `pnpm verify:auth --target live --only verify-0090` BEFORE pushing** — the Classes page selects `classes.help_requests_on`, so a push ahead of 0090 breaks it (OV-7). No function redeploy. `prune_help_requests` ships disarmed (TODOS → arming). Ruled: no asking in locked / quiz / exam / DoL. Open: the S2 activity-wide workSpace departure.
+**Schema shortlist S1–S8 LIVE (2026-11-16):** both functions deployed and hash-verified, pushed at `cf1d1edd`, CI green; prompt stamp refreshed; B-255 sent (`^`, `hint:`, https links). **S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md), ST-1..14 ruled): 0090 applied, verify-0090 5/5 on live, pushed `3274dc69`, CI green. `prune_help_requests` ships disarmed (TODOS → arming). Ruled: no asking in locked / quiz / exam / DoL. Open: the S2 activity-wide workSpace departure.
 
 **Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
 
