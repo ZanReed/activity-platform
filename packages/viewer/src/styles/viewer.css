@@ -425,6 +425,38 @@
   color: var(--state-pending-ink);
 }
 
+/* S9 "Ask my teacher" (the app draws it through ViewerContainer's
+ * groupAside). Secondary, like Cancel: asking is never the main action, and a
+ * Check-look here would read as one more way to submit. Pushed to the end of
+ * the footer row. */
+.viewer-ask {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.viewer-ask__button {
+  background: transparent;
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  color: var(--vw-color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--type-small);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-4);
+}
+.viewer-ask__button[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.6;
+}
+.viewer-ask__note {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-meta);
+  margin: 0;
+}
+
 /* ---- State vocabulary ------------------------------------------------------
    One pill component, four states, each an ink/border/surface trio. Nothing
    else in this file may set a state colour. */
@@ -1577,6 +1609,23 @@
     bottom: 0;
     padding: var(--space-3) var(--space-4);
     position: sticky;
+  }
+
+  /* S9 "Ask my teacher" in the pinned footer: ONE row (note, then the button
+     at the end; an empty note takes no line), so the pinned bar grows by a
+     button's height at most (Fable review). */
+  .viewer-ask {
+    flex-wrap: nowrap;
+    margin-left: 0;
+    width: 100%;
+  }
+  .viewer-ask__note {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .viewer-ask__button {
+    margin-left: auto;
+    white-space: nowrap;
   }
 
   .viewer-check-group:not([data-group-sections='1']) {

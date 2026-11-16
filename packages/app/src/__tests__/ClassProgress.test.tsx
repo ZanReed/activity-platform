@@ -71,6 +71,16 @@ vi.mock('../lib/dolPass', async (orig) => ({
     fetchDolPassStatus: dol.passes,
 }));
 
+// S9 (0090): who is asking for help. Nobody, unless a test says so.
+const help = vi.hoisted(() => ({
+    fetchClassHelp: vi.fn(async (): Promise<unknown> => ({ on: true, requests: [] })),
+    endHelp: vi.fn(async (): Promise<unknown> => ({ on: true, requests: [] })),
+}));
+vi.mock('../lib/classHelp', async (orig) => ({
+    ...(await orig<typeof import('../lib/classHelp')>()),
+    ...help,
+}));
+
 // T4: the seeding code loads on demand; real by default, and one test makes
 // the load fail the way an open tab does after a deploy.
 const seeding = vi.hoisted(() => ({ load: vi.fn() }));
@@ -143,6 +153,7 @@ function classPage(path = '/classes/class-1/progress') {
 beforeEach(() => {
     window.localStorage.clear();
     net.calls.length = 0;
+    help.fetchClassHelp.mockResolvedValue({ on: true, requests: [] });
     api.fetchMisconceptions.mockResolvedValue(noMis);
     api.fetchFirstTries.mockResolvedValue({
         activity: { id: A1, title: 'Fractions 2', current_version_id: null },
@@ -258,6 +269,47 @@ describe('the class grid (CP-2, DR-1, DR-9, DR-10)', () => {
         expect(screen.getByRole('link', { name: 'Student 1, Fractions 2: done, 80 percent' })).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Student 2 · Fractions 2' })).toBeTruthy();
         expect(window.localStorage.getItem(HIDE_NAMES_KEY)).toBe('1');
+    });
+
+    // S9 (ST-5/7): the hands up, longest-waiting first, each with Done; the
+    // student's cell says "Asking"; Hide names reaches the strip.
+    it('lists who is asking, marks their cell, and Done takes them off', async () => {
+        const ask = (id: string, studentId: string, name: string, createdAt: string) => ({
+            id, studentId, name, activityId: A1, activityTitle: 'Fractions 2',
+            sectionLabel: 'Warm up', createdAt,
+        });
+        const open = {
+            on: true,
+            requests: [ask('h1', 's2', 'Ben Carter', '2027-02-09T09:30:00Z'), ask('h2', 's3', 'Caleb Wu', '2027-02-09T09:35:00Z')],
+        };
+        help.fetchClassHelp.mockResolvedValue(open);
+        help.endHelp.mockResolvedValue({ on: true, requests: [open.requests[1]!] });
+        api.fetchClassProgress.mockResolvedValue(grid());
+        const { container } = classPage();
+        const strip = await screen.findByRole('region', { name: 'Asking for you (2)' });
+        const items = within(strip).getAllByRole('listitem');
+        expect(items.map((li) => li.textContent?.split('Fractions')[0])).toEqual(['Ben Carter', 'Caleb Wu']);
+        expect(items[0]!.textContent).toContain('Fractions 2 · Warm up');
+        await screen.findByRole('link', { name: /Ben Carter, Fractions 2/ });
+        const ben = screen.getByRole('row', { name: /Ben Carter/ });
+        expect(within(ben).getAllByText('Asking')).toHaveLength(1);
+        expect(within(screen.getByRole('row', { name: /Ana Lee/ })).queryByText('Asking')).toBeNull();
+        // Hide names: no name in the strip either.
+        fireEvent.click(screen.getByRole('switch', { name: 'Hide names' }));
+        expect(container.innerHTML).not.toContain('Ben Carter');
+        expect(within(strip).getByRole('button', { name: 'Done: Student 2, Fractions 2' })).toBeTruthy();
+        fireEvent.click(within(strip).getByRole('button', { name: 'Done: Student 2, Fractions 2' }));
+        await waitFor(() => expect(screen.getByRole('region', { name: 'Asking for you (1)' })).toBeTruthy());
+        expect(help.endHelp).toHaveBeenCalledWith('h1');
+    });
+
+    it('shows no strip when nobody is asking', async () => {
+        api.fetchClassProgress.mockResolvedValue(grid());
+        classPage();
+        await screen.findByRole('link', { name: /Ana Lee, Fractions 2/ });
+        expect(help.fetchClassHelp).toHaveBeenCalledWith('class-1');
+        expect(document.querySelector('[data-help-strip]')).toBeNull();
+        expect(screen.queryByText('Asking')).toBeNull();
     });
 
     it('remembers Hide names on this device', async () => {

@@ -47,6 +47,7 @@ import {
     type ProgressOutletContext,
 } from '../progress/common';
 import MisconceptionPanel from '../progress/MisconceptionPanel';
+import { HelpStrip, useClassHelp } from '../progress/HelpStrip';
 import '../styles/teacherTable.css';
 import '../progress/progress.css';
 
@@ -86,6 +87,12 @@ export default function ClassProgress() {
     }, [classId, gridLoadedAt]);
     const [hideNames, setHideNames] = useHideNames();
     const [leastDone, setLeastDone] = useLeastDoneFirst();
+    // S9: who is asking for help right now (polled; HelpStrip.tsx).
+    const { help, done: endHelpRequest } = useClassHelp(classId);
+    const asking = useMemo(
+        () => new Set((help?.requests ?? []).map((r) => `${r.studentId}:${r.activityId}`)),
+        [help],
+    );
 
     const data = loaded.data?.grid ?? null;
     const alias = useMemo(() => pseudonyms(data?.students ?? []), [data]);
@@ -117,8 +124,10 @@ export default function ClassProgress() {
                 </Link>
                 {data ? ` / ${data.class.name}` : ''}
             </p>
-            <h1 className="mb-4 text-xl font-semibold text-ink">Class progress</h1>
+            <h1 className="mb-4 text-xl font-semibold text-ink" tabIndex={-1}>Class progress</h1>
+            <HelpStrip help={help} onDone={endHelpRequest} nameOf={nameOf} />
             <Body
+                asking={asking}
                 loaded={loaded}
                 due={due}
                 hideNames={hideNames}
@@ -136,6 +145,7 @@ export default function ClassProgress() {
 }
 
 function Body({
+    asking,
     loaded,
     due,
     hideNames,
@@ -147,6 +157,8 @@ function Body({
     selected,
     here,
 }: {
+    /** S9: `student:activity` keys with an open help request. */
+    asking: ReadonlySet<string>;
     loaded: ReturnType<typeof useProgressLoad<Loaded>>;
     /** DD-4: null until (or unless) the due read lands. */
     due: ClassDue | null;
@@ -305,6 +317,11 @@ function Body({
                                                 gradeHref={responsesHref(a.activity_id, here)}
                                                 pastDue={isPastDue(dueOf(a.activity_id), today)}
                                             />
+                                            {asking.has(`${s.student_id}:${a.activity_id}`) ? (
+                                                <span className="cp-asking" data-asking>
+                                                    Asking
+                                                </span>
+                                            ) : null}
                                         </td>
                                     ))}
                                     <td className="cp-rowtotal">

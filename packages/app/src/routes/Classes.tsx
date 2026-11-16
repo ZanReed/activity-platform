@@ -22,6 +22,7 @@ import {
     reconfirmClassAge,
     softDeleteClass,
     updateClassDomain,
+    setClassHelp,
     type ClassInfo,
 } from '../lib/classes';
 import { countActiveStudents, joinInstructions } from '../lib/classTeacher';
@@ -206,6 +207,7 @@ function ClassCard({
     onStudentCount,
     onCodeChange,
     onDomainChange,
+    onHelpChange,
     onAgeChange,
     onRenamed,
     onDeleted,
@@ -220,6 +222,8 @@ function ClassCard({
     onStudentCount: (id: string, n: number) => void;
     onCodeChange: (id: string, code: string) => void;
     onDomainChange: (id: string, domain: string | null) => void;
+    /** S9 (ST-14): the "Students can ask you for help" switch. */
+    onHelpChange: (id: string, on: boolean) => void;
     onAgeChange: (id: string, change: Pick<ClassInfo, 'includesUnder13' | 'ageAssertionAt' | 'assertionTextVersion'>) => void;
     onRenamed: (id: string, name: string) => void;
     onDeleted: (id: string) => void;
@@ -280,6 +284,19 @@ function ClassCard({
             onError(err instanceof Error ? err.message : 'Could not update domain.');
         } finally {
             setSavingDomain(false);
+        }
+    };
+    // S9 (ST-14): whether students in this class can ask for help. One
+    // click, audited server-side; open requests still lapse when it goes off.
+    const [savingHelp, setSavingHelp] = useState(false);
+    const toggleHelp = async () => {
+        setSavingHelp(true);
+        try {
+            onHelpChange(info.id, await setClassHelp(info.id, !info.helpRequestsOn));
+        } catch (err) {
+            onError(err instanceof Error ? err.message : 'Could not change the setting.');
+        } finally {
+            setSavingHelp(false);
         }
     };
     // The age statement (U-2): the teacher can confirm the other one. Nothing
@@ -394,6 +411,19 @@ function ClassCard({
         className="underline underline-offset-2 transition hover:text-strong"
         >
         {info.expectedDomain ? 'Edit domain' : 'Set domain'}
+        </button>
+        {' · '}
+        <span data-testid="class-help-setting">
+        {info.helpRequestsOn ? 'Students can ask you for help' : 'Students can’t ask for help'}
+        </span>{' '}
+        <button
+        type="button"
+        onClick={() => void toggleHelp()}
+        disabled={savingHelp}
+        aria-label={`${info.helpRequestsOn ? 'Turn off asking for help' : 'Turn on asking for help'}: ${info.name}`}
+        className="underline underline-offset-2 transition hover:text-strong disabled:opacity-50"
+        >
+        {info.helpRequestsOn ? 'Turn off' : 'Turn on'}
         </button>
         </span>
         {editingAge && (
@@ -821,6 +851,9 @@ export default function Classes() {
                 }
                 onAgeChange={(id, change) =>
                     setClasses((prev) => prev.map((x) => (x.id === id ? { ...x, ...change } : x)))
+                }
+                onHelpChange={(id, helpRequestsOn) =>
+                    setClasses((prev) => prev.map((x) => (x.id === id ? { ...x, helpRequestsOn } : x)))
                 }
                 onDomainChange={(id, expectedDomain) =>
                     setClasses((prev) =>

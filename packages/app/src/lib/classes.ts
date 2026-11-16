@@ -55,6 +55,9 @@ export interface ClassInfo {
     /** Which statement the teacher confirmed (migration 0053): true = the
      *  class includes students under 13, by school authorization. */
     includesUnder13: boolean;
+    /** Students can ask the teacher for help from inside an activity
+     *  (0090, S9 ST-14). Default on. */
+    helpRequestsOn: boolean;
     createdAt: string;
 }
 
@@ -74,11 +77,13 @@ interface ClassRow {
     age_assertion_at: string;
     assertion_text_version: string;
     includes_under_13: boolean;
+    /** Absent from create_class's reply (it predates 0090): absent = on. */
+    help_requests_on?: boolean;
     created_at: string;
 }
 
 const CLASS_COLUMNS =
-    'id, name, join_code, expected_domain, age_assertion_at, assertion_text_version, includes_under_13, created_at';
+    'id, name, join_code, expected_domain, age_assertion_at, assertion_text_version, includes_under_13, help_requests_on, created_at';
 
 function rowToClass(r: ClassRow): ClassInfo {
     return {
@@ -89,6 +94,7 @@ function rowToClass(r: ClassRow): ClassInfo {
         ageAssertionAt: r.age_assertion_at,
         assertionTextVersion: r.assertion_text_version,
         includesUnder13: r.includes_under_13 === true,
+        helpRequestsOn: r.help_requests_on !== false,
         createdAt: r.created_at,
     };
 }
@@ -203,6 +209,14 @@ export async function updateClassDomain(
     });
     if (error) throw new Error(error.message);
     return (data as { expected_domain: string | null }).expected_domain;
+}
+
+/** S9 (0090, ST-14): whether students in this class can ask for help, through
+ *  the audited `set_class_help` RPC. Returns the stored value. */
+export async function setClassHelp(classId: string, on: boolean): Promise<boolean> {
+    const { data, error } = await supabase.rpc('set_class_help', { p_class_id: classId, p_on: on });
+    if (error) throw new Error(error.message);
+    return (data as { on: boolean }).on;
 }
 
 /**

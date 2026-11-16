@@ -77,6 +77,10 @@ import {
   edgeFunctionUrl,
 } from '../lib/edgeFunctions';
 import { fetchMyCheckedSectionIds, fetchReleasedFeedbackRows } from '../lib/grading';
+import { NO_HELP, fetchHelpState, type HelpState } from '../lib/helpRequests';
+// S9: the button and its ask/withdraw calls load only when there is someone
+// to ask (shell budget); the shell carries the state read alone.
+const AskTeacher = lazy(() => import('../components/AskTeacher'));
 import { useSession } from '../lib/SessionContext';
 import { signInWithGoogle as sharedSignIn, markIdleSignOut } from '../lib/auth';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
@@ -436,6 +440,64 @@ export default function StudentViewer() {
     if (!store) return;
     void store.loadReleasedFeedback();
   }, [store]);
+
+  // S9 (0090, docs/design/ask-my-teacher.md): "Ask my teacher". Read once per
+  // version and after each ask/withdraw, never polled (ST-9). A failed read
+  // looks like "no one to ask", which simply hides the button — the
+  // worksheet never waits on it.
+  const [help, setHelp] = useState<HelpState>(NO_HELP);
+  useEffect(() => {
+    setHelp(NO_HELP);
+    if (!versionId || !userId) return;
+    let live = true;
+    let retried = false;
+    const cleanups: Array<() => void> = [];
+    const read = (): Promise<void> =>
+      fetchHelpState(versionId).then(
+        (h) => {
+          if (live) setHelp(h);
+        },
+        () => {
+          // One retry when the student comes back to the tab or the network
+          // returns (Fable review): a single blip must not hide the button
+          // for the whole visit.
+          if (!live || retried) return;
+          retried = true;
+          const again = () => {
+            if (document.visibilityState !== 'visible') return;
+            window.removeEventListener('online', again);
+            document.removeEventListener('visibilitychange', again);
+            if (live) void read();
+          };
+          window.addEventListener('online', again);
+          document.addEventListener('visibilitychange', again);
+          cleanups.push(() => {
+            window.removeEventListener('online', again);
+            document.removeEventListener('visibilitychange', again);
+          });
+        },
+      );
+    void read();
+    return () => {
+      live = false;
+      for (const c of cleanups) c();
+    };
+  }, [versionId, userId]);
+  const helpAside = useMemo(() => {
+    if (!help.canAsk || !versionId || !servedDocument) return undefined;
+    // No asking during an assessment (author ruling 2026-11-16): a locked
+    // activity or an exam already reads can_ask false; a DoL group gets no
+    // button (ask_teacher refuses it too).
+    const dolIds = new Set(
+      indexDocument(servedDocument).sections.filter((sec) => sec.dol).map((sec) => sec.sectionId),
+    );
+    return (sectionIds: readonly string[]) =>
+      sectionIds[0] && !sectionIds.some((id) => dolIds.has(id)) ? (
+        <Suspense fallback={null}>
+          <AskTeacher versionId={versionId} sectionId={sectionIds[0]} state={help} onState={setHelp} />
+        </Suspense>
+      ) : null;
+  }, [help, versionId, servedDocument]);
 
   /**
    * LOCAL-FIRST MOUNT (S6 V1 + V2). Everything on-device hangs off this one
@@ -951,6 +1013,7 @@ export default function StudentViewer() {
           store.recordShortfall(shortfall.sectionId, shortfall.crashedBlockIds);
         }}
         {...(takeOver ? { onTakeOver: takeOver } : {})}
+        {...(helpAside ? { groupAside: helpAside } : {})}
       />
       {/* S5: the end of the activity, once every section is checked. The
           completion panel ruling 7.3A anticipated. */}

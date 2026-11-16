@@ -1,7 +1,7 @@
 # "I'm stuck": a student asks their teacher (S9) — design pass (2026-11-16)
 
-From [schema-shortlist.md](schema-shortlist.md) → S9. **OPEN: ST-1..ST-14 await the
-author's rulings. Nothing is built.**
+From [schema-shortlist.md](schema-shortlist.md) → S9. **RULED 2026-11-16 (author): ST-1..ST-14 all as
+recommended.** Build: one drop, migration 0090 first.
 
 A signed-in student, inside an activity, tells their teacher they are stuck on a
 section. The teacher sees who is asking, on which section, and clears the request
@@ -179,3 +179,26 @@ that calls it is pushed (OV-7).
   where WhoFirst already shows evidence.
 - A free-text note. Trigger: a school asks. It needs a moderation, under-13 and
   counsel pass of its own.
+
+## As built (2026-11-16)
+
+- **0090**: `help_requests` (ONE ROW PER CLASS, not one row with `class_ids`, because a student's classes may have different teachers and each Done is that teacher's), `classes.help_requests_on` + `set_class_help`, `my_help_state` / `ask_teacher` / `withdraw_help`, `class_help_open` / `end_help`, `prune_help_requests` (disarmed). The class is resolved by `help_target_classes`; an ask names only the version and section, and the version must be the activity's current published one with that section in it. ST-2's "one open request" is held by a per-student transaction lock plus an "already open?" check, because "open" depends on `now()` and no index can express it. `lapses_at` = the next midnight in the class's zone (`fact_class_zone`). `verify-0090` has 10 behavioural rows, and 8 of 9 mutants go red; the survivor (end_help's own teacher check) is still backed by the read it returns, which refuses the same caller.
+- **The request attaches to the check GROUP's first section** (ST-10 "beside Check"): Check covers a group, so the button sits once per group footer. The viewer gains one generic slot, `groupAside(sectionIds)`; it knows nothing about classes.
+- **Student**: `AskTeacher` in the footer, ONE button whose label flips ("Ask my teacher" ⇄ "I've got it now") so focus stays put; the note beside it is the live region. Read once per version, never polled; a failed read hides the button.
+- **Teacher**: "Asking for you (N)" strip at the top of Class Progress (longest-waiting first, each with Done), an "Asking" chip on the student's cell, Hide names applied. It polls every 15 s while visible and while the switch is on or a request is still open. The class card says "Students can ask you for help · Turn off".
+- **Not built** (TODOS, with triggers): a reason list, a badge on every page / realtime, asking from practice, a free-text note.
+- **Fable review (2026-11-16), fixed:**
+  - "Asked" means a teacher can see it. Open = unended, not lapsed, in a class that still exists and still has the student (`help_open_rows`). Asking again adds a row for any class that lacks one, so a student moved or newly joined is never stuck behind an invisible hand.
+  - Requests follow the ACTIVITY, not the version, so a republish never strands one.
+  - Done shows only while it is the student's latest word.
+  - `can_ask` needs a student account; `set_class_help` needs a teacher.
+  - The button is never `disabled` mid-call (that drops focus to the body): it uses `aria-disabled` plus an early return. Withdrawing says "OK, you're not asking now."
+  - "Out of date, reload" replaces a dead-end "try again".
+  - A failed student read retries once on return or reconnect. The teacher's poll keeps trying until a first read lands.
+  - Reads carry a sequence number, so a slow poll can't undo Done and a late reply for another class can't paint this one. After Done, focus goes to the next Done, or the page heading.
+  - In the phone's pinned footer the ask controls take one row (+49 px measured at 375 px).
+  - An untitled section is named by its first heading below level 1 ("Review"), not "Section 1".
+  - The student shell carries only the state read (+661 B ledger row, including ~220 B of S6–S8 drift); the button, ask/withdraw and the teacher side are lazy.
+- **Ruled 2026-11-16 (author), after the review:**
+  - **No asking during an assessment:** not in a `locked` activity, not in a quiz or an exam (`activityType: quiz | exam`), not in a DoL section. Held by the server (`help_allowed`; `ask_teacher` raises `not_during_assessment`). `can_ask` is false for a locked activity, a quiz or an exam, and the viewer draws no button on a DoL group. Quizzes added by the author the same day.
+  - **The timezone is the teacher's to set:** a teacher with no zone lapses at the Chicago-default midnight, as every other per-day feature does. No change.

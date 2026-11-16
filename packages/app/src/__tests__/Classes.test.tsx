@@ -283,6 +283,21 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
         expect(screen.queryByRole('radio')).toBeNull();
     });
 
+    // S9 (ST-14): the class's "ask for help" switch, on by default, one click
+    // through the audited RPC.
+    it('says whether students can ask for help, and switches it through set_class_help', async () => {
+        h.rpc.mockImplementation((() => Promise.resolve({ data: { on: false }, error: null })) as never);
+        renderClasses();
+        const setting = await screen.findByTestId('class-help-setting');
+        expect(setting.textContent).toBe('Students can ask you for help');
+        fireEvent.click(screen.getByRole('button', { name: /^Turn off asking for help: / }));
+        await waitFor(() =>
+            expect(screen.getByTestId('class-help-setting').textContent).toBe('Students can’t ask for help'),
+        );
+        expect(h.rpc).toHaveBeenCalledWith('set_class_help', { p_class_id: 'class-1', p_on: false });
+        expect(screen.getByRole('button', { name: /^Turn on asking for help: / })).toBeTruthy();
+    });
+
     // G-5 (ui-review-group-a.md): a real confirm that says what goes.
     it('Delete asks first, names the student count, and only Delete class deletes', async () => {
         h.rpc.mockImplementation(((name: string) =>

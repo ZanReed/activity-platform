@@ -151,6 +151,14 @@ export interface ViewerContainerProps {
    * and Next to one bar, which a footer inside the section cannot join.
    */
   externalCheck?: boolean;
+  /**
+   * S9 ("Ask my teacher", 0090): something the HOST draws in a check group's
+   * footer, after the status line — given the group's section ids. Screen
+   * only; absent in print and under `externalCheck`, like the footer itself.
+   * The viewer knows nothing about classes or teachers; the app decides
+   * whether there is anyone to ask.
+   */
+  groupAside?: (sectionIds: readonly string[]) => ReactNode;
 }
 
 /** Registry-driven resolution honoring the D16 eager/lazy split — the SHARED
@@ -385,6 +393,7 @@ export function ViewerContainer({
   glossary,
   teacherGuide,
   externalCheck = false,
+  groupAside,
 }: ViewerContainerProps) {
   // Only the check statuses (efficiency audit 2026-10 #5): the container used
   // to subscribe to the WHOLE store, so every keystroke re-rendered it and
@@ -682,6 +691,7 @@ export function ViewerContainer({
           locked={locked}
           dol={group.sections.length === 1 ? group.sections[0]!.dol : undefined}
           onDolPractice={onDolPractice}
+          {...(groupAside ? { aside: groupAside } : {})}
           unansweredIn={unansweredIn}
           sections={sections}
           crashedIn={crashedGradableIn}
@@ -837,6 +847,8 @@ interface CheckGroupRegionProps {
   dol?: DolServedState;
   /** D65 slice 2: open targeted practice (the host app routes it). */
   onDolPractice?: () => void;
+  /** S9: the host's footer extra (ViewerContainerProps.groupAside). */
+  aside?: (sectionIds: readonly string[]) => ReactNode;
   /** Unanswered questions in these sections, read at the moment of the
    *  confirm (DE-14). */
   unansweredIn: (sections: readonly SectionIndex[]) => number;
@@ -855,6 +867,7 @@ function CheckGroupRegion({
   locked,
   dol,
   onDolPractice,
+  aside,
   unansweredIn,
   sections,
   crashedIn,
@@ -1027,6 +1040,7 @@ function CheckGroupRegion({
               Practise this skill first
             </button>
           ) : null}
+          {aside ? aside(ids) : null}
           {uncovered > 0 && !blockedByCrash ? (
             <p
               className="viewer-section__shortfall"

@@ -22,7 +22,7 @@ afterEach(cleanup);
 
 const INFO = {
     id: 'k7a', name: '7A', joinCode: 'ABC234', expectedDomain: null, ageAssertionAt: '2026-11-01T00:00:00Z',
-    assertionTextVersion: 'v1', includesUnder13: false, createdAt: '2026-11-01T00:00:00Z',
+    assertionTextVersion: 'v1', includesUnder13: false, helpRequestsOn: true, createdAt: '2026-11-01T00:00:00Z',
 };
 const MAYA = { studentId: 'stu-1', displayName: 'Maya', email: 'maya@school.example', joinedAt: '2026-11-02T00:00:00Z', removedAt: null };
 

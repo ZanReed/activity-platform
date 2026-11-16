@@ -138,7 +138,7 @@ list (0068).
   whether a free-text note is allowed (moderation, under-13s), and where the
   teacher sees it (Responses? Progress? Today?). **Recommended: its own design
   pass after S1–S8, not built in this arc.**
-- **Design pass written 2026-11-16:** [ask-my-teacher.md](ask-my-teacher.md), ST-1..ST-14 OPEN.
+- **Design pass written 2026-11-16:** [ask-my-teacher.md](ask-my-teacher.md), ST-1..ST-14 RULED 2026-11-16, all as recommended.
 
 ## As built (S1–S5, 2026-11-15)
 

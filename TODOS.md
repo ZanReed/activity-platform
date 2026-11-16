@@ -252,6 +252,25 @@ the census to record block ids — a migration plus a rollup change.
 **Trigger:** a teacher asks which question their class got wrong, with
 students checking (class progress shows per-student answers already).
 
+## "Ask my teacher" (S9, 0090) — arming and the four later wishes (filed 2026-11-16)
+
+- **⚠ `prune_help_requests` (0090) — arming.** It deletes requests 30 days
+  after they were made. Do NOT arm without the author's explicit yes. Steps:
+  (1) one dry-run read on live (`select prune_help_requests()`) and the count
+  reported; (2) the author's yes; (3) a `cron.schedule` nightly, outside NZ
+  and US school hours; (4) flip `verify-0090`'s `prune_is_unscheduled` row to
+  "scheduled" in the same commit. Until then rows past 30 days simply stay.
+- **A reason list** (ST-1 ii: "I don't get the question" / "I tried and I'm
+  still wrong" / "I don't know how to start"). **Trigger:** teachers ask
+  "stuck on what?". An enum column; no free text.
+- **A count badge on every teacher page, and realtime push** (ST-5 iii, ST-6
+  ii). **Trigger:** a teacher reports the 15 s poll, or a list only on Class
+  Progress, as too slow. That is the realtime arc's trigger (STATE).
+- **Asking from mixed practice / number facts.** **Trigger:** a teacher asks
+  for it where "Who to see first" already shows evidence.
+- **A free-text note.** **Trigger:** a school asks. Needs its own moderation,
+  under-13 and counsel pass.
+
 ## A quiz day in the period planner (C-188, filed 2026-11-14)
 
 The curriculum side's `quiz.slot`: on a quiz day the printed quiz's

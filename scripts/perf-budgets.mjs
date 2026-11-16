@@ -270,8 +270,13 @@ export const SHELL_SPEND = [
         change: 'Student shortlist batch 7: the viewer top bar\'s "N of M answered" + Next (with the shared answered helper), A− / A+ text size, reopening where the student left off, Enter moving between blanks, the tray closing on freeze, and math-gap anchors',
         bytes: 1630,
     },
+    {
+        date: '2026-11-16',
+        change: 'S9 "Ask my teacher" (0090): the viewer\'s groupAside footer slot, StudentViewer\'s one help-state read with a single retry, and the lazy loader for the button (the button, its ask/withdraw calls and the teacher side are all lazy); plus ~220 B of in-band drift from S6–S8 (alignment, highlight, links)',
+        bytes: 661,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 157937;
+export const SHELL_JS_BASELINE_BYTES = 158598;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

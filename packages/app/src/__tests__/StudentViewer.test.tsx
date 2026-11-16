@@ -60,6 +60,22 @@ vi.mock('../lib/grading', () => ({
         return h.checkedIds.current;
     },
 }));
+// S9 (0090): "Ask my teacher". No one to ask unless a test says so.
+const help = vi.hoisted(() => ({
+    state: { current: { canAsk: false, open: new Set<string>(), done: new Set<string>() } },
+    asks: [] as Array<[string, string]>,
+}));
+vi.mock('../lib/helpRequests', async (orig) => ({
+    ...(await orig<typeof import('../lib/helpRequests')>()),
+    fetchHelpState: async () => help.state.current,
+}));
+vi.mock('../lib/helpRequestsAsk', async (orig) => ({
+    ...(await orig<typeof import('../lib/helpRequestsAsk')>()),
+    askTeacher: async (versionId: string, sectionId: string) => {
+        help.asks.push([versionId, sectionId]);
+        return { ...help.state.current, open: new Set([sectionId]) };
+    },
+}));
 vi.mock('../lib/SessionContext', () => ({
     useSession: () => ({ session: h.session.current, loading: false }),
 }));
@@ -929,5 +945,59 @@ describe('progress and the end of the activity (student review S5)', () => {
         );
         expect(screen.getByRole('heading', { name: 'All sections checked ✓' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Back to my classes' })).toHaveAttribute('href', '/');
+    });
+});
+
+describe('Ask my teacher (S9, ST-3/ST-10)', () => {
+    const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
+    const served = () => ({ activityId: ACTIVITY, versionId: 'v1', versionNum: 1, title: 'Small', document: smallServedDoc() });
+    beforeEach(() => {
+        window.localStorage.clear();
+        h.checkedIds.current = [];
+        help.asks.length = 0;
+    });
+    afterEach(() => {
+        help.state.current = { canAsk: false, open: new Set(), done: new Set() };
+        window.localStorage.clear();
+    });
+
+    it('sits in every Check footer when there is a class to ask, and asks about that group on the served version', async () => {
+        help.state.current = { canAsk: true, open: new Set(), done: new Set() };
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(screen.getAllByRole('button', { name: 'Ask my teacher' }).length).toBeGreaterThan(0));
+        const footers = container.querySelectorAll('.viewer-check-group__footer');
+        expect(screen.getAllByRole('button', { name: 'Ask my teacher' })).toHaveLength(footers.length);
+        const first = footers[0]!.closest('[data-check-group]')!.querySelector('.viewer-section') as HTMLElement | null;
+        fireEvent.click(screen.getAllByRole('button', { name: 'Ask my teacher' })[0]!);
+        await waitFor(() => expect(help.asks).toHaveLength(1));
+        expect(help.asks[0]![0]).toBe('v1');
+        expect(help.asks[0]![1]).toBe(indexDocument(smallServedDoc() as never).sections[0]!.sectionId);
+        expect(first).not.toBeNull();
+        expect(await screen.findByText('Asked. Your teacher can see this.')).toBeTruthy();
+    });
+
+    it('is never on a DoL group (no asking during an assessment, author 2026-11-16)', async () => {
+        help.state.current = { canAsk: true, open: new Set(), done: new Set() };
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        const doc = smallServedDoc() as unknown as { sections: Array<Record<string, unknown>> };
+        doc.sections[1] = { ...doc.sections[1], isCheckpoint: true, dol: { allowance: 2, attempts: 0, form: 1,
+            retakeOpen: false, passed: false, markFirst: false, practiceAvailable: false } };
+        h.load.current = { ...served(), document: doc };
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(screen.getAllByRole('button', { name: 'Ask my teacher' }).length).toBeGreaterThan(0));
+        const footers = Array.from(container.querySelectorAll('.viewer-check-group__footer'));
+        expect(footers.length).toBe(2);
+        expect(screen.getAllByRole('button', { name: 'Ask my teacher' })).toHaveLength(1);
+        expect(footers[1]!.querySelector('.viewer-ask')).toBeNull();
+    });
+
+    it('is not there when no class of the student holds the activity', async () => {
+        h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
+        h.load.current = served();
+        const { container } = renderRoute(ACTIVITY);
+        await waitFor(() => expect(container.querySelector('.viewer-check-group__footer')).not.toBeNull());
+        expect(screen.queryByRole('button', { name: 'Ask my teacher' })).toBeNull();
     });
 });
