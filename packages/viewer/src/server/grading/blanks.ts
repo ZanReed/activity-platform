@@ -564,6 +564,10 @@ export function selectBlankOutcome(
   key: BlankKey,
   verdict: BlankVerdict,
   group: readonly BlankKey[] = [key],
+  /** False in a DoL section (author ruling 2026-11-16): the hint is a nudge,
+   * and a DoL is an assessment. Mistake feedback and the built-in form line
+   * still show (DL-8). */
+  hints = true,
 ): BlankOutcome {
   if (verdict !== false) return {};
   const mistake = matchMistakeEntry(raw, key);
@@ -599,7 +603,7 @@ export function selectBlankOutcome(
     }
   }
   const mis = misconceptionId ? { misconceptionId } : {};
-  if (key.hint) return { feedback: key.hint, ...mis };
+  if (hints && key.hint) return { feedback: key.hint, ...mis };
   if (wrongForm) {
     return { feedback: [{ type: 'text', text: FORM_WRONG_LINE }], ...mis };
   }

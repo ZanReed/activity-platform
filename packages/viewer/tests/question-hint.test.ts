@@ -1,7 +1,8 @@
 // question-hint.test.ts — a hint on multiple choice, matching and ordering
 // (schema-shortlist.md S3, 2026-11-15): returned ONLY by a wrong check, a
 // chosen option's own feedback wins on multiple choice, and the hint never
-// reaches what a student is served.
+// reaches what a student is served. In a DoL section no hint is returned at
+// all (author ruling 2026-11-16).
 import { describe, expect, it } from 'vitest';
 import { gradeSection } from '../src/server/grading/index.js';
 import { emptySectionResponses } from '../src/index.js';
@@ -9,9 +10,9 @@ import { emptySectionResponses } from '../src/index.js';
 const t = (text: string) => ({ type: 'text', text, marks: [] });
 const HINT = [t('Look at the units first.')];
 
-function run(block: Record<string, unknown>, responses: Record<string, unknown>) {
+function run(block: Record<string, unknown>, responses: Record<string, unknown>, dol = false) {
   const result = gradeSection({
-    document: { sections: [{ id: 's', rows: [{ columns: [{ blocks: [block] }] }] }] } as never,
+    document: { sections: [{ id: 's', ...(dol ? { isCheckpoint: true, dol: { skills: ['x.y'] } } : {}), rows: [{ columns: [{ blocks: [block] }] }] }] } as never,
     sectionId: 's',
     responses: { ...emptySectionResponses(), ...responses } as never,
     servedOrderings: {},
@@ -82,5 +83,50 @@ describe('matching and ordering', () => {
     };
     expect(said(run(b, { orderings: { [b.id]: ['o3', 'o1', 'o2'] } }))).toContain('Look at the units');
     expect(said(run(b, { orderings: { [b.id]: ['o1', 'o2', 'o3'] } }))).toBe('null');
+  });
+});
+
+// NO HINTS IN A DoL (author ruling 2026-11-16). A DoL is an assessment: the
+// verdicts and the authored MISTAKE feedback still come back (DL-8), the
+// nudge never does — for blanks, mc, matching and ordering alike.
+describe('in a DoL section', () => {
+  it('a wrong blank gets its mistake feedback but never its hint', () => {
+    const blankId = crypto.randomUUID();
+    const b = {
+      id: crypto.randomUUID(), type: 'fill_in_blank',
+      content: [t('3 × 4 = '), { type: 'blank', id: blankId, answer: '12', hint: HINT,
+        mistakeFeedback: [{ match: '7', feedback: [t('That is 3 + 4.')] }] }],
+    };
+    const typed = (v: string, dol: boolean) =>
+      JSON.stringify(gradeSection({
+        document: { sections: [{ id: 's', ...(dol ? { isCheckpoint: true, dol: { skills: ['x.y'] } } : {}), rows: [{ columns: [{ blocks: [b] }] }] }] } as never,
+        sectionId: 's',
+        responses: { ...emptySectionResponses(), blanks: { [blankId]: v } } as never,
+        servedOrderings: {},
+      } as never).items[blankId]);
+    expect(typed('9', false)).toContain('Look at the units');
+    expect(typed('9', true)).not.toContain('Look at the units');
+    expect(typed('9', true)).toContain('"verdict":"incorrect"');
+    expect(typed('7', true)).toContain('That is 3 + 4.');
+  });
+
+  it('mc, matching and ordering: verdict and chosen-option feedback, no hint', () => {
+    const plain = mc();
+    expect(said(run(plain, { choices: { [plain.id]: ['c2'] } }, true))).not.toContain('Look at the units');
+    expect(run(plain, { choices: { [plain.id]: ['c2'] } }, true)?.verdict).toBe('incorrect');
+    const fed = mc(true);
+    expect(said(run(fed, { choices: { [fed.id]: ['c2'] } }, true))).toContain('rate per hour');
+    const m = {
+      id: crypto.randomUUID(), type: 'matching', prompt: [t('Match')], hint: HINT,
+      items: [{ id: 'i1', content: [t('a')] }, { id: 'i2', content: [t('b')] }],
+      targets: [{ id: 't1', content: [t('A')] }, { id: 't2', content: [t('B')] }],
+      key: { i1: 't1', i2: 't2' },
+    };
+    expect(said(run(m, { matches: { [m.id]: { i1: 't2', i2: 't1' } } }, true))).toBe('null');
+    const o = {
+      id: crypto.randomUUID(), type: 'ordering', prompt: [t('Order')], hint: HINT,
+      items: [{ id: 'o1', content: [t('1')] }, { id: 'o2', content: [t('2')] }, { id: 'o3', content: [t('3')] }],
+    };
+    expect(said(run(o, { orderings: { [o.id]: ['o3', 'o1', 'o2'] } }, true))).toBe('null');
   });
 });

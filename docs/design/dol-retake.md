@@ -161,6 +161,7 @@ Options:
 **DL-8 What the student sees between attempts.**
 After attempt 1, the student sees:
 - per-item verdicts and the authored mistake feedback;
+- **NOT a hint, on any attempt** (author ruling 2026-11-16, after the curriculum side's C-195): no blank `?hint`, and no mc / match / order `hint:` (S3). The grader leaves them out of every DoL check (`gradeSection`, from the raw section's `dol` marker), so the live check and the draft preview agree;
 - **NOT the worked solutions**. Attempt 2 is the same items with new numbers, so form A's worked solution IS the answer method for form B, and showing it first turns the retake into copying;
 - a "Try a new version (1 left)" button, hidden once the primary item has passed (best counts, so a retake can't hurt, but it has no purpose either).
 

@@ -79,6 +79,12 @@ export interface GradeSectionInput {
   seedValues?: SeedValues;
 }
 
+/** A `{checkpoint dol}` section carries its DoL marker on the raw section. */
+function isDolSection(section: unknown): boolean {
+  const dol = (section as { dol?: unknown }).dol;
+  return dol !== undefined && dol !== null;
+}
+
 export class SectionNotFoundError extends Error {
   constructor(sectionId: string) {
     super(`Section not found: ${sectionId}`);
@@ -97,6 +103,12 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
 
   const inv = inventorySection(section);
   const items: Record<string, CheckItemResult> = {};
+  // NO HINTS IN A DoL (author ruling 2026-11-16). A DoL is an assessment: the
+  // student still gets verdicts and the authored MISTAKE feedback after each
+  // attempt (DL-8), but never the nudge an ordinary section gives — the
+  // blank hint, or the mc / match / order hint. Decided from the raw section
+  // itself, so the live check and the teacher's draft preview agree.
+  const hints = !isDolSection(section);
 
   // ---- blanks + math gaps ---------------------------------------------------
   // Grouped per owning block so an interchangeable run resolves against its own
@@ -122,6 +134,7 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
           key,
           verdict,
           group,
+          hints,
         );
         items[key.id] = {
           verdict: verdict ? 'correct' : 'incorrect',
@@ -153,7 +166,7 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     // ("Yes, 4 is even") doesn't count: on a multi-select it would otherwise
     // hide the hint from a student who also picked a wrong one.
     const wrongSaidSomething = mc.choices.some((c) => !c.correct && perChoice.has(c.id));
-    const shown = !verdict && mc.hint && !wrongSaidSomething ? [...feedback, ...mc.hint] : feedback;
+    const shown = hints && !verdict && mc.hint && !wrongSaidSomething ? [...feedback, ...mc.hint] : feedback;
     items[mc.blockId] = {
       verdict: verdict ? 'correct' : 'incorrect',
       ...(shown.length ? { feedback: sanitizeOut(shown) } : {}),
@@ -169,7 +182,7 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     if (score.verdict === null) continue;
     items[m.blockId] = {
       verdict: score.verdict ? 'correct' : 'incorrect',
-      ...(!score.verdict && m.hint ? { feedback: sanitizeOut(m.hint) } : {}),
+      ...(hints && !score.verdict && m.hint ? { feedback: sanitizeOut(m.hint) } : {}),
     };
   }
 
@@ -191,7 +204,7 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     if (verdict === null) continue;
     items[o.blockId] = {
       verdict: verdict ? 'correct' : 'incorrect',
-      ...(!verdict && o.hint ? { feedback: sanitizeOut(o.hint) } : {}),
+      ...(hints && !verdict && o.hint ? { feedback: sanitizeOut(o.hint) } : {}),
     };
   }
 
