@@ -96,7 +96,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0087_class_activity_due.sql` | Due dates (docs/design/due-dates.md, DD-1…DD-9): `class_activities.due_on` (a nullable DATE in the class's timezone — a label, never a lock); `set_class_activity_due` (owner-only DEFINER, audited as `class.update` / `set_due`, refuses an activity not in the class); `list_class_activities` dropped and re-created with `due_on` + `class_today`; `class_local_date` (a class's today for its teacher/students). No personal data. Verify: `scripts/verify-0087.sql`. |
 | `0088_period_planner.sql` | The period planner (docs/design/period-planner.md, PP-1…PP-12): `activities.minutes` (1–120, NULL = not set; the Bank copy carries it); `class_period_items` can be planned on later days (up to the class's year end, or a year), and a write now keeps the latest past day instead of none ("Last time … · Carry on today"); `set_class_plan`, `class_plan`, `move_class_plan_item`, `reorder_class_plan` (teacher-only DEFINER, audited as `class.update`: `use_today`/`clear_today` for today, `plan_add`/`plan_remove`/`move_plan`/`reorder_plan` otherwise); the six-a-day cap counts only activities the class can still use, `class_today` shows at most six, and only adding is held to the year-end limit (a row beyond a shortened year end can still be removed or moved); `set_class_today` is now a call to `set_class_plan` and keeps 0084's `today_full`; `class_today` gains `minutes`; `my_timezone` / `set_my_timezone` (a teacher's zone, which moves the day for all their classes). No personal data. Verify: `scripts/verify-0088.sql` (verify-0082 B6 rewritten for the kept day). |
 | `0089_move_class_member.sql` | Move a student between two of the SAME teacher's classes (docs/design/schema-shortlist.md S5): `move_class_member(student, from, to)`, teacher-only DEFINER, removes from one and adds to (or reactivates in) the other in one step, keeps join_class's target-domain rule and the attested-teacher member cap, audited as `class.update` (op `move_member`). Checks carry no class, so a student's work is untouched. No personal data. Verify: `scripts/verify-0089.sql`. |
-| `0090_help_requests.sql` | "Ask my teacher" (docs/design/ask-my-teacher.md, S9): `help_requests` (one row per class a student's request goes to; no free text), `classes.help_requests_on` + `set_class_help` (audited `class.update` op `set_help`), the student's `my_help_state` / `ask_teacher` / `withdraw_help` (the class is resolved in SQL, never sent; at most 20 asks a day) and the teacher's `class_help_open` / `end_help`. A request lapses at the end of the class's day. `prune_help_requests` (30 days) is dry-run by default and UNSCHEDULED. **Adds student-derived personal data** (data map draft-56, retention draft-25). No asking during an assessment (locked, quiz, exam, DoL; `help_allowed`). Verify: `scripts/verify-0090.sql`. |
+| `0090_help_requests.sql` | "Ask my teacher" (docs/design/ask-my-teacher.md, S9): `help_requests` (one row per class a student's request goes to; no free text), `classes.help_requests_on` + `set_class_help` (audited `class.update` op `set_help`), the student's `my_help_state` / `ask_teacher` / `withdraw_help` (the class is resolved in SQL, never sent; at most 20 asks a day) and the teacher's `class_help_open` / `end_help`. A request lapses at the end of the class's day. `prune_help_requests` (30 days) is dry-run by default; ARMED 2026-11-17 by a nightly cron job (see "After the migrations are applied"). **Adds student-derived personal data** (data map draft-56, retention draft-25). No asking during an assessment (locked, quiz, exam, DoL; `help_allowed`). Verify: `scripts/verify-0090.sql`. |
 
 ## Regression re-runs (the DB has no CI harness)
 
@@ -194,6 +194,13 @@ A few one-time setup steps in the Supabase dashboard:
      '0 3 * * *',
      'select purge_soft_deleted();'
    );
+   ```
+
+   And the help-request cleanup (0090, armed by the author 2026-11-17):
+   ```sql
+   select cron.schedule('prune-help-requests', '45 3 * * *', 'select prune_help_requests(false);');
+   comment on function prune_help_requests(boolean) is
+     'Removes help requests 30 days after they were made (0090, ST-12). ARMED 2026-11-17 by the author: nightly at 03:45 UTC (cron job prune-help-requests).';
    ```
 
 2. **Configure auth providers** (Authentication → Providers). For Phase 1 with the allowlist, you'll likely want only Google OAuth enabled (since teachers are signing in with school accounts).

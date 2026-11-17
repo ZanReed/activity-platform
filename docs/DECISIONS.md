@@ -544,7 +544,7 @@ The author ruled ST-1..ST-14 as recommended. The decisions a later session might
 - **A request lapses at the end of the class's day**, stored as `lapses_at` at ask time in the class's zone, so tomorrow never opens with yesterday's hands (ST-4).
 - **Poll, not push** (ST-6): 15 s on Class Progress while visible. Realtime stays stubbed until a teacher says this is too slow; that is the realtime arc's trigger.
 - **The words are the student's own action** ("Ask my teacher" / "Asking for you"), so the teacher page never says a student *needs* anything, keeping the panel rule (never "needs help").
-- **The 30-day prune is disarmed** like the four deleters of student work, though it deletes requests, not work.
+- **The 30-day prune shipped disarmed**, like the four deleters of student work, and was **armed by the author on 2026-11-17** (nightly, 03:45 UTC). A teacher-set shorter window is a filed wish.
 - **No asking during an assessment** (author, 2026-11-16): not in a locked activity, a quiz, an exam, or a DoL section. The server refuses it (`help_allowed`), not just the button.
 
 ## Text blanks ignore case unless "Match case" (2026-11-15, schema-shortlist.md S1)

@@ -30,9 +30,15 @@ select 'prune_dry_run_by_default_and_service_only',
              = 'p_dry_run boolean DEFAULT true',
        'the 30-day prune is dry-run by default and service-only';
 -- @live-only (cron.job is pg_cron's; the local stack has no pg_cron)
-select 'prune_is_unscheduled',
-       not exists (select 1 from cron.job where command ilike '%prune_help_requests%'),
-       'DISARMED: no cron job runs the prune. Arming flips this row, with the author''s yes';
+-- ARMED 2026-11-17 (author's yes): exactly one nightly job, the real run, at
+-- 03:45 UTC (after the 03:00 purge and 03:30 analytics jobs; 15:45/16:45 in
+-- NZ and the US evening before, outside school hours in both).
+select 'prune_is_scheduled_nightly',
+       (select count(*) from cron.job where command ilike '%prune_help_requests%') = 1
+       and exists (select 1 from cron.job
+                    where jobname = 'prune-help-requests' and schedule = '45 3 * * *'
+                      and command = 'select prune_help_requests(false);' and active),
+       'ARMED: one nightly job runs prune_help_requests(false) at 03:45 UTC';
 
 -- @section B-behavioral
 -- @expect-error EXPECTED ROLLBACK

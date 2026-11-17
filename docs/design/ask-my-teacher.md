@@ -201,4 +201,5 @@ that calls it is pushed (OV-7).
   - The student shell carries only the state read (+661 B ledger row, including ~220 B of S6–S8 drift); the button, ask/withdraw and the teacher side are lazy.
 - **Ruled 2026-11-16 (author), after the review:**
   - **No asking during an assessment:** not in a `locked` activity, not in a quiz or an exam (`activityType: quiz | exam`), not in a DoL section. Held by the server (`help_allowed`; `ask_teacher` raises `not_during_assessment`). `can_ask` is false for a locked activity, a quiz or an exam, and the viewer draws no button on a DoL group. Quizzes added by the author the same day.
+  - **The 30-day cleanup is ARMED (2026-11-17):** nightly at 03:45 UTC. A teacher-set shorter window is filed in TODOS with a trigger.
   - **The timezone is the teacher's to set:** a teacher with no zone lapses at the Chicago-default midnight, as every other per-day feature does. No change.

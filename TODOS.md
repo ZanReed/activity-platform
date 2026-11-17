@@ -252,14 +252,10 @@ the census to record block ids — a migration plus a rollup change.
 **Trigger:** a teacher asks which question their class got wrong, with
 students checking (class progress shows per-student answers already).
 
-## "Ask my teacher" (S9, 0090) — arming and the four later wishes (filed 2026-11-16)
+## "Ask my teacher" (S9, 0090) — the cleanup (armed) and the later wishes (filed 2026-11-16)
 
-- **⚠ `prune_help_requests` (0090) — arming.** It deletes requests 30 days
-  after they were made. Do NOT arm without the author's explicit yes. Steps:
-  (1) one dry-run read on live (`select prune_help_requests()`) and the count
-  reported; (2) the author's yes; (3) a `cron.schedule` nightly, outside NZ
-  and US school hours; (4) flip `verify-0090`'s `prune_is_unscheduled` row to
-  "scheduled" in the same commit. Until then rows past 30 days simply stay.
+- ~~`prune_help_requests` (0090) — arming~~ **ARMED 2026-11-17** (author's yes; live dry run that day: 0 rows). Nightly at 03:45 UTC; `verify-0090` pins the one job.
+- **A teacher-set cleanup window for help requests** (author, 2026-11-17: "it will probably end up being shorter"). A per-class number of days, chosen by the teacher on the class card, that a request is kept, **at most 30** (the ruled, counsel-facing ceiling; longer needs its own ruling). The prune reads each class's own window. **Trigger:** a teacher or school asks for a shorter window, or the author sets a shorter default. **Shape when it fires:** `classes.help_keep_days` (1–30, default 30), the class-card control (GUI rule), the prune by class, retention-policy + data-map rows, and a verify row per boundary.
 - **A reason list** (ST-1 ii: "I don't get the question" / "I tried and I'm
   still wrong" / "I don't know how to start"). **Trigger:** teachers ask
   "stuck on what?". An enum column; no free text.
