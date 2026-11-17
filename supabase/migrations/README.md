@@ -99,6 +99,7 @@ Schema for the activity platform. **The applied set is whatever `supabase migrat
 | `0090_help_requests.sql` | "Ask my teacher" (docs/design/ask-my-teacher.md, S9): `help_requests` (one row per class a student's request goes to; no free text), `classes.help_requests_on` + `set_class_help` (audited `class.update` op `set_help`), the student's `my_help_state` / `ask_teacher` / `withdraw_help` (the class is resolved in SQL, never sent; at most 20 asks a day) and the teacher's `class_help_open` / `end_help`. A request lapses at the end of the class's day. `prune_help_requests` (30 days) is dry-run by default; ARMED 2026-11-17 by a nightly cron job (see "After the migrations are applied"). **Adds student-derived personal data** (data map draft-56, retention draft-25). No asking during an assessment (locked, quiz, exam, DoL; `help_allowed`). Verify: `scripts/verify-0090.sql`. |
 | `0091_review_period.sql` | The review period, scheduler half (docs/design/review-period.md, RV-0…RV-14; curriculum C-196). `mixed_settings_ok` takes the ten `review_*` keys (all or none). `classes.period_minutes` + `set_class_period_minutes`; `class_period_reviews` (one review a day, focus chains, a double flag) + `set_class_review` (audited `class.update` ops `review_set` / `review_remove`, `period_minutes`). `review_items_for` sizes a review; `review_plan` plans it (due, then pulled forward by elapsed share, ≤ 2 a key, discrimination ≤ a third, focus ≤ 60%). `start_mixed_session` v3 plans a review on a review day; `record_mixed_attempt` v3 adds one re-try after a wrong answer and keeps it out of the score and finish. The top-up (`mixed_plan` t4) now orders by elapsed share (RV-6). Panel reads leave re-tries out. **No new store of personal data** (data map draft-58, retention draft-27). Apply before the importer mirrors the review keys. Verify: `scripts/verify-0091.sql`. |
 | `0092_review_period_reads.sql` | The review period's reads (review-period.md slice 4): `class_plan` lists each day's review (focus chains, double) and review-only days; `class_today` gains `review` (today has one AND the review keys are mirrored); `mixed_class_summary` gains `period_minutes` and `review_on`; new `review_preview(class, double, on_date)`, teacher only, returns the session's size, how many students' plans fall short of `review_min_fill`, and the class's chains (counts and chain ids, never a student). Reads only: **no personal data**. Apply before the planner/practice-settings UI that calls it is pushed. Verify: `scripts/verify-0092.sql`. |
+| `0093_student_work_photos.sql` | Students' photos of their working, slice 1 (docs/design/media-submissions.md, ruled 2026-11-18): the **private** `student-work` Storage bucket (JPEG only, 1.5 MB) with two policies (INSERT only into the caller's own open reservation, `work_photo_reserved`; SELECT for the student and, once a check attaches it, the activity's editor, `work_photo_readable`; no UPDATE, no DELETE); `photo_clearance` (OFF); `work_photos` (one row per photo, written by `reserve_work_photo` BEFORE the upload: class members only, capped); `work_photo_deletions` + its trigger (a deleted row queues its bytes); the service-only sweep SQL (`sweep_work_photos_due`, dry-run by default) and the cost meter `work_photo_usage()`. **Adds student personal data** (data map draft-60, retention draft-28, counsel Q14 DRAFT). The bytes are removed by the `sweep-work-photos` Edge Function (`pnpm deploy:sweep`, `verify_jwt` true, service-role bearer only), **apply 0093 BEFORE deploying it**. Verify: `scripts/verify-0093.sql`, plus `node scripts/verify-student-work-e2e.mjs --target local` (the Storage-API half; needs `supabase functions serve sweep-work-photos`). The sweep is NOT ARMED; arming is below. |
 
 ## Regression re-runs (the DB has no CI harness)
 
@@ -204,6 +205,26 @@ A few one-time setup steps in the Supabase dashboard:
    comment on function prune_help_requests(boolean) is
      'Removes help requests 30 days after they were made (0090, ST-12). ARMED 2026-11-17 by the author: nightly at 03:45 UTC (cron job prune-help-requests).';
    ```
+
+   **NOT YET — the photo sweep (0093), armed by the author in media-submissions.md slice 5, BEFORE `photo_clearance` goes on.** It needs `pg_net` (Database → Extensions) and the service-role key in Vault, then:
+   ```sql
+   -- once: select vault.create_secret('<service-role key>', 'sweep_work_photos_key');
+   -- Rows first, in SQL, with no HTTP dependency: this alone ends every
+   -- reader's access on time, even if the function below is broken.
+   select cron.schedule('sweep-work-photo-rows', '10 4 * * *', 'select sweep_work_photos_due(false);');
+   -- Then the bytes, through the function. The Vault secret must be the SAME
+   -- key the function sees as SUPABASE_SERVICE_ROLE_KEY: it compares exactly.
+   select cron.schedule('sweep-work-photos', '15 4 * * *', $cron$
+     select net.http_post(
+       url := 'https://<project-ref>.supabase.co/functions/v1/sweep-work-photos',
+       headers := jsonb_build_object(
+         'Content-Type', 'application/json',
+         'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'sweep_work_photos_key')),
+       body := '{"dryRun": false}'::jsonb,
+       timeout_milliseconds := 60000);
+   $cron$);
+   ```
+   (04:10/04:15 UTC is 17:10 NZDT / 16:10 NZST and the US evening before, outside school hours in both.) The function drains in a loop for up to 45 s a night and reports `more: true` if it runs out of time. Arming replaces verify-0093's `sweep_is_unscheduled` row with a pin on BOTH jobs, in the same commit. verify-0093's `photos_not_overdue` row is the alarm: it goes red when a row is a day past its clock or a queued deletion is two days old, so run it in the weekly job-health check once armed.
 
 2. **Configure auth providers** (Authentication → Providers). For Phase 1 with the allowlist, you'll likely want only Google OAuth enabled (since teachers are signing in with school accounts).
 

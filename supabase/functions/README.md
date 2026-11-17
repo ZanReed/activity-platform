@@ -1,8 +1,8 @@
 # Edge Functions
 
 The two Deno Edge Functions that back the viewer. **The directory listing is the
-source of truth for what exists** — exactly `get-activity` and `check-activity`,
-plus `_shared/`. Per-function deploy flags are declared in
+source of truth for what exists** — exactly `get-activity`, `check-activity` and
+`sweep-work-photos` (since 0093, 2026-11-18), plus `_shared/`. Per-function deploy flags are declared in
 [`../config.toml`](../config.toml) (policy P6 — the CLI reads it on deploy).
 
 > **Rewritten 2026-08-22.** The previous version of this file documented the
@@ -18,6 +18,7 @@ plus `_shared/`. Per-function deploy flags are declared in
 |---|---|---|---|
 | `get-activity` | The viewer read API (S2): anonymous title/teacher meta for the pre-auth interstitial (`get_activity_public_meta`, `get_class_public_meta`; rate-limited), authenticated resolve of the current published version (`get_published_activity`), and the upgraded + sanitized content served from the durable per-version cache (`activity_version_reads`, 0017) with immutable headers. Its cache-fill path also writes the analytics census (`write_version_census`, 0026 — fail-safe: a missing RPC withholds the cache row and still serves a 200). | **`false`** — the ONLY anonymous function; the platform's gate would 401 the no-Authorization meta branch before the function ran | `pnpm bundle:viewer-server` first, then `pnpm deploy:get-activity` (bakes in `--no-verify-jwt`) |
 | `check-activity` | The S4 grading endpoint: server-authoritative section checks for the signed-in viewer. Authorizes through `get_activity_version_for_check` (caller-scoped; metadata only), grades with the bundled engine, records through `record_check` (service-role only — it takes verdicts as an argument). Answers never reach the client pre-check. | **`true`** — a check is always made by a signed-in student, so the platform gate is a free first line of defense. **Never add `--no-verify-jwt`.** | `pnpm bundle:grading-server` first, then `pnpm deploy:check` |
+| `sweep-work-photos` | Removes the BYTES of students' work photos once their `work_photos` rows are gone (0093; media-submissions.md §6.4). Storage objects cannot be deleted in SQL (`protect_objects_delete`), so it drains `work_photo_deletions` and orphan objects through the Storage API, and `work_photo_deletions_done` clears only keys whose object really left. **Dry-run unless the body is `{"dryRun": false}`.** Refuses any bearer whose role is not `service_role`. Plain fetch, no supabase-js, no `_shared/` import. NOT ARMED (migrations/README → After the migrations are applied). | `true` | `pnpm deploy:sweep` |
 
 Publishing needs no function: it is a direct `publish_activity` RPC from the
 app (`usePublish`), snapshotting the draft into `activity_versions`. Image

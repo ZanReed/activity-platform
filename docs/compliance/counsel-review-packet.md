@@ -279,6 +279,42 @@ privacy page must say first, and whether the answer differs for students under 1
 *(Numbered Q13 because TODOS earmarks Q12 for the mixed-practice window. Renumber
 if that one isn't sent first.)*
 
+**Q14 — DRAFT, not yet sent. Photos of students' handwritten working
+(media-submissions.md, ruled 2026-11-18; migration 0093).** The platform will let
+a student photograph their working on paper and attach it to a question, so the
+teacher can grade it. The storage is built and no student can use it yet: a
+server setting keeps it off, and it stays off until this question is answered.
+What the platform does with a photo:
+- The platform's app shrinks and re-saves every photo on the student's device
+  before upload, which removes the metadata a phone attaches, including GPS
+  location. (Someone bypassing the app could upload a photo with its metadata,
+  but only into their own question's slot.)
+- The photo is kept in a private store. Only the student and, once the student
+  hands it in, the teacher who owns the activity can see it. Nothing is public,
+  and no other teacher, school or third party receives it.
+- It is deleted **30 days after the student's grade on it is released**. If the
+  grade is never released, it is deleted at the end of the school year plus 30
+  days (never later than 400 days); a photo that is never handed in goes after
+  7 days. The grade and written feedback stay.
+- A copy may wait on the student's device while it is offline, until it uploads
+  or the student signs out (sign-out deletes it).
+- A student may also send a photo from a phone by scanning a code on their
+  screen. The phone doesn't sign in; the code lets someone upload into that one
+  question for 10 minutes and can read nothing.
+
+Please answer:
+- **(a)** A photo may incidentally show a face, hands, a home or another
+  student's name. Is the posture above sufficient for this new kind of data?
+- **(b)** Does the answer differ for classes that include students under 13?
+- **(c)** Teachers' views of a photo are not logged, the same as for typed
+  answers today. Is that acceptable?
+- **(d)** No photo is sent to any AI service. If a hosted one were used later to
+  pre-grade drawings, would that need a separate answer? (We assume yes.)
+- **(e)** No automated content scanning is planned. Only the owning teacher sees
+  a photo. Does a school's duty of care call for a "report this image" path?
+- **(f)** Is the phone upload with no sign-in (bound to a 10-minute code tied to
+  one student and one question) acceptable, including for students under 13?
+
 ## 6. What this packet deliberately does not do
 
 - It does not ask counsel to review code, and no answer above depends on

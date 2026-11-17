@@ -241,14 +241,18 @@ PhotoResponseBlock = {
 }
 ```
 
-It goes inside a `problem` container next to the other parts, which is where
-"show your working for (b)" naturally sits. **The alternative was an
+It sits in the column beside the question it belongs to, like any other block.
+⚠ **Corrected while building slice 1 (2026-11-18):** an earlier draft placed it
+"inside a `problem` container". There is no such container. `problem` is a
+legacy inline block with no children, and blocks sit flat at
+`sections → rows → columns → blocks`. That flat path is the one every SQL
+lookup walks (0078's `video_source`, 0093's `reserve_work_photo`). **The alternative was an
 `allowPhoto` field on `short_answer`** (type the answer, attach the working).
 I recommend against it for v1 (MS-2). It changes the grading shape of the most
 common free-text block. It also makes one block carry two response maps, which
 every consumer (queue, progress, DoL prefill, answer key) would have to learn.
 And a field like that is the shape that produced this repo's orphans. A separate
-block in the same problem gives the same classroom result with none of that
+block placed right after the question gives the same classroom result with none of that
 coupling.
 
 **Every field must reach rendered output** (close-out question 1): `prompt`
@@ -451,9 +455,15 @@ registration call would leave bytes that nothing ever deletes.
    It then inserts the row and returns its id.
 2. The client uploads to `{activityId}/{uid}/{id}.jpg`. The INSERT policy admits
    only an open reservation.
-3. The sweep fills `bytes`, `width` and `height` from `storage.objects`, so
-   they are never client-supplied. As a backstop, it also deletes any object in
-   the bucket that has no row, in case a future path breaks step 1's order.
+3. As a backstop, the sweep also deletes any object in the bucket that has no
+   row, in case a future path breaks step 1's order.
+
+**As built (0093):** the `bytes`, `width` and `height` columns were dropped.
+Storage keeps no image dimensions, and the size is already in
+`storage.objects.metadata`. The cost meter (`work_photo_usage()`) reads it
+there, so no size is ever stored twice or taken from a client. The table also
+gained `source` (`device` or `handoff`) and a generated `object_name`, which is
+the only thing either storage policy compares, as text.
 
 The columns:
 
@@ -463,7 +473,6 @@ The columns:
 | `student_id` → users ON DELETE CASCADE | the account path removes the row |
 | `activity_id` → activities ON DELETE CASCADE | the activity-deletion path removes the row |
 | `activity_version_id` → activity_versions **ON DELETE CASCADE**, `block_id` | which question it answers. The CASCADE is required: `purge_soft_deleted` deletes versions before activities, and a default (RESTRICT) key would abort the nightly purge |
-| `bytes`, `width`, `height` | read from the object, for the cost meter (§6.8) |
 | `created_at` | when it was uploaded |
 | `attached_at` | the first check that referenced it (NULL = never handed in) |
 | `keep_until` | the retention clock (§6.5) |
@@ -514,6 +523,12 @@ follow. In outline:
 3. The same function also deletes **unattached** uploads older than the grace
    window (§6.5). It does so by deleting their `work_photos` rows, so that
    step 1 handles the bytes.
+   **As built (0093, after the slice-1 Fable review):** the row deletion is
+   also scheduled **directly in SQL** (`sweep-work-photo-rows`). So access ends
+   on time even if the HTTP call fails, and the function only has to make the
+   bytes follow. The function compares its bearer to the service-role key
+   exactly, rather than reading a decoded claim. It drains in a loop for up to
+   45 s. `verify-0093`'s `photos_not_overdue` row is the alarm.
 4. The sweep is **dry-run by default and unscheduled when it ships**, like
    every other function here that deletes student work. Arming it needs the
    author's explicit yes, and a `verify-*` row pins the schedule once armed (the
@@ -630,7 +645,7 @@ That removes the cliff. It also buys daily backups of student work, the image
 caching DECISIONS.md records as lost on the free tier, and server-side image
 resizing. The rest of the recommendation stands: **no quota and no submission
 blocking** (ROADMAP's rule: a quota governs retention, never submission), and
-**a cost meter**. That is one SQL read summing `work_photos.bytes` by teacher
+**a cost meter**. That is one SQL read summing each photo's stored size (from `storage.objects.metadata`, `work_photo_usage()`) by teacher
 and in total, run by the weekly job-health task and shown on the teacher's
 settings page. The plan change is an author action (dashboard) and goes on the
 slice 5 checklist before `photo_clearance` flips.
@@ -747,8 +762,8 @@ Remove is hidden.
 ## 9. Editor GUI (the GUI rule)
 
 - **Insert:** a slash-menu and Insert-menu entry, **"Photo of working"**, in
-  the questions group. It is also offered inside a `problem` container's
-  "add part" menu.
+  the questions group, inserted like any other block (there is no `problem`
+  container to offer it from; see §3.1).
 - **Edit (the NodeView):** an inline prompt editor; a "Photos allowed: 1 / 2 / 3"
   segmented control; the same rubric editor `short_answer` uses (shared
   component, not a copy); `answer` and `solution` fields; numbering (the N6
@@ -780,6 +795,7 @@ applied before any push of UI that calls them (OV-7).
 | # | Slice | Author actions |
 |---|---|---|
 | **1** | **Storage and record.** Migration 0093: the `student-work` bucket and its policies, `work_photos`, `work_photo_deletions` with its trigger, `reserve_work_photo`, `photo_clearance` (off), and `verify-0093` plus `verify-student-work.sql`. The `sweep-work-photos` Edge Function (dry-run, unscheduled) and its config.toml entry and `deploy:` script. **The compliance pack goes in the same commit:** data-map rows (bucket, both tables, and the corrected Systems row, R-10), a retention-policy row, and the Q14 draft. A live deletion proof (P3), run on test objects along every path, confirming each object is gone from Storage: a direct row delete, the account purge cascade, the activity purge cascade (versions before activities), an unattached upload past 7 days, and an object with no row. | Apply 0093; deploy the sweep; create the Vault secret; send Q14 |
+| | ⚠ **Measured while building slice 1 (the e2e's G17, 2026-11-18):** a signed upload URL (`/object/upload/sign`), issued while a reservation is open, **still uploads after `photo_clearance` goes off**. Storage checks the INSERT policy when it signs, not when the URL is used. So slice 2's attach (in `record_check`) must re-read `photo_clearance` and **require the object to exist** before setting `attached_at`. Then a URL signed before attach can never place bytes under an attached key (the object exists, and an upsert needs UPDATE). | |
 | **2** | **The student block.** Schema, the sanitize registry, a lazy viewer binding, the capture and upload chunk (re-encode, EXIF guard, raw fetch, progress, retry), wire v4 `photos`, and `check-activity` validating the refs. Both server bundles are rebuilt and committed. A `SHELL_SPEND` row is added if the shell moves outside the band. | Redeploy `check-activity` and `get-activity`, verified by hash |
 | **2b** | **Offline photos** (MS-6): the IndexedDB store, queue ordering (photos before their section's check), the sign-out confirm and purge, the boot sweep, the GC exception, and the data-map browser-storage row. sw-lane rows prove a photo taken offline uploads and checks after reconnect, and that sign-out leaves nothing behind. | none (app-only) |
 | **2c** | **Phone QR handoff** (MS-3, MS-24): migration for `photo_handoffs`, `start_photo_handoff` and `handoff_status`; the `photo-handoff` function (`verify_jwt: false`); the lazy `/h` route and the QR panel; the CLAUDE.md, config.toml and compliance rows; Q14(f). | Apply the migration first, then deploy `photo-handoff` with `--no-verify-jwt`, verified by hash |

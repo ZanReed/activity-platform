@@ -20,8 +20,9 @@
 # platform's verify_jwt gate must stay OFF). The old "anonymous trio" language
 # died at S9 Drop 3: ingest-submission + get-feedback (the published-page wire)
 # were deleted from the platform with publish-activity (Drop 1); their source
-# dirs left the tree at Drop 4, so exactly two functions exist — this file
-# lists both, completely.
+# dirs left the tree at Drop 4. Three functions exist since 0093 (2026-11-18:
+# get-activity, check-activity, sweep-work-photos) — this file lists all of
+# them, completely.
 
 project_id = "activity-platform"
 
@@ -32,6 +33,13 @@ verify_jwt = false
 # student, so the platform gate is a free first line of defense (CLAUDE.md):
 
 [functions.check-activity]
+verify_jwt = true
+
+# Deliberately verify_jwt = true, AND the function itself refuses any bearer
+# whose role is not service_role (0093, media-submissions.md §6.4): it deletes
+# students' photos, so a real student JWT passing the platform gate must still
+# get a 403. Called only by pg_cron once the author arms it (slice 5).
+[functions.sweep-work-photos]
 verify_jwt = true
 
 # TOMBSTONE — publish-activity was DELETED from the platform at S9 Drop 1

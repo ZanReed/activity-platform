@@ -10,6 +10,7 @@
     "bundle:grading-server": "node scripts/bundle-grading-server.mjs",
     "deploy:get-activity": "supabase functions deploy get-activity --no-verify-jwt",
     "deploy:check": "supabase functions deploy check-activity",
+    "deploy:sweep": "supabase functions deploy sweep-work-photos",
     "backfill:census": "node --env-file-if-exists=.env.supabase scripts/backfill-census.js",
     "import:batch": "node --env-file-if-exists=.env.supabase scripts/batch-import.mjs",
     "prompt:catalogue": "node scripts/write-catalogue-prompt.mjs",
