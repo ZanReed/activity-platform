@@ -1,7 +1,8 @@
 # Review period — design pass
 
-**Status:** DRAFT 2026-11-17. RV-0 to RV-13 are OPEN for the author. Nothing
-is built.
+**Status:** DRAFT 2026-11-17, Fable-reviewed the same day. Its four major
+findings are folded in, marked "review finding". RV-0 to RV-14 are OPEN for
+the author. Nothing is built.
 - **Queue position:** TODOS → "BUILD ORDER", item 6: "the review period keeps
   its place, after their keys". Period assembly reserved it as PA-9.
 - **The keys:** the curriculum side's C-196 (answering B-259), in their PR
@@ -59,7 +60,14 @@ confirming on this side** (RV-1).
     restarts from that day".
   - **So a pulled-forward review item is an `early` item.** That gives
     `review_pulled_step_up = false` and `review_pulled_moves_due = false` with
-    no change to `mixed_steps`.
+    no change to `mixed_steps`, **with one condition (review finding).**
+    `mixed_steps` collapses a day to two flags, "not wrong" and "has early"
+    (0081:52-53, 66-69). Suppose a skill gets a right DUE item and an early
+    item on the same day: for example, the student did the daily session,
+    then a review pulled the same skill forward. Then the step-up the due item
+    earned is erased. **So the review plan never pulls forward a skill already
+    practised that day** (`last_any = today`), and a re-try inherits its
+    original item's marker.
 - **Two items on one skill in a day are one result.** `mixed_steps` judges a
   day by "every first try on the key that day". Both right steps up once; one
   wrong drops once. A re-try after a wrong can't undo the drop. That matches
@@ -67,6 +75,25 @@ confirming on this side** (RV-1).
 - **Sessions are planned at start and fixed.** `start_mixed_session` writes the
   whole plan and snapshots every item (ER-4). **A re-try (R1) is the first
   item ever added mid-session** (RV-5).
+  - **Review finding:** `record_mixed_attempt` computes `score_right`,
+    `score_answered` and the finish test from EVERY attempt in the session
+    (0081:404-410). A naive re-try would close a session early, refusing the
+    items still to come, or break 0066:391's `score_answered <= planned` check.
+    All three must skip re-tries (RV-5).
+- **The daily start counts every session that day** (0081:292-295). It would
+  treat a finished review as session 1 and plan a top-up, and it would offer
+  an open review as "resume" (RV-3, review finding).
+- **`class_period_items` can't hold a review as it stands** (review finding).
+  `activity_id` is `not null`, is part of the primary key, and references
+  `class_activities` (0082:20-26). Every 0088 planner function assumes an
+  activity (RV-14).
+- **A second item on a one-template skill repeats the same numbers.** The row
+  hash uses the session and item id only (0081:354), so the hash needs the
+  item's position salted in.
+- **The panel reads every attempt as a first try** (0068:272, 0071,
+  `mixed_recent`), so re-tries must be filtered out of it (RV-9).
+- **Live, 2026-11-17: no mixed sessions exist yet,** and so none at ordinal 2.
+  RV-6 changes nothing anyone has used.
 - **The exhausted-session top-up orders by `last_any`,** stalest first
   (0081 t4). C-196 asks to switch it to the elapsed share (RV-6).
 - **Classes store no period length.** The planner and the helper line read the
@@ -84,7 +111,7 @@ confirming on this side** (RV-1).
 ## 3. The shape proposed
 
 1. **Placing it.** The teacher places a **Review** on a day in the planner
-   (`class_period_items.kind = 'review'`). There they can tick the chains a
+   (its own row, RV-14). There they can tick the chains a
    coming unit test covers (focus), and see an estimate: about N items, and
    how many students' pools are thin.
 2. **Running it.** On that day, the student's Today list shows "Review" after
@@ -93,9 +120,10 @@ confirming on this side** (RV-1).
    daily mixed block.
 3. **The plan, per student, at start:**
    - due skills first, then pulled-forward skills by elapsed share, marked
-     `early`;
+     `early` (never a skill already practised today);
    - at most 2 items a skill, 5 items apart, relaxing to never adjacent;
-   - discrimination at most a third, with both skills of each pair in the pool;
+   - discrimination at most a third, with every skill of each pair TAUGHT to
+     the student (`mixed_taught`, as C-148 already rules for `disc_ok`);
    - focus chains up to 60% of items when ticked;
    - the size is the class's period length minus the sprint, at 90 s an item,
      capped at 36.
@@ -136,10 +164,14 @@ work. R1 has a real cost (RV-5).
 It is one nullable column with no personal data.
 
 **RV-3. How a review runs.**
-- It is a new `kind = 'review'` on `class_period_items`.
+- It is a planner row of its own (RV-14), not an activity row.
 - The student starts it from Today.
 - It is a `mixed_sessions` row with a `review` flag, replacing that day's daily
   mixed block, so a student doesn't get both.
+  - **Written into the start functions (review finding):** on a day with a
+    review placed or started, the daily start returns "done today".
+  - Resume matches on the review flag, so neither entry resumes the other's
+    session.
 - **If a day has a review and an activity** (a double), the activity's own
   practice is the review.
 
@@ -157,7 +189,10 @@ It is one nullable column with no personal data.
   will be wrong.
 - (c) Drop R1 from v1.
 
-**Recommend (a).** A re-try is **flagged**:
+**Recommend (a).** The session's score and its finish rule count **only the
+items planned at start**. A session is finished when every planned item is
+answered and no re-try is still waiting. This fixes the finish test and
+0066:391's check (review finding). A re-try is **flagged**:
 - it **doesn't count in the practice score** (planned = the items generated at
   start);
 - it can't move the step, because the day already holds the wrong answer;
@@ -168,9 +203,9 @@ resume rules, and a wire test.
 
 **RV-6. The exhausted-session top-up switches to elapsed share** (their ask).
 
-**Recommend yes, in the same migration.** It changes live behaviour for a
-student's second session on a day: which not-yet-due skill comes first. Today
-no class has a second session in use.
+**Recommend yes, in the same migration.** It changes which not-yet-due skill
+comes first in a student's second session on a day. Read live 2026-11-17: no
+mixed session exists yet, so nothing in use changes.
 
 **RV-7. The floor and a thin pool.** Nothing suggests periods today, so
 "don't suggest" isn't needed. When the teacher places a review, the row shows
@@ -188,8 +223,9 @@ start; re-tries excluded (RV-5).
 **RV-9. The teacher panel counts review attempts** as practice ("Getting stuck
 on", the struggling window).
 
-**Recommend yes.** They are practice. A review shows in a student's recent list
-labelled "Review".
+**Recommend yes, but re-tries are filtered out** (review finding). The panel
+reads each attempt as a first try, so a wrong re-try would count twice. A
+review shows in a student's recent list labelled "Review".
 
 **RV-10. Unit-test focus.**
 - The teacher ticks chains on the review row.
@@ -212,6 +248,17 @@ capability, so it gets no `guiSurfaces` row.
 
 **Recommend confirm.**
 
+**RV-14. Where a review row lives (review finding).** `class_period_items` is
+keyed on an activity.
+- (a) A separate `class_period_reviews(class_id, on_date, position,
+  focus_chains, is_double)`, which the planner reads beside the activity rows.
+- (b) Make `activity_id` nullable, with a new surrogate key.
+
+**Recommend (a).** Every 0088 function and its verify script stay correct as
+they are; the planner merges the two lists by position. Under (b), every one of
+them has to be re-audited for a null activity. 0082's reserved `kind` column
+stays as it is.
+
 **RV-13. When to build.** It is next in the ruled queue once ruled. The first
 real use is before the week 8 Number test, and C-196 warns the floor may block
 early-year reviews.
@@ -226,11 +273,14 @@ mirror migration is applied live before any UI push (OV-7).
 2. **Migration:**
    - mirror the review keys (`mixed_settings_ok` grows);
    - `classes.period_minutes`;
-   - `class_period_items.kind` gains `'review'`, plus a focus-chains column and
-     a double flag;
+   - `class_period_reviews` (RV-14);
    - `mixed_sessions.review`, and a re-try flag on items and attempts;
    - the review plan (with RV-6's top-up order);
-   - verify script; data map note.
+   - the daily start's "done today" on a review day, and resume matched by
+     the flag;
+   - re-tries left out of score, finish and the panel reads;
+   - the row hash salted with the item's position;
+   - verify script; the data map and retention-policy version stamps.
 3. **check-activity:** the review start and the re-try append. Bundle, deploy
    and hash-verify.
 4. **Screens:** the planner's Review row (focus ticks, estimate, thin-pool
