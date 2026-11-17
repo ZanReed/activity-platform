@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-17-draft-57`. Mirrors migrations 0001–**0090**, verified
+> Version `2026-11-18-draft-58`. Mirrors migrations 0001–**0091**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -12,6 +12,8 @@
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
 >
+> **`draft-58` (2026-11-18) — 0091 adds NO new store of personal data: the review period's scheduler half** (docs/design/review-period.md). `class_period_reviews` (a review placed on a class's day: the date, the focus chains, a double flag) names no person; who placed it is a `class.update` row in `audit_log` (ops `review_set`, `review_remove`). `classes.period_minutes` is about the class (op `period_minutes`). Three columns join rows this map already covers: `mixed_sessions.review` (a review session), `mixed_session_items.position` and `.retry_of` (serving order; a re-try of an item answered wrong) and `mixed_attempts.retry` (an answer to a re-try). They are flags and an order on the student's existing mixed-practice rows, kept and pruned with them (`prune_mixed_practice`, still NOT ARMED). The range moves to 0091 on that basis.
+
 > **`draft-57` (2026-11-17) — no schema change: the help-request cleanup is ARMED** (author's yes). `prune_help_requests(false)` runs nightly at 03:45 UTC; its audit row holds counts per class and names no student. The range stays 0090.
 >
 > **`draft-56` (2026-11-16) — 0090 adds STUDENT-DERIVED personal data: help requests.** `help_requests` holds one row per class each time a student presses "Ask my teacher" inside an activity: who asked, which class, activity, version and section, when, when it lapses (the end of the class's day), and when and by whom it ended (the student withdrew it, or a teacher marked it Done, naming that teacher). It holds **no free text** (docs/design/ask-my-teacher.md ST-1). Only the class's teacher sees it, on Class Progress, while it is open. No client can read or write the table; every path is a DEFINER function. Kept **30 days**, by `prune_help_requests` (0090), BUILT but NOT ARMED. Removed with the student's account (CASCADE); the teacher column goes NULL if the teacher's account is purged. `classes.help_requests_on` (the teacher's switch) is about the class, never a person; who changed it is a `class.update` row (op `set_help`). The range moves to 0090.

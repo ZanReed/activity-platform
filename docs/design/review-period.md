@@ -21,6 +21,55 @@ accepts the 15 new keys and mirrors none. After the author pushes it, and
 #98/#99 are re-verified at their rebased heads, B-262 clears them to merge.
 The review build itself follows in the slices in §5.
 
+## As built — slice 2, migration 0091 (2026-11-18)
+
+Built locally, unapplied live, Fable-reviewed (nothing major; its minor
+findings fixed below). `scripts/verify-0091.sql` passes 16/16 on the local
+stack, and its top-up, placement, score, stop-early and recent-list checks were
+each mutation-tested once. verify-0066/0067/0068/0070–0074/0077/0079/0081–0084/0088
+are unchanged and still pass. Two readings were settled while building it:
+
+- **Elapsed share = days since the key was last practised (of any kind) ÷ its
+  current interval.** C-196 says "days since last practice". Measured from the
+  day the schedule last moved, it would pull the same skill forward every day,
+  because a right pulled item leaves the schedule alone (R2). This reading also
+  keeps verify-0081's staleness check (B10) true as written.
+- **Placement needs no gap loop.** Every key's first item goes before any key's
+  second, repeating keys first. A key's items then end up at least as many
+  places apart as there are keys: that meets the 5-item gap whenever the pool
+  has 5 keys, and is the furthest apart any order can manage when it has fewer
+  (never adjacent unless there's a single key). A greedy gap loop was written
+  first; a mutation showed it changed nothing, so it was removed.
+- **One review a day, with no position.** A review is the day's practice block,
+  so `class_period_reviews` is keyed `(class_id, on_date)`.
+- **One entry.** On a review day `start_mixed_session` plans the review itself,
+  so the daily block and the review can't both run. After a finished review,
+  the day is done.
+- **A skip earns no re-try; only a wrong answer does.** A re-try lands half a
+  place after the furthest of: the original + gap, the furthest answered item,
+  and the key's other items + gap. It prefers a template not yet served in
+  the session. A replayed wrong answer hands back the same re-try and adds none.
+- **Stopping a review early doesn't end the day.** A review counts as done only
+  once every planned item is answered; the next start plans the rest (never
+  re-serving a skill practised today). Resuming reports the open session's own
+  kind.
+- **Focus backfills.** C-196 says "up to 60%". When the other keys run out
+  (for example, every chain is ticked), focus keys fill the rest, so the
+  session isn't left at 60% of its size. **To tell the curriculum side** in the
+  next letter, with the elapsed-share reading above.
+- **Re-tries are left out of every panel read:** `mixed_recent`,
+  `mixed_student_recent`, `mixed_who_first`'s same-mistake window, and
+  `finish_mixed_session`'s skip count.
+- **Known, accepted:** a session whose planned items are all answered but whose
+  re-try is left unanswered stays unfinished, like an abandoned daily session.
+  Slice 3's screen shows the waiting re-try. Focus counts a skill by its
+  activity's `primary_skill`; skills a consolidation brings in (D71) count as
+  non-focus.
+
+**Owed before slice 3:** the author applies 0091 live and runs verify-0091
+there. The importer change that mirrors the review keys ships after that
+(OV-7), and so does the check-activity re-try path.
+
 ## 1. What C-196 rules (their side)
 
 A review period is **the mixed scheduler with overrides**.

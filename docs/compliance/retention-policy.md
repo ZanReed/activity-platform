@@ -1,7 +1,7 @@
 # Retention Policy
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-17-draft-26` (draft-26: the help-request cleanup is ARMED; draft-25: help requests, 0090 — see the help requests row; draft-24: a class's planned days, 0088 — see the class plan row; draft-23: a deleted class can be restored, 0086 — see the student-account row). Windows below are the author-ruled S1 defaults
+> Version `2026-11-18-draft-27` (draft-27: review periods, 0091 — no new window; review sessions, their items and re-tries are mixed-practice rows under the mixed-practice row; draft-26: the help-request cleanup is ARMED; draft-25: help requests, 0090 — see the help requests row; draft-24: a class's planned days, 0088 — see the class plan row; draft-23: a deleted class can be restored, 0086 — see the student-account row). Windows below are the author-ruled S1 defaults
 > (D6, 2026-07-28); districts may require different numbers — the
 > [authorization template](school-authorization-template.md) has a field to
 > override them per school.
