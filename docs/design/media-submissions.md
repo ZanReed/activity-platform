@@ -1,7 +1,32 @@
 # Media submissions (Phase 2.8): design pass
 
-**Status:** DESIGN PASS, 2026-11-18, Fable-reviewed the same day (five factual corrections and eleven gaps folded in). **Nothing is built.** No code until the
-author rules on the decision list at the end (MS-1 to MS-23).
+**Status:** **RULED 2026-11-18** (author, all of MS-1 to MS-25). The design was
+Fable-reviewed the same day, and five factual corrections and eleven gaps were
+folded in. **Nothing is built.** Slice 1 is next (§10).
+
+**The rulings in brief.** The author's guiding instruction was "where there is
+short-term pain for long-term gain, take it". Where the author ruled differently
+from the first draft, the doc below has been rewritten to match:
+
+- **Student photos come first.** Bulk paper scanning is the next arc, and it
+  shares slice 1's storage. That arc covers a printed per-page QR, named
+  copies, a shaded-code fallback for spares, a filing review, cropped grading
+  by question, and the teacher camera, and it is the update of photo-grading.md.
+- **MS-3 revised:** the native file input **plus a phone QR handoff** (§4.1),
+  off in quiz and exam modes. The teacher camera moves to the paper-scanning
+  arc.
+- **MS-6 flipped:** offline photo capture **is in v1** (§8).
+- **MS-10 revised:** a graded photo is kept **at most 30 days after its grade
+  is released**. A photo never released falls back to the school year plus 30
+  days, with a 400-day ceiling (§6.5).
+- **MS-13 ruled:** **move to the Supabase Pro plan before the February
+  classes.** The cost meter stays, as a read.
+- **MS-24 (new):** the handoff's **no-sign-in Edge Function is allowed**,
+  scoped as in §4.1. It is the second exception to the `get-activity`-only
+  rule. CLAUDE.md and config.toml record it in the slice that builds it, not
+  before.
+- **MS-25 (new):** student photos first, then paper scanning.
+- **Every other recommendation was accepted as written.**
 
 **Why now:** the author started Phase 2.8 on 2026-11-18. Nothing else in the
 ruled queue can be built: the review period waits on the curriculum side's PRs,
@@ -126,8 +151,8 @@ localStorage (about 5M UTF-16 code units, which the document cache already
 draws on). Queued checks survive a closed lid because their intent lives in the
 buffer (`store/queue.ts`). A 500 KB JPEG does not belong there. Offline photo
 capture would need IndexedDB, a new store that the sign-out purge
-(`signOutEverything`) and the boot sweep would both have to learn. §8 keeps v1
-online-only for that reason.
+(`signOutEverything`) and the boot sweep would both have to learn. The author
+ruled it into v1 anyway (MS-6), and §8 designs it.
 
 **R-7. Retention keys on accounts and activities, not classes, with one
 precedent for a class clock.** `section_checks` lives 400 days through the
@@ -286,12 +311,57 @@ class is the school device's own. The design has to work on three fleets:
 | Phone (homework, BYOD) | Opens the rear camera directly. | Same. |
 | Chromebook | **Opens the file picker** (ChromeOS ignores `capture`). The student uses the Camera app and then picks the file, or picks a scan. Clumsy, but it works. | Front-facing webcam: hold the paper up to the screen. Mirrored, about 720p, and awkward. |
 
-**Recommendation (MS-3): the native file input only, for v1.** It costs no
-JavaScript, works on every fleet, gives tablets and phones a one-tap camera,
-and leaves the platform's offline and lock machinery untouched. An in-page
-webcam capture for Chromebooks becomes its own slice. **Trigger: a real
-Chromebook class tries v1 and the Camera-app round trip is the complaint.**
-It would cost only lazy-chunk bytes, never shell bytes.
+**Ruled (MS-3): the native file input, plus a phone QR handoff (§4.1).** The
+file input costs no JavaScript, works on every fleet, and gives tablets and
+phones a one-tap camera. The handoff gives Chromebook students a phone camera
+without signing in on the phone, which covers homework at home and class time
+when the teacher allows phones. An in-page webcam capture stays deferred.
+**Trigger: a real Chromebook class finds both paths unworkable.**
+
+### 4.1 The phone QR handoff
+
+```
+Chromebook (signed in)                      Phone (no sign-in)
+"Use my phone" ── start_photo_handoff ──►   QR: {origin}/h#<code>
+   shows QR, 10:00 countdown                opens the /h page, takes the photo,
+   polls handoff_status every 3 s   ◄────   POST photo-handoff (code + JPEG)
+   "Photo 1 arrived" → thumbnail            "Sent. You can close this page."
+```
+
+- **`start_photo_handoff(activity, version, block)`** is a signed-in student
+  RPC. It applies the same gates as `reserve_work_photo` (§6.2): clearance,
+  class membership, the cap and the block type. It also refuses in **quiz and
+  exam modes**, where a phone out is a phone for looking things up. It returns
+  a 32-byte random code and stores **only its sha256**, along with the student,
+  the block, `expires_at` (10 minutes) and the slots left
+  (`maxPhotos` minus the photos already attached). Closing the QR panel
+  revokes the code.
+- **The code travels in the URL fragment** (`/h#…`), so it never reaches a
+  server log as a path or query string.
+- **`/h` is a tiny standalone lazy route.** It loads no viewer and no session.
+  It shows the question's label only and never the student's name. The person
+  holding the phone may be a parent or a classmate.
+- **`photo-handoff`** is an Edge Function with **`verify_jwt: false`**, the
+  second such function. It hashes the code, finds a live handoff, re-checks
+  clearance and the flow mode, reserves the photo for that student with the
+  service role, writes the object, and decrements the slots left. It holds no
+  session and returns nothing about the student. It is rate-limited per code
+  (no more uploads than the slots left) and has a global ceiling. Its source
+  marks the `work_photos` row `source = 'handoff'`.
+- **The Chromebook polls** `handoff_status` while the panel is open. Realtime
+  stays stubbed, and polling is the help-request precedent. Each arrival joins
+  the block's photo list exactly as a local upload does.
+- **Threat model.** If a classmate photographs the code, they can upload into
+  that one question for at most 10 minutes. The student sees every arrival and
+  can remove it. The code can read nothing.
+- **Personal data:** a `photo_handoffs` row (student, block, code hash, times,
+  slots) is deleted one day after it expires. It goes in the data map and
+  retention policy, and Q14 gains (f): an upload path that needs no sign-in,
+  bound by a short-lived code.
+- **Duties when built:** config.toml carries the flag, `pnpm
+  deploy:photo-handoff` (with `--no-verify-jwt`) is added, CLAUDE.md's
+  "`get-activity` is the ONLY function…" rule is amended in the same commit,
+  and the deploy is verified by hash.
 
 **Formats.** iOS converts HEIC to JPEG for an `image/*` file input. Chrome on
 ChromeOS cannot decode HEIC in a canvas, so a HEIC file picked from Drive fails
@@ -463,28 +533,42 @@ recommend it.
 The `section_checks` window (400 days of dormancy, or 30 days after activity
 deletion) is far longer than a photo needs. A photo is evidence for a grade,
 the grade outlives it as a row, and a photo can show more than the work (a
-hand, a desk, a sibling's name on the next page). I recommend the number-facts
-precedent (MS-10):
+hand, a desk, a sibling's name on the next page). **Ruled (MS-10, author
+2026-11-18): a graded photo is kept at most 30 days after its grade is
+released.**
 
-- **Attached photos: the school year they were taken in, plus 30 days.**
-  `keep_until` is set when the photo is attached (inside `record_check`, §3.2),
-  using 0048's exact formula: `least(ends_on + 30, current_date + 400)`. Here
-  `ends_on` is the latest `school_year_ends_on` among **the student's own
+- **On attach** (inside `record_check`, §3.2), `keep_until` gets the fallback
+  ceiling, 0048's exact formula: `least(ends_on + 30, current_date + 400)`.
+  Here `ends_on` is the latest `school_year_ends_on` among **the student's own
   classes that the activity is assigned to**, and if none is set the value is
-  `current_date + 400`. So 400 days is always the ceiling, not only the
-  fallback. **Whichever comes first applies**: the account and activity paths
-  still remove the row by CASCADE before `keep_until` if they fire first. A
-  later re-check that attaches the same photo again does not extend its clock.
+  `current_date + 400`. This is the clock for a photo that is never graded or
+  never released.
+- **On release** (`release_check_grades`, re-created in slice 3), every photo
+  the released check references gets `keep_until = least(keep_until,
+  released_at + 30 days)`. A later re-grade or re-release never extends it. A
+  re-check after release carries new photo ids, and those get their own clocks.
+- **Whichever comes first applies**: the account and activity paths still
+  remove the row by CASCADE before `keep_until` if they fire first. A later
+  re-check that attaches the same photo again does not extend its clock.
+- **What it means in practice:** the student has a month after the grade comes
+  back to look at their photo beside the feedback, and the teacher has the same
+  month for questions. After that, only the grade and the written feedback
+  remain. This also cuts storage by roughly an order of magnitude against the
+  first draft's school-year window (§6.8).
 - **A student leaving the class, or the class being deleted, does not shorten
   the clock** (recommended, MS-20). The account path's dormancy already covers
   the student who leaves for good, and a photo the teacher is mid-way through
   grading should not vanish because of a roster move.
-- **Unattached uploads: 7 days.** That covers a weekend plus a slow check.
-  Unsent work is not lost (DECISIONS.md, "The orphan GC must never eat unsent
-  work"), because in v1 an unsent photo is never on the device anyway (§8).
+- **Unattached uploads: 7 days** on the server. That covers a weekend plus a
+  slow check. A photo still waiting on the device (offline, §8) is not on the
+  server yet, so this clock cannot eat unsent work (DECISIONS.md, "The orphan
+  GC must never eat unsent work"). A photo that uploaded but whose queued check
+  sat for more than 7 days is recorded as `removed` (§3.2), and the device copy
+  is kept until the check succeeds, so the student can re-attach it.
 - **After removal** the grade stays, and the Responses queue and the student's
-  released feedback show "Photo removed at the end of the school year" in the
-  place of the image. A grade is never silently left with nothing beside it.
+  released feedback show "Photo removed 30 days after the grade was released"
+  (or "…at the end of the school year" for the fallback) in the place of the
+  image. A grade is never silently left with nothing beside it.
 
 ### 6.6 A clearance switch for students
 
@@ -507,8 +591,10 @@ Drafted in slice 1, sent by the author. It asks:
 
 - (a) Photos of students' handwritten work are a new class of personal data.
   They may incidentally show a face, hands, a home or another student's name.
-  Does the current posture (private bucket, owning teacher only, EXIF stripped,
-  school-year-plus-30 retention, no third party) suffice?
+  Does the current posture suffice? That posture is: a private bucket, the
+  owning teacher only, EXIF stripped, kept 30 days after the grade is released
+  (a school-year-plus-30 ceiling otherwise), no third party, and a copy held on
+  the student's device only until it uploads or they sign out.
 - (b) Does (a) change **for classes marked `includes_under_13`**? If counsel
   says yes, that is a new ruling that breaks U-3's "nothing behaves
   differently", and the author makes it. The design does not pre-build a branch.
@@ -521,6 +607,9 @@ Drafted in slice 1, sent by the author. It asks:
   scanning students' images is itself a privacy cost, and uploads are limited
   to class members under a cap. Does counsel agree, or does a school's duty of
   care require a "report this image" path for the teacher? (MS-22)
+- (f) **An upload path that needs no sign-in** (the phone handoff, §4.1). It is
+  bound by a 10-minute code tied to one student and one question, and that
+  code can read nothing. Is that acceptable, including for under-13 classes?
 
 The student-facing copy at the capture point is part of the privacy posture,
 not decoration: **"Photograph only your working. Keep faces and names out of
@@ -531,19 +620,20 @@ the picture."**
 Supabase's free plan includes a small storage allowance, about 1 GB at the time
 of writing (the author should read the current figure off the dashboard, since
 plan terms change). A rough class-year: 30 students × 3 photos a week × 40
-weeks × about 350 KB is roughly **1.3 GB per class**. **A teacher with four or
-five classes passes the free allowance within one school year**, even with the
-school-year retention, and earlier if retention is longer. That makes it the
-first point where the free tier stops being enough. It arrives with photos, not
-with video.
+weeks × about 350 KB is roughly **1.3 GB per class** if it is all kept. Under
+the ruled 30-days-after-release window, what is held at any moment is closer
+to six weeks of photos: about 0.2 GB per class, or about 1 GB for four or five
+classes. That is still at the edge of the free allowance.
 
-v1 recommendation (MS-13): **no quota and no submission blocking** (ROADMAP's
-rule, which I keep: a quota governs retention, never submission). Add **a cost
-meter**: one SQL read summing `work_photos.bytes` by teacher and in total, run
-by the weekly job-health task and shown on the teacher's settings page. And
-**decide the plan tier before February**: the Pro plan's storage allowance
-removes the cliff for this scale. The tier decision is the author's, not this
-design's.
+**Ruled (MS-13): move to the Supabase Pro plan before the February classes.**
+That removes the cliff. It also buys daily backups of student work, the image
+caching DECISIONS.md records as lost on the free tier, and server-side image
+resizing. The rest of the recommendation stands: **no quota and no submission
+blocking** (ROADMAP's rule: a quota governs retention, never submission), and
+**a cost meter**. That is one SQL read summing `work_photos.bytes` by teacher
+and in total, run by the weekly job-health task and shown on the teacher's
+settings page. The plan change is an author action (dashboard) and goes on the
+slice 5 checklist before `photo_clearance` flips.
 
 ---
 
@@ -601,32 +691,50 @@ prints `answer`, then `solution`, then "manually graded, see rubric" (the
 existing fallback chain in `answer-key/extract.ts`). A print-parity row goes
 into `registry/printExpectations.ts`.
 
-**Offline (MS-6).** v1 is **online-only for the photo**:
+**Offline (MS-6, ruled 2026-11-18: in v1).** A photo taken with no connection
+is kept on the device and uploads by itself when the connection returns, so
+the platform's existing promise ("will check when you're back online") holds
+for photos too.
 
-- The upload starts as soon as the student picks or takes the photo. The block
-  shows the states plainly: uploading (a progress bar, from upload progress
-  events), attached (a thumbnail with Remove), and failed (Retry, with the
-  reason).
-- **When offline**, the block says "You're offline. Your photo will need to be
-  added when you're back online." The photo is not kept on the device.
-- **Check with a photo that is missing or still uploading** gets a confirm,
-  modelled on the lock confirm that already counts blank answers: "Your photo
-  for question 3 hasn't been added. Check anyway?" If the student checks
-  anyway, the check records no photo for that block, and the teacher sees an
-  empty response, which they can still grade (0034 D13).
-- **A queued offline check** fires later with whatever photo refs it had at
-  fire time (ruling 2.2A: checks grade current values).
+- **The device store.** An IndexedDB database under the viewer's existing
+  `activity-viewer:` naming, keyed by (student uid, activity, version, block,
+  local id). It holds the **re-encoded** JPEG, never the original, so EXIF is
+  already gone before anything is stored. localStorage stays as it is. The
+  buffer records only the local ids, so the queue's "one answer to 'is this
+  pending?'" rule (S6-8) still holds.
+- **Upload order.** When the connection returns, `queue.ts`'s runner first
+  refreshes the session, then **uploads the section's waiting photos**
+  (reserve, upload, swap the local id for the server id in the buffer), and
+  only then fires that section's queued check. A photo that fails to upload
+  holds its own section's check, with a visible "Photo waiting to upload"
+  state. Other sections still fire.
+- **The states the block shows:** waiting (offline, "Saved on this device. It
+  will upload when you're back online."), uploading (a progress bar),
+  attached (a thumbnail with Remove), and failed (Retry, with the reason).
+- **Check with a photo that is missing** (none taken) gets a confirm, modelled
+  on the lock confirm that already counts blank answers: "Your photo for
+  question 3 hasn't been added. Check anyway?" A photo that is waiting is not
+  missing: the check simply waits for it.
+- **Clearing the store**, the part that makes this safe on shared Chromebooks:
+  - **Sign-out** (`signOutEverything`) deletes the whole database, including
+    photos still waiting, after a confirm that names them ("1 photo hasn't
+    uploaded yet. Signing out will delete it."). The idle bar's sign-out
+    warning already names what it clears, and it learns photos.
+  - **The boot sweep** deletes entries belonging to any other uid, and entries
+    the server has confirmed attached.
+  - **The orphan GC** follows DECISIONS.md's rule: it never deletes a photo
+    that a pending check or the buffer still references.
+- **Quota.** At most 3 photos per block, at about 350 KB each, is small against
+  IndexedDB's allowance. A failed write (quota, or private mode) falls back to
+  online-only for that photo, with the plain offline message.
+- **The privacy question** (a photo sitting on a shared device until it
+  uploads or the student signs out) goes to counsel inside Q14(a).
 
-Holding photos offline in IndexedDB is a follow-up slice, with its own sign-out
-and boot-sweep work (R-6) and its own privacy question: a student's photo
-sitting on a shared Chromebook. **Trigger: a class's real use shows students
-losing photos to flaky Wi-Fi.**
-
-**Shared devices.** Even online-only, the selected file stays in the browser's
-memory until the page unloads. Sign-out already unloads the page. Thumbnails
-use signed URLs that expire in 10 minutes and live in the HTTP cache. The
-service worker never caches the API (DECISIONS.md), so it never holds these
-URLs either. The build checks the URLs are absent from the runtime cache.
+**Shared devices, beyond the store.** Thumbnails use signed URLs that expire in
+10 minutes and live in the HTTP cache. The service worker never caches the API
+(DECISIONS.md), so it never holds these URLs either. The build checks the URLs
+are absent from the runtime cache. The data map's browser-storage row gains
+the photo store.
 
 **Flow modes.** The recommendation (MS-23) is that a `photo_response` follows
 the same lock, quiz, exam and DoL rules as `short_answer`. That means it can be
@@ -673,17 +781,19 @@ applied before any push of UI that calls them (OV-7).
 |---|---|---|
 | **1** | **Storage and record.** Migration 0093: the `student-work` bucket and its policies, `work_photos`, `work_photo_deletions` with its trigger, `reserve_work_photo`, `photo_clearance` (off), and `verify-0093` plus `verify-student-work.sql`. The `sweep-work-photos` Edge Function (dry-run, unscheduled) and its config.toml entry and `deploy:` script. **The compliance pack goes in the same commit:** data-map rows (bucket, both tables, and the corrected Systems row, R-10), a retention-policy row, and the Q14 draft. A live deletion proof (P3), run on test objects along every path, confirming each object is gone from Storage: a direct row delete, the account purge cascade, the activity purge cascade (versions before activities), an unattached upload past 7 days, and an object with no row. | Apply 0093; deploy the sweep; create the Vault secret; send Q14 |
 | **2** | **The student block.** Schema, the sanitize registry, a lazy viewer binding, the capture and upload chunk (re-encode, EXIF guard, raw fetch, progress, retry), wire v4 `photos`, and `check-activity` validating the refs. Both server bundles are rebuilt and committed. A `SHELL_SPEND` row is added if the shell moves outside the band. | Redeploy `check-activity` and `get-activity`, verified by hash |
-| **3** | **Teacher grading.** Migration 0094: `is_manually_graded_type` and the re-created functions, the queue's photo column, and the claim exclusion pinned. The queue thumbnails, the full-size view with rotate, released feedback with the photo, and the "removed" placeholder. | Apply 0094 |
+| **2b** | **Offline photos** (MS-6): the IndexedDB store, queue ordering (photos before their section's check), the sign-out confirm and purge, the boot sweep, the GC exception, and the data-map browser-storage row. sw-lane rows prove a photo taken offline uploads and checks after reconnect, and that sign-out leaves nothing behind. | none (app-only) |
+| **2c** | **Phone QR handoff** (MS-3, MS-24): migration for `photo_handoffs`, `start_photo_handoff` and `handoff_status`; the `photo-handoff` function (`verify_jwt: false`); the lazy `/h` route and the QR panel; the CLAUDE.md, config.toml and compliance rows; Q14(f). | Apply the migration first, then deploy `photo-handoff` with `--no-verify-jwt`, verified by hash |
+| **3** | **Teacher grading.** Migration 0094: `is_manually_graded_type` and the re-created functions, `release_check_grades` setting the 30-day `keep_until`, the queue's photo column, and the claim exclusion pinned. The queue thumbnails, the full-size view with rotate, released feedback with the photo, and the "removed" placeholder. | Apply 0094 |
 | **4** | **Editor GUI and print.** The slash entry, NodeView, shared rubric editor, numbering chain, print box, answer key, print-parity row and roster row. | none (app-only) |
-| **5** | **Turning it on.** Arm the sweep (author's yes, with a `verify` row pinning the schedule), run the cost-meter read, then the author flips `photo_clearance` once Q14 is answered. | Arm; flip |
+| **5** | **Turning it on.** Move to the Pro plan (MS-13), arm the sweep (author's yes, with a `verify` row pinning the schedule), run the cost-meter read, then the author flips `photo_clearance` once Q14 is answered. | Plan; arm; flip |
 | **6** | **Importer and catalogue** (MS-14): the fence, the prompt regeneration, capability facts, and the pin-bump PR. | Push before the pin bump |
 
 **Deferred, each with its trigger** (filed in TODOS when the author rules):
 
-- **In-page webcam capture.** Trigger: a Chromebook class finds the file-picker
-  round trip unworkable.
-- **Offline photo capture (IndexedDB).** Trigger: real use shows photos lost to
-  flaky Wi-Fi.
+- **In-page webcam capture.** Trigger: a Chromebook class finds both the file
+  picker and the phone handoff unworkable.
+- **Bulk paper scanning** (MS-25): this is the **next arc**, not a wish. It
+  gets its own design pass after slice 5.
 - **`audio_response`.** Trigger: an authored activity needs a spoken
   explanation (a maths UDL case, or a language teacher arrives). It needs its
   own MediaRecorder and Safari pass and length limits.
@@ -694,14 +804,16 @@ applied before any push of UI that calls them (OV-7).
   content-type and scanning question.
 - **Vision pre-grading.** Trigger: the GPU box, plus the drawn-work wish's own
   validation.
-- **photo-grading.md (teacher scans).** Its existing trigger stands: the author
-  asks. It would reuse §6.
+- **photo-grading.md (teacher scans)** is absorbed into the paper-scanning arc
+  above, and it reuses §6.
 
 ---
 
-## 11. Decisions for the author
+## 11. Decisions — RULED 2026-11-18
 
-Each has a recommendation. A "yes" accepts it.
+The author accepted every recommendation below **except where a ruling note
+says otherwise**: MS-3, MS-6, MS-10 and MS-13 were changed, and MS-24 and MS-25
+were added. The status block at the top is the summary.
 
 1. **MS-1: The first slice is a photo of handwritten working only.** Audio,
    video and files are deferred with the triggers in §10. *Recommend: yes.*
@@ -712,6 +824,8 @@ Each has a recommendation. A "yes" accepts it.
    trigger (§4). *Recommend: yes. **And please say what devices your Feb 2027
    classes will have** (Chromebooks, iPads, BYOD laptops, phones at home),
    because that decides whether the webcam slice should come early.*
+   **→ RULED differently: the native input plus the phone QR handoff (§4.1).
+   The teacher camera moves to the paper-scanning arc.**
 4. **MS-4: Up to 3 photos per block, set by the teacher, default 1.**
    *Recommend: yes* (multi-page working is common, and three keeps cost and
    teacher reading time bounded).
@@ -721,7 +835,8 @@ Each has a recommendation. A "yes" accepts it.
    measures real photos.*
 6. **MS-6: Photos are online-only in v1.** There is no on-device photo store,
    and a missing or uploading photo gets a check-anyway confirm (§8).
-   *Recommend: yes.*
+   *Recommend: yes.* **→ RULED differently: offline capture is in v1
+   (IndexedDB, §8, slice 2b).**
 7. **MS-7: A private `student-work` bucket.** Reads are for the student and the
    activity's editor (`can_edit_activity`, never `can_read_activity`); there is
    no UPDATE and no client DELETE (§6.1). *Recommend: yes.*
@@ -736,7 +851,10 @@ Each has a recommendation. A "yes" accepts it.
     unattached uploads for 7 days. A removed photo leaves a "removed"
     placeholder, and the grade stays (§6.5). **The 400-day limit is a ceiling
     in every case** (0048's `least(…)`), not only the fallback. *Recommend:
-    yes. This is the window Q14 asks counsel to confirm.*
+    yes. This is the window Q14 asks counsel to confirm.* **→ RULED
+    differently: at most 30 days after the grade is released. The school year
+    plus 30 days (400-day ceiling) applies only to a photo never released
+    (§6.5).**
 11. **MS-11: Bytes are deleted by a scheduled `sweep-work-photos` Edge Function
     draining a deletion queue.** It ships dry-run and unscheduled, and is
     **armed before the first student photo** (§6.4). *Recommend: yes.* (The
@@ -748,6 +866,7 @@ Each has a recommendation. A "yes" accepts it.
     decision before February** (§6.8). *Recommend: yes. The tier decision
     itself is yours, and you may want to make it now, because one teacher with
     four or five classes outgrows the free storage within a school year.*
+    **→ RULED: move to Pro before February. The meter stays (§6.8).**
 14. **MS-14: The importer fence, catalogue prompt and capability-facts pin
     bump come after the GUI slice (slice 6), not with it** (§9).
     *Recommend: yes. Tell the curriculum side the shape once MS-2 is ruled, so
@@ -778,3 +897,11 @@ Each has a recommendation. A "yes" accepts it.
 23. **MS-23: A `photo_response` may be a DoL's primary evidence and may appear
     in quizzes and exams**, with the same rules as `short_answer` (§8).
     *Recommend: yes.*
+24. **MS-24 (added in the walk): the phone handoff's `photo-handoff` Edge
+    Function runs with no sign-in (`verify_jwt: false`)**, scoped to a
+    10-minute, upload-only code tied to one student and one question, and off
+    in quiz and exam modes (§4.1). **RULED: allowed.**
+25. **MS-25 (added in the walk): student photos first, then bulk paper
+    scanning** as its own arc. That arc covers the per-page QR, named copies,
+    a shaded-code fallback, a filing review, cropped by-question grading and
+    the teacher camera, and it reuses slice 1. **RULED.**
