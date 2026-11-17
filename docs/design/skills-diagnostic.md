@@ -3,7 +3,7 @@
 **Status:** DRAFT 2026-11-15, Fable-reviewed the same day. All three major
 findings are folded into SD-5, SD-6, SD-7 and SD-11, marked "review
 correction" or "review finding". Decisions SD-1 to SD-12 are OPEN for the
-author.
+author. **C-194 answered 2026-11-17: §0 supersedes §3–§4 where they differ.**
 Nothing is built. Its place in the queue is TODOS → "BUILD ORDER", item 6, the
 author's 2026-11-05 ruling: form grading, then this, then the re-teach
 suggestion. Each gets its own pass, with rulings before code.
@@ -13,6 +13,112 @@ own tracker (`proposals/overhaul-decision-items.md` on their main at `5ab5372`)
 lists the item as "not sent, for Zan's go". So this pass works from what is
 already ruled on their side and puts its asks in one letter (§7). Form grading
 was done the same way.
+
+## 0. After C-194 (2026-11-17) — read this first
+
+B-254 was sent 2026-11-15 (§7). C-194 answered on 2026-11-17. **Where this
+section and §3–§4 disagree, this section wins.** §3–§4 are kept as the record
+of what was proposed.
+
+### What C-194 changes
+
+1. **A gap is NOT seeded.** C-194 reports this as Zan's ruling of 2026-11-17,
+   and it **still needs the author's confirmation on this side** (R-1).
+   - A gap means the student needs that skill's **Developing-tier lesson**. For
+     Term 1 2027 those are the Y7 chains 702–706, because D55 puts Y9 Number
+     first.
+   - The teacher assigns the lesson. The platform may suggest it, never assign
+     it (D49).
+   - When the student checks the lesson, the skill enters their pool by the
+     normal C-145 route.
+   - Their reason: D47, "spacing needs initial learning first". A never-learned
+     skill seeded into practice just loops.
+   - A gap with no drafted lesson behind it shows on the grid and isn't seeded.
+     Today none of 702–708's activities is drafted.
+   - This amends §17. They land the wording change and its decision-log entry
+     on their side.
+2. **A secure skill IS seeded,** next due in 7 days. That is SD-6 (b), now
+   required, not optional. It includes the `mixed_steps` first-case rewrite the
+   review found (SD-6 note). Their reason: it is the only way a student who
+   skips the Developing lessons ever gets spaced practice on those skills.
+3. **`diagnostic_skills`: yes.** One list per chain, in the graph and mirrored
+   in a registry.
+   - It holds the unit's Developing-tier skills plus the chain's direct
+     prerequisites outside itself, `ext.*` included. It goes one level deep.
+   - Left out: skills taught earlier in the same school year, and `ext` ids the
+     facts check already reads (`ext.arith.times-tables`).
+   - Order: never before a skill's own prerequisites. Then, among skills that
+     don't depend on each other, the one the coming chain uses first goes
+     first.
+   - **Term 1 2027 reads 19 skills.**
+     - *Number:* the twelve 702–706 skills plus `ext.arith.whole-ops`.
+     - *Algebra (next term):* `like-terms`, `notation.write`,
+       `equations.two-step` and `formulae.rearrange`, plus `ext.arith.signed`
+       and `ext.arith.fractions`.
+4. **Items: 1 per skill,** as blanks rather than mc so a guess can't pass, with
+   2–3 blanks where that's natural.
+   - Gap = not every blank right.
+   - Tiers D and C. Untagged templates are served (D66 item 3).
+   - Both the item count and the tiers are graph keys.
+   - At 1 item, 19 skills is about 19–29 minutes, which needs its own sitting
+     (D43 item 24).
+5. **Priority:** a skill taught that day wins over a seeded secure skill. Its
+   first interval is 1 day.
+6. **Banks by mid-January: NO, and plan no date** (D55 amendment item 4: no
+   bank work before the HoD meeting). The trigger stays "their first
+   prerequisite bank PR". **Knock-on:** the seeded half of the review-period
+   pool (C-180) will be thin for the week 8 Number test.
+7. **Their two asks back to us:**
+   - (a) Skip a listed skill already in the student's pool. **RULED YES by
+     the author here, 2026-11-17.**
+   - (b) Can a bank hang on an `ext.*` id? (Answer under SD-2′ below.)
+8. **Their scope ask: design the re-teach suggestion in THIS pass.**
+   - For a gap: suggest the Developing lesson per student. When many students
+     have the gap, also suggest it for the whole class, at a teacher-adjustable
+     threshold key.
+   - For a seeded secure skill wrong on its first two practice tries: probably
+     a false secure. Pause it and suggest the same lesson. The two is a key.
+   - D73 catch-up videos sit beside the lesson.
+   - This **reverses the author's 2026-11-05 ruling** that each arc gets its
+     own pass, so it is R-2, and his call.
+
+### Checked here after C-194
+
+- **Assigning to one student or a group does not exist.** `class_activities`
+  is per class (0030:52-58), with the primary key `(class_id, activity_id)`.
+  The 0001 `assignments` table has never been written, and 0087 deliberately
+  didn't revive it (0087:7-8). "The teacher assigns the Developing lesson to
+  one student or a group" therefore needs a new way for a class to hold an
+  activity for some students only (R-3).
+- **An `ext.*` bank works on our side, with one importer change.**
+  - `practice_item.skill_id` is plain text (0058).
+  - The seed row carries its bank owner, so nothing has to join through an
+    activity (SD-5's owner rule).
+  - The importer only WARNS on a bank `skill:` that isn't in the skill
+    registry (`batch-import.mjs`, the `is not in` warning). Under `--strict`
+    that warning fails the import, so it should accept the external-prereq
+    registry's ids for banks.
+  - The teacher's label comes from the external-prereq registry, which is
+    already mirrored.
+  - Which chain folder holds an ext bank is their call (the Y7 entry bank,
+    D43 item 8).
+
+### The open decisions now
+
+| # | Decision | Recommendation |
+|---|---|---|
+| **R-1** | Confirm C-194's reported ruling: a gap → suggest the Developing lesson, not seeded; a secure skill → seeded, next due in 7 days; a gap with no lesson shows on the grid only | **Confirm.** It is the facts check's wrong-vs-slow split applied to skills, and it stops never-learned skills looping in practice |
+| **R-2** | Design the re-teach suggestion in this pass (their ask), reversing "each in its own pass" | **Yes, but only the two suggestions and where they show.** Most of re-teach now IS this check's output, and per-student assigning (R-3) is shared by both. Correctives written per misconception (D49) stay in their own pass |
+| **R-3** | How a teacher gives a Developing lesson to some students only | **(a) A per-student list on the class's activity row:** `class_activity_students(class_id, activity_id, student_id)`. No rows = the whole class, as today; rows = only those students see it. One way a class holds an activity, so 0087's "no second way" stands. (b) Revive `assignments` (0001): rejected by 0087's own reasoning. (c) No assigning: the student sees "Suggested for you" on their own page, unprompted. That breaks D49, so no |
+| **SD-1′** | When to build | **Unchanged: build at their first prerequisite bank PR.** The gap half also needs a drafted Developing lesson before it does anything |
+| **SD-2′** | Their skill list; `ext.*` banks | **Accept their list rules.** `ext.*` banks: yes, after the importer change above (in slice 1) |
+| **SD-4′** | 1 item per skill as blanks; gap = any blank wrong; tiers D/C; all as keys | **Accept.** A false secure is seeded and caught by practice (R-2's pause rule); a false gap only reaches the teacher as a suggestion |
+| **SD-5′** | How a secure seed enters, now that gaps don't | It enters as a stepped skill: step 2, anchored on the seed day, due 7 days later, through the `mixed_steps` first-case rewrite. **Stagger the first due dates** across days 7–13 in list order, so 19 seeds don't all fall due on one day and crowd out real due skills. Tier 1 (just taught) already goes first, which matches their priority answer |
+| **SD-5′b** | Seeds and discrimination banks | **Seeds don't count toward discrimination eligibility.** Discrimination stays gated on D71's consolidation check (0081:122-128) |
+| **SD-6′** | Maintenance seeding | **Settled by R-1** (it is the secure half) |
+| **SD-8′** | What the teacher sees | The grid (gap / secure / not reached). Each gap names its Developing lesson, or says "no lesson yet". **"Give this lesson to N students"** opens R-3's picker with them ticked. A whole-class suggestion appears when the gap share passes the key. The untick-before-close control is **dropped**: nothing a gap does is automatic any more |
+| **R-4** | Where the "probably a false secure" suggestion shows | **On the class grid, and in "Who to see first" while a block runs** (the D68 list is live only then). The paused skill stays out of the student's sessions until the lesson is checked |
+| SD-3, SD-7, SD-9, SD-10, SD-11, SD-12 | As in §4 | Unchanged. SD-11 still asks you whether this needs its own counsel question |
 
 ## 1. What is already ruled (curriculum side, quoted from their main)
 
@@ -324,7 +430,7 @@ preview.
 4. Student sitting screens.
 5. Teacher open, grid and untick screens.
 
-## 7. The letter (draft, B-254, not sent)
+## 7. The letter (B-254, SENT 2026-11-15; answered by C-194, §0)
 
 > B-254 · Skills diagnostic with seeding: our design pass, unbuilt.
 >
