@@ -1,13 +1,25 @@
 # Review period — design pass
 
-**Status:** DRAFT 2026-11-17, Fable-reviewed the same day. Its four major
-findings are folded in, marked "review finding". RV-0 to RV-14 are OPEN for
+**Status:** RULED 2026-11-17 (author: "Yes to all"). Drafted and Fable-reviewed the same day. Its four major
+findings are folded in, marked "review finding". RV-0 to RV-14 were open for
 the author. Nothing is built.
 - **Queue position:** TODOS → "BUILD ORDER", item 6: "the review period keeps
   its place, after their keys". Period assembly reserved it as PA-9.
 - **The keys:** the curriculum side's C-196 (answering B-259), in their PR
   [ZanReed/curriculum#98](https://github.com/ZanReed/curriculum/pull/98) at
   `4e69e2f`. It is green and **unmerged until our check** (RV-0).
+
+## RULED by the author 2026-11-17: "Yes to all"
+
+RV-0 to RV-14 are ruled **as recommended**, including:
+- RV-0 as widened by C-197;
+- RV-1, which confirms R1–R4 on this side;
+- RV-14 (a).
+
+**Next:** RV-0's importer change is built ahead of the review build. It
+accepts the 15 new keys and mirrors none. After the author pushes it, and
+#98/#99 are re-verified at their rebased heads, B-262 clears them to merge.
+The review build itself follows in the slices in §5.
 
 ## 1. What C-196 rules (their side)
 

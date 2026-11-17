@@ -54,6 +54,9 @@ import {
     needsMinutes,
     minutesCapWarning,
     CAP_KEY,
+    REVIEW_KEYS,
+    DIAGNOSTIC_KEYS,
+    DIAGNOSTIC_SKILLS_KEY,
     consolidatesChainOf,
     planPracticeRegistry,
     MIXED_KEYS,
@@ -3296,7 +3299,7 @@ test('practice registry: all seven or none, nothing else, and check L\'s bounds 
     };
     const { mixed_wrong_drop: _drop, ...six } = MIXED_BODY;
     refuse(six, /missing mixed_wrong_drop/);
-    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed eleven: mixed_extra/);
+    refuse({ ...MIXED_BODY, mixed_extra: 1 }, /outside the agreed twenty-six: mixed_extra/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [1, 3, 3] }, /strictly increasing/);
     refuse({ ...MIXED_BODY, mixed_step_intervals: [0, 3] }, /each ≥ 1/);
     refuse({ ...MIXED_BODY, mixed_wrong_drop: 5 }, /less than the number of steps/);
@@ -3465,4 +3468,83 @@ test('C-188 minutes above the cap WARN (never refuse); at or below, or with no c
     assert.equal(minutesCapWarning(at(null), 32), null);
     // A per-file warning, NOT a binding warning, so --strict does not fail on it.
     assert.equal(isBindingWarning(minutesCapWarning(at(40), 32)), false);
+});
+
+// C-196 / C-197 (curriculum PRs #98 + #99; review-period.md RV-0): the ten
+// review_* keys and the five diagnostic keys are ACCEPTED and VALIDATED with
+// their check L's bounds, and NOT mirrored until each build (0083 counts the
+// mirrored keys exactly). The bodies below are their PR #99 values verbatim.
+const REVIEW_BODY = {
+    review_items_max: 36,
+    review_max_items_per_skill: 2,
+    review_same_skill_min_gap: 5,
+    review_retry_after_wrong: 1,
+    review_max_discrimination_share: 0.33,
+    review_pull_order: 'elapsed_share',
+    review_pulled_step_up: false,
+    review_pulled_moves_due: false,
+    review_min_fill: 0.67,
+    review_focus_share: 0.6,
+};
+const DIAG_BODY = {
+    diagnostic_items_per_skill: 1,
+    diagnostic_tiers: ['D', 'C'],
+    diagnostic_class_threshold: 0.5,
+    diagnostic_false_secure_tries: 2,
+    diagnostic_skills: {
+        'chain.algebra.manipulation': ['algebra.notation.write', 'algebra.expressions.like-terms', 'ext.arith.signed'],
+        'chain.algebra.solving': [
+            'algebra.equations.two-step',
+            'algebra.notation.write',
+            'algebra.expressions.like-terms',
+            'ext.arith.fractions',
+            'algebra.formulae.rearrange',
+            'ext.arith.signed',
+        ],
+    },
+};
+
+test('C-196/C-197 the review and diagnostic keys are accepted and kept OUT of the mirror', () => {
+    assert.deepEqual(Object.keys(REVIEW_KEYS).sort(), Object.keys(REVIEW_BODY).sort());
+    assert.deepEqual([...DIAGNOSTIC_KEYS, DIAGNOSTIC_SKILLS_KEY].sort(), Object.keys(DIAG_BODY).sort());
+    const body = { ...MIXED_BODY, ...REVIEW_BODY, ...DIAG_BODY };
+    const plan = planPracticeRegistry(practiceRegistry(body));
+    assert.equal(plan.ok, true, plan.errors.join('; '));
+    assert.deepEqual(plan.mirror.settings, MIXED_BODY, 'mirrored settings stay within 0083\'s exact key count');
+    // Each half alone is fine too (all or none applies per family).
+    assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...REVIEW_BODY })).ok, true);
+    assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...DIAG_BODY })).ok, true);
+});
+
+test('C-196/C-197 the review and diagnostic keys: all or none, and check L\'s bounds — each refused by name', () => {
+    const refuse = (extra, re) => {
+        const plan = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...extra }));
+        assert.equal(plan.ok, false, `accepted ${JSON.stringify(extra)}`);
+        assert.match(plan.errors.join('; '), re);
+    };
+    const { review_min_fill: _f, ...nine } = REVIEW_BODY;
+    refuse(nine, /review_\* keys must be all ten or none; missing review_min_fill/);
+    refuse({ ...REVIEW_BODY, review_extra: 1 }, /outside the agreed twenty-six: review_extra/);
+    refuse({ ...REVIEW_BODY, review_items_max: 0 }, /review_items_max is malformed/);
+    refuse({ ...REVIEW_BODY, review_items_max: 2.5 }, /review_items_max is malformed/);
+    refuse({ ...REVIEW_BODY, review_retry_after_wrong: -1 }, /review_retry_after_wrong is malformed/);
+    assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...REVIEW_BODY, review_retry_after_wrong: 0 })).ok, true, 'zero re-tries is allowed');
+    refuse({ ...REVIEW_BODY, review_focus_share: 1.2 }, /review_focus_share is malformed/);
+    refuse({ ...REVIEW_BODY, review_min_fill: true }, /review_min_fill is malformed/);
+    refuse({ ...REVIEW_BODY, review_pulled_step_up: 'no' }, /review_pulled_step_up is malformed/);
+    refuse({ ...REVIEW_BODY, review_pull_order: 'stalest' }, /review_pull_order is malformed/);
+    const { diagnostic_skills: _s, ...four } = DIAG_BODY;
+    refuse(four, /diagnostic keys must be all five or none; missing diagnostic_skills/);
+    refuse({ ...DIAG_BODY, diagnostic_extra: 1 }, /outside the agreed twenty-six: diagnostic_extra/);
+    refuse({ ...DIAG_BODY, diagnostic_items_per_skill: 0 }, /diagnostic_items_per_skill must be/);
+    refuse({ ...DIAG_BODY, diagnostic_tiers: [] }, /diagnostic_tiers must be/);
+    refuse({ ...DIAG_BODY, diagnostic_tiers: ['D', 'D'] }, /diagnostic_tiers must be/);
+    refuse({ ...DIAG_BODY, diagnostic_tiers: ['X'] }, /diagnostic_tiers must be/);
+    refuse({ ...DIAG_BODY, diagnostic_class_threshold: 0 }, /diagnostic_class_threshold must be/);
+    refuse({ ...DIAG_BODY, diagnostic_false_secure_tries: 1.5 }, /diagnostic_false_secure_tries must be/);
+    refuse({ ...DIAG_BODY, diagnostic_skills: [] }, /diagnostic_skills must be an object/);
+    refuse({ ...DIAG_BODY, diagnostic_skills: { 'algebra.solving': ['ext.arith.signed'] } }, /not a chain id/);
+    refuse({ ...DIAG_BODY, diagnostic_skills: { 'chain.a': [] } }, /must be a non-empty list/);
+    refuse({ ...DIAG_BODY, diagnostic_skills: { 'chain.a': ['ext.arith.signed', 'ext.arith.signed'] } }, /lists a skill twice/);
+    refuse({ ...DIAG_BODY, diagnostic_skills: { 'chain.a': ['Not An Id'] } }, /is not a skill or ext id/);
 });

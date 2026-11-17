@@ -220,6 +220,104 @@ export const PERIOD_KEYS = ['mixed_seconds_per_item', 'period_shapes'];
 export const CAP_KEY = 'duration_min';
 const PERIOD_BLOCK_KINDS = ['fluency', 'hook', 'activity', 'mixed'];
 
+/**
+ * C-196 (curriculum PR #98): the ten review-period overrides (review-period.md,
+ * RV-0). All or none. ACCEPTED AND VALIDATED, NEVER MIRRORED until the review
+ * build: 0083's mixed_settings_ok counts the mirrored keys exactly, so a
+ * mirror is a migration. Bounds are their check L's, kind by kind.
+ */
+export const REVIEW_KEYS = {
+    review_items_max: 'int1',
+    review_max_items_per_skill: 'int1',
+    review_same_skill_min_gap: 'int1',
+    review_retry_after_wrong: 'int0',
+    review_max_discrimination_share: 'share',
+    review_pull_order: 'order',
+    review_pulled_step_up: 'bool',
+    review_pulled_moves_due: 'bool',
+    review_min_fill: 'share',
+    review_focus_share: 'share',
+};
+/**
+ * C-197 (curriculum PR #99): the skills check's four keys plus
+ * `diagnostic_skills` (skills-diagnostic.md, §0 → C-197). Same rule as
+ * REVIEW_KEYS: all or none, validated, never mirrored until the diagnostic build.
+ */
+export const DIAGNOSTIC_KEYS = [
+    'diagnostic_items_per_skill',
+    'diagnostic_tiers',
+    'diagnostic_class_threshold',
+    'diagnostic_false_secure_tries',
+];
+export const DIAGNOSTIC_SKILLS_KEY = 'diagnostic_skills';
+const SKILL_OR_EXT_ID_RE = /^[a-z][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$/;
+
+/** What is wrong with the review and diagnostic keys, by name. Exported for its tests. */
+export function laterKeyErrors(body, path) {
+    const errors = [];
+    const int = (v) => typeof v === 'number' && Number.isInteger(v);
+    const share = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
+    const rkeys = Object.keys(REVIEW_KEYS);
+    const rhas = rkeys.filter((k) => k in body);
+    if (rhas.length && rhas.length !== rkeys.length) {
+        errors.push(`${path}: review_* keys must be all ten or none; missing ${rkeys.filter((k) => !(k in body)).join(', ')}`);
+    }
+    for (const k of rhas) {
+        const v = body[k];
+        const ok = {
+            int1: () => int(v) && v >= 1,
+            int0: () => int(v) && v >= 0,
+            share: () => share(v),
+            bool: () => typeof v === 'boolean',
+            order: () => v === 'elapsed_share',
+        }[REVIEW_KEYS[k]]();
+        if (!ok) errors.push(`${path}: ${k} is malformed (${REVIEW_KEYS[k]}): ${JSON.stringify(v)}`);
+    }
+    const dall = [...DIAGNOSTIC_KEYS, DIAGNOSTIC_SKILLS_KEY];
+    const dhas = dall.filter((k) => k in body);
+    if (dhas.length && dhas.length !== dall.length) {
+        errors.push(`${path}: diagnostic keys must be all five or none; missing ${dall.filter((k) => !(k in body)).join(', ')}`);
+    }
+    if ('diagnostic_items_per_skill' in body && !(int(body.diagnostic_items_per_skill) && body.diagnostic_items_per_skill >= 1)) {
+        errors.push(`${path}: diagnostic_items_per_skill must be a whole number ≥ 1`);
+    }
+    if ('diagnostic_tiers' in body) {
+        const t = body.diagnostic_tiers;
+        if (!Array.isArray(t) || t.length === 0 || new Set(t).size !== t.length || !t.every((x) => ['D', 'C', 'P', 'E'].includes(x))) {
+            errors.push(`${path}: diagnostic_tiers must be a non-empty list of distinct tiers from D, C, P, E`);
+        }
+    }
+    if ('diagnostic_class_threshold' in body) {
+        const v = body.diagnostic_class_threshold;
+        if (!(typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 1)) {
+            errors.push(`${path}: diagnostic_class_threshold must be a share above 0 and at most 1`);
+        }
+    }
+    if ('diagnostic_false_secure_tries' in body && !(int(body.diagnostic_false_secure_tries) && body.diagnostic_false_secure_tries >= 1)) {
+        errors.push(`${path}: diagnostic_false_secure_tries must be a whole number ≥ 1`);
+    }
+    if (DIAGNOSTIC_SKILLS_KEY in body) {
+        const ds = body[DIAGNOSTIC_SKILLS_KEY];
+        if (!ds || typeof ds !== 'object' || Array.isArray(ds)) {
+            errors.push(`${path}: diagnostic_skills must be an object keyed by chain id`);
+        } else {
+            for (const [chain, list] of Object.entries(ds)) {
+                const where = `${path}: diagnostic_skills.${chain}`;
+                if (!/^chain\.[a-z0-9][a-z0-9.-]*$/.test(chain)) errors.push(`${where}: not a chain id`);
+                if (!Array.isArray(list) || list.length === 0) {
+                    errors.push(`${where} must be a non-empty list`);
+                    continue;
+                }
+                if (new Set(list).size !== list.length) errors.push(`${where} lists a skill twice`);
+                for (const id of list) {
+                    if (typeof id !== 'string' || !SKILL_OR_EXT_ID_RE.test(id)) errors.push(`${where}: ${JSON.stringify(id)} is not a skill or ext id`);
+                }
+            }
+        }
+    }
+    return errors;
+}
+
 /** What is wrong with the pair, by name. Exported for its tests. */
 export function periodKeyErrors(body, path) {
     const has = PERIOD_KEYS.filter((k) => k in body);
@@ -275,10 +373,18 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
     const keys = Object.keys(body);
     const missing = MIXED_KEYS.filter((k) => !(k in body));
     const extra = keys.filter(
-        (k) => !MIXED_KEYS.includes(k) && k !== DOL_PRACTICE_KEY && !PERIOD_KEYS.includes(k) && k !== CAP_KEY,
+        (k) =>
+            !MIXED_KEYS.includes(k) &&
+            k !== DOL_PRACTICE_KEY &&
+            !PERIOD_KEYS.includes(k) &&
+            k !== CAP_KEY &&
+            !(k in REVIEW_KEYS) &&
+            !DIAGNOSTIC_KEYS.includes(k) &&
+            k !== DIAGNOSTIC_SKILLS_KEY,
     );
     if (missing.length) errors.push(`${path}: body is missing ${missing.join(', ')} (all seven or none)`);
-    if (extra.length) errors.push(`${path}: body has keys outside the agreed eleven: ${extra.join(', ')}`);
+    if (extra.length) errors.push(`${path}: body has keys outside the agreed twenty-six: ${extra.join(', ')}`);
+    errors.push(...laterKeyErrors(body, path));
     const int = (v) => typeof v === 'number' && Number.isInteger(v);
     const iv = body.mixed_step_intervals;
     if ('mixed_step_intervals' in body) {
@@ -3026,9 +3132,13 @@ export function usageText() {
                deleted). --dry-run --hook-registry checks and reports, writes nothing
   --practice-registry
                the curriculum side's practice-registry.json (0066): the seven
-               mixed-practice settings. Its revision is re-derived and must
-               match; a body that is not exactly the seven keys, in range, stops
-               the run before any write. The run MIRRORS the settings,
+               mixed-practice settings, plus the optional keys agreed since
+               (dol_practice_items, the period-shape pair, duration_min, the
+               ten review_* and the five diagnostic keys). Its revision is
+               re-derived and must match; a missing or out-of-range key, or
+               any key outside those, stops the run before any write. The
+               review and diagnostic keys are checked but not yet mirrored.
+               The run MIRRORS the settings,
                insert-only: an identical revision writes nothing. A class's
                mixed practice cannot be switched on until one is mirrored.
                --dry-run --practice-registry checks and reports, writes nothing
