@@ -327,6 +327,16 @@ export interface PracticeCheckResult extends PracticeItemResult {
   seq: number;
   /** true ⇒ this slot was already tried; this is that try, not a new one. */
   replayed: boolean;
+  /** A review session only (0091, RV-5): the re-try this wrong answer earned,
+   * to serve after `afterSeq` (the item it follows in serving order). A
+   * replay of that answer hands back the same re-try. */
+  retry?: PracticeRetry;
+}
+
+/** A re-try appended mid-session (0091): served like any planned question. */
+export interface PracticeRetry {
+  item: PracticeServedItem;
+  afterSeq: number;
 }
 
 /** One planned question as served: sanitized, the student's numbers filled
@@ -336,6 +346,8 @@ export interface PracticeServedItem {
   seq: number;
   document: SanitizedActivityDocument;
   result?: PracticeItemResult;
+  /** A re-try only (0091): the seq of the question it re-asks. Never scored. */
+  retryOf?: number;
 }
 
 export interface PracticeSession {
@@ -346,6 +358,9 @@ export interface PracticeSession {
   scoreRight: number;
   scoreAnswered: number;
   finished: boolean;
+  /** A review-period session (0091). Its items are in serving order, re-tries
+   * included. */
+  review?: boolean;
   items: PracticeServedItem[];
 }
 
@@ -371,6 +386,12 @@ export interface PracticeStartResult {
   planned?: number;
   /** `resume` and `started` only. */
   session?: PracticeSession;
+  /** 0091: today is a review day and this start is (or resumes) the review. */
+  review?: boolean;
+  /** A review only: the session's size from the period (C-196 §1). */
+  capacity?: number;
+  /** A review only: fewer questions than review_min_fill of `capacity`. */
+  thin?: boolean;
 }
 
 // ---- DoL targeted practice (D65 slice 2; dol-targeted-practice.md) -----------

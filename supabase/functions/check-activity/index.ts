@@ -196,7 +196,7 @@ const practice: PracticeDb & DolPracticeDb = {
   async readSnapshots(sessionId, seq) {
     let q = admin
       .from('mixed_session_items')
-      .select('seq, document, row_values')
+      .select('seq, document, row_values, position, retry_of')
       .eq('session_id', sessionId);
     if (seq !== undefined) q = q.eq('seq', seq);
     return await q.order('seq');

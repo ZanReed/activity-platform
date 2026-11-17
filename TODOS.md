@@ -3834,6 +3834,10 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 **Effort:** XL (an arc, several slices) · **Priority:** RANKED 2026-10-02 — design APPROVED (BUILD ORDER item 3); slices 1–2 LIVE 2026-10-05/06; remaining builds in the order fluency + diagnostics → mixed practice (gated on two chains with ratified banks) → period assembly (item 6) · **Depends on:** a design pass (`/office-hours` → `/plan-ceo-review` for scope, then `/plan-eng-review`), and the curriculum side's bank contract.
 
+## Flaky under load: `Bank.test.tsx` "offers the guide only where there is one, and shows its text" (2026-11-18)
+
+A `waitFor` timeout, seen twice in six runs of the app suite, each time with typecheck and lint running beside it (inside `pnpm verify`, or in parallel). Every run of `pnpm -r test` on its own passed. It is unrelated to the change being verified (the review re-try path). STATE's one-off list asks for the name when a flake recurs: this is the name. **Trigger:** it fails in CI, or a third time locally; then raise that test's `waitFor` timeout or find what it waits on.
+
 ## Skills diagnostic, with seeding, and the re-teach suggestion (RULED 2026-11-17, unbuilt)
 
 **What:** a start-of-term skills check per class, made of bank items on each chain's `diagnostic_skills`. A secure skill is seeded into mixed practice (step 2, due in 7–13 days). A gap suggests the skill's Developing-tier lesson, which the teacher can give to some students only (R-3: a per-student list on the class's activity). A seeded skill that is wrong on its first two tries is paused and flagged. Design and rulings: [skills-diagnostic.md](docs/design/skills-diagnostic.md) §0 (R-1..R-4 and SD-*, author "Yes to all").

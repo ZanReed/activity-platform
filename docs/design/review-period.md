@@ -70,6 +70,32 @@ are unchanged and still pass. Two readings were settled while building it:
 there. The importer change that mirrors the review keys ships after that
 (OV-7), and so does the check-activity re-try path.
 
+## As built — slice 3a, the check-activity re-try path (2026-11-18)
+
+Built locally, Fable-reviewed (nothing major; its tie and test findings fixed).
+- **Start** passes `review`, `capacity` and `thin` on a review day, and
+  `session.review`; served items name `retryOf`. The fields are optional, so
+  the wire version stays 3 and today's app ignores them.
+- **Check**: after the try is RECORDED, a wrong answer that earned a re-try
+  returns `retry: { item, afterSeq }`. The item is sanitized and seeded like
+  any slot, and `afterSeq` follows the payload's `(position, seq)` order. A
+  wrong replay, or a lost race, hands back the same re-try. A daily wrong
+  answer pays no extra read; DoL practice never looks.
+- `supabase/functions/check-activity/index.ts` reads `position` and `retry_of`.
+  **`pnpm deploy:check` is owed**, then a hash-verify of the grading bundle.
+
+**What slice 4's runner must handle** (`practice/MixedRunner.tsx` today):
+- it fixes `items` at mount and ignores `result.retry`, so a review shows
+  "finished" after the last planned item while the session is still open;
+- `total={items.length}` counts re-tries on resume;
+- `tallyOf(results, planned)` counts re-try results, so the done screen can
+  disagree with the server's planned-only score;
+- a wrong replay returns the re-try again, so the runner dedupes by seq;
+- nothing yet reads `review`, `capacity` or `thin`.
+
+**Slice 3b** (the importer mirroring the ten review keys) waits on curriculum
+#98 being merged.
+
 ## 1. What C-196 rules (their side)
 
 A review period is **the mixed scheduler with overrides**.

@@ -494,11 +494,15 @@ describe('practice', () => {
       check: { replay: true, student_id: STUDENT, correct: false, skipped: false, verdicts: { [BLANK]: { verdict: 'incorrect' } } },
     });
     // "6" would grade right; the stored try was wrong. The stored one wins.
+    // A wrong replay looks for the re-try it may have earned (0091): one more
+    // read, no grading, no write, and no `retry` when there is none.
     const res = await h.handler(post(checkBody()));
-    expect(h.calls.order).toEqual(['authorize', 'snapshots']);
-    expect(await res.json()).toMatchObject({
+    expect(h.calls.order).toEqual(['authorize', 'snapshots', 'snapshots']);
+    const body = await res.json();
+    expect(body).toMatchObject({
       replayed: true, correct: false, items: { [BLANK]: { verdict: 'incorrect' } },
     });
+    expect(body.retry).toBeUndefined();
   });
 
   it('a concurrent try that won the write is the one returned', async () => {
@@ -577,5 +581,172 @@ describe('dol-practice (D65 slice 2)', () => {
     expect(res.status).toBe(200);
     expect(h.calls.order).toEqual(['dol-authorize', 'dol-snapshots', 'dol-record']);
     expect((await res.json()).correct).toBe(true);
+  });
+});
+
+// ---- review re-tries (0091, review-period.md RV-5) -------------------------------
+
+describe('review re-tries (0091)', () => {
+  const wrong = () => checkBody({ responses: { blanks: { [BLANK]: '7' } } });
+  // Serving order: 1, 2, 3, then the re-try of 1 (seq 4) half a place after 3.
+  const reviewSnapshots = (): PracticeSnapshotRow[] => [
+    { seq: 1, position: 1, retry_of: null, document: seededItem({ mistake: true, solution: true }), row_values: { a: 3, hidden: HIDDEN } },
+    { seq: 2, position: 2, retry_of: null, document: seededItem(), row_values: { a: 4, hidden: HIDDEN } },
+    { seq: 3, position: 3, retry_of: null, document: seededItem(), row_values: { a: 5, hidden: HIDDEN } },
+    { seq: 4, position: '3.5', retry_of: 1, document: seededItem({ mistake: true, solution: true }), row_values: { a: 9, hidden: HIDDEN } },
+  ];
+
+  it('start passes the review flag, size and thin line, and names a served re-try', async () => {
+    const snaps = reviewSnapshots();
+    const h = harness({}, {
+      snapshots: snaps,
+      start: {
+        state: 'resume', done_today: 0, graded: true, items_per_session: 33,
+        review: true, capacity: 33, thin: true,
+        session: {
+          session_id: SESSION, practice_day: '2026-11-18', ordinal: 1, planned: 3, review: true,
+          graded: true, score_right: 0, score_answered: 1, finished: false,
+          items: [1, 2, 3, 4].map((seq) => ({ seq, answered: seq === 1, retry_of: seq === 4 ? 1 : null })),
+        },
+      },
+      attempts: [{ seq: 1, correct: false, skipped: false, verdicts: { [BLANK]: { verdict: 'incorrect' } } }],
+    });
+    const body = await (await h.handler(post(startBody()))).json();
+    expect(body).toMatchObject({ review: true, capacity: 33, thin: true, session: { review: true } });
+    expect(body.session.items.map((i: { seq: number; retryOf?: number }) => [i.seq, i.retryOf ?? null]))
+      .toEqual([[1, null], [2, null], [3, null], [4, 1]]);
+  });
+
+  it('a day with no review keeps the old start shape: no review fields', async () => {
+    const h = harness();
+    const body = await (await h.handler(post(startBody()))).json();
+    expect('review' in body).toBe(false);
+    expect('capacity' in body).toBe(false);
+    expect('review' in body.session).toBe(false);
+  });
+
+  it('a wrong answer that earned a re-try returns it, served and sanitized, AFTER the record', async () => {
+    const h = harness({
+      recordAttempt: async (args) => {
+        h.calls.order.push('record');
+        return { data: { replayed: false, correct: false, skipped: false, verdicts: args.verdicts, retry_seq: 4 }, error: null };
+      },
+    }, { snapshots: reviewSnapshots() });
+    const res = await h.handler(post(wrong()));
+    const text = await res.text();
+    const body = JSON.parse(text);
+    expect(h.calls.order).toEqual(['authorize', 'snapshots', 'record', 'snapshots']);
+    expect(body.retry).toMatchObject({ afterSeq: 3, item: { seq: 4, retryOf: 1 } });
+    expect(body.retry.item.result).toBeUndefined();
+    // The re-try's document: its own numbers filled in, no key, no row value.
+    const retryText = JSON.stringify(body.retry);
+    expect(retryText).toContain('Twice 9');
+    expect(retryText).not.toContain(String(HIDDEN));
+    expect(retryText).not.toContain('2*a');
+    expect(retryText).not.toContain('a+2');
+    expect(retryText).not.toContain('Double');
+    expect(text).not.toContain(String(HIDDEN));
+  });
+
+  it('the shared secret-bearing fixture leaks nothing through a re-try', async () => {
+    const leak = fullyLoadedDocument();
+    const h = harness({
+      recordAttempt: async (args) => ({ data: { replayed: false, correct: false, skipped: false, verdicts: args.verdicts, retry_seq: 2 }, error: null }),
+    }, {
+      snapshots: [
+        { seq: 1, position: 1, retry_of: null, document: seededItem(), row_values: { a: 3, hidden: HIDDEN } },
+        { seq: 2, position: 6.5, retry_of: 1, document: leak, row_values: { hidden: HIDDEN } },
+      ],
+    });
+    const body = await (await h.handler(post(wrong()))).json();
+    expect(body.retry?.item.seq).toBe(2);
+    const text = JSON.stringify(body.retry);
+    expect(text).not.toContain(STR);
+    expect(text).not.toContain(String(NUM));
+    expect(text).not.toContain(RELEASABLE);
+    expect(text).not.toContain(String(HIDDEN));
+  });
+
+  it('a daily wrong answer (no re-try earned) reads nothing more and sends no retry', async () => {
+    const h = harness({}, { snapshots: reviewSnapshots() });
+    const body = await (await h.handler(post(wrong()))).json();
+    expect(body.correct).toBe(false);
+    expect(body.retry).toBeUndefined();
+    expect(h.calls.snapshotArgs).toEqual([[SESSION, 1]]);
+  });
+
+  it('a right answer or a skip never looks for a re-try', async () => {
+    for (const req of [checkBody(), checkBody({ skip: true, responses: { blanks: {} } })]) {
+      const h = harness({}, { snapshots: reviewSnapshots() });
+      const body = await (await h.handler(post(req))).json();
+      expect(body.retry).toBeUndefined();
+      expect(h.calls.snapshotArgs).toEqual([[SESSION, 1]]);
+    }
+  });
+
+  it('a wrong REPLAY hands back the re-try that answer earned (found by retry_of)', async () => {
+    const h = harness({}, {
+      snapshots: reviewSnapshots(),
+      check: { replay: true, student_id: STUDENT, correct: false, skipped: false, verdicts: { [BLANK]: { verdict: 'incorrect' } } },
+    });
+    const body = await (await h.handler(post(wrong()))).json();
+    expect(h.calls.order).not.toContain('record');
+    expect(body).toMatchObject({ replayed: true, retry: { afterSeq: 3, item: { seq: 4, retryOf: 1 } } });
+  });
+
+  it('a re-try read that fails still returns the recorded try, without the re-try', async () => {
+    let reads = 0;
+    const h = harness({
+      recordAttempt: async (args) => ({ data: { replayed: false, correct: false, skipped: false, verdicts: args.verdicts, retry_seq: 4 }, error: null }),
+      readSnapshots: async (_s, seq) => {
+        reads += 1;
+        return reads === 1
+          ? { data: reviewSnapshots().filter((r) => r.seq === seq), error: null }
+          : { data: null, error: { message: 'boom' } };
+      },
+    });
+    const res = await h.handler(post(wrong()));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.correct).toBe(false);
+    expect(body.retry).toBeUndefined();
+  });
+
+  it('DoL practice never looks for a re-try, not even on a wrong replay', async () => {
+    const h = harness({}, { snapshots: reviewSnapshots() });
+    const res = await h.handler(post(checkBody({ mode: 'dol-practice', responses: { blanks: { [BLANK]: '7' } } })));
+    expect(res.status).toBe(200);
+    expect((await res.json()).retry).toBeUndefined();
+    expect(h.calls.order).toEqual(['dol-authorize', 'dol-snapshots', 'dol-record']);
+    // The replay is the path that would look: it must not, for DoL.
+    const r = harness({}, {
+      snapshots: reviewSnapshots(),
+      check: { replay: true, student_id: STUDENT, correct: false, skipped: false, verdicts: {} },
+    });
+    const body = await (await r.handler(post(checkBody({ mode: 'dol-practice' })))).json();
+    expect(body.retry).toBeUndefined();
+    expect(r.calls.order).toEqual(['dol-authorize', 'dol-snapshots']);
+  });
+
+  it('a lost race (the other request recorded a wrong answer) returns ITS re-try', async () => {
+    const h = harness({
+      recordAttempt: async () => ({ data: { replayed: true, correct: false, skipped: false, verdicts: {} }, error: null }),
+    }, { snapshots: reviewSnapshots() });
+    const body = await (await h.handler(post(checkBody()))).json();
+    expect(body).toMatchObject({ replayed: true, correct: false, retry: { afterSeq: 3, item: { seq: 4, retryOf: 1 } } });
+  });
+
+  it('a re-try on a whole-number position follows the item it ties with by seq', async () => {
+    const snaps: PracticeSnapshotRow[] = [
+      { seq: 1, position: 1, retry_of: null, document: seededItem(), row_values: { a: 3 } },
+      { seq: 2, position: 2, retry_of: null, document: seededItem(), row_values: { a: 4 } },
+      { seq: 3, position: '3', retry_of: null, document: seededItem(), row_values: { a: 5 } },
+      { seq: 4, position: '3.0', retry_of: 1, document: seededItem(), row_values: { a: 6 } },
+    ];
+    const h = harness({
+      recordAttempt: async (args) => ({ data: { replayed: false, correct: false, skipped: false, verdicts: args.verdicts, retry_seq: 4 }, error: null }),
+    }, { snapshots: snaps });
+    const body = await (await h.handler(post(wrong()))).json();
+    expect(body.retry.afterSeq).toBe(3);
   });
 });

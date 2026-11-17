@@ -37,6 +37,7 @@ import {
   type PracticeAnswers,
   type PracticeCheckRequest,
   type PracticeItemResult,
+  type PracticeRetry,
   type PracticeServedItem,
   type PracticeSession,
   type PracticeStartRequest,
@@ -67,6 +68,10 @@ export interface PracticeSnapshotRow {
   seq: number;
   document: unknown;
   row_values: unknown;
+  /** 0091: serving order (numeric; a re-try sits between planned items). */
+  position?: number | string | null;
+  /** 0091: the seq a re-try re-asks; null for a planned item. */
+  retry_of?: number | null;
 }
 
 /** One stored try (mixed_attempts), SERVICE ROLE. */
@@ -82,6 +87,8 @@ export interface RecordPracticeResult {
   correct: boolean;
   skipped: boolean;
   verdicts: unknown;
+  /** 0091: the re-try this answer earned (a review's wrong answer), or null. */
+  retry_seq?: number | null;
 }
 
 export interface PracticeDb {
@@ -145,6 +152,8 @@ type ServedOrderings = (args: {
 /** The two flavours' ports: mixed practice (0066) and DoL practice (0072). */
 export interface SlotPorts {
   label: string;
+  /** Only mixed practice has re-tries (0091); DoL practice never does. */
+  retries: boolean;
   itemForCheck: (authHeader: string, sessionId: string, seq: number) => Promise<DbResult<unknown>>;
   readSnapshots: (sessionId: string, seq?: number) => Promise<DbResult<PracticeSnapshotRow[]>>;
   readAttempts: (sessionId: string) => Promise<DbResult<PracticeAttemptRow[]>>;
@@ -440,6 +449,9 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
       graded?: boolean;
       items_per_session?: number;
       planned?: number;
+      review?: boolean;
+      capacity?: number;
+      thin?: boolean;
       session?: {
         session_id: string;
         practice_day: string;
@@ -448,7 +460,8 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
         score_right: number;
         score_answered: number;
         finished: boolean;
-        items: Array<{ seq: number; answered: boolean }>;
+        review?: boolean;
+        items: Array<{ seq: number; answered: boolean; retry_of?: number | null }>;
       };
     } | null;
     const STATES: PracticeStartState[] = ['resume', 'ready', 'started', 'nothing_taught', 'nothing_due', 'done_today'];
@@ -462,6 +475,10 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
       doneToday: out.done_today ?? 0,
       graded: out.graded === true,
       itemsPerSession: out.items_per_session ?? 0,
+      // 0091: present only on a review day, so a pre-0091 shape is unchanged.
+      ...(out.review === true
+        ? { review: true, capacity: out.capacity ?? 0, thin: out.thin === true }
+        : {}),
     };
     if (!out.session) {
       return cors.jsonResponse(req, { ...head, ...(out.state === 'ready' ? { planned: out.planned ?? 0 } : {}) });
@@ -486,6 +503,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
       scoreRight: s.score_right,
       scoreAnswered: s.score_answered,
       finished: s.finished,
+      ...(s.review === true ? { review: true } : {}),
       items,
     };
     return cors.jsonResponse(req, { ...head, session });
@@ -493,6 +511,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
 
   const mixedPorts: SlotPorts = {
     label: 'mixed_item_for_check',
+    retries: true,
     itemForCheck: (a, s, q) => practice.mixedItemForCheck(a, s, q),
     readSnapshots: (s, q) => practice.readSnapshots(s, q),
     readAttempts: (s) => practice.readAttempts(s),
@@ -500,6 +519,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
   };
   const dolPorts: SlotPorts = {
     label: 'dol_practice_item_for_check',
+    retries: false,
     itemForCheck: (a, s, q) => practice.dolItemForCheck(a, s, q),
     readSnapshots: (s, q) => practice.readDolSnapshots(s, q),
     readAttempts: (s) => practice.readDolAttempts(s),
@@ -512,7 +532,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
   async function serveItems(
     req: Request,
     sessionId: string,
-    planned: ReadonlyArray<{ seq: number }>,
+    planned: ReadonlyArray<{ seq: number; retry_of?: number | null }>,
     studentId: string,
     ports: SlotPorts,
   ): Promise<PracticeServedItem[] | Response> {
@@ -531,6 +551,7 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
         const served: PracticeServedItem = {
           seq: slotPlan.seq,
           document: servedDocument(row, sessionId, studentId),
+          ...(typeof slotPlan.retry_of === 'number' ? { retryOf: slotPlan.retry_of } : {}),
         };
         const attempt = tried.get(slotPlan.seq);
         if (attempt) {
@@ -641,19 +662,64 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
       return cors.errorResponse(req, 500, 'This practice question is broken', { code: 'malformed_document' });
     }
 
-    const respond = (stored: { correct: boolean; skipped: boolean; verdicts: unknown }, replayed: boolean) => {
+    // 0091 (RV-5): the re-try a wrong answer earned, served like any slot,
+    // with the item it follows. AFTER the record (ER-9), so nothing leaves
+    // before the try is stored. A failed read drops the re-try from this
+    // response only; the next resume serves it.
+    const retryFor = async (retrySeq: number | null | undefined): Promise<PracticeRetry | undefined> => {
+      if (!ports.retries) return undefined;
+      const all = await ports.readSnapshots(sessionId);
+      if (all.error || !all.data) {
+        console.error('[check-activity] re-try read failed:', all.error);
+        return undefined;
+      }
+      const rows = all.data;
+      const hit =
+        typeof retrySeq === 'number'
+          ? rows.find((r) => r.seq === retrySeq)
+          : rows.find((r) => r.retry_of === seq);
+      if (!hit || hit.retry_of !== seq) return undefined;
+      // Serving order is (position, seq), as mixed_session_payload sorts it:
+      // a re-try can land on a whole number another item already holds.
+      const pos = (r: PracticeSnapshotRow) => Number(r.position ?? r.seq);
+      const earlier = (r: PracticeSnapshotRow) =>
+        pos(r) < pos(hit) || (pos(r) === pos(hit) && r.seq < hit.seq);
+      const before = rows
+        .filter((r) => r.seq !== hit.seq && earlier(r))
+        .sort((a, b) => pos(b) - pos(a) || b.seq - a.seq)[0];
+      try {
+        return {
+          item: { seq: hit.seq, retryOf: seq, document: servedDocument(hit, sessionId, studentId) },
+          afterSeq: before?.seq ?? seq,
+        };
+      } catch (err) {
+        if (!(err instanceof SnapshotError)) throw err;
+        console.error('[check-activity] re-try snapshot cannot be served:', err.message);
+        return undefined;
+      }
+    };
+
+    const respond = (
+      stored: { correct: boolean; skipped: boolean; verdicts: unknown },
+      replayed: boolean,
+      retry?: PracticeRetry,
+    ) => {
       const solutionsOnly = gradeSlot(slot, emptySectionResponses(), sessionId, seq, studentId, deps.servedOrderings);
       return cors.jsonResponse(req, {
         wireVersion: CHECK_WIRE_VERSION,
         seq,
         replayed,
         ...resultOf(slot, solutionsOnly, stored),
+        ...(retry ? { retry } : {}),
       });
     };
 
     // ER-9: a slot already tried is that try. Nothing is graded or written.
+    // A wrong one hands back the re-try it earned, if any.
     if (auth.replay) {
-      return respond({ correct: auth.correct === true, skipped: auth.skipped === true, verdicts: auth.verdicts }, true);
+      const stored = { correct: auth.correct === true, skipped: auth.skipped === true, verdicts: auth.verdicts };
+      const retry = !stored.correct && !stored.skipped ? await retryFor(undefined) : undefined;
+      return respond(stored, true, retry);
     }
 
     // ---- Grade -------------------------------------------------------------
@@ -697,9 +763,20 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
       return cors.errorResponse(req, 500, 'Could not save this answer', { code: 'record_failed' });
     }
     // A concurrent request for the same slot won: return ITS try, not ours.
+    // A fresh answer reads only when the database says it added a re-try (a
+    // daily wrong answer never pays the read); a lost race looks it up.
+    const retry =
+      recorded.correct || recorded.skipped
+        ? undefined
+        : recorded.replayed
+          ? await retryFor(undefined)
+          : typeof recorded.retry_seq === 'number'
+            ? await retryFor(recorded.retry_seq)
+            : undefined;
     return respond(
       { correct: recorded.correct, skipped: recorded.skipped, verdicts: recorded.verdicts },
       recorded.replayed,
+      retry,
     );
   }
 
