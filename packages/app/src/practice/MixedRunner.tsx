@@ -56,6 +56,7 @@ import {
     preloadGraphKitIfNeeded,
     preloadMathIfNeeded,
     type CheckService,
+    type PracticeCheckResult,
     type PracticeItemResult,
     type PracticeServedItem,
     type PracticeSession,
@@ -91,8 +92,23 @@ export interface MixedRunnerProps {
     todayAction?: ReactNode;
 }
 
+/** The items with a re-try (0091) put in its serving place: after `afterSeq`,
+ * or at the end when that item isn't here. A re-try already held is left as it
+ * is (a replay hands the same one back). Exported for its tests. */
+export function withRetry(
+    items: readonly PracticeServedItem[],
+    retry: PracticeCheckResult['retry'],
+): PracticeServedItem[] {
+    if (!retry || items.some((i) => i.seq === retry.item.seq)) return [...items];
+    const at = items.findIndex((i) => i.seq === retry.afterSeq);
+    const out = [...items];
+    out.splice(at === -1 ? out.length : at + 1, 0, retry.item);
+    return out;
+}
+
 /** The counts the done screen shows, from the tries seen (all of them are
- * recorded on the server before a result arrives, ER-9). */
+ * recorded on the server before a result arrives, ER-9). Re-tries (0091) are
+ * left out by the caller: they never count in the practice score. */
 export function tallyOf(results: Iterable<PracticeItemResult>, of: number | null): MixedTally {
     let tried = 0;
     let right = 0;
@@ -106,14 +122,15 @@ export function tallyOf(results: Iterable<PracticeItemResult>, of: number | null
 }
 
 export default function MixedRunner({ session, userId, classId, onAgain, onEnded, checkMode, done, todayAction }: MixedRunnerProps) {
-    const items = session.items;
+    // A review (0091) grows: a wrong answer can add a re-try later in the list.
+    const [items, setItems] = useState<PracticeServedItem[]>(() => session.items);
     const [results, setResults] = useState<Map<number, PracticeItemResult>>(
-        () => new Map(items.flatMap((i) => (i.result ? [[i.seq, i.result] as const] : []))),
+        () => new Map(session.items.flatMap((i) => (i.result ? [[i.seq, i.result] as const] : []))),
     );
     // DM-6: start at the first question not yet tried.
     const [index, setIndex] = useState(() => {
-        const first = items.findIndex((i) => !i.result);
-        return first === -1 ? items.length : first;
+        const first = session.items.findIndex((i) => !i.result);
+        return first === -1 ? session.items.length : first;
     });
     const [stopped, setStopped] = useState(false);
 
@@ -124,17 +141,21 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
         }
     }, [items]);
 
+    // The score and the done screen count planned questions only (0091).
+    const retrySeqs = new Set(items.filter((i) => i.retryOf !== undefined).map((i) => i.seq));
+    const plannedResults = () => [...results].filter(([seq]) => !retrySeqs.has(seq)).map(([, r]) => r);
+
     if (stopped) {
-        if (done) return <>{done(tallyOf(results.values(), null))}</>;
-        return <MixedDone kind="stopped" tally={tallyOf(results.values(), null)} todayAction={todayAction} />;
+        if (done) return <>{done(tallyOf(plannedResults(), null))}</>;
+        return <MixedDone kind="stopped" tally={tallyOf(plannedResults(), null)} todayAction={todayAction} />;
     }
     const item = items[index];
     if (!item) {
-        if (done) return <>{done(tallyOf(results.values(), session.planned))}</>;
+        if (done) return <>{done(tallyOf(plannedResults(), session.planned))}</>;
         return (
             <MixedDone
                 kind="finished"
-                tally={tallyOf(results.values(), session.planned)}
+                tally={tallyOf(plannedResults(), session.planned)}
                 graded={session.graded}
                 classId={classId}
                 onAgain={onAgain}
@@ -152,7 +173,11 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
             sessionId={session.sessionId}
             userId={userId}
             checkMode={checkMode}
-            onResult={(r) => setResults((m) => new Map(m).set(item.seq, r))}
+            review={session.review === true}
+            onResult={(r) => {
+                setResults((m) => new Map(m).set(item.seq, r));
+                if (r.retry) setItems((list) => withRetry(list, r.retry));
+            }}
             onNext={() => setIndex((i) => i + 1)}
             onStop={() => setStopped(true)}
             onEnded={onEnded}
@@ -190,7 +215,9 @@ interface PracticeItemProps {
     sessionId: string;
     userId: string;
     checkMode?: 'practice' | 'dol-practice';
-    onResult: (result: PracticeItemResult) => void;
+    /** A review session (0091): named once, above the question. */
+    review?: boolean;
+    onResult: (result: PracticeCheckResult) => void;
     onNext: () => void;
     onStop: () => void;
     onEnded: () => void;
@@ -212,6 +239,7 @@ function PracticeItem({
     sessionId,
     userId,
     checkMode,
+    review,
     onResult,
     onNext,
     onStop,
@@ -358,9 +386,16 @@ function PracticeItem({
                     Stop for now
                 </button>
             </div>
+            {review ? <p className="mx-kind">Review</p> : null}
             <h2 className="fx-sr" tabIndex={-1} ref={questionRef}>
                 Question {position} of {total}
+                {item.retryOf !== undefined ? ': another go at an earlier question' : ''}
             </h2>
+            {item.retryOf !== undefined ? (
+                <p className="mx-retry" data-testid="mx-retry">
+                    Another go at one you missed. This one isn’t scored.
+                </p>
+            ) : null}
             <form
                 className="mx-item"
                 onFocusCapture={onFocusCapture}

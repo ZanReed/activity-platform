@@ -96,6 +96,47 @@ Built locally, Fable-reviewed (nothing major; its tie and test findings fixed).
 **Slice 3b** (the importer mirroring the ten review keys) waits on curriculum
 #98 being merged.
 
+## As built — slice 4, the screens (2026-11-18)
+
+Migration **0092** (reads only, no personal data) plus the app. verify-0092 passes
+4/4 locally. The app tests pass, and so does `pnpm verify`; the student and a11y
+Playwright lanes pass too (124 and 26), though neither has a review fixture yet.
+Fable-reviewed: nothing major. Its findings on cost and accuracy are fixed: the
+estimate is read only for days that hold a review, and sized for that day; a
+stored unit stays tickable; the copy names no setting's value.
+- **Planner** (`routes/ClassPlan.tsx` DayReview): "Make this a review day" on any
+  day from today on. The review box shows:
+  - the estimate ("About 33 questions · fewer for N of M students (not much
+    learned yet)", from `review_preview` for that day), or, until the review
+    keys are imported, a line saying students get their usual practice;
+  - the Double period tick and Remove review;
+  - "Before a unit test: weight it towards these units", listing the class's
+    chains (Bank copies under their source's chain).
+- **Practice settings** (`MixedPanel`): "Period length", from the mirrored
+  `period_shapes` lengths, defaulting to the shortest.
+- **Student:** on a review day the Today list and the practice card say
+  "Review". The card explains it. The runner names itself "Review", slots each
+  re-try in where the server says, labels it "Another go at one you missed. This
+  one isn't scored.", and counts planned questions only on the done screen. The
+  resume card counts planned questions answered.
+- **Browser-checked on the local stack** (`pnpm playtest`, with the review keys
+  mirrored locally): placed a review, ticked a unit, ran it as a student,
+  answered one wrong. Its re-try arrived after question 6 on another template.
+  The done screen read "0 of 6 right, skipped 5", and the stored session matched
+  (review, planned 6, one re-try, finished).
+- **Seen while checking, not changed:**
+  - a class with no daily practice yet gets small reviews, because new skills
+    are capped at `mixed_new_skills_per_session` (2);
+  - the done screen still says "Practice done";
+  - the "✕ Try again" pill in a one-try place is TODOS → Playtest sweep 1.
+- **Known:** if the re-try read fails on a check, the runner ends early and the
+  next resume serves the waiting re-try.
+
+**Owed:** apply 0092 live and run verify-0092 there, BEFORE pushing the app
+(OV-7: the planner calls `review_preview`). Then push. Slice 3b (the importer
+mirrors the review keys) waits on #98; until then a placed review changes
+nothing for students, and the planner says so.
+
 ## 1. What C-196 rules (their side)
 
 A review period is **the mixed scheduler with overrides**.

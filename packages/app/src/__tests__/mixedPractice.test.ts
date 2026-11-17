@@ -87,6 +87,27 @@ describe('previewMixed — start_mixed_session WITHOUT starting', () => {
         expect(await previewMixed('c1')).toMatchObject({ state: 'resume', planned: 6, nextSeq: 4, sessionId: 's1' });
     });
 
+    it('a review day passes `review`; resume counts planned questions answered, never re-tries (0091)', async () => {
+        sb.rpc.mockResolvedValue({
+            data: {
+                state: 'resume', done_today: 0, graded: false, items_per_session: 33, review: true,
+                session: {
+                    session_id: 's1', planned: 3,
+                    // serving order: 1, the re-try of 1 (seq 4), 2, 3
+                    items: [
+                        { seq: 1, answered: true, retry_of: null },
+                        { seq: 4, answered: true, retry_of: 1 },
+                        { seq: 2, answered: false, retry_of: null },
+                        { seq: 3, answered: false, retry_of: null },
+                    ],
+                },
+            },
+            error: null,
+        });
+        // One planned question answered (the re-try isn't one): "question 2 of 3".
+        expect(await previewMixed('c1')).toMatchObject({ state: 'resume', review: true, planned: 3, nextSeq: 2 });
+    });
+
     it('"Not available" is off; any other failure throws', async () => {
         sb.rpc.mockResolvedValue({ data: null, error: { message: 'Not available' } });
         expect(await previewMixed('c1')).toEqual({ state: 'off' });

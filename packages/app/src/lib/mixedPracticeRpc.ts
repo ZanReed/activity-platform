@@ -11,4 +11,8 @@ export const MIXED_PRACTICE_RPC = {
     studentRecent: 'mixed_student_recent',
     setOn: 'set_mixed_practice',
     setSettings: 'set_mixed_settings',
+    // The review period (0091, 0092).
+    setPeriodMinutes: 'set_class_period_minutes',
+    setReview: 'set_class_review',
+    reviewPreview: 'review_preview',
 } as const;

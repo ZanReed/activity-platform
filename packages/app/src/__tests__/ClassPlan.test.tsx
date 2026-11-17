@@ -397,3 +397,141 @@ describe('classPlan helpers', () => {
         expect(planErrorMessage(new Error('boom'))).toMatch(/Check your connection/);
     });
 });
+
+// ---- review periods (0091/0092; review-period.md RV-2, RV-7, RV-10, RV-14) ------
+
+describe('a review on a day', () => {
+    const previewOn = (capacity: number) => ({
+        review_on: true,
+        capacity,
+        students: 28,
+        thin: 12,
+        empty: 0,
+        chains: [{ chain_id: 'chain.algebra.manipulation', activities: 4 }, { chain_id: 'chain.number.integers', activities: 3 }],
+    });
+    const withReviews = (preview: unknown) => {
+        h.plan.days.push({ on_date: '2026-11-18', activities: [], hook_ids: [], review: { focus_chains: ['chain.number.integers'], is_double: false } });
+        h.rpc.mockImplementation(async (name: string, args?: { p_is_double?: boolean }) => {
+            if (name === 'review_preview') {
+                return { data: preview === 'on' ? previewOn(args?.p_is_double ? 36 : 33) : preview, error: null };
+            }
+            if (name === 'set_class_review') return { data: {}, error: null };
+            return { data: h.plan, error: null };
+        });
+    };
+
+    it('a day with no review offers one; it sends set_class_review for that day', async () => {
+        withReviews('on');
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Tue 17 Nov' });
+        fireEvent.click(within(card).getByRole('button', { name: 'Make this a review day' }));
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('set_class_review', {
+                p_class_id: 'c1', p_on_date: '2026-11-17', p_on: true, p_focus_chains: [], p_is_double: false,
+            }),
+        );
+    });
+
+    it('a review shows its estimate, its units (ticked as stored), and sends each change', async () => {
+        withReviews('on');
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Wed 18 Nov' });
+        const box = await waitFor(() => {
+            const b = card.querySelector('[data-day-review]') as HTMLElement | null;
+            expect(b?.querySelector('[data-review-line]')?.textContent).toBe(
+                'About 33 questions · fewer for 12 of 28 students (not much learned yet)',
+            );
+            return b!;
+        });
+        const integers = within(box).getByLabelText('Number integers') as HTMLInputElement;
+        const algebra = within(box).getByLabelText('Algebra manipulation') as HTMLInputElement;
+        expect(integers.checked).toBe(true);
+        expect(algebra.checked).toBe(false);
+        fireEvent.click(algebra);
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('set_class_review', {
+                p_class_id: 'c1', p_on_date: '2026-11-18', p_on: true,
+                p_focus_chains: ['chain.algebra.manipulation', 'chain.number.integers'], p_is_double: false,
+            }),
+        );
+        fireEvent.click(within(box).getByLabelText('Double period'));
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('set_class_review', {
+                p_class_id: 'c1', p_on_date: '2026-11-18', p_on: true,
+                p_focus_chains: ['chain.number.integers'], p_is_double: true,
+            }),
+        );
+        fireEvent.click(within(box).getByRole('button', { name: 'Remove review' }));
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('set_class_review', {
+                p_class_id: 'c1', p_on_date: '2026-11-18', p_on: false, p_focus_chains: [], p_is_double: false,
+            }),
+        );
+    });
+
+    it('the estimate is read only for days that hold a review, for that day and its double tick', async () => {
+        withReviews('on');
+        renderPage();
+        await screen.findByRole('listitem', { name: 'Wed 18 Nov' });
+        await waitFor(() => expect(h.rpc).toHaveBeenCalledWith('review_preview', expect.anything()));
+        const calls = h.rpc.mock.calls.filter(([n]) => n === 'review_preview').map(([, a]) => a);
+        expect(calls).toEqual([{ p_class_id: 'c1', p_is_double: false, p_on_date: '2026-11-18' }]);
+    });
+
+    it('a stored unit the class no longer lists stays visible, so it can be unticked', async () => {
+        withReviews({ review_on: true, capacity: 33, students: 1, thin: 0, empty: 0, chains: [] });
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Wed 18 Nov' });
+        const integers = (await within(card).findByLabelText('Number integers')) as HTMLInputElement;
+        expect(integers.checked).toBe(true);
+        fireEvent.click(integers);
+        await waitFor(() =>
+            expect(h.rpc).toHaveBeenCalledWith('set_class_review', {
+                p_class_id: 'c1', p_on_date: '2026-11-18', p_on: true, p_focus_chains: [], p_is_double: false,
+            }),
+        );
+    });
+
+    it('before the review settings are imported, a review says it changes nothing yet', async () => {
+        withReviews({ review_on: false, chains: [] });
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Wed 18 Nov' });
+        await waitFor(() =>
+            expect(card.querySelector('[data-review-line]')?.textContent).toMatch(
+                /start once the curriculum’s review settings are imported/,
+            ),
+        );
+    });
+
+    it('a failed estimate leaves the line out; the review still shows and can be removed', async () => {
+        withReviews('on');
+        const base = h.rpc.getMockImplementation()!;
+        h.rpc.mockImplementation(async (name: string, args?: unknown) =>
+            name === 'review_preview' ? { data: null, error: { message: 'boom' } } : base(name, args as never),
+        );
+        renderPage();
+        const card = await screen.findByRole('listitem', { name: 'Wed 18 Nov' });
+        const box = card.querySelector('[data-day-review]') as HTMLElement;
+        expect(box).toBeTruthy();
+        expect(box.querySelector('[data-review-line]')).toBeNull();
+        expect(within(box).getByRole('button', { name: 'Remove review' })).toBeTruthy();
+    });
+});
+
+describe('review helpers', () => {
+    it('chainName reads a chain id aloud', async () => {
+        const { chainName } = await import('../lib/classPlan');
+        expect(chainName('chain.algebra.manipulation')).toBe('Algebra manipulation');
+        expect(chainName('chain.geom.triangles-polygons')).toBe('Geom triangles polygons');
+    });
+
+    it('reviewLine: off, everyone enough, some short, nobody started', async () => {
+        const { reviewLine } = await import('../lib/classPlan');
+        expect(reviewLine(null)).toBeNull();
+        expect(reviewLine({ review_on: false, chains: [] })).toMatch(/settings are imported/);
+        const on = { review_on: true as const, capacity: 30, students: 20, thin: 0, empty: 0, chains: [] };
+        expect(reviewLine(on)).toBe('About 30 questions · enough for every student');
+        expect(reviewLine({ ...on, thin: 5 })).toBe('About 30 questions · fewer for 5 of 20 students (not much learned yet)');
+        expect(reviewLine({ ...on, thin: 20, empty: 20 })).toBe('About 30 questions · no student has anything to review yet');
+    });
+});

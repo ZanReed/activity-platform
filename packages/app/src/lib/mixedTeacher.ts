@@ -32,6 +32,10 @@ export interface MixedSummary {
     /** PA-10's helper line. Null until a mirrored registry carries them. */
     period_shapes?: PeriodShapes | null;
     seconds_per_item?: [number, number] | null;
+    /** 0092: the class's period length (null = the shortest mirrored one), and
+     * whether review periods can run (their keys are mirrored). */
+    period_minutes?: number | null;
+    review_on?: boolean;
     graded: boolean;
     school_year_ends_on: string | null;
     has_bank: boolean;
@@ -100,6 +104,21 @@ export const setMixedPractice = (classId: string, on: boolean) =>
     call<{ on: boolean; on_at: string | null }>(MIXED_PRACTICE_RPC.setOn, { p_class_id: classId, p_on: on });
 export const setMixedSettings = (classId: string, items: number | null, graded: boolean) =>
     call<unknown>(MIXED_PRACTICE_RPC.setSettings, { p_class_id: classId, p_items: items, p_graded: graded });
+
+/** 0091: one of the mirrored period lengths, or null for the shortest. */
+export const setClassPeriodMinutes = (classId: string, minutes: number | null) =>
+    call<{ period_minutes: number | null }>(MIXED_PRACTICE_RPC.setPeriodMinutes, {
+        p_class_id: classId,
+        p_minutes: minutes,
+    });
+
+/** The period lengths a class may pick, shortest first (0083's mirror). */
+export function periodLengths(shapes: PeriodShapes | null | undefined): number[] {
+    return Object.keys(shapes?.lengths ?? {})
+        .map(Number)
+        .filter((n) => Number.isInteger(n) && n > 0)
+        .sort((a, b) => a - b);
+}
 
 /** A skill's words: the label, else its id (W-6's fallback). */
 export const skillName = (s: SkillRef) => s.label ?? s.id;

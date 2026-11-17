@@ -298,3 +298,51 @@ describe('MixedRunner — no connection, signed out (DM-5)', () => {
         expect(onEnded).toHaveBeenCalledTimes(1);
     });
 });
+
+// ---- review re-tries (0091; review-period.md RV-5) --------------------------------
+
+describe('MixedRunner — a review and its re-tries', () => {
+    it('a wrong answer that earns a re-try slots it in next; it is named, and the score counts planned questions only', async () => {
+        const { pxBlankDocument } = await import('../test/practiceFixtures');
+        api.checkPracticeItem
+            .mockResolvedValueOnce({
+                ...pxCheckResult(1, 'wrong'),
+                retry: { item: { seq: 3, retryOf: 1, document: pxBlankDocument() }, afterSeq: 1 },
+            })
+            .mockResolvedValueOnce({ ...pxCheckResult(1, 'right'), seq: 3 })
+            .mockResolvedValueOnce(pxCheckResult(2, 'right'));
+        const view = runner(pxSession({ review: true }));
+        expect(view.container.textContent).toContain('Review');
+        type('8');
+        press('Check');
+        await screen.findByRole('heading', { name: /Not this time/ });
+        press('Next');
+        // The re-try comes next, says what it is, and the list has grown.
+        expect(screen.getByRole('heading', { name: /Question 2 of 3: another go/ })).toBeTruthy();
+        expect(screen.getByTestId('mx-retry').textContent).toMatch(/isn’t scored/);
+        type('5');
+        press('Check');
+        await screen.findByRole('heading', { name: /Right/ });
+        expect(api.checkPracticeItem.mock.calls[1]![0].seq).toBe(3);
+        press('Next');
+        expect(screen.queryByTestId('mx-retry')).toBeNull();
+        press('Skip');
+        await screen.findByRole('heading', { name: /Right/ });
+        press('Next');
+        await screen.findByRole('heading', { name: 'Practice done' });
+        // Two planned questions: 1 wrong, 2 right. The right re-try is not a point.
+        expect(screen.getByTestId('mx-done-right').textContent).toBe('You got 1 of 2 right.');
+    });
+
+    it('withRetry: after its item, at the end when that item is gone, never twice', async () => {
+        const { withRetry } = await import('../practice/MixedRunner');
+        const doc = pxSession().items[0]!.document;
+        const items = [1, 2, 3].map((seq) => ({ seq, document: doc }));
+        const retry = { item: { seq: 9, retryOf: 1, document: doc }, afterSeq: 2 };
+        expect(withRetry(items, retry).map((i) => i.seq)).toEqual([1, 2, 9, 3]);
+        expect(withRetry(items, { ...retry, afterSeq: 7 }).map((i) => i.seq)).toEqual([1, 2, 3, 9]);
+        const once = withRetry(items, retry);
+        expect(withRetry(once, retry).map((i) => i.seq)).toEqual([1, 2, 9, 3]);
+        expect(withRetry(items, undefined)).toEqual(items);
+    });
+});

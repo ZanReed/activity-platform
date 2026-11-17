@@ -72,6 +72,8 @@ export type MixedPreview =
           nextSeq?: number;
           /** `resume` only: the open session, for Finish here (DM-6). */
           sessionId?: string;
+          /** 0091: today is a review day and this is (or resumes) the review. */
+          review?: boolean;
       };
 
 interface RawPreview {
@@ -80,7 +82,12 @@ interface RawPreview {
     graded: boolean;
     items_per_session: number;
     planned?: number;
-    session?: { session_id: string; planned: number; items: { seq: number; answered: boolean }[] };
+    review?: boolean;
+    session?: {
+        session_id: string;
+        planned: number;
+        items: { seq: number; answered: boolean; retry_of?: number | null }[];
+    };
 }
 
 /** start_mixed_session refuses with ONE error for "off", "not a member" and
@@ -100,14 +107,17 @@ export async function previewMixed(classId: string): Promise<MixedPreview> {
         doneToday: raw.done_today ?? 0,
         graded: raw.graded === true,
         itemsPerSession: raw.items_per_session,
+        ...(raw.review === true ? { review: true } : {}),
     };
     if (raw.state === 'resume' && raw.session) {
-        const untried = raw.session.items.find((i) => !i.answered);
+        // "Question n of planned" counts PLANNED questions answered (0091: a
+        // review's items include re-tries, which are never one of the planned).
+        const done = raw.session.items.filter((i) => i.answered && (i.retry_of ?? null) === null).length;
         return {
             state: 'resume',
             ...common,
             planned: raw.session.planned,
-            nextSeq: untried?.seq ?? raw.session.planned,
+            nextSeq: Math.min(done + 1, raw.session.planned),
             sessionId: raw.session.session_id,
         };
     }

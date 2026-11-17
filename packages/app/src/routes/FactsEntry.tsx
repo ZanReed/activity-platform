@@ -586,7 +586,7 @@ export default function FactsEntry() {
                             className={`mt-4 w-full ${BTN_PRIMARY}`}
                             onClick={() => setChoice(facts ? 'facts' : 'practice')}
                         >
-                            {label(facts ? 'Number facts' : 'Practice', row.minutes, row.done ? 'Done ✓' : null)}
+                            {label(facts ? 'Number facts' : preview?.review ? 'Review' : 'Practice', row.minutes, row.done ? 'Done ✓' : null)}
                         </button>
                     );
                 })}
@@ -602,7 +602,8 @@ export default function FactsEntry() {
                     Number facts · about {sprint.state === 'ready' ? (sprint.minutes ?? 5) : 5} min
                 </button>
                 <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} onClick={() => setChoice('practice')}>
-                    Practice{planned > 0 ? ` · about ${practiceMinutes(planned)} min` : ''}
+                    {view.mixed.preview.review ? 'Review' : 'Practice'}
+                    {planned > 0 ? ` · about ${practiceMinutes(planned)} min` : ''}
                 </button>
             </Card>
         );
@@ -824,10 +825,16 @@ function MixedEntryCard({
     }
     // ready (the first today, or DM-7's again)
     return (
-        <Card title="Practice">
+        <Card title={p.review ? 'Review' : 'Practice'}>
             <p className="mt-2 text-base text-strong">
                 {p.planned} question{p.planned === 1 ? '' : 's'} · about {practiceMinutes(p.planned)} minutes.
             </p>
+            {p.review ? (
+                <p className="mt-2 text-base text-muted">
+                    Today’s lesson is a review: questions on what you’ve learned so far, mixed together. One you miss
+                    comes back later on.
+                </p>
+            ) : null}
             <p className="mt-2 text-base text-muted">
                 One try each. Have a go even if you’re unsure. A wrong try still helps you remember.
                 You can see the working after every answer.

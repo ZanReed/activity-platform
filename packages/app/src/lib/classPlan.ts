@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { MIXED_PRACTICE_RPC } from './mixedPracticeRpc';
 
 /** RPC names, exported so test mocks derive from them (policy P2). */
 export const CLASS_PLAN_RPC = {
@@ -26,10 +27,18 @@ export interface PlannedActivity {
     available: boolean;
 }
 
+/** A review period placed on a day (0091/0092, RV-14). */
+export interface PlanReview {
+    focus_chains: string[];
+    is_double: boolean;
+}
+
 export interface PlanDay {
     on_date: string;
     activities: PlannedActivity[];
     hook_ids: string[];
+    /** 0092: the day's review, or null/absent. */
+    review?: PlanReview | null;
 }
 
 export interface ClassPlan {
@@ -195,6 +204,7 @@ export function planErrorMessage(err: unknown): string {
     if (m.includes('not_planned')) return 'That activity is no longer on that day. The plan has been refreshed.';
     if (m.includes('reorder_mismatch')) return 'The day changed in another tab. The plan has been refreshed.';
     if (m.includes('Not your class')) return "This isn't one of your classes.";
+    if (m.includes('bad_focus_chain')) return "One of those units isn't one this class can use. The plan has been refreshed.";
     return "That didn't save. Check your connection, then try again.";
 }
 
@@ -222,6 +232,75 @@ export const moveClassPlanItem = (classId: string, fromDate: string, activityId:
 
 export const reorderClassPlan = (classId: string, onDate: string, activityIds: string[]) =>
     call(CLASS_PLAN_RPC.reorder, { p_class_id: classId, p_on_date: onDate, p_activity_ids: activityIds });
+
+// ---- review periods (0091, 0092; review-period.md RV-2, RV-7, RV-10) ------------
+
+export interface ReviewChain {
+    chain_id: string;
+    activities: number;
+}
+
+/** The planner's estimate: as if a review ran today. */
+export type ReviewPreview =
+    | { review_on: false; chains: ReviewChain[] }
+    | {
+          review_on: true;
+          capacity: number;
+          students: number;
+          /** Students whose pool would fill less than the curriculum's floor. */
+          thin: number;
+          /** Students with nothing to review yet. */
+          empty: number;
+          chains: ReviewChain[];
+      };
+
+export async function setClassReview(
+    classId: string,
+    onDate: string,
+    on: boolean,
+    focusChains: string[] = [],
+    isDouble = false,
+): Promise<void> {
+    const { error } = await supabase.rpc(MIXED_PRACTICE_RPC.setReview, {
+        p_class_id: classId,
+        p_on_date: onDate,
+        p_on: on,
+        p_focus_chains: focusChains,
+        p_is_double: isDouble,
+    });
+    if (error) throw new Error(error.message);
+}
+
+export async function fetchReviewPreview(classId: string, isDouble: boolean, onDate: string): Promise<ReviewPreview> {
+    const { data, error } = await supabase.rpc(MIXED_PRACTICE_RPC.reviewPreview, {
+        p_class_id: classId,
+        p_is_double: isDouble,
+        p_on_date: onDate,
+    });
+    if (error) throw new Error(error.message);
+    const d = (data ?? {}) as Partial<ReviewPreview> & { chains?: ReviewChain[] };
+    return { ...(d as ReviewPreview), chains: d.chains ?? [] };
+}
+
+/** "chain.algebra.manipulation" → "Algebra manipulation": the id, read aloud. */
+export function chainName(chainId: string): string {
+    const words = chainId.replace(/^chain\./, '').replace(/[.-]+/g, ' ').trim();
+    return words ? words[0]!.toUpperCase() + words.slice(1) : chainId;
+}
+
+/** The review line under a day (RV-7): about how many questions, and how many
+ * students it would be short for on that day, from what they've done so far. */
+export function reviewLine(p: ReviewPreview | null): string | null {
+    if (!p) return null;
+    if (!p.review_on) {
+        return 'Review periods start once the curriculum’s review settings are imported. Until then students get their usual practice.';
+    }
+    const base = `About ${p.capacity} questions`;
+    if (p.students === 0) return base;
+    if (p.empty === p.students) return `${base} · no student has anything to review yet`;
+    if (p.thin === 0) return `${base} · enough for every student`;
+    return `${base} · fewer for ${p.thin} of ${p.students} students (not much learned yet)`;
+}
 
 /**
  * The day's shape from the class's two practice reads (either may be missing:

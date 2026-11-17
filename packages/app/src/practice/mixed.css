@@ -104,6 +104,24 @@
   margin-top: 12px;
 }
 
+/* 0091: a review names itself once, and a re-try says what it is. Words, not
+   colour, carry both. */
+.mx-kind {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-top: 8px;
+}
+
+.mx-retry {
+  border-left: 3px solid var(--color-line-strong);
+  color: var(--color-strong);
+  font-size: 15px;
+  margin-top: 8px;
+  padding-left: 10px;
+}
+
 /* One plain panel under the answer: the verdict in body type, then the
    working (DM-14). The icon carries no colour of its own: the words say it. */
 .mx-feedback {

@@ -21,19 +21,23 @@ import { listClasses } from '../lib/classes';
 import { listTeacherClassActivities, type TeacherClassActivity } from '../lib/classActivities';
 import {
     addDays,
+    chainName,
     dayLabel,
     dayTotal,
     DEFAULT_SHAPE,
     hookChoices,
     hookStrayed,
     fetchClassPlan,
+    fetchReviewPreview,
     MAX_PER_DAY,
     moveClassPlanItem,
     PLAN_WINDOW_DAYS,
     planDates,
     planErrorMessage,
     reorderClassPlan,
+    reviewLine,
     setClassPlan,
+    setClassReview,
     shapeFrom,
     totalLine,
     windowEnd,
@@ -41,6 +45,7 @@ import {
     type DayShape,
     type PlanDay,
     type PlannedActivity,
+    type ReviewPreview,
 } from '../lib/classPlan';
 import { fetchSprintOverview } from '../lib/factSprint';
 import { setClassActivityDue } from '../lib/dueDates';
@@ -75,6 +80,11 @@ export default function ClassPlan() {
     const [hooks, setHooks] = useState<MyChainHooks | null>(null);
     const [marks, setMarks] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
+    // Review periods (0091/0092): the estimate as if one ran today, single and
+    // double. A failed read leaves the line out; the control still works.
+    // Keyed `date:double`; read only for days that hold a review (each read
+    // plans every student's session, so the page never pays for empty days).
+    const [previews, setPreviews] = useState<Record<string, ReviewPreview>>({});
     // Latest-wins: only the newest read may set the page (review P1).
     const loadSeq = useRef(0);
     const startRef = useRef<string | null>(null);
@@ -142,6 +152,25 @@ export default function ClassPlan() {
             fetchMixedSummary(classId).catch(() => null),
         ]).then(([sprint, mixed]) => setShape(shapeFrom(sprint, mixed)));
     }, [classId, load, loadOptions, loadMarks]);
+
+    // A day's estimate, whenever the plan (re-read after every write) holds a
+    // review on it. A failed read leaves that day's line out.
+    useEffect(() => {
+        let live = true;
+        const wanted = (plan?.days ?? []).filter((d) => d.review);
+        void Promise.all(
+            wanted.map((d) =>
+                fetchReviewPreview(classId, d.review!.is_double, d.on_date)
+                    .then((p) => [`${d.on_date}:${d.review!.is_double}`, p] as const)
+                    .catch(() => null),
+            ),
+        ).then((rows) => {
+            if (live) setPreviews(Object.fromEntries(rows.filter((r) => r !== null)));
+        });
+        return () => {
+            live = false;
+        };
+    }, [classId, plan]);
 
     const write = async (fn: () => Promise<unknown>) => {
         setBusy(true);
@@ -310,6 +339,11 @@ export default function ClassPlan() {
                                 : null
                         }
                         onUnhook={(hookId) => void writeHook(() => unmarkHook(classId, hookId))}
+                        preview={(() => {
+                            const r = byDate.get(d)?.review;
+                            return r ? (previews[`${d}:${r.is_double}`] ?? null) : null;
+                        })()}
+                        onReview={(on, focus, isDouble) => write(() => setClassReview(classId, d, on, focus, isDouble))}
                     />
                 ))}
             </ol>
@@ -353,6 +387,8 @@ function DayCard({
     marks,
     onPickHook,
     onUnhook,
+    preview,
+    onReview,
 }: {
     date: string;
     isToday: boolean;
@@ -374,6 +410,8 @@ function DayCard({
     /** Null while the session isn't known (a mark records who made it). */
     onPickHook: ((hookId: string) => void) | null;
     onUnhook: (hookId: string) => void;
+    preview: ReviewPreview | null;
+    onReview: (on: boolean, focusChains: string[], isDouble: boolean) => void;
 }) {
     const [choice, setChoice] = useState('');
     const [hookChoice, setHookChoice] = useState('');
@@ -428,6 +466,8 @@ function DayCard({
                 }
                 onUnhook={onUnhook}
             />
+
+            <DayReview date={date} review={day.review ?? null} canEdit={canAdd} busy={busy} preview={preview} onReview={onReview} />
 
             {day.activities.length > 0 && (
                 <ul className="mt-2 divide-y divide-line">
@@ -661,6 +701,106 @@ function LastDay({
  * offers the pool of the day's first chained activity, unused first; a hook the
  * class already heard (dated before today) can't be planned again.
  */
+/**
+ * A day's review period (0091/0092; review-period.md RV-2, RV-7, RV-10, RV-14):
+ * "Make this a review day", or the review with its estimate, the double-period
+ * tick and the units a coming test covers. One a day; the day's practice runs
+ * the review in place of the daily block.
+ */
+function DayReview({
+    date,
+    review,
+    canEdit,
+    busy,
+    preview,
+    onReview,
+}: {
+    date: string;
+    review: { focus_chains: string[]; is_double: boolean } | null;
+    canEdit: boolean;
+    busy: boolean;
+    preview: ReviewPreview | null;
+    onReview: (on: boolean, focusChains: string[], isDouble: boolean) => void;
+}) {
+    if (!review) {
+        return canEdit ? (
+            <p className="mt-2">
+                <button type="button" className={LINK} disabled={busy} onClick={() => onReview(true, [], false)}>
+                    Make this a review day
+                </button>
+            </p>
+        ) : null;
+    }
+    const line = reviewLine(preview);
+    // The class's units, plus any stored one it no longer lists (so it can
+    // still be unticked).
+    const listed = preview?.chains.map((c) => c.chain_id) ?? [];
+    const chains = [...listed, ...review.focus_chains.filter((c) => !listed.includes(c))];
+    const focus = new Set(review.focus_chains);
+    const toggle = (id: string) => {
+        const next = new Set(focus);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        onReview(true, [...next].sort(), review.is_double);
+    };
+    return (
+        <div className="mt-2 rounded-md border border-line bg-surface p-3 text-sm" data-day-review>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-ink">Review period</p>
+                {canEdit && (
+                    <button type="button" className={LINK} disabled={busy} onClick={() => onReview(false, [], false)}>
+                        Remove review
+                    </button>
+                )}
+            </div>
+            {line && (
+                <p className="mt-1 text-xs text-muted" data-review-line>
+                    {line}
+                </p>
+            )}
+            <p className="mt-1 text-xs text-muted">
+                Practice that day runs the review: due skills first, then ones learned earlier. A question a student
+                misses comes back later on.
+            </p>
+            {canEdit && (
+                <label className="mt-2 flex items-center gap-2 text-xs text-strong">
+                    <input
+                        type="checkbox"
+                        checked={review.is_double}
+                        disabled={busy}
+                        onChange={(e) => onReview(true, review.focus_chains, e.target.checked)}
+                    />
+                    Double period
+                </label>
+            )}
+            {chains.length > 0 && (
+                <fieldset className="mt-2" disabled={busy || !canEdit}>
+                    <legend className="text-xs text-strong">Before a unit test: weight it towards these units</legend>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        {chains.map((id) => (
+                            <label key={id} className="flex items-center gap-2 text-xs text-strong">
+                                <input
+                                    type="checkbox"
+                                    checked={focus.has(id)}
+                                    onChange={() => toggle(id)}
+                                    aria-describedby={`review-focus-${date}`}
+                                />
+                                {chainName(id)}
+                            </label>
+                        ))}
+                    </div>
+                    <p id={`review-focus-${date}`} className="mt-1 text-xs text-muted">
+                        More of the questions come from the ticked units; the rest stay mixed.
+                    </p>
+                </fieldset>
+            )}
+            {!canEdit && review.focus_chains.length > 0 && (
+                <p className="mt-1 text-xs text-muted">Weighted towards: {review.focus_chains.map(chainName).join(', ')}</p>
+            )}
+        </div>
+    );
+}
+
 function DayHook({
     date,
     day,

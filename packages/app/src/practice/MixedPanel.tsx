@@ -29,6 +29,8 @@ import {
     fetchMixedSummary,
     setMixedPractice,
     setMixedSettings,
+    setClassPeriodMinutes,
+    periodLengths,
     skillName,
     type MixedBlockedReason,
     type MixedStudentRow,
@@ -151,6 +153,7 @@ export default function MixedPanel({
 
     const on = data.on_at !== null;
     const sizes = periodSizesLine(data.period_shapes, data.seconds_per_item, factsOn);
+    const lengths = periodLengths(data.period_shapes);
     const needsDate = data.reason === 'school_year_end_missing' || data.reason === 'school_year_ended';
     const dateValid = endsOn >= bounds.min && endsOn <= bounds.max;
     const itemsValue = items.trim() === '' ? null : Number(items);
@@ -285,6 +288,33 @@ export default function MixedPanel({
                     >
                         Save
                     </button>
+                ) : null}
+                {lengths.length > 0 ? (
+                    <>
+                        <label className="ft-setting">
+                            <span>Period length</span>
+                            <select
+                                className="ft-date"
+                                value={data.period_minutes ?? ''}
+                                aria-describedby="ft-period-hint"
+                                onChange={(e) =>
+                                    void act(() =>
+                                        setClassPeriodMinutes(classId, e.target.value === '' ? null : Number(e.target.value)),
+                                    )
+                                }
+                            >
+                                <option value="">Usual ({lengths[0]} min)</option>
+                                {lengths.map((m) => (
+                                    <option key={m} value={m}>
+                                        {m} min
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <span id="ft-period-hint" className="ft-muted ft-small">
+                            Sets how long a review period is.
+                        </span>
+                    </>
                 ) : null}
                 <p className="ft-muted ft-small" style={{ margin: 0 }}>
                     Changes apply to practice started after this.

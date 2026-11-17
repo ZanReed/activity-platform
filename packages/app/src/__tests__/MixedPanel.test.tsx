@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
     fetchStudentRecent: vi.fn(),
     setMixedPractice: vi.fn(),
     setMixedSettings: vi.fn(),
+    setClassPeriodMinutes: vi.fn(),
 }));
 vi.mock('../lib/mixedTeacher', async (orig) => ({
     ...(await orig<typeof import('../lib/mixedTeacher')>()),
@@ -67,6 +68,7 @@ beforeEach(() => {
     api.fetchWhoFirst.mockResolvedValue(who());
     api.setMixedPractice.mockResolvedValue({ on: true, on_at: '2027-02-10T00:00:00Z' });
     api.setMixedSettings.mockResolvedValue({});
+    api.setClassPeriodMinutes.mockReset().mockResolvedValue({ period_minutes: 60 });
 });
 afterEach(() => {
     cleanup();
@@ -357,4 +359,30 @@ it('W-10: no student route reaches the teacher reads (import graph from the stud
         }
         expect(text, f).not.toMatch(/MIXED_PRACTICE_RPC\.(whoFirst|studentRecent|students|summary|setOn|setSettings)/);
     }
+});
+
+describe('MixedPanel — period length (0091, RV-2)', () => {
+    it('offers the mirrored lengths, "Usual" first, and saves the pick through the server', async () => {
+        api.fetchMixedSummary.mockResolvedValue({
+            ...summary(),
+            period_shapes: { lengths: { '60': [], '50': [], '100': [] } },
+            seconds_per_item: [60, 90],
+            period_minutes: null,
+        });
+        panel();
+        const select = (await screen.findByRole('combobox', { name: 'Period length' })) as HTMLSelectElement;
+        expect([...select.options].map((o) => o.text)).toEqual(['Usual (50 min)', '50 min', '60 min', '100 min']);
+        expect(select.value).toBe('');
+        expect(screen.getByText('Sets how long a review period is.')).toBeTruthy();
+        await act(async () => fireEvent.change(select, { target: { value: '60' } }));
+        expect(api.setClassPeriodMinutes).toHaveBeenLastCalledWith('class-1', 60);
+        await act(async () => fireEvent.change(select, { target: { value: '' } }));
+        expect(api.setClassPeriodMinutes).toHaveBeenLastCalledWith('class-1', null);
+    });
+
+    it('no period lengths mirrored: no control', async () => {
+        panel();
+        await screen.findByRole('checkbox', { name: 'Record a practice score' });
+        expect(screen.queryByRole('combobox', { name: 'Period length' })).toBeNull();
+    });
 });
