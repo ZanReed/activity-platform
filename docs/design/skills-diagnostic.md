@@ -1,6 +1,6 @@
 # Skills diagnostic, with seeding — design pass
 
-**Status:** DRAFT 2026-11-15, Fable-reviewed the same day. All three major
+**Status:** RULED 2026-11-17 (§0; author: "Yes to all"). Drafted 2026-11-15, Fable-reviewed the same day. All three major
 findings are folded into SD-5, SD-6, SD-7 and SD-11, marked "review
 correction" or "review finding". Decisions SD-1 to SD-12 are OPEN for the
 author. **C-194 answered 2026-11-17: §0 supersedes §3–§4 where they differ.**
@@ -103,7 +103,22 @@ of what was proposed.
   - Which chain folder holds an ext bank is their call (the Y7 entry bank,
     D43 item 8).
 
-### The open decisions now
+### RULED by the author 2026-11-17: "Yes to all"
+
+Every row below is ruled **as recommended**: R-1 to R-4, SD-1′, SD-2′, SD-4′,
+SD-5′, SD-5′b, SD-6′, SD-8′, and SD-3, SD-7, SD-9, SD-10, SD-11 and SD-12 as
+in §4. Two follow from that:
+- R-1 confirms, on this side, the ruling C-194 reported.
+- SD-11's own recommendation stands: **ask counsel** whether the 2026-10-06
+  answer covers this new store of student answers, as Q10 and Q11(b) were
+  asked for the earlier prunes. The question is owed before the migration
+  is applied live, not before design.
+
+**Nothing is built.** The build trigger is their first prerequisite bank PR
+(TODOS → "Skills diagnostic"). The gap half does nothing until a Developing
+lesson is drafted.
+
+### The decisions (now ruled)
 
 | # | Decision | Recommendation |
 |---|---|---|
