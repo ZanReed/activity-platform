@@ -20,19 +20,34 @@ An interactive math activity platform for K–12 educators that starts as a smal
 
 ## Phases at a glance
 
+### Where we are (refreshed 2026-11-17)
+
+**"Built" is not "shipped" here.** By this file's own rule a phase ships when real teachers use it. The first classes are early February 2027. So every ✅ below means *built and live, waiting for its first classroom*.
+
+- **Built:** Phases 1, 2.5, 2.6 and 2.7, most of Phase 2, and a phase this file never planned, **2.T, the teaching system**.
+  - 2.T comes from the curriculum side's plan (their §17/§18, D43, D49). Most of the work since September 2026 has gone into it.
+  - Its arcs enter through the queue in TODOS → "BUILD ORDER", not through this file.
+- **Not started:** 2.8 (media submissions), 2.9 (annotation), 3 (Classroom), 4 (multi-tenancy), 5 (marketplace).
+- **Next, by the ruled queue:**
+  - the review period, when the curriculum side's review keys arrive;
+  - the skills diagnostic and re-teach suggestion, ruled 2026-11-17, when their first prerequisite bank PR opens;
+  - then classroom use from February.
+  - Nothing in 2.8–5 is queued.
+
 | Phase | Theme | User-visible win |
 |---|---|---|
-| **1** | The MVP loop | Sign in, build a worksheet in a block editor, share a link, see submissions |
-| **2** | Polish the loop | ~~Markdown import~~ (shipped early in Phase 1), ~~image upload~~, ~~reference panel~~, ~~vocabulary definitions~~, ~~multiple choice~~ + ~~numeric blanks~~ (2026-07-10), ~~matching + ordering~~ (2026-07-10), ~~number-line + data-plot question blocks~~ (2026-07-12), better submission analytics, self-signup, ~~table block~~ (2026-08-21, table-block.md), ~~batch importer~~ (2026-08-20, batch-importer.md, 0038/0039), ~~taxonomy/tags~~ (2026-08-18, activity-taxonomy.md, 0037), ~~activities outline/list surface~~ (2026-08-19, activities-list-surface.md), ~~dark mode~~ (2026-07, editor UX pass), ~~viewer numbering + answer key~~ (2026-08-20) |
-| **2.5** | Parameterized problems | Template-based variants (authoring-time, then runtime) |
-| **2.6** | Manual grading + rubrics | Teacher-graded items (essays, short answer, open response) with multi-criterion rubrics ✅ re-platformed 2026-08-16 (teacher-grading.md, 0034) |
+| **1** ✅ | The MVP loop | Sign in, build a worksheet in a block editor, share a link, see submissions |
+| **2** (mostly ✅) | Polish the loop | ~~Markdown import~~ (shipped early in Phase 1), ~~image upload~~, ~~reference panel~~, ~~vocabulary definitions~~, ~~multiple choice~~ + ~~numeric blanks~~ (2026-07-10), ~~matching + ordering~~ (2026-07-10), ~~number-line + data-plot question blocks~~ (2026-07-12), better submission analytics *(partly: class progress, first tries, Responses filters — no dedicated analytics view)*, self-signup *(partly: the capped self-serve teacher door; a cap control is in TODOS)*, free activity catalog *(designed, not built — the signed-in Activity Bank, 0054, covers copy-to-use)*, ~~table block~~ (2026-08-21, table-block.md), ~~batch importer~~ (2026-08-20, batch-importer.md, 0038/0039), ~~taxonomy/tags~~ (2026-08-18, activity-taxonomy.md, 0037), ~~activities outline/list surface~~ (2026-08-19, activities-list-surface.md), ~~dark mode~~ (2026-07, editor UX pass), ~~viewer numbering + answer key~~ (2026-08-20) |
+| **2.5** ✅ | Parameterized problems | Template-based variants (authoring-time, then runtime) ✅ runtime per-student seeding shipped 2026-09-01 (seeded-data.md); seeded printed forms with per-form keys cover the authoring-time half |
+| **2.6** ✅ | Manual grading + rubrics | Teacher-graded items (essays, short answer, open response) with multi-criterion rubrics ✅ re-platformed 2026-08-16 (teacher-grading.md, 0034) |
 | **2.6b** | AI grading assist | Model-drafted rubric grades a teacher confirms/edits/rejects — suggestions never grades ✅ **built + live-verified 2026-09-26** (ai-grading-assist.md, 0042, `packages/grading-worker`, queue pre-fill UI). ⚠ Model half PARKED — the local-inference pilot waits on the author's GPU box (months); D7 hand-grading proceeds on student volume alone. The subscriber service path (hosted API, quota-gated) is seamed in but gated on compliance + hosted-model validation (§7a) |
-| **2.7** | Graphing track (calculator + interactive graphing) | ✅ **Substantially shipped 2026-07** — calculator (scientific → graphing → regression → expression list) and graded graph blocks (point/function/inequality/ray/segment/region + static display), one shared kit, all live. ⚠ The calculator's STUDENT surface died at S9 Drop 4 and was rebuilt 2026-08-23 (the tool cluster); feature scope ruled then — intersections/intercepts OUT. Remaining: stats beyond regression, further advanced stages |
-| **2.8** | Media submissions | Audio, video, file uploads — student-generated multimedia responses |
-| **2.9** | Annotation responses | Highlight, label, identify-the-error questions over passages and images |
-| **3** | Classroom integration | "Assign in Classroom," roster-based identity, grade passback |
-| **4** | Multi-tenancy | District/school workspaces, co-teaching, admin controls |
-| **5** | Marketplace | Teachers sell activities to other teachers and districts |
+| **2.7** (mostly ✅) | Graphing track (calculator + interactive graphing) | ✅ **Substantially shipped 2026-07** — calculator (scientific → graphing → regression → expression list) and graded graph blocks (point/function/inequality/ray/segment/region + static display), one shared kit, all live. ⚠ The calculator's STUDENT surface died at S9 Drop 4 and was rebuilt 2026-08-23 (the tool cluster); feature scope ruled then — intersections/intercepts OUT. Remaining: stats beyond regression, further advanced stages |
+| **2.T** ✅ | Teaching system (curriculum-driven; not in the original plan) | Daily practice, mastery checks, a period planner and a curriculum catalogue — see the Phase 2.T section below |
+| **2.8** | Media submissions | Audio, video, file uploads — student-generated multimedia responses. Not started; photo grading is designed (photo-grading.md), not built |
+| **2.9** | Annotation responses | Highlight, label, identify-the-error questions over passages and images. Not started |
+| **3** | Classroom integration | "Assign in Classroom," roster-based identity, grade passback. Not started — its identity foundation (student accounts, join codes, 0033) shipped early |
+| **4** | Multi-tenancy | District/school workspaces, co-teaching, admin controls. Not started — the glossary was pulled forward (0043); the department's async co-ownership wish still needs its design pass |
+| **5** | Marketplace | Teachers sell activities to other teachers and districts. Not started; no billing before Phase 4 (CLAUDE.md) |
 
 Phases are named, not dated. Each phase is "shipped" when its loop is complete and used by real teachers, not when a date arrives. Decimal sub-phases between 2 and 3 reflect that subject-expansion features layer onto the polished Phase 1 loop in roughly independent waves; the order is the most natural dependency order, not a strict commitment.
 
@@ -213,6 +228,39 @@ Design captured in `docs/design/interactive-graph-block.md`.
 - Print behavior — calculator can't print (optional one-line "Calculator: scientific functions only" note on the worksheet); interactive graphs print as static axes + empty answer space.
 
 **Done when** *(⚠ 2026-08-22: the student summon below has been FALSE since S9 Drop 4 — the calculator's student surface lived in the deleted runtime; the viewer has none. TODOS.md carries the ruling.)*: The graphing kit powers both faces. A teacher can enable and restrict a Desmos-style calculator on an activity (the student summons it, sees only the permitted functions, and can run a linear / quadratic / exponential regression on entered data) — *and*, at the graded end of the track, author a "plot the line y = 2x + 3" problem that a student solves on a Chromebook (with or without a mouse, with or without a screen reader), with the plotted slope and intercept and the within-tolerance verdict shown in the dashboard.
+
+---
+
+## Phase 2.T — The teaching system (added 2026-11-17)
+
+**Not in the original plan.** It came from the curriculum side, a separate agent with its own repo, which plans a Y7–10 year in its §17 and §18 (D43, D47, D49, D55). The platform builds the engines and screens; the curriculum supplies the banks, keys and rules. Each arc went through a design pass with the author's rulings and is recorded in its own doc. Most of the work from September to November 2026 went here.
+
+**User-visible:** a teacher plans a class's periods day by day and presents them. Students get a five-minute number-facts sprint, the day's lesson, and spaced mixed practice drawn from what each of them has been taught. Each lesson ends in a mastery check (DoL). The teacher sees who to help first, a unit tracker, first tries and class progress.
+
+**Built and live:**
+- **Curriculum catalogue import:** declared keys, chains, skill coverage and registry mirrors ([curriculum-alignment.md](docs/design/curriculum-alignment.md)); also the glossary, chain hooks, teacher guides, and the Activity Bank (copy-on-use, 0054).
+- **Number facts:** the class facts check and the daily sprint ([practice-blocks.md](docs/design/practice-blocks.md), 0044–0051).
+- **Practice banks and mixed practice:** spaced, interleaved, per student, with the teacher panel and "Who to see first" ([practice-banks.md](docs/design/practice-banks.md), [mixed-practice.md](docs/design/mixed-practice.md), [mixed-practice-teacher-panel.md](docs/design/mixed-practice-teacher-panel.md); 0058, 0066–0071).
+- **DoL mastery checks:** retakes, targeted practice and the optional explanation ([dol-retake.md](docs/design/dol-retake.md), [dol-targeted-practice.md](docs/design/dol-targeted-practice.md)); and the student unit tracker ([student-unit-tracker.md](docs/design/student-unit-tracker.md)).
+- **Period assembly and the period planner,** with due dates ([period-assembly.md](docs/design/period-assembly.md), [period-planner.md](docs/design/period-planner.md), [due-dates.md](docs/design/due-dates.md)).
+- **Video pause points.** The student switch stays OFF until school hosting clearance ([video-pause-points.md](docs/design/video-pause-points.md)).
+- **Grading the curriculum needs:** form grading ("equivalent AND in the stated form", [form-grading.md](docs/design/form-grading.md)), unit-bearing and superscript answers, Y7 figures and charts, and quiz and exam types printed in seeded forms.
+- **Student and teacher surfaces:** first tries, class progress, progress and restore, "Ask my teacher", and under-13 use by school authorization (0053).
+
+**Ruled, not built (each waits on a trigger in TODOS):**
+- **The skills diagnostic and the re-teach suggestion** ([skills-diagnostic.md](docs/design/skills-diagnostic.md), ruled 2026-11-17). They wait for the curriculum side's first prerequisite bank PR, and need Developing-tier lessons drafted.
+
+**Planned by the curriculum side, not designed here yet:**
+- the review period (waits for their review keys);
+- corrective periods (one corrective per misconception);
+- transfer periods;
+- late-joiner diagnostics;
+- a gradebook export;
+- "mark as taught" for paper-only lessons.
+
+**Parked:** the AI-grading model half (2.6b; waits for the author's GPU box). **Not armed:** four student-work prunes, built dry-run and unscheduled, each with its own arming checklist (CLAUDE.md).
+
+**Done when:** a real class runs a term on it, with the sprint, mixed practice, DoLs and the planner in daily use. The first classes are early February 2027.
 
 ---
 
