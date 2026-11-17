@@ -20,7 +20,7 @@ An interactive math activity platform for K–12 educators. It starts with the a
 
 ## Phases at a glance
 
-### Where we are (refreshed 2026-11-17)
+### Where we are (refreshed 2026-11-18)
 
 **"Built" is not "shipped" here.** By this file's own rule a phase ships when real teachers use it. The first classes are early February 2027. So every ✅ below means *built and live, waiting for its first classroom*.
 
@@ -29,7 +29,7 @@ An interactive math activity platform for K–12 educators. It starts with the a
   - Its arcs enter through the queue in TODOS → "BUILD ORDER", not through this file.
 - **Not started:** 2.8 (media submissions), 2.9 (annotation), 3 (Classroom), 4 (multi-tenancy), 5 (marketplace).
 - **Next, by the ruled queue:**
-  - the review period, when the curriculum side's review keys arrive;
+  - the review period is BUILT (2026-11-18); it reaches students at the first import after the curriculum side merges its review keys (their PR #98);
   - the skills diagnostic and re-teach suggestion, ruled 2026-11-17, when their first prerequisite bank PR opens;
   - then classroom use from February.
   - Nothing in 2.8–5 is queued.
@@ -246,12 +246,12 @@ Design captured in `docs/design/interactive-graph-block.md`.
 - **Video pause points.** The student switch stays OFF until school hosting clearance ([video-pause-points.md](docs/design/video-pause-points.md)).
 - **Grading the curriculum needs:** form grading ("equivalent AND in the stated form", [form-grading.md](docs/design/form-grading.md)), unit-bearing and superscript answers, Y7 figures and charts, and quiz and exam types printed in seeded forms.
 - **Student and teacher surfaces:** first tries, class progress, progress and restore, "Ask my teacher", and under-13 use by school authorization (0053).
+- **The review period** (built 2026-11-18; [review-period.md](docs/design/review-period.md), 0091–0092): a teacher marks a day as a review in the planner, the review is sized from the period, weighted toward chosen units and pulls skills forward by how long since they were practised; a missed question comes back once, unscored. Live for students once the curriculum's review keys are imported.
 
 **Ruled, not built (each waits on a trigger in TODOS):**
 - **The skills diagnostic and the re-teach suggestion** ([skills-diagnostic.md](docs/design/skills-diagnostic.md), ruled 2026-11-17). They wait for the curriculum side's first prerequisite bank PR, and need Developing-tier lessons drafted.
 
 **Planned by the curriculum side, not designed here yet:**
-- the review period (waits for their review keys);
 - corrective periods (one corrective per misconception);
 - transfer periods;
 - late-joiner diagnostics;
