@@ -203,6 +203,26 @@ export interface CheckActivityHandlerDeps {
 /** DL-8: withhold the DoL's worked solutions while a retake is still
  *  possible and the DoL is not passed. A failed state read (passed unknown)
  *  withholds — the safe direction. */
+/**
+ * A DoL's STORED verdicts with today's feedback (author ruling 2026-11-16, no
+ * hints in a DoL). A check recorded before that ruling stored the hint in its
+ * feedback; restore and replay return stored rows verbatim, so the verdict is
+ * kept and the feedback is taken from a fresh grade, which carries none.
+ */
+export function dolItemsWithoutHints(
+  stored: SectionCheckResult['items'],
+  fresh: SectionCheckResult['items'],
+): SectionCheckResult['items'] {
+  const out: SectionCheckResult['items'] = {};
+  for (const [id, item] of Object.entries(stored)) {
+    const rest = { ...item };
+    delete rest.feedback;
+    const now = fresh[id]?.feedback;
+    out[id] = now ? { ...rest, feedback: now } : rest;
+  }
+  return out;
+}
+
 export function withholdSolutions(dol: DolCheckState): boolean {
   return !dol.passed && dol.attempts < dol.allowance;
 }
@@ -628,7 +648,9 @@ export function createCheckActivityHandler(
         responses,
         result: {
           ...graded,
-          items: (row.verdicts ?? {}) as SectionCheckResult['items'],
+          items: isDol
+            ? dolItemsWithoutHints((row.verdicts ?? {}) as SectionCheckResult['items'], graded.items)
+            : ((row.verdicts ?? {}) as SectionCheckResult['items']),
           ...(dol ? { dol, solutions: withholdSolutions(dol) ? {} : graded.solutions } : {}),
         },
       });
@@ -923,7 +945,9 @@ export function createCheckActivityHandler(
     // request is byte-identical to the response that was lost in transit.
     const items =
       recorded?.replayed && recorded.verdicts
-        ? (recorded.verdicts as SectionCheckResult['items'])
+        ? isDol
+          ? dolItemsWithoutHints(recorded.verdicts as SectionCheckResult['items'], result.items)
+          : (recorded.verdicts as SectionCheckResult['items'])
         : result.items;
 
     // DL-8: on the DoL, worked solutions wait until the last attempt or the

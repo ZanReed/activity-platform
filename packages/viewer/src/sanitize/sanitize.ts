@@ -66,7 +66,7 @@ import type {
 // any `link` mark whose href is not https. A defence beside the schema's own
 // check (the handlers do not schema-parse), and a new rule, so cached rows
 // written before it must not survive it.
-export const SANITIZER_ALGO_REV = 4;
+export const SANITIZER_ALGO_REV = 5;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */
@@ -136,6 +136,17 @@ function applyStripPath(block: Record<string, unknown>, path: string): void {
 // PROMPT_CARRIER_TYPES is single-sourced (promptCarriers.ts) — the grading
 // walk consumes the same roster, and two declarations drifted-risk a silent
 // leak or a silent mis-grade (A7).
+
+function stripBlankHints(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const el of value) stripBlankHints(el);
+    return;
+  }
+  if (value === null || typeof value !== 'object') return;
+  const obj = value as Record<string, unknown>;
+  if (obj.type === 'blank') delete obj.hint;
+  for (const child of Object.values(obj)) stripBlankHints(child);
+}
 
 function stripInBandSecrets(value: unknown): void {
   if (Array.isArray(value)) {
@@ -395,6 +406,12 @@ export function sanitizeActivityDocument(
         }
       }
     }
+    // NO HINTS IN A DoL (author ruling 2026-11-16): the grader never returns
+    // one there, so the served page must not carry one either. A blank's
+    // `hint` otherwise survives sanitize (BLANK_SECRET_FIELDS); in a DoL
+    // section it is stripped like any other key material.
+    const dol = (section as { dol?: unknown }).dol;
+    if (dol !== undefined && dol !== null) stripBlankHints(section.rows);
   }
   // The reference panel ships the same Block union the body does, so it gets
   // the same per-block treatment. Scaffold by intent is not scaffold by SCHEMA.

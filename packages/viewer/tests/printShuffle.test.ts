@@ -396,11 +396,13 @@ describe('the declaration is where it is for a reason', () => {
     // redeploys are pending author actions, and no file using `{{^…}}` or a
     // question `hint:` may be imported before they are live.
     //
+    // MOVED 2026-11-17: '4-89b016b0' → '5-618fdd13' — no blank hints served
+    // in a DoL section (author ruling 2026-11-16), ALGO_REV 4 → 5.
     // MOVED 2026-11-15 again: '3-be7914fd' → '4-89b016b0'. S7 bumped
     // SANITIZER_ALGO_REV 3 → 4 (the in-band walk now drops non-https links).
     // Both bundles regenerate in the same commit; get-activity and
     // check-activity redeploys are pending author actions, BEFORE the push.
-    expect(SANITIZER_REV).toBe('4-89b016b0');
+    expect(SANITIZER_REV).toBe('5-618fdd13');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

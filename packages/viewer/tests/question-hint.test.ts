@@ -5,7 +5,9 @@
 // all (author ruling 2026-11-16).
 import { describe, expect, it } from 'vitest';
 import { gradeSection } from '../src/server/grading/index.js';
-import { emptySectionResponses } from '../src/index.js';
+import { emptySectionResponses, sanitizeActivityDocument } from '../src/index.js';
+import { dolItemsWithoutHints } from '../src/server/check-activity-handler.js';
+import { fullyLoadedDocument, wireOf } from '../src/fixtures/leakFixture.js';
 
 const t = (text: string) => ({ type: 'text', text, marks: [] });
 const HINT = [t('Look at the units first.')];
@@ -128,5 +130,32 @@ describe('in a DoL section', () => {
       items: [{ id: 'o1', content: [t('1')] }, { id: 'o2', content: [t('2')] }, { id: 'o3', content: [t('3')] }],
     };
     expect(said(run(o, { orderings: { [o.id]: ['o3', 'o1', 'o2'] } }, true))).toBe('null');
+  });
+});
+
+describe('a DoL section does not SERVE a blank hint either (Fable review)', () => {
+  it('stripped from the served page in a DoL section, kept elsewhere', () => {
+    // The reference panel is not part of any section, so it keeps its own
+    // blanks' hints; this test reads the sections alone.
+    const doc = fullyLoadedDocument() as unknown as { sections: Array<Record<string, unknown>>; referencePanel?: unknown };
+    delete doc.referencePanel;
+    expect(wireOf(sanitizeActivityDocument(doc as never))).toContain('HINT_SURVIVES');
+    for (const sec of doc.sections) sec.dol = { skills: ['x.y'] };
+    expect(wireOf(sanitizeActivityDocument(doc as never))).not.toContain('HINT_SURVIVES');
+  });
+});
+
+describe('a DoL check saved before the ruling (restore and replay)', () => {
+  it('keeps the stored verdict and takes feedback from a fresh, hint-free grade', () => {
+    const stored = {
+      b1: { verdict: 'incorrect' as const, feedback: [t('Look at the units first.')] },
+      b2: { verdict: 'incorrect' as const, feedback: [t('old mistake text')], misconceptionIds: ['m.x'] },
+      b3: { verdict: 'correct' as const },
+    };
+    const fresh = { b1: { verdict: 'incorrect' as const }, b2: { verdict: 'incorrect' as const, feedback: [t('That is 3 + 4.')] } };
+    const out = dolItemsWithoutHints(stored as never, fresh as never);
+    expect(out.b1).toEqual({ verdict: 'incorrect' });
+    expect(out.b2).toEqual({ verdict: 'incorrect', misconceptionIds: ['m.x'], feedback: [t('That is 3 + 4.')] });
+    expect(out.b3).toEqual({ verdict: 'correct' });
   });
 });

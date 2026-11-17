@@ -237,8 +237,8 @@ describe('the check path grades the DoL (DL-6/7/8, DE-4, DE-7)', () => {
 });
 
 describe('restore (DE-1d, DL-8)', () => {
-  async function restore(attempt: number, passed: boolean) {
-    const rows = [{ section_id: DOL, attempt_number: attempt, responses: { blanks: { [BLANK]: '1' } }, verdicts: { [BLANK]: { verdict: 'incorrect' } } }];
+  async function restore(attempt: number, passed: boolean, verdicts: Record<string, unknown> = { [BLANK]: { verdict: 'incorrect' } }) {
+    const rows = [{ section_id: DOL, attempt_number: attempt, responses: { blanks: { [BLANK]: '1' } }, verdicts }];
     const unreachable = async () => { throw new Error('practice'); };
     const handler = createCheckActivityHandler({
       db: {
@@ -258,8 +258,17 @@ describe('restore (DE-1d, DL-8)', () => {
       headers: { Authorization: jwt('student-1') },
       body: JSON.stringify({ wireVersion: CHECK_WIRE_VERSION, mode: 'restore', activityId: ACTIVITY, versionId: VERSION, sectionIds: [DOL] }),
     }));
-    return (await res.json()) as { sections: Array<{ result: { solutions: unknown; dol?: unknown } }> };
+    return (await res.json()) as { sections: Array<{ result: { solutions: unknown; dol?: unknown; items: Record<string, { verdict: string; feedback?: unknown }> } }> };
   }
+
+  // No hints in a DoL (author ruling 2026-11-16): a check saved BEFORE the
+  // ruling stored its hint in the feedback; restore keeps the verdict and
+  // takes the feedback from a fresh, hint-free grade.
+  it('a restored DoL never re-shows a hint stored before the ruling', async () => {
+    const out = await restore(1, false, { [BLANK]: { verdict: 'incorrect', feedback: [{ type: 'text', text: 'STALE_HINT' }] } });
+    expect(out.sections[0]!.result.items[BLANK]!.verdict).toBe('incorrect');
+    expect(JSON.stringify(out)).not.toContain('STALE_HINT');
+  });
 
   it('a restored failed attempt 1 carries no worked solution; a passed one does', async () => {
     const failed = await restore(1, false);

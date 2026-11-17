@@ -16,7 +16,8 @@
 // feedback is always "not graded" — there is no teacher grade on a draft.
 //
 // NOT covered, and said so in the preview's banner: a DoL section's own forms
-// and retake (it is checked as an ordinary section here).
+// and retake. Like the live check, a DoL section returns no hints (the grader
+// reads its `dol` marker), but there is one form and no retake here.
 //
 // Loaded only when a teacher opens the preview (the editor imports it
 // lazily), so the grading engine never rides any student page.

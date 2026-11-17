@@ -154,7 +154,9 @@ export function createVideoPauseHandler(deps: VideoPauseDeps) {
     const block = blockIn(ctx.doc, target.sectionId, blockId!);
     const alone = {
       ...(ctx.doc as object),
-      sections: [{ id: target.sectionId, rows: [{ columns: [{ blocks: [block] }] }] }],
+      // The real section's `dol` marker rides along, so a pause question in
+      // a DoL gets no hint either (author ruling 2026-11-16).
+      sections: [{ id: target.sectionId, ...dolMarkerOf(ctx.doc, target.sectionId), rows: [{ columns: [{ blocks: [block] }] }] }],
     };
     const graded: SectionCheckResult = gradeSection({
       document: alone as never,
@@ -202,4 +204,9 @@ export function createVideoPauseHandler(deps: VideoPauseDeps) {
     );
     return respond({ state: 'wrong', feedback });
   };
+}
+
+function dolMarkerOf(doc: unknown, sectionId: string): { dol?: unknown } {
+  const section = (doc as { sections?: Array<{ id?: unknown; dol?: unknown }> }).sections?.find((x) => x.id === sectionId);
+  return section?.dol !== undefined && section.dol !== null ? { dol: section.dol } : {};
 }

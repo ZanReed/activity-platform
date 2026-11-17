@@ -533,7 +533,7 @@ What the retro certified held (2026-08-06): one component tree serves screen, te
 
 ## No hints in a DoL (2026-11-16, author; asked by the curriculum side's C-195)
 
-A DoL check returns verdicts and the authored mistake feedback (DL-8) but never a hint: not a blank's `?hint`, not the mc / match / order `hint:` that S3 added. A hint is a nudge, and a DoL is an assessment. Mistake feedback stays, because DL-8 ruled it and it names a mistake already made rather than steering the next try. The rule lives in `gradeSection`, read from the raw section's `dol` marker, so nothing a caller passes can turn it off, and the teacher's draft preview behaves the same. Before this, hints reached the student on every DoL attempt; only the worked solutions were held back.
+A DoL check returns verdicts and the authored mistake feedback (DL-8) but never a hint: not a blank's `?hint`, not the mc / match / order `hint:` that S3 added. A hint is a nudge, and a DoL is an assessment. Mistake feedback stays, because DL-8 ruled it and it names a mistake already made rather than steering the next try. The rule lives in `gradeSection`, read from the raw section's `dol` marker, so nothing a caller passes can turn it off, and the teacher's draft preview behaves the same. Before this, hints reached the student on every DoL attempt; only the worked solutions were held back. The served page no longer carries a DoL blank's hint either (sanitize, SANITIZER_ALGO_REV 4 → 5), and a check saved before the ruling restores without its stored hint (verdict kept, feedback re-graded).
 
 ## "Ask my teacher": a request the student chose, polled, no free text (2026-11-16, migration 0090; full record in docs/design/ask-my-teacher.md)
 
