@@ -11,20 +11,23 @@
 //      44 px targets (DM-16).
 //   4. no network: "Checking…", the answer kept, the quiet line after 10 s,
 //      "Try again" lands it (DM-5).
+//   5. a review day (0091, review slice 5): named on the card, a wrong answer
+//      brings its re-try back next, the end says "Review done", and the score
+//      counts the planned questions only.
 // ⚠ Stub lanes: the Supabase origin is the dead one (e2eOrigins.ts); every
 // route this page calls is stubbed here or by the identity stub.
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test';
-import { PX_CODE, stubMixedPracticeApi } from '../helpers/mixedPracticeStub';
+import { PX_CODE, PX_RETRY_SEQ, stubMixedPracticeApi } from '../helpers/mixedPracticeStub';
 import { signInAs, stubIdentityApi } from '../helpers/studentSession';
 
-async function open(page: Page, graded = false) {
+async function open(page: Page, graded = false, review = false) {
   await stubIdentityApi(page, { role: 'student' });
   await signInAs(page);
-  const api = await stubMixedPracticeApi(page, { graded });
+  const api = await stubMixedPracticeApi(page, { graded, review });
   await page.goto(`/practice/${PX_CODE}`);
-  await expect(page.getByRole('heading', { name: 'Practice' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: review ? 'Review' : 'Practice' })).toBeVisible();
   return api;
 }
 
@@ -117,4 +120,39 @@ test('no network: the answer stays, "Checking…", the quiet line after 10 s, an
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByRole('heading', { name: /Right/ })).toBeVisible();
   expect(api.checks).toHaveLength(1); // aborted requests never reached the server
+});
+
+test('a review day: named on the card, a missed question comes back next, "Review done", planned questions only', async ({ page }) => {
+  const api = await open(page, true, true);
+  await expect(page.getByText('Today’s lesson is a review')).toBeVisible();
+  await expect(page.getByText('Your teacher is recording a review score today.')).toBeVisible();
+  // DM-13 on the card too, not only at the end.
+  await expect(page.locator('body')).not.toContainText(/\b(mixed|session|discrimination|steps?|due|planned|graded)\b/i);
+  await page.getByRole('button', { name: 'Start' }).click();
+  await expect(page.locator('.mx-kind')).toHaveText('Review');
+
+  await page.getByRole('textbox').fill('8');
+  await page.getByRole('button', { name: 'Check' }).click();
+  await expect(page.getByRole('heading', { name: /Not this time/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Next' }).click();
+
+  // The re-try is next, says what it is, and the count has grown to 3.
+  await expect(page.getByRole('heading', { name: 'Question 2 of 3: another go at an earlier question' })).toBeVisible();
+  await expect(page.getByTestId('mx-retry')).toContainText('isn’t scored');
+  await page.getByRole('textbox').fill('5');
+  await page.getByRole('button', { name: 'Check' }).click();
+  await expect(page.getByRole('heading', { name: /Right/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Next' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Question 3 of 3' })).toBeVisible();
+  await expect(page.getByTestId('mx-retry')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Review done' })).toBeVisible();
+  // The right re-try is not a point: 0 of the 2 planned.
+  await expect(page.getByTestId('mx-done-right')).toHaveText('You got 0 of 2 right.');
+  await expect(page.getByTestId('mx-done-score')).toHaveText('Review score: 0 of 2 (you answered 1 of 2).');
+  expect(api.checks.map((c) => `${c.seq}${c.skip ? 's' : ''}`)).toEqual(['1', String(PX_RETRY_SEQ), '2s']);
+  await expect(page.locator('body')).not.toContainText(/\b(mixed|session|discrimination|steps?|due|planned|graded)\b/i);
 });

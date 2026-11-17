@@ -3838,6 +3838,17 @@ Filed by the curriculum builder with the v1 glossary (`glossary.md`, curriculum 
 
 A `waitFor` timeout, seen twice in six runs of the app suite, each time with typecheck and lint running beside it (inside `pnpm verify`, or in parallel). Every run of `pnpm -r test` on its own passed. It is unrelated to the change being verified (the review re-try path). STATE's one-off list asks for the name when a flake recurs: this is the name. **Trigger:** it fails in CI, or a third time locally; then raise that test's `waitFor` timeout or find what it waits on.
 
+## Flaky in CI: `ActivityResponses.test.tsx` "J and K step through the list as shown, but not while typing" (2026-11-17)
+
+Failed once in CI (run 44076217749, main 5449b0be, a STATE-only commit): `expected '' to contain 'maya@school.example'` at line 701, inside a `waitFor`. The DOM dump shows the list rendered with no row selected yet, so the J keypress landed before the handler was ready, or the selection read ran first. It passes locally and on every other CI run. Same family as the `Bank.test.tsx` flake above: a `waitFor` racing the render. **Trigger:** a second CI failure; then wait for the list's keyboard handler (or the first row's selection) before pressing J, rather than raising the timeout.
+
+## Review period: copy and edge cases left after slice 5 (2026-11-18)
+
+From slice 5's review (review-period.md → "As built — slice 5"). None is wrong behaviour; each is wording. **Trigger:** a student or teacher is confused by one, or the next review-period change touches these screens.
+- **After a finished review, the student's screens say "practice" again.** The `done_today` card reads "You've done today's practice", and Today's row flips from "Review" to "Practice … Done ✓". This is because 0091's preview sends `review: false` once the review is done. Fixing it needs a `reviewed` flag on the preview (a migration).
+- **"Finish here" on a part-answered review shows "Review done" with "Practise again" under it.** Tapping it resumes the rest of the review: right behaviour, odd words. The mirror case: finishing an old daily practice on a review day says "Practice done", and "Practise again" then starts the review.
+- **A review stopped with every planned question answered and a re-try still waiting resumes as "You stopped at question N of N"** (`lib/mixedPractice.ts` nextSeq). Pre-existing since slice 4.
+
 ## Skills diagnostic, with seeding, and the re-teach suggestion (RULED 2026-11-17, unbuilt)
 
 ⚠ **Mirroring trap (review-slice-3b finding, 2026-11-18):** once 60e36b25 is mirrored without the diagnostic keys, `sync_mixed_settings` refuses the same revision with more keys. The build needs a fresh curriculum revision, or a migration that lets a revision gain keys. See review-period.md → slice 3b.

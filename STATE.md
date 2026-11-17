@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b built: push BEFORE any import (review-period.md → 3b); importing after #98 merges turns reviews on.**
+**Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 
 **Schema shortlist S1–S8 LIVE (2026-11-16):** both functions deployed and hash-verified, pushed at `cf1d1edd`, CI green; prompt stamp refreshed; B-255 sent (`^`, `hint:`, https links). **S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md), ST-1..14 ruled): 0090 applied, verify-0090 5/5 on live, pushed `3274dc69`, CI green. `prune_help_requests` ARMED 2026-11-17 (author runs the `cron.schedule` in migrations/README, then `verify-0090` live). Ruled: no asking in locked / quiz / exam / DoL. S2's workSpace departure confirmed 2026-11-17. **No hints in a DoL LIVE 2026-11-17** (both functions hash-verified, `7ccc8aa5` pushed, CI green; sanitizer rev 4 → 5; B-257 sent).
 

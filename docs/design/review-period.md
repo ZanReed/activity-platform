@@ -146,7 +146,7 @@ stored unit stays tickable; the copy names no setting's value.
 - **Seen while checking, not changed:**
   - a class with no daily practice yet gets small reviews, because new skills
     are capped at `mixed_new_skills_per_session` (2);
-  - the done screen still says "Practice done";
+  - ~~the done screen still says "Practice done"~~ fixed in slice 5;
   - the "✕ Try again" pill in a one-try place is TODOS → Playtest sweep 1.
 - **Known:** if the re-try read fails on a check, the runner ends early and the
   next resume serves the waiting re-try.
@@ -155,6 +155,27 @@ stored unit stays tickable; the copy names no setting's value.
 (OV-7: the planner calls `review_preview`). Then push. Until the review keys are
 mirrored by an import run (slice 3b, above), a placed review changes nothing
 for students, and the planner says so.
+
+## As built — slice 5, polish (2026-11-18)
+
+- **The end of a review says so:** "Review done" and "Review score: …", from
+  the runner (`session.review`) and from Finish here on the resume card (the
+  preview's `review`, which follows the open session's kind). Unit tests on
+  both paths, mutation-tested.
+- **A review walk in the student lane** (`e2e/student/mixed-practice.e2e.ts`
+  test 5; the stub's `review` option): the card names the review, a wrong first
+  answer brings its re-try back as "Question 2 of 3: another go…", the end is
+  "Review done", and the score counts the 2 planned questions only. The checks
+  go 1, 3 (the re-try), 2.
+- **Review findings fixed:** the review card no longer says "mixed" (DM-13 is
+  now asserted on the card as well as at the end); its score line says "review
+  score"; the e2e stub's payloads are typed against the wire (`satisfies`,
+  mutation-checked). The rest is in TODOS → "Review period: copy and edge
+  cases left after slice 5".
+- **B-264 asked the curriculum side about small first reviews:** the daily
+  new-skills cap (2) also limits a review, so a class with little daily
+  practice gets a short one (6 of 33 locally). Options (a) keep, (b) lift in a
+  review, (c) a review-only key. No answer is needed before #98/#99 merge.
 
 ## 1. What C-196 rules (their side)
 

@@ -345,6 +345,19 @@ describe('FactsEntry', () => {
         expect(screen.getByTestId('mx-done-score').textContent).toBe('Practice score: 2 of 6 (you answered 3 of 6).');
     });
 
+    it('finishing a resumed review there says it was a review (review slice 5)', async () => {
+        mixedOn({ state: 'resume', doneToday: 0, graded: true, itemsPerSession: 6, planned: 6, nextSeq: 4, sessionId: 'sess-9', review: true });
+        mixedApi.finishMixed.mockResolvedValue({ planned: 6, right: 2, answered: 3, skipped: 0, graded: true });
+        practicePage();
+        await screen.findByText('You stopped at question 4 of 6.');
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Finish here' }));
+        });
+        expect(mixedApi.finishMixed).toHaveBeenCalledWith('sess-9');
+        await screen.findByRole('heading', { name: 'Review done' });
+        expect(screen.getByTestId('mx-done-score').textContent).toBe('Review score: 2 of 6 (you answered 3 of 6).');
+    });
+
     it('the empty states each say what to do, with a way back to the classes (DM-4)', async () => {
         for (const [state, heading, line] of [
             ['nothing_taught', 'Nothing to practise yet', 'It starts the day after you check your first activity.'],

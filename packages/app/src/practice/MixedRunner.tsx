@@ -158,6 +158,7 @@ export default function MixedRunner({ session, userId, classId, onAgain, onEnded
                 tally={tallyOf(plannedResults(), session.planned)}
                 graded={session.graded}
                 classId={classId}
+                review={session.review === true}
                 onAgain={onAgain}
                 todayAction={todayAction}
             />

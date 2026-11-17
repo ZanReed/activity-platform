@@ -12,6 +12,10 @@
 //              counts cover what was tried; no score line, no Practise again.
 //
 // The words never say "session", "mixed", "planned" or "graded" (DM-13).
+//
+// A review (0091, review-period.md slice 5) says so: "Review done" and
+// "Review score". Its re-tries are never in the tally (the runner and the
+// server both count planned questions only).
 // =============================================================================
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -35,6 +39,8 @@ export type MixedDoneProps =
           tally: MixedTally;
           graded: boolean;
           classId: string;
+          /** 0091: this was a review. */
+          review?: boolean;
           onAgain: () => void;
           /** PA-7: today's next row. */
           todayAction?: ReactNode;
@@ -69,14 +75,14 @@ export default function MixedDone(props: MixedDoneProps) {
     }
 
     return (
-        <Card title="Practice done">
+        <Card title={props.review ? 'Review done' : 'Practice done'}>
             <p className="mt-2 text-base text-strong" data-testid="mx-done-right">
                 You got {tally.right} of {tally.of} right.
             </p>
             {skippedLine}
             {props.graded ? (
                 <p className="mt-2 text-base text-strong" data-testid="mx-done-score">
-                    Practice score: {tally.right} of {tally.of} (you answered {tally.answered} of {tally.of}).
+                    {props.review ? 'Review' : 'Practice'} score: {tally.right} of {tally.of} (you answered {tally.answered} of {tally.of}).
                 </p>
             ) : null}
             <p className="mt-2 text-base text-muted">See you next lesson.</p>

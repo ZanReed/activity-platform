@@ -124,7 +124,7 @@ type View =
     | { kind: 'joinFailed'; copy: string }
     | { kind: 'closed'; saved: number }
     /** Finish here (DM-6): the server's counts for the session just closed. */
-    | { kind: 'mixedFinished'; tally: MixedTally; graded: boolean; classId: string };
+    | { kind: 'mixedFinished'; tally: MixedTally; graded: boolean; classId: string; review: boolean };
 
 export default function FactsEntry() {
     const { code: rawCode } = useParams();
@@ -336,13 +336,14 @@ export default function FactsEntry() {
             setStarting(false);
         }
     };
-    const finishPractice = async (classId: string, sessionId: string) => {
+    const finishPractice = async (classId: string, sessionId: string, review: boolean) => {
         setStarting(true);
         try {
             const f = await finishMixed(sessionId);
             setView({
                 kind: 'mixedFinished',
                 classId,
+                review,
                 graded: f.graded,
                 tally: { of: f.planned, right: f.right, answered: f.answered, skipped: f.skipped },
             });
@@ -517,6 +518,7 @@ export default function FactsEntry() {
                 tally={view.tally}
                 graded={view.graded}
                 classId={view.classId}
+                review={view.review}
                 onAgain={() => {
                     practiceDoneRef.current += 1;
                     void startPractice(view.classId);
@@ -613,7 +615,7 @@ export default function FactsEntry() {
                 mixed={view.mixed}
                 starting={starting}
                 onStart={() => void startPractice(view.mixed!.classId)}
-                onFinish={(sessionId) => void finishPractice(view.mixed!.classId, sessionId)}
+                onFinish={(sessionId) => void finishPractice(view.mixed!.classId, sessionId, view.mixed!.preview.review === true)}
             />
         );
     } else if (view.sprint) {
@@ -831,7 +833,7 @@ function MixedEntryCard({
             </p>
             {p.review ? (
                 <p className="mt-2 text-base text-muted">
-                    Today’s lesson is a review: questions on what you’ve learned so far, mixed together. One you miss
+                    Today’s lesson is a review: questions from across what you’ve learned so far. One you miss
                     comes back later on.
                 </p>
             ) : null}
@@ -840,7 +842,7 @@ function MixedEntryCard({
                 You can see the working after every answer.
             </p>
             {p.graded ? (
-                <p className="mt-2 text-base text-strong">Your teacher is recording a practice score today.</p>
+                <p className="mt-2 text-base text-strong">Your teacher is recording a {p.review ? 'review' : 'practice'} score today.</p>
             ) : null}
             <button type="button" className={`mt-4 w-full ${BTN_PRIMARY}`} disabled={starting} onClick={onStart} autoFocus>
                 {starting ? 'Starting…' : 'Start'}

@@ -4,11 +4,12 @@
 // practice-handler.test.ts assert; the questions are the shared fixtures
 // (src/test/practiceFixtures.ts), served through the real sanitizer.
 import type { Page, Route } from '@playwright/test';
-import { CHECK_WIRE_VERSION } from '@activity/viewer';
+import { CHECK_WIRE_VERSION, type PracticeCheckResult, type PracticeStartResult } from '@activity/viewer';
 import { CHECK_ACTIVITY_FUNCTION } from '../../src/lib/edgeFunctions';
 import { FACT_PROBE_RPC } from '../../src/lib/factProbeRpc';
 import { MIXED_PRACTICE_RPC } from '../../src/lib/mixedPracticeRpc';
 import {
+  pxBlankDocument,
   PX_BLANK_ID,
   PX_CLASS_ID,
   PX_CODE,
@@ -30,10 +31,15 @@ export interface MixedBackend {
   graded: boolean;
 }
 
+/** The re-try a wrong first answer earns in a review (0091, RV-5): slot 3, a
+ *  fresh copy of question 1, served right after it. */
+export const PX_RETRY_SEQ = 3;
+
 export async function stubMixedPracticeApi(
   page: Page,
-  options: { graded?: boolean } = {},
+  options: { graded?: boolean; review?: boolean } = {},
 ): Promise<MixedBackend> {
+  const review = options.review === true;
   const state: MixedBackend = { previews: 0, starts: 0, checks: [], offline: false, refused: 0, graded: options.graded ?? false };
   const tried = new Map<number, ReturnType<typeof pxCheckResult>>();
 
@@ -55,7 +61,7 @@ export async function stubMixedPracticeApi(
     await route.fulfill({
       json: done
         ? { state: 'done_today', done_today: 1, graded: state.graded, items_per_session: 2 }
-        : { state: 'ready', done_today: 0, graded: state.graded, items_per_session: 2, planned: 2 },
+        : { state: 'ready', done_today: 0, graded: state.graded, items_per_session: 2, planned: 2, ...(review ? { review: true } : {}) },
     });
   });
 
@@ -78,12 +84,21 @@ export async function stubMixedPracticeApi(
       };
       if (body.mode === 'practice-start') {
         state.starts += 1;
-        const session = pxSession({ graded: state.graded });
+        const session = pxSession({ graded: state.graded, ...(review ? { review: true } : {}) });
         await route.fulfill({
           json: {
             wireVersion: CHECK_WIRE_VERSION, state: 'started', doneToday: 0, graded: state.graded,
-            itemsPerSession: 2, session,
-          },
+            itemsPerSession: 2, session, ...(review ? { review: true, capacity: 2, thin: false } : {}),
+          } satisfies PracticeStartResult,
+        });
+        return;
+      }
+      if (review && body.mode === 'practice' && body.seq === PX_RETRY_SEQ) {
+        // The re-try is not one of the planned: it never counts towards "done".
+        state.checks.push({ seq: body.seq, ...(body.skip ? { skip: true } : {}), responses: body.responses ?? { blanks: {} } });
+        const right = !body.skip && body.responses?.blanks?.[PX_BLANK_ID] === '5';
+        await route.fulfill({
+          json: { ...pxCheckResult(1, body.skip ? 'skipped' : right ? 'right' : 'wrong'), seq: PX_RETRY_SEQ } satisfies PracticeCheckResult,
         });
         return;
       }
@@ -100,7 +115,12 @@ export async function stubMixedPracticeApi(
           : seq === 1
             ? body.responses?.blanks?.[PX_BLANK_ID] === '5' ? 'right' : 'wrong'
             : 'wrong';
-        const result = pxCheckResult(seq, outcome);
+        const base = pxCheckResult(seq, outcome);
+        // A review: one re-try after a wrong, non-skipped first answer.
+        const result: PracticeCheckResult =
+          review && seq === 1 && outcome === 'wrong'
+            ? { ...base, retry: { item: { seq: PX_RETRY_SEQ, retryOf: 1, document: pxBlankDocument() }, afterSeq: 1 } }
+            : base;
         tried.set(seq, result);
         await route.fulfill({ json: result });
         return;

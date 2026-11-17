@@ -311,7 +311,7 @@ describe('MixedRunner — a review and its re-tries', () => {
             })
             .mockResolvedValueOnce({ ...pxCheckResult(1, 'right'), seq: 3 })
             .mockResolvedValueOnce(pxCheckResult(2, 'right'));
-        const view = runner(pxSession({ review: true }));
+        const view = runner(pxSession({ review: true, graded: true }));
         expect(view.container.textContent).toContain('Review');
         type('8');
         press('Check');
@@ -329,9 +329,11 @@ describe('MixedRunner — a review and its re-tries', () => {
         press('Skip');
         await screen.findByRole('heading', { name: /Right/ });
         press('Next');
-        await screen.findByRole('heading', { name: 'Practice done' });
+        // The end says it was a review (slice 5), score line included.
+        await screen.findByRole('heading', { name: 'Review done' });
         // Two planned questions: 1 wrong, 2 right. The right re-try is not a point.
         expect(screen.getByTestId('mx-done-right').textContent).toBe('You got 1 of 2 right.');
+        expect(screen.getByTestId('mx-done-score').textContent).toBe('Review score: 1 of 2 (you answered 2 of 2).');
     });
 
     it('withRetry: after its item, at the end when that item is gone, never twice', async () => {
