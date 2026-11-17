@@ -93,8 +93,27 @@ Built locally, Fable-reviewed (nothing major; its tie and test findings fixed).
 - a wrong replay returns the re-try again, so the runner dedupes by seq;
 - nothing yet reads `review`, `capacity` or `thin`.
 
-**Slice 3b** (the importer mirroring the ten review keys) waits on curriculum
-#98 being merged.
+**Slice 3b** (the importer mirroring the ten review keys) is BUILT
+(2026-11-18): `planPracticeRegistry` puts the ten keys into the mirrored
+settings when present (all ten or none, as RV-0 already checked) and refuses
+`review_items_max` over 50 by name, the bound 0091's CHECK holds it to. The five
+diagnostic keys stay out of the mirror: no migration counts them yet. Checked
+against both rebased registries (#98 at 2911793, #99 at 24f2956): each mirror
+payload is 20 keys and passes the local `mixed_settings_ok`. It takes effect at
+the first import run after #98 merges (B-263 cleared #98, then #99).
+
+- **Push before importing.** `mixed_settings_revision` is insert-only, and a
+  revision is the hash of the WHOLE registry body, but the mirror is a subset.
+  An import on the old importer would store ee1bebbb/60e36b25 without the
+  review keys, and every later run would be REFUSED ("already mirrored with
+  DIFFERENT settings") until the curriculum body changed. Live was clear
+  2026-11-18 (latest mirrored revision 0e6df783, v0.19.8).
+- **The same trap waits for the diagnostic build:** 60e36b25 will be mirrored
+  without the diagnostic keys, so mirroring them needs a new curriculum
+  revision or a migration that lets a revision gain keys.
+- `review_pulled_step_up` / `review_pulled_moves_due` set to `true` are refused
+  by name: 0091 builds only false, and a true would pass the CHECK and change
+  nothing (review finding).
 
 ## As built — slice 4, the screens (2026-11-18)
 
@@ -133,9 +152,9 @@ stored unit stays tickable; the copy names no setting's value.
   next resume serves the waiting re-try.
 
 **Owed:** apply 0092 live and run verify-0092 there, BEFORE pushing the app
-(OV-7: the planner calls `review_preview`). Then push. Slice 3b (the importer
-mirrors the review keys) waits on #98; until then a placed review changes
-nothing for students, and the planner says so.
+(OV-7: the planner calls `review_preview`). Then push. Until the review keys are
+mirrored by an import run (slice 3b, above), a placed review changes nothing
+for students, and the planner says so.
 
 ## 1. What C-196 rules (their side)
 

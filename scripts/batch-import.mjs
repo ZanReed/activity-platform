@@ -222,9 +222,10 @@ const PERIOD_BLOCK_KINDS = ['fluency', 'hook', 'activity', 'mixed'];
 
 /**
  * C-196 (curriculum PR #98): the ten review-period overrides (review-period.md,
- * RV-0). All or none. ACCEPTED AND VALIDATED, NEVER MIRRORED until the review
- * build: 0083's mixed_settings_ok counts the mirrored keys exactly, so a
- * mirror is a migration. Bounds are their check L's, kind by kind.
+ * RV-0). All or none, validated with their check L's bounds kind by kind, and
+ * MIRRORED since slice 3b: 0091's mixed_settings_ok counts them in (+10 when
+ * review_items_max is present) and holds review_items_max to ≤ 50, which this
+ * file refuses by name first.
  */
 export const REVIEW_KEYS = {
     review_items_max: 'int1',
@@ -241,7 +242,8 @@ export const REVIEW_KEYS = {
 /**
  * C-197 (curriculum PR #99): the skills check's four keys plus
  * `diagnostic_skills` (skills-diagnostic.md, §0 → C-197). Same rule as
- * REVIEW_KEYS: all or none, validated, never mirrored until the diagnostic build.
+ * REVIEW_KEYS: all or none, validated — but NOT mirrored until the diagnostic
+ * build, since no migration counts them in yet.
  */
 export const DIAGNOSTIC_KEYS = [
     'diagnostic_items_per_skill',
@@ -272,6 +274,16 @@ export function laterKeyErrors(body, path) {
             order: () => v === 'elapsed_share',
         }[REVIEW_KEYS[k]]();
         if (!ok) errors.push(`${path}: ${k} is malformed (${REVIEW_KEYS[k]}): ${JSON.stringify(v)}`);
+    }
+    // 0091 builds only the false/false behaviour (a pulled item keeps its step
+    // and due date). A `true` would pass the CHECK and change nothing, silently.
+    for (const k of ['review_pulled_step_up', 'review_pulled_moves_due']) {
+        if (body[k] === true) errors.push(`${path}: ${k}: true is not built (0091 runs false only)`);
+    }
+    // 0091 holds a session's planned items to 1–50 (0066), so its CHECK refuses
+    // more — opaquely, after the run has started writing.
+    if (int(body.review_items_max) && body.review_items_max > 50) {
+        errors.push(`${path}: review_items_max must be at most 50 (a session holds 1–50 items)`);
     }
     const dall = [...DIAGNOSTIC_KEYS, DIAGNOSTIC_SKILLS_KEY];
     const dhas = dall.filter((k) => k in body);
@@ -430,6 +442,8 @@ export function planPracticeRegistry(json, { path = 'practice registry' } = {}) 
                     ...MIXED_KEYS,
                     ...(DOL_PRACTICE_KEY in body ? [DOL_PRACTICE_KEY] : []),
                     ...PERIOD_KEYS.filter((k) => k in body),
+                    // Slice 3b: all ten or none is checked above.
+                    ...Object.keys(REVIEW_KEYS).filter((k) => k in body),
                 ].map((k) => [k, body[k]]),
             ),
         },

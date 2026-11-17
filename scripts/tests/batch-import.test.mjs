@@ -3472,8 +3472,9 @@ test('C-188 minutes above the cap WARN (never refuse); at or below, or with no c
 
 // C-196 / C-197 (curriculum PRs #98 + #99; review-period.md RV-0): the ten
 // review_* keys and the five diagnostic keys are ACCEPTED and VALIDATED with
-// their check L's bounds, and NOT mirrored until each build (0083 counts the
-// mirrored keys exactly). The bodies below are their PR #99 values verbatim.
+// their check L's bounds. The review keys are MIRRORED since slice 3b (0091
+// counts them in); the diagnostic keys are not until their build (no
+// migration counts them yet). The bodies below are their PR #99 values verbatim.
 const REVIEW_BODY = {
     review_items_max: 36,
     review_max_items_per_skill: 2,
@@ -3504,16 +3505,22 @@ const DIAG_BODY = {
     },
 };
 
-test('C-196/C-197 the review and diagnostic keys are accepted and kept OUT of the mirror', () => {
+test('C-196/C-197 the review keys are mirrored; the diagnostic keys are accepted and kept OUT of the mirror', () => {
     assert.deepEqual(Object.keys(REVIEW_KEYS).sort(), Object.keys(REVIEW_BODY).sort());
     assert.deepEqual([...DIAGNOSTIC_KEYS, DIAGNOSTIC_SKILLS_KEY].sort(), Object.keys(DIAG_BODY).sort());
     const body = { ...MIXED_BODY, ...REVIEW_BODY, ...DIAG_BODY };
     const plan = planPracticeRegistry(practiceRegistry(body));
     assert.equal(plan.ok, true, plan.errors.join('; '));
-    assert.deepEqual(plan.mirror.settings, MIXED_BODY, 'mirrored settings stay within 0083\'s exact key count');
+    assert.deepEqual(plan.mirror.settings, { ...MIXED_BODY, ...REVIEW_BODY }, 'the review keys, and no diagnostic key');
     // Each half alone is fine too (all or none applies per family).
-    assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...REVIEW_BODY })).ok, true);
-    assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...DIAG_BODY })).ok, true);
+    const reviewOnly = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...REVIEW_BODY }));
+    assert.deepEqual(reviewOnly.mirror.settings, { ...MIXED_BODY, ...REVIEW_BODY });
+    // Review keys without the optional families: 7 + 10 keys, 0091's count.
+    const { dol_practice_items: _d, ...noDol } = MIXED_BODY;
+    const bare = planPracticeRegistry(practiceRegistry({ ...noDol, ...REVIEW_BODY }));
+    assert.deepEqual(Object.keys(bare.mirror.settings).length, Object.keys(noDol).length + 10);
+    const diagOnly = planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...DIAG_BODY }));
+    assert.deepEqual(diagOnly.mirror.settings, MIXED_BODY, 'no diagnostic key reaches mixed_settings');
 });
 
 test('C-196/C-197 the review and diagnostic keys: all or none, and check L\'s bounds — each refused by name', () => {
@@ -3527,12 +3534,16 @@ test('C-196/C-197 the review and diagnostic keys: all or none, and check L\'s bo
     refuse({ ...REVIEW_BODY, review_extra: 1 }, /outside the agreed twenty-six: review_extra/);
     refuse({ ...REVIEW_BODY, review_items_max: 0 }, /review_items_max is malformed/);
     refuse({ ...REVIEW_BODY, review_items_max: 2.5 }, /review_items_max is malformed/);
+    refuse({ ...REVIEW_BODY, review_items_max: 51 }, /review_items_max must be at most 50/);
+    assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...REVIEW_BODY, review_items_max: 50 })).ok, true, '50 is allowed');
     refuse({ ...REVIEW_BODY, review_retry_after_wrong: -1 }, /review_retry_after_wrong is malformed/);
     assert.equal(planPracticeRegistry(practiceRegistry({ ...MIXED_BODY, ...REVIEW_BODY, review_retry_after_wrong: 0 })).ok, true, 'zero re-tries is allowed');
     refuse({ ...REVIEW_BODY, review_focus_share: 1.2 }, /review_focus_share is malformed/);
     refuse({ ...REVIEW_BODY, review_min_fill: true }, /review_min_fill is malformed/);
     refuse({ ...REVIEW_BODY, review_pulled_step_up: 'no' }, /review_pulled_step_up is malformed/);
     refuse({ ...REVIEW_BODY, review_pull_order: 'stalest' }, /review_pull_order is malformed/);
+    refuse({ ...REVIEW_BODY, review_pulled_step_up: true }, /review_pulled_step_up: true is not built/);
+    refuse({ ...REVIEW_BODY, review_pulled_moves_due: true }, /review_pulled_moves_due: true is not built/);
     const { diagnostic_skills: _s, ...four } = DIAG_BODY;
     refuse(four, /diagnostic keys must be all five or none; missing diagnostic_skills/);
     refuse({ ...DIAG_BODY, diagnostic_extra: 1 }, /outside the agreed twenty-six: diagnostic_extra/);

@@ -3840,6 +3840,8 @@ A `waitFor` timeout, seen twice in six runs of the app suite, each time with typ
 
 ## Skills diagnostic, with seeding, and the re-teach suggestion (RULED 2026-11-17, unbuilt)
 
+⚠ **Mirroring trap (review-slice-3b finding, 2026-11-18):** once 60e36b25 is mirrored without the diagnostic keys, `sync_mixed_settings` refuses the same revision with more keys. The build needs a fresh curriculum revision, or a migration that lets a revision gain keys. See review-period.md → slice 3b.
+
 **What:** a start-of-term skills check per class, made of bank items on each chain's `diagnostic_skills`. A secure skill is seeded into mixed practice (step 2, due in 7–13 days). A gap suggests the skill's Developing-tier lesson, which the teacher can give to some students only (R-3: a per-student list on the class's activity). A seeded skill that is wrong on its first two tries is paused and flagged. Design and rulings: [skills-diagnostic.md](docs/design/skills-diagnostic.md) §0 (R-1..R-4 and SD-*, author "Yes to all").
 
 **Trigger:** the curriculum side's first prerequisite bank PR (C-194: no date; D55 amendment item 4). The gap half also needs a drafted Developing lesson (702–708: none yet).
