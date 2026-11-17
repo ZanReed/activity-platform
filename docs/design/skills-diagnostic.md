@@ -82,6 +82,31 @@ of what was proposed.
    - This **reverses the author's 2026-11-05 ruling** that each arc gets its
      own pass, so it is R-2, and his call.
 
+### C-197 (2026-11-17): the keys, in their PR #99
+
+Their [PR #99](https://github.com/ZanReed/curriculum/pull/99) is stacked on
+#98, at head `a90e970`, graph v0.19.12. It is **verified here: the practice
+registry's revision `60e36b25…` matches its body, which now has 26 keys.**
+
+Keys:
+- **`diagnostic_skills`:** one object keyed by chain id. Each list stands
+  alone, prerequisites first.
+  - 904: `algebra.notation.write`, `algebra.expressions.like-terms`,
+    `ext.arith.signed`.
+  - 905: six skills, including `ext.arith.fractions`.
+  - **Overlap rule:** when two ticked chains share a skill, read it once, at
+    its first position in the earlier chain's list.
+  - The Y9 Number chains get their lists when they're stubbed.
+- **`diagnostic_items_per_skill`** = 1.
+- **`diagnostic_tiers`** = ["D", "C"].
+- **`diagnostic_class_threshold`** = 0.5, Zan's default for the whole-class
+  re-teach suggestion.
+- **`diagnostic_false_secure_tries`** = 2.
+
+**Our importer refuses all five today,** as it refuses #98's review keys. The
+review-period doc's RV-0 covers both: accept and validate the keys, mirror
+nothing until each build.
+
 ### Checked here after C-194
 
 - **Assigning to one student or a group does not exist.** `class_activities`

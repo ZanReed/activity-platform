@@ -144,6 +144,10 @@ confirming on this side** (RV-1).
   After you push it, we clear #98 to merge.
 - (b) Hold #98 until the review build.
 
+**Widened by C-197:** #99, stacked on #98, adds five `diagnostic_*` keys
+(skills-diagnostic.md → C-197). The same importer change accepts and validates
+them, and mirrors nothing, so #98 and #99 clear together.
+
 **Recommend (a).** Under (b), their `main` stays behind, and any
 `--practice-registry` import is blocked meanwhile. (a) needs no migration and
 no deploy.
