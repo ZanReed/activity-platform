@@ -890,6 +890,11 @@ describe('progress and the end of the activity (student review S5)', () => {
         const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
         const { container } = renderRoute(ACTIVITY);
         const next = await screen.findByRole('button', { name: 'Go to the next unanswered question' });
+        // The restore is async: Next can render before Part 1 reads as
+        // checked, and a click then lands on Part 1 (a CI flake, 2026-11-17).
+        await waitFor(() =>
+            expect(container.querySelector('[data-progress] [role="status"]')!.textContent).toMatch(/^1 of /),
+        );
         fireEvent.click(next);
         const part2Blank = index.sections[1]!.items.blanks![0]!;
         expect((document.activeElement as HTMLElement).closest('[data-blank-id]')?.getAttribute('data-blank-id')).toBe(part2Blank);
