@@ -1022,13 +1022,15 @@ describe('photo answers', () => {
   type RawBlock = { id: string; type: string; maxPhotos?: number };
   const blocks = (doc as unknown as {
     sections: Array<{ rows: Array<{ columns: Array<{ blocks: RawBlock[] }> }> }>;
-  }).sections[0]!.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks));
+  }).sections.flatMap((sec) => sec.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)));
   const photoBlock = blocks.find((b) => b.type === 'photo_response')!;
   const otherBlock = blocks.find((b) => b.type === 'short_answer')!;
+  // The photo question has its own fixture section (fixtures/index.ts).
+  const photoSection = (doc as unknown as { sections: Array<{ id: string }> }).sections[1]!.id;
   const P1 = '55555555-5555-4555-8555-555555555551';
   const P2 = '55555555-5555-4555-8555-555555555552';
   const P3 = '55555555-5555-4555-8555-555555555553';
-  const photos = (map: Record<string, unknown>) => validBody({ responses: { photos: map } });
+  const photos = (map: Record<string, unknown>) => validBody({ sectionId: photoSection, responses: { photos: map } });
 
   it('the fixture section has a two-photo block to check against', () => {
     expect(photoBlock.maxPhotos).toBe(2);
@@ -1090,5 +1092,44 @@ describe('photo answers', () => {
     const res = await h.handler(post(photos({ [photoBlock.id]: [{ id: P1 }] })));
     expect(res.status).toBe(status);
     expect(await res.json()).toMatchObject({ details: { code } });
+  });
+});
+
+describe('photos retention had removed (slice 2b)', () => {
+  type RawBlock = { id: string; type: string };
+  const blocks = (doc as unknown as {
+    sections: Array<{ rows: Array<{ columns: Array<{ blocks: RawBlock[] }> }> }>;
+  }).sections.flatMap((sec) => sec.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)));
+  const photoBlock = blocks.find((b) => b.type === 'photo_response')!;
+  const photoSection = (doc as unknown as { sections: Array<{ id: string }> }).sections[1]!.id;
+  const KEPT = '55555555-5555-4555-8555-555555555561';
+  const GONE = '55555555-5555-4555-8555-555555555562';
+  const body = validBody({ sectionId: photoSection, responses: { photos: { [photoBlock.id]: [{ id: KEPT }, { id: GONE }] } } });
+
+  it('names them on the block’s item, read back from the stored row', async () => {
+    const reads: string[] = [];
+    const h = harness({
+      checkPhotos: async (checkId) => {
+        reads.push(checkId);
+        return { data: { responses: { photos: { [photoBlock.id]: [{ id: KEPT }, { id: GONE, removed: true }] } } }, error: null };
+      },
+    });
+    const res = await h.handler(post(body));
+    const out = (await res.json()) as { items: Record<string, { verdict: string; removedPhotos?: string[] }> };
+    expect(reads).toEqual(['c1']);
+    expect(out.items[photoBlock.id]).toEqual({ verdict: 'recorded', removedPhotos: [GONE] });
+  });
+
+  it('reads nothing back for a check that named no photos', async () => {
+    const reads: string[] = [];
+    const h = harness({ checkPhotos: async (id) => (reads.push(id), { data: null, error: null }) });
+    await h.handler(post(validBody()));
+    expect(reads).toEqual([]);
+  });
+
+  it('a failed read back costs the note, never the check', async () => {
+    const h = harness({ checkPhotos: async () => { throw new Error('down'); } });
+    const res = await h.handler(post(body));
+    expect(res.status).toBe(200);
   });
 });

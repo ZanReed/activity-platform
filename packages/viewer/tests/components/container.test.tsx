@@ -121,9 +121,11 @@ describe('rendering the served document', () => {
     // root, and containers render NESTED .viewer-block wrappers for children.
     expect(
       container.querySelectorAll('.viewer-block[data-block-id]:not(.viewer-block--nested)'),
-    ).toHaveLength(fullDoc.sections[0]!.rows.length);
-    expect(index.sections).toHaveLength(1);
+    ).toHaveLength(fullDoc.sections.reduce((n, sec) => n + sec.rows.length, 0));
+    // Two sections: the photo question has its own (fixtures/index.ts).
+    expect(index.sections).toHaveLength(2);
     expect(container.querySelector('[data-section-id="ffffffff-ffff-4fff-8fff-000000000001"]')).not.toBeNull();
+    expect(container.querySelector('[data-section-id="ffffffff-ffff-4fff-8fff-000000000002"]')).not.toBeNull();
   });
 
   it('renders an honest placeholder for a type with no component binding', () => {

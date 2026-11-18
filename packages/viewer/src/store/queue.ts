@@ -37,6 +37,7 @@
 
 import type { ConnectivitySignal } from './ports.js';
 import type { SectionItemIds, ViewerStore } from './store.js';
+import { hasLocalPhotos } from '../check/wire.js';
 
 export interface CheckQueueOptions {
   store: ViewerStore;
@@ -81,6 +82,20 @@ export function createCheckQueue(options: CheckQueueOptions): CheckQueue {
   // more pass. Never two at once, never a missed edge.
   let rerun = false;
   let unsubscribe: (() => void) | null = null;
+  let unsubscribeStore: (() => void) | null = null;
+  /** The pending sections whose photos have all uploaded, as one string: a
+   *  change in it (a section became ready) is the one store event worth a
+   *  run. Every other commit — including the run's own — is ignored. */
+  function readySignature(): string {
+    const state = store.getState();
+    return Object.keys(state.pending)
+      .filter((id) => {
+        const items = resolveItems(id);
+        return items !== null && (items.photos ?? []).length > 0 && !hasLocalPhotos(state.responses.photos, items.photos);
+      })
+      .sort()
+      .join(',');
+  }
 
   async function run(): Promise<void> {
     if (!connectivity.isOnline()) return;
@@ -109,6 +124,10 @@ export function createCheckQueue(options: CheckQueueOptions): CheckQueue {
         store.dropPendingCheck(sectionId);
         continue;
       }
+      // A photo still waiting to upload holds ITS section's check only
+      // (slice 2b); the other sections still fire. The store subscription in
+      // start() reruns the queue once that section's photos have landed.
+      if (hasLocalPhotos(store.getState().responses.photos, items.photos)) continue;
 
       // checkSection reads CURRENT values (2.2A) and owns the drift notice —
       // the queue deliberately does not pass a snapshot, because grading what
@@ -134,6 +153,14 @@ export function createCheckQueue(options: CheckQueueOptions): CheckQueue {
       } while (rerun);
     })().finally(() => {
       inFlight = null;
+      // A signal that arrived AFTER the loop's last `rerun` test but before
+      // this cleanup would otherwise be dropped: the caller was handed the
+      // finishing promise and nothing ran for it (found 2026-11-18, slice 2b —
+      // the uploader's swap lands in exactly that gap; a reconnect can too).
+      if (rerun) {
+        rerun = false;
+        void runNow();
+      }
     });
     return inFlight;
   }
@@ -144,6 +171,16 @@ export function createCheckQueue(options: CheckQueueOptions): CheckQueue {
       unsubscribe = connectivity.subscribe(() => {
         void runNow();
       });
+      // A section waiting on its photos (slice 2b) becomes ready on a STORE
+      // event (the uploader's swap), not a connectivity one.
+      let ready = readySignature();
+      unsubscribeStore = store.subscribe(() => {
+        const next = readySignature();
+        const was = new Set(ready.split(','));
+        const grew = next.split(',').some((id) => id !== '' && !was.has(id));
+        ready = next;
+        if (grew) void runNow();
+      });
       // The boot fire: a tab reopened after the outage ended never sees an
       // 'online' event, because it was not running when the edge happened.
       void runNow();
@@ -152,6 +189,8 @@ export function createCheckQueue(options: CheckQueueOptions): CheckQueue {
     stop() {
       unsubscribe?.();
       unsubscribe = null;
+      unsubscribeStore?.();
+      unsubscribeStore = null;
     },
 
     runNow,

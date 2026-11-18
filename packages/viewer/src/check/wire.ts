@@ -90,10 +90,28 @@ export interface SectionResponses {
 
 /** One photo on the wire. `removed` is written by the SERVER only (0094's
  * trigger), on a ref whose photo retention has already deleted; a client never
- * sends it, and the handler drops anything but `id`. */
+ * sends it, and the handler drops anything but `id`.
+ *
+ * `local` and `key` are CLIENT-ONLY (slice 2b) and never leave the device: the
+ * store's fire-time snapshot sends `{ id }` alone. A `local` ref's id is the
+ * device's own id for a photo still waiting to upload (its JPEG is in the
+ * photo store); the uploader swaps it for the server's id. `key` is stable
+ * across that swap, so the queued-check fingerprint does not read an upload as
+ * the student changing their answer. */
 export interface PhotoRef {
   id: string;
   removed?: boolean;
+  local?: boolean;
+  key?: string;
+}
+
+/** Whether any of a section's photo questions still holds a photo waiting to
+ *  upload. A check never fires while one does (slice 2b). */
+export function hasLocalPhotos(
+  photos: SectionResponses['photos'] | undefined,
+  blockIds: readonly string[] | undefined,
+): boolean {
+  return (blockIds ?? []).some((id) => (photos?.[id] ?? []).some((r) => r.local === true));
 }
 
 /** What a student built on a graphing surface. Mirrors the geometry the old
@@ -258,6 +276,11 @@ export interface CheckItemResult {
    * Stored verbatim with the verdicts row (S4-B4), which is what makes the
    * misconception signal aggregable; the client may ignore it. */
   misconceptionIds?: string[];
+  /** photo_response only (slice 2b): ids of photos this check named but could
+   * not hand in, because retention had already removed them (0094 stores them
+   * as `{id, removed: true}`). Additive-optional: absent when every photo went
+   * in. The block tells the student and drops them from the answer. */
+  removedPhotos?: string[];
 }
 
 export interface SectionCheckResult {

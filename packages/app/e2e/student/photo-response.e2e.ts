@@ -140,6 +140,9 @@ test('a photo goes up without its EXIF, inside the bucket’s limits, and Check 
   await (await chooser).setFiles({ name: 'IMG_0042.jpg', mimeType: 'image/jpeg', buffer: input });
 
   await expect(page.getByRole('img', { name: 'Photo 1 of your working' })).toBeVisible();
+  // The thumbnail shows from the device copy at once (slice 2b); the upload is
+  // done when the ref is swapped and the item reads attached.
+  await expect(page.locator('[data-photo-state="attached"]')).toBeVisible();
   expect(reserved).toEqual([
     expect.objectContaining({ p_block_id: block['id'], p_activity_id: expect.any(String), p_version_id: expect.any(String) }),
   ]);
@@ -190,7 +193,7 @@ test('the <img> fallback (no createImageBitmap) strips EXIF too', async ({ page 
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Add a photo' }).click();
   await (await chooser).setFiles({ name: 'IMG_0043.jpg', mimeType: 'image/jpeg', buffer: input });
-  await expect(page.getByRole('img', { name: 'Photo 1 of your working' })).toBeVisible();
+  await expect(page.locator('[data-photo-state="attached"]')).toBeVisible();
   expect(bodies).toHaveLength(1);
   const header = jpegHeader(bodies[0]!);
   expect(header.markers).not.toContain(0xe1);
@@ -205,4 +208,83 @@ test('while photo answers are off, the block says so and offers nothing to press
   await page.goto(activityUrl());
   await expect(page.getByText('Your teacher hasn’t turned photo answers on yet.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add a photo' })).toBeDisabled();
+});
+
+test('Check pressed while a photo is still uploading waits for it, then hands it in', async ({ page }) => {
+  const input = await jpegWithGps(page);
+  const block = photoBlock();
+  await signInAs(page);
+  const api = await stubActivityApi(page, {
+    document: documentWithPhoto(block) as never,
+    check: { verdicts: { [block['id'] as string]: 'recorded' } },
+  });
+  await page.route('**/rest/v1/rpc/photo_answers_on', (route) => route.fulfill({ json: true }));
+  await page.route('**/rest/v1/rpc/reserve_work_photo', (route) => route.fulfill({ json: PHOTO_ID }));
+  await page.route('**/storage/v1/object/sign/student-work', (route) => route.fulfill({ json: [] }));
+  // Hold the upload until the spec lets it go: the slow school Wi-Fi case.
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  await page.route('**/storage/v1/object/student-work/**', async (route) => {
+    await held;
+    await route.fulfill({ json: { Key: 'x' } });
+  });
+
+  await page.goto(activityUrl());
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Add a photo' }).click();
+  await (await chooser).setFiles({ name: 'a.jpg', mimeType: 'image/jpeg', buffer: input });
+  await expect(page.locator('[data-photo-state="uploading"]')).toBeVisible();
+
+  await page.getByRole('button', { name: /^Check/ }).first().click();
+  await expect(page.getByText('Will check once your photo has uploaded.')).toBeVisible();
+  expect(api.checkRequests).toHaveLength(0); // never without the photo
+
+  release();
+  await expect.poll(() => api.checkRequests.length).toBe(1);
+  const request = api.checkRequests[0] as { responses: { photos?: Record<string, unknown> } };
+  expect(request.responses.photos).toEqual({ [block['id'] as string]: [{ id: PHOTO_ID }] });
+  await expect(page.getByText(/Recorded/).first()).toBeVisible();
+});
+
+test('Check with a photo question left empty asks first', async ({ page }) => {
+  await signInAs(page);
+  const api = await stubActivityApi(page, { document: documentWithPhoto(photoBlock()) as never });
+  await page.route('**/rest/v1/rpc/photo_answers_on', (route) => route.fulfill({ json: true }));
+  await page.goto(activityUrl());
+  await page.getByRole('button', { name: /^Check/ }).first().click();
+  await expect(page.getByText('A photo question here has no photo yet. Check anyway?')).toBeVisible();
+  expect(api.checkRequests).toHaveLength(0);
+  await page.getByRole('button', { name: 'Check anyway' }).click();
+  await expect.poll(() => api.checkRequests.length).toBe(1);
+});
+
+test('a LOCKED section waiting on a photo stays usable: a failed upload can be retried or removed', async ({ page }) => {
+  const input = await jpegWithGps(page);
+  const block = photoBlock();
+  await signInAs(page);
+  const doc = documentWithPhoto(block) as Record<string, unknown>;
+  const api = await stubActivityApi(page, {
+    document: { ...doc, meta: { ...(doc['meta'] as object), submissionMode: 'locked' } } as never,
+  });
+  await page.route('**/rest/v1/rpc/photo_answers_on', (route) => route.fulfill({ json: true }));
+  await page.route('**/rest/v1/rpc/reserve_work_photo', (route) => route.fulfill({ json: PHOTO_ID }));
+  await page.route('**/rest/v1/rpc/discard_work_photo', (route) => route.fulfill({ json: true }));
+  await page.route('**/storage/v1/object/sign/student-work', (route) => route.fulfill({ json: [] }));
+  // Storage refuses the upload (the student's cap, say): not a retry case.
+  await page.route('**/storage/v1/object/student-work/**', (route) => route.fulfill({ status: 500, json: { error: 'x' } }));
+
+  await page.goto(activityUrl());
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Add a photo' }).click();
+  await (await chooser).setFiles({ name: 'a.jpg', mimeType: 'image/jpeg', buffer: input });
+  await expect(page.locator('[data-photo-state="failed"]')).toBeVisible();
+
+  await page.getByRole('button', { name: /^Check and lock/ }).first().click();
+  await page.locator('.viewer-check-group__confirm').getByRole('button', { name: 'Check and lock', exact: true }).click();
+  await expect(page.getByText('Will check and lock once your photo has uploaded.')).toBeVisible();
+  expect(api.checkRequests).toHaveLength(0);
+  // Nothing was sent, so nothing is locked: the photo's own controls work.
+  await expect(page.locator('[data-section-frozen]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /Remove photo 1/ })).toBeEnabled();
 });

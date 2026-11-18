@@ -180,9 +180,14 @@ export async function addPhoto(
   ids: { activityId: string; versionId: string; blockId: string },
   jpeg: Blob,
   onProgress: (fraction: number) => void,
+  /** The student whose photo this is. A session for anyone else refuses
+   *  (Fable review): one student's waiting photo must never upload under the
+   *  next student's sign-in on a shared device. */
+  expectUid?: string,
 ): Promise<string> {
   if (!photoLink) throw new PhotoError('upload_failed');
   const { token, uid } = await session();
+  if (expectUid !== undefined && uid !== expectUid) throw new PhotoError('signed_out');
   const { data, error } = await photoLink.client.rpc('reserve_work_photo', {
     p_activity_id: ids.activityId,
     p_version_id: ids.versionId,

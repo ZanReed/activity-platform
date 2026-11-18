@@ -2,8 +2,9 @@
 
 **Status:** **RULED 2026-11-18** (author, all of MS-1 to MS-25). The design was
 Fable-reviewed the same day, and five factual corrections and eleven gaps were
-folded in. **Slices 1 and 2 are BUILT (2026-11-18), unpushed and not applied
-live**; slice 2 pulled most of slice 4's editor half forward (§10, "As built").
+folded in. **Slices 1, 2 and 2b are BUILT (2026-11-18), unpushed and not
+applied live**; slice 2 pulled most of slice 4's editor half forward (§10, "As
+built"). Slice 2b closed the three clearance blockers.
 
 **The rulings in brief.** The author's guiding instruction was "where there is
 short-term pain for long-term gain, take it". Where the author ruled differently
@@ -853,8 +854,7 @@ applied before any push of UI that calls them (OV-7).
   never "try again".
 - **A failed upload gives its reservation back** (`discard_work_photo`),
   so retries on bad Wi-Fi cannot use up the per-block cap for a week.
-- **Clearance blockers (slice 5 must not flip `photo_clearance` until these
-  are done, in 2b):** (1) Check must wait for, or confirm over, a photo still
+- **Clearance blockers — CLOSED by slice 2b (below).** As filed: (1) Check must wait for, or confirm over, a photo still
   uploading: today a check pressed mid-upload goes without it, and on a
   locked, quiz or DoL section the photo can then never be handed in.
   (2) A check that stored a photo as `removed` must tell the student, who
@@ -867,6 +867,75 @@ applied before any push of UI that calls them (OV-7).
 - **Left for slice 3:** `lib/answerText.ts` (the answer panel's families) and
   `lib/grading.ts`'s block types do not know photos yet; the queue cannot show
   a photo answer until 0095.
+
+**Slice 2b as built (2026-11-18).** No migration and no deploy (app and
+viewer only, plus the `check-activity` read-back below, which rides the same
+paired deploy as slice 2).
+
+- **One model for "waiting".** A photo is in the answer from the moment it is
+  taken, as a `local` ref whose JPEG is in IndexedDB
+  (`blocks/photoStore.ts`; memory fallback when IndexedDB is unavailable).
+  The page's one uploader (`blocks/photoUploader.ts`) reserves, uploads,
+  swaps the device id for the server id (`store.swapPhoto`) and deletes the
+  device copy. A ref keeps a stable `key` across the swap, so a queued check's
+  drift notice never reads the upload as a changed answer. `local` and `key`
+  never leave the device: the fire-time snapshot sends `{id}` alone.
+- **The check waits** (blocker 1). `checkSection` queues a section whose
+  photos are still local exactly as it queues an offline one, with its own
+  line, "Will check once your photo has uploaded."; the queue skips that
+  section (others still fire) and reruns when the last photo lands. Building
+  this found a pre-existing race in `queue.ts`: a run requested after the
+  loop's last `rerun` test but before its cleanup was dropped. Fixed; the
+  swap-release test is its guard (a timing-only test for it was vacuous and
+  was deleted).
+- **Told when a photo wasn't handed in** (blocker 2). The handler reads the
+  stored row back for a check that named photos (`checkPhotos`, service
+  role, one extra read only then) and puts `removedPhotos` on the block's
+  item; the block says so and drops them from the answer. A failed read-back
+  costs the note, never the check.
+- **The missing-photo confirm** (blocker 3), in every section, not only
+  locked ones: "A photo question here has no photo yet. Check anyway?" A
+  waiting photo is not missing. The fixture worksheet gives its photo question
+  a section of its own (the first section is a checkpoint) so the lanes that
+  press Check on it test what they were written for.
+- **Departure: the device copy goes when the UPLOAD succeeds**, not when the
+  check does (§6.5 said "kept until the check succeeds"). Less photo sits on a
+  shared Chromebook; the rare queued-past-7-days case is now blocker 2's
+  message ("add it again") instead of a silent re-attach.
+- **Sign-out** deletes the IndexedDB database before the session ends
+  (bounded to 3 s, never rejects), and the warning names waiting photos ("1
+  photo hasn't uploaded yet. Signing out will delete it."). The boot sweep
+  deletes other students' entries and any entry no buffer or live answer
+  names — the GC rule.
+- **Proved:** sw-lane rows with real IndexedDB and real offline (a photo
+  taken offline waits on the device, Check waits, reconnect uploads and
+  checks with the server id, the device copy is gone; sign-out leaves no
+  photo database, mutation-tested), and student-lane rows (Check pressed
+  mid-upload waits; the empty-photo confirm).
+- **The Fable review of 2b found seven problems; all fixed, each with a test:**
+  (1) a LOCKED or DoL section pending only on a photo froze, disabling that
+  photo's Retry and Remove, so a failed upload stranded the section for good:
+  it now stays editable until the photo lands ("Will check and lock once your
+  photo has uploaded."); (2) the uploader outlived its route and could swap
+  into a dead store and delete the device copy: the route now stops it
+  (`stopPhotoUploads`); (3) the device copy was deleted before the buffer saved
+  the swap, and two tabs raced: the server id is written to the device entry
+  BEFORE the swap (a restart resumes, never re-uploads or loses), the copy goes
+  2 s after, only the tab holding the lock uploads, and a photo removed
+  mid-upload is discarded from Storage; (4) a Check pressed during the seconds
+  of re-encoding went without the photo: the ref is named before re-encoding,
+  with the write tracked; (5) another student's waiting photos outlived a crash
+  until a photo question mounted: the route wipes the photo store when the
+  boot sweep finds another student's work (unless this student has photos
+  waiting), uploads refuse a session that is not the photo's student, and
+  sign-out clears the memory fallback too; (6) no retry on lie-fi: transient
+  failures back off and retry on their own, and on `visibilitychange`;
+  (7) tests claimed a reload row that did not exist: it does now. Building the
+  fixes found one more, the boot sweep deciding "referenced" from a snapshot
+  taken before its first await, which collected a photo added while it ran.
+- **Known gap:** Home's "couldn't load your account" frame signs out with no
+  confirm at all (pre-existing, every kind of unsent work); the sw row uses it
+  and so asserts the wipe, while the warning's words are a unit test.
 
 **Deferred, each with its trigger** (filed in TODOS when the author rules):
 

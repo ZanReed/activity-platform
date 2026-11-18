@@ -20,7 +20,7 @@
 // failed network call must never be what decides whether it survives.
 // =============================================================================
 
-import { VIEWER_STORAGE_PREFIX } from '@activity/viewer';
+import { VIEWER_STORAGE_PREFIX, deletePhotoStore } from '@activity/viewer';
 import { STUDENT_PLACE_PREFIXES } from './studentViewPrefs';
 import { supabase } from './supabase';
 
@@ -93,6 +93,11 @@ export async function signOutEverything(): Promise<void> {
     } catch {
         // Storage unavailable (private mode / policy) — nothing buffered there.
     }
+    // Media submissions slice 2b: photos waiting to upload live in IndexedDB,
+    // outside the prefix purge. Same contract — wiped BEFORE the sign-out —
+    // and bounded: deletePhotoStore never rejects and gives up after 3 s, so a
+    // browser that blocks IndexedDB cannot keep a session alive.
+    await deletePhotoStore();
 
     const { error } = await supabase.auth.signOut();
     if (!error) return;

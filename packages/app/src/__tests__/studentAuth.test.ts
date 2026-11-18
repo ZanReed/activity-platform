@@ -57,6 +57,36 @@ describe('signOutEverything', () => {
         expect(localStorage.getItem('viewer-text-scale:stu-1')).toBe('2');
     });
 
+    it('deletes the device photo store BEFORE signing out (slice 2b)', async () => {
+        const order: string[] = [];
+        vi.stubGlobal('indexedDB', {
+            deleteDatabase(name: string) {
+                order.push(`delete:${name}`);
+                const request: { onsuccess?: () => void } = {};
+                setTimeout(() => request.onsuccess?.(), 0);
+                return request;
+            },
+        });
+        signOutMock.mockImplementation(async () => {
+            order.push('signOut');
+            return { error: null };
+        });
+        await signOutEverything();
+        expect(order).toEqual(['delete:activity-viewer:photos', 'signOut']);
+        vi.unstubAllGlobals();
+    });
+
+    it('a photo store that never answers cannot hold the sign-out', async () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('indexedDB', { deleteDatabase: () => ({}) }); // blocked forever
+        const done = signOutEverything();
+        await vi.advanceTimersByTimeAsync(3100);
+        await done;
+        expect(signOutMock).toHaveBeenCalledOnce();
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+    });
+
     it('purges storage BEFORE a failing signOut throws', async () => {
         localStorage.setItem(`${VIEWER_STORAGE_PREFIX}buffer:abc`, 'work');
         signOutMock.mockResolvedValue({ error: { message: 'network down' } });

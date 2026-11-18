@@ -27,6 +27,7 @@ import {
   VIEWER_STORE_SCHEMA_VERSION,
   bufferKey,
   countUncheckedActivities,
+  bufferedLocalPhotoIds,
   createMockCheckService,
   createViewerBuffer,
   createViewerStore,
@@ -692,6 +693,23 @@ describe('unchecked work on this device (G-1)', () => {
     storage.setItem(bufferKey({ userId: OTHER_USER_ID, activityId: 'dddddddd-0000-4000-8000-000000000001', versionId: VERSION }), work);
     expect(countUncheckedActivities(storage, TEST_USER_ID)).toBe(2);
     expect(countUncheckedActivities(storage, OTHER_USER_ID)).toBe(1);
+  });
+});
+
+describe('waiting photos on the device (slice 2b)', () => {
+  it('names only this student\'s LOCAL refs, across every buffer, and survives junk', () => {
+    const storage = new FakeStorage();
+    const photos = (refs: unknown) =>
+      JSON.stringify({ ...emptyPersistedState(TEST_USER_ID, ACTIVITY, VERSION), responses: { photos: { q1: refs } } });
+    storage.setItem(bufferKey({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION }),
+      photos([{ id: 'L1', local: true }, { id: 'S1' }]));
+    storage.setItem(bufferKey({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: OTHER_VERSION }),
+      photos([{ id: 'L2', local: true }]));
+    storage.setItem(bufferKey({ userId: OTHER_USER_ID, activityId: ACTIVITY, versionId: VERSION }),
+      photos([{ id: 'THEIRS', local: true }]));
+    storage.setItem(bufferKey({ userId: TEST_USER_ID, activityId: 'cccccccc-0000-4000-8000-000000000001', versionId: VERSION }),
+      '{not json');
+    expect([...bufferedLocalPhotoIds(storage, TEST_USER_ID)].sort()).toEqual(['L1', 'L2']);
   });
 });
 

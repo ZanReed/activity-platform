@@ -12,10 +12,12 @@
 // on the device (photoUpload.ts — the EXIF strip), reserved, uploaded with a
 // progress bar, and its id joins the block's answer. Check hands the ids in.
 //
-// The states each photo shows: uploading (progress), attached (a thumbnail
-// with Remove), failed (Retry, with the reason). Offline photos are slice 2b;
-// until then a photo taken offline fails with the offline copy and keeps its
-// Retry.
+// The states each photo shows (slice 2b): waiting (offline: saved on this
+// device), uploading (progress), attached (a thumbnail with Remove), failed
+// (the reason, and Retry), lost (the device copy is gone: add it again). A
+// photo is in the answer from the moment it is taken, as a `local` ref; the
+// page's uploader (photoUploader.ts) moves it to Storage, and a Check waits
+// for it (store.checkSection queues the section until it lands).
 //
 // No seam (the teacher's draft preview): the controls render disabled with a
 // line saying what students will see, and no request is made (§9).
@@ -25,7 +27,7 @@
 // Retry with no code here.
 // =============================================================================
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import './PhotoResponse.css';
 import type { PhotoResponseBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
@@ -46,26 +48,29 @@ import { OPTIONAL_LABEL, REVIEWED_LABEL, feedbackCoversAnswer } from './ShortAns
 import { photoLink } from './photoLinkSeam.js';
 import {
   PhotoError,
-  addPhoto,
   discardPhoto,
   photoErrorText,
   photosEnabled,
   reencodePhoto,
   signPhotos,
 } from './photoUpload.js';
+import { deletePhoto, getPhoto, putPhoto, trackPut } from './photoStore.js';
+import { startUploader } from './photoUploader.js';
 
 /** Copy shared with the a11y story and the tests. */
 export const ADD_PHOTO_LABEL = 'Add a photo';
 export const PHOTOS_OFF_TEXT = 'Your teacher hasn’t turned photo answers on yet.';
 export const PREVIEW_TEXT = 'Students add a photo of their working here.';
 export const REMOVED_TEXT = 'This photo has been removed.';
+export const WAITING_TEXT = 'Saved on this device. It will upload when you’re back online.';
+export const LOST_TEXT = 'This photo didn’t stay on this device. Remove it and add it again.';
+export const NOT_HANDED_IN_TEXT =
+  'A photo here was no longer stored, so it wasn’t handed in. Add it again, then check again.';
 
-interface Pending {
+/** A photo that never re-encoded: shown once with its reason, never stored. */
+interface PickError {
   key: string;
-  file: Blob;
-  previewUrl: string;
-  progress: number;
-  error: PhotoError['code'] | null;
+  code: PhotoError['code'];
 }
 
 export default function PhotoResponse({ block, mode = 'screen' }: BlockComponentProps<PhotoResponseBlock>) {
@@ -83,8 +88,15 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
   const max = block.maxPhotos ?? 1;
   const live = photoLink !== null && mode !== 'print';
   const [enabled, setEnabled] = useState<boolean | null>(live ? null : false);
-  const [pending, setPending] = useState<Pending[]>([]);
+  const [pickErrors, setPickErrors] = useState<PickError[]>([]);
   const [urls, setUrls] = useState<Record<string, string | null>>({});
+  const [notHandedIn, setNotHandedIn] = useState(false);
+
+  // The page's one uploader (slice 2b), started by the first photo block. It
+  // owns every waiting photo; this block only reads each one's state.
+  const uploader = useMemo(() => (live ? startUploader(store) : null), [live, store]);
+  const [, bump] = useState(0);
+  useEffect(() => uploader?.subscribe(() => bump((n) => n + 1)), [uploader]);
 
   // The switch, read once per mount (a display read; the server enforces it).
   useEffect(() => {
@@ -96,94 +108,106 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
     };
   }, [live]);
 
-  // Thumbnails for every id in the answer that has no URL yet — the ones added
-  // on another device, restored from the server, or just uploaded.
-  const idsKey = refs.map((r) => r.id).join(',');
+  // Thumbnails. A server photo gets a signed URL; a waiting one is shown from
+  // its device copy (an object URL, released on unmount).
+  const objectUrls = useRef(new Map<string, string>());
+  const idsKey = refs.map((r) => `${r.id}${r.local ? '*' : ''}`).join(',');
   useEffect(() => {
     if (!live) return;
-    const missing = refs.map((r) => r.id).filter((id) => !(id in urls));
-    if (missing.length === 0) return;
     let alive = true;
-    const { activityId } = store.getState();
-    signPhotos(activityId, missing)
-      .then((signed) => alive && setUrls((u) => ({ ...u, ...signed })))
-      .catch(() => undefined);
+    const { activityId, userId } = store.getState();
+    // A photo that just uploaded keeps the device preview it was showing (same
+    // `key`): no re-download, and no flash of "loading" at the swap.
+    const carried: Record<string, string> = {};
+    for (const r of refs) {
+      const preview = r.key ? urls[r.key] : undefined;
+      if (!r.local && r.key && r.key !== r.id && !(r.id in urls) && preview) carried[r.id] = preview;
+    }
+    if (Object.keys(carried).length > 0) setUrls((u) => ({ ...u, ...carried }));
+    const missingServer = refs.filter((r) => !r.local && !(r.id in urls) && !(r.id in carried)).map((r) => r.id);
+    if (missingServer.length > 0) {
+      signPhotos(activityId, missingServer)
+        .then((signed) => alive && setUrls((u) => ({ ...u, ...signed })))
+        .catch(() => undefined);
+    }
+    for (const r of refs) {
+      if (!r.local || r.id in urls) continue;
+      void getPhoto(r.id, userId).then((photo) => {
+        if (!alive || !photo) return;
+        const url = URL.createObjectURL(photo.jpeg);
+        objectUrls.current.set(r.id, url);
+        setUrls((u) => ({ ...u, [r.id]: url }));
+      });
+    }
     return () => {
       alive = false;
     };
     // `urls` is read, not watched: re-signing on every URL change would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, live, store]);
+  useEffect(() => {
+    const made = objectUrls.current;
+    return () => made.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
-  // Object URLs for local previews are released on unmount. Read through a ref:
-  // a cleanup closing over `pending` would see only the first render's list.
-  const pendingRef = useRef(pending);
-  pendingRef.current = pending;
-  useEffect(
-    () => () => pendingRef.current.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl)),
-    [],
-  );
+  // A check that could not hand a photo in (retention had removed it, 0094)
+  // says so, and the photo leaves the answer so the next check doesn't name
+  // it again (slice 2b, clearance blocker 2).
+  const removedKey = (result?.removedPhotos ?? []).join(',');
+  useEffect(() => {
+    const gone = new Set(result?.removedPhotos ?? []);
+    if (gone.size === 0) return;
+    setNotHandedIn(true);
+    const current = store.getState().responses.photos?.[block.id] ?? [];
+    if (current.some((r) => gone.has(r.id))) store.setPhotos(block.id, current.filter((r) => !gone.has(r.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [removedKey]);
 
-  const room = max - refs.length - pending.length;
-
-  async function send(item: Pending) {
-    const { activityId, versionId } = store.getState();
-    try {
-      const id = await addPhoto({ activityId, versionId, blockId: block.id }, item.file, (progress) =>
-        setPending((list) => list.map((p) => (p.key === item.key ? { ...p, progress } : p))),
-      );
-      // The local preview becomes the thumbnail until a signed URL replaces it.
-      setUrls((u) => ({ ...u, [id]: item.previewUrl }));
-      setPending((list) => list.filter((p) => p.key !== item.key));
-      const current = store.getState().responses.photos?.[block.id] ?? [];
-      store.setPhotos(block.id, [...current, { id }]);
-    } catch (err) {
-      const code = err instanceof PhotoError ? err.code : 'upload_failed';
-      if (code === 'photos_off') setEnabled(false);
-      setPending((list) => list.map((p) => (p.key === item.key ? { ...p, error: code, progress: 0 } : p)));
-    }
-  }
+  const room = max - refs.length;
 
   async function onPick(files: FileList | null) {
     const picked = Array.from(files ?? []).slice(0, Math.max(0, room));
     if (inputRef.current) inputRef.current.value = '';
-    for (const file of picked) {
-      const key = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      let jpeg: Blob;
+    setNotHandedIn(false);
+    const { userId, activityId, versionId } = store.getState();
+    // Named in the answer AT ONCE, before the seconds a 12 MP re-encode takes
+    // on a Chromebook (Fable review): a Check pressed meanwhile must wait for
+    // this photo, not go without it. The write is tracked, so the uploader
+    // waits for it too rather than calling the photo lost.
+    // The writes are started and TRACKED before the refs are named: naming
+    // them wakes the uploader synchronously, and it must find a write to wait
+    // for, not an absent photo.
+    const writes = picked.map((file) => {
+      const localId = crypto.randomUUID();
+      const write = (async () => {
+        const jpeg = await reencodePhoto(file);
+        await putPhoto({ localId, uid: userId, activityId, versionId, blockId: block.id, jpeg, createdAt: Date.now() });
+      })();
+      trackPut(localId, write);
+      return { localId, write };
+    });
+    const current = store.getState().responses.photos?.[block.id] ?? [];
+    store.setPhotos(block.id, [...current, ...writes.map(({ localId: id }) => ({ id, local: true, key: id }))]);
+    for (const { localId, write } of writes) {
       try {
-        jpeg = await reencodePhoto(file);
+        await write;
       } catch (err) {
+        // It never became a photo: out of the answer, with the reason.
         const code = err instanceof PhotoError ? err.code : 'not_an_image';
-        setPending((list) => [...list, { key, file, previewUrl: '', progress: 0, error: code }]);
-        continue;
+        setPickErrors((list) => [...list, { key: localId, code }]);
+        const now = store.getState().responses.photos?.[block.id] ?? [];
+        store.setPhotos(block.id, now.filter((r) => r.id !== localId));
       }
-      const item: Pending = { key, file: jpeg, previewUrl: URL.createObjectURL(jpeg), progress: 0, error: null };
-      setPending((list) => [...list, item]);
-      void send(item);
     }
   }
 
-  function retry(item: Pending) {
-    if (!item.previewUrl) {
-      // It never re-encoded: nothing to resend. Drop it so the student picks again.
-      setPending((list) => list.filter((p) => p.key !== item.key));
-      return;
-    }
-    const again = { ...item, error: null, progress: 0 };
-    setPending((list) => list.map((p) => (p.key === item.key ? again : p)));
-    void send(again);
-  }
-
-  function dropPending(item: Pending) {
-    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-    setPending((list) => list.filter((p) => p.key !== item.key));
-  }
-
-  function remove(id: string) {
+  function remove(id: string, local: boolean | undefined) {
     store.setPhotos(block.id, refs.filter((r) => r.id !== id));
+    // A waiting photo leaves the device; a server one is discarded there.
     // Only a photo no check has handed in is deleted; a handed-in one stays
     // with the check it belongs to (0094's discard refuses it).
-    void discardPhoto(id);
+    if (local) void deletePhoto(id);
+    else void discardPhoto(id);
   }
 
   const off = enabled === false && live;
@@ -207,12 +231,17 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
 
       {mode === 'print' ? null : (
         <div className="viewer-photo-response__controls">
-          {refs.length + pending.length > 0 ? (
+          {refs.length > 0 ? (
             <ul className="viewer-photo-response__list" aria-labelledby={promptId}>
               {refs.map((ref, i) => {
                 const url = urls[ref.id];
+                const waiting = ref.local ? (uploader?.status(ref.id) ?? { state: 'uploading', progress: 0 }) : null;
                 return (
-                  <li key={ref.id} className="viewer-photo-response__item" data-photo-state="attached">
+                  <li
+                    key={ref.key ?? ref.id}
+                    className="viewer-photo-response__item"
+                    data-photo-state={waiting ? waiting.state : 'attached'}
+                  >
                     {url ? (
                       <img className="viewer-photo-response__thumb" src={url} alt={`Photo ${i + 1} of your working`} />
                     ) : url === null || ref.removed ? (
@@ -220,54 +249,56 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
                     ) : (
                       <div className="viewer-photo-response__thumb viewer-photo-response__thumb--loading" aria-label="Loading photo" />
                     )}
+                    {waiting?.state === 'uploading' ? (
+                      <progress
+                        className="viewer-photo-response__progress"
+                        max={1}
+                        value={waiting.progress}
+                        aria-label="Uploading photo"
+                      />
+                    ) : null}
+                    {waiting?.state === 'waiting' ? (
+                      <p className="viewer-photo-response__note">{WAITING_TEXT}</p>
+                    ) : null}
+                    {waiting?.state === 'lost' ? (
+                      <p className="viewer-photo-response__error" role="alert">{LOST_TEXT}</p>
+                    ) : null}
+                    {waiting?.state === 'failed' ? (
+                      <>
+                        <p className="viewer-photo-response__error" role="alert">
+                          {photoErrorText(waiting.code)}
+                        </p>
+                        {waiting.code !== 'photos_off' ? (
+                          <button type="button" onClick={() => uploader?.retry(ref.id)}>
+                            Retry
+                          </button>
+                        ) : null}
+                      </>
+                    ) : null}
                     <button
                       type="button"
                       className="viewer-photo-response__remove"
                       aria-label={`Remove photo ${i + 1}`}
-                      onClick={() => remove(ref.id)}
+                      onClick={() => remove(ref.id, ref.local)}
                     >
                       Remove
                     </button>
                   </li>
                 );
               })}
-              {pending.map((item) => (
-                <li
-                  key={item.key}
-                  className="viewer-photo-response__item"
-                  data-photo-state={item.error ? 'failed' : 'uploading'}
-                >
-                  {item.previewUrl ? (
-                    <img className="viewer-photo-response__thumb" src={item.previewUrl} alt="Photo being added" />
-                  ) : null}
-                  {item.error ? (
-                    <>
-                      <p className="viewer-photo-response__error" role="alert">
-                        {photoErrorText(item.error)}
-                      </p>
-                      {item.error !== 'photos_off' ? (
-                        <button type="button" onClick={() => retry(item)}>
-                          {item.previewUrl ? 'Retry' : 'Dismiss'}
-                        </button>
-                      ) : null}
-                      {item.previewUrl ? (
-                        <button type="button" onClick={() => dropPending(item)}>
-                          Remove
-                        </button>
-                      ) : null}
-                    </>
-                  ) : (
-                    <progress
-                      className="viewer-photo-response__progress"
-                      max={1}
-                      value={item.progress}
-                      aria-label="Uploading photo"
-                    />
-                  )}
-                </li>
-              ))}
             </ul>
           ) : null}
+
+          {pickErrors.map((e) => (
+            <p key={e.key} className="viewer-photo-response__error" role="alert">
+              {photoErrorText(e.code)}{' '}
+              <button type="button" onClick={() => setPickErrors((list) => list.filter((x) => x.key !== e.key))}>
+                Dismiss
+              </button>
+            </p>
+          ))}
+
+          {notHandedIn ? <p className="viewer-photo-response__error" role="alert">{NOT_HANDED_IN_TEXT}</p> : null}
 
           {off ? <p className="viewer-photo-response__note">{PHOTOS_OFF_TEXT}</p> : null}
           {!live ? <p className="viewer-photo-response__note">{PREVIEW_TEXT}</p> : null}

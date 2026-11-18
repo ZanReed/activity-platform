@@ -55,6 +55,7 @@ import type { SectionItemIds, ViewerStore } from '../store/store.js';
 import type { SectionStatus } from '../store/persistence.js';
 import type { DolServedState } from '../sanitize/dolForm.js';
 import { unansweredItems } from './answered.js';
+import { hasLocalPhotos } from '../check/wire.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { dolOptionalBlockIds } from './dolOptional.js';
 import { ViewerProvider } from './context.js';
@@ -237,7 +238,12 @@ export function tallyText(t: CheckTally): string {
   return parts.join(' · ');
 }
 
-function groupStatusLabel(status: GroupStatus, locked: boolean, tally: CheckTally | null = null): string {
+function groupStatusLabel(
+  status: GroupStatus,
+  locked: boolean,
+  tally: CheckTally | null = null,
+  waitingForPhotos = false,
+): string {
   // 'locked' is checked before the phase in the two places it can appear
   // (a wholly-refused group reads 'error', a partly-refused one reads
   // 'partial'). It is the one kind that must never inherit retry copy: there
@@ -252,6 +258,13 @@ function groupStatusLabel(status: GroupStatus, locked: boolean, tally: CheckTall
       // The freeze already happened (at press), so a locked group says so
       // first — otherwise the student reads "we'll check later" while their
       // inputs are inert and concludes something broke.
+      // Slice 2b: a photo still uploading holds the check; say that, not
+      // "offline", which may not be true.
+      if (waitingForPhotos) {
+        return locked
+          ? 'Will check and lock once your photo has uploaded.'
+          : 'Will check once your photo has uploaded.';
+      }
       return locked
         ? 'Locked. Will check when you’re back online.'
         : 'Will check when you’re back online.';
@@ -373,6 +386,12 @@ function lockConfirmText(sectionCount: number, unanswered: number): string {
   return `${ask}${blankNote(unanswered)} You won’t be able to change your answers after this.`;
 }
 
+/** Slice 2b (§8): a photo question with no photo, in an ordinary section. */
+function missingPhotoConfirmText(missing: number): string {
+  const what = missing === 1 ? 'A photo question here has no photo yet.' : `${missing} photo questions here have no photo yet.`;
+  return `${what} Check anyway?`;
+}
+
 /** The button's words. It NAMES ITS SCOPE (D1) so the visible region and the
  * label agree — a student who sees three sections inside one rule and a button
  * that says only "Check" has to guess which of the three it covers. */
@@ -485,6 +504,22 @@ export function ViewerContainer({
   // moment of the confirm (not a subscription — nothing renders from it).
   const unansweredIn = useCallback(
     (secs: readonly SectionIndex[]) => unansweredItems(store.getState().responses, secs).length,
+    [store],
+  );
+  // Slice 2b, read at render and at press (not a subscription): whether a
+  // photo in these sections is still waiting to upload (the pending line says
+  // so), and how many photo questions have no photo at all (the confirm).
+  const photosIn = useCallback(
+    (secs: readonly SectionIndex[]) => {
+      const photos = store.getState().responses.photos;
+      return {
+        waiting: secs.some((s) => hasLocalPhotos(photos, s.items.photos)),
+        missing: secs.reduce(
+          (n, s) => n + (s.items.photos ?? []).filter((id) => (photos?.[id] ?? []).length === 0).length,
+          0,
+        ),
+      };
+    },
     [store],
   );
 
@@ -696,6 +731,7 @@ export function ViewerContainer({
           onDolPractice={onDolPractice}
           {...(groupAside ? { aside: groupAside } : {})}
           unansweredIn={unansweredIn}
+          photosIn={photosIn}
           sections={sections}
           crashedIn={crashedGradableIn}
           onCheck={handleCheckGroup}
@@ -704,9 +740,16 @@ export function ViewerContainer({
             const section = sectionById[sectionIndex.sectionId];
             if (!section) return null;
             const status = sections[section.id];
-            const frozen = sectionIndex.dol
-              ? isDolFrozen(sectionIndex.dol, status)
-              : locked && isSectionFrozen(status);
+            // Slice 2b (Fable review): a section pending ONLY because a photo
+            // is still uploading has sent nothing, so nothing is locked yet —
+            // and freezing it would disable that photo's Retry and Remove,
+            // stranding a failed upload for good.
+            const waitingOnPhotos = status?.phase === 'pending' && photosIn([sectionIndex]).waiting;
+            const frozen = waitingOnPhotos
+              ? false
+              : sectionIndex.dol
+                ? isDolFrozen(sectionIndex.dol, status)
+                : locked && isSectionFrozen(status);
             return (
               <section
                 key={section.id}
@@ -855,6 +898,7 @@ interface CheckGroupRegionProps {
   /** Unanswered questions in these sections, read at the moment of the
    *  confirm (DE-14). */
   unansweredIn: (sections: readonly SectionIndex[]) => number;
+  photosIn: (sections: readonly SectionIndex[]) => { waiting: boolean; missing: number };
   sections: Record<string, SectionStatus>;
   crashedIn: (section: SectionIndex) => string[];
   onCheck: (
@@ -872,6 +916,7 @@ function CheckGroupRegion({
   onDolPractice,
   aside,
   unansweredIn,
+  photosIn,
   sections,
   crashedIn,
   onCheck,
@@ -879,10 +924,16 @@ function CheckGroupRegion({
 }: CheckGroupRegionProps) {
   const ids = group.sections.map((s) => s.sectionId);
   const status = groupStatus(ids, sections);
-  const frozen = dol
-    ? isDolFrozen(dol, sections[ids[0]!])
-    : locked && group.sections.every((s) => isSectionFrozen(sections[s.sectionId]));
+  // Not frozen while a photo it waits on is still uploading (see the section
+  // freeze below): the student must be able to Retry or Remove it.
+  const waitingOnPhotos = status.phase === 'pending' && photosIn(group.sections).waiting;
+  const frozen = waitingOnPhotos
+    ? false
+    : dol
+      ? isDolFrozen(dol, sections[ids[0]!])
+      : locked && group.sections.every((s) => isSectionFrozen(sections[s.sectionId]));
   const [unanswered, setUnanswered] = useState(0);
+  const [missingPhotos, setMissingPhotos] = useState(0);
   // The confirm step is INLINE rather than window.confirm (D3): a native
   // dialog is unstyleable, untestable without stubbing a global, and on a
   // Chromebook it steals focus to a surface the a11y lane cannot scan.
@@ -978,7 +1029,12 @@ function CheckGroupRegion({
                 // only one there is — which resets every student.
                 // D65 DE-14: a DoL press spends an attempt, so it asks first
                 // too. Both confirms say how many questions are still blank.
-                if ((locked || dol) && !retrying) {
+                // Slice 2b: a photo question with no photo asks first too,
+                // in any section — a photo is the one answer a student can
+                // believe they gave when it never left their phone.
+                const missing = retrying ? 0 : photosIn(group.sections).missing;
+                setMissingPhotos(missing);
+                if ((locked || dol || missing > 0) && !retrying) {
                   setUnanswered(unansweredIn(group.sections));
                   setConfirming(true);
                 } else fire();
@@ -1002,7 +1058,9 @@ function CheckGroupRegion({
               <p className="viewer-check-group__confirm-text" id={confirmTextId}>
                 {dol
                   ? dolConfirmText(dol, unanswered)
-                  : lockConfirmText(group.sections.length, unanswered)}
+                  : locked
+                    ? lockConfirmText(group.sections.length, unanswered)
+                    : missingPhotoConfirmText(missingPhotos)}
               </p>
               <button
                 ref={cancelRef}
@@ -1021,7 +1079,7 @@ function CheckGroupRegion({
                 className="viewer-section__check viewer-check-group__confirm-fire"
                 onClick={fire}
               >
-                {dol ? 'Check' : 'Check and lock'}
+                {dol ? 'Check' : locked ? 'Check and lock' : 'Check anyway'}
               </button>
             </div>
           ) : null}
@@ -1036,7 +1094,12 @@ function CheckGroupRegion({
               : (dol
                   ? dolStatusWithTally(dol, sections[ids[0]!], groupTally(sections, ids, group.sections.map((x) => x.items)))
                   : null) ??
-                groupStatusLabel(status, locked, groupTally(sections, ids, group.sections.map((x) => x.items)))}
+                groupStatusLabel(
+                  status,
+                  locked,
+                  groupTally(sections, ids, group.sections.map((x) => x.items)),
+                  status.phase === 'pending' && photosIn(group.sections).waiting,
+                )}
           </p>
           {dol && onDolPractice && dolPracticeOffered(dol, sections[ids[0]!]) ? (
             <button type="button" className="viewer-dol__practice" onClick={onDolPractice}>

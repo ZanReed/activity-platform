@@ -33,6 +33,7 @@ import {
   type CheckService,
   type GraphWork,
   type PhotoRef,
+  hasLocalPhotos,
   type ReleasedBlockFeedback,
   type SectionResponses,
 } from '../check/wire.js';
@@ -144,6 +145,8 @@ export interface ViewerStore {
   setGraphWork(blockId: string, work: GraphWork): void;
   /** Replace a photo block's list of photo ids (wire v4). */
   setPhotos(blockId: string, refs: readonly PhotoRef[]): void;
+  /** A waiting photo uploaded: replace its device id with the server's. */
+  swapPhoto(blockId: string, localId: string, serverId: string): void;
 
   /** One batched check for the section's CURRENT values (2.2A). Resolves when
    * the status transition has landed; never throws — failures surface as the
@@ -395,15 +398,33 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       setResponse('freeText', (m) => ({ ...m, [blockId]: text }));
     },
     setPhotos(blockId, refs) {
-      // Ids only, in the student's order. An empty list is removed rather
-      // than kept, so "no photo" and "never touched" read the same everywhere
-      // (restore's untouched test, the fingerprint, the check payload).
+      // In the student's order. An empty list is removed rather than kept, so
+      // "no photo" and "never touched" read the same everywhere (restore's
+      // untouched test, the fingerprint, the check payload). The client-only
+      // `local` and `key` survive here; the fire-time snapshot strips them.
       setResponse('photos', (m) => {
         const next = { ...m };
         if (refs.length === 0) delete next[blockId];
-        else next[blockId] = refs.map((r) => ({ id: r.id }));
+        else
+          next[blockId] = refs.map((r) => ({
+            id: r.id,
+            ...(r.local ? { local: true } : {}),
+            ...(r.key ? { key: r.key } : {}),
+          }));
         return next;
       });
+    },
+    swapPhoto(blockId, localId, serverId) {
+      // The uploader's one write: a waiting photo is now in Storage. A ref the
+      // student removed meanwhile is simply not found, and nothing changes.
+      const refs = state.responses.photos?.[blockId];
+      if (!refs?.some((r) => r.id === localId && r.local)) return;
+      setResponse('photos', (m) => ({
+        ...m,
+        [blockId]: (m[blockId] ?? []).map((r) =>
+          r.id === localId && r.local ? { id: serverId, key: r.key ?? localId } : r,
+        ),
+      }));
     },
     setGraphWork(blockId, work) {
       // Cloned on the way IN: the caller's widget keeps its own object.
@@ -435,8 +456,40 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         orderings: pick(state.responses.orderings, items.orderings),
         freeText: pick(state.responses.freeText, items.freeText),
         graphs: pick(state.responses.graphs, items.graphs),
+        // Ids only: `local` and `key` are the device's business.
+        photos: Object.fromEntries(
+          Object.entries(pick(state.responses.photos ?? {}, items.photos)).map(([id, refs]) => [
+            id,
+            refs.map((r) => ({ id: r.id })),
+          ]),
+        ),
+      };
+      // A PHOTO STILL WAITING TO UPLOAD IS A DELAY, LIKE OFFLINE (slice 2b).
+      // The check never goes without it: on a locked, quiz or DoL section a
+      // photo that missed its check could never be handed in. The check joins
+      // the queue exactly as an offline one does, and the queue fires it once
+      // the uploader has swapped every waiting photo for a server id. The
+      // fingerprint is taken from the full refs (by `key`), so the swap is not
+      // read as the student changing their answer.
+      // The answers as the drift check compares them: photos with their keys.
+      const keyedResponses: SectionResponses = {
+        ...firedResponses,
         photos: pick(state.responses.photos ?? {}, items.photos),
       };
+      if (hasLocalPhotos(state.responses.photos, items.photos)) {
+        commit({
+          ...state,
+          sections: { ...state.sections, [sectionId]: { phase: 'pending' } },
+          pending: {
+            ...state.pending,
+            [sectionId]: state.pending[sectionId] ?? {
+              fingerprint: fingerprintResponses(keyedResponses),
+            },
+          },
+        });
+        return;
+      }
+
       const request: CheckRequest = {
         wireVersion: CHECK_WIRE_VERSION,
         activityId: state.activityId,
@@ -456,7 +509,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           ...state.inFlight,
           [sectionId]: {
             checkId: idempotencyKey,
-            fingerprint: fingerprintResponses(firedResponses),
+            fingerprint: fingerprintResponses(keyedResponses),
           },
         },
       });
@@ -466,7 +519,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
       const queued = state.pending[sectionId];
       const answersChangedWhileQueued =
         queued !== undefined &&
-        queued.fingerprint !== fingerprintResponses(firedResponses);
+        queued.fingerprint !== fingerprintResponses(keyedResponses);
 
       try {
         const result = await checkService.checkSection(request);
@@ -539,7 +592,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
               ...state.pending,
               [sectionId]:
                 state.pending[sectionId] ??
-                { fingerprint: fingerprintResponses(firedResponses) },
+                { fingerprint: fingerprintResponses(keyedResponses) },
             },
           });
           return;

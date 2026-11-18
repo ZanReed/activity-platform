@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-18-draft-61`. Mirrors migrations 0001–**0094**, verified
+> Version `2026-11-18-draft-62`. Mirrors migrations 0001–**0094**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-62` (2026-11-18) — no migration: a photo can WAIT ON THE DEVICE (media submissions slice 2b).** A photo a student takes is kept in the browser's IndexedDB (`activity-viewer:photos`) until it reaches Storage, so a photo taken with no connection uploads by itself later. It is the re-encoded JPEG only (no EXIF, no GPS), keyed to the student's uid, and **deleted the moment the upload succeeds** — not when the check succeeds — so the least possible photo sits on a shared device. Sign-out (`signOutEverything`) deletes the whole database before the session ends, and warns first ("1 photo hasn't uploaded yet. Signing out will delete it."); the boot sweep deletes any other student's entries and any entry nothing still references. The browser-storage row below gains it. Counsel Q14(a) asks about a photo waiting on a shared device.
 >
 > **`draft-61` (2026-11-18) — 0094 adds no table or column: a check now HANDS IN a photo.** A trigger on `section_checks` validates the photo ids a check's `responses.photos` names (the student's own, this activity and question, uploaded, photo answers on) and, on a photo's first hand-in, sets `work_photos.attached_at` and moves `keep_until` from 7 days to the school-year ceiling (with a 30-day floor, so a photo handed in after its class's year-end is never removed before the teacher sees it). `section_checks.responses` therefore now carries **photo ids** (never bytes, paths or file names; a client's extra fields are dropped), and a photo removed by retention stays named there as `{id, removed: true}`. `work_photos` gains `attached_object_version` (the Storage object's version at hand-in, no personal data): the teacher's read requires the live object still to carry it, so bytes a student replaces after hand-in never reach the teacher. Two student reads: `photo_answers_on()` (the switch, for display) and `discard_work_photo(id)`, which deletes the caller's own photo that no check has handed in (its bytes are queued as before). Still no photo can exist while `photo_clearance` is off. The range moves to 0094.
 >
@@ -384,6 +386,7 @@
 | Supabase Storage (same project): `activity-images` (0019, public) and `student-work` (0093, **private**) | same | `activity-images`: **No**, teacher-authored activity images only. `student-work`: **Yes**, photos of students' handwritten working (see `work_photos` below); readable only by the student and, once attached by a check, the activity's owner; bytes removed by `sweep-work-photos` |
 | Browser localStorage (legacy published pages) | student device | Typed display name + in-progress answers, never synced anywhere except via submission |
 | Browser storage (new viewer, T7) | student device | Local-first response buffer for the signed-in student; cleared by sign-out (`signOutEverything`) |
+| Browser IndexedDB `activity-viewer:photos` (media submissions slice 2b) | student device | **Photos of the student's working that have not uploaded yet** (re-encoded JPEG, no EXIF/GPS), keyed to their uid. Deleted when the upload succeeds; the whole database deleted by sign-out (before the session ends, bounded to 3 s); other students' entries and unreferenced entries deleted by the boot sweep. Never synced except by the upload itself |
 
 ## Tables (personal data only — content tables omitted)
 

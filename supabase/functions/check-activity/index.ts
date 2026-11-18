@@ -113,6 +113,16 @@ const db: CheckActivityDb = {
       .maybeSingle();
   },
 
+  async checkPhotos(checkId) {
+    // Service role: the stored row, read back only for a check that named
+    // photos, so the student hears which ones retention had removed (0094).
+    return await admin
+      .from('section_checks')
+      .select('responses')
+      .eq('id', checkId)
+      .maybeSingle();
+  },
+
   async recordCheck(args) {
     return await admin
       .rpc('record_check', {

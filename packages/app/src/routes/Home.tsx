@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react
 import { studentDueLabel } from '../lib/dueWords';
 import { Link } from 'react-router';
 import { signOutEverything, watchIdleSignOut } from '../lib/studentAuth';
-import { uncheckedActivitiesOnDevice, uncheckedCostSentence } from '../lib/uncheckedWork';
+import { uncheckedActivitiesOnDevice, uncheckedCostSentence, waitingPhotosOnDevice } from '../lib/uncheckedWork';
 import IdleBar from '../components/IdleBar';
 import { markIdleSignOut, consumeIdleSignOutFlag } from '../lib/auth';
 import { useSession } from '../lib/SessionContext';
@@ -185,7 +185,7 @@ export default function Home() {
                     setConfirmSignOut(null);
                   }}
                 >
-                  <p>{uncheckedCostSentence(confirmSignOut)}</p>
+                  <p>{uncheckedCostSentence(confirmSignOut, waitingPhotosOnDevice(session.user.id))}</p>
                 </ConfirmDialog>
                 </Suspense>
               )}

@@ -510,3 +510,61 @@ describe('persistence shape', () => {
     expect(Object.keys(s.store.getState().sections)).toHaveLength(0);
   });
 });
+
+// ---- Photos still waiting to upload (media submissions slice 2b) -----------
+// The promise: a check never goes without a photo the student added. While a
+// photo is `local` (on the device, not yet in Storage) its section waits like
+// an offline one; the other sections still fire; the uploader's swap releases
+// it; and the swap is never read as the student changing their answer.
+describe('photos waiting to upload', () => {
+  const PHOTO_ITEMS: SectionItemIds = { blanks: ['blank-1'], photos: ['photo-q'] };
+  const OTHER: SectionItemIds = { blanks: ['blank-2'] };
+  const LOCAL = '11111111-0000-4000-8000-0000000000aa';
+  const SERVER = '22222222-0000-4000-8000-0000000000bb';
+  const resolve = (id: string) => (id === SECTION ? PHOTO_ITEMS : id === 'sec-2' ? OTHER : null);
+
+  it('a check pressed while a photo waits does not fire; it queues', async () => {
+    const { store, service } = setup({ resolveItems: resolve });
+    store.setBlank('blank-1', '4');
+    store.setPhotos('photo-q', [{ id: LOCAL, local: true, key: LOCAL }]);
+    await store.checkSection(SECTION, PHOTO_ITEMS);
+    expect(service.calls).toEqual([]);
+    expect(store.getState().pending[SECTION]).toBeDefined();
+    expect(store.getState().sections[SECTION]).toEqual({ phase: 'pending' });
+  });
+
+  // Also the guard for runNow's late-signal fix: the swap lands between the
+  // boot run's last pass and its cleanup, so without the fix nothing fires
+  // (mutation-tested 2026-11-18; a timing-only test for it proved vacuous).
+  it('the swap releases it; the check carries ids only and no drift notice', async () => {
+    const { store, service, queue } = setup({ resolveItems: resolve });
+    queue.start();
+    store.setBlank('blank-1', '4');
+    store.setPhotos('photo-q', [{ id: LOCAL, local: true, key: LOCAL }]);
+    await store.checkSection(SECTION, PHOTO_ITEMS);
+    store.swapPhoto('photo-q', LOCAL, SERVER);
+    await vi.waitFor(() => expect(service.calls).toHaveLength(1));
+    expect(service.calls[0]!.responses.photos).toEqual({ 'photo-q': [{ id: SERVER }] });
+    await vi.waitFor(() => expect(store.getState().sections[SECTION]?.phase).toBe('checked'));
+    const status = store.getState().sections[SECTION] as { answersChangedWhileQueued?: boolean };
+    expect(status.answersChangedWhileQueued).toBeUndefined();
+  });
+
+  it('a waiting photo holds only its own section: the others still fire', async () => {
+    const { store, service, queue, connectivity } = setup({ resolveItems: resolve });
+    store.setPhotos('photo-q', [{ id: LOCAL, local: true, key: LOCAL }]);
+    await store.checkSection(SECTION, PHOTO_ITEMS);
+    service.offline = true;
+    connectivity.online = false;
+    store.setBlank('blank-2', '9');
+    await store.checkSection('sec-2', OTHER);
+    expect(store.getState().pending['sec-2']).toBeDefined();
+    service.offline = false;
+    connectivity.online = true;
+    await queue.runNow();
+    // sec-2: once offline (thrown), once from the queue. The photo's section never.
+    expect(service.calls.map((c) => c.sectionId)).toEqual(['sec-2', 'sec-2']);
+    expect(store.getState().pending['sec-2']).toBeUndefined();
+    expect(store.getState().pending[SECTION]).toBeDefined();
+  });
+});

@@ -247,6 +247,38 @@ export function countUncheckedActivities(storage: StorageLike, userId: string): 
 }
 
 /**
+ * The device ids of every photo this student's buffers still hold as WAITING
+ * (a `local` ref, slice 2b). Two readers: the photo store's boot sweep keeps
+ * exactly these (the GC rule — a photo a buffer names is never collected), and
+ * the sign-out warning counts them ("1 photo hasn't uploaded yet"). Malformed
+ * blobs name nothing. Storage that throws reads as empty.
+ */
+export function bufferedLocalPhotoIds(storage: StorageLike, userId: string): Set<string> {
+  const ids = new Set<string>();
+  try {
+    for (const key of scopedKeys(storage)) {
+      const parts = parseScopedKey(key);
+      if (parts?.kind !== 'buffer' || parts.userId !== userId) continue;
+      let blob: { responses?: { photos?: Record<string, unknown> } };
+      try {
+        blob = JSON.parse(storage.getItem(key) ?? 'null') ?? {};
+      } catch {
+        continue;
+      }
+      for (const refs of Object.values(blob?.responses?.photos ?? {})) {
+        if (!Array.isArray(refs)) continue;
+        for (const ref of refs as Array<{ id?: unknown; local?: unknown }>) {
+          if (ref?.local === true && typeof ref.id === 'string') ids.add(ref.id);
+        }
+      }
+    }
+  } catch {
+    // Storage unavailable: nothing readable is buffered.
+  }
+  return ids;
+}
+
+/**
  * BOOT SWEEP (ruling S6-6). Remove every piece of viewer-scoped data that is
  * not the signed-in user's — buffers and cached documents alike — plus
  * anything under the prefix too malformed to attribute to anyone. Sign-out

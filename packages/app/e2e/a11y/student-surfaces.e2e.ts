@@ -541,7 +541,9 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     await page.locator('[data-section-id] input[type="text"]').first().fill('42');
     // D3 — in `locked` the button says what it does and asks first.
     await page.getByRole('button', { name: /^Check and lock/ }).first().click();
-    await page.getByRole('button', { name: 'Check and lock', exact: true }).click();
+    // The confirm's own button: the fixture's photo question has a check group
+    // of its own (slice 2b), whose button carries the same words.
+    await page.locator('.viewer-check-group__confirm').getByRole('button', { name: 'Check and lock', exact: true }).click();
 
     // Non-vacuity FIRST: the freeze really happened, so the scan below is of
     // the frozen DOM and not of a page where the click did nothing.

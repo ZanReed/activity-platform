@@ -37,6 +37,7 @@ import { setPhotoLink } from '../../src/blocks/photoLinkSeam.js';
 import { ViewerProvider } from '../../src/container/context.js';
 import { createViewerStore } from '../../src/store/store.js';
 import { createMockCheckService } from '../../src/check/mock.js';
+import { CHECK_WIRE_VERSION } from '../../src/check/wire.js';
 
 const ACTIVITY = 'aaaaaaaa-0000-4000-8000-000000000001';
 const VERSION = 'bbbbbbbb-0000-4000-8000-000000000001';
@@ -48,12 +49,12 @@ const BLOCK = {
 };
 const PHOTO = '99999999-9999-4999-8999-999999999991';
 
-function mount(block: Record<string, unknown> = BLOCK) {
+function mount(block: Record<string, unknown> = BLOCK, checkService: unknown = createMockCheckService()) {
   const store = createViewerStore({
     userId: 'student-1',
     activityId: ACTIVITY,
     versionId: VERSION,
-    checkService: createMockCheckService(),
+    checkService: checkService as never,
   });
   const view = render(
     <ViewerProvider store={store} defaultSectionId="s1">
@@ -79,6 +80,14 @@ function pick(container: HTMLElement, ...names: string[]) {
 beforeEach(() => {
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:local', revokeObjectURL: () => undefined }));
   Object.values(upload).forEach((fn) => fn.mockClear());
+  // mockClear keeps implementations: put the defaults back so one test's
+  // mockImplementation cannot leak into the next.
+  upload.addPhoto.mockImplementation(async (_ids, _jpeg, onProgress) => {
+    onProgress(1);
+    return PHOTO;
+  });
+  upload.reencodePhoto.mockImplementation(async (f: Blob) => f);
+  upload.photosEnabled.mockImplementation(async () => true);
 });
 afterEach(() => {
   cleanup();
@@ -109,7 +118,12 @@ describe('photo_response', () => {
       expect((screen.getByRole('button', { name: ADD_PHOTO_LABEL }) as HTMLButtonElement).disabled).toBe(false),
     );
     pick(container, 'IMG_0042.jpg');
-    await waitFor(() => expect(store.getState().responses.photos?.[BLOCK.id]).toEqual([{ id: PHOTO }]));
+    // Waiting first (a device id, `local`), then swapped for the server id —
+    // keeping the same `key`, so a queued check does not read it as a change.
+    await waitFor(() => expect(store.getState().responses.photos?.[BLOCK.id]?.map((r) => r.id)).toEqual([PHOTO]));
+    const [ref] = store.getState().responses.photos![BLOCK.id]!;
+    expect(ref!.local).toBeUndefined();
+    expect(ref!.key).toMatch(/^[0-9a-f-]{36}$/);
     expect(upload.reencodePhoto).toHaveBeenCalledTimes(1);
     expect(upload.addPhoto.mock.calls[0]![0]).toEqual({ activityId: ACTIVITY, versionId: VERSION, blockId: BLOCK.id });
     expect(screen.getByRole('img', { name: 'Photo 1 of your working' })).toBeTruthy();
@@ -140,7 +154,7 @@ describe('photo_response', () => {
     expect(upload.discardPhoto).toHaveBeenCalledWith(PHOTO);
   });
 
-  it('a failed upload says why, keeps nothing in the answer, and Retry sends it again', async () => {
+  it('a failed upload says why, keeps the photo waiting in the answer, and Retry sends it again', async () => {
     live();
     upload.addPhoto.mockRejectedValueOnce(new PhotoError('photo_cap'));
     upload.addPhoto.mockImplementationOnce(async () => PHOTO);
@@ -150,9 +164,63 @@ describe('photo_response', () => {
     );
     pick(container, 'a.jpg');
     expect((await screen.findByRole('alert')).textContent).toMatch(/a lot of photos/);
-    expect(store.getState().responses.photos?.[BLOCK.id]).toBeUndefined();
+    // Still the student's answer, still waiting: a check would hold for it.
+    expect(store.getState().responses.photos?.[BLOCK.id]?.[0]?.local).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(store.getState().responses.photos?.[BLOCK.id]).toEqual([{ id: PHOTO }]));
+    await waitFor(() => expect(store.getState().responses.photos?.[BLOCK.id]?.map((r) => r.id)).toEqual([PHOTO]));
+  });
+
+  it('offline, the photo is saved on the device and waits, then uploads on reconnect', async () => {
+    live();
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { container, store } = mount();
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: ADD_PHOTO_LABEL }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    pick(container, 'a.jpg');
+    expect(await screen.findByText(/Saved on this device/)).toBeTruthy();
+    expect(upload.addPhoto).not.toHaveBeenCalled();
+    expect(store.getState().responses.photos?.[BLOCK.id]?.[0]?.local).toBe(true);
+    onLine.mockReturnValue(true);
+    act(() => void window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(store.getState().responses.photos?.[BLOCK.id]?.map((r) => r.id)).toEqual([PHOTO]));
+    onLine.mockRestore();
+  });
+
+  it('Remove on a waiting photo deletes the device copy and never uploads it', async () => {
+    live();
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { container, store } = mount();
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: ADD_PHOTO_LABEL }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    pick(container, 'a.jpg');
+    await screen.findByText(/Saved on this device/);
+    fireEvent.click(screen.getByRole('button', { name: /Remove photo 1/ }));
+    expect(store.getState().responses.photos?.[BLOCK.id]).toBeUndefined();
+    onLine.mockReturnValue(true);
+    act(() => void window.dispatchEvent(new Event('online')));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(upload.addPhoto).not.toHaveBeenCalled();
+    expect(upload.discardPhoto).not.toHaveBeenCalled(); // nothing on the server to discard
+    onLine.mockRestore();
+  });
+
+  it('a check that could not hand a photo in says so and drops it from the answer', async () => {
+    live();
+    // The handler's read-back (removedPhotos) on this block's item.
+    const { store } = mount(BLOCK, {
+      checkSection: async (req: { sectionId: string }) => ({
+        wireVersion: CHECK_WIRE_VERSION,
+        sectionId: req.sectionId,
+        items: { [BLOCK.id]: { verdict: 'recorded', removedPhotos: [PHOTO] } },
+        solutions: {},
+      }),
+    });
+    act(() => store.setPhotos(BLOCK.id, [{ id: PHOTO }]));
+    await act(() => store.checkSection('s1', { photos: [BLOCK.id] }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/wasn’t handed in/);
+    expect(store.getState().responses.photos?.[BLOCK.id]).toBeUndefined();
   });
 
   it('a photo the server has removed shows that, not a broken image', async () => {

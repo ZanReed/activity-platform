@@ -8,10 +8,11 @@
 // popovers (1000) — viewer tokens.css --z-*.
 // =============================================================================
 
-import { uncheckedActivitiesOnDevice, uncheckedCostSentence } from '../lib/uncheckedWork';
+import { uncheckedActivitiesOnDevice, uncheckedCostSentence, waitingPhotosOnDevice } from '../lib/uncheckedWork';
 
 export default function IdleBar({ userId }: { userId: string }) {
     const unchecked = uncheckedActivitiesOnDevice(userId);
+    const photos = waitingPhotosOnDevice(userId);
     return (
         <div
             role="alert"
@@ -21,7 +22,7 @@ export default function IdleBar({ userId }: { userId: string }) {
             <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-strong">
                     Still there? You’ll be signed out soon to keep this device safe.
-                    {unchecked > 0 && <> {uncheckedCostSentence(unchecked)}</>}
+                    {unchecked > 0 && <> {uncheckedCostSentence(unchecked, photos)}</>}
                 </p>
                 <button
                     type="button"

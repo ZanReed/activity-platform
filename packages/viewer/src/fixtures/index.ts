@@ -825,21 +825,36 @@ function build(): BuiltFixtures {
   const raw = authoredRawByType(fid);
   const rowId = makeIds();
   // Registry order, primaries and variants inline — one block per row.
-  const blocks = registeredBlockTypes.flatMap((type) => raw.get(type) ?? []);
+  // EXCEPT photo_response, which gets a section of its own (slice 2b): an
+  // unanswered photo question makes its section's Check ask "Check anyway?",
+  // and every lane that presses Check on this worksheet is testing something
+  // else. Its own section keeps the confirm honest without teaching every
+  // spec to answer it.
+  const ownSection = new Set<string>(['photo_response']);
+  const blocks = registeredBlockTypes
+    .filter((type) => !ownSection.has(type))
+    .flatMap((type) => raw.get(type) ?? []);
+  const photoBlocks = [...ownSection].flatMap((type) => raw.get(type as BlockType) ?? []);
+  const rowOf = (block: Record<string, unknown>) => ({
+    id: `ffffffff-ffff-4fff-8fff-1${rowId().slice(-11)}`,
+    gridLines: 'inherit',
+    columns: [{ id: `ffffffff-ffff-4fff-8fff-2${rowId().slice(-11)}`, blocks: [block] }],
+  });
   const empty = createEmptyDocument({ title: 'Fixture worksheet' });
   const document = ActivityDocument.parse({
     ...JSON.parse(JSON.stringify(empty)),
     sections: [
       {
         id: 'ffffffff-ffff-4fff-8fff-000000000001',
+        // A checkpoint, so the photo section after it is a separate check
+        // group (checkGroups.ts R1) — the first Check never covers it.
+        isCheckpoint: true,
+        rows: blocks.map(rowOf),
+      },
+      {
+        id: 'ffffffff-ffff-4fff-8fff-000000000002',
         isCheckpoint: false,
-        rows: blocks.map((block) => ({
-          id: `ffffffff-ffff-4fff-8fff-1${rowId().slice(-11)}`,
-          gridLines: 'inherit',
-          columns: [
-            { id: `ffffffff-ffff-4fff-8fff-2${rowId().slice(-11)}`, blocks: [block] },
-          ],
-        })),
+        rows: photoBlocks.map(rowOf),
       },
     ],
   });

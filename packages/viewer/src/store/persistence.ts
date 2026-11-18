@@ -150,7 +150,15 @@ export function emptyPersistedState(
  * that, the drift notice would fire constantly and mean nothing.
  */
 export function fingerprintResponses(responses: SectionResponses): string {
-  return JSON.stringify(responses, (_key, value: unknown) => {
+  // A photo fingerprints by its stable client `key` when it has one (slice
+  // 2b): the uploader swapping a waiting photo's device id for the server's is
+  // not the student changing their answer.
+  const photos = responses.photos
+    ? Object.fromEntries(
+        Object.entries(responses.photos).map(([id, refs]) => [id, refs.map((r) => r.key ?? r.id)]),
+      )
+    : undefined;
+  return JSON.stringify(photos ? { ...responses, photos } : responses, (_key, value: unknown) => {
     if (
       typeof value === 'object' &&
       value !== null &&

@@ -43,6 +43,10 @@ import {
   ViewerContainer,
   setVideoLink,
   setPhotoLink,
+  setPhotoUploadGate,
+  stopPhotoUploads,
+  deletePhotoStore,
+  bufferedLocalPhotoIds,
   ViewerLoadError,
   createBrowserConnectivity,
   createCheckQueue,
@@ -526,8 +530,15 @@ export default function StudentViewer() {
     // The GC deliberately spares a superseded version that still holds unsent
     // work (S6-9) — the load effect above has already decided what to do with
     // it, and collecting it here would undo that decision.
-    sweepForeignStorage(storage, userId);
+    const foreign = sweepForeignStorage(storage, userId);
     sweepOrphanVersions(storage, { userId, activityId, versionId });
+    // Slice 2b (Fable review): another student's work was left on this device
+    // (a crash, a closed lid), so their waiting photos may be too, in
+    // IndexedDB, which the prefix sweep cannot reach. Wipe the photo store
+    // now rather than whenever a photo question happens to mount — unless
+    // THIS student has photos of their own waiting, in which case the photo
+    // chunk's per-entry sweep removes only the other student's.
+    if (foreign.length > 0 && bufferedLocalPhotoIds(storage, userId).size === 0) void deletePhotoStore();
 
     // Scoped per (student, activity): a second tab on a DIFFERENT activity is
     // not a conflict, and two students on one machine must not block each
@@ -622,11 +633,18 @@ export default function StudentViewer() {
       setNewerVersionId(snapshot.newerVersionId ?? null);
     });
     queue.start();
+    // Only the tab holding the lock uploads waiting photos (two tabs on one
+    // activity would both upload the same photo).
+    setPhotoUploadGate(() => lock.isHeld());
 
     setTakeOver(() => () => lock.takeOver());
 
     return () => {
       queue.stop();
+      // Before the buffer's last flush: a stopped uploader swaps nothing more
+      // into a store that is about to stop being saved.
+      stopPhotoUploads(store);
+      setPhotoUploadGate(null);
       unsubscribe();
       unwatchAuth();
       buffer?.dispose(); // flushes whatever the debounce still owed

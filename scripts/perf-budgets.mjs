@@ -280,8 +280,13 @@ export const SHELL_SPEND = [
         change: 'Media submissions slice 2 (photo_response): the photo seam set by StudentViewer, the lazy binding, the wire-v4 `photos` map through the store (setPhotos, fire-time pick, blockIndex) and the registry/answer-key/DoL entries; the capture, re-encode and upload code and the block\'s CSS are all in the lazy chunk',
         bytes: 276,
     },
+    {
+        date: '2026-11-18',
+        change: 'Media submissions slice 2b (offline photos): the store\'s waiting-photo model (swapPhoto, the check that queues while a photo is local, keyed fingerprints), the queue\'s store subscription and its dropped-rerun fix, the container\'s pending line and missing-photo confirm, the photo-refused copy, the buffer\'s waiting-photo scan, and sign-out\'s photo-store wipe and warning; the IndexedDB store and the uploader are in the lazy photo chunk (checked: none of their code is in the entry)',
+        bytes: 863,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 158874;
+export const SHELL_JS_BASELINE_BYTES = 159737;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

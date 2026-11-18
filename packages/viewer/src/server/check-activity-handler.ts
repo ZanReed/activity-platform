@@ -99,6 +99,12 @@ export interface CheckActivityDb {
   /** Raw (unsanitized) version content, SERVICE ROLE. Only ever called after
    * versionForCheck has succeeded. */
   readVersion(versionId: string): Promise<DbResult<{ content: unknown }>>;
+  /** The `photos` map a recorded check STORED (slice 2b), service role: 0094's
+   * trigger rewrites a ref retention already removed to `{id, removed: true}`,
+   * and this is how the student hears about it. Read only for a check that
+   * named photos. Optional so a port without it degrades to silence, never to
+   * a failed check. */
+  checkPhotos?(checkId: string): Promise<DbResult<{ responses: unknown }>>;
   /** `record_check`, SERVICE ROLE (the RPC is not callable by authenticated —
    * it takes verdicts as an argument). */
   recordCheck(args: {
@@ -1007,6 +1013,23 @@ export function createCheckActivityHandler(
           : (recorded.verdicts as SectionCheckResult['items'])
         : result.items;
 
+    // Slice 2b: photos the check named but could not hand in (0094 stored them
+    // as removed) are told to the student on the block's own item. A failed
+    // read costs the note, never the check.
+    let itemsOut = items;
+    if (Object.keys(request.responses.photos).length > 0 && recorded?.check_id && db.checkPhotos) {
+      const { data: row } = await db.checkPhotos(recorded.check_id).catch(() => ({ data: null }));
+      const stored = (row?.responses as { photos?: Record<string, Array<{ id?: unknown; removed?: unknown }>> } | null)?.photos ?? {};
+      for (const [blockId, refs] of Object.entries(stored)) {
+        const gone = (Array.isArray(refs) ? refs : [])
+          .filter((r) => r?.removed === true && typeof r.id === 'string')
+          .map((r) => r.id as string);
+        if (gone.length > 0 && itemsOut[blockId]) {
+          itemsOut = { ...itemsOut, [blockId]: { ...itemsOut[blockId]!, removedPhotos: gone } };
+        }
+      }
+    }
+
     // DL-8: on the DoL, worked solutions wait until the last attempt or the
     // pass — form 1's solution is the method for form 2.
     const attempts = recorded?.attempt_number ?? form;
@@ -1015,7 +1038,7 @@ export function createCheckActivityHandler(
     return cors.jsonResponse(req, {
       ...result,
       ...(dolState ? { dol: dolState, solutions: withholdSolutions(dolState) ? {} : result.solutions } : {}),
-      items,
+      items: itemsOut,
       attemptNumber: recorded?.attempt_number,
       // The stale-version advisory (ruling S4-T5): the student keeps working
       // against the version they were served — a mid-period republish never
