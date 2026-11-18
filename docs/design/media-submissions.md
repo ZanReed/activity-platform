@@ -1121,7 +1121,9 @@ stay off; these are the pieces the author's steps need.
 - **The sweep's own token (ruled 2026-11-19).** Redeployed, the live sweep
   answered 403 to this project's own service-role key: its check compared the
   BEARER to `SUPABASE_SERVICE_ROLE_KEY`, which passes on the local stack but
-  not behind the hosted gateway. It now checks an `x-sweep-token` header
+  not live: the secrets list's sha256 digests show the key the platform
+  injects into functions is a different (valid) service-role key from the one
+  in `.env.supabase`. It now checks an `x-sweep-token` header
   against its own secret, `SWEEP_WORK_PHOTOS_TOKEN` (`supabase secrets set`;
   the cron job sends the same value from Vault as `sweep_work_photos_token`;
   the Authorization header still carries the service key for the platform

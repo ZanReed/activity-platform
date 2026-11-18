@@ -33,11 +33,11 @@
 //
 // Why a dedicated secret (author ruling 2026-11-19): the first version compared
 // the BEARER to SUPABASE_SERVICE_ROLE_KEY. That passed on the local stack and
-// refused the project's own service-role key on live (403). Why is unproven:
-// either the hosted gateway does not pass the Authorization header through
-// byte for byte, or the injected key differs from the dashboard's. A header of
-// our own, checked against a secret only this function and the cron job hold,
-// does not depend on either. An earlier
+// refused the project's own service-role key on live (403). Measured the same
+// day (the secrets list's sha256 digests): the SUPABASE_SERVICE_ROLE_KEY the
+// platform injects into functions is NOT the service-role key the author
+// holds, though the platform gate accepts both. A secret of our own, set by
+// us and checked in a header of our own, cannot drift from its copy that way. An earlier
 // draft read the `role` claim instead, which is safe only while verify_jwt
 // stays on (Fable review, 2026-11-18); the token does not depend on the flag.
 //
