@@ -290,8 +290,8 @@ teacher signs up, confirms they are an educator authorised by their school
 (3.2, Q2), and enrols their own class; that enrolment, on the school's behalf and
 for education only, is what permits collection from students (Q1). **No school
 or district has a contract with the platform today.** The platform is operated
-by ⟨AUTHOR TO FILL: you personally, or a legal entity, and where it is
-based⟩. Users today are in New Zealand and the United States
+by its author **personally, as an individual based in New Zealand**; there is
+no company or other legal entity behind it. Users today are in New Zealand and the United States
 (⟨AUTHOR TO FILL: which US states⟩).
 
 What the platform does with a photo:
