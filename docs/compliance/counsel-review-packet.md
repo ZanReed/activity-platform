@@ -291,8 +291,10 @@ teacher signs up, confirms they are an educator authorised by their school
 for education only, is what permits collection from students (Q1). **No school
 or district has a contract with the platform today.** The platform is operated
 by its author **personally, as an individual based in New Zealand**; there is
-no company or other legal entity behind it. Users today are in New Zealand and the United States
-(⟨AUTHOR TO FILL: which US states⟩).
+no company or other legal entity behind it. Users today are in New Zealand and the United States.
+**Which US states is not yet known**, so please answer for the general case
+and name any state law (for example California's SOPIPA or New York's
+Education Law 2-d) that would change the answer if users are there.
 
 What the platform does with a photo:
 - **Where it is held.** The photo is stored with Supabase, the platform's
