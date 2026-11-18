@@ -11,6 +11,7 @@
     "deploy:get-activity": "supabase functions deploy get-activity --no-verify-jwt",
     "deploy:check": "supabase functions deploy check-activity",
     "deploy:sweep": "supabase functions deploy sweep-work-photos",
+    "serve:functions": "supabase functions serve --env-file supabase/local-test-secrets",
     "deploy:photo-handoff": "supabase functions deploy photo-handoff --no-verify-jwt",
     "backfill:census": "node --env-file-if-exists=.env.supabase scripts/backfill-census.js",
     "import:batch": "node --env-file-if-exists=.env.supabase scripts/batch-import.mjs",

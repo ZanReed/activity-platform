@@ -25,14 +25,21 @@
 // two README jobs exactly), and `sweep_armed_before_clearance` goes red if
 // photo answers go on before it is armed.
 //
-// Authorization: verify_jwt = true (config.toml) AND the bearer must BE the
-// service-role key, compared byte for byte (constant time). The platform gate
-// only proves a JWT is real; any signed-in student has a real JWT too. An
-// earlier draft read the `role` claim from the decoded payload, which is safe
-// only while verify_jwt stays on: one `--no-verify-jwt` deploy and a forged
-// `role: service_role` token would delete students' work (Fable review,
-// 2026-11-18). Comparing to the key does not depend on the flag. pg_cron sends
-// the key from Vault.
+// Authorization: verify_jwt = true (config.toml) AND the `x-sweep-token`
+// header must BE this function's own secret, SWEEP_WORK_PHOTOS_TOKEN (set with
+// `supabase secrets set`; pg_cron sends the same value from Vault), compared
+// byte for byte in constant time. The platform gate only proves a JWT is real;
+// any signed-in student has a real JWT too.
+//
+// Why a dedicated secret (author ruling 2026-11-19): the first version compared
+// the BEARER to SUPABASE_SERVICE_ROLE_KEY. That passed on the local stack and
+// refused the project's own service-role key on live (403). Why is unproven:
+// either the hosted gateway does not pass the Authorization header through
+// byte for byte, or the injected key differs from the dashboard's. A header of
+// our own, checked against a secret only this function and the cron job hold,
+// does not depend on either. An earlier
+// draft read the `role` claim instead, which is safe only while verify_jwt
+// stays on (Fable review, 2026-11-18); the token does not depend on the flag.
 //
 // It drains in a LOOP until the queue and the orphans are empty or the time
 // budget runs out (`more: true` then), because rows that share one school-year
@@ -46,6 +53,10 @@
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+// The caller's secret. Below 32 characters it is treated as unset: a short
+// value is a configuration mistake, not a credential.
+const SWEEP_TOKEN = Deno.env.get('SWEEP_WORK_PHOTOS_TOKEN') ?? '';
+const MIN_TOKEN = 32;
 const BUCKET = 'student-work';
 const BATCH = 500; // keys per round
 const BUDGET_MS = 45_000; // stop starting new rounds after this; `more: true`
@@ -57,13 +68,12 @@ const json = (status: number, body: unknown) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-/** True only when the bearer is exactly the service-role key. */
-function isServiceBearer(req: Request): boolean {
-  const auth = req.headers.get('Authorization') ?? '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!SERVICE_KEY || token.length !== SERVICE_KEY.length) return false;
+/** True only when `x-sweep-token` is exactly this function's secret. */
+function isSweepCaller(req: Request): boolean {
+  const token = req.headers.get('x-sweep-token') ?? '';
+  if (SWEEP_TOKEN.length < MIN_TOKEN || token.length !== SWEEP_TOKEN.length) return false;
   let diff = 0;
-  for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ SERVICE_KEY.charCodeAt(i);
+  for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ SWEEP_TOKEN.charCodeAt(i);
   return diff === 0;
 }
 
@@ -106,8 +116,10 @@ async function deleteObjects(names: string[], failures: string[]): Promise<numbe
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
-  if (!SUPABASE_URL || !SERVICE_KEY) return json(500, { error: 'function env missing' });
-  if (!isServiceBearer(req)) return json(403, { error: 'service_role only' });
+  if (!SUPABASE_URL || !SERVICE_KEY || SWEEP_TOKEN.length < MIN_TOKEN) {
+    return json(500, { error: 'function env missing' });
+  }
+  if (!isSweepCaller(req)) return json(403, { error: 'sweep token required' });
 
   const body = await req.json().catch(() => ({}));
   const dryRun = !(body && typeof body === 'object' && (body as { dryRun?: unknown }).dryRun === false);

@@ -111,8 +111,10 @@ select 'sweep_schedule_is_pinned_or_absent',
                         and command ~ 'https://[a-z0-9]+\.supabase\.co/functions/v1/sweep-work-photos'
                         and command !~ '<'
                         and command ~ '"dryRun": false'
-                        and command ~ 'sweep_work_photos_key')),
-       'the photo sweep is either unscheduled or armed exactly as pinned: rows at 04:10 UTC, bytes at 04:15 UTC, real run, Vault key';
+                        and command ~ 'sweep_work_photos_key'
+                        and command ~ '''x-sweep-token'''
+                        and command ~ 'sweep_work_photos_token')),
+       'the photo sweep is either unscheduled or armed exactly as pinned: rows at 04:10 UTC, bytes at 04:15 UTC, real run, x-sweep-token and both Vault secrets';
 -- @live-only (cron.job is pg_cron's; the local stack has no pg_cron)
 -- MS-11: unlike the other prunes the sweep is armed BEFORE the first photo.
 -- While photo answers are off this row is vacuous by design; the moment
@@ -122,8 +124,9 @@ select 'sweep_armed_before_clearance',
        or (exists (select 1 from cron.job where jobname = 'sweep-work-photo-rows' and active)
            and exists (select 1 from cron.job where jobname = 'sweep-work-photos' and active)
            and exists (select 1 from pg_extension where extname = 'pg_net')
-           and exists (select 1 from vault.secrets where name = 'sweep_work_photos_key')),
-       'photo answers are off, or the sweep is armed (both jobs active, pg_net, the Vault key)';
+           and exists (select 1 from vault.secrets where name = 'sweep_work_photos_key')
+           and exists (select 1 from vault.secrets where name = 'sweep_work_photos_token')),
+       'photo answers are off, or the sweep is armed (both jobs active, pg_net, both Vault secrets)';
 
 -- @section B-behavioral
 -- @expect-error EXPECTED ROLLBACK

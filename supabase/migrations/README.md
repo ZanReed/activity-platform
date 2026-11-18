@@ -211,25 +211,27 @@ A few one-time setup steps in the Supabase dashboard:
      'Removes help requests 30 days after they were made (0090, ST-12). ARMED 2026-11-17 by the author: nightly at 03:45 UTC (cron job prune-help-requests).';
    ```
 
-   **NOT YET — the photo sweep (0093), armed by the author in media-submissions.md slice 5, BEFORE `photo_clearance` goes on.** It needs `pg_net` (Database → Extensions) and the service-role key in Vault, then:
+   **NOT YET — the photo sweep (0093), armed by the author in media-submissions.md slice 5, BEFORE `photo_clearance` goes on.** It needs `pg_net` (Database → Extensions), the sweep's own token, and two Vault secrets. The token (author ruling 2026-11-19, after the live gateway refused the old bearer comparison): generate one with `openssl rand -hex 32`, then `supabase secrets set SWEEP_WORK_PHOTOS_TOKEN=<token>`, add the same line to `.env.supabase`. The function must be the token-checking version: run `pnpm deploy:sweep` and hash-verify it (the download recipe in CLAUDE.md) if live is older than the 2026-11-19 token change. Then:
    ```sql
-   -- once: select vault.create_secret('<service-role key>', 'sweep_work_photos_key');
+   -- once: select vault.create_secret('<service-role key>', 'sweep_work_photos_key');   -- passes the platform gate
+   -- once: select vault.create_secret('<the token>', 'sweep_work_photos_token');        -- the function's own check
    -- Rows first, in SQL, with no HTTP dependency: this alone ends every
    -- reader's access on time, even if the function below is broken.
    select cron.schedule('sweep-work-photo-rows', '10 4 * * *', 'select sweep_work_photos_due(false);');
-   -- Then the bytes, through the function. The Vault secret must be the SAME
-   -- key the function sees as SUPABASE_SERVICE_ROLE_KEY: it compares exactly.
+   -- Then the bytes, through the function. The token secret must be the SAME
+   -- value as the function's SWEEP_WORK_PHOTOS_TOKEN: it compares exactly.
    select cron.schedule('sweep-work-photos', '15 4 * * *', $cron$
      select net.http_post(
        url := 'https://<project-ref>.supabase.co/functions/v1/sweep-work-photos',
        headers := jsonb_build_object(
          'Content-Type', 'application/json',
-         'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'sweep_work_photos_key')),
+         'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'sweep_work_photos_key'),
+         'x-sweep-token', (select decrypted_secret from vault.decrypted_secrets where name = 'sweep_work_photos_token')),
        body := '{"dryRun": false}'::jsonb,
        timeout_milliseconds := 60000);
    $cron$);
    ```
-   (04:10/04:15 UTC is 17:10 NZDT / 16:10 NZST and the US evening before, outside school hours in both.) The function drains in a loop for up to 45 s a night and reports `more: true` if it runs out of time. verify-0093's `sweep_schedule_is_pinned_or_absent` row passes only with no sweep job or with exactly these two (names, hours, the real run, the Vault key), so arming needs no edit to it; `sweep_armed_before_clearance` goes red if `photo_clearance` goes on before both jobs, `pg_net` and the secret exist. After arming, run `node --env-file=.env.supabase scripts/verify-photo-deletion-live.mjs --target live` once, BEFORE the flip: the live deletion proof (it refuses to run once any real photo exists). verify-0093's `photos_not_overdue` row is the alarm: it goes red when a row is a day past its clock or a queued deletion is two days old, so run it in the weekly job-health check once armed.
+   (04:10/04:15 UTC is 17:10 NZDT / 16:10 NZST and the US evening before, outside school hours in both.) The function drains in a loop for up to 45 s a night and reports `more: true` if it runs out of time. verify-0093's `sweep_schedule_is_pinned_or_absent` row passes only with no sweep job or with exactly these two (names, hours, the real run, the header and both Vault secrets), so arming needs no edit to it; `sweep_armed_before_clearance` goes red if `photo_clearance` goes on before both jobs, `pg_net` and both secrets exist. After arming, run `node --env-file=.env.supabase scripts/verify-photo-deletion-live.mjs --target live` once, BEFORE the flip: the live deletion proof (it refuses to run once any real photo exists). verify-0093's `photos_not_overdue` row is the alarm: it goes red when a row is a day past its clock or a queued deletion is two days old, so run it in the weekly job-health check once armed.
 
 2. **Configure auth providers** (Authentication → Providers). For Phase 1 with the allowlist, you'll likely want only Google OAuth enabled (since teachers are signing in with school accounts).
 

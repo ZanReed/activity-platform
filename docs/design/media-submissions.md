@@ -1118,6 +1118,19 @@ stay off; these are the pieces the author's steps need.
   task now reads photo count, stored bytes (vs Pro's 100 GB), the top five
   teachers by bytes (counts only, no ids) and verify-0093's overdue alarm. Its
   old rule flagged every `prune_*` job; it now expects the two armed prunes.
+- **The sweep's own token (ruled 2026-11-19).** Redeployed, the live sweep
+  answered 403 to this project's own service-role key: its check compared the
+  BEARER to `SUPABASE_SERVICE_ROLE_KEY`, which passes on the local stack but
+  not behind the hosted gateway. It now checks an `x-sweep-token` header
+  against its own secret, `SWEEP_WORK_PHOTOS_TOKEN` (`supabase secrets set`;
+  the cron job sends the same value from Vault as `sweep_work_photos_token`;
+  the Authorization header still carries the service key for the platform
+  gate). Locally the token comes from `supabase/local-test-secrets` through
+  `pnpm serve:functions`. The local e2e gained G16b (the key alone is refused)
+  and G16c (a near-miss token); the live proof's L6 now proves the function's
+  own refusal live, and A0 compares both Vault values by sha256. The pin test
+  reads the README's arming SQL itself. Mutation-tested (a function that
+  accepts anyone: L6 red).
 - **The meter, the teacher's half (ruled 2026-11-19: a line on My classes,
   since there is no settings page).** 0098's `my_work_photo_usage()` gives the
   caller's own count and bytes; `PhotoStorageLine` (lazy, beside the time-zone

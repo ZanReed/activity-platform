@@ -15,17 +15,20 @@
  *   L3 the version cascade      deleting a version queues the bytes
  *   L4 the activity cascade     deleting the activity queues the bytes
  *   L5 the orphan backstop      an object with no row is removed
- * plus: a dry run removes nothing (L0), a mangled bearer is refused (L6),
- * and, live only, the ARMED jobs would really reach this function (A0: the
- * URL, the exact real-run body, and a Vault secret equal to the key).
+ * plus: a dry run removes nothing (L0), the function refuses the service key
+ * without its token and a near-miss token (L6), and, live only, the ARMED
+ * jobs would really reach this function (A0: the URL, the exact real-run
+ * body, the x-sweep-token header, and Vault values equal to the token and the
+ * key, compared by sha256).
  * "Removed" means both the storage.objects row is gone AND Storage itself
  * refuses to serve the blob (a service-role GET answers 400/404).
  *
  *   node --env-file=.env.supabase scripts/verify-photo-deletion-live.mjs --target live
  *   node scripts/verify-photo-deletion-live.mjs --target local    # rehearsal
  *
- * live needs SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL
- * (the pooler DSN) in .env.supabase. Nothing is printed from them.
+ * live needs SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL (the
+ * pooler DSN) and SWEEP_WORK_PHOTOS_TOKEN in .env.supabase. Nothing is
+ * printed from them.
  *
  * ⚠ The sweep acts on EVERY due row, queued key and orphan, not only this
  * run's. So the script REFUSES to run when any photo row or student-work
@@ -41,6 +44,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const argTarget = process.argv.includes('--target') ? process.argv[process.argv.indexOf('--target') + 1] : null;
 if (argTarget !== 'live' && argTarget !== 'local') {
@@ -54,8 +58,17 @@ const SERVICE = LIVE
   ? process.env.SUPABASE_SERVICE_ROLE_KEY
   : (process.env.SUPABASE_SERVICE_ROLE_KEY_LOCAL
     ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU');
-if (!API || !DB || !SERVICE) {
-  console.error('Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_DB_URL (run with --env-file=.env.supabase).');
+// The sweep's own secret (author ruling 2026-11-19): live from .env.supabase,
+// local from the committed local-only file.
+const LOCAL_TOKEN = readFileSync(new URL('../supabase/local-test-secrets', import.meta.url), 'utf8')
+  .match(/^SWEEP_WORK_PHOTOS_TOKEN=(.+)$/m)?.[1] ?? '';
+const SWEEP_TOKEN = LIVE ? (process.env.SWEEP_WORK_PHOTOS_TOKEN ?? '') : LOCAL_TOKEN;
+if (!API || !DB || !SERVICE || SWEEP_TOKEN.length < 32) {
+  console.error('Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL or SWEEP_WORK_PHOTOS_TOKEN (32+ characters; run with --env-file=.env.supabase).');
+  process.exit(2);
+}
+if (LIVE && SWEEP_TOKEN === LOCAL_TOKEN) {
+  console.error('REFUSED: the live sweep token is the committed LOCAL test value. Generate a real one (openssl rand -hex 32).');
   process.exit(2);
 }
 const FN = `${API.replace(/\/$/, '')}/functions/v1/sweep-work-photos`;
@@ -95,10 +108,10 @@ async function upload(name) {
   });
   return { status: r.status, body: await r.text() };
 }
-async function sweep(token, body) {
+async function sweep(token, body, sweepToken = SWEEP_TOKEN) {
   const r = await fetch(FN, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(sweepToken ? { 'x-sweep-token': sweepToken } : {}) },
     body: JSON.stringify(body ?? {}),
   });
   return { status: r.status, body: await r.json().catch(() => null) };
@@ -154,7 +167,7 @@ async function main() {
   }
   const probe = await sweep(SERVICE, {});
   if (probe.status !== 200 || probe.body?.dryRun !== true) {
-    console.error(`sweep-work-photos is not answering at ${FN} (HTTP ${probe.status}).`);
+    console.error(`sweep-work-photos is not answering at ${FN} (HTTP ${probe.status}${probe.status === 500 ? ': its SWEEP_WORK_PHOTOS_TOKEN is not set' : probe.status === 403 ? ': the token differs from the function secret' : ''}).`);
     process.exit(2);
   }
   console.log(`target ${argTarget}; run tag ${tag}`);
@@ -167,13 +180,17 @@ async function main() {
   if (LIVE) {
     const job = sql(`select coalesce((select command from cron.job where jobname = 'sweep-work-photos' and active), '')`);
     const rows = sql(`select count(*) from cron.job where jobname = 'sweep-work-photo-rows' and active and schedule = '10 4 * * *'`);
-    const vaultHash = sql(`select coalesce((select encode(sha256(convert_to(decrypted_secret, 'UTF8')), 'hex')
-                                              from vault.decrypted_secrets where name = 'sweep_work_photos_key'), '')`);
-    const keyHash = createHash('sha256').update(SERVICE).digest('hex');
+    const hashOf = (name) => sql(`select coalesce((select encode(sha256(convert_to(decrypted_secret, 'UTF8')), 'hex')
+                                              from vault.decrypted_secrets where name = '${name}'), '')`);
+    const sha = (v) => createHash('sha256').update(v).digest('hex');
     check('A0 the sweep is armed: both jobs active, the bytes job posts {"dryRun": false} to THIS project\'s function',
-      rows === '1' && job.includes(FN) && job.includes('"dryRun": false') && !job.includes('<'),
+      rows === '1' && job.includes(FN) && job.includes('"dryRun": false') && !job.includes('<')
+        && job.includes("'x-sweep-token'") && job.includes('sweep_work_photos_token'),
       'arm the sweep first (supabase/migrations/README.md, 0093)');
-    check('A0 the Vault secret the job sends is the service-role key', vaultHash !== '' && vaultHash === keyHash);
+    const tokenHash = hashOf('sweep_work_photos_token');
+    check('A0 the Vault token the job sends is the function\'s own token', tokenHash !== '' && tokenHash === sha(SWEEP_TOKEN));
+    const gateHash = hashOf('sweep_work_photos_key');
+    check('A0 the Vault key the job sends to the platform gate is this project\'s service-role key', gateHash !== '' && gateHash === sha(SERVICE));
   }
 
   // ---- fixtures ---------------------------------------------------------------
@@ -191,13 +208,13 @@ async function main() {
   CLS = sql(`insert into classes (teacher_id, name, age_assertion_by, assertion_text_version) values ('${T}', '${tag}', '${T}', 'e2e') returning id`);
   sql(`insert into class_members (class_id, student_id) values ('${CLS}', '${S}'), ('${CLS}', '${S2}')`);
 
-  // ---- L6 a bearer that is not the key is refused --------------------------------
-  // On live this proves only the platform gate (a mangled token is a 401 before
-  // the function runs). The function's own key comparison is proven by the
-  // local e2e's G15/G16 (real student and forged service_role JWTs → 403) and,
-  // live, by the deploy's hash check that the deployed code IS the repo's.
-  const notKey = await sweep(`${SERVICE.slice(0, -4)}AAAA`, { dryRun: false });
-  check('L6 a mangled service bearer is refused (the platform gate)', notKey.status === 401 || notKey.status === 403, `${notKey.status}`);
+  // ---- L6 the function's OWN check, past the platform gate ------------------
+  // The service-role key passes the gate, so a 403 here is the function
+  // refusing: with no token, and with a token one character off.
+  const keyOnly = await sweep(SERVICE, { dryRun: false }, null);
+  check('L6 the service-role key alone is refused by the function (403)', keyOnly.status === 403, `${keyOnly.status}`);
+  const offByOne = await sweep(SERVICE, { dryRun: false }, `${SWEEP_TOKEN.slice(0, -1)}${SWEEP_TOKEN.endsWith('x') ? 'y' : 'x'}`);
+  check('L6 a token one character off is refused (403)', offByOne.status === 403, `${offByOne.status}`);
 
   // ---- L0 + L1 the retention clock ---------------------------------------------
   const p1 = await photo(S, VER, 'L1');

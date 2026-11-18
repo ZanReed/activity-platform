@@ -16,7 +16,7 @@
  * service-role-only rule.
  *
  *   supabase start
- *   supabase functions serve       # in another terminal (reads config.toml at start)
+ *   pnpm serve:functions           # in another terminal (reads config.toml + the local sweep token)
  *   node scripts/verify-student-work-e2e.mjs --target local
  *
  * LOCAL ONLY: it mints test JWTs with the local stack's well-known JWT secret
@@ -62,6 +62,11 @@ const ANON = jwt(undefined, 'anon');
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY_LOCAL
   ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 const FORGED = jwt(undefined, 'service_role');
+// The sweep's own secret (supabase/local-test-secrets): the caller
+// proves itself with x-sweep-token, not with the bearer (author ruling
+// 2026-11-19, after the live gateway refused the bearer comparison).
+const SWEEP_TOKEN = process.env.SWEEP_WORK_PHOTOS_TOKEN_LOCAL
+  ?? (readFileSync(new URL('../supabase/local-test-secrets', import.meta.url), 'utf8').match(/^SWEEP_WORK_PHOTOS_TOKEN=(.+)$/m)?.[1] ?? '');
 
 const sql = (q) => execFileSync('psql', [DB, '-XAtq', '-v', 'ON_ERROR_STOP=1', '-c', q], { encoding: 'utf8' }).trim();
 
@@ -90,9 +95,10 @@ async function read(token, name) {
   await r.arrayBuffer().catch(() => null);
   return r.status;
 }
-async function sweep(token, body) {
+async function sweep(token, body, sweepToken = SWEEP_TOKEN) {
   const r = await fetch(FN, {
-    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(sweepToken ? { 'x-sweep-token': sweepToken } : {}) },
     body: JSON.stringify(body ?? {}),
   });
   return { status: r.status, body: await r.json().catch(() => null) };
@@ -114,9 +120,13 @@ const clearanceBefore = sql('select coalesce((select cleared from photo_clearanc
 
 async function main() {
   // ---- preflight: the function is being served --------------------------------
-  const probe = await fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${SERVICE}` }, body: '{}' }).catch(() => null);
+  const probe = await sweep(SERVICE, {}).catch(() => null);
   if (!probe || probe.status === 404) {
-    console.error(`sweep-work-photos is not reachable at ${FN} — run \`supabase functions serve\` first.`);
+    console.error(`sweep-work-photos is not reachable at ${FN} — run \`pnpm serve:functions\` first.`);
+    process.exit(2);
+  }
+  if (probe.status === 500) {
+    console.error('sweep-work-photos has no SWEEP_WORK_PHOTOS_TOKEN — serve it with `pnpm serve:functions` (it passes the local token file).');
     process.exit(2);
   }
   const hprobe = await fetch(HANDOFF_FN, { method: 'POST', body: new FormData() }).catch(() => null);
@@ -182,10 +192,14 @@ async function main() {
   check('G13 another student never reads it', (await read(s2J, name1)) >= 400);
   check('G14 no anonymous read', (await read(ANON, name1)) >= 400);
 
-  const sweepAsStudent = await sweep(sJ, { dryRun: false });
-  check('G15 the sweep refuses a student JWT', sweepAsStudent.status === 403, JSON.stringify(sweepAsStudent));
-  const sweepForged = await sweep(FORGED, { dryRun: false });
-  check('G16 the sweep refuses a validly-signed service_role JWT that is not the key', sweepForged.status === 403, JSON.stringify(sweepForged));
+  const sweepAsStudent = await sweep(sJ, { dryRun: false }, null);
+  check('G15 the sweep refuses a student JWT with no sweep token', sweepAsStudent.status === 403, JSON.stringify(sweepAsStudent));
+  const sweepForged = await sweep(FORGED, { dryRun: false }, null);
+  check('G16 the sweep refuses a validly-signed service_role JWT with no sweep token', sweepForged.status === 403, JSON.stringify(sweepForged));
+  const sweepKeyOnly = await sweep(SERVICE, { dryRun: false }, null);
+  check('G16b the service-role key ALONE is refused: the token is the credential', sweepKeyOnly.status === 403, JSON.stringify(sweepKeyOnly));
+  const sweepWrongToken = await sweep(SERVICE, { dryRun: false }, `${SWEEP_TOKEN.slice(0, -1)}${SWEEP_TOKEN.endsWith('x') ? 'y' : 'x'}`);
+  check('G16c a token one character off is refused', sweepWrongToken.status === 403, JSON.stringify(sweepWrongToken));
 
   // ---- G17 a signed upload URL, issued while the reservation is open --------
   // INFO, not a gate (Fable review finding 5): does Storage re-check the
