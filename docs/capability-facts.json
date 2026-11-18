@@ -289,6 +289,17 @@
         "fence": "order"
       }
     },
+    "photo": {
+      "status": "shipped",
+      "grading": {
+        "scoring": "rubric",
+        "captures_response": true,
+        "score_shape": "per_criterion"
+      },
+      "reached_by": {
+        "fence": "photo"
+      }
+    },
     "practice_bank": {
       "status": "shipped",
       "grading": {

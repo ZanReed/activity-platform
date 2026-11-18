@@ -461,6 +461,15 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
       expect: { kind: 'writing-space', minEm: 4 },
     },
     {
+      id: 'photo/controls-hidden',
+      rule: 'A photo question prints as its work box only: Add a photo, Use my phone, the thumbnails and their notes never print — on paper the paper is the work (media submissions §8).',
+      // Real on the print-rules route, which renders the SCREEN block under
+      // print media (the controls are in the DOM there); the ?mode=print
+      // route never renders them at all.
+      target: '.viewer-photo-response__controls',
+      expect: { kind: 'hidden' },
+    },
+    {
       id: 'freetext/wordcount-hidden',
       rule: 'The live word counter is a screen affordance and never prints.',
       target: '.viewer-essay__count',

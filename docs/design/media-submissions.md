@@ -4,7 +4,10 @@
 Fable-reviewed the same day, and five factual corrections and eleven gaps were
 folded in. **Slices 1, 2, 2b and 2c are BUILT and LIVE (2026-11-18)**: 0093–0095
 applied, all four functions deployed and hash-verified, CI green. **Slice 3
-(teacher grading, 0096) is BUILT, unpushed and not applied live.**
+(teacher grading, 0096) is LIVE too (2026-11-19, both functions
+hash-verified, CI green). Slices 4 and 6 are BUILT, unpushed** (no migration,
+no deploy): pushing changes `docs/capability-facts.json`, which owes the
+curriculum repo a pin-bump PR.
 `photo_clearance` is still OFF, so no student can add a photo yet (slice 5); slice 2 pulled most of slice 4's editor half forward (§10, "As
 built"). Slice 2b closed the three clearance blockers; slice 2c is the phone QR
 handoff (migration 0095, the `photo-handoff` function).
@@ -1061,6 +1064,23 @@ no function change beyond the two bundles' rebuild (a shared constant).
 - **Found by the e2e:** the viewer heard Escape only on its own element, and
   "Next" on the last photo disables and drops focus to the page, so the view
   could not be closed from the keyboard; keys now listen on the document.
+
+**Slices 4 and 6 as built (2026-11-19).** No migration and no deploy.
+
+- **Slice 4's remainder:** the print-parity row `photo/controls-hidden` (Add a
+  photo, Use my phone and the thumbnails never print; mutation-tested on the
+  print-rules route), the Linux print baseline (regenerated after slice 2,
+  85f0e9b4), and the GUI roster row, `photo: { slash: 'Photo of working' }`.
+- **Slice 6 (MS-14):** a ```` ```photo ```` fence on the short-answer grammar
+  plus `photos: 1-3` (a bad count warns and uses 1; `starter:` is ignored with
+  a warning, there is nothing to type); the copy-paste prompt, the format doc
+  (its own section and quick-reference row) and the regenerated catalogue
+  prompt teach it; capability `photo` (fence `photo`, rubric-scored,
+  per-criterion) joins `capabilityFacts.ts`, so `docs/capability-facts.json`
+  changes. **Owed after the push:** the pin-bump PR on the curriculum repo
+  with a pre-merge notice (CLAUDE.md), where they write the row's prose; the
+  catalogue-prompt stamp on the Notion boundary page; their drawn-work items
+  become authorable once it lands.
 
 **Deferred, each with its trigger** (filed in TODOS when the author rules):
 

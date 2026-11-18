@@ -1268,6 +1268,16 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 if (block) return [block];
                 return [rawTextParagraph(node.token.content)];
             }
+            if ((node.token.info ?? '').trim() === 'photo') {
+                const block = parseFreeResponseFence(
+                    node.token.content,
+                    ctx,
+                    'photo',
+                    'Photo question',
+                );
+                if (block) return [block];
+                return [rawTextParagraph(node.token.content)];
+            }
             if ((node.token.info ?? '').trim() === 'columns') {
                 const cols = parseColumnsFence(node.token.content, ctx);
                 if (cols) return [cols];
@@ -4342,7 +4352,9 @@ function parseWordRange(
     return { min, max };
 }
 
-// ```shortanswer / ```essay fences — the manually-graded free-text blocks
+// ```shortanswer / ```essay / ```photo fences — the manually-graded blocks
+// (```photo, a photo of handwritten working, joined in media submissions
+// slice 6: the same grammar plus `photos: 1-3`, and no starter:). Originally
 // (Phase 2.6), siblings of the ungraded ```explain (self_explanation). Shared
 // grammar: a prompt (a `prompt:` line or any bare line, joined), an optional
 // `starter:` placeholder, and an optional pipe-delimited `rubric:` line
@@ -4370,10 +4382,11 @@ function parseWordRange(
 function parseFreeResponseFence(
     src: string,
     ctx: Ctx,
-    kind: 'shortAnswer' | 'essay',
+    kind: 'shortAnswer' | 'essay' | 'photo',
     label: string,
 ): JSONContent | null {
     let placeholder = '';
+    let maxPhotos: number | null = null;
     let wordMin: number | null = null;
     let wordMax: number | null = null;
     const criteria: ImportedCriterion[] = [];
@@ -4390,7 +4403,11 @@ function parseFreeResponseFence(
 
         const s = /^starter:\s*(.*)$/i.exec(line);
         if (s) {
-            placeholder = (s[1] ?? '').trim();
+            if (kind === 'photo') {
+                ctx.warnings.add(label + ': a photo question has no typing box, so starter: is ignored.');
+            } else {
+                placeholder = (s[1] ?? '').trim();
+            }
             continue;
         }
 
@@ -4415,6 +4432,21 @@ function parseFreeResponseFence(
             const v = (sol[1] ?? '').trim();
             target = solutionLines;
             if (v) solutionLines.push(v);
+            continue;
+        }
+
+        // ```photo (media submissions slice 6, MS-14): how many photos a
+        // student may hand in, 1–3 (MS-4). Only a photo question takes it.
+        const ph = /^photos:\s*(.*)$/i.exec(line);
+        if (ph) {
+            const n = Number((ph[1] ?? '').trim());
+            if (kind !== 'photo') {
+                ctx.warnings.add(label + ': photos: applies only to a ```photo question — ignored.');
+            } else if (n === 1 || n === 2 || n === 3) {
+                maxPhotos = n === 1 ? null : n;
+            } else {
+                ctx.warnings.add(label + ': photos: takes 1, 2 or 3 — used 1.');
+            }
             continue;
         }
 
@@ -4465,6 +4497,13 @@ function parseFreeResponseFence(
     const answer = joinKeyLines(answerLines, ctx);
     const solution = joinKeyLines(solutionLines, ctx);
 
+    if (kind === 'photo') {
+        return {
+            type: 'photoResponse',
+            attrs: { id: '', maxPhotos, rubric, answer, solution },
+            content,
+        };
+    }
     if (kind === 'essay') {
         return {
             type: 'essay',

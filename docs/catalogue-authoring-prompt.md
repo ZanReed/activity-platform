@@ -377,6 +377,20 @@ SHORT ANSWER / ESSAY (a `shortanswer` or `essay` fence is a graded free-text que
 - Both are teacher-graded — there is no auto-scored key.
   Use ```explain instead when the reflection should be ungraded.
 
+PHOTO OF WORKING (a `photo` fence: the student photographs their handwritten
+working and the teacher grades it — use it when the working on paper IS the
+answer, such as a drawing, a construction or a long calculation)
+- Same keys as a short answer (prompt, rubric:, answer:, solution:), plus
+  photos: 1, 2 or 3 — how many photos the student may hand in (default 1).
+  No starter: (there is nothing to type):
+    ```photo
+    prompt: Solve 3x + 5 = 20. Show every step, then photograph your working.
+    photos: 2
+    rubric: Correct steps | 2
+    answer: 3x = 15, so x = 5.
+    ```
+- On paper it prints as an empty box to work in.
+
 TABLES (a pipe table; cells can hold blanks)
 - Write an ordinary GitHub pipe table. The first row is the header row:
     | Kilograms | Cost ($) |
@@ -673,7 +687,7 @@ OTHER
 - Don't use tables, blockquotes, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
-  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
+  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay, ```photo,
   ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, ```reference, and ```teacher-guide — only the
   single
   outer block that wraps the whole reply and those fences are allowed;

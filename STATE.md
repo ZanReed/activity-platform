@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Media submissions** ([doc](docs/design/media-submissions.md), slices 1–2c LIVE 2026-11-18; slice 3 grading built, unpushed: apply 0096, redeploy check + get-activity, push). Before Feb: Pro, Q14, arm sweep, flip clearance.
+**Media submissions** ([doc](docs/design/media-submissions.md), slices 1–3 LIVE, CI green; 4 + 6 built, unpushed: push, then the curriculum pin bump). Before Feb: Pro, Q14, arm sweep, flip clearance.
 
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 

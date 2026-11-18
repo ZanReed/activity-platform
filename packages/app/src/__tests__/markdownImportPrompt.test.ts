@@ -527,6 +527,16 @@ const CLAIMS: Claim[] = [
         },
     },
     {
+        name: 'photo fence with a photo count and rubric',
+        fragment: 'photos: 2',
+        md: '```photo\nprompt: Solve 3x + 5 = 20. Show every step, then photograph your working.\nphotos: 2\nrubric: Correct steps | 2\nanswer: 3x = 15, so x = 5.\n```',
+        check: (b) => {
+            const photo = b.find((n) => n.type === 'photoResponse')!;
+            expect(photo).toBeDefined();
+            expect(photo.attrs).toMatchObject({ maxPhotos: 2 });
+        },
+    },
+    {
         name: 'image ![alt](url)',
         fragment: '![a short description](https://full-image-url)',
         md: '![a short description](https://full-image-url)',

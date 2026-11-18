@@ -2390,6 +2390,43 @@ describe('graded free-text fences (```shortanswer / ```essay)', () => {
         expect(roundTrip(md)[0]).toMatchObject({ type: 'essay' });
     });
 
+    it('```photo → a photo of working with photos, rubric, answer and solution (slice 6)', () => {
+        const md =
+            '```photo\nprompt: Solve 3x + 5 = 20 and photograph your working.\nphotos: 2\nrubric: Correct steps | 2\nanswer: 3x = 15, so x = 5.\nsolution: Subtract 5, then divide by 3.\n```';
+        const res = convert(md);
+        expect(res.warnings).toHaveLength(0);
+        const photo = res.blocks[0]!;
+        expect(photo.type).toBe('photoResponse');
+        expect(photo.attrs).toMatchObject({ maxPhotos: 2 });
+        expect(criteriaOf(photo)[0]).toMatchObject({ label: 'Correct steps', maxPoints: 2 });
+        expect(photo.content).toEqual([{ type: 'text', text: 'Solve 3x + 5 = 20 and photograph your working.' }]);
+        // The schema round-trip: the editor's node becomes a photo_response
+        // block with its fields, and comes back.
+        const back = roundTrip(md)[0]!;
+        expect(back.type).toBe('photoResponse');
+        expect(back.attrs).toMatchObject({ maxPhotos: 2 });
+        expect(back.attrs!.answer).toMatchObject([{ type: 'text', text: '3x = 15, so x = 5.' }]);
+        expect(back.attrs!.solution).toMatchObject([{ type: 'text', text: 'Subtract 5, then divide by 3.' }]);
+    });
+
+    it('```photo: photos: 1 is the default (null), a bad count warns and uses 1, starter: is ignored', () => {
+        expect(blocks('```photo\nprompt: Q\nphotos: 1\n```')[0]!.attrs!.maxPhotos).toBeNull();
+        const bad = convert('```photo\nprompt: Q\nphotos: 5\nstarter: I think\n```');
+        expect(bad.blocks[0]!.attrs!.maxPhotos).toBeNull();
+        expect(bad.blocks[0]!.attrs).not.toHaveProperty('placeholder');
+        expect([...bad.warnings].some((w) => /photos: takes 1, 2 or 3/.test(w))).toBe(true);
+        expect([...bad.warnings].some((w) => /no typing box/.test(w))).toBe(true);
+        // photos: in another fence is not silently honoured
+        const sa = convert('```shortanswer\nprompt: Q\nphotos: 2\n```');
+        expect([...sa.warnings].some((w) => /applies only to a ```photo/.test(w))).toBe(true);
+    });
+
+    it('```photo with no prompt is plain text with a warning', () => {
+        const res = convert('```photo\nphotos: 2\n```');
+        expect(res.blocks[0]!.type).not.toBe('photoResponse');
+        expect([...res.warnings].some((w) => /needs a prompt/.test(w))).toBe(true);
+    });
+
     it('essay words: accepts an open-ended range (min only / max only)', () => {
         expect(blocks('```essay\nprompt: Q\nwords: 200-\n```')[0]!.attrs).toMatchObject(
             { wordMin: 200, wordMax: null },

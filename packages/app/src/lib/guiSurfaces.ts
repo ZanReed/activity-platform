@@ -58,6 +58,9 @@ export const GUI_SURFACES: Record<keyof typeof JOIN, GuiSurface> = {
     explain: { slash: 'Self-explanation' },
     shortanswer: { slash: 'Short answer' },
     essay: { slash: 'Essay' },
+    // Media submissions slice 2 built the editor half (slash entry, NodeView,
+    // Photos allowed, rubric); slice 6 gave it the fence this row answers to.
+    photo: { slash: 'Photo of working' },
     columns: { slash: '2 columns' },
     table: { slash: 'Table' },
     callout: { slash: 'Callout' },

@@ -73,6 +73,9 @@ const LAZY_ROOTS: Partial<Record<BlockType, string>> = {
     interactive_graph: '.viewer-graph',
     number_line: '.viewer-number-line',
     data_plot: '.viewer-data-plot',
+    // Lazy since slice 2: without it a `hidden` row (photo/controls-hidden)
+    // could pass on a block that had not mounted yet (Fable review).
+    photo_response: '.viewer-photo-response',
     math_block: '.viewer-math-block',
 };
 

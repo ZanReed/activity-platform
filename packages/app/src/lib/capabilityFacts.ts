@@ -142,6 +142,10 @@ export const JOIN: Record<string, Join> = {
     explain: { fence: 'explain', probe: { type: 'self_explanation' }, scoring: 'none', response: zr(FreeResponse) },
     shortanswer: { fence: 'shortanswer', probe: { type: 'short_answer' }, scoring: 'rubric', shape: 'per_criterion' },
     essay: { fence: 'essay', probe: { type: 'essay' }, scoring: 'rubric', shape: 'per_criterion' },
+    // Media submissions slice 6 (MS-14): a photo of handwritten working,
+    // teacher-graded on the essay rails. The curriculum side writes the row's
+    // prose in the pin bump; their drawn-work items are why it exists.
+    photo: { fence: 'photo', probe: { type: 'photo_response' }, scoring: 'rubric', shape: 'per_criterion' },
     columns: { fence: 'columns', probe: { type: 'row' }, scoring: 'none' },
     // A table's blanks score as fill_blank; the table itself captures nothing
     // (an empty probe table has no blank cells, so isGradeable is false).

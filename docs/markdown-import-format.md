@@ -46,6 +46,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 | a ` ```explain ` fenced block | an **ungraded self-explanation** prompt (see below) |
 | a ` ```shortanswer ` fenced block | a **graded short-answer** question (rubric optional; see below) |
 | a ` ```essay ` fenced block | a **graded essay** question (word-count target + rubric optional; see below) |
+| a ` ```photo ` fenced block | a **photo of working** the student photographs and the teacher grades (1–3 photos, rubric optional; see below) |
 | a **pipe table** (`\| x \| y \|` + `\|---\|---\|`) | a **table** — cells may hold `{{blanks}}` (see below) |
 | a ` ```table ` fenced block | a table whose **headers run down the left** (`header: column`) — see below |
 | a ` ```columns ` fenced block | a **multi-column (side-by-side) row**, columns divided by `---` (see below) |
@@ -475,6 +476,20 @@ SHORT ANSWER / ESSAY (a `shortanswer` or `essay` fence is a graded free-text que
 - Both are teacher-graded — there is no auto-scored key.
   Use ```explain instead when the reflection should be ungraded.
 
+PHOTO OF WORKING (a `photo` fence: the student photographs their handwritten
+working and the teacher grades it — use it when the working on paper IS the
+answer, such as a drawing, a construction or a long calculation)
+- Same keys as a short answer (prompt, rubric:, answer:, solution:), plus
+  photos: 1, 2 or 3 — how many photos the student may hand in (default 1).
+  No starter: (there is nothing to type):
+    ```photo
+    prompt: Solve 3x + 5 = 20. Show every step, then photograph your working.
+    photos: 2
+    rubric: Correct steps | 2
+    answer: 3x = 15, so x = 5.
+    ```
+- On paper it prints as an empty box to work in.
+
 TABLES (a pipe table; cells can hold blanks)
 - Write an ordinary GitHub pipe table. The first row is the header row:
     | Kilograms | Cost ($) |
@@ -771,7 +786,7 @@ OTHER
 - Don't use tables, blockquotes, or any code block inside the activity
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
-  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay,
+  ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay, ```photo,
   ```columns, ```callout, ```definitions, ```meta, ```seed, ```table, ```figure, ```chart, ```reference, and ```teacher-guide — only the
   single
   outer block that wraps the whole reply and those fences are allowed;
@@ -1106,6 +1121,26 @@ solution: Undo the operations in the reverse order they were applied.
   A continuation line belongs to whichever of `prompt:`, `answer:` or `solution:` came last, so **write the prompt first and the keys after it**. (`starter:`, `words:` and `rubric:` are single-line and don't capture the lines beneath them.)
 - **Points come from the rubric, never from `answer:`.** `answer:` says *what* is correct; each `rubric:` line says *how many points* its criterion is worth. A question with no rubric is worth **1 point**.
 - Neither block is auto-scored; both show up under "Written responses" in the submissions dashboard for grading. Both are **numbered** on screen and on paper, like every other question a teacher marks.
+
+## Photo-of-working blocks (```photo fence)
+
+A ` ```photo ` fence is a question the student answers on PAPER, then photographs: a construction, a sketch, a long calculation — anything where the working on paper is the answer. The student adds the photo (a tablet or phone camera, a Chromebook's file picker, or "Use my phone" with a QR code); their teacher grades it in Responses, like a short answer.
+
+```
+```photo
+prompt: Solve 3x + 5 = 20. Show every step, then photograph your working.
+photos: 2
+rubric: Correct steps | 2
+answer: 3x = 15, so x = 5.
+solution: Subtract 5 from both sides, then divide by 3.
+```⠀
+```
+
+- **Keys:** the short-answer grammar (`prompt:`, `rubric:`, `answer:`, `solution:`, multi-line `answer:`/`solution:`), plus `photos:` — **1, 2 or 3**, how many photos the student may hand in (default 1; any other value is ignored with a warning and 1 is used).
+- **No `starter:`** — there is nothing to type; a `starter:` line is ignored with a warning. `words:` is essay-only and ignored here too.
+- **On paper** it prints as an empty bordered box to work in, and never the photo controls.
+- **Not in a practice bank:** a bank holds auto-scored items only, so the bank importer refuses a `photo` fence.
+- Photos are kept for 30 days after the grade is released (the retention policy), and photo answers are switched on platform-wide only once the privacy checklist is done; until then a student sees "Your teacher hasn't turned photo answers on yet."
 
 ## Tables (```table fence)
 

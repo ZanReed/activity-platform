@@ -211,6 +211,18 @@ export const FENCES: FenceSpec[] = [
         ].join('\n'),
     },
     {
+        tag: 'photo',
+        blockType: 'photoResponse',
+        summary:
+            'a photo of the student’s handwritten working, graded by the teacher (1–3 photos, rubric, answer key)',
+        example: [
+            'prompt: Solve 3x + 5 = 20. Show every step, then photograph your working.',
+            'photos: 2',
+            'rubric: Correct steps | 2',
+            'answer: 3x = 15, so x = 5.',
+        ].join('\n'),
+    },
+    {
         tag: 'columns',
         blockType: 'row',
         summary: 'a multi-column (side-by-side) row, columns divided by ---',
