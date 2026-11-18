@@ -27,7 +27,7 @@
 // Retry with no code here.
 // =============================================================================
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 import './PhotoResponse.css';
 import type { PhotoResponseBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
@@ -57,8 +57,12 @@ import {
 import { deletePhoto, getPhoto, putPhoto, trackPut } from './photoStore.js';
 import { startUploader } from './photoUploader.js';
 
+// Its own chunk (slice 2c): the QR encoder loads only when a student asks.
+const PhotoHandoffPanel = lazy(() => import('./PhotoHandoffPanel.js'));
+
 /** Copy shared with the a11y story and the tests. */
 export const ADD_PHOTO_LABEL = 'Add a photo';
+export const USE_PHONE_LABEL = 'Use my phone';
 export const PHOTOS_OFF_TEXT = 'Your teacher hasn’t turned photo answers on yet.';
 export const PREVIEW_TEXT = 'Students add a photo of their working here.';
 export const REMOVED_TEXT = 'This photo has been removed.';
@@ -91,6 +95,7 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
   const [pickErrors, setPickErrors] = useState<PickError[]>([]);
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   const [notHandedIn, setNotHandedIn] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
 
   // The page's one uploader (slice 2b), started by the first photo block. It
   // owns every waiting photo; this block only reads each one's state.
@@ -326,12 +331,32 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
               >
                 {ADD_PHOTO_LABEL}
               </button>
+              {/* The phone handoff (§4.1): for a Chromebook, whose file input
+                  opens a file picker, not a camera. Offered wherever Add is,
+                  online only; the server refuses it in a quiz or an exam. */}
+              {live && !phoneOpen ? (
+                <button
+                  type="button"
+                  className="viewer-photo-response__add"
+                  aria-describedby={promptId}
+                  disabled={addDisabled || (typeof navigator !== 'undefined' && navigator.onLine === false)}
+                  onClick={() => setPhoneOpen(true)}
+                >
+                  {USE_PHONE_LABEL}
+                </button>
+              ) : null}
               {max > 1 ? (
                 <span className="viewer-photo-response__count">
                   {refs.length} of {max}
                 </span>
               ) : null}
             </>
+          ) : null}
+
+          {live && phoneOpen ? (
+            <Suspense fallback={<p className="viewer-photo-response__note">Making a code…</p>}>
+              <PhotoHandoffPanel store={store} blockId={block.id} maxPhotos={max} onClose={() => setPhoneOpen(false)} />
+            </Suspense>
           ) : null}
         </div>
       )}

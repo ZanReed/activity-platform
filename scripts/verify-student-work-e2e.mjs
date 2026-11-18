@@ -16,7 +16,7 @@
  * service-role-only rule.
  *
  *   supabase start
- *   supabase functions serve sweep-work-photos     # in another terminal
+ *   supabase functions serve       # in another terminal (reads config.toml at start)
  *   node scripts/verify-student-work-e2e.mjs --target local
  *
  * LOCAL ONLY: it mints test JWTs with the local stack's well-known JWT secret
@@ -32,6 +32,7 @@
  */
 import { createHmac, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 if (!process.argv.includes('--target') || process.argv[process.argv.indexOf('--target') + 1] !== 'local') {
   console.error('Usage: node scripts/verify-student-work-e2e.mjs --target local   (local only; see header)');
@@ -42,6 +43,7 @@ const API = process.env.SUPABASE_URL_LOCAL ?? 'http://127.0.0.1:54321';
 const DB = process.env.SUPABASE_DB_URL_LOCAL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const SECRET = process.env.SUPABASE_JWT_SECRET_LOCAL ?? 'super-secret-jwt-token-with-at-least-32-characters-long';
 const FN = `${API}/functions/v1/sweep-work-photos`;
+const HANDOFF_FN = `${API}/functions/v1/photo-handoff`;
 const BUCKET = 'student-work';
 
 const b64url = (b) => Buffer.from(b).toString('base64url');
@@ -100,6 +102,10 @@ const objectExists = (name) => sql(`select exists (select 1 from storage.objects
 // A tiny valid JPEG header; Storage checks the declared type, not the bytes.
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 
+// A REAL JPEG (macOS sips) carrying APP1 Exif, APP13 Photoshop and APP2 ICC:
+// what a phone that skipped the canvas re-encode might send (H5).
+const EXIF_JPEG = new Uint8Array(readFileSync(new URL('./tests/fixtures/real-exif.jpg', import.meta.url)));
+
 const tag = `e2e-sw-${Date.now()}`;
 const T = randomUUID(), T2 = randomUUID(), S = randomUUID(), S2 = randomUUID();
 const PB = randomUUID();
@@ -110,7 +116,12 @@ async function main() {
   // ---- preflight: the function is being served --------------------------------
   const probe = await fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${SERVICE}` }, body: '{}' }).catch(() => null);
   if (!probe || probe.status === 404) {
-    console.error(`sweep-work-photos is not reachable at ${FN} — run \`supabase functions serve sweep-work-photos\` first.`);
+    console.error(`sweep-work-photos is not reachable at ${FN} — run \`supabase functions serve\` first.`);
+    process.exit(2);
+  }
+  const hprobe = await fetch(HANDOFF_FN, { method: 'POST', body: new FormData() }).catch(() => null);
+  if (!hprobe || hprobe.status === 404 || hprobe.status === 401) {
+    console.error(`photo-handoff is not served with verify_jwt=false at ${HANDOFF_FN} (HTTP ${hprobe?.status}) — restart \`supabase functions serve\` so it reads config.toml.`);
     process.exit(2);
   }
 
@@ -120,7 +131,7 @@ async function main() {
         ('${S}', '${tag}-s@e2e.example', '{}'), ('${S2}', '${tag}-s2@e2e.example', '{}');
        update users set role = 'teacher' where id in ('${T}', '${T2}');
        update users set role = 'student' where id in ('${S}', '${S2}');`);
-  const content = JSON.stringify({ sections: [{ id: 's1', rows: [{ columns: [{ blocks: [
+  const content = JSON.stringify({ meta: { title: tag }, sections: [{ id: 's1', rows: [{ columns: [{ blocks: [
     { id: PB, type: 'photo_response', maxPhotos: 3, prompt: [] }] }] }] }] });
   ACT = sql(`insert into activities (owner_id, title, slug, status) values ('${T}', '${tag}', '${tag}', 'published') returning id`);
   VER = sql(`insert into activity_versions (activity_id, version_num, content, created_by) values ('${ACT}', 1, '${content}', '${T}') returning id`);
@@ -254,6 +265,52 @@ async function main() {
   check('D1 Remove before a check: the row goes and the sweep removes the bytes',
     d1.body === true && !objectExists(name6) && sql(`select count(*) from work_photos where id = '${r6.body}'`) === '0', JSON.stringify(d1));
 
+  // ---- H: the phone handoff (0095, slice 2c) ------------------------------------
+  // The phone has NO session: every photo-handoff request below carries no
+  // Authorization header at all, exactly as the /h page sends it.
+  const handoff = async (fields) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(fields)) f.set(k, v);
+    const r = await fetch(HANDOFF_FN, { method: 'POST', body: f });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  };
+  const st = await rpc(sJ, 'start_photo_handoff', { p_activity_id: ACT, p_version_id: VER, p_block_id: PB, p_slots: 2 });
+  const code = st.body?.code;
+  check('H1 the student starts a handoff and gets a 43-character code', st.status === 200 && /^[A-Za-z0-9_-]{43}$/.test(code ?? ''), JSON.stringify(st));
+  const pk = await handoff({ action: 'peek', code });
+  check('H2 a phone with no sign-in peeks: the title and prompt, nothing about the student',
+    pk.status === 200 && pk.body?.title === tag && pk.body?.slots_left === 2
+      && !JSON.stringify(pk.body).includes(S) && !JSON.stringify(pk.body).includes('@e2e.example'), JSON.stringify(pk));
+  const hu = await handoff({ action: 'upload', code, photo: new Blob([EXIF_JPEG], { type: 'image/jpeg' }) });
+  check('H3 the phone uploads with no sign-in; the reply names no photo or student',
+    hu.status === 200 && hu.body?.slots_left === 1 && Object.keys(hu.body ?? {}).join() === 'slots_left', JSON.stringify(hu));
+  const hs = await rpc(sJ, 'photo_handoff_status', { p_handoff_id: st.body?.id });
+  const hid = hs.body?.photos?.[0];
+  const hname = `${ACT}/${S}/${hid}.jpg`;
+  check('H4 the Chromebook\'s poll shows the arrival, a handoff photo of THIS student',
+    hs.status === 200 && hs.body?.photos?.length === 1
+      && sql(`select source || ':' || student_id from work_photos where id = '${hid}'`) === `handoff:${S}`, JSON.stringify(hs));
+  const stored = await fetch(`${API}/storage/v1/object/authenticated/${BUCKET}/${hname}`, { headers: H(sJ) });
+  const bytes = Buffer.from(await stored.arrayBuffer());
+  check('H5 the stored bytes carry no EXIF (the server stripped it; the student reads their own photo)',
+    stored.status === 200 && bytes.length > 0 && !/Exif|Photoshop|ICC_PROFILE/.test(bytes.toString('latin1')) && bytes[0] === 0xff && bytes[1] === 0xd8,
+    `${stored.status} ${bytes.toString('latin1').slice(0, 60)}`);
+  const hc = await checkWith([hid]);
+  check('H6 a check hands the phone\'s photo in like any other, and the teacher can then read it',
+    hc.status === 200 && sql(`select attached_at is not null from work_photos where id = '${hid}'`) === 't'
+      && (await read(tJ, hname)) === 200, JSON.stringify(hc));
+  const hp = await handoff({ action: 'upload', code, photo: new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])]) });
+  check('H7 a non-JPEG is refused and takes no slot', hp.status === 400
+    && sql(`select slots_left from photo_handoffs where id = '${st.body?.id}'`) === '1', JSON.stringify(hp));
+  const wrong = await handoff({ action: 'upload', code: code.slice(0, -1) + (code.endsWith('A') ? 'B' : 'A'), photo: new Blob([EXIF_JPEG]) });
+  check('H8 a wrong code is refused', wrong.status === 410 && wrong.body?.error === 'handoff_expired', JSON.stringify(wrong));
+  await rpc(sJ, 'end_photo_handoff', { p_handoff_id: st.body?.id });
+  const closed = await handoff({ action: 'upload', code, photo: new Blob([EXIF_JPEG]) });
+  check('H9 closing the Chromebook\'s panel revokes the code at once', closed.status === 410, JSON.stringify(closed));
+  const gated = await fetch(`${API}/functions/v1/check-activity`, { method: 'POST', body: '{}' });
+  await gated.text();
+  check('H10 the no-sign-in flag is photo-handoff\'s alone: check-activity still refuses a request with no JWT', gated.status === 401, `${gated.status}`);
+
   // ---- P1 the retention clock -------------------------------------------------
   sql(`update work_photos set keep_until = now() - interval '1 minute' where id = '${id1}'`);
   const dry = await sweep(SERVICE, {});
@@ -301,8 +358,9 @@ async function cleanup() {
     await sweep(SERVICE, { dryRun: false });
     const left = sql(`select (select count(*) from storage.objects where bucket_id = '${BUCKET}' and name like '${ACT}/%')
                           + (select count(*) from work_photos where activity_id::text = '${ACT ?? ''}')
-                          + (select count(*) from work_photo_deletions where object_name like '${ACT}/%')`);
-    check('R1 no residue: no object, row or queued key left from this run', left === '0', `left=${left}`);
+                          + (select count(*) from work_photo_deletions where object_name like '${ACT}/%')
+                          + (select count(*) from photo_handoffs where activity_id::text = '${ACT ?? ''}')`);
+    check('R1 no residue: no object, row, handoff or queued key left from this run', left === '0', `left=${left}`);
   } finally {
     sql(`update photo_clearance set cleared = ${clearanceBefore === 't'}`);
     console.log(`  photo_clearance restored to ${clearanceBefore === 't' ? 'ON' : 'OFF'}`);

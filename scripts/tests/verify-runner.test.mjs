@@ -198,5 +198,6 @@ test('the cron rows in the real set are the live-only ones, and only they', () =
     'verify-0080.sql:prune_is_unscheduled',
     'verify-0090.sql:prune_is_scheduled_nightly',
     'verify-0093.sql:sweep_is_unscheduled',
+    'verify-0095.sql:prune_is_scheduled_nightly',
   ]);
 });

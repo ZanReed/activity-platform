@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Media submissions** ([doc](docs/design/media-submissions.md), slices 1–2b unpushed): apply 0093+0094, `deploy:sweep`, then push WITH both function deploys (wire v4), outside school hours. Before Feb: Pro, Q14, arm.
+**Media submissions** ([doc](docs/design/media-submissions.md), slices 1–2c unpushed): apply 0093–0095, `deploy:sweep` + `deploy:photo-handoff`, then push WITH both function deploys (wire v4), outside school hours. Before Feb: Pro, Q14, arm.
 
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 

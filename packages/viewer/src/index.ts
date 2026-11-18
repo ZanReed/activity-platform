@@ -413,6 +413,6 @@ export type { GlossarySource } from './glossary/GlossaryHost.js';
 export { dolOptionalBlockIds } from './container/dolOptional.js';
 
 export { setVideoLink, videoLink } from './blocks/videoSourceSeam.js';
-export { setPhotoLink, photoLink, setPhotoUploadGate, stopPhotoUploads } from './blocks/photoLinkSeam.js';
+export { setPhotoLink, photoLink, setPhotoUploadGate, stopPhotoUploads, PHOTO_HANDOFF_PATH } from './blocks/photoLinkSeam.js';
 export type { PhotoLink } from './blocks/photoLinkSeam.js';
 export { PHOTO_DB_NAME, deletePhotoStore } from './blocks/photoStoreName.js';

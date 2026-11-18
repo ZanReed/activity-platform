@@ -4,7 +4,7 @@
 // seam set — the teacher's draft preview, a fixture page — gets a block that
 // shows what a student would see and makes no request at all.
 export interface PhotoClient {
-  rpc(name: string, args: Record<string, string>): PromiseLike<{ data: unknown; error: unknown }>;
+  rpc(name: string, args: Record<string, string | number>): PromiseLike<{ data: unknown; error: unknown }>;
   auth: {
     getSession(): Promise<{
       data: { session: { access_token: string; user: { id: string } } | null };
@@ -56,3 +56,9 @@ export function setPhotoUploadGate(gate: (() => boolean) | null): void {
 export function photoUploadAllowed(): boolean {
   return uploadGate ? uploadGate() : true;
 }
+
+/** Where the phone handoff's page lives in the app (slice 2c, §4.1): the QR
+ *  panel builds `{origin}${PHOTO_HANDOFF_PATH}#<code>` and the app routes it.
+ *  Here, in the shell seam, so the app's router can name it without pulling
+ *  the panel's QR encoder into the shell. */
+export const PHOTO_HANDOFF_PATH = '/h';

@@ -2,9 +2,10 @@
 
 **Status:** **RULED 2026-11-18** (author, all of MS-1 to MS-25). The design was
 Fable-reviewed the same day, and five factual corrections and eleven gaps were
-folded in. **Slices 1, 2 and 2b are BUILT (2026-11-18), unpushed and not
+folded in. **Slices 1, 2, 2b and 2c are BUILT (2026-11-18), unpushed and not
 applied live**; slice 2 pulled most of slice 4's editor half forward (§10, "As
-built"). Slice 2b closed the three clearance blockers.
+built"). Slice 2b closed the three clearance blockers; slice 2c is the phone QR
+handoff (migration 0095, the `photo-handoff` function).
 
 **The rulings in brief.** The author's guiding instruction was "where there is
 short-term pain for long-term gain, take it". Where the author ruled differently
@@ -801,7 +802,7 @@ applied before any push of UI that calls them (OV-7).
 | **2** | **The student block.** Schema, the sanitize registry, a lazy viewer binding, the capture and upload chunk (re-encode, EXIF guard, raw fetch, progress, retry), wire v4 `photos`, and `check-activity` validating the refs. Both server bundles are rebuilt and committed. A `SHELL_SPEND` row is added if the shell moves outside the band. **As built, plus migration 0094 and the editor node** (below). | Apply 0094; then push together with the `check-activity` and `get-activity` redeploys (wire v4), outside school hours, verified by hash |
 | **2b** | **Offline photos** (MS-6): the IndexedDB store, queue ordering (photos before their section's check), the sign-out confirm and purge, the boot sweep, the GC exception, and the data-map browser-storage row. sw-lane rows prove a photo taken offline uploads and checks after reconnect, and that sign-out leaves nothing behind. | none (app-only) |
 | **2c** | **Phone QR handoff** (MS-3, MS-24): migration for `photo_handoffs`, `start_photo_handoff` and `handoff_status`; the `photo-handoff` function (`verify_jwt: false`); the lazy `/h` route and the QR panel; the CLAUDE.md, config.toml and compliance rows; Q14(f). | Apply the migration first, then deploy `photo-handoff` with `--no-verify-jwt`, verified by hash |
-| **3** | **Teacher grading.** Migration 0095 (renumbered: slice 2 took 0094): `is_manually_graded_type` and the re-created functions, `release_check_grades` setting the 30-day `keep_until`, the queue's photo column, and the claim exclusion pinned. The queue thumbnails, the full-size view with rotate, released feedback with the photo, and the "removed" placeholder. | Apply 0095 |
+| **3** | **Teacher grading.** Migration 0096 (renumbered: slices 2 and 2c took 0094 and 0095): `is_manually_graded_type` and the re-created functions, `release_check_grades` setting the 30-day `keep_until`, the queue's photo column, and the claim exclusion pinned. The queue thumbnails, the full-size view with rotate, released feedback with the photo, and the "removed" placeholder. | Apply 0096 |
 | **4** | **Editor GUI and print.** The slash entry, NodeView, shared rubric editor, numbering chain, print box, answer key, print-parity row and roster row. **Mostly done in slice 2** (below); what is left is the print-parity row in `printExpectations.ts`, the Linux print baseline, and the roster row, which waits for slice 6's `JOIN` entry. | none (app-only) |
 | **5** | **Turning it on.** Move to the Pro plan (MS-13), arm the sweep (author's yes, with a `verify` row pinning the schedule), run the cost-meter read, then the author flips `photo_clearance` once Q14 is answered. | Plan; arm; flip |
 | **6** | **Importer and catalogue** (MS-14): the fence, the prompt regeneration, capability facts, and the pin-bump PR. | Push before the pin bump |
@@ -866,7 +867,7 @@ applied before any push of UI that calls them (OV-7).
   decoder but not yet proved by a fixture.
 - **Left for slice 3:** `lib/answerText.ts` (the answer panel's families) and
   `lib/grading.ts`'s block types do not know photos yet; the queue cannot show
-  a photo answer until 0095.
+  a photo answer until 0096.
 
 **Slice 2b as built (2026-11-18).** No migration and no deploy (app and
 viewer only, plus the `check-activity` read-back below, which rides the same
@@ -936,6 +937,73 @@ paired deploy as slice 2).
 - **Known gap:** Home's "couldn't load your account" frame signs out with no
   confirm at all (pre-existing, every kind of unsent work); the sw row uses it
   and so asserts the wipe, while the warning's words are a unit test.
+
+**Slice 2c as built (2026-11-18).** Migration 0095 and a new Edge Function,
+`photo-handoff` (`verify_jwt = false`, MS-24).
+
+- **The mode rule, as ruled by the author on 2026-11-18:** the phone is
+  refused in a **quiz or an exam only** (`meta.activityType`), as §4.1 was
+  written. It is *not* refused in a `locked` activity or a DoL section (the
+  "Ask my teacher" set was offered and declined). Checked at start and again
+  at each upload, from the version's content.
+- **One gate, two paths.** `reserve_work_photo`'s body moved into
+  `photo_block_gate` + `reserve_photo_for` (service-only); the device path is
+  now a wrapper and the phone path calls the same function with
+  `source = 'handoff'`. verify-0093/0094 still pass unchanged.
+- **The code** is 32 random bytes as 43 base64url characters, stored only as
+  its sha256, sent by the phone in a multipart BODY (no CORS preflight), and
+  carried to the phone in the URL fragment, which the phone page removes from
+  the address bar and history at once. One live code per student: a new one
+  ends the old. 20 starts a day per student; a global ceiling of 120 handoff
+  photos a minute.
+- **What the phone sees:** the activity's title and the question's prompt as
+  text (`handoff_peek`), never the student. What it gets back from an upload:
+  the slots left, nothing else (not even the photo's id; the Chromebook learns
+  that from its own poll).
+- **Server-side metadata strip.** This path has no sign-in, so the function
+  does not rely on the phone's canvas re-encode alone: `jpegStrip.ts` walks
+  the whole file, drops every APP1–APP15 and COM segment (between scans too),
+  keeps APP0 only as a plain 16-byte JFIF header, stops at EOI (no trailer is
+  stored) and refuses a file with no frame or scan (H5 on a real sips JPEG
+  with Exif, Photoshop and ICC segments; mutation-tested). The device path
+  still relies on the client re-encode, as slice 1 recorded.
+- **Upload order:** reserve (takes a slot) → Storage write (never overwriting)
+  → `handoff_confirm` records the arrival only once `storage.objects` has the
+  bytes; a failed write calls `handoff_release`, which gives the slot back and
+  deletes the reservation. Confirm is idempotent.
+- **The Chromebook** polls `photo_handoff_status` every 3 s while the panel is
+  open; each arrival joins the answer as an ordinary `{id}` ref (an arrival
+  with no room left is discarded, never kept invisibly). Done, Escape and
+  unmounting all revoke the code. The QR encoder is `uqr` 0.1.3 (MIT, no
+  dependencies, pinned exact), in the panel's own lazy chunk; the shell paid
+  259 B for the `/h` route (a SHELL_SPEND row).
+- **The cleanup** `prune_photo_handoffs` (a day after expiry) is SCHEDULED by
+  the migration where pg_cron exists (author's yes: codes, not student work);
+  verify-0095's live-only row pins the one job.
+- **Two bugs found while building:** (1) supabase-js builders are lazy, so
+  `void client.rpc('end_photo_handoff', …)` sent nothing and Done never
+  revoked a code (caught by the e2e; the unit fake now models the lazy
+  builder, mutation-tested); (2) a superseded start answering late overwrote
+  the live code's id, so Done would revoke the wrong one.
+- **The Fable review of 2c found five real problems; all fixed, each with a
+  test (mutation-tested):** (1) the panel ended on "no slots left", which is
+  true between reserve and confirm, so the last photo was never added: it now
+  ends only when every granted slot's photo has ARRIVED; (2) arrivals in the
+  3 s before Done, and uploads that land after expiry, were dropped: Done
+  polls once more, and the poll keeps listening for 60 s after a code stops;
+  (3) a photo the student removed came back on the next poll as a ref to a
+  deleted row: the panel remembers what it has seen; (4) a body with no
+  Content-Length was buffered whole before any check: it is now read with a
+  counter that stops at 2 MB; (5) the strip copied everything after the first
+  SOS verbatim, so metadata between scans, a trailer, or a JFXX APP0 survived:
+  it now walks the whole file. Also: the phone's daily-cap message, a retried
+  confirm, and "within 2 days" in the retention wording.
+- **Proved:** verify-0095 (catalog posture + 13 rolled-back behaviours),
+  `scripts/tests/photo-handoff.test.mjs` (the handler and strip under Node),
+  the H1–H10 rows of `verify-student-work-e2e.mjs` against the real function
+  with no Authorization header, and two student-lane rows (the Chromebook QR
+  → arrival → Done → Check; the phone page with no session, the fragment
+  cleared, no EXIF in the sent form).
 
 **Deferred, each with its trigger** (filed in TODOS when the author rules):
 

@@ -4,6 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CHECK_ACTIVITY_FUNCTION,
+  PHOTO_HANDOFF_FUNCTION,
   BANK_TEACHER_GUIDE_RPC,
   COPY_BANK_ACTIVITY_RPC,
   GLOSSARY_FOR_ACTIVITY_RPC,
@@ -37,6 +38,20 @@ describe('edge function name constants', () => {
 
   it(`CHECK_ACTIVITY_FUNCTION names an existing function directory (${CHECK_ACTIVITY_FUNCTION})`, () => {
     expect(existsSync(resolve(FUNCTIONS_DIR, CHECK_ACTIVITY_FUNCTION))).toBe(true);
+  });
+
+  it(`PHOTO_HANDOFF_FUNCTION names an existing function directory (${PHOTO_HANDOFF_FUNCTION})`, () => {
+    expect(existsSync(resolve(FUNCTIONS_DIR, PHOTO_HANDOFF_FUNCTION, 'index.ts'))).toBe(true);
+  });
+
+  // The no-sign-in flag is a deliberate, author-ruled exception (MS-24); the
+  // declarative record is config.toml (P6). This pins that the phone's
+  // function is in it with verify_jwt = false, and that the check function is
+  // NOT — a phone with no session must reach the one, never the other.
+  it('config.toml runs photo-handoff with no sign-in and keeps check-activity gated', () => {
+    const toml = readFileSync(resolve(FUNCTIONS_DIR, '../config.toml'), 'utf8');
+    expect(toml).toMatch(/\[functions\.photo-handoff\]\s*\nverify_jwt = false/);
+    expect(toml).toMatch(/\[functions\.check-activity\]\s*\nverify_jwt = true/);
   });
 });
 

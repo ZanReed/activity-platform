@@ -113,3 +113,52 @@
     min-height: var(--print-answer-space, 12em);
   }
 }
+
+/* "Use my phone" (slice 2c, §4.1): the QR panel. Its markup is in its own
+   lazy chunk (PhotoHandoffPanel.tsx); these few rules ride the block's. */
+.viewer-photo-response__add + .viewer-photo-response__add {
+  margin-left: var(--space-2);
+}
+
+.viewer-photo-handoff {
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
+  margin-top: var(--space-2);
+  max-width: 22rem;
+  padding: var(--space-3);
+}
+
+.viewer-photo-handoff__intro {
+  margin: 0 0 var(--space-2);
+}
+
+/* Always black on white, whatever the theme: phone cameras read a dark-mode
+   inverted QR badly. */
+.viewer-photo-handoff__qr {
+  background: #fff;
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 14rem;
+}
+
+.viewer-photo-handoff__arrived:empty {
+  display: none;
+}
+
+.viewer-photo-handoff button {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--touch-target);
+  padding: var(--space-1) var(--space-3);
+}
+
+@media print {
+  .viewer-photo-handoff {
+    display: none;
+  }
+}

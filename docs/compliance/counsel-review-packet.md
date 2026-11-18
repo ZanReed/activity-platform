@@ -314,6 +314,13 @@ Please answer:
   a photo. Does a school's duty of care call for a "report this image" path?
 - **(f)** Is the phone upload with no sign-in (bound to a 10-minute code tied to
   one student and one question) acceptable, including for students under 13?
+  As built (migration 0095): the code is 256 random bits, kept only as a hash,
+  carried in the part of the link a browser never sends to a server, and it can
+  send at most the question's remaining 1–3 photos and read nothing. The phone
+  is shown the activity's title and the question, never the student's name.
+  The server removes all photo metadata (including GPS location) before
+  storing. It is refused in a quiz or an exam, and the student sees every photo
+  that arrives and can remove it.
 
 ## 6. What this packet deliberately does not do
 

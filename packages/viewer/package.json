@@ -17,7 +17,8 @@
     "./fixtures/leak": "./src/fixtures/leakFixture.ts",
     "./seeded-print": "./src/print/seededPrint.ts",
     "./seed-values": "./src/sanitize/seedValues.ts",
-    "./draft-preview": "./src/preview/draftPreview.ts"
+    "./draft-preview": "./src/preview/draftPreview.ts",
+    "./photo-handoff": "./src/blocks/photoHandoffPhone.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -29,12 +30,13 @@
   },
   "dependencies": {
     "@activity/graph-kit": "workspace:*",
+    "@activity/schema": "workspace:*",
     "@fontsource/andika": "^5.2.10",
     "@fontsource/atkinson-hyperlegible": "^5.2.8",
     "@fontsource/comic-neue": "^5.2.7",
     "@fontsource/lexend": "^5.2.11",
-    "@activity/schema": "workspace:*",
-    "katex": "^0.16.10"
+    "katex": "^0.16.10",
+    "uqr": "0.1.3"
   },
   "peerDependencies": {
     "react": "^19.0.0",

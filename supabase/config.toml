@@ -20,9 +20,10 @@
 # platform's verify_jwt gate must stay OFF). The old "anonymous trio" language
 # died at S9 Drop 3: ingest-submission + get-feedback (the published-page wire)
 # were deleted from the platform with publish-activity (Drop 1); their source
-# dirs left the tree at Drop 4. Three functions exist since 0093 (2026-11-18:
-# get-activity, check-activity, sweep-work-photos) — this file lists all of
-# them, completely.
+# dirs left the tree at Drop 4. Four functions exist since 0095 (2026-11-18:
+# get-activity, check-activity, sweep-work-photos, photo-handoff) — this file
+# lists all of them, completely. TWO run with no sign-in: get-activity and,
+# since 0095, photo-handoff (below; MS-24).
 
 project_id = "activity-platform"
 
@@ -41,6 +42,16 @@ verify_jwt = true
 # get a 403. Called only by pg_cron once the author arms it (slice 5).
 [functions.sweep-work-photos]
 verify_jwt = true
+
+# Deliberately verify_jwt = FALSE — the SECOND no-sign-in function, ruled by
+# the author 2026-11-18 (media-submissions.md MS-24, §4.1). A phone with no
+# sign-in sends a photo of a student's working, bound by a 10-minute,
+# upload-only code tied to one student and one question (migration 0095). The
+# code in the request body is the only credential; the function's database
+# calls are service-role grants that re-derive the student from the code's
+# hash. Deploy with `pnpm deploy:photo-handoff`, only after 0095 is applied.
+[functions.photo-handoff]
+verify_jwt = false
 
 # TOMBSTONE — publish-activity was DELETED from the platform at S9 Drop 1
 # (2026-08-14); publish is a direct `publish_activity` RPC from the app —

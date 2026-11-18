@@ -7,7 +7,7 @@ import { setPhotoLink } from '../src/blocks/photoLinkSeam.js';
 const PHOTO = '77777777-0000-4000-8000-000000000001';
 const IDS = { activityId: 'act', versionId: 'ver', blockId: 'blk' };
 
-function link(calls: Array<[string, Record<string, string>]>) {
+function link(calls: Array<[string, Record<string, string | number>]>) {
   setPhotoLink({
     client: {
       rpc: async (name, args) => {
@@ -48,7 +48,7 @@ afterEach(() => {
 
 describe('addPhoto', () => {
   it('reserves, then uploads under the reserved key, never overwriting', async () => {
-    const calls: Array<[string, Record<string, string>]> = [];
+    const calls: Array<[string, Record<string, string | number>]> = [];
     const sent: Array<{ url: string; headers: Record<string, string> }> = [];
     link(calls);
     xhrAnswering(200, sent);
@@ -60,7 +60,7 @@ describe('addPhoto', () => {
   });
 
   it('a failed upload gives its reservation back, so retries cannot use up the cap', async () => {
-    const calls: Array<[string, Record<string, string>]> = [];
+    const calls: Array<[string, Record<string, string | number>]> = [];
     link(calls);
     xhrAnswering(500, []);
     await expect(addPhoto(IDS, new Blob(['x']), () => undefined)).rejects.toMatchObject({ code: 'upload_failed' });

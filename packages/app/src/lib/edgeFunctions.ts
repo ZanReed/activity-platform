@@ -16,6 +16,8 @@
  */
 export const CHECK_ACTIVITY_FUNCTION = 'check-activity';
 export const GET_ACTIVITY_FUNCTION = 'get-activity';
+/** The phone handoff's no-sign-in function (0095, media-submissions.md §4.1). */
+export const PHOTO_HANDOFF_FUNCTION = 'photo-handoff';
 
 /**
  * The region every Edge Function call runs in: the DATABASE's region (audit

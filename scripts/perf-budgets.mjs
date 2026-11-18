@@ -285,8 +285,13 @@ export const SHELL_SPEND = [
         change: 'Media submissions slice 2b (offline photos): the store\'s waiting-photo model (swapPhoto, the check that queues while a photo is local, keyed fingerprints), the queue\'s store subscription and its dropped-rerun fix, the container\'s pending line and missing-photo confirm, the photo-refused copy, the buffer\'s waiting-photo scan, and sign-out\'s photo-store wipe and warning; the IndexedDB store and the uploader are in the lazy photo chunk (checked: none of their code is in the entry)',
         bytes: 863,
     },
+    {
+        date: '2026-11-18',
+        change: 'Media submissions slice 2c (phone QR handoff): the lazy /h route (its import, its preload entry, the Route element) and the PHOTO_HANDOFF_PATH constant in the shell seam; the QR panel, its encoder (uqr) and the phone page are all lazy chunks (checked: the encoder is only in PhotoHandoffPanel-*.js)',
+        bytes: 259,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 159737;
+export const SHELL_JS_BASELINE_BYTES = 159996;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

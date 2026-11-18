@@ -72,6 +72,8 @@ const ActivityProgress = lazy(() => import('./routes/ActivityProgress'));
 const DolPractice = lazy(() => import('./routes/DolPractice'));
 const AnswerPanel = lazy(() => import('./progress/AnswerPanel'));
 const Privacy = lazy(() => import('./routes/Privacy'));
+// The phone handoff's page (media submissions slice 2c): public, no session.
+const PhotoHandoff = lazy(() => import('./routes/PhotoHandoff'));
 // The number-facts demo (D43 slice 1): public, lazy, saves nothing.
 const FactsDemo = lazy(() => import('./routes/FactsDemo'));
 // The student's class link and the teacher's number-facts page (D43 slice 1).
@@ -128,6 +130,11 @@ export default function App() {
         <Route path="/" element={<Home />} />
         {/* Public by design (D7): auth screens and student fineprint link here. */}
         <Route path="/privacy" element={<Privacy />} />
+        {/* "Use my phone" (§4.1): the phone that scans a student's QR code is
+            NOT signed in and is never asked to be — the code in the URL
+            fragment is its only credential. Literal path, pinned to the
+            viewer's PHOTO_HANDOFF_PATH by photoHandoff.test.tsx. */}
+        <Route path="/h" element={<PhotoHandoff />} />
         {/* Student-facing viewer. Deliberately NOT wrapped in RequireAuth: the
             route itself shows the pre-auth screen (ruling 3.2A) so a signed-out
             student sees WHAT they were sent before being asked who they are. */}
