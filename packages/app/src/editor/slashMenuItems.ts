@@ -18,6 +18,7 @@ import {
     ListOrdered,
     MessageSquareText,
     PenLine,
+    Camera,
     FileText,
     ChartScatter,
     Ruler,
@@ -503,6 +504,17 @@ export const slashMenuItems: SlashMenuItem[] = [
         icon: PenLine,
         command: ({ editor, range }) => {
             begin(editor, range).insertShortAnswer().run();
+        },
+    },
+    {
+        title: 'Photo of working',
+        description: 'Students add a photo of their handwritten working, which you grade by hand.',
+        keywords: ['photo', 'picture', 'camera', 'image', 'working', 'handwritten', 'upload', 'drawing', 'show', 'work', 'graded'],
+        group: 'Questions',
+        subgroup: 'Free response',
+        icon: Camera,
+        command: ({ editor, range }) => {
+            begin(editor, range).insertPhotoResponse().run();
         },
     },
     {

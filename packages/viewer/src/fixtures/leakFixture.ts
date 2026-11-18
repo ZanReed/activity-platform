@@ -506,6 +506,16 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
     answer: [text(STR)],
     solution: sentinelInline(),
   });
+  // The third manually graded sibling: the same two sentinels, same fields.
+  put('photo_response', {
+    id: uuid(),
+    type: 'photo_response',
+    prompt: [text('photograph your working')],
+    maxPhotos: 3,
+    rubric: { criteria: [{ id: uuid(), label: STR, maxPoints: 4, description: STR }] },
+    answer: [text(STR)],
+    solution: sentinelInline(),
+  });
   put('chart', {
     id: uuid(),
     type: 'chart',

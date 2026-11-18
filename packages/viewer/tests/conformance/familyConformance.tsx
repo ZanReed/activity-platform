@@ -78,6 +78,11 @@ function answerEverything(store: ViewerStore, block: SanitizedBlock) {
 
   for (const id of section.items.blanks ?? []) store.setBlank(id, '3');
   for (const id of section.items.freeText ?? []) store.setFreeText(id, 'my answer');
+  // A photo answer is an uploaded photo's id (wire v4); the upload itself is
+  // the component's own test (photo-response.test.tsx), not the family's.
+  for (const id of section.items.photos ?? []) {
+    store.setPhotos(id, [{ id: '00000000-0000-4000-8000-0000000000f1' }]);
+  }
   for (const id of section.items.choices ?? []) {
     const choices = raw.choices as Array<{ id: string }> | undefined;
     if (choices?.[0]) store.setChoices(id, [choices[0].id]);
@@ -332,7 +337,8 @@ export function registerFamilyConformance(type: BlockType): void {
           Object.keys(responses.correspondences ?? {}).length +
           Object.keys(responses.orderings).length +
           Object.keys(responses.freeText).length +
-          Object.keys(responses.graphs).length;
+          Object.keys(responses.graphs).length +
+          Object.keys(responses.photos ?? {}).length;
         expect(recorded, `${type} owns no response slot`).toBeGreaterThan(0);
         expect(section.items).not.toEqual({});
       });

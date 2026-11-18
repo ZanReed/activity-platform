@@ -8,7 +8,9 @@ import { problemNumberAt } from '../problemNumbering';
 import type { InlineNode, Rubric } from '@activity/schema';
 
 // ============================================================================
-// FreeResponseView — shared NodeView for short_answer + essay.
+// FreeResponseView — shared NodeView for short_answer + essay + photo_response.
+// (The photo block, media submissions slice 2, previews a disabled "Add a
+// photo" button and its photo allowance where the others preview a textarea.)
 //
 //   <div.free-response-block>
 //     <NodeViewContent />    <- editable inline prompt (text + math)
@@ -64,6 +66,8 @@ export default function FreeResponseView({
     selected,
 }: NodeViewProps) {
     const isEssay = node.type.name === 'essay';
+    const isPhoto = node.type.name === 'photoResponse';
+    const maxPhotos = (node.attrs.maxPhotos as number | null) ?? 1;
     const placeholder = (node.attrs.placeholder as string | undefined) ?? '';
     const wordMin = (node.attrs.wordMin as number | null) ?? null;
     const wordMax = (node.attrs.wordMax as number | null) ?? null;
@@ -102,7 +106,7 @@ export default function FreeResponseView({
                     ¶
                 </span>
                 <span className="free-response-block__label">
-                    {problemNumber}. {isEssay ? 'Essay' : 'Short answer'}
+                    {problemNumber}. {isPhoto ? 'Photo of working' : isEssay ? 'Essay' : 'Short answer'}
                 </span>
             </div>
             <PromptField
@@ -110,14 +114,31 @@ export default function FreeResponseView({
                 className="free-response-block__prompt"
                 placeholder="Type the question…"
             />
-            <textarea
-                className="free-response-block__preview"
-                rows={isEssay ? 8 : 3}
-                disabled
-                placeholder={placeholder || 'Students type their answer here…'}
-                contentEditable={false}
-                aria-hidden="true"
-            />
+            {isPhoto ? (
+                <div
+                    className="free-response-block__photo-preview"
+                    contentEditable={false}
+                    aria-hidden="true"
+                >
+                    <button type="button" disabled tabIndex={-1}>
+                        Add a photo
+                    </button>
+                    <span>
+                        {maxPhotos === 1
+                            ? 'Students add a photo of their working.'
+                            : `Students add up to ${maxPhotos} photos of their working.`}
+                    </span>
+                </div>
+            ) : (
+                <textarea
+                    className="free-response-block__preview"
+                    rows={isEssay ? 8 : 3}
+                    disabled
+                    placeholder={placeholder || 'Students type their answer here…'}
+                    contentEditable={false}
+                    aria-hidden="true"
+                />
+            )}
             {isEssay && (wordMin !== null || wordMax !== null) && (
                 <div className="free-response-block__wordhint" contentEditable={false}>
                     Target:{' '}

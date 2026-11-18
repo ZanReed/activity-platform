@@ -67,6 +67,13 @@ export type CheckErrorKind =
    * retryable server_error bucket its 500 status would otherwise land in.
    */
   | 'malformed_document'
+  /**
+   * Media submissions slice 2: a photo on this section can't be handed in
+   * (photo answers were turned off, a photo never finished uploading, or a ref
+   * the server refused). Removing that photo and checking again works; a plain
+   * retry does not.
+   */
+  | 'photo_refused'
   /** The request never reached the server. Retry when back online. */
   | 'offline'
   /** The server failed to grade. Retrying is reasonable. */
@@ -205,6 +212,9 @@ export function checkErrorFor(status: number, body: ErrorBody): CheckError {
   }
   if (code === 'dol_retake_not_yet') {
     return new CheckError('dol_retake_not_yet', 'The retake is not open yet.', status);
+  }
+  if (code === 'photos_off' || code === 'photo_not_uploaded' || code === 'bad_photos') {
+    return new CheckError('photo_refused', 'A photo here can’t be handed in.', status);
   }
   if (code === 'section_locked') {
     return new CheckError(

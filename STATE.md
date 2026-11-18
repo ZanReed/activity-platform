@@ -20,13 +20,13 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Media submissions** ([doc](docs/design/media-submissions.md)): apply 0093, `deploy:sweep`. Before Feb: Pro, Q14, arm.
+**Media submissions** ([doc](docs/design/media-submissions.md), slices 1–2 unpushed): apply 0093+0094, `deploy:sweep`, then push WITH both function deploys (wire v4), outside school hours. Before Feb: Pro, Q14, arm.
 
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 
 **Schema shortlist S1–S8 LIVE (2026-11-16):** both functions deployed and hash-verified, pushed at `cf1d1edd`, CI green; prompt stamp refreshed; B-255 sent (`^`, `hint:`, https links). **S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md), ST-1..14 ruled): 0090 applied, verify-0090 5/5 on live, pushed `3274dc69`, CI green. `prune_help_requests` ARMED 2026-11-17 (author runs the `cron.schedule` in migrations/README, then `verify-0090` live). Ruled: no asking in locked / quiz / exam / DoL. S2's workSpace departure confirmed 2026-11-17. **No hints in a DoL LIVE 2026-11-17** (both functions hash-verified, `7ccc8aa5` pushed, CI green; sanitizer rev 4 → 5; B-257 sent).
 
-**Form grading (D60) BUILT 2026-11-14, no migration** ([form-grading.md](docs/design/form-grading.md) → As built). check-activity + get-activity DEPLOYED and hash-verified 2026-11-14 (grading `dab75852…`, viewer `504f23ea…`, byte-identical; `verify_jwt` true / false). Pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
+**Form grading (D60) LIVE 2026-11-14** ([form-grading.md](docs/design/form-grading.md) → As built): both functions hash-verified, pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
 
 **UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 

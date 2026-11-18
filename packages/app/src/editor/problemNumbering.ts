@@ -51,6 +51,7 @@ export const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     // the same reason it does on the page.
     shortAnswer: 'short_answer',
     essay: 'essay',
+    photoResponse: 'photo_response',
     // Numbered only when some cell holds a blank — a blankless table is a
     // stimulus (a chart to READ), not a question. See tableNodeHasBlank.
     table: 'table',

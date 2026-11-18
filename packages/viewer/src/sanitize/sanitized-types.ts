@@ -176,7 +176,7 @@ export type SanitizeBlockType<B> = B extends { type: 'math_block' }
                     }
                   : B extends { type: 'short_answer' }
                     ? Omit<DeepSanitizeInline<B>, 'rubric'>
-                    : B extends { type: 'essay' }
+                    : B extends { type: 'essay' | 'photo_response' }
                       ? Omit<DeepSanitizeInline<B>, 'rubric'>
                       : B extends {
                             type: 'worked_example' | 'faded_worked_example';

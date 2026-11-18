@@ -173,7 +173,8 @@ function extractByType(block: Block): BlockAnswerKey {
     // against the rubric"), not the absence of one. A question missing from a
     // printed key is indistinguishable from a question the key forgot.
     case 'short_answer':
-    case 'essay': {
+    case 'essay':
+    case 'photo_response': {
       if (block.answer && block.answer.length > 0) {
         return { writtenAnswer: block.answer, writtenAnswerSource: 'answer' };
       }

@@ -169,6 +169,7 @@ export function censusOfDocument(doc: ActivityDocument): VersionCensus {
     for (const o of inv.ordering) push(o.blockId, o.blockId);
     for (const g of inv.graphs) push(g.blockId, g.blockId);
     for (const id of inv.freeText) push(id, id);
+    for (const { blockId } of inv.photos) push(blockId, blockId);
   }
 
   return {

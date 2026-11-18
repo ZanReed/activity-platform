@@ -195,4 +195,5 @@ export const ANSWER_KEY_COVERAGE: Readonly<
   // answer → solution → "manually graded".
   short_answer: { via: 'extractor' },
   essay: { via: 'extractor' },
+  photo_response: { via: 'extractor' },
 };

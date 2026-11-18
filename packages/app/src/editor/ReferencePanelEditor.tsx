@@ -34,6 +34,7 @@ import { Chart } from './extensions/Chart';
 import { Video } from './extensions/Video';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
+import { PhotoResponse } from './extensions/PhotoResponse';
 import { Essay } from './extensions/Essay';
 import { Callout } from './extensions/Callout';
 import { Table, TableRow, TableCell, TableCellPara } from './extensions/Table';
@@ -130,6 +131,9 @@ export default function ReferencePanelEditor({
             SelfExplanation,
             ShortAnswer,
             Essay,
+            // Registered only so the column content expression compiles; it is
+            // not referenceSafe, so the panel's menus never offer it.
+            PhotoResponse,
             Callout,
             // Table: the same registered-only-for-the-schema story — the column
             // content expression names it as of the table drop, so this

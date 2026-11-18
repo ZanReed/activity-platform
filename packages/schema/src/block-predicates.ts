@@ -51,6 +51,9 @@ const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
   // self_explanation deliberately does not join them.
   'short_answer',
   'essay',
+  // The photo of working (media-submissions.md §3.1): numbered like
+  // short_answer (N6), because a teacher marks it against a key.
+  'photo_response',
   // The faded worked-example box counts as ONE problem (its number leads the
   // title); its faded steps are lettered locally and don't pull from the
   // sequence — that context-dependent exception lives in renderFadedWorkedExample.
@@ -150,6 +153,7 @@ export function isGradeable(block: Block): boolean {
     case 'self_explanation':
     case 'short_answer':
     case 'essay':
+    case 'photo_response':
       return true;
     case 'interactive_graph':
     case 'data_plot':

@@ -112,6 +112,9 @@ export interface GradableInventory {
   graphs: Array<{ blockId: string; block: RawGraphBlock }>;
   /** Every free-text block in the section — recorded, never judged. */
   freeText: string[];
+  /** Every photo_response block in the section (wire v4) with the number of
+   * photos it allows — recorded, never judged, like free text. */
+  photos: Array<{ blockId: string; maxPhotos: number }>;
   /** blockId → authored solution content, for EVERY block in the section that
    * has one. Includes STATIC blocks (a `problem`'s worked explanation), which
    * is the whole reason this is collected by walking blocks rather than by
@@ -124,6 +127,11 @@ export interface GradableInventory {
 // this module deliberately does not import the registry to derive, and a
 // hand-list that restates a registry fact is a claim that needs a guard (A7,
 // policy P10b). Production code must keep consuming them from here.
+// The recorded family's other member: a photo answer travels in its own wire
+// map, so it is routed by its own roster rather than as free text. The bond
+// test holds FREE_TEXT_TYPES ∪ PHOTO_TYPES to the registry's 'recorded'.
+export const PHOTO_TYPES = new Set(['photo_response']);
+
 export const FREE_TEXT_TYPES = new Set([
   'self_explanation',
   'short_answer',
@@ -576,6 +584,11 @@ function visit(
     default:
       if (FREE_TEXT_TYPES.has(type)) {
         inv.freeText.push(id);
+      } else if (PHOTO_TYPES.has(type)) {
+        // MS-4: 1, 2 or 3; anything else reads as 1 — the same default
+        // reserve_work_photo (0093) applies to the stored version.
+        const max = (block as { maxPhotos?: unknown }).maxPhotos;
+        inv.photos.push({ blockId: id, maxPhotos: max === 2 || max === 3 ? max : 1 });
       } else if (GRAPH_TYPES.has(type)) {
         inv.graphs.push({ blockId: id, block: block as unknown as RawGraphBlock });
       }
@@ -630,6 +643,7 @@ export function inventorySection(
     ordering: [],
     graphs: [],
     freeText: [],
+    photos: [],
     solutions: [],
   };
   const problems: string[] = [];

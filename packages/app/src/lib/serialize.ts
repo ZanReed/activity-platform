@@ -77,6 +77,7 @@ import type {
     FadedWorkedExampleChild,
     SelfExplanationBlock,
     ShortAnswerBlock,
+    PhotoResponseBlock,
     EssayBlock,
     GraphFigureBlock,
     ChartBlock,
@@ -517,6 +518,8 @@ function tiptapBlockToActivityRaw(node: JSONContent): Block | null {
             return tiptapShortAnswerToActivity(node);
         case 'essay':
             return tiptapEssayToActivity(node);
+        case 'photoResponse':
+            return tiptapPhotoResponseToActivity(node);
 
         case 'callout':
             return tiptapCalloutToActivity(node);
@@ -672,6 +675,24 @@ function tiptapShortAnswerToActivity(node: JSONContent): ShortAnswerBlock {
     };
     const placeholder = (node.attrs?.placeholder as string | undefined)?.trim();
     if (placeholder) block.placeholder = placeholder;
+    const rubric = sanitizeRubric(node.attrs?.rubric);
+    if (rubric) block.rubric = rubric;
+    return block;
+}
+
+// photo_response (media submissions slice 2): short_answer's teacher-only
+// fields, plus maxPhotos — written only when it is 2 or 3, so the default (1)
+// serializes without the field.
+function tiptapPhotoResponseToActivity(node: JSONContent): PhotoResponseBlock {
+    const block: PhotoResponseBlock = {
+        id: crypto.randomUUID(),
+        type: 'photo_response',
+        prompt: tiptapInlineToActivity(node.content ?? []),
+        ...readAnswerFields(node),
+        ...readAnswerSpace(node),
+    };
+    const max = node.attrs?.maxPhotos;
+    if (max === 2 || max === 3) block.maxPhotos = max;
     const rubric = sanitizeRubric(node.attrs?.rubric);
     if (rubric) block.rubric = rubric;
     return block;
@@ -1805,6 +1826,20 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                 attrs: {
                     id: block.id,
                     placeholder: block.placeholder ?? '',
+                    rubric: block.rubric ?? null,
+                    answer: block.answer ?? null,
+                    solution: block.solution ?? null,
+                    workSpace: block.workSpace ?? null,
+                },
+                content: activityInlineToTiptap(block.prompt),
+            };
+
+        case 'photo_response':
+            return {
+                type: 'photoResponse',
+                attrs: {
+                    id: block.id,
+                    maxPhotos: block.maxPhotos === 2 || block.maxPhotos === 3 ? block.maxPhotos : null,
                     rubric: block.rubric ?? null,
                     answer: block.answer ?? null,
                     solution: block.solution ?? null,

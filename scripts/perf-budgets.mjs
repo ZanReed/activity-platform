@@ -275,8 +275,13 @@ export const SHELL_SPEND = [
         change: 'S9 "Ask my teacher" (0090): the viewer\'s groupAside footer slot, StudentViewer\'s one help-state read with a single retry, and the lazy loader for the button (the button, its ask/withdraw calls and the teacher side are all lazy); plus ~220 B of in-band drift from S6–S8 (alignment, highlight, links)',
         bytes: 661,
     },
+    {
+        date: '2026-11-18',
+        change: 'Media submissions slice 2 (photo_response): the photo seam set by StudentViewer, the lazy binding, the wire-v4 `photos` map through the store (setPhotos, fire-time pick, blockIndex) and the registry/answer-key/DoL entries; the capture, re-encode and upload code and the block\'s CSS are all in the lazy chunk',
+        bytes: 276,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 158598;
+export const SHELL_JS_BASELINE_BYTES = 158874;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

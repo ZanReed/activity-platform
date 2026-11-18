@@ -22,6 +22,7 @@ export const BLOCK_NAMES: Record<string, string> = {
     ordering: 'Ordering',
     short_answer: 'Short answer',
     essay: 'Essay',
+    photo_response: 'Photo of working',
     self_explanation: 'Self-explanation',
     math_block: 'Equation',
     number_line: 'Number line',

@@ -392,7 +392,7 @@ describe('roster guard: keyed ⊇ auto-gradable', () => {
     const recordedKeyed = keyedTypes.filter(
       (type) => blockRegistry[type].family === 'recorded',
     );
-    expect(recordedKeyed.sort()).toEqual(['essay', 'short_answer']);
+    expect(recordedKeyed.sort()).toEqual(['essay', 'photo_response', 'short_answer']);
   });
 
   it('coverage names no STATIC type — the bound on the widening', () => {

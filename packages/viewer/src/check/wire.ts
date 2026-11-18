@@ -48,7 +48,11 @@ import type {
 // v2 → v3 (correspondence, wishlist #4): adds the `correspondences` response
 // map. Exact-match versioning (no tolerance window): a v2 client against a v3
 // server gets the version-mismatch refusal and its "refresh to continue" copy.
-export const CHECK_WIRE_VERSION = 3;
+// v3 → v4 (media submissions slice 2, media-submissions.md §3.2): adds the
+// `photos` map. Same exact-match rule: the push of a v4 app and the deploy of a
+// v4 check-activity happen together, outside NZ and US school hours (T7), and
+// an open v3 page gets "refresh to continue" on its next check (MS-21).
+export const CHECK_WIRE_VERSION = 4;
 
 // ---- Responses (student → server) ------------------------------------------
 
@@ -77,6 +81,19 @@ export interface SectionResponses {
   freeText: Record<string, string>;
   /** graph-family block id → the student's geometric work (wire v2). */
   graphs: Record<string, GraphWork>;
+  /** photo_response block id → the photos the student added, in their order
+   * (wire v4). IDS ONLY: the server builds the object key from the check's own
+   * activity, the caller's uid and the id, so a ref cannot point at another
+   * student's or another activity's photo. Absent on a v3-shaped object. */
+  photos: Record<string, PhotoRef[]>;
+}
+
+/** One photo on the wire. `removed` is written by the SERVER only (0094's
+ * trigger), on a ref whose photo retention has already deleted; a client never
+ * sends it, and the handler drops anything but `id`. */
+export interface PhotoRef {
+  id: string;
+  removed?: boolean;
 }
 
 /** What a student built on a graphing surface. Mirrors the geometry the old
@@ -151,6 +168,7 @@ export function emptySectionResponses(): SectionResponses {
     orderings: {},
     freeText: {},
     graphs: {},
+    photos: {},
   };
 }
 

@@ -88,4 +88,12 @@ export const A11Y_STORIES: Partial<Record<BlockType, string>> = {
     'aria-live=polite and debounced so it never chatters per keystroke. ' +
     'Recorded state reads as words (the group status line announces the ' +
     'check, D-3); released teacher feedback announces on arrival.',
+  photo_response:
+    'An "Add a photo" button in tab order, described by the prompt; it opens ' +
+    'the device camera or file picker through a hidden file input that is ' +
+    'out of the tab order. Each added photo is a list item named by the ' +
+    'prompt, with alt text ("Photo 1 of your working") and its own Remove ' +
+    'button whose name says which photo. An upload shows a labeled progress ' +
+    'bar; a failure is role=alert text with Retry. Recorded state reads as ' +
+    'words (D-3); never a verdict.',
 };

@@ -101,6 +101,7 @@ const KNOWN_META = new Set(['kind', 'status', 'skill', 'role', 'chain', 'discrim
 const REFUSED_BLOCKS: Record<string, string> = {
     short_answer: 'a short-answer response (not auto-scorable)',
     essay: 'an essay response (not auto-scorable)',
+    photo_response: 'a photo of working (graded by hand, not auto-scorable)',
     self_explanation: 'an explain/self-explanation response (not auto-scorable)',
     worked_example: 'a worked example (teaching, not practice)',
     faded_worked_example: 'a faded worked example (teaching, not practice)',

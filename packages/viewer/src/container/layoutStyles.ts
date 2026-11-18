@@ -133,7 +133,7 @@ export function blockStyle(block: BlockLayout): CSSProperties {
     // A writing box IS its work space (S2): the value sizes the box, through
     // its own property so the activity-wide --print-work-space (space BELOW a
     // question) never resizes a box it was not set on.
-    const boxed = block.type === 'short_answer' || block.type === 'essay';
+    const boxed = block.type === 'short_answer' || block.type === 'essay' || block.type === 'photo_response';
     style[boxed ? '--print-answer-space' : '--print-work-space'] = `${formatNumber(block.workSpace)}rem`;
   }
 

@@ -42,6 +42,7 @@ import {
   ToolCluster,
   ViewerContainer,
   setVideoLink,
+  setPhotoLink,
   ViewerLoadError,
   createBrowserConnectivity,
   createCheckQueue,
@@ -69,7 +70,7 @@ import type {
 } from '@activity/viewer';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
-import { functionsBase, supabase } from '../lib/supabase';
+import { functionsBase, storageBase, supabase, supabaseAnonKey } from '../lib/supabase';
 import { TEXT_SCALES, scrollBelowTopbar, useResumePlace, useTextScale } from '../lib/studentViewPrefs';
 import {
   CHECK_ACTIVITY_FUNCTION,
@@ -91,6 +92,9 @@ import { SignInFailedCard, useAuthCallbackError } from '../components/AuthScreen
 // D64 VP-7: the served document has no URL, so the clip's chunk asks the server's
 // gate through this. It is all the shell pays, and it has no room for more.
 setVideoLink({ client: supabase as never, checkUrl: () => edgeFunctionUrl(functionsBase(), CHECK_ACTIVITY_FUNCTION) });
+// Media submissions slice 2: the photo block's lazy chunk reserves, uploads and
+// signs through this (raw fetch — storage-js is stubbed, CLAUDE.md).
+setPhotoLink({ client: supabase as never, storageBase: () => storageBase(), anonKey: () => supabaseAnonKey() });
 
 // functionsBase comes from lib/supabase (A21) — the one env-read site, so
 // this route's tests stay env-independent by mocking that module.

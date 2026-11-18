@@ -85,6 +85,17 @@ function isDolSection(section: unknown): boolean {
   return dol !== undefined && dol !== null;
 }
 
+/** The check's `photos` map names a block that is not a photo question in
+ * this section, or more photos than the block allows. Like an unknown
+ * section, the request is wrong, not the grading: the handler maps it to a
+ * 400 `bad_photos`, and nothing is recorded (0094's trigger never runs). */
+export class PhotosMismatchError extends Error {
+  constructor(detail: string) {
+    super(`Photos do not match this section: ${detail}`);
+    this.name = 'PhotosMismatchError';
+  }
+}
+
 export class SectionNotFoundError extends Error {
   constructor(sectionId: string) {
     super(`Section not found: ${sectionId}`);
@@ -239,6 +250,19 @@ export function gradeSection(input: GradeSectionInput): SectionCheckResult {
     // An empty box is still an omission, consistent with every other type.
     if (text.trim() === '') continue;
     items[blockId] = { verdict: 'recorded' };
+  }
+
+  // ---- photos (wire v4) -----------------------------------------------------
+  // Recorded, never judged — the free-text rule. The refs are only checked
+  // for SHAPE against the stored document here (a photo block of THIS section,
+  // at most maxPhotos); who owns each photo, and whether its bytes arrived, is
+  // decided by 0094's trigger inside record_check's transaction.
+  const photoBlocks = new Map(inv.photos.map((p) => [p.blockId, p.maxPhotos]));
+  for (const [blockId, refs] of Object.entries(input.responses.photos ?? {})) {
+    const max = photoBlocks.get(blockId);
+    if (max === undefined) throw new PhotosMismatchError(`${blockId} is not a photo question here`);
+    if (refs.length > max) throw new PhotosMismatchError(`${blockId} allows ${max}`);
+    if (refs.length > 0) items[blockId] = { verdict: 'recorded' };
   }
 
   // ---- solutions ------------------------------------------------------------

@@ -12,7 +12,7 @@ import { isGradeable, type Block } from '@activity/schema';
 
 export interface DolPrimary {
   readonly block: Record<string, unknown>;
-  /** A teacher-marked primary (short answer / essay): never auto-passed. */
+  /** A teacher-marked primary (short answer / essay / photo of working): never auto-passed. */
   readonly rubric: boolean;
 }
 
@@ -35,7 +35,7 @@ export function dolPrimary(doc: unknown, sectionId: string): DolPrimary | null {
       for (const block of column.blocks ?? []) {
         if (block && typeof block === 'object' && isGradeable(block as Block)) {
           const b = block as Record<string, unknown>;
-          return { block: b, rubric: b.type === 'short_answer' || b.type === 'essay' };
+          return { block: b, rubric: b.type === 'short_answer' || b.type === 'essay' || b.type === 'photo_response' };
         }
       }
     }

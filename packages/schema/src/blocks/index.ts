@@ -31,7 +31,7 @@ import { ChartBlock } from './chart.js';
 import { VideoBlock } from './video.js';
 import { FadedWorkedExampleBlock } from './faded-worked-example.js';
 import { SelfExplanationBlock } from './self-explanation.js';
-import { ShortAnswerBlock, EssayBlock } from './free-response.js';
+import { ShortAnswerBlock, EssayBlock, PhotoResponseBlock } from './free-response.js';
 import { TableBlock } from './table.js';
 
 export const Block = z.discriminatedUnion('type', [
@@ -57,6 +57,7 @@ export const Block = z.discriminatedUnion('type', [
   SelfExplanationBlock,
   ShortAnswerBlock,
   EssayBlock,
+  PhotoResponseBlock,
   GraphFigureBlock,
   ChartBlock,
   TableBlock,
@@ -123,6 +124,7 @@ export { SelfExplanationBlock } from './self-explanation.js';
 export {
   ShortAnswerBlock,
   EssayBlock,
+  PhotoResponseBlock,
   WordCountHint,
   Rubric,
   RubricCriterion,

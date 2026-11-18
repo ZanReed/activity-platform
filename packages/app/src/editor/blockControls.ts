@@ -607,6 +607,34 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
         // short answer out of the worksheet's numbering.
         advanced: [{ group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] }, answerSpaceGroup, numberingGroup],
     },
+    // photo_response (media submissions slice 2) shares the drawer groups with
+    // short_answer; its own setting is how many photos a student may add.
+    photoResponse: {
+        primary: [],
+        advanced: [
+            {
+                group: 'Response',
+                fields: [
+                    {
+                        kind: 'select',
+                        label: 'Photos allowed',
+                        help: 'How many photos of their working a student can add to this question.',
+                        options: [
+                            { label: '1 photo', value: '1' },
+                            { label: 'Up to 2 photos', value: '2' },
+                            { label: 'Up to 3 photos', value: '3' },
+                        ],
+                        get: (node) => String(node.attrs.maxPhotos ?? 1),
+                        set: (editor, pos, value) =>
+                            setNodeAttr(editor, pos, 'maxPhotos', value === '2' || value === '3' ? Number(value) : null),
+                    },
+                ],
+            },
+            { group: 'Grading', fields: [...freeResponseAnswerFields, rubricField] },
+            answerSpaceGroup,
+            numberingGroup,
+        ],
+    },
     essay: {
         primary: [],
         simple: [placeholderField],

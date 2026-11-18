@@ -50,6 +50,7 @@ import {
     createVideoBlock,
     createSelfExplanationBlock,
     createShortAnswerBlock,
+    createPhotoResponseBlock,
     createEssayBlock,
     createBlankToken,
     createTableBlock,
@@ -167,6 +168,14 @@ function representativeBlock(type: string): Block {
         case 'short_answer': {
             const block = createShortAnswerBlock();
             block.prompt = [{ type: 'text', text: 'Answer briefly.', marks: [] }];
+            return block;
+        }
+        case 'photo_response': {
+            // maxPhotos 2: the guard proves the editor holds the field, not
+            // just the default.
+            const block = createPhotoResponseBlock();
+            block.prompt = [{ type: 'text', text: 'Photograph your working.', marks: [] }];
+            block.maxPhotos = 2;
             return block;
         }
         case 'essay': {

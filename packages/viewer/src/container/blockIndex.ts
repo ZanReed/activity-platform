@@ -186,6 +186,9 @@ function visit(block: SanitizedBlock, index: SectionIndex): void {
       case 'essay':
         index.items.freeText = [...(index.items.freeText ?? []), id];
         break;
+      case 'photo_response':
+        index.items.photos = [...(index.items.photos ?? []), id];
+        break;
       default:
         // Wire v2 carries geometric work for the whole graph family; the
         // server dispatches on the served interaction type.

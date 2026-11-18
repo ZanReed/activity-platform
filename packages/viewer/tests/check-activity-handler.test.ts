@@ -1013,3 +1013,82 @@ describe('restore: a student gets their own checked work back', () => {
     spy.mockRestore();
   });
 });
+
+// ---- Photo answers (wire v4; media submissions slice 2) ---------------------
+// The handler's half of §3.2: SHAPE against the stored document (a photo block
+// of this section, at most maxPhotos, ids only). Ownership, upload and the
+// switch are 0094's trigger — verify-0094 proves those against record_check.
+describe('photo answers', () => {
+  type RawBlock = { id: string; type: string; maxPhotos?: number };
+  const blocks = (doc as unknown as {
+    sections: Array<{ rows: Array<{ columns: Array<{ blocks: RawBlock[] }> }> }>;
+  }).sections[0]!.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks));
+  const photoBlock = blocks.find((b) => b.type === 'photo_response')!;
+  const otherBlock = blocks.find((b) => b.type === 'short_answer')!;
+  const P1 = '55555555-5555-4555-8555-555555555551';
+  const P2 = '55555555-5555-4555-8555-555555555552';
+  const P3 = '55555555-5555-4555-8555-555555555553';
+  const photos = (map: Record<string, unknown>) => validBody({ responses: { photos: map } });
+
+  it('the fixture section has a two-photo block to check against', () => {
+    expect(photoBlock.maxPhotos).toBe(2);
+  });
+
+  it.each([
+    ['a list, not a map', { responses: { photos: [] } }],
+    ['a ref with no id', { responses: { photos: { a: [{}] } } }],
+    ['an id that is not a uuid', { responses: { photos: { a: [{ id: 'IMG_0042.jpg' }] } } }],
+    ['four refs (above any block’s maximum)', { responses: { photos: { a: [{ id: P1 }, { id: P2 }, { id: P3 }, { id: P1 }] } } }],
+  ])('rejects %s as bad_photos before reading anything', (_label, over) => {
+    const result = validateCheckRequest({ ...validBody(), ...over });
+    expect(result.ok === false && result.failure.code).toBe('bad_photos');
+  });
+
+  it('passes ids only to record_check: a client-sent `removed` never survives', async () => {
+    const h = harness();
+    const res = await h.handler(post(photos({ [photoBlock.id]: [{ id: P1, removed: true, name: 'x' }] })));
+    expect(res.status).toBe(200);
+    const [record] = h.recorded() as Array<{ responses: { photos: unknown } }>;
+    expect(record!.responses.photos).toEqual({ [photoBlock.id]: [{ id: P1 }] });
+  });
+
+  it('records a photo answer as `recorded` — never judged', async () => {
+    const h = harness();
+    const res = await h.handler(post(photos({ [photoBlock.id]: [{ id: P1 }, { id: P2 }] })));
+    const body = (await res.json()) as { items: Record<string, { verdict: string }> };
+    expect(body.items[photoBlock.id]).toEqual({ verdict: 'recorded' });
+  });
+
+  it('an empty list is an unanswered photo question, not an answer', async () => {
+    const h = harness();
+    const res = await h.handler(post(photos({ [photoBlock.id]: [] })));
+    const body = (await res.json()) as { items: Record<string, unknown> };
+    expect(body.items[photoBlock.id]).toBeUndefined();
+  });
+
+  it.each([
+    ['more photos than the block allows', () => ({ [photoBlock.id]: [{ id: P1 }, { id: P2 }, { id: P3 }] })],
+    ['photos under a block that is not a photo question', () => ({ [otherBlock.id]: [{ id: P1 }] })],
+    ['photos under an id this section does not have', () => ({ [P3]: [{ id: P1 }] })],
+  ])('refuses %s with 400 bad_photos and records nothing', async (_label, map) => {
+    const h = harness();
+    const res = await h.handler(post(photos(map())));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ details: { code: 'bad_photos' } });
+    expect(h.recorded()).toEqual([]);
+  });
+
+  it.each([
+    ['photos_off', 409, 'photos_off'],
+    ['photo_not_uploaded', 409, 'photo_not_uploaded'],
+    ['photo_not_yours', 400, 'bad_photos'],
+    ['bad_photos', 400, 'bad_photos'],
+  ])('maps the trigger’s %s to %i %s', async (raised, status, code) => {
+    const h = harness({
+      recordCheck: async () => ({ data: null, error: { message: raised } }),
+    });
+    const res = await h.handler(post(photos({ [photoBlock.id]: [{ id: P1 }] })));
+    expect(res.status).toBe(status);
+    expect(await res.json()).toMatchObject({ details: { code } });
+  });
+});

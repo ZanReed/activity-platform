@@ -109,6 +109,9 @@ export function createMockCheckService(
       for (const id of Object.keys(request.responses.freeText)) {
         items[id] = { verdict: 'recorded' };
       }
+      for (const [id, refs] of Object.entries(request.responses.photos ?? {})) {
+        if (refs.length > 0) items[id] = { verdict: 'recorded' };
+      }
 
       return {
         wireVersion: CHECK_WIRE_VERSION,

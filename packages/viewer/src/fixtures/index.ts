@@ -751,6 +751,22 @@ function authoredRawByType(
       ],
     },
   });
+  // The photo of working carries BOTH answer fields and allows two photos,
+  // so the print lane sees a key with a written answer and the screen lane a
+  // count ("0 of 2").
+  put('photo_response', {
+    id: fid(),
+    type: 'photo_response',
+    prompt: [text('Photograph your working for solving 3x + 5 = 20.')],
+    maxPhotos: 2,
+    answer: [text('3x = 15, so x = 5.')],
+    solution: [text('Subtract 5 from both sides, then divide by 3.')],
+    rubric: {
+      criteria: [
+        { id: fid(), label: 'Shows each step', maxPoints: 2 },
+      ],
+    },
+  });
   // TWO NAMED SERIES, deliberately: the second series is what carries the
   // hatch pattern and the legend, so a one-series fixture would leave both
   // unexercised in every fixture-driven lane (print rules, a11y, dark contrast).

@@ -467,6 +467,23 @@ export const blockRegistry: BlockRegistry = {
     print: { breakInside: 'avoid', treatment: 'writing-box' },
   },
 
+  // Phase 2.8 (media-submissions.md §3): a photo of the student's handwritten
+  // working, graded by the teacher. The recorded family, like its two
+  // siblings: a check records it and never judges it. Numbered with them (N6).
+  // The same anti-leak unit (rubric, answer, solution), observed by the same
+  // leakFixture row. On paper the paper IS the work, so it prints as the
+  // prompt and a bordered work box (§8).
+  photo_response: {
+    type: 'photo_response',
+    family: 'recorded',
+    interactivity: 'interactive',
+    category: 'question',
+    numbered: 'always',
+    analyticsKey: 'photo_response',
+    sanitize: { strip: ['rubric', 'answer', 'solution'] },
+    print: { breakInside: 'avoid', treatment: 'writing-box' },
+  },
+
   graph_figure: {
     type: 'graph_figure',
     family: 'static',

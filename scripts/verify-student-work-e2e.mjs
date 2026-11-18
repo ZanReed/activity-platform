@@ -164,7 +164,8 @@ async function main() {
 
   check('G9 the student reads their own photo', (await read(sJ, name1)) === 200);
   check('G10 the owning teacher cannot read it before a check attaches it', (await read(tJ, name1)) >= 400);
-  sql(`update work_photos set attached_at = now() where id = '${id1}'`);
+  // A hand-in as 0094's trigger makes it: attached, the object's version recorded.
+  sql(`update work_photos w set attached_at = now(), attached_object_version = (select o.version from storage.objects o where o.bucket_id = '${BUCKET}' and o.name = w.object_name) where id = '${id1}'`);
   check('G11 the owning teacher reads it once attached', (await read(tJ, name1)) === 200);
   check('G12 another teacher never reads it', (await read(t2J, name1)) >= 400);
   check('G13 another student never reads it', (await read(s2J, name1)) >= 400);
@@ -192,6 +193,66 @@ async function main() {
   }
   sql('update photo_clearance set cleared = true');
   console.log(`  INFO  G17 signed upload URL: sign=${sign.status}; upload after the switch went off: ${late}; object exists: ${objectExists(name6)}`);
+
+  // ---- A: handing a photo in (0094, slice 2) ----------------------------------
+  // record_check is called as the check-activity function calls it (service
+  // role), against bytes that went through the real Storage API, so the
+  // trigger's "the object exists" test meets Storage's own row, not a fixture.
+  const checkWith = (photoIds) => rpc(SERVICE, 'record_check', {
+    p_student_id: S, p_activity_id: ACT, p_activity_version_id: VER, p_section_id: 's1',
+    p_responses: { photos: { [PB]: photoIds.map((id) => ({ id })) } }, p_verdicts: {},
+  });
+  const r7 = await rpc(sJ, 'reserve_work_photo', { p_activity_id: ACT, p_version_id: VER, p_block_id: PB });
+  const name7 = `${ACT}/${S}/${r7.body}.jpg`;
+  await upload(sJ, name7, JPEG);
+  check('A0 the teacher cannot read an uploaded photo before a check hands it in', (await read(tJ, name7)) >= 400);
+  const a1 = await checkWith([r7.body]);
+  check('A1 a check hands in an uploaded photo: attached, and now the owning teacher can read it',
+    a1.status === 200 && sql(`select attached_at is not null from work_photos where id = '${r7.body}'`) === 't'
+      && (await read(tJ, name7)) === 200, JSON.stringify(a1));
+  const r8 = await rpc(sJ, 'reserve_work_photo', { p_activity_id: ACT, p_version_id: VER, p_block_id: PB });
+  const a2 = await checkWith([r8.body]);
+  check('A2 a reserved photo whose bytes never arrived is refused', a2.status >= 400 && JSON.stringify(a2.body).includes('photo_not_uploaded'), JSON.stringify(a2));
+  // G17's closure: the object that landed through a URL signed before the
+  // switch went off exists — and while the switch is off, no check hands it in.
+  sql('update photo_clearance set cleared = false');
+  const a3 = await checkWith([r6.body]);
+  sql('update photo_clearance set cleared = true');
+  check('A3 while photos are off, a photo that landed through an earlier-signed URL is not handed in',
+    objectExists(name6) && a3.status >= 400 && JSON.stringify(a3.body).includes('photos_off')
+      && sql(`select attached_at is null from work_photos where id = '${r6.body}'`) === 't', JSON.stringify(a3));
+  // G18 (Fable review 2026-11-18): a URL signed WITH upsert before the first
+  // upload. The sign-time check runs INSERT … ON CONFLICT DO UPDATE against an
+  // absent object, so only the INSERT policy is consulted. Can that URL later
+  // replace the bytes of a photo a check has handed in?
+  const r9 = await rpc(sJ, 'reserve_work_photo', { p_activity_id: ACT, p_version_id: VER, p_block_id: PB });
+  const name9 = `${ACT}/${S}/${r9.body}.jpg`;
+  const sign9 = await fetch(`${API}/storage/v1/object/upload/sign/${BUCKET}/${name9}`, { method: 'POST', headers: H(sJ, { 'x-upsert': 'true' }) });
+  const sign9Body = await sign9.json().catch(() => ({}));
+  await upload(sJ, name9, JPEG);
+  await checkWith([r9.body]);
+  const before9 = sql(`select coalesce(metadata->>'eTag', '') || ':' || coalesce(version, '') from storage.objects where bucket_id = '${BUCKET}' and name = '${name9}'`);
+  let replaced = 'not attempted';
+  if (sign9.ok && sign9Body.url) {
+    const other = new Uint8Array([...JPEG.slice(0, -2), 0x00, 0xff, 0xd9]);
+    const pr = await fetch(`${API}/storage/v1${sign9Body.url}`, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, body: other });
+    replaced = `HTTP ${pr.status}`;
+  }
+  const after9 = sql(`select coalesce(metadata->>'eTag', '') || ':' || coalesce(version, '') from storage.objects where bucket_id = '${BUCKET}' and name = '${name9}'`);
+  // Measured: it CAN (Storage writes with its own role, past every policy).
+  // What must hold instead is that replaced bytes never reach the teacher.
+  console.log(`  INFO  G18 upsert-signed URL after hand-in: sign=${sign9.status}; replace: ${replaced}; bytes changed: ${before9 !== after9}`);
+  check('G18 a photo replaced after hand-in is unreadable to the teacher (the student still reads it)',
+    before9 !== after9 ? (await read(tJ, name9)) >= 400 && (await read(sJ, name9)) === 200 : (await read(tJ, name9)) === 200,
+    `before ${before9} after ${after9}`);
+
+  const a4 = await rpc(sJ, 'discard_work_photo', { p_id: r7.body });
+  check('A4 a student cannot discard a photo a check handed in', a4.status === 200 && a4.body === false
+    && sql(`select count(*) from work_photos where id = '${r7.body}'`) === '1', JSON.stringify(a4));
+  const d1 = await rpc(sJ, 'discard_work_photo', { p_id: r6.body });
+  await sweep(SERVICE, { dryRun: false });
+  check('D1 Remove before a check: the row goes and the sweep removes the bytes',
+    d1.body === true && !objectExists(name6) && sql(`select count(*) from work_photos where id = '${r6.body}'`) === '0', JSON.stringify(d1));
 
   // ---- P1 the retention clock -------------------------------------------------
   sql(`update work_photos set keep_until = now() - interval '1 minute' where id = '${id1}'`);
@@ -233,6 +294,7 @@ async function main() {
 
 async function cleanup() {
   try {
+    if (ACT) sql(`delete from section_checks where activity_id = '${ACT}'`);
     if (ACT) sql(`delete from activities where id = '${ACT}'`);
     sql(`delete from classes where name = '${tag}'`);
     sql(`delete from auth.users where email like '${tag}-%'`);

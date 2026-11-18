@@ -455,7 +455,9 @@ const TREATMENT_CHECKS: { readonly [T in PrintTreatment]: readonly PrintCheck[] 
     {
       id: 'freetext/writing-area',
       rule: 'Free text prints as a bordered area with room to write by hand.',
-      target: '.viewer-short-answer__input, .viewer-self-explanation__input, .viewer-essay__input',
+      // photo_response's is its work box (media submissions §8): the same
+      // promise, room to write, with no control on it.
+      target: '.viewer-short-answer__input, .viewer-self-explanation__input, .viewer-essay__input, .viewer-photo-response__box',
       expect: { kind: 'writing-space', minEm: 4 },
     },
     {

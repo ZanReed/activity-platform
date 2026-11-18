@@ -32,6 +32,7 @@ import {
   type CheckRequest,
   type CheckService,
   type GraphWork,
+  type PhotoRef,
   type ReleasedBlockFeedback,
   type SectionResponses,
 } from '../check/wire.js';
@@ -58,6 +59,8 @@ export interface SectionItemIds {
   orderings?: string[];
   freeText?: string[];
   graphs?: string[];
+  /** photo_response block ids (wire v4). */
+  photos?: string[];
   /**
    * The DoL form this page was served (D65; container/blockIndex.ts sets it
    * on the DoL section only). Sent with the check (`CheckRequest.form`), and
@@ -139,6 +142,8 @@ export interface ViewerStore {
   /** Replace a graph-family block's work (wire v2). The component owns the
    * geometry; the store just holds it. */
   setGraphWork(blockId: string, work: GraphWork): void;
+  /** Replace a photo block's list of photo ids (wire v4). */
+  setPhotos(blockId: string, refs: readonly PhotoRef[]): void;
 
   /** One batched check for the section's CURRENT values (2.2A). Resolves when
    * the status transition has landed; never throws — failures surface as the
@@ -237,6 +242,7 @@ export const RESPONSE_CATEGORIES = [
   'orderings',
   'freeText',
   'graphs',
+  'photos',
 ] as const satisfies ReadonlyArray<keyof SectionItemIds & keyof SectionResponses>;
 
 /**
@@ -388,6 +394,17 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
     setFreeText(blockId, text) {
       setResponse('freeText', (m) => ({ ...m, [blockId]: text }));
     },
+    setPhotos(blockId, refs) {
+      // Ids only, in the student's order. An empty list is removed rather
+      // than kept, so "no photo" and "never touched" read the same everywhere
+      // (restore's untouched test, the fingerprint, the check payload).
+      setResponse('photos', (m) => {
+        const next = { ...m };
+        if (refs.length === 0) delete next[blockId];
+        else next[blockId] = refs.map((r) => ({ id: r.id }));
+        return next;
+      });
+    },
     setGraphWork(blockId, work) {
       // Cloned on the way IN: the caller's widget keeps its own object.
       setResponse('graphs', (m) => ({ ...m, [blockId]: structuredClone(work) }));
@@ -418,6 +435,7 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
         orderings: pick(state.responses.orderings, items.orderings),
         freeText: pick(state.responses.freeText, items.freeText),
         graphs: pick(state.responses.graphs, items.graphs),
+        photos: pick(state.responses.photos ?? {}, items.photos),
       };
       const request: CheckRequest = {
         wireVersion: CHECK_WIRE_VERSION,

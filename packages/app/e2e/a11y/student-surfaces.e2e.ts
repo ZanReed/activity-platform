@@ -54,6 +54,8 @@ const LAZY_MOUNT_MARKERS: Record<string, string> = {
   chart: '[data-block-type="chart"] svg.chart-paper',
   // The card appears once the (stubbed) gate returns a URL.
   video: '[data-block-type="video"] .viewer-video',
+  // The photo block's Add control renders once its chunk is in.
+  photo_response: '[data-block-type="photo_response"] .viewer-photo-response__add',
 };
 
 /** The registry's lazy tier, derived — never retyped (P2). */

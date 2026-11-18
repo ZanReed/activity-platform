@@ -34,7 +34,7 @@ export type {
   VersionForCheckRow,
 } from './check-activity-handler.js';
 
-export { gradeSection, SectionNotFoundError } from './grading/index.js';
+export { gradeSection, PhotosMismatchError, SectionNotFoundError } from './grading/index.js';
 export type { GradeSectionInput } from './grading/index.js';
 
 export { computeServedOrderings } from './grading/servedOrder.js';

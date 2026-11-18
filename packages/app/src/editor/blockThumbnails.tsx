@@ -401,6 +401,15 @@ const shortAnswer = thumb(
     </>
 );
 
+const photoResponse = thumb(
+    <>
+        {bar(12, 9, 52, 4, INK)}
+        <rect x={12} y={19} width={30} height={26} rx={3} fill="none" stroke={ACCENT} />
+        <circle cx={27} cy={32} r={6} fill="none" stroke={ACCENT} />
+        <rect x={48} y={28} width={36} height={9} rx={3} fill="none" stroke={LINE} />
+    </>
+);
+
 const essay = thumb(
     <>
         {bar(12, 7, 50, 4, INK)}
@@ -467,6 +476,7 @@ export const blockThumbnails: Record<string, ReactElement> = {
     'Data plot': dataPlot,
     'Self-explanation': selfExplanation,
     'Short answer': shortAnswer,
+    'Photo of working': photoResponse,
     Essay: essay,
     Callout: callout,
     Table: table,

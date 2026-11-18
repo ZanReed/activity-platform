@@ -97,11 +97,11 @@ describe('numbering declarations agree with block-predicates.ts', () => {
 });
 
 describe('checked-state families (ruling 7.2A)', () => {
-  it('recorded is exactly the manually-reviewed free-text trio', () => {
+  it('recorded is exactly the manually reviewed family: the free-text trio and the photo of working', () => {
     const recorded = registeredBlockTypes.filter(
       (type) => blockRegistry[type].family === 'recorded',
     );
-    expect(recorded.sort()).toEqual(['essay', 'self_explanation', 'short_answer']);
+    expect(recorded.sort()).toEqual(['essay', 'photo_response', 'self_explanation', 'short_answer']);
   });
 
   it('a non-static family requires a gradeable form (isGradeable agrees)', () => {
@@ -166,6 +166,7 @@ describe('a11y stories (ruling 6.1A)', () => {
         'multiple_choice',
         'number_line',
         'ordering',
+        'photo_response',
         'self_explanation',
         'short_answer',
         'table',
@@ -321,6 +322,7 @@ describe('print declarations (faithful to the baseline print layer)', () => {
         'multiple_choice',
         'number_line',
         'ordering',
+        'photo_response',
         'problem',
         'self_explanation',
         'short_answer',

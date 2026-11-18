@@ -22,15 +22,18 @@ import {
 import {
   FREE_TEXT_TYPES,
   GRAPH_TYPES,
+  PHOTO_TYPES,
 } from '../src/server/grading/walk.js';
 import { PROMPT_CARRIER_TYPES } from '../src/sanitize/promptCarriers.js';
 
 describe('grading-walk rosters ↔ registry (A7)', () => {
-  it("FREE_TEXT_TYPES === the registry's family 'recorded'", () => {
+  it("FREE_TEXT_TYPES ∪ PHOTO_TYPES === the registry's family 'recorded'", () => {
     const recorded = registeredBlockTypes.filter(
       (type) => blockRegistry[type].family === 'recorded',
     );
-    expect([...FREE_TEXT_TYPES].sort()).toEqual([...recorded].sort());
+    expect([...FREE_TEXT_TYPES, ...PHOTO_TYPES].sort()).toEqual([...recorded].sort());
+    // Disjoint: a type in both would be inventoried twice.
+    expect([...PHOTO_TYPES].filter((t) => FREE_TEXT_TYPES.has(t))).toEqual([]);
   });
 
   it('GRAPH_TYPES === the registry types whose sanitize derives a question shape', () => {

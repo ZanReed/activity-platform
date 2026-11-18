@@ -41,6 +41,7 @@ import {
 import {
   gradeSection,
   MalformedDocumentError,
+  PhotosMismatchError,
   SectionNotFoundError,
 } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
@@ -65,6 +66,8 @@ const MAX_ITEMS = 500;
 /** Longest single free-text answer we will store. An essay block is long; a
  * megabyte is an attack on the row, not an answer. */
 const MAX_FREE_TEXT_LENGTH = 100_000;
+// maxPhotos tops out at 3 (MS-4); the grader enforces each block's own number.
+const MAX_PHOTOS_PER_BLOCK = 3;
 
 // ---- Ports ------------------------------------------------------------------
 
@@ -273,7 +276,8 @@ function countItems(responses: SectionResponses): number {
     Object.keys(responses.correspondences).length +
     Object.keys(responses.orderings).length +
     Object.keys(responses.freeText).length +
-    Object.keys(responses.graphs).length
+    Object.keys(responses.graphs).length +
+    Object.keys(responses.photos).length
   );
 }
 
@@ -306,6 +310,7 @@ export function validateResponses(
     orderings: {},
     freeText: {},
     graphs: {},
+    photos: {},
   };
 
   if (raw.blanks !== undefined) {
@@ -360,6 +365,33 @@ export function validateResponses(
     // SERVED interaction and refuses work that disagrees with it. Validating
     // the geometry twice would duplicate that authority in two places.
     responses.graphs = raw.graphs as SectionResponses['graphs'];
+  }
+
+  if (raw.photos !== undefined) {
+    // id → [{ id }], ids only (wire v4). Normalized to exactly { id }: a
+    // client-sent `removed` (or anything else) never reaches the stored row —
+    // only 0094's trigger writes `removed`. The per-block count is checked
+    // against the document by the grader; this ceiling only bounds the parse.
+    const photos = raw.photos;
+    if (photos === null || typeof photos !== 'object' || Array.isArray(photos)) {
+      return fail('responses.photos must map id → [{ id }]', 'bad_photos');
+    }
+    const out: SectionResponses['photos'] = {};
+    for (const [blockId, refs] of Object.entries(photos as Record<string, unknown>)) {
+      if (!Array.isArray(refs) || refs.length > MAX_PHOTOS_PER_BLOCK) {
+        return fail('responses.photos must map id → [{ id }]', 'bad_photos');
+      }
+      const ids: { id: string }[] = [];
+      for (const ref of refs) {
+        const id = (ref as { id?: unknown } | null)?.id;
+        if (typeof id !== 'string' || !UUID_RE.test(id)) {
+          return fail('a photo ref must be { id: uuid }', 'bad_photos');
+        }
+        ids.push({ id });
+      }
+      out[blockId] = ids;
+    }
+    responses.photos = out;
   }
 
   if (countItems(responses) > MAX_ITEMS) {
@@ -827,6 +859,11 @@ export function createCheckActivityHandler(
           code: 'unknown_section',
         });
       }
+      if (err instanceof PhotosMismatchError) {
+        return cors.errorResponse(req, 400, 'These photos don’t match this section', {
+          code: 'bad_photos',
+        });
+      }
       if (err instanceof MalformedDocumentError) {
         // The STORED DOCUMENT is structurally broken (B8/D10) — our data, not
         // their request, so a 500 is honest. The typed code is the whole
@@ -925,6 +962,26 @@ export function createCheckActivityHandler(
       if (msg.includes('dol_form_stale')) {
         return cors.errorResponse(req, 409, 'This check has changed — reload the page', {
           code: 'dol_form_stale',
+        });
+      }
+      // 0094's trigger (media-submissions.md §3.2). photos_off: the switch went
+      // off since the student added the photo. photo_not_uploaded: a ref whose
+      // bytes never arrived (the client sends ids only after the upload, so
+      // this is a broken or hand-built client). photo_not_yours / bad_photos:
+      // tampering, or a client bug — never a retry.
+      if (msg.includes('photos_off')) {
+        return cors.errorResponse(req, 409, 'Photo answers are turned off', {
+          code: 'photos_off',
+        });
+      }
+      if (msg.includes('photo_not_uploaded')) {
+        return cors.errorResponse(req, 409, 'A photo hasn’t finished uploading', {
+          code: 'photo_not_uploaded',
+        });
+      }
+      if (msg.includes('photo_not_yours') || msg.includes('bad_photos')) {
+        return cors.errorResponse(req, 400, 'These photos can’t be handed in here', {
+          code: 'bad_photos',
         });
       }
       if (msg.includes('dol_retake_not_yet')) {

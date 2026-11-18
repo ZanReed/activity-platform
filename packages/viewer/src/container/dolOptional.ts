@@ -24,6 +24,6 @@ export function dolOptionalBlockIds(doc: {
     .flatMap((c) => c.blocks ?? [])
     .filter((b) => isGradeable(b as Block)) as Array<{ id: string; type: string }>;
   return new Set(
-    gradable.slice(1).filter((b) => b.type === 'short_answer' || b.type === 'essay').map((b) => b.id),
+    gradable.slice(1).filter((b) => b.type === 'short_answer' || b.type === 'essay' || b.type === 'photo_response').map((b) => b.id),
   );
 }

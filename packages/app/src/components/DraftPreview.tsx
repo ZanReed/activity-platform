@@ -15,7 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityDocument } from '@activity/schema';
-import { ViewerContainer, createViewerStore, setVideoLink, videoLink } from '@activity/viewer';
+import { ViewerContainer, createViewerStore, photoLink, setPhotoLink, setVideoLink, videoLink } from '@activity/viewer';
 import { buildDraftPreview } from '@activity/viewer/draft-preview';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
@@ -59,7 +59,14 @@ export default function DraftPreview({
     useEffect(() => {
         const saved = videoLink;
         setVideoLink(null);
-        return () => setVideoLink(saved);
+        // The photo block likewise: in the preview it shows what students
+        // will see, and reserves and uploads nothing.
+        const savedPhoto = photoLink;
+        setPhotoLink(null);
+        return () => {
+            setVideoLink(saved);
+            setPhotoLink(savedPhoto);
+        };
     }, []);
     const seeded = ((draft.meta as { seedVars?: unknown[] }).seedVars ?? []).length > 0;
 

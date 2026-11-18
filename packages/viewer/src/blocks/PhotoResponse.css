@@ -1,0 +1,115 @@
+/* =============================================================================
+   PhotoResponse.css — the photo block's styles (media submissions slice 2)
+   -----------------------------------------------------------------------------
+   Loaded WITH the block's lazy chunk, not in the student shell: the shell CSS
+   row (scripts/perf-budgets.mjs) has no room, and none of this matters until a
+   photo question is on the page. The block renders nothing before its chunk
+   arrives, so there is no moment when its markup is up without its styles —
+   on screen or on paper. The one shell rule it keeps is its entry in
+   viewer.css's break-inside: avoid list, which tests/styles.test.ts pins to
+   the registry.
+   ============================================================================= */
+
+/* Photo of working (media submissions slice 2) */
+.viewer-photo-response__prompt {
+  margin-bottom: var(--space-2);
+}
+
+.viewer-photo-response__box {
+  display: none;
+}
+
+.viewer-photo-response__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.viewer-photo-response__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 12rem;
+}
+
+.viewer-photo-response__thumb {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line);
+  border-radius: var(--vw-radius-lg);
+  display: block;
+  height: 9rem;
+  object-fit: contain;
+  width: 12rem;
+}
+
+.viewer-photo-response__thumb--loading {
+  background: var(--vw-color-line);
+}
+
+.viewer-photo-response__progress {
+  width: 100%;
+}
+
+.viewer-photo-response__item button,
+.viewer-photo-response__add {
+  background: var(--vw-color-paper);
+  border: 1px solid var(--vw-color-line-strong);
+  border-radius: var(--vw-radius-lg);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--touch-target);
+  padding: var(--space-1) var(--space-3);
+}
+
+.viewer-photo-response__item button:disabled,
+.viewer-photo-response__add:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.viewer-photo-response__count,
+.viewer-photo-response__note,
+.viewer-photo-response__removed {
+  color: var(--vw-color-ink-muted);
+  font-size: var(--type-small);
+  margin: var(--space-1) 0 0;
+}
+
+.viewer-photo-response__count {
+  margin-left: var(--space-2);
+}
+
+.viewer-photo-response__error {
+  color: var(--state-pending-ink);
+  font-size: var(--type-small);
+  margin: 0;
+}
+
+/* On paper, and in the teacher's print preview (viewer.css D24's mirror):
+   the work box shows and the controls go. */
+:where([data-viewer-mode='print']) .viewer-photo-response__controls {
+  display: none !important;
+}
+
+:where([data-viewer-mode='print']) .viewer-photo-response__box {
+  border: 1px solid var(--vw-color-ink);
+  display: block;
+  min-height: var(--print-answer-space, 12em);
+}
+
+@media print {
+  .viewer-photo-response__controls {
+    display: none !important;
+  }
+
+  /* A photo question on paper is a work box, essay-sized by default (§8). */
+  .viewer-photo-response__box {
+    border: 1px solid var(--vw-color-ink);
+    display: block;
+    min-height: var(--print-answer-space, 12em);
+  }
+}

@@ -83,6 +83,13 @@ export const blockBindings: Partial<
   table: { loading: 'eager', component: Table as never },
   // The lazy tier: every canvas block pulls graph-kit (and JSXGraph) behind
   // it, which is exactly the weight that tier exists for.
+  // Lazy (media-submissions.md §10 slice 2): the capture, re-encode and
+  // upload code is only worth loading where a photo question exists, and the
+  // student shell has no room for it (shell-size review).
+  photo_response: {
+    loading: 'lazy',
+    load: () => import('../blocks/PhotoResponse.js') as never,
+  },
   interactive_graph: {
     loading: 'lazy',
     load: () => import('../blocks/InteractiveGraph.js') as never,

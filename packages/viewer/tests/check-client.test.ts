@@ -120,7 +120,7 @@ describe('check failures are distinguishable', () => {
         versionId: VERSION,
         sectionId: 's1',
         responses: {
-          blanks: {}, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: {},
+          blanks: {}, choices: {}, matches: {}, correspondences: {}, orderings: {}, freeText: {}, graphs: {}, photos: {},
         },
       }),
     ).rejects.toMatchObject({ kind: 'offline' });

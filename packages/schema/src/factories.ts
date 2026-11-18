@@ -45,6 +45,7 @@ import type {
   FadedWorkedExampleBlock,
   SelfExplanationBlock,
   ShortAnswerBlock,
+  PhotoResponseBlock,
   EssayBlock,
   GraphFigureBlock,
   ChartBlock,
@@ -179,6 +180,14 @@ export function createEssayBlock(): EssayBlock {
   return {
     id: uuid(),
     type: 'essay',
+    prompt: [],
+  };
+}
+
+export function createPhotoResponseBlock(): PhotoResponseBlock {
+  return {
+    id: uuid(),
+    type: 'photo_response',
     prompt: [],
   };
 }

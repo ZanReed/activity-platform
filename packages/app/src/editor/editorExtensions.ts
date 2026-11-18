@@ -53,6 +53,7 @@ import { Video } from './extensions/Video';
 import { SelfExplanation } from './extensions/SelfExplanation';
 import { ShortAnswer } from './extensions/ShortAnswer';
 import { Essay } from './extensions/Essay';
+import { PhotoResponse } from './extensions/PhotoResponse';
 import { Definition } from './extensions/Definition';
 import { Callout } from './extensions/Callout';
 import { Table, TableRow, TableCell, TableCellPara } from './extensions/Table';
@@ -193,6 +194,9 @@ export function buildEditorExtensions({
         // capture as self-explanation; graded later against a rubric.
         ShortAnswer,
         Essay,
+        // A photo of the student's handwritten working (media submissions
+        // slice 2): the third manually graded sibling, on FreeResponseView.
+        PhotoResponse,
         // Graph figure — a static picture: a coordinate plane, or (Y7) a
         // plane-less labelled geometry figure from the ```figure fence. A BODY
         // block since T7 (Q8): offered by the slash menu and the pickers, with

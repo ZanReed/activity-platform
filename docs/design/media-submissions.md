@@ -2,7 +2,8 @@
 
 **Status:** **RULED 2026-11-18** (author, all of MS-1 to MS-25). The design was
 Fable-reviewed the same day, and five factual corrections and eleven gaps were
-folded in. **Nothing is built.** Slice 1 is next (§10).
+folded in. **Slices 1 and 2 are BUILT (2026-11-18), unpushed and not applied
+live**; slice 2 pulled most of slice 4's editor half forward (§10, "As built").
 
 **The rulings in brief.** The author's guiding instruction was "where there is
 short-term pain for long-term gain, take it". Where the author ruled differently
@@ -796,13 +797,76 @@ applied before any push of UI that calls them (OV-7).
 |---|---|---|
 | **1** | **Storage and record.** Migration 0093: the `student-work` bucket and its policies, `work_photos`, `work_photo_deletions` with its trigger, `reserve_work_photo`, `photo_clearance` (off), and `verify-0093` plus `verify-student-work.sql`. The `sweep-work-photos` Edge Function (dry-run, unscheduled) and its config.toml entry and `deploy:` script. **The compliance pack goes in the same commit:** data-map rows (bucket, both tables, and the corrected Systems row, R-10), a retention-policy row, and the Q14 draft. A live deletion proof (P3), run on test objects along every path, confirming each object is gone from Storage: a direct row delete, the account purge cascade, the activity purge cascade (versions before activities), an unattached upload past 7 days, and an object with no row. | Apply 0093; deploy the sweep; create the Vault secret; send Q14 |
 | | ⚠ **Measured while building slice 1 (the e2e's G17, 2026-11-18):** a signed upload URL (`/object/upload/sign`), issued while a reservation is open, **still uploads after `photo_clearance` goes off**. Storage checks the INSERT policy when it signs, not when the URL is used. So slice 2's attach (in `record_check`) must re-read `photo_clearance` and **require the object to exist** before setting `attached_at`. Then a URL signed before attach can never place bytes under an attached key (the object exists, and an upsert needs UPDATE). | |
-| **2** | **The student block.** Schema, the sanitize registry, a lazy viewer binding, the capture and upload chunk (re-encode, EXIF guard, raw fetch, progress, retry), wire v4 `photos`, and `check-activity` validating the refs. Both server bundles are rebuilt and committed. A `SHELL_SPEND` row is added if the shell moves outside the band. | Redeploy `check-activity` and `get-activity`, verified by hash |
+| **2** | **The student block.** Schema, the sanitize registry, a lazy viewer binding, the capture and upload chunk (re-encode, EXIF guard, raw fetch, progress, retry), wire v4 `photos`, and `check-activity` validating the refs. Both server bundles are rebuilt and committed. A `SHELL_SPEND` row is added if the shell moves outside the band. **As built, plus migration 0094 and the editor node** (below). | Apply 0094; then push together with the `check-activity` and `get-activity` redeploys (wire v4), outside school hours, verified by hash |
 | **2b** | **Offline photos** (MS-6): the IndexedDB store, queue ordering (photos before their section's check), the sign-out confirm and purge, the boot sweep, the GC exception, and the data-map browser-storage row. sw-lane rows prove a photo taken offline uploads and checks after reconnect, and that sign-out leaves nothing behind. | none (app-only) |
 | **2c** | **Phone QR handoff** (MS-3, MS-24): migration for `photo_handoffs`, `start_photo_handoff` and `handoff_status`; the `photo-handoff` function (`verify_jwt: false`); the lazy `/h` route and the QR panel; the CLAUDE.md, config.toml and compliance rows; Q14(f). | Apply the migration first, then deploy `photo-handoff` with `--no-verify-jwt`, verified by hash |
-| **3** | **Teacher grading.** Migration 0094: `is_manually_graded_type` and the re-created functions, `release_check_grades` setting the 30-day `keep_until`, the queue's photo column, and the claim exclusion pinned. The queue thumbnails, the full-size view with rotate, released feedback with the photo, and the "removed" placeholder. | Apply 0094 |
-| **4** | **Editor GUI and print.** The slash entry, NodeView, shared rubric editor, numbering chain, print box, answer key, print-parity row and roster row. | none (app-only) |
+| **3** | **Teacher grading.** Migration 0095 (renumbered: slice 2 took 0094): `is_manually_graded_type` and the re-created functions, `release_check_grades` setting the 30-day `keep_until`, the queue's photo column, and the claim exclusion pinned. The queue thumbnails, the full-size view with rotate, released feedback with the photo, and the "removed" placeholder. | Apply 0095 |
+| **4** | **Editor GUI and print.** The slash entry, NodeView, shared rubric editor, numbering chain, print box, answer key, print-parity row and roster row. **Mostly done in slice 2** (below); what is left is the print-parity row in `printExpectations.ts`, the Linux print baseline, and the roster row, which waits for slice 6's `JOIN` entry. | none (app-only) |
 | **5** | **Turning it on.** Move to the Pro plan (MS-13), arm the sweep (author's yes, with a `verify` row pinning the schedule), run the cost-meter read, then the author flips `photo_clearance` once Q14 is answered. | Plan; arm; flip |
 | **6** | **Importer and catalogue** (MS-14): the fence, the prompt regeneration, capability facts, and the pin-bump PR. | Push before the pin bump |
+
+**Slice 2 as built (2026-11-18).** What changed against the plan above, and why:
+
+- **It needed a migration, 0094**, which the table did not list. Handing a
+  photo in is a database write, so it cannot live in the function alone. It is
+  a **BEFORE INSERT trigger on `section_checks`**, not a fifth re-creation of
+  `record_check`: the rule is about the row, so every insert path is covered,
+  and `record_check`'s retry savepoints roll an attach back with a lost insert.
+  The trigger re-reads `photo_clearance` and requires the object in Storage
+  (the G17 requirement; the e2e's A3 row proves the closure through the real
+  API). It stores refs normalized to `{id}`, and `{id, removed: true}` for a
+  photo retention already removed.
+- **A 30-day floor on the hand-in clock.** 0048's formula alone makes a photo
+  handed in more than 30 days after its class's year-end due immediately, so
+  the sweep would remove it before the teacher saw it.
+- **Two student reads joined:** `photo_answers_on()` (the block shows "not
+  turned on yet" up front, §6.6) and `discard_work_photo(id)` (Remove before a
+  check deletes the photo at once rather than leaving it for the 7-day clock).
+- **The split of the checks.** The handler checks SHAPE against the stored
+  document (a photo block of this section, at most `maxPhotos`, uuid ids: 400
+  `bad_photos`). The trigger checks ownership, upload and the switch.
+- **The editor node came forward from slice 4.** `serialize.ts` is exhaustive
+  over block types, and a node the editor cannot hold would be deleted by the
+  first autosave (the E5.1 trap), so the block could not land without it. It
+  shares `FreeResponseView` and the drawer's Grading, Print and Numbering
+  groups with `short_answer`, adds a "Photos allowed" select, and has a slash
+  entry, "Photo of working". Practice banks refuse it (`bankImport.ts`).
+- **The EXIF guard is measured in a real browser** (`e2e/student/
+  photo-response.e2e.ts`): a 3000×2000 JPEG with a GPS APP1 goes in; the
+  uploaded bytes have no APP1, no "Exif", a 2000 px long edge, and fit the
+  bucket. Mutation-tested (skipping the re-encode turns it red).
+- **Bytes can be replaced after hand-in; a teacher never sees them** (the
+  e2e's G18, found by the Fable review). A signed upload URL requested *with
+  upsert* before the first upload passes Storage's sign-time check (an
+  `INSERT … ON CONFLICT DO UPDATE` dry run against an absent object consults
+  only the INSERT policy), and for about two hours it can replace the object,
+  even after a check handed it in, because Storage writes with its own role. So
+  0094 records the object's Storage `version` at hand-in
+  (`work_photos.attached_object_version`), and the SELECT policy now gives the
+  teacher a photo only while the live object still carries it. A replaced
+  photo fails closed for the teacher; slice 3 must show it as "changed after it
+  was handed in", not as an error. The student still reads their own object.
+- **The switch never blocks the rest of a section.** With photos off, only a
+  photo that would be NEWLY handed in is refused; refs already attached, or
+  removed, pass. The client maps every photo refusal to its own state, "A
+  photo here can't be handed in right now. Remove it, then check again.",
+  never "try again".
+- **A failed upload gives its reservation back** (`discard_work_photo`),
+  so retries on bad Wi-Fi cannot use up the per-block cap for a week.
+- **Clearance blockers (slice 5 must not flip `photo_clearance` until these
+  are done, in 2b):** (1) Check must wait for, or confirm over, a photo still
+  uploading: today a check pressed mid-upload goes without it, and on a
+  locked, quiz or DoL section the photo can then never be handed in.
+  (2) A check that stored a photo as `removed` must tell the student, who
+  otherwise sees a thumbnail beside "Recorded". (3) The "your photo hasn't
+  been added, check anyway?" confirm.
+- **Known, small:** the hand-in ceiling `(ends_on + 30)` is midnight UTC at
+  the start of that day, the 0048 convention, so for a US class it lands
+  hours early. Sideways photos (an EXIF Orientation tag) are applied by the
+  decoder but not yet proved by a fixture.
+- **Left for slice 3:** `lib/answerText.ts` (the answer panel's families) and
+  `lib/grading.ts`'s block types do not know photos yet; the queue cannot show
+  a photo answer until 0095.
 
 **Deferred, each with its trigger** (filed in TODOS when the author rules):
 

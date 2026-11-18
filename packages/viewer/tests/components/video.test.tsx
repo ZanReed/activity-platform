@@ -291,7 +291,7 @@ describe('stopping at a pause (VP-1, VP-2)', () => {
     expect(url).toBe(CHECK_URL);
     expect(init.headers).toEqual({ Authorization: 'Bearer tok', 'Content-Type': 'application/json' });
     expect(JSON.parse(init.body as string)).toEqual({
-      wireVersion: 3, mode: 'video-pause', activityId: ACTIVITY, versionId: VERSION, blockId: 'f1', responses: RESPONSES,
+      wireVersion: 4, mode: 'video-pause', activityId: ACTIVITY, versionId: VERSION, blockId: 'f1', responses: RESPONSES,
     });
   });
 

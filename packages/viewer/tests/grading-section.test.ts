@@ -614,7 +614,7 @@ describe('wire shape', () => {
   it('stamps the wire version and echoes the section id', () => {
     const result = grade({});
     expect(result.sectionId).toBe(sectionId);
-    expect(result.wireVersion).toBe(3);
+    expect(result.wireVersion).toBe(4);
   });
 
   it('keys items by the SAME ids the request used', () => {

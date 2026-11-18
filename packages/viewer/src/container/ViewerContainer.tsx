@@ -297,6 +297,9 @@ function groupStatusLabel(status: GroupStatus, locked: boolean, tally: CheckTall
           // never the student's work — and it names the one person with a
           // path to fixing it.
           return 'Something is wrong with this activity itself — not your work. Ask your teacher to take a look.';
+        case 'photo_refused':
+          // Not "try again": the same photo would be refused again.
+          return 'A photo here can’t be handed in right now. Remove it, then check again.';
         default:
           return 'Couldn’t check — try again.';
       }

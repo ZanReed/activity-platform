@@ -142,3 +142,32 @@ export const EssayBlock = z.object({
   ...labelFields,
 });
 export type EssayBlock = z.infer<typeof EssayBlock>;
+
+// =============================================================================
+// photo_response — a photo of the student's handwritten working (Phase 2.8,
+// docs/design/media-submissions.md §3). The third manually graded sibling: it
+// carries the same teacher-only fields (rubric, answer, solution, labelFields)
+// through the same spreads, so the three cannot drift apart field by field.
+//
+// The response is NOT text: it travels in its own wire map (`photos`, check
+// wire v4) as photo ids, never bytes or paths (CLAUDE.md: a new response
+// category gets its own map). A student adds up to `maxPhotos` photos.
+//
+// maxPhotos (MS-4): 1, 2 or 3; absent = 1. The server's reserve_work_photo
+// (0093) reads it from the stored version with the same default, and the check
+// handler refuses more refs than it allows.
+// workSpace: the printed work box's height in rem, like the other two (on
+// paper the paper IS the work, §8). Absent = 12em, essay-sized.
+// =============================================================================
+
+export const PhotoResponseBlock = z.object({
+  id: z.string().uuid(),
+  type: z.literal('photo_response'),
+  prompt: z.array(InlineNode),
+  maxPhotos: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  ...answerSpace,
+  rubric: Rubric.optional(),
+  ...answerFields,
+  ...labelFields,
+});
+export type PhotoResponseBlock = z.infer<typeof PhotoResponseBlock>;

@@ -4290,6 +4290,28 @@ img.mc-block__figure-preview {
     resize: none;
 }
 
+/* photo_response: the inert stand-in for the student's "Add a photo". */
+.free-response-block__photo-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    color: var(--ed-faint);
+    background-color: var(--ed-surface-2);
+    border: 1px dashed var(--ed-border-strong);
+    border-radius: 0.25rem;
+}
+
+.free-response-block__photo-preview button {
+    font: inherit;
+    padding: 0.25rem 0.6rem;
+    color: var(--ed-faint);
+    background: none;
+    border: 1px solid var(--ed-border-strong);
+    border-radius: 0.25rem;
+}
+
 .free-response-block__wordhint,
 .free-response-block__rubric-summary {
     margin-top: 0.3rem;

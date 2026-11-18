@@ -64,15 +64,16 @@ select 'storage_policies_insert_and_select_only',
                     and with_check ilike '%work_photo_reserved(name)%')
        and exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
                     and policyname = 'student_work_select_owner_or_grader' and cmd = 'SELECT'
-                    and qual ilike '%work_photo_readable(name)%')
+                    and qual ilike '%work_photo_readable(name%')
        and not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
                         and cmd in ('UPDATE', 'DELETE', 'ALL')
                         and (coalesce(qual, '') ilike '%student-work%'
                              or coalesce(with_check, '') ilike '%student-work%')),
        'student-work has exactly an INSERT (reservation) and a SELECT (owner/grader) policy; no UPDATE, no DELETE';
 select 'readable_never_uses_can_read_activity',
-       pg_get_functiondef('public.work_photo_readable(text)'::regprocedure) not ilike '%can_read_activity%'
-       and pg_get_functiondef('public.work_photo_readable(text)'::regprocedure) ilike '%can_edit_activity%',
+       -- (text, text) since 0094 bound the teacher's read to the handed-in version
+       pg_get_functiondef('public.work_photo_readable(text, text)'::regprocedure) not ilike '%can_read_activity%'
+       and pg_get_functiondef('public.work_photo_readable(text, text)'::regprocedure) ilike '%can_edit_activity%',
        'the teacher branch is can_edit_activity, never the widenable read helper (0034 G3)';
 -- The retention alarm (Fable review 2026-11-18): retention rests on a nightly
 -- job, so a broken job must turn a row red rather than go unseen. Green
@@ -279,7 +280,14 @@ begin
     execute 'reset role'; raise exception 'FAIL B6: the teacher reads an unattached photo';
   end if;
   execute 'reset role';
-  update work_photos set attached_at = now() where id = v_p2;
+  -- A hand-in as 0094's trigger makes it: attached, with the object's version
+  -- recorded (a fixture object inserted in SQL has none, so it gets one first).
+  update storage.objects set version = coalesce(version, gen_random_uuid()::text)
+   where bucket_id = 'student-work' and name = v_name2;
+  update work_photos w set attached_at = now(),
+         attached_object_version = (select o.version from storage.objects o
+                                     where o.bucket_id = 'student-work' and o.name = w.object_name)
+   where w.id = v_p2;
   execute 'set local role authenticated';
   if not exists (select 1 from storage.objects where bucket_id = 'student-work' and name = v_name2) then
     execute 'reset role'; raise exception 'FAIL B6: the owning teacher cannot read an attached photo';
