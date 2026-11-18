@@ -280,34 +280,62 @@ privacy page must say first, and whether the answer differs for students under 1
 if that one isn't sent first.)*
 
 **Q14 — DRAFT, not yet sent. Photos of students' handwritten working
-(media-submissions.md, ruled 2026-11-18; migration 0093).** The platform will let
-a student photograph their working on paper and attach it to a question, so the
-teacher can grade it. The storage is built and no student can use it yet: a
+(media-submissions.md, ruled 2026-11-18; migrations 0093–0098).** The platform will
+let a student photograph their working on paper and attach it to a question, so
+the teacher can grade it. The storage is built and no student can use it yet: a
 server setting keeps it off, and it stays off until this question is answered.
+
+**Who the platform is to the school** (this decides most of what follows). A
+teacher signs up, confirms they are an educator authorised by their school
+(3.2, Q2), and enrols their own class; that enrolment, on the school's behalf and
+for education only, is what permits collection from students (Q1). **No school
+or district has a contract with the platform today.** The platform is operated
+by ⟨AUTHOR TO FILL: you personally, or a legal entity, and where it is
+based⟩. Users today are in New Zealand and the United States
+(⟨AUTHOR TO FILL: which US states⟩).
+
 What the platform does with a photo:
-- The platform's app shrinks and re-saves every photo on the student's device
-  before upload, which removes the metadata a phone attaches, including GPS
-  location. (Someone bypassing the app could upload a photo with its metadata,
-  but only into their own question's slot.)
-- The photo is kept in a private store. Only the student and, once the student
-  hands it in, the teacher who owns the activity can see it. Nothing is public,
-  and no other teacher, school or third party receives it.
-- It is deleted **30 days after the student's grade on it is released**. If the
-  grade is never released, it is deleted at the end of the school year plus 30
-  days (never later than 400 days); a photo that is never handed in goes after
-  7 days. The grade and written feedback stay.
-- A copy may wait on the student's device while it is offline, until it uploads
-  or the student signs out (sign-out deletes it).
-- A student may also send a photo from a phone by scanning a code on their
-  screen. The phone doesn't sign in; the code lets someone upload into that one
-  question for 10 minutes and can read nothing.
+- **Where it is held.** The photo is stored with Supabase, the platform's
+  database and storage provider, which runs on Amazon Web Services in the
+  **us-east-2 region (Ohio, USA)**. Supabase and AWS store and process it only
+  for the platform. The operator can technically read the store (with the
+  project's service key); no other teacher, school or outside company
+  receives it, and nothing about it is public.
+- **Who can see it in the app.** Only the student and, once the student hands
+  it in, the teacher who owns the activity.
+- **Metadata.** The platform's app shrinks and re-saves every photo on the
+  student's device before upload, which removes the metadata a phone attaches,
+  including GPS location. On the phone path below, the server also removes it.
+  On the main path the server does not yet: someone bypassing the app could
+  store a photo with its metadata, though only in their own question's slot.
+- **How long it is kept.** It is deleted **30 days after the student's grade
+  on it is released**. If the grade is never released, it is deleted at the end
+  of the school year plus 30 days (never later than 400 days); a photo that is
+  never handed in goes after 7 days. The grade and written feedback stay.
+  On the Supabase Pro plan (moving there before February), daily database
+  backups keep the photo's RECORD (who, which question, when; not the image)
+  for up to 7 days after deletion. Storage files are not part of those backups,
+  so the image itself is gone when the sweep removes it.
+- **On the device.** A copy may wait on the student's device while it is
+  offline, until it uploads or the student signs out (sign-out deletes it).
+- **From a phone.** A student may also send a photo from a phone by scanning a
+  code on their screen. The phone doesn't sign in; the code lets someone
+  upload into that one question for 10 minutes and can read nothing.
+- **Notice.** At the point of capture the student sees: "Photograph only your
+  working. Keep faces and names out of the picture."
 
 Please answer:
 - **(a)** A photo may incidentally show a face, hands, a home or another
   student's name. Is the posture above sufficient for this new kind of data?
-- **(b)** Does the answer differ for classes that include students under 13?
+  Is the one-line notice at capture enough, or must families be told more
+  directly, and where?
+- **(b)** Does the answer differ for classes that include students under 13
+  (COPPA treats a photo showing a child as personal information), or for any
+  US state's student-privacy law that applies whatever the student's age?
 - **(c)** Teachers' views of a photo are not logged, the same as for typed
-  answers today. Is that acceptable?
+  answers today. Is that acceptable? Separately: should OPERATOR access (the
+  service key, any support access) be logged, and is that what a school would
+  expect to ask about?
 - **(d) Reading a photo's text with AI to help the teacher grade (not built;
   drafted 2026-11-19).** Today no photo, and nothing taken from one, goes to
   any AI service. We would like a later version to turn the handwriting in a
@@ -339,8 +367,11 @@ Please answer:
      outside AI company.
 
   Please answer:
-  - **(d1)** Does option 1 need anything beyond the posture in (a)? We assume
-    not, since no third party receives anything, but please confirm.
+  - **(d1)** Option 1 adds no new third party (the storage providers named
+    above still hold the photo, as they do today). Does it need anything
+    beyond the posture in (a)? The photo would move from cloud storage to a
+    physical machine: we would give it disk encryption, physical security and
+    the same deletion clock.
   - **(d2)** For options 2–4: is sending the photo, or the text read from it,
     to an outside company a disclosure of student records that needs its own
     basis (a school's authorisation or contract, a data processing agreement
@@ -354,14 +385,22 @@ Please answer:
     provider processes the data change the answer?
   - **(d4)** Does any answer differ for classes that include students under
     13?
-  - **(d5)** If a provider's terms allow it, may we strip or blur a name the
-    student wrote on the page before sending (we cannot promise to catch every
-    one), and would that change any answer above?
+  - **(d5)** We would blur a name the student wrote on the page on OUR side,
+    before anything is sent (we cannot promise to catch every one, and the
+    work itself can still identify the student). Would that change any answer
+    above, or is it data minimisation only?
   - **(d6)** Do teachers, students or families need to be told that AI helps
     with grading, even in option 1? If so, where (the teacher's terms, the
     privacy page, the class join screen)?
-- **(e)** No automated content scanning is planned. Only the owning teacher sees
-  a photo. Does a school's duty of care call for a "report this image" path?
+- **(e)** No automated content scanning is planned, and only the owning teacher
+  sees a photo. We assume no law requires scanning. The open part is what
+  happens when a teacher sees something that suggests abuse, or a student
+  uploads explicit imagery: today the photo would be deleted on schedule. Do we
+  need (i) a "flag to the platform" action for the teacher, (ii) a hold that
+  stops the deletion clock for a flagged photo, (iii) a written operator
+  procedure for reporting (NCMEC in the US, the Department of Internal Affairs
+  in New Zealand), and (iv) guidance that teachers follow their school's
+  child-protection policy rather than download or forward anything?
 - **(f)** Is the phone upload with no sign-in (bound to a 10-minute code tied to
   one student and one question) acceptable, including for students under 13?
   As built (migration 0095): the code is 256 random bits, kept only as a hash,
@@ -370,7 +409,17 @@ Please answer:
   is shown the activity's title and the question, never the student's name.
   The server removes all photo metadata (including GPS location) before
   storing. It is refused in a quiz or an exam, and the student sees every photo
-  that arrives and can remove it.
+  that arrives and can remove it. Known residue: the phone may be a parent's,
+  and its camera roll keeps the photo outside our control; a QR-scanner app
+  may log the full link (the 10-minute expiry limits that).
+- **(g) Moderation (New Zealand, NCEA).** If a photo is evidence for an
+  internally assessed standard, schools must keep assessment material
+  available for external moderation, often until the end of the year. Deleting
+  30 days after the grade is released could remove the only copy. Is it enough
+  to give the teacher a "keep for moderation" or "export" action (which would
+  extend the clock to the end of the school year, or hand the teacher a copy
+  they then hold under the school's policy), or does the platform need to
+  change its default?
 
 ## 6. What this packet deliberately does not do
 
