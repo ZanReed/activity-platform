@@ -627,6 +627,7 @@ function ClassCard({
 }
 
 const TimezoneControl = lazy(() => import('../components/TimezoneControl'));
+const PhotoStorageLine = lazy(() => import('../components/PhotoStorageLine'));
 
 export default function Classes() {
     const { session, role } = useSession();
@@ -751,6 +752,11 @@ export default function Classes() {
             <div className="mt-2">
             <Suspense fallback={null}>
             <TimezoneControl />
+            </Suspense>
+            {/* MS-13: the teacher's own photo storage (0098). Its own
+                boundary, so a failed chunk never takes the zone control. */}
+            <Suspense fallback={null}>
+            <PhotoStorageLine />
             </Suspense>
             </div>
         )}

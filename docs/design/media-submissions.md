@@ -1118,8 +1118,15 @@ stay off; these are the pieces the author's steps need.
   task now reads photo count, stored bytes (vs Pro's 100 GB), the top five
   teachers by bytes (counts only, no ids) and verify-0093's overdue alarm. Its
   old rule flagged every `prune_*` job; it now expects the two armed prunes.
-- **Open, the author's call:** the design puts the meter on "the teacher's
-  settings page", and there is no such page.
+- **The meter, the teacher's half (ruled 2026-11-19: a line on My classes,
+  since there is no settings page).** 0098's `my_work_photo_usage()` gives the
+  caller's own count and bytes; `PhotoStorageLine` (lazy, beside the time-zone
+  control, teachers only) reads "Students' photos of working: 12 photos, 4.2 MB
+  stored. Kept until 30 days after a grade is released, and never past the end
+  of the school year." It counts STORED photos only (an abandoned reservation
+  is not one), shows nothing until a photo exists, and nothing on a failed
+  read. Fable review: the first draft counted reservations and claimed the
+  30-day rule for photos it does not cover (unattached, never released).
 
 **Slices 4 and 6 as built (2026-11-19).** No migration and no deploy.
 

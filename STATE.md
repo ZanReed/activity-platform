@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6 + 0097 LIVE). Before Feb: Pro, Q14, pg_net + Vault, arm sweep, live deletion proof, flip clearance, HELD pin bump.
+**Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0098 LIVE). Before Feb: Pro, Q14, pg_net + Vault, arm sweep, live deletion proof, flip clearance, HELD pin bump.
 
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 

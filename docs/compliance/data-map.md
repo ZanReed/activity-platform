@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-19-draft-65`. Mirrors migrations 0001–**0097**, verified
+> Version `2026-11-19-draft-66`. Mirrors migrations 0001–**0098**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-66` (2026-11-19) — 0098 adds no table or column: a teacher sees their OWN photo storage.** `my_work_photo_usage()` returns, for the caller's own activities only, how many photos students stored (reservations never uploaded are not counted), how many a check handed in, and their total size (from Storage's own metadata). Counts and bytes only: no photo, student or activity is named. Shown as one line on My classes, and only once a photo exists.
 >
 > **`draft-65` (2026-11-19) — 0097 adds no table or column and changes no data flow.** It only changes what the teacher's "to grade" counts and the Responses queue list: a photo question a student's check left empty is not counted while photo answers are off, except in a DoL section (`hand_grade_owed`). `class_student_work` also returns whether photo answers are on (`photos_on`, a platform setting, not personal data).
 >
