@@ -2,8 +2,9 @@
 
 **Status:** **RULED 2026-11-18** (author, all of MS-1 to MS-25). The design was
 Fable-reviewed the same day, and five factual corrections and eleven gaps were
-folded in. **Slices 1, 2, 2b and 2c are BUILT (2026-11-18), unpushed and not
-applied live**; slice 2 pulled most of slice 4's editor half forward (§10, "As
+folded in. **Slices 1, 2, 2b and 2c are BUILT and LIVE (2026-11-18)**: 0093–0095
+applied, all four functions deployed and hash-verified, CI green.
+`photo_clearance` is still OFF, so no student can add a photo yet (slice 5); slice 2 pulled most of slice 4's editor half forward (§10, "As
 built"). Slice 2b closed the three clearance blockers; slice 2c is the phone QR
 handoff (migration 0095, the `photo-handoff` function).
 
