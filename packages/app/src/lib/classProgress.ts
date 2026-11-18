@@ -101,6 +101,8 @@ export interface WorkSection {
 
 export interface StudentWork {
     student: { id: string; name: string };
+    /** Whether photo answers are on (0097). Absent (before 0097) reads as on. */
+    photos_on?: boolean;
     activity: { id: string; title: string; current_version_id: string | null };
     versions: { version_id: string; version_num: number; is_current: boolean; sections: WorkSection[] }[];
 }
@@ -404,4 +406,21 @@ export function clockTime(d: Date, now: Date = new Date()): string {
     const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     if (d.toDateString() === now.toDateString()) return time;
     return `${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`;
+}
+
+/** 0097's hand_grade_owed, for the panel's own count: a photo answer that
+ *  holds no photo is not owed while photo answers are off (no student could
+ *  answer it), except in a DoL section. Every other hand-graded answer is
+ *  owed, blank or not. */
+export function photoAnswerNotOwed(
+    blockType: string | undefined,
+    blockId: string,
+    responses: unknown,
+    photosOn: boolean | undefined,
+    inDol = false,
+): boolean {
+    // In a DoL section it stays owed: the retake waits on attempt 1's grade.
+    if (blockType !== 'photo_response' || photosOn !== false || inDol) return false;
+    const photos = (responses as { photos?: Record<string, unknown> } | null)?.photos?.[blockId];
+    return !Array.isArray(photos) || photos.length === 0;
 }

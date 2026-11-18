@@ -1058,12 +1058,25 @@ no function change beyond the two bundles' rebuild (a shared constant).
   through the RPC); an absent photo key and an empty list read as different;
   some unavailable-photo lines gave a reason that might be untrue; the viewer
   never enlarged a small photo, overflowed when sideways, had no focus trap,
-  and could index past a shortened list. Open, the author's call: while
-  `photo_clearance` is off, a published photo question counts as "to grade"
-  with no way for a student to answer it.
+  and could index past a shortened list. While `photo_clearance` was off, a published photo
+  question counted as "to grade" with no way for a student to answer it.
+  **Ruled 2026-11-19: it does not count** (0097, below).
 - **Found by the e2e:** the viewer heard Escape only on its own element, and
   "Next" on the last photo disables and drops focus to the page, so the view
   could not be closed from the keyboard; keys now listen on the document.
+
+**0097, an empty photo answer is not owed while answers are off (ruled
+2026-11-19).** `hand_grade_owed(type, check, block, photos_on, in_dol)` is the
+rule: a hand-graded type, except a photo answer holding no photo while
+`photo_clearance` is off, outside a DoL section. In a DoL section it stays
+owed, because a rubric-primary retake opens only once attempt 1's grade is
+released (0070, 0072); dropping it would strand the retake (Fable review). `activity_progress`, `class_progress` and
+`list_grading_queue` ask it (the queue keeps an answer that already has a
+grade); `class_student_work` returns `photos_on` so the student answer panel
+counts the same way and badges the answer "Photos off". A photo answer that
+holds photos is still owed with answers off, and an empty one is owed again
+once they are on, like a blank essay. Accepted edge: an empty answer checked
+while off counts once answers go on. verify-0097 (mutation-tested).
 
 **Slices 4 and 6 as built (2026-11-19).** No migration and no deploy.
 

@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-19-draft-64`. Mirrors migrations 0001–**0096**, verified
+> Version `2026-11-19-draft-65`. Mirrors migrations 0001–**0097**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-65` (2026-11-19) — 0097 adds no table or column and changes no data flow.** It only changes what the teacher's "to grade" counts and the Responses queue list: a photo question a student's check left empty is not counted while photo answers are off, except in a DoL section (`hand_grade_owed`). `class_student_work` also returns whether photo answers are on (`photos_on`, a platform setting, not personal data).
 >
 > **`draft-64` (2026-11-19) — 0096 adds no table or column: the teacher GRADES photos (media submissions slice 3).** A photo of working joins the hand-graded types (`is_manually_graded_type`), so it reaches the Responses queue (`list_grading_queue` now returns the photo **ids** a check handed in, `response_photos`) and the class-progress "to grade" counts. The teacher sees the photos through 10-minute signed URLs, as before only for photos a check handed in and only while their bytes are the handed-in ones; a new read, `work_photo_states`, tells the activity's editor only WHETHER each photo can be shown (removed, or changed after hand-in) and nothing more. **Releasing a grade now starts the photo's 30-day clock** (`release_check_grades` sets `keep_until` to at most release + 30 days), the retention ruling MS-10 that draft-60 promised. Teacher reads of a photo are still not audited (counsel Q14(c)). The AI grading claim still selects text answers only: no photo is sent to the grading worker. The range moves to 0096.
 >

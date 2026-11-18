@@ -657,6 +657,47 @@ describe('the answer panel (CP-3, CP-7)', () => {
         expect(rows.find((r) => r.includes('Done.'))).toContain('Graded');
     });
 
+    // 0097 (author ruling 2026-11-19): while photo answers are off, a photo
+    // answer holding no photo is not owed; one holding photos still is.
+    it.each([
+        [false, '1 to grade in Fractions 2', 'Photos off'],
+        [true, '2 to grade in Fractions 2', 'To grade'],
+        [undefined, '2 to grade in Fractions 2', 'To grade'], // before 0097: reads as on
+    ])('photos_on %s: an empty photo answer reads "%s" / "%s"', async (photosOn, chipName, emptyWord) => {
+        const schema = await import('@activity/schema');
+        const doc = schema.createEmptyDocument();
+        const empty = schema.createPhotoResponseBlock();
+        const held = schema.createPhotoResponseBlock();
+        doc.sections[0]!.rows[0]!.columns[0]!.blocks = [empty, held];
+        const sid = doc.sections[0]!.id;
+        api.fetchStudentWork.mockResolvedValue({
+            student: { id: 's1', name: 'Ana Lee' },
+            activity: { id: A1, title: 'Fractions 2', current_version_id: 'v1' },
+            ...(photosOn === undefined ? {} : { photos_on: photosOn }),
+            versions: [{ version_id: 'v1', version_num: 1, is_current: true, sections: [{
+                section_id: sid, attempts: 1, attempt_number: 1, checked_at: '2027-02-09T09:41:00Z',
+                responses: { photos: { [held.id]: [{ id: 'p-1' }] } },
+                verdicts: { [empty.id]: { verdict: 'recorded' }, [held.id]: { verdict: 'recorded' } },
+                graded_block_ids: [],
+            }] }],
+        });
+        api.fetchVersionContents.mockResolvedValue(new Map([['v1', { version_num: 1, content: doc }]]));
+        const ctx = { hideNames: false, nameOf: (_: string, n: string) => n, classId: 'class-1', closeTo: '/classes/class-1/progress' };
+        render(
+            <MemoryRouter initialEntries={[`/classes/class-1/progress/s1/${A1}`]}>
+                <Routes>
+                    <Route path="/classes/:classId/progress" element={<Outlet context={ctx} />}>
+                        <Route path=":studentId/:activityId" element={<AnswerPanel />} />
+                    </Route>
+                </Routes>
+            </MemoryRouter>,
+        );
+        expect(await screen.findByRole('link', { name: chipName })).toBeTruthy();
+        const rows = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+        expect(rows.find((r) => r.includes('(no answer)'))).toContain(emptyWord);
+        expect(rows.find((r) => r.startsWith('Q2'))).toMatch(/Photo.*To grade/);
+    });
+
     async function renderSeeded(doc: unknown, blockId: string, sid: string) {
         api.fetchStudentWork.mockResolvedValue({
             student: { id: 's1', name: 'Ana Lee' },

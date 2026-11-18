@@ -34,6 +34,7 @@ import {
     fetchMisconceptionDescriptions,
     fetchStudentWork,
     fetchVersionContents,
+    photoAnswerNotOwed,
     responsesHref,
     type StudentWork,
 } from '../lib/classProgress';
@@ -217,11 +218,16 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                     const block = served.index.byItem[itemId]?.block;
                                     return isManuallyGraded(block?.type);
                                 };
+                                // 0097: an empty photo answer while photo answers are off is not owed.
+                                const notOwed = (itemId: string, responses: unknown) => {
+                                    const block = served.index.byItem[itemId]?.block;
+                                    return photoAnswerNotOwed(block?.type, block?.id ?? itemId, responses, work.photos_on, s.section_id === dolSectionId(served));
+                                };
                                 // "N to grade" is always the LATEST attempt's, whatever is on screen.
                                 // A blank or omitted essay has NO verdict (the grader writes none),
                                 // yet Responses queues it and the grid counts it: so does this.
                                 for (const line of sectionAnswerLines(latestDoc, s.section_id, s.responses, s.verdicts)) {
-                                    if (handGradedLine(line.itemId) && !dolOptionalBlockIds(served.doc).has(line.itemId) && !s.graded_block_ids.includes(line.itemId)) toGrade += 1;
+                                    if (handGradedLine(line.itemId) && !dolOptionalBlockIds(served.doc).has(line.itemId) && !s.graded_block_ids.includes(line.itemId) && !notOwed(line.itemId, s.responses)) toGrade += 1;
                                 }
                                 const lines = sectionAnswerLines(shownDoc, s.section_id, shown.responses, shown.verdicts);
                                 const optionalIds = dolOptionalBlockIds(served.doc);
@@ -232,7 +238,8 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                     // The D77 optional explanation is never owed: the count above
                                     // already skips it, and so must its badge (playtest sweep 2026-11-12).
                                     const optional = handGraded && optionalIds.has(line.itemId);
-                                    return { line, handGraded, graded, optional };
+                                    const photosOff = handGraded && !graded && notOwed(line.itemId, shown.responses);
+                                    return { line, handGraded, graded, optional, photosOff };
                                 });
                                 return (
                                     <div key={s.section_id} className="mb-3">
@@ -271,13 +278,14 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                             <p className="text-sm text-muted">Nothing to answer in this section.</p>
                                         ) : (
                                             <ul>
-                                                {rows.map(({ line, handGraded, graded, optional }) => (
+                                                {rows.map(({ line, handGraded, graded, optional, photosOff }) => (
                                                     <AnswerRow
                                                         key={line.itemId}
                                                         line={line}
                                                         handGraded={handGraded}
                                                         graded={graded}
                                                         optional={optional}
+                                                        photosOff={photosOff}
                                                         describe={(id) => descriptions.get(id) ?? null}
                                                     />
                                                 ))}
@@ -317,11 +325,14 @@ export function verdictWords(
     handGraded: boolean,
     graded: boolean,
     optional = false,
+    photosOff = false,
 ): { glyph: string; word: string } {
     if (line.verdict === 'correct') return { glyph: '✓', word: 'Right' };
     if (line.verdict === 'incorrect') return { glyph: '✗', word: 'Wrong' };
     if (handGraded && graded) return { glyph: '●', word: 'Graded' };
     if (handGraded && optional) return { glyph: '·', word: 'Optional' };
+    // 0097: an empty photo answer while photo answers are off is not owed.
+    if (handGraded && photosOff) return { glyph: '·', word: 'Photos off' };
     if (handGraded) return { glyph: '○', word: 'To grade' };
     if (line.verdict === 'recorded') return { glyph: '·', word: 'Recorded' };
     return { glyph: '·', word: 'Not marked' };
@@ -332,15 +343,17 @@ function AnswerRow({
     handGraded,
     graded,
     optional,
+    photosOff,
     describe,
 }: {
     line: AnswerLine;
     handGraded: boolean;
     graded: boolean;
     optional: boolean;
+    photosOff: boolean;
     describe: (id: string) => string | null;
 }) {
-    const v = verdictWords(line, handGraded, graded, optional);
+    const v = verdictWords(line, handGraded, graded, optional, photosOff);
     return (
         <li className="cp-answer text-sm">
             <div className="flex items-baseline gap-3">
