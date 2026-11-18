@@ -8,7 +8,7 @@
 // bundle must not carry the grader.
 // =============================================================================
 
-import { isGradeable, type Block } from '@activity/schema';
+import { isGradeable, isManuallyGraded, type Block } from '@activity/schema';
 
 export interface DolPrimary {
   readonly block: Record<string, unknown>;
@@ -35,7 +35,7 @@ export function dolPrimary(doc: unknown, sectionId: string): DolPrimary | null {
       for (const block of column.blocks ?? []) {
         if (block && typeof block === 'object' && isGradeable(block as Block)) {
           const b = block as Record<string, unknown>;
-          return { block: b, rubric: b.type === 'short_answer' || b.type === 'essay' || b.type === 'photo_response' };
+          return { block: b, rubric: isManuallyGraded((block as Block).type) };
         }
       }
     }

@@ -65,7 +65,10 @@ function docNeedsSeeding(doc: ActivityDocument): boolean {
 export const ANSWER_NOT_SHOWN = '(answer not shown)';
 export const NO_ANSWER = '(no answer)';
 
-/** The seven response maps of a check (wire.ts SectionResponses), by name. */
+/** The eight response maps of a check (wire.ts SectionResponses), by name.
+ *  `photos` joined at wire v4 (media submissions): its value is a list of
+ *  photo ids, shown here as a label ("Photo", "2 photos"), never a thumbnail
+ *  (MS-19: thumbnails live in the Responses queue only). */
 export type AnswerFamily = keyof SectionResponses;
 export const ANSWER_FAMILIES: readonly AnswerFamily[] = [
     'blanks',
@@ -75,6 +78,7 @@ export const ANSWER_FAMILIES: readonly AnswerFamily[] = [
     'orderings',
     'freeText',
     'graphs',
+    'photos',
 ];
 
 /** What one student was served for one version: prose with their numbers, and
@@ -229,6 +233,7 @@ const BLOCK_FAMILY: Partial<Record<string, AnswerFamily>> = {
     self_explanation: 'freeText',
     short_answer: 'freeText',
     essay: 'freeText',
+    photo_response: 'photos',
     interactive_graph: 'graphs',
     number_line: 'graphs',
     data_plot: 'graphs',
@@ -450,6 +455,11 @@ export function answerWords(place: ItemPlace | null, family: AnswerFamily | null
     if (family === 'blanks' || family === 'freeText') {
         if (typeof value !== 'string') return ANSWER_NOT_SHOWN;
         return value.trim() === '' ? NO_ANSWER : value.trim();
+    }
+    if (family === 'photos') {
+        if (!Array.isArray(value)) return ANSWER_NOT_SHOWN;
+        if (value.length === 0) return NO_ANSWER;
+        return value.length === 1 ? 'Photo' : `${value.length} photos`;
     }
     if (!place || !family) return ANSWER_NOT_SHOWN;
     let words: string | null = null;

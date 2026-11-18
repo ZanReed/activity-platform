@@ -92,6 +92,7 @@ const BASE: GradingQueueRow = {
   block_id: 'blk-1',
   block_type: 'short_answer',
   response_text: 'because the slope stays the same',
+  response_photos: null,
   attempt_number: 1,
   checked_at: '2026-08-15T00:00:00Z',
   graded: false,

@@ -130,9 +130,11 @@ export {
   isPageNumbered,
   isPageNumberedType,
   isGradeable,
+  isManuallyGraded,
+  MANUALLY_GRADED_TYPES,
   pageLabel,
 } from './block-predicates.js';
-export type { PageLabel } from './block-predicates.js';
+export type { PageLabel, ManuallyGradedType } from './block-predicates.js';
 
 // Per-block display label (numbering/label decouple)
 export { BlockLabel, labelFields } from './label.js';

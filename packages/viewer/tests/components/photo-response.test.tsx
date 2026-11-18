@@ -31,6 +31,7 @@ import PhotoResponse, {
   ADD_PHOTO_LABEL,
   PHOTOS_OFF_TEXT,
   PREVIEW_TEXT,
+  REMOVED_AFTER_RELEASE_TEXT,
 } from '../../src/blocks/PhotoResponse.js';
 import { PhotoError } from '../../src/blocks/photoUpload.js';
 import { setPhotoLink } from '../../src/blocks/photoLinkSeam.js';
@@ -229,6 +230,24 @@ describe('photo_response', () => {
     const { store } = mount();
     act(() => store.setPhotos(BLOCK.id, [{ id: PHOTO }]));
     expect(await screen.findByText('This photo has been removed.')).toBeTruthy();
+  });
+
+  it('once the grade has come back, a removed photo says it went 30 days after (MS-10)', async () => {
+    live();
+    upload.signPhotos.mockResolvedValueOnce({ [PHOTO]: null });
+    const service = createMockCheckService();
+    service.fetchReleasedFeedback = async () => ({
+      graded: true,
+      blocks: {
+        [BLOCK.id]: { criteria: [], attemptNumber: 1, activityVersionId: VERSION, stale: false, hasGrader: true },
+      },
+    });
+    const { store } = mount(BLOCK, service);
+    await act(async () => {
+      await store.loadReleasedFeedback();
+      store.setPhotos(BLOCK.id, [{ id: PHOTO }]);
+    });
+    expect(await screen.findByText(REMOVED_AFTER_RELEASE_TEXT)).toBeTruthy();
   });
 
   it('prints a work box and none of the controls', () => {

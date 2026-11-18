@@ -6,6 +6,7 @@
 // chunk as soon as its queue arrives. Rulings: see the page's header comment.
 // =============================================================================
 
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   NEXT_COPY,
@@ -23,6 +24,7 @@ import { DOL_PASS_COPY, baseLevelMet, setDolPass, type DolPassRow } from '../lib
 // renaming it out of the build manifest the journey budget reads.
 import type * as GradingAssist from '../lib/gradingAssist';
 import type { RejectReason, RubricCriterionSpec, SuggestionRow } from '../lib/gradingAssist';
+
 
 /** What this panel uses from lib/gradingAssist, passed in by the page. */
 export type AssistApi = Pick<
@@ -75,6 +77,7 @@ function gradeSnapshot(
 export default function GradePanel({
   row,
   activityId,
+  photoSlot,
   suggestion,
   rubric,
   question,
@@ -88,6 +91,11 @@ export default function GradePanel({
 }: {
   row: GradingQueueRow;
   activityId: string;
+  /** A photo of working's photos, drawn by the route (slice 3). A SLOT, not an
+   *  import: if this panel imported the photo modules the route also imports,
+   *  Rollup would fold the route into a shared chunk (the perf budget's
+   *  "responses" journey caught it). Absent = the student sent no photo. */
+  photoSlot?: ReactNode;
   suggestion: SuggestionRow | undefined;
   rubric: RubricCriterionSpec[] | null;
   /** "Q13 · Explain to Tama why…", or null while the document is unread. */
@@ -324,7 +332,11 @@ export default function GradePanel({
       {/* DR-1: the response comes FIRST — a teacher who reads the draft
           before the work is a teacher whose edit-rate stops meaning much. */}
       <div className="mt-2 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink">
-        {row.response_text ?? <em className="text-muted">{COPY.noAnswer}</em>}
+        {row.block_type === 'photo_response' ? (
+          (photoSlot ?? <em className="text-muted">{COPY.noAnswer}</em>)
+        ) : (
+          row.response_text ?? <em className="text-muted">{COPY.noAnswer}</em>
+        )}
       </div>
 
       {display.kind === 'abstain' && (

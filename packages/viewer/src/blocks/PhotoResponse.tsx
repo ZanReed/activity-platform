@@ -66,6 +66,9 @@ export const USE_PHONE_LABEL = 'Use my phone';
 export const PHOTOS_OFF_TEXT = 'Your teacher hasn’t turned photo answers on yet.';
 export const PREVIEW_TEXT = 'Students add a photo of their working here.';
 export const REMOVED_TEXT = 'This photo has been removed.';
+/** A photo removed by its clock once the grade came back (MS-10, slice 3):
+ *  photos are kept 30 days after the teacher releases the grade. */
+export const REMOVED_AFTER_RELEASE_TEXT = 'This photo was removed 30 days after your grade came back.';
 export const WAITING_TEXT = 'Saved on this device. It will upload when you’re back online.';
 export const LOST_TEXT = 'This photo didn’t stay on this device. Remove it and add it again.';
 export const NOT_HANDED_IN_TEXT =
@@ -250,7 +253,11 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
                     {url ? (
                       <img className="viewer-photo-response__thumb" src={url} alt={`Photo ${i + 1} of your working`} />
                     ) : url === null || ref.removed ? (
-                      <p className="viewer-photo-response__removed">{REMOVED_TEXT}</p>
+                      <p className="viewer-photo-response__removed">
+                        {/* The release reason only for a photo the check really handed in
+                            (a `removed` ref was already gone at hand-in). */}
+                        {feedback && !ref.removed ? REMOVED_AFTER_RELEASE_TEXT : REMOVED_TEXT}
+                      </p>
                     ) : (
                       <div className="viewer-photo-response__thumb viewer-photo-response__thumb--loading" aria-label="Loading photo" />
                     )}

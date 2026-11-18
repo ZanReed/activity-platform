@@ -120,6 +120,10 @@ describe('answerWords — every family as words (D2)', () => {
     it('a missing or empty answer reads "(no answer)"', () => {
         expect(answerWords(place(blankA.id), 'blanks', undefined)).toBe(NO_ANSWER);
         expect(answerWords(place(short.id), 'freeText', '   ')).toBe(NO_ANSWER);
+        // A photo of working is a label, never a thumbnail (MS-19).
+        expect(answerWords(null, 'photos', [{ id: 'p1' }])).toBe('Photo');
+        expect(answerWords(null, 'photos', [{ id: 'p1' }, { id: 'p2', removed: true }])).toBe('2 photos');
+        expect(answerWords(null, 'photos', [])).toBe(NO_ANSWER);
         expect(answerWords(place(nl.id), 'graphs', { interaction: 'plot_point', points: [] })).toBe(NO_ANSWER);
     });
 

@@ -61,6 +61,7 @@ import {
   type GradingQueueRow,
 } from '../lib/grading';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { WorkPhotoCount, WorkPhotoStrip, photoIdsOf } from '../components/WorkPhotos';
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 // The grading panel opens on a click, so it is its own chunk; the page warms
 // it as soon as the queue arrives, so the first click does not wait for it.
@@ -768,8 +769,14 @@ export default function ActivityResponses() {
                                   {nameOf(row)}
                                 </span>
                                 <span className="flex-1 truncate text-xs text-muted">
-                                  {row.response_text ?? (
-                                    <em>{COPY.noAnswer}</em>
+                                  {row.block_type === 'photo_response' ? (
+                                    photoIdsOf(row).length > 0 ? (
+                                      <WorkPhotoCount row={row} />
+                                    ) : (
+                                      <em>{COPY.noAnswer}</em>
+                                    )
+                                  ) : (
+                                    row.response_text ?? <em>{COPY.noAnswer}</em>
                                   )}
                                 </span>
                                 {!row.is_current && (
@@ -801,6 +808,13 @@ export default function ActivityResponses() {
                     key={rowKey(current)}
                     row={current}
                     activityId={id}
+                    photoSlot={
+                      current.block_type === 'photo_response' && photoIdsOf(current).length > 0 ? (
+                        <Suspense fallback={<p className="text-xs text-muted">Loading photos…</p>}>
+                          <WorkPhotoStrip row={current} activityId={id} />
+                        </Suspense>
+                      ) : undefined
+                    }
                     suggestion={suggestionByKey.get(rowKey(current))}
                     rubric={
                       rubrics.get(`${current.activity_version_id}:${current.block_id}`) ?? null

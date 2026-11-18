@@ -13,6 +13,7 @@
 // grader attached, and under a wrong answer only, "Answer: …" (DR-6).
 // =============================================================================
 
+import { isManuallyGraded } from '@activity/schema';
 import { dolOptionalBlockIds } from '@activity/viewer';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
@@ -214,7 +215,7 @@ function Answers({ ready, studentId, activityId }: { ready: Ready; studentId: st
                                 const shownDoc = formDoc(showFirst ? 1 : s.attempts);
                                 const handGradedLine = (itemId: string) => {
                                     const block = served.index.byItem[itemId]?.block;
-                                    return block?.type === 'short_answer' || block?.type === 'essay';
+                                    return isManuallyGraded(block?.type);
                                 };
                                 // "N to grade" is always the LATEST attempt's, whatever is on screen.
                                 // A blank or omitted essay has NO verdict (the grader writes none),

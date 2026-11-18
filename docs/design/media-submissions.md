@@ -3,7 +3,8 @@
 **Status:** **RULED 2026-11-18** (author, all of MS-1 to MS-25). The design was
 Fable-reviewed the same day, and five factual corrections and eleven gaps were
 folded in. **Slices 1, 2, 2b and 2c are BUILT and LIVE (2026-11-18)**: 0093–0095
-applied, all four functions deployed and hash-verified, CI green.
+applied, all four functions deployed and hash-verified, CI green. **Slice 3
+(teacher grading, 0096) is BUILT, unpushed and not applied live.**
 `photo_clearance` is still OFF, so no student can add a photo yet (slice 5); slice 2 pulled most of slice 4's editor half forward (§10, "As
 built"). Slice 2b closed the three clearance blockers; slice 2c is the phone QR
 handoff (migration 0095, the `photo-handoff` function).
@@ -1005,6 +1006,61 @@ paired deploy as slice 2).
   with no Authorization header, and two student-lane rows (the Chromebook QR
   → arrival → Done → Check; the phone page with no session, the fragment
   cleared, no EXIF in the sent form).
+
+**Slice 3 as built (2026-11-19).** Migration 0096, the Responses queue, and
+no function change beyond the two bundles' rebuild (a shared constant).
+
+- **One set, two places.** `is_manually_graded_type` in SQL and
+  `MANUALLY_GRADED_TYPES` / `isManuallyGraded` in `@activity/schema`; a node
+  test binds them, and verify-0096's `no_inline_pair_left` row reads the
+  DEPLOYED bodies. Two functions keep the literal pair on purpose:
+  `claim_grade_suggestions` (the AI worker is text-only; `claim_excludes_photos`
+  pins it) and `dol_optional_block`'s gradable list (bound to `isGradeable`).
+- **Re-created from the live bodies**, so nothing but the type test changed:
+  `validate_check_grade_criteria` (its refusal now reads "Only hand-graded
+  questions can be graded"), `activity_progress`, `class_progress`,
+  `dol_optional_block`. `list_grading_queue` gained `response_photos` (a new
+  OUT column, so DROP + CREATE and its grants again).
+- **Staleness (MS-18):** a graded photo answer is stale when the ORDERED list
+  of photo ids differs (`photo_ids_of`, ignoring the `removed` flag), for the
+  teacher and in the student's released feedback. Found while building: the
+  viewer re-read released feedback after a re-check only for text answers, so
+  a re-sent photo kept "Reviewed by your teacher" until a reload; it now
+  re-reads for photo answers too.
+- **Release (MS-10):** `release_check_grades` caps every photo the student
+  handed in for a question before its first release (a photo replaced before
+  grading included) at release + 30 days, with `least()`, so a re-release
+  never extends it; a photo handed in after a release waits for the next one.
+- **The queue:** the row reads "2 photos"; opening an answer signs THAT
+  answer's photos in one `POST /object/sign` (re-signed every 9 minutes) and
+  shows thumbnails and a full-size view with zoom and a view-only rotate.
+  **A departure from §6.3** ("one sign call per queue page"): the Responses
+  route has a 38 KiB budget, and signing per opened answer keeps the photo
+  code in a lazy chunk; it is also tighter (no live URL for a photo the
+  teacher never opened). The row has no thumbnail for the same reason. A photo
+  the teacher may not read says why, from `work_photo_states`: "changed after
+  it was handed in" (G18), "removed 30 days after the grade was released", or
+  "removed at the end of the school year". The student's block says "removed
+  30 days after your grade came back" once feedback is released.
+- **Not needed:** first tries and common wrong answers read only
+  correct/incorrect verdicts, and a photo's is `recorded`; the answer panel
+  shows "Photo" / "2 photos", never a thumbnail (MS-19).
+- **The Fable review of slice 3** found no blocker (no wrong grade, photo
+  leak or retention error) and these gaps, all fixed with tests: the teacher's
+  bulk-sign read had no real-stack proof (now T1–T3 in the Storage e2e); a
+  photo replaced before grading kept the school-year clock (the release now
+  caps every earlier photo of the question); the "a removed flag is not a
+  change" property and the activity join in `work_photo_states` were
+  unpinned (B5b, B6); B8 only called the helper (it now grades a short answer
+  through the RPC); an absent photo key and an empty list read as different;
+  some unavailable-photo lines gave a reason that might be untrue; the viewer
+  never enlarged a small photo, overflowed when sideways, had no focus trap,
+  and could index past a shortened list. Open, the author's call: while
+  `photo_clearance` is off, a published photo question counts as "to grade"
+  with no way for a student to answer it.
+- **Found by the e2e:** the viewer heard Escape only on its own element, and
+  "Next" on the last photo disables and drops focus to the page, so the view
+  could not be closed from the keyboard; keys now listen on the document.
 
 **Deferred, each with its trigger** (filed in TODOS when the author rules):
 

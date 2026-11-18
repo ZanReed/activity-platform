@@ -60,6 +60,20 @@ const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
   'faded_worked_example',
 ]);
 
+// The hand-graded block types: a teacher marks them against a rubric in the
+// Responses queue (migration 0034's rails). ONE list, here, and its SQL twin
+// is `is_manually_graded_type` (migration 0096); scripts/tests/
+// manually-graded-types.test.mjs fails if the two disagree. Every grading,
+// progress and DoL reader asks isManuallyGraded rather than spelling the set
+// (the photo of working joined it in 0096, and the inline copies were how a
+// new type would have reached the screen but never the queue).
+export const MANUALLY_GRADED_TYPES = ['short_answer', 'essay', 'photo_response'] as const;
+export type ManuallyGradedType = (typeof MANUALLY_GRADED_TYPES)[number];
+
+export function isManuallyGraded(type: string | undefined | null): type is ManuallyGradedType {
+  return (MANUALLY_GRADED_TYPES as readonly string[]).includes(type ?? '');
+}
+
 // Name-based primitive so consumers that don't hold a parsed Block — notably the
 // editor's ProseMirror walk — can resolve the same rule. `type` is the schema
 // (snake_case) block type; `interactionType` is the block's interaction.type

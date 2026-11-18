@@ -265,6 +265,37 @@ async function main() {
   check('D1 Remove before a check: the row goes and the sweep removes the bytes',
     d1.body === true && !objectExists(name6) && sql(`select count(*) from work_photos where id = '${r6.body}'`) === '0', JSON.stringify(d1));
 
+  // ---- T: the teacher's bulk sign, the Responses queue's real read (0096) ---
+  // lib/workPhotos.ts signs a whole queue page in ONE POST /object/sign. Each
+  // path must be judged by 0094's SELECT policy on its own: an attached photo
+  // signs and serves; an unattached one, one changed after hand-in (G18) and
+  // any photo for another teacher come back with no URL.
+  const r10 = await rpc(sJ, 'reserve_work_photo', { p_activity_id: ACT, p_version_id: VER, p_block_id: PB });
+  const name10 = `${ACT}/${S}/${r10.body}.jpg`;
+  await upload(sJ, name10, JPEG); // uploaded, never handed in
+  const bulk = async (token, names) => {
+    const r = await fetch(`${API}/storage/v1/object/sign/${BUCKET}`, {
+      method: 'POST', headers: H(token, { 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ expiresIn: 600, paths: names }),
+    });
+    const rows = r.ok ? await r.json() : [];
+    return { status: r.status, byName: new Map(rows.map((x) => [x.path, x])) };
+  };
+  const tb = await bulk(tJ, [name7, name10, name9]);
+  const signed7 = tb.byName.get(name7)?.signedURL;
+  let served7 = 0;
+  if (signed7) {
+    const got = await fetch(`${API}/storage/v1${signed7}`);
+    await got.arrayBuffer();
+    served7 = got.status;
+  }
+  check('T1 the owning teacher bulk-signs a handed-in photo, and the URL serves it',
+    tb.status === 200 && Boolean(signed7) && served7 === 200, `${tb.status} ${JSON.stringify([...tb.byName.values()])}`);
+  check('T2 in the same call, an unattached photo and a photo changed after hand-in get no URL',
+    !tb.byName.get(name10)?.signedURL && !tb.byName.get(name9)?.signedURL, JSON.stringify([...tb.byName.values()]));
+  const ob = await bulk(t2J, [name7]);
+  check('T3 another teacher bulk-signing the same photo gets no URL', !ob.byName.get(name7)?.signedURL, JSON.stringify([...ob.byName.values()]));
+
   // ---- H: the phone handoff (0095, slice 2c) ------------------------------------
   // The phone has NO session: every photo-handoff request below carries no
   // Authorization header at all, exactly as the /h page sends it.

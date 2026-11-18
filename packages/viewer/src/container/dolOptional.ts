@@ -6,7 +6,7 @@
 // the deployed bundles' bytes for nothing.
 // =============================================================================
 
-import { isGradeable, type Block } from '@activity/schema';
+import { isGradeable, isManuallyGraded, type Block } from '@activity/schema';
 
 /** The blocks of a document's DoL section that are OPTIONAL to mark (curriculum
  *  D77): every short answer or essay after the primary item, the section's first
@@ -24,6 +24,6 @@ export function dolOptionalBlockIds(doc: {
     .flatMap((c) => c.blocks ?? [])
     .filter((b) => isGradeable(b as Block)) as Array<{ id: string; type: string }>;
   return new Set(
-    gradable.slice(1).filter((b) => b.type === 'short_answer' || b.type === 'essay' || b.type === 'photo_response').map((b) => b.id),
+    gradable.slice(1).filter((b) => isManuallyGraded(b.type)).map((b) => b.id),
   );
 }

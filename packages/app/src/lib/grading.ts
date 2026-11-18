@@ -16,6 +16,7 @@
 import { supabase } from './supabase';
 import { MY_CHECKED_SECTION_IDS_RPC } from './edgeFunctions';
 import type { ReleasedFeedbackRow } from '@activity/viewer';
+import type { ManuallyGradedType } from '@activity/schema';
 
 /**
  * Released teacher feedback for the signed-in student.
@@ -75,9 +76,13 @@ export interface GradingQueueRow {
   is_current: boolean;
   section_id: string;
   block_id: string;
-  block_type: 'short_answer' | 'essay';
+  block_type: ManuallyGradedType;
   /** NULL = the student left it blank. Gradable anyway (design ruling D13). */
   response_text: string | null;
+  /** A photo of working (0096): the photo ids the check handed in, in order
+   *  (`removed` = retention had already removed it at hand-in). NULL for a
+   *  text block, or a photo block left empty. */
+  response_photos: Array<{ id: string; removed?: boolean }> | null;
   attempt_number: number;
   checked_at: string;
   graded: boolean;
@@ -86,8 +91,9 @@ export interface GradingQueueRow {
   graded_at: string | null;
   released_at: string | null;
   has_grader: boolean;
-  /** The student's TEXT changed after this was graded (never "a newer check
-   *  exists" — re-checking to retry blanks must not cry wolf). */
+  /** The student's ANSWER changed after this was graded: their text, or the
+   *  ordered list of their photos (0096, MS-18) — never "a newer check
+   *  exists" (re-checking to retry blanks must not cry wolf). */
   stale: boolean;
 }
 
