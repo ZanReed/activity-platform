@@ -308,8 +308,58 @@ Please answer:
 - **(b)** Does the answer differ for classes that include students under 13?
 - **(c)** Teachers' views of a photo are not logged, the same as for typed
   answers today. Is that acceptable?
-- **(d)** No photo is sent to any AI service. If a hosted one were used later to
-  pre-grade drawings, would that need a separate answer? (We assume yes.)
+- **(d) Reading a photo's text with AI to help the teacher grade (not built;
+  drafted 2026-11-19).** Today no photo, and nothing taken from one, goes to
+  any AI service. We would like a later version to turn the handwriting in a
+  photo into text (optical character recognition, "OCR") and give that text
+  to an AI model that SUGGESTS a grade against the teacher's rubric. What
+  would stay the same in every version below:
+  - The teacher grades. The model's suggestion is shown only to the teacher,
+    who accepts, changes or ignores it. Nothing reaches the student until the
+    teacher releases a grade, as today.
+  - The model is given the question, the teacher's rubric and the text read
+    from the photo. It is not given the student's name, email, class or
+    school. The photo itself may still show a name the student wrote on the
+    page, so the text can contain one.
+  - The text read from a photo is deleted on the photo's own clock (30 days
+    after the grade is released, at the latest the end of the school year
+    plus 30 days). It is never used to train a model.
+
+  There are four ways to wire it, from most to least contained:
+  1. **Both steps on the platform owner's own computer.** The OCR and the
+     model both run on hardware the platform owner controls (planned: a local
+     machine, the same one planned for grading typed answers). No photo or
+     text leaves it.
+  2. **OCR by an outside service, the model on our own computer.** The PHOTO
+     goes to an OCR company (for example Mathpix, which specialises in
+     handwritten maths); the text comes back and goes no further.
+  3. **OCR on our own computer, the model at an outside AI company.** Only the
+     TEXT leaves, never the photo.
+  4. **A hosted AI model reads the photo directly.** The PHOTO goes to an
+     outside AI company.
+
+  Please answer:
+  - **(d1)** Does option 1 need anything beyond the posture in (a)? We assume
+    not, since no third party receives anything, but please confirm.
+  - **(d2)** For options 2–4: is sending the photo, or the text read from it,
+    to an outside company a disclosure of student records that needs its own
+    basis (a school's authorisation or contract, a data processing agreement
+    with the provider, notice to families, or consent)? Is the TEXT treated
+    differently from the photo, given it can still contain a name and is the
+    student's own work?
+  - **(d3)** What would we need from such a provider, at minimum? For example:
+    a written agreement, no retention after the request (or a stated short
+    window), no use for training, and a stated country of processing. Students
+    and teachers are in New Zealand and the United States: does where the
+    provider processes the data change the answer?
+  - **(d4)** Does any answer differ for classes that include students under
+    13?
+  - **(d5)** If a provider's terms allow it, may we strip or blur a name the
+    student wrote on the page before sending (we cannot promise to catch every
+    one), and would that change any answer above?
+  - **(d6)** Do teachers, students or families need to be told that AI helps
+    with grading, even in option 1? If so, where (the teacher's terms, the
+    privacy page, the class join screen)?
 - **(e)** No automated content scanning is planned. Only the owning teacher sees
   a photo. Does a school's duty of care call for a "report this image" path?
 - **(f)** Is the phone upload with no sign-in (bound to a 10-minute code tied to
