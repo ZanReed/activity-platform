@@ -228,7 +228,7 @@ A few one-time setup steps in the Supabase dashboard:
        timeout_milliseconds := 60000);
    $cron$);
    ```
-   (04:10/04:15 UTC is 17:10 NZDT / 16:10 NZST and the US evening before, outside school hours in both.) The function drains in a loop for up to 45 s a night and reports `more: true` if it runs out of time. Arming replaces verify-0093's `sweep_is_unscheduled` row with a pin on BOTH jobs, in the same commit. verify-0093's `photos_not_overdue` row is the alarm: it goes red when a row is a day past its clock or a queued deletion is two days old, so run it in the weekly job-health check once armed.
+   (04:10/04:15 UTC is 17:10 NZDT / 16:10 NZST and the US evening before, outside school hours in both.) The function drains in a loop for up to 45 s a night and reports `more: true` if it runs out of time. verify-0093's `sweep_schedule_is_pinned_or_absent` row passes only with no sweep job or with exactly these two (names, hours, the real run, the Vault key), so arming needs no edit to it; `sweep_armed_before_clearance` goes red if `photo_clearance` goes on before both jobs, `pg_net` and the secret exist. After arming, run `node --env-file=.env.supabase scripts/verify-photo-deletion-live.mjs --target live` once, BEFORE the flip: the live deletion proof (it refuses to run once any real photo exists). verify-0093's `photos_not_overdue` row is the alarm: it goes red when a row is a day past its clock or a queued deletion is two days old, so run it in the weekly job-health check once armed.
 
 2. **Configure auth providers** (Authentication → Providers). For Phase 1 with the allowlist, you'll likely want only Google OAuth enabled (since teachers are signing in with school accounts).
 

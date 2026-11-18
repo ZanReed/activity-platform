@@ -1078,6 +1078,49 @@ holds photos is still owed with answers off, and an empty one is owed again
 once they are on, like a blank essay. Accepted edge: an empty answer checked
 while off counts once answers go on. verify-0097 (mutation-tested).
 
+**Slice 5, the build half (2026-11-19).** Nothing is armed and photo answers
+stay off; these are the pieces the author's steps need.
+
+- **The live deletion proof:** `scripts/verify-photo-deletion-live.mjs --target
+  live` (rehearsed with `--target local`). The local e2e mints student JWTs and
+  cannot run live, so this proves the one thing the design requires against
+  live: when a photo's row goes, its bytes leave real Storage through the
+  DEPLOYED sweep, on every path (L1 the clock, L2 the account, L3 the version,
+  L4 the activity, L5 an orphan; L0 a dry run removes nothing; L6 a bearer that
+  is not the key is refused). The sweep acts on everything, so the script
+  REFUSES to run once any real photo exists or clearance is on, or inside the
+  sweep's own 04:00-04:25 UTC window: it is a one-time proof, run after arming
+  and before the switch. "Removed" means the `storage.objects` row is gone AND
+  Storage refuses to serve the blob (a positive control first proves it is
+  served). Live only, **A0** checks the armed job would really reach this
+  function: this project's URL, the exact `{"dryRun": false}` body, and a Vault
+  secret equal to the service key (compared by sha256). Mutation-tested (a
+  sweep that never deletes: 6 rows red).
+- **The Fable review** found: the pooler password would print on any failed
+  query (the DSN was a psql argument; it now goes through the environment and
+  errors carry stderr only); L6 could not fail on live (a mangled token is the
+  platform's 401, so L6 now claims only the gate; the key comparison is the
+  local e2e's G15/G16 plus the deploy hash check); the pin accepted an unfilled
+  `<project-ref>`, a lowercase `dryrun` and a wrong Vault secret (now
+  case-sensitive, refuses `<`, and A0 compares the secret); audit rows and a
+  fresh orphan could outlive a failed run (cleanup now deletes both, and R1
+  counts audit rows); "bytes" meant only the catalog row (now the blob too).
+- **The schedule pin:** verify-0093's `sweep_is_unscheduled` became
+  `sweep_schedule_is_pinned_or_absent` (no sweep job, or exactly the two README
+  jobs: names, 04:10/04:15 UTC, the real run, the Vault key) and
+  `sweep_armed_before_clearance` (red if clearance goes on before both jobs,
+  `pg_net` and the secret exist). They read what is there, so arming needs no
+  edit. The cron tables are live-only, so the pin was mutation-tested against
+  stand-in job tables shaped like the README's SQL: the exact arming passes;
+  half-armed, `{"dryRun": true}`, lowercase `dryrun`, an unfilled
+  `<project-ref>` and a wrong hour all go red.
+- **The cost meter, the author's half:** the weekly `analytics-job-health`
+  task now reads photo count, stored bytes (vs Pro's 100 GB), the top five
+  teachers by bytes (counts only, no ids) and verify-0093's overdue alarm. Its
+  old rule flagged every `prune_*` job; it now expects the two armed prunes.
+- **Open, the author's call:** the design puts the meter on "the teacher's
+  settings page", and there is no such page.
+
 **Slices 4 and 6 as built (2026-11-19).** No migration and no deploy.
 
 - **Slice 4's remainder:** the print-parity row `photo/controls-hidden` (Add a

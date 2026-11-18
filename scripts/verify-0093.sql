@@ -87,11 +87,43 @@ select 'every_fk_cascades',
          where conrelid = 'public.work_photos'::regclass and contype = 'f' and confdeltype = 'c') = 3,
        'work_photos -> users, activities, activity_versions are all ON DELETE CASCADE (the purge deletes versions first)';
 -- @live-only (cron.job is pg_cron's; the local stack has no pg_cron)
--- Replaced by a schedule pin when the author arms the sweep (slice 5).
-select 'sweep_is_unscheduled',
-       not exists (select 1 from cron.job
-                    where command ilike '%sweep-work-photos%' or command ilike '%sweep_work_photos%'),
-       'NOT ARMED: no cron job calls the sweep yet';
+-- The schedule pin (slice 5). It reads what is THERE, so it needs no edit on
+-- the day the author arms the sweep: either nothing calls the sweep (not
+-- armed), or exactly the two jobs supabase/migrations/README.md (0093) gives,
+-- at their hours, both active, with the real run (dryRun false) and the
+-- Vault key. A half-armed or hand-altered schedule is red. Case-sensitive on
+-- purpose: the function reads `dryRun` exactly, and an unfilled
+-- `<project-ref>` placeholder is refused. Whether the job really REACHES the
+-- function with the right key is checked by the live deletion proof's A0
+-- (scripts/verify-photo-deletion-live.mjs), which can compare hashes.
+select 'sweep_schedule_is_pinned_or_absent',
+       (select count(*) from cron.job
+         where command ilike '%sweep-work-photos%' or command ilike '%sweep_work_photos%') = 0
+       or (
+         (select count(*) from cron.job
+           where command ilike '%sweep-work-photos%' or command ilike '%sweep_work_photos%') = 2
+         and exists (select 1 from cron.job
+                      where jobname = 'sweep-work-photo-rows' and schedule = '10 4 * * *' and active
+                        and regexp_replace(command, '\s+', ' ', 'g') ~* '^ *select sweep_work_photos_due\(false\); *$')
+         and exists (select 1 from cron.job
+                      where jobname = 'sweep-work-photos' and schedule = '15 4 * * *' and active
+                        and command ~ 'net\.http_post'
+                        and command ~ 'https://[a-z0-9]+\.supabase\.co/functions/v1/sweep-work-photos'
+                        and command !~ '<'
+                        and command ~ '"dryRun": false'
+                        and command ~ 'sweep_work_photos_key')),
+       'the photo sweep is either unscheduled or armed exactly as pinned: rows at 04:10 UTC, bytes at 04:15 UTC, real run, Vault key';
+-- @live-only (cron.job is pg_cron's; the local stack has no pg_cron)
+-- MS-11: unlike the other prunes the sweep is armed BEFORE the first photo.
+-- While photo answers are off this row is vacuous by design; the moment
+-- clearance goes on it demands both jobs, pg_net and the Vault secret.
+select 'sweep_armed_before_clearance',
+       not coalesce((select cleared from photo_clearance), false)
+       or (exists (select 1 from cron.job where jobname = 'sweep-work-photo-rows' and active)
+           and exists (select 1 from cron.job where jobname = 'sweep-work-photos' and active)
+           and exists (select 1 from pg_extension where extname = 'pg_net')
+           and exists (select 1 from vault.secrets where name = 'sweep_work_photos_key')),
+       'photo answers are off, or the sweep is armed (both jobs active, pg_net, the Vault key)';
 
 -- @section B-behavioral
 -- @expect-error EXPECTED ROLLBACK

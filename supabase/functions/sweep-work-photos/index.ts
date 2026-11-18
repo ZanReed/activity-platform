@@ -21,7 +21,9 @@
 // reports what it would do and deletes nothing. It ships UNSCHEDULED; arming
 // it (a pg_cron + pg_net job with dryRun:false) is a slice-5 author action
 // that must happen BEFORE photo_clearance goes on. verify-0093's
-// `sweep_is_unscheduled` row pins the unarmed state.
+// `sweep_schedule_is_pinned_or_absent` row pins the schedule (none, or the
+// two README jobs exactly), and `sweep_armed_before_clearance` goes red if
+// photo answers go on before it is armed.
 //
 // Authorization: verify_jwt = true (config.toml) AND the bearer must BE the
 // service-role key, compared byte for byte (constant time). The platform gate

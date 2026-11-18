@@ -45,8 +45,9 @@
 -- Edge Function with dryRun:false) is a slice-5 author action that must
 -- happen BEFORE photo_clearance goes on (MS-11: the opposite order from the
 -- other prunes, because an unarmed sweep means photos outlive the window
--- counsel was told about). verify-0093's sweep_is_unscheduled row fails if a
--- cron job names it; that row is replaced by a schedule pin at arming.
+-- counsel was told about). verify-0093's sweep_schedule_is_pinned_or_absent
+-- row pins the schedule (none, or exactly the README's two jobs), and
+-- sweep_armed_before_clearance fails if photo answers go on first (slice 5).
 --
 -- Deliberately ABSENT (do not add without a design pass):
 --   * an UPDATE policy on student-work — objects are immutable; a retake is a
