@@ -3,6 +3,8 @@ import type { Editor } from '@tiptap/react';
 import { Search } from 'lucide-react';
 import { armSettle } from '../extensions/SettleMotion';
 import {
+    isOffered,
+    usePhotoPilotOffered,
     slashMenuGroups,
     slashMenuItems,
     type SlashMenuItem,
@@ -58,19 +60,24 @@ export default function InsertMenu({ editor, variant }: InsertMenuProps) {
     // only offers the reference-safe items. Inline inserts that already have a
     // flat toolbar button (ƒx) are excluded everywhere, and the Text group is
     // the TextStylePicker's — block-style transforms, not insertions.
+    // `pilot` (0099): this menu mounts with the toolbar, usually before the
+    // teacher's pilot flag is read, so the list must recompute when it lands.
+    const pilot = usePhotoPilotOffered();
     const items = useMemo(
         () =>
             slashMenuItems.filter(
                 (item) =>
                     item.group !== 'Text' &&
                     item.insertMenu !== false &&
+                    isOffered(item) &&
                     (variant === 'activity'
                         ? true
                         : variant === 'definition'
                           ? item.definitionSafe
                           : item.referenceSafe),
             ),
-        [variant],
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `pilot` is read through isOffered
+        [variant, pilot],
     );
 
     const q = query.trim().toLowerCase();

@@ -221,6 +221,8 @@ export interface ImportOptions {
     readonly bankSection?: true;
     /** Set by the batch importer. A ```video fence is refused without it (VP-10, kept for pastes by amendment V-6). */
     readonly catalogue?: true;
+    /** Set by the paste dialog for a teacher who is not a photo pilot (0099, ruled 2026-11-19): a ```photo fence is left out, with a warning. */
+    readonly photoRefused?: true;
 }
 
 export interface GlossaryReference {
@@ -911,6 +913,7 @@ interface Ctx {
     // The bank importer's per-section conversion (ImportOptions.bankSection).
     bankSection?: true;
     catalogue?: true;
+    photoRefused?: true;
     // Math spans lifted from the raw source (see extractMath), indexed by the
     // placeholder number the mapper re-expands.
     spans: MathSpan[];
@@ -1083,6 +1086,7 @@ function tokensToBlocks(
         seedProblems: [],
         ...(options?.bankSection ? { bankSection: true as const } : {}),
         ...(options?.catalogue ? { catalogue: true as const } : {}),
+        ...(options?.photoRefused ? { photoRefused: true as const } : {}),
         definitions: new Map(),
         definitionTerms: new Map(),
         inline,
@@ -1269,6 +1273,10 @@ function mapBlock(node: TokNode, ctx: Ctx): JSONContent[] {
                 return [rawTextParagraph(node.token.content)];
             }
             if ((node.token.info ?? '').trim() === 'photo') {
+                if (ctx.photoRefused) {
+                    ctx.warnings.add('Photo question: photo answers are open only to pilot teachers for now, so this one was left out.');
+                    return [];
+                }
                 const block = parseFreeResponseFence(
                     node.token.content,
                     ctx,

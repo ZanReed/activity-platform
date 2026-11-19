@@ -14,13 +14,14 @@ select 'attach_trigger_enabled',
                   and (t.tgtype & 2) = 2      -- BEFORE
                   and (t.tgtype & 4) = 4),    -- INSERT
        'section_checks_attach_photos is a live BEFORE INSERT trigger on section_checks';
+-- 0099 adds photo_answers_on(uuid) beside the zero-argument form: three rows.
 select 'student_reads_definer_signed_in_only',
-       count(*) = 2
+       count(*) = 3
        and bool_and(p.prosecdef)
        and bool_and(has_function_privilege('authenticated', p.oid, 'execute'))
        and not bool_or(has_function_privilege('anon', p.oid, 'execute'))
        and bool_and(exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%')),
-       'photo_answers_on, discard_work_photo: DEFINER, search_path pinned, signed-in only'
+       'photo_answers_on (both forms), discard_work_photo: DEFINER, search_path pinned, signed-in only'
 from pg_proc p
 where p.pronamespace = 'public'::regnamespace
   and p.proname in ('photo_answers_on', 'discard_work_photo');
@@ -73,6 +74,8 @@ begin
   select u, 'vfy0094-' || o || '@vfy0094.example', '{}'::jsonb
     from unnest(array[v_t, v_s, v_s2]) with ordinality x(u, o);
   update users set role = 'teacher' where id = v_t;
+  -- 0099: photo answers are for pilot teachers; the fixture teacher is one.
+  update users set photo_pilot = true where id = v_t;
   update users set role = 'student' where id in (v_s, v_s2);
 
   insert into activities (owner_id, title, slug, status)

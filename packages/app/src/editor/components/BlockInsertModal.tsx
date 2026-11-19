@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import {
     slashMenuItems,
+    isOffered,
+    usePhotoPilotOffered,
     isPickableBlock,
     type SlashMenuItem,
 } from '../slashMenuItems';
@@ -104,10 +106,11 @@ export default function BlockInsertModal({
     const [caption, setCaption] = useState<string | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
-    // Categories (alphabetical) and their items, derived once from the static
-    // catalogue.
+    // Categories (alphabetical) and their items, derived from the static
+    // catalogue — and again if the teacher's pilot flag lands while open (0099).
+    const pilot = usePhotoPilotOffered();
     const { categories, itemsByCategory } = useMemo(() => {
-        const pickable = slashMenuItems.filter(isPickableBlock);
+        const pickable = slashMenuItems.filter((i) => isPickableBlock(i) && isOffered(i));
         const byCat = new Map<string, SlashMenuItem[]>();
         for (const item of pickable) {
             const label = categoryLabel(item);
@@ -117,7 +120,8 @@ export default function BlockInsertModal({
         }
         const cats = [...byCat.keys()].sort((a, b) => a.localeCompare(b));
         return { categories: cats, itemsByCategory: byCat };
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `pilot` is read through isOffered
+    }, [pilot]);
 
     const q = query.trim().toLowerCase();
 
@@ -126,11 +130,12 @@ export default function BlockInsertModal({
     const paneItems = useMemo(() => {
         if (q !== '') {
             return slashMenuItems.filter(
-                (i) => isPickableBlock(i) && matchesQuery(i, q),
+                (i) => isPickableBlock(i) && isOffered(i) && matchesQuery(i, q),
             );
         }
         return itemsByCategory.get(activeCategory) ?? [];
-    }, [q, activeCategory, itemsByCategory]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `pilot` is read through isOffered
+    }, [q, activeCategory, itemsByCategory, pilot]);
 
     // Focus the search field on open.
     useEffect(() => {

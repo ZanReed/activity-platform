@@ -110,11 +110,11 @@ export default function PhotoResponse({ block, mode = 'screen' }: BlockComponent
   useEffect(() => {
     if (!live) return;
     let alive = true;
-    void photosEnabled().then((on) => alive && setEnabled(on));
+    void photosEnabled(store.getState().activityId).then((on) => alive && setEnabled(on));
     return () => {
       alive = false;
     };
-  }, [live]);
+  }, [live, store]);
 
   // Thumbnails. A server photo gets a signed URL; a waiting one is shown from
   // its device copy (an object URL, released on unmount).

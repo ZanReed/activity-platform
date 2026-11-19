@@ -157,6 +157,8 @@ begin
   select u, 'vfy0093-' || o || '@vfy0093.example', '{}'::jsonb
     from unnest(array[v_t, v_t2, v_s, v_s2, v_s3]) with ordinality x(u, o);
   update users set role = 'teacher' where id in (v_t, v_t2);
+  -- 0099: photo answers are for pilot teachers; the fixture teacher is one.
+  update users set photo_pilot = true where id in (v_t, v_t2);
   update users set role = 'student' where id in (v_s, v_s2, v_s3);
 
   insert into activities (owner_id, title, slug, status)
@@ -213,7 +215,9 @@ begin
   if v_got is distinct from 'not_available' then raise exception 'FAIL B2 unknown block: %', v_got; end if;
   v_got := null;
   begin perform reserve_work_photo(gen_random_uuid(), v_ver, v_pb); exception when others then v_got := sqlerrm; end;
-  if v_got is distinct from 'not_available' then raise exception 'FAIL B2 foreign version: %', v_got; end if;
+  -- 0099: an activity with no pilot owner (here: no activity at all) is off
+  -- before anything else is read, which also says nothing about existence.
+  if v_got is distinct from 'photos_off' then raise exception 'FAIL B2 foreign version: %', v_got; end if;
   n := n + 1;
 
   -- B3 a member reserves; the row is the caller's, 7 days, key derived

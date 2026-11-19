@@ -5,7 +5,7 @@ import tippy, { type Instance as TippyInstance } from 'tippy.js';
 import SlashMenuPopover, {
     type SlashMenuPopoverRef,
 } from '../SlashMenuPopover';
-import { slashMenuItems, type SlashMenuItem } from '../slashMenuItems';
+import { isOffered, slashMenuItems, type SlashMenuItem } from '../slashMenuItems';
 import { armSettle } from './SettleMotion';
 import { isTopLevelStack } from '../strictGrid';
 
@@ -34,6 +34,7 @@ export const SlashMenu = Extension.create({
                         // Contextual items (e.g. Answer blank, only valid
                         // inside a problem) are hidden where they can't apply.
                         (item.isEnabled?.(editor) ?? true) &&
+                        isOffered(item) &&
                         !(item.topLevelOnly && nested) &&
                         (item.title.toLowerCase().includes(q) ||
                         (item.keywords?.some((kw) => kw.includes(q)) ?? false)),

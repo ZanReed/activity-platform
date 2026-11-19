@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import type { Editor, Range } from '@tiptap/core';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -86,7 +87,41 @@ export interface SlashMenuItem {
     // fragments the container. The "Add a block" window disables these when the
     // insert point is inside a container.
     topLevelOnly?: boolean;
+    // Offered only to PILOT teachers (0099, ruled 2026-11-19): hidden from the
+    // slash menu, the Insert dropdown and the "Add a block" window for anyone
+    // else, not shown disabled. See setPhotoPilotOffered / isOffered.
+    pilotOnly?: true;
     command: (props: { editor: Editor; range?: Range }) => void;
+}
+
+// Whether this teacher is a photo pilot (users.photo_pilot, 0099). Module
+// state because the slash menu extension is built once per editor; the editor
+// route sets it from usePhotoPilot (lib/photoPilot.ts). Off until read, and
+// off on a failed read: the feature stays hidden unless the server says yes.
+let photoPilotOffered = false;
+const pilotListeners = new Set<() => void>();
+export function setPhotoPilotOffered(on: boolean): void {
+    if (photoPilotOffered === on) return;
+    photoPilotOffered = on;
+    for (const l of pilotListeners) l();
+}
+
+/** For memoised menus (the Insert dropdown is mounted with the toolbar,
+ *  usually BEFORE the flag is read): re-render when it changes, and put the
+ *  value in the memo's deps (Fable review). */
+export function usePhotoPilotOffered(): boolean {
+    return useSyncExternalStore(
+        (cb) => {
+            pilotListeners.add(cb);
+            return () => pilotListeners.delete(cb);
+        },
+        () => photoPilotOffered,
+    );
+}
+
+/** Whether a menu may offer this item to the current teacher. */
+export function isOffered(item: SlashMenuItem): boolean {
+    return !item.pilotOnly || photoPilotOffered;
 }
 
 // Items the "Add a block" window offers. 'Text' items are block-style
@@ -509,6 +544,7 @@ export const slashMenuItems: SlashMenuItem[] = [
     {
         title: 'Photo of working',
         description: 'Students add a photo of their handwritten working, which you grade by hand.',
+        pilotOnly: true,
         keywords: ['photo', 'picture', 'camera', 'image', 'working', 'handwritten', 'upload', 'drawing', 'show', 'work', 'graded'],
         group: 'Questions',
         subgroup: 'Free response',

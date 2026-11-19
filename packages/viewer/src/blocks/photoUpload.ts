@@ -280,12 +280,14 @@ export async function discardPhoto(photoId: string): Promise<void> {
   }
 }
 
-/** Whether photo answers are on (photo_answers_on, 0094). A failure reads as
- *  on: the reserve call is the real gate and names the refusal itself. */
-export async function photosEnabled(): Promise<boolean> {
+/** Whether photo answers are on FOR THIS ACTIVITY (photo_answers_on(uuid),
+ *  0099: the global switch AND the activity's owner is a pilot teacher). A
+ *  failure reads as on: the reserve call is the real gate and names the
+ *  refusal itself. */
+export async function photosEnabled(activityId: string): Promise<boolean> {
   if (!photoLink) return false;
   try {
-    const { data, error } = await photoLink.client.rpc('photo_answers_on', {});
+    const { data, error } = await photoLink.client.rpc('photo_answers_on', { p_activity_id: activityId });
     return error ? true : data !== false;
   } catch {
     return true;

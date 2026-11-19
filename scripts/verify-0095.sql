@@ -83,6 +83,8 @@ begin
   select u, 'vfy0095-' || o || '@vfy0095.example', '{}'::jsonb
     from unnest(array[v_t, v_s, v_s2]) with ordinality x(u, o);
   update users set role = 'teacher' where id = v_t;
+  -- 0099: photo answers are for pilot teachers; the fixture teacher is one.
+  update users set photo_pilot = true where id = v_t;
   update users set role = 'student' where id in (v_s, v_s2);
 
   insert into activities (owner_id, title, slug, status)

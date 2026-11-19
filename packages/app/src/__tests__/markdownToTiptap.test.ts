@@ -2409,6 +2409,17 @@ describe('graded free-text fences (```shortanswer / ```essay)', () => {
         expect(back.attrs!.solution).toMatchObject([{ type: 'text', text: 'Subtract 5, then divide by 3.' }]);
     });
 
+    it('```photo is refused, with a reason, for a teacher who is not a photo pilot (0099)', () => {
+        const md = 'Before.\n\n```photo\nprompt: Show your working.\n```\n\nAfter.';
+        const refused = convert(md, { photoRefused: true });
+        expect(refused.blocks.some((b) => b.type === 'photoResponse')).toBe(false);
+        expect([...refused.warnings]).toContain('Photo question: photo answers are open only to pilot teachers for now, so this one was left out.');
+        // The rest of the paste still imports, and without the option (a pilot,
+        // or the batch importer) the fence imports as before.
+        expect(refused.blocks.length).toBeGreaterThan(0);
+        expect(convert(md).blocks.some((b) => b.type === 'photoResponse')).toBe(true);
+    });
+
     it('```photo: photos: 1 is the default (null), a bad count warns and uses 1, starter: is ignored', () => {
         expect(blocks('```photo\nprompt: Q\nphotos: 1\n```')[0]!.attrs!.maxPhotos).toBeNull();
         const bad = convert('```photo\nprompt: Q\nphotos: 5\nstarter: I think\n```');

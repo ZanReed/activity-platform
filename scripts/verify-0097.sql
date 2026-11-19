@@ -15,7 +15,7 @@ select 'every_to_grade_reader_asks_the_rule',
        pg_get_functiondef('public.activity_progress(uuid)'::regprocedure) ~ 'hand_grade_owed'
        and pg_get_functiondef('public.class_progress(uuid)'::regprocedure) ~ 'hand_grade_owed'
        and pg_get_functiondef('public.list_grading_queue(uuid)'::regprocedure) ~ 'hand_grade_owed'
-       and pg_get_functiondef('public.class_student_work(uuid, uuid, uuid)'::regprocedure) ~ '''photos_on'', photo_answers_on\(\)',
+       and pg_get_functiondef('public.class_student_work(uuid, uuid, uuid)'::regprocedure) ~ '''photos_on'', photos_allowed_for\(p_activity_id\)',
        'activity_progress, class_progress and the queue ask hand_grade_owed; class_student_work reports photos_on';
 select 'queue_still_signed_in_only',
        has_function_privilege('authenticated', 'public.list_grading_queue(uuid)', 'execute')
@@ -47,6 +47,8 @@ begin
   select u, 'vfy0097-' || o || '@vfy0097.example', '{}'::jsonb
     from unnest(array[v_t, v_s]) with ordinality x(u, o);
   update users set role = 'teacher' where id = v_t;
+  -- 0099: photo answers are for pilot teachers; the fixture teacher is one.
+  update users set photo_pilot = true where id = v_t;
   update users set role = 'student' where id = v_s;
 
   insert into activities (owner_id, title, slug, status)

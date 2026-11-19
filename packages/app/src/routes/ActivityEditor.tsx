@@ -17,6 +17,8 @@
 // for the next revision.
 // =============================================================================
 
+import { useSession } from '../lib/SessionContext';
+import { usePhotoPilot } from '../lib/photoPilot';
 import {
     Suspense,
     lazy,
@@ -223,6 +225,9 @@ function describeParseFailure(error: { issues: { path: (string | number)[]; mess
 
 export default function ActivityEditor() {
     const { id } = useParams();
+    // 0099: photo answers are offered to pilot teachers only (menus + paste).
+    const { session } = useSession();
+    const photoPilot = usePhotoPilot(session?.user.id);
     const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
     const [meta, setMeta] = useState<ActivityMeta | null>(null);
     // Reference-panel authoring state. Like the main editor, the FINGERPRINT
@@ -1430,6 +1435,7 @@ export default function ActivityEditor() {
                 <ImportDialog
                 onClose={() => setImportOpen(false)}
                 onImport={handleImportMarkdown}
+                photoPilot={photoPilot}
                 />
             )}
             {importLoadError && (

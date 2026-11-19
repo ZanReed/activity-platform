@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+    isOffered,
+    setPhotoPilotOffered,
     slashMenuGroups,
     slashMenuItems,
 } from '../editor/slashMenuItems';
@@ -96,6 +98,29 @@ describe('slashMenuItems', () => {
             if (item.isEnabled) {
                 expect(item.disabledHint, item.title).toBeTruthy();
             }
+        }
+    });
+});
+
+// 0099 (ruled 2026-11-19): photo answers are offered to pilot teachers only,
+// HIDDEN (not disabled) everywhere else. Every block menu filters on isOffered.
+describe('pilot-only items', () => {
+    it('"Photo of working" is the pilot-only item, hidden until the teacher is a pilot', () => {
+        const pilotOnly = slashMenuItems.filter((i) => i.pilotOnly).map((i) => i.title);
+        expect(pilotOnly).toEqual(['Photo of working']);
+        const photo = slashMenuItems.find((i) => i.title === 'Photo of working')!;
+        setPhotoPilotOffered(false);
+        expect(isOffered(photo)).toBe(false);
+        setPhotoPilotOffered(true);
+        expect(isOffered(photo)).toBe(true);
+        setPhotoPilotOffered(false);
+        expect(slashMenuItems.filter((i) => !i.pilotOnly).every(isOffered)).toBe(true);
+    });
+
+    it('all three block menus ask isOffered (the slash menu, Insert, Add a block)', async () => {
+        const { readFileSync } = await import('node:fs');
+        for (const f of ['../editor/extensions/SlashMenu.ts', '../editor/components/InsertMenu.tsx', '../editor/components/BlockInsertModal.tsx']) {
+            expect(readFileSync(new URL(f, import.meta.url), 'utf8')).toMatch(/isOffered\(/);
         }
     });
 });

@@ -284,6 +284,10 @@ if that one isn't sent first.)*
 let a student photograph their working on paper and attach it to a question, so
 the teacher can grade it. The storage is built and no student can use it yet: a
 server setting keeps it off, and it stays off until this question is answered.
+**It will open first as a pilot for the operator's own local teachers only**:
+a teacher must be marked as a pilot by the operator before their students can
+add a photo at all, and every other school's teachers do not see the feature
+(ruled 2026-11-19).
 
 **Who the platform is to the school** (this decides most of what follows). A
 teacher signs up, confirms they are an educator authorised by their school

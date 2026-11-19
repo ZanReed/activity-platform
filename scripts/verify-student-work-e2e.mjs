@@ -140,6 +140,7 @@ async function main() {
         ('${T}', '${tag}-t@e2e.example', '{}'), ('${T2}', '${tag}-t2@e2e.example', '{}'),
         ('${S}', '${tag}-s@e2e.example', '{}'), ('${S2}', '${tag}-s2@e2e.example', '{}');
        update users set role = 'teacher' where id in ('${T}', '${T2}');
+       update users set photo_pilot = true where id in ('${T}', '${T2}');
        update users set role = 'student' where id in ('${S}', '${S2}');`);
   const content = JSON.stringify({ meta: { title: tag }, sections: [{ id: 's1', rows: [{ columns: [{ blocks: [
     { id: PB, type: 'photo_response', maxPhotos: 3, prompt: [] }] }] }] }] });

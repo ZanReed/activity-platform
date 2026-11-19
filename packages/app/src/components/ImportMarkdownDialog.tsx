@@ -47,11 +47,14 @@ interface ImportMarkdownDialogProps {
         meta?: ImportResult['meta'],
         teacherGuide?: ImportResult['teacherGuide'],
     ) => void;
+    /** Whether this teacher is a photo pilot (0099). Off: the ```photo fence is refused with a reason. */
+    photoPilot?: boolean;
 }
 
 export default function ImportMarkdownDialog({
     onClose,
     onImport,
+    photoPilot = false,
 }: ImportMarkdownDialogProps) {
     const [text, setText] = useState('');
     const [importer, setImporter] = useState<MarkdownImporter | null>(null);
@@ -84,8 +87,9 @@ export default function ImportMarkdownDialog({
     // Re-parse on every change once the importer is ready. markdown-it parsing
     // is cheap for paste-sized input; useMemo keeps it off unrelated re-renders.
     const result: ImportResult | null = useMemo(
-        () => (importer ? importer(text) : null),
-        [importer, text],
+        // 0099: a ```photo fence imports only for a pilot teacher.
+        () => (importer ? importer(text, photoPilot ? undefined : { photoRefused: true }) : null),
+        [importer, text, photoPilot],
     );
 
     const blockCount = result?.blocks.length ?? 0;

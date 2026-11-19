@@ -108,6 +108,22 @@ describe('import flow', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    it.each([
+        [false, false],
+        [true, true],
+    ])('a ```photo fence imports only for a photo pilot (pilot=%s → imported=%s, 0099)', async (pilot, imported) => {
+        const onImport = vi.fn();
+        render(<ImportMarkdownDialog onClose={() => {}} onImport={onImport} photoPilot={pilot} />);
+        fireEvent.change(screen.getByLabelText('Markdown to import'), {
+            target: { value: 'Show it.\n\n```photo\nprompt: Photograph your working.\n```' },
+        });
+        const importBtn = screen.getByRole('button', { name: 'Import' });
+        await waitFor(() => expect(importBtn).toBeEnabled());
+        fireEvent.click(importBtn);
+        const blocks = onImport.mock.calls[0]![0] as JSONContent[];
+        expect(blocks.some((b) => b.type === 'photoResponse')).toBe(imported);
+    });
+
     it('Import stays disabled when there is nothing to import', async () => {
         renderDialog();
         // Wait for the importer to load so "disabled" reflects an empty parse,

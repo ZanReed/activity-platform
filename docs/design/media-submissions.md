@@ -1143,6 +1143,22 @@ stay off; these are the pieces the author's steps need.
   read. Fable review: the first draft counted reservations and claimed the
   30-day rule for photos it does not cover (unattached, never released).
 
+**Photo answers for PILOT teachers only (0099, ruled 2026-11-19, items 1-8).**
+The author's local teachers first; hidden from every other school until the
+feature is ready. `users.photo_pilot` (per teacher, default off, set by the
+author in SQL, refused to a client by `users_photo_pilot_guard`; today every
+client UPDATE on `users` also dies on the self-update policy's own recursion).
+`photos_allowed_for(activity)` = the global switch AND the activity's owner is
+a pilot; every gate asks it (the Storage upload policy, the shared reserve and
+handoff gate, the hand-in trigger) and so does 0097's not-owed rule, per
+activity. A Bank copy is its copier's activity, so a non-pilot copy is off.
+The viewer's display read is `photo_answers_on(activity)`. The editor offers
+"Photo of working" only to a pilot (`pilotOnly` + `isOffered` in all three
+block menus, read by `usePhotoPilot` in the editor route, off until read and
+on failure), and the paste importer refuses a ```photo fence for anyone else
+with a reason. The curriculum pin bump stays held. verify-0099 B1-B7,
+mutation-tested; verify-0093..0097's fixture teachers became pilots.
+
 **Slices 4 and 6 as built (2026-11-19).** No migration and no deploy.
 
 - **Slice 4's remainder:** the print-parity row `photo/controls-hidden` (Add a

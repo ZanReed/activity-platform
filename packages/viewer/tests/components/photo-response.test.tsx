@@ -110,6 +110,8 @@ describe('photo_response', () => {
     mount();
     expect(await screen.findByText(PHOTOS_OFF_TEXT)).toBeTruthy();
     expect((screen.getByRole('button', { name: ADD_PHOTO_LABEL }) as HTMLButtonElement).disabled).toBe(true);
+    // 0099: the read is per ACTIVITY (the owner must be a pilot teacher).
+    expect(upload.photosEnabled).toHaveBeenCalledWith(ACTIVITY);
   });
 
   it('adds a photo: re-encodes, uploads, and puts only its id in the answer', async () => {

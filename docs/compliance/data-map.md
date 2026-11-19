@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-19-draft-66`. Mirrors migrations 0001–**0098**, verified
+> Version `2026-11-19-draft-67`. Mirrors migrations 0001–**0099**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-67` (2026-11-19) — 0099 adds `users.photo_pilot`: photo answers are for PILOT teachers only.** A per-teacher flag, off by default, set by the author in SQL and not client-writable. Students may add a photo only to an activity whose owner is a pilot teacher, and only while the global switch is on (`photos_allowed_for`, asked by every gate). It holds no personal data of its own; it narrows who can collect the photos this map already lists. Ruled 2026-11-19: the author's local teachers first.
 >
 > **`draft-66` (2026-11-19) — 0098 adds no table or column: a teacher sees their OWN photo storage.** `my_work_photo_usage()` returns, for the caller's own activities only, how many photos students stored (reservations never uploaded are not counted), how many a check handed in, and their total size (from Storage's own metadata). Counts and bytes only: no photo, student or activity is named. Shown as one line on My classes, and only once a photo exists.
 >
@@ -406,6 +408,7 @@
 | `users.display_name` (teacher) | name, **may be NULL** | teacher | same | student-facing attribution on the activity page — **⚠ disclosed to unauthenticated visitors, see Disclosures**; and, **only after the teacher opts in (`name_opt_in_at`, 0055)**, author attribution shown to other signed-in teachers in the Activity Bank | account lifetime |
 | `users.name_opt_in_at` (teacher) | timestamp of a choice | teacher | written only by `set_public_name` (0055) | whether the teacher's name appears on their Activity Bank listings | account lifetime |
 | `users.role` / `account_tier` | role/tier | both | system | authorization (**`pending` = admitted, holds nothing**, 0033) | account lifetime |
+| `users.photo_pilot` (0099) | a yes/no flag | teacher | the author, in SQL (a guard trigger refuses a client change) | whether students may add photos of their working to this teacher's activities (with the global switch on) | account lifetime |
 | `users.educator_attested_at` / `_version` | date + policy version of the educator confirmation | teacher (self-serve only) | the teacher, at setup | recording who confirmed school authorization, and against which wording | account lifetime |
 | `users.teacher_caps_exempt` | flag | teacher | system | exempts directly-added teachers from the self-serve class/roster caps | account lifetime |
 | `users.timezone` (0036) | IANA zone name, e.g. `Pacific/Auckland` — **a coarse location signal about a named account**, teacher-set | teacher | the teacher (no editing surface ships yet — the author's row was set by migration; everyone else is NULL = platform default) | keys daily analytics aggregates to the teacher's own school day rather than UTC, which would split a US evening across two days | account lifetime |
