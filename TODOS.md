@@ -34,8 +34,8 @@ re-checked by grep). Not triggered wishes: under the 2026-11-12 rule each is a
 debt. Ranked by what a teacher meets first; each gets its own short design pass.
 **Items 3–8 BUILT 2026-11-13** on the author's rulings
 ([gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md) → "As built"); item 9
-ruled "Figure source counts". Open from it: the "Try again" label (T1, held for
-the shell-size work) and DoL pass prefill reading only level `A`.
+ruled "Figure source counts". Open from it: DoL pass prefill reading only level
+`A`. (The "Try again" label, T1, was fixed 2026-11-19.)
 
 1. ✅ **Misconception ids — BUILT 2026-11-12** (misconception-sensors.md →
    "GUI amendment 2026-11-12"). Also fixed: editing a blank's mistake feedback
@@ -337,9 +337,9 @@ named in the Responses note; a faded example's answers are "part 1/2", not
 "Q4"/"Q4"; first tries have a stable tie order; "Next:" never offers a done
 activity; My activities caps tag chips at 12 like the Bank. Still open:
 
-1. **"✗ Try again" in one-try places** (a mixed item, a frozen DoL try):
-   `viewer/blocks/StatePill.tsx` default label. Rulings T1/T2 in
-   [gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md); shell-budget cost.
+1. ✅ **"✗ Try again" in one-try places — FIXED 2026-11-19** (ruling T1,
+   [gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md) → "As built"):
+   "Not quite" unless the section can be checked again.
 2. **Content:** bank item t1 (`rate.unit-rate.md`) has no `solution:` though
    the intro promises working after every answer — curriculum side.
 

@@ -72,6 +72,7 @@ import {
   type SubmissionMode,
 } from './checkGroups.js';
 import { DefinitionGlossary } from '../print/DefinitionGlossary.js';
+import { RetryContext } from '../blocks/StatePill.js';
 import {
   ensureActivityFontLoaded,
   typographyVars,
@@ -774,6 +775,8 @@ export function ViewerContainer({
                     the readOnly wrapper uses, so a block type that does not
                     exist yet cannot forget to honour it. */}
                 <fieldset className="viewer-section__inputs" disabled={frozen}>
+                  {/* T1: "Try again" only where a retry exists (StatePill). */}
+                  <RetryContext.Provider value={!frozen && !readOnly && !externalCheck}>
                   {section.rows.map((row) => (
                     <div
                       key={row.id}
@@ -821,6 +824,7 @@ export function ViewerContainer({
                       ))}
                     </div>
                   ))}
+                  </RetryContext.Provider>
                 </fieldset>
               </section>
             );

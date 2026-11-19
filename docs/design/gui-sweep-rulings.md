@@ -160,10 +160,14 @@ the last. Notes:
   **Open question for the author:** "DoL passed" still pre-ticks only for lines
   at level `A` (`lib/dolPass.ts` `DOL_BASE_LEVELS`), so a teacher's own level
   words get no prefill. Should the base level be declared per activity?
-- **T1 (Try again) is HELD.** Honouring it means each graded block knows
-  whether a retry exists, which adds code to the student shell, at its cap
-  (158.7/158.7 KiB). It waits on the shell-size work
-  ([shell-size-review.md](shell-size-review.md)).
+- **T1 (Try again) BUILT 2026-11-19.** `StatePill`'s default for a wrong
+  answer is "Not quite". `RetryContext` (in `StatePill.tsx`) says "Try again"
+  instead, and the container sets it per section only where the student can
+  still change the answer and check again: not frozen (a checked locked
+  section, a DoL try), not read-only, not `externalCheck` (a mixed item). No
+  block knows about it, so a new one-try surface needs no extra code.
+  Pinned in `viewer/tests/components/container.test.tsx` and mutation-tested
+  both ways.
 - **Not fixed (older weakness, from the review):** the nested rich-text field
   has no `definition` mark, so an imported `[[term]]` in a solution or model
   answer could make the field mount empty. Not reproduced.

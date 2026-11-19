@@ -22,6 +22,7 @@ import {
   createMockCheckService,
   createViewerStore,
   indexDocument,
+  StatePill,
 } from '../../src/index.js';
 import type {
   BlockComponentProps,
@@ -634,5 +635,50 @@ describe('a row tells each figure its share of the width', () => {
   it('three per row: labels 1.3x', () => {
     const { container } = setup(rowOf(3));
     expect(labelSizes(container)).toEqual([16.9, 16.9, 16.9]);
+  });
+});
+
+// RULING T1 (gui-sweep-rulings.md): "Try again" only where a retry exists.
+describe('a wrong answer says "Try again" only where a retry exists (T1)', () => {
+  const Wrong: ComponentType<BlockComponentProps> = () => <StatePill state="incorrect" />;
+  const blank = () => blocksOf('fill_in_blank')[0];
+  const lockedDoc = () =>
+    ({ ...docOf(blank()), meta: { ...fullDoc.meta, submissionMode: 'locked' } }) as SanitizedActivityDocument;
+  const label = (c: HTMLElement) => c.querySelector('.viewer-state-pill__label')?.textContent;
+
+  it('a free section, checked: "Try again" (the Check is still there)', async () => {
+    const { container, store } = setup(docOf(blank()), { resolveComponent: () => Wrong });
+    const section = indexDocument(docOf(blank())).sections[0]!;
+    await act(async () => {
+      await store.checkSection(section.sectionId, section.items);
+    });
+    expect(label(container)).toBe('Try again');
+  });
+
+  it('a locked section once checked: "Not quite"', async () => {
+    const doc = lockedDoc();
+    const { container, store } = setup(doc, { resolveComponent: () => Wrong });
+    expect(label(container)).toBe('Try again');
+    const section = indexDocument(doc).sections[0]!;
+    await act(async () => {
+      await store.checkSection(section.sectionId, section.items);
+    });
+    expect(container.querySelector('[data-section-frozen="true"]')).not.toBeNull();
+    expect(label(container)).toBe('Not quite');
+  });
+
+  it('a mixed-practice item (externalCheck): "Not quite"', () => {
+    const { container } = setup(docOf(blank()), { resolveComponent: () => Wrong, externalCheck: true });
+    expect(label(container)).toBe('Not quite');
+  });
+
+  it('a read-only view: "Not quite"', () => {
+    const { container } = setup(docOf(blank()), { resolveComponent: () => Wrong, readOnly: true });
+    expect(label(container)).toBe('Not quite');
+  });
+
+  it('outside any container the default is the neutral wording', () => {
+    const { container } = render(<StatePill state="incorrect" />);
+    expect(label(container)).toBe('Not quite');
   });
 });

@@ -22,6 +22,17 @@
 // decorative (aria-hidden) because the label already says the state.
 // =============================================================================
 
+import { createContext, useContext } from 'react';
+
+// RULING T1 (gui-sweep-rulings.md, 2026-11-13): a wrong answer reads "Not
+// quite" unless a retry really exists. "Try again" in a one-try place (a mixed
+// item, a frozen DoL try, a locked section, a teacher's read-only view) told
+// the student to do something they could not. The container provides `true`
+// per section only where the student can change the answer and check again;
+// the default is the neutral wording, so a new one-try surface is honest
+// without remembering anything.
+export const RetryContext = createContext(false);
+
 export type PillState = 'correct' | 'incorrect' | 'pending' | 'recorded';
 
 const GLYPH: Record<PillState, string> = {
@@ -34,7 +45,7 @@ const GLYPH: Record<PillState, string> = {
 
 const DEFAULT_LABEL: Record<PillState, string> = {
   correct: 'Correct',
-  incorrect: 'Try again',
+  incorrect: 'Not quite',
   pending: 'Will check when you’re back online',
   recorded: 'Recorded — your teacher will review',
 };
@@ -46,6 +57,7 @@ export interface StatePillProps {
 }
 
 export function StatePill({ state, label }: StatePillProps) {
+  const retry = useContext(RetryContext);
   return (
     <span
       className={`viewer-state-pill viewer-state-pill--${state}`}
@@ -55,7 +67,7 @@ export function StatePill({ state, label }: StatePillProps) {
         {GLYPH[state]}
       </span>
       <span className="viewer-state-pill__label">
-        {label ?? DEFAULT_LABEL[state]}
+        {label ?? (retry && state === 'incorrect' ? 'Try again' : DEFAULT_LABEL[state])}
       </span>
     </span>
   );
