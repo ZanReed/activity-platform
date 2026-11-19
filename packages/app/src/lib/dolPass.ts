@@ -34,26 +34,42 @@ export async function setDolPass(checkId: string, passed: boolean): Promise<void
 
 /**
  * The prefill (DL-11 as amended by C-163): every rubric line tagged at the
- * BASE level is at full marks. The base level of the only locale with level
- * tags today, nz-ncea, is 'A' (Achieved); a rubric with no base-tagged line
- * gets no prefill and the teacher ticks unaided (801/04 today).
+ * BASE level is at full marks. The base level is:
+ *   - `A` (nz-ncea's Achieved) when any line is tagged `A` — the catalogue's
+ *     case, unchanged;
+ *   - otherwise the level of the FIRST tagged line. Levels are written lowest
+ *     first (`dol_rubric_levels: A, M, E`, and the editor's level picker
+ *     follows the rubric's line order), so a teacher who names their own
+ *     levels ("Basic, Proficient, Advanced") gets the prefill from the first.
+ * No declared field: the prefill is a suggestion the teacher can untick, and
+ * its note names the level it used. A rubric with no tagged line gets no
+ * prefill and the teacher ticks unaided (801/04 today).
  */
-export const DOL_BASE_LEVELS: ReadonlySet<string> = new Set(['A']);
+export const NCEA_BASE_LEVEL = 'A';
+
+export function baseLevelOf(
+  spec: ReadonlyArray<{ level?: string }>,
+): string | undefined {
+  const levels = spec.map((c) => c.level).filter((l): l is string => l !== undefined && l !== '');
+  return levels.includes(NCEA_BASE_LEVEL) ? NCEA_BASE_LEVEL : levels[0];
+}
 
 export function baseLevelMet(
   spec: ReadonlyArray<{ id: string; maxPoints: number; level?: string }>,
   entries: ReadonlyArray<CriterionEntry>,
 ): boolean {
-  const base = spec.filter((c) => c.level !== undefined && DOL_BASE_LEVELS.has(c.level));
-  if (base.length === 0) return false;
+  const level = baseLevelOf(spec);
+  if (level === undefined) return false;
+  const base = spec.filter((c) => c.level === level);
   return base.every((c) => (entries.find((e) => e.criterionId === c.id)?.earned ?? 0) >= c.maxPoints);
 }
-
 
 /** The tick's copy (DL-11). */
 export const DOL_PASS_COPY = {
   label: 'DoL passed',
   hint: 'Tick when this answer shows the skill. Saved with the grade.',
-  prefill: 'Ticked because every Achieved line is at full marks. Untick if you disagree, then save.',
+  /** Names the base level it used: "Achieved" for `A`, else the teacher's own word. */
+  prefill: (level: string) =>
+    `Ticked because every ${level === NCEA_BASE_LEVEL ? 'Achieved' : `“${level}”`} line is at full marks. Untick if you disagree, then save.`,
   auto: 'Already passed: the student got this skill’s DoL right on a check.',
 } as const;

@@ -404,10 +404,33 @@ describe('the DoL pass tick (D65 DL-11, DE-15)', () => {
     expect(box.checked).toBe(false);
     fireEvent.change(screen.getByLabelText('Describes it'), { target: { value: '2' } });
     expect((screen.getByRole('checkbox', { name: DOL_PASS_COPY.label }) as HTMLInputElement).checked).toBe(true);
-    expect(screen.getByText(DOL_PASS_COPY.prefill)).toBeTruthy();
+    expect(screen.getByText(DOL_PASS_COPY.prefill('A'))).toBeTruthy();
+    expect(screen.getByText(/every Achieved line/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: COPY.save }));
     await waitFor(() => expect(h.setDolPass).toHaveBeenCalledWith('chk-1', true));
     expect(h.save).toHaveBeenCalled();
+  });
+
+  it('a rubric with the teacher’s own level words prefills from its FIRST level', async () => {
+    const own = [
+      { id: 'c-b', label: 'Names the rate', maxPoints: 1, level: 'Basic' },
+      { id: 'c-p', label: 'Compares the rates', maxPoints: 2, level: 'Proficient' },
+    ];
+    h.rubrics.mockResolvedValue(new Map([['v1:blk-1', own]]));
+    h.dolPrimaries.mockResolvedValue(new Set(['v1:blk-1']));
+    h.dolPasses.mockResolvedValue([]);
+    setup([row()]);
+    const rowButton = await waitFor(() => {
+      const el = document.querySelector('[data-chip]')?.closest('button');
+      if (!el) throw new Error('no queue row');
+      return el as HTMLElement;
+    });
+    fireEvent.click(rowButton);
+    const box = await waitFor(() => screen.getByRole('checkbox', { name: DOL_PASS_COPY.label }) as HTMLInputElement);
+    expect(box.checked).toBe(false);
+    fireEvent.change(screen.getByLabelText('Names the rate'), { target: { value: '1' } });
+    expect((screen.getByRole('checkbox', { name: DOL_PASS_COPY.label }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/every “Basic” line is at full marks/)).toBeTruthy();
   });
 
   it('a teacher’s untick removes THEIR pass on save', async () => {

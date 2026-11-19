@@ -157,9 +157,15 @@ the last. Notes:
   `dataVar` attribute, so an app edit of a seeded plot dropped its variable.
   Choosing a variable widens the axis to the variable's range.
 - **8**: levels are free text (8 characters), suggesting the activity's own.
-  **Open question for the author:** "DoL passed" still pre-ticks only for lines
-  at level `A` (`lib/dolPass.ts` `DOL_BASE_LEVELS`), so a teacher's own level
-  words get no prefill. Should the base level be declared per activity?
+  "DoL passed" used to pre-tick only for lines at level `A`, so a teacher's
+  own level words got no prefill. **Fixed 2026-11-19** (the author asked for
+  the fix; per-activity declaration was not chosen): the base level is `A`
+  when any line has it, else the first tagged line's level (levels are written
+  lowest first); no declared field. The editor's level help says "put the
+  lowest level first". Nothing enforces that order, which is acceptable only
+  because the prefill is a suggestion whose note names the level it used.
+  `lib/dolPass.ts` `baseLevelOf`, pinned in `dolBaseLevel.test.ts` and
+  `ActivityResponses.test.tsx`.
 - **T1 (Try again) BUILT 2026-11-19.** `StatePill`'s default for a wrong
   answer is "Not quite". `RetryContext` (in `StatePill.tsx`) says "Try again"
   instead, and the container sets it per section only where the student can

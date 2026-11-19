@@ -17,7 +17,7 @@ import {
   type CriterionEntry,
   type GradingQueueRow,
 } from '../lib/grading';
-import { DOL_PASS_COPY, baseLevelMet, setDolPass, type DolPassRow } from '../lib/dolPass';
+import { DOL_PASS_COPY, baseLevelMet, baseLevelOf, setDolPass, type DolPassRow } from '../lib/dolPass';
 // TYPES only from lib/gradingAssist: the page hands this panel the values it
 // needs (`assist`). A value import here would make that module one only the
 // page and this chunk share, which the bundler folds into the page's chunk,
@@ -502,7 +502,7 @@ export default function GradePanel({
             {storedPass?.source === 'auto'
               ? DOL_PASS_COPY.auto
               : tickTouched === null && prefillTick
-                ? DOL_PASS_COPY.prefill
+                ? DOL_PASS_COPY.prefill(baseLevelOf(spec) ?? '')
                 : DOL_PASS_COPY.hint}
           </p>
         </div>

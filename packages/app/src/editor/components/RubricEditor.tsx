@@ -160,8 +160,9 @@ export default function RubricEditor({
             )}
             {showLevels && (
                 <p className="free-response-block__rubric-levels-help">
-                    Level: the grade or standard each line shows, in your school’s words. “DoL passed” is
-                    pre-ticked only for lines at level A.
+                    Level: the grade or standard each line shows, in your school’s words. Put the lowest
+                    level first: “DoL passed” is pre-ticked when every line at that level (or at A, if any line
+                    uses A) is at full marks.
                 </p>
             )}
             <button

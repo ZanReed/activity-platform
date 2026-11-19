@@ -34,8 +34,8 @@ re-checked by grep). Not triggered wishes: under the 2026-11-12 rule each is a
 debt. Ranked by what a teacher meets first; each gets its own short design pass.
 **Items 3–8 BUILT 2026-11-13** on the author's rulings
 ([gui-sweep-rulings.md](docs/design/gui-sweep-rulings.md) → "As built"); item 9
-ruled "Figure source counts". Open from it: DoL pass prefill reading only level
-`A`. (The "Try again" label, T1, was fixed 2026-11-19.)
+ruled "Figure source counts". Nothing open from it: the "Try again" label (T1) and
+the DoL pass prefill reading only level `A` were both fixed 2026-11-19.
 
 1. ✅ **Misconception ids — BUILT 2026-11-12** (misconception-sensors.md →
    "GUI amendment 2026-11-12"). Also fixed: editing a blank's mistake feedback

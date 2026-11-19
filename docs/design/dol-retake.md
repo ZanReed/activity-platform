@@ -494,7 +494,7 @@ Each guard written in this slice was mutation-tested: red on the reverted code, 
 - **DE-12 is computed by the DATABASE, not stamped by the importer.** `dol_pass_skill(activity)` reads the live parts of the skill plus `skill_part_count` (the registry's `= n`, which `--skills-registry` mirrors for every id). A stored flag goes stale whenever a sibling part is imported; a computed one cannot. There is no `activities.dol_grants_pass` column.
 - **Groups are linked-variable components, finer than items.** The sample enumerates as three groups (primary 140/252; `{c, r, k}`; `{d}`), not the curriculum checker's two. It yields the same set of forms (15 × 8 = 120).
 - **The wire's DoL state** is `{ allowance, attempts, form, retakeOpen, passed, markFirst }` on the served section. `markFirst` drives the "once your teacher has marked this" copy. Skill ids and the seed table never reach the student.
-- **The prefill's base level is `A`** (`DOL_BASE_LEVELS`, lib/dolPass.ts), the base level of the one locale that has level tags today.
+- **The prefill's base level is `A`** when any line is tagged `A` (nz-ncea's Achieved), **else the first tagged line's level** (`baseLevelOf`, lib/dolPass.ts; amended 2026-11-19 so a teacher's own level words get the prefill too). The note under the tick names the level it used.
 - **Teacher-side DoL code lives in lib/dolPass.ts,** not lib/grading.ts, which reaches the student shell. The shell is at 157.8 of its 158 KiB cap.
 - **The read bundle is 1,127 KiB** (cap 1,500). The growth is mostly its inline sourcemap; the code grew ~5 KiB, and the grader stays out of the read path (server/dolPrimary.ts).
 
