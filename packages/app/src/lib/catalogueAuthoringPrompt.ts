@@ -99,6 +99,8 @@ const CATALOGUE_SECTION = [
     '  already a rubric-graded short answer.',
     '- When the primary item is a rubric-graded short answer, tag each rubric',
     '  line with the level it evidences, in order: `dol_rubric_levels: A, M, E`.',
+    '  Write the lines LOWEST LEVEL FIRST: the grading view pre-ticks "DoL passed"',
+    '  from the `A` lines, or from the first line\'s level when no line is `A`.',
     '- A retake is a FRESH DRAW, so a DoL that should offer one carries its own',
     '  ```seed fence INSIDE the DoL section. In that fence (and only there) you',
     '  may derive values (`p: = g * a`) and constrain them with `where dol:` —',
