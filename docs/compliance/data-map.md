@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-20-draft-68`. Mirrors migrations 0001–**0100**, verified
+> Version `2026-11-20-draft-69`. Mirrors migrations 0001–**0101**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-69` (2026-11-20) — 0101 adds no table or column:** it removes PUBLIC's EXECUTE on two trigger functions (`mixed_session_items_position`, `users_photo_pilot_guard`). Nothing that runs changes. The range moves to 0101.
 >
 > **`draft-68` (2026-11-20) — 0100 adds no table or column: a client can no longer UPDATE `users`.** The `users_update_self` policy is dropped and the client UPDATE grant revoked, so a student's or teacher's own row (name, email, deletion date, educator attestation, caps exemption, timezone) changes only through the platform's audited server functions (`set_public_name`, `set_my_timezone`, sign-up and join). Before 0100 a client update already failed, on a policy error; the ruling makes the refusal deliberate. Reads are unchanged: each user still sees only their own row. The range moves to 0100.
 >
