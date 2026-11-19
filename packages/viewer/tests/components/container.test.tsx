@@ -23,6 +23,7 @@ import {
   createViewerStore,
   indexDocument,
   StatePill,
+  CheckError,
 } from '../../src/index.js';
 import type {
   BlockComponentProps,
@@ -665,6 +666,50 @@ describe('a wrong answer says "Try again" only where a retry exists (T1)', () =>
     });
     expect(container.querySelector('[data-section-frozen="true"]')).not.toBeNull();
     expect(label(container)).toBe('Not quite');
+  });
+
+  // A failed RE-check leaves the first check's verdicts on screen. They say
+  // "Try again" only when a retry can still work (the status line's split).
+  async function recheckFailing(err: Error) {
+    let fail = false;
+    const inner = createMockCheckService();
+    const service = {
+      ...inner,
+      checkSection: (...args: Parameters<typeof inner.checkSection>) => {
+        if (fail) return Promise.reject(err);
+        return inner.checkSection(...args);
+      },
+    } as typeof inner;
+    const store = createViewerStore({ userId: TEST_USER_ID, activityId: ACTIVITY, versionId: VERSION, checkService: service });
+    const doc = docOf(blank());
+    const { container } = render(
+      <ViewerContainer document={doc} store={store} versionId={VERSION} resolveComponent={() => Wrong} />,
+    );
+    const section = indexDocument(doc).sections[0]!;
+    await act(async () => {
+      await store.checkSection(section.sectionId, section.items);
+    });
+    fail = true;
+    await act(async () => {
+      await store.checkSection(section.sectionId, section.items).catch(() => undefined);
+    });
+    expect(container.querySelector('[data-section-phase="error"]')).not.toBeNull();
+    return container;
+  }
+
+  it('a failed re-check only a reload can fix (stale page): "Not quite"', async () => {
+    const c = await recheckFailing(new CheckError('stale_client', 'stale'));
+    expect(label(c)).toBe('Not quite');
+  });
+
+  it('a failed re-check a sign-in must fix: "Not quite"', async () => {
+    const c = await recheckFailing(new CheckError('unauthenticated', 'expired'));
+    expect(label(c)).toBe('Not quite');
+  });
+
+  it('a failed re-check that a retry can fix (server error): still "Try again"', async () => {
+    const c = await recheckFailing(new CheckError('server_error', 'boom'));
+    expect(label(c)).toBe('Try again');
   });
 
   it('a mixed-practice item (externalCheck): "Not quite"', () => {

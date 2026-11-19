@@ -248,6 +248,28 @@ export function currentDolState(
   return { attempts: dol.attempts, allowance: dol.allowance, passed: dol.passed };
 }
 
+/**
+ * The check failed in a way no retry from this page can fix (T1 follow-up,
+ * 2026-11-19): only a reload, a sign-in or the teacher helps. A section in
+ * this state keeps the verdicts of its earlier check on screen, and those must
+ * not say "Try again" either. Mirrors the status line's no-retry kinds
+ * (groupStatusLabel); `rate_limited`, `offline`, `server_error`, `unknown` and
+ * `photo_refused` (remove the photo, check again) can still succeed.
+ */
+const NO_RETRY_KINDS: ReadonlySet<string> = new Set([
+  'stale_client',
+  'unauthenticated',
+  'unavailable',
+  'locked',
+  'dol_form_stale',
+  'dol_retake_not_yet',
+  'malformed_document',
+]);
+
+export function checkCannotBeRetried(status: SectionStatus | undefined): boolean {
+  return status?.phase === 'error' && status.kind !== undefined && NO_RETRY_KINDS.has(status.kind);
+}
+
 export function isSectionFrozen(status: SectionStatus | undefined): boolean {
   if (!status) return false;
   switch (status.phase) {

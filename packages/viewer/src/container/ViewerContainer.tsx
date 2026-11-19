@@ -65,6 +65,7 @@ import {
   groupStatus,
   isSectionFrozen,
   isDolFrozen,
+  checkCannotBeRetried,
   currentDolState,
   sectionsInGroup,
   type CheckGroup,
@@ -776,7 +777,7 @@ export function ViewerContainer({
                     exist yet cannot forget to honour it. */}
                 <fieldset className="viewer-section__inputs" disabled={frozen}>
                   {/* T1: "Try again" only where a retry exists (StatePill). */}
-                  <RetryContext.Provider value={!frozen && !readOnly && !externalCheck}>
+                  <RetryContext.Provider value={!frozen && !readOnly && !externalCheck && !checkCannotBeRetried(status)}>
                   {section.rows.map((row) => (
                     <div
                       key={row.id}

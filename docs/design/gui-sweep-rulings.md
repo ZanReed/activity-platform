@@ -172,6 +172,9 @@ the last. Notes:
   still change the answer and check again: not frozen (a checked locked
   section, a DoL try), not read-only, not `externalCheck` (a mixed item). No
   block knows about it, so a new one-try surface needs no extra code.
+  Follow-up the same day: a failed re-check that only a reload, a sign-in or
+  the teacher can fix (`checkCannotBeRetried` in `checkGroups.ts`, the status
+  line's no-retry kinds) turns the earlier verdicts to "Not quite" too.
   Pinned in `viewer/tests/components/container.test.tsx` and mutation-tested
   both ways.
 - **Not fixed (older weakness, from the review):** the nested rich-text field
