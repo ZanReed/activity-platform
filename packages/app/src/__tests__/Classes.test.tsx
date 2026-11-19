@@ -471,9 +471,42 @@ describe('the timezone control (PP-11)', () => {
         unmount();
         sess.role = 'student';
         renderClasses();
-        await screen.findByRole('heading', { name: 'My classes' });
+        await screen.findByText('This page is for teachers.');
         await new Promise((r) => setTimeout(r, 20));
         expect(screen.queryByText(/Days follow/)).toBeNull();
+    });
+});
+
+describe('a student on /classes (TODOS, filed 2026-11-14)', () => {
+    afterEach(() => {
+        sess.role = undefined;
+        h.listResult.current = { data: [], error: null };
+    });
+    const CLASS = {
+        id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
+        age_assertion_at: '2026-08-12T00:00:00Z', assertion_text_version: '2026-08-15-draft-3',
+        includes_under_13: false, created_at: '2026-08-12T00:00:00Z',
+    };
+
+    it('sees "This page is for teachers." and a way home, never a card with teacher controls', async () => {
+        h.listResult.current = { data: [CLASS], error: null };
+        sess.role = 'student';
+        renderClasses();
+        expect(await screen.findByText('This page is for teachers.')).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Go to your home page' }).getAttribute('href')).toBe('/');
+        await new Promise((r) => setTimeout(r, 20));
+        expect(screen.queryByText('Algebra I — Period 3')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'New class' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Rename|New code|Present today/ })).toBeNull();
+    });
+
+    it('a teacher still gets the page, with the class card', async () => {
+        h.listResult.current = { data: [CLASS], error: null };
+        sess.role = 'teacher';
+        renderClasses();
+        expect(await screen.findByText('Algebra I — Period 3')).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'New class' })).toBeTruthy();
+        expect(screen.queryByText('This page is for teachers.')).toBeNull();
     });
 });
 

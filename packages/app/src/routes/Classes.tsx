@@ -705,6 +705,27 @@ export default function Classes() {
 
     if (!session) return null;
 
+    // A student who reaches /classes (a shared link, a typed URL) used to see
+    // their class's card WITH the teacher controls on it. Nothing leaked (the
+    // server refuses every action), but the page looked broken. They get the
+    // same screen Present today gives them, and a way back to their own home,
+    // which lists their classes (TODOS, filed 2026-11-14; fixed 2026-11-19).
+    if (role === 'student') {
+        return (
+            <main className="min-h-screen bg-surface p-8">
+            <div className="mx-auto max-w-2xl" data-testid="classes-students-screen">
+            <h1 className="text-3xl font-bold text-ink">Classes</h1>
+            <p className="mt-4 text-lg text-muted">This page is for teachers.</p>
+            <p className="mt-2 text-sm">
+            <Link to="/" className="font-medium text-ink underline underline-offset-2">
+            Go to your home page
+            </Link>
+            </p>
+            </div>
+            </main>
+        );
+    }
+
     const handleCreate = async () => {
         setCreating(true);
         setCreateError(null);
