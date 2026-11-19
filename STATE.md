@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
+**0100 BUILT 2026-11-20** (no client UPDATE on `users`): apply; live `verify-0100`, `verify-0099`.
+
 **Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0099 LIVE; no pilots yet). Sweep token LIVE. Then Pro, Q14, pg_net, Vault, arm, proof, flip, pin bump.
 
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
@@ -28,11 +30,11 @@ Author-only: pushes, deploys, migrations.
 
 **Form grading (D60) LIVE 2026-11-14** ([form-grading.md](docs/design/form-grading.md) → As built): both functions hash-verified, pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
 
-**UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Job health: a local weekly task. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
+**UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 
 **GUI rule (2026-11-12): all three gaps LIVE** (video, seeded variables, DoL; pushed, CI green). [TODOS](TODOS.md) → GUI gaps.
 
-**D67 tracker LIVE 2026-11-02** (receipt B-225). **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
+**D67 tracker LIVE 2026-11-02**. **D77 optional DoL explanation:** 0075 + 0076 live + pushed (9a3957f6); stamps refreshed. **801 DoLs LIVE** (v9, v7×3). **0077 repeat LIVE** (verify 391/0).
 
 **D64:** slices 1–3 LIVE, clearance OFF. 0080 prune (30 days) LIVE, disarmed. YouTube unproven. [video-pause-points.md](docs/design/video-pause-points.md).
 

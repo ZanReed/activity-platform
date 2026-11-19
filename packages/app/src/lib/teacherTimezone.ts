@@ -5,8 +5,8 @@
 // mixed practice's practice_day, the unit tracker, first tries, DoL retakes,
 // due dates, Today and the planner. Unset, it is analytics_default_zone()
 // (America/Chicago) — wrong all school day for an NZ teacher. Read through
-// my_timezone(), written through set_my_timezone() (a definer RPC: a direct
-// client UPDATE of users dies in the users_update_self recursion).
+// my_timezone(), written through set_my_timezone() (a definer RPC: since 0100
+// clients hold no UPDATE on users at all).
 // =============================================================================
 
 import { supabase } from './supabase';

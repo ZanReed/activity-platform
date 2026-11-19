@@ -72,7 +72,7 @@ grant select, insert, update, delete on public.class_members       to anon, auth
 grant select, insert, update, delete on public.grades              to anon, authenticated;
 grant select, insert, update, delete on public.section_checks      to anon, authenticated;
 grant select, insert, update, delete on public.submissions         to anon, authenticated;
-grant select, insert, update, delete on public.users               to anon, authenticated;
+grant select, insert, update, delete on public.users               to anon, authenticated;  -- UPDATE revoked by 0100 (no client writes to users); do not restore it here
 
 -- -----------------------------------------------------------------------------
 -- C. classes — SELECT + DELETE only, preserving 0027's narrowing

@@ -85,18 +85,20 @@ begin
   insert into class_members (class_id, student_id) values (v_cls, v_s);
   update photo_clearance set cleared = true;
 
-  -- B1 a client cannot make themselves a pilot. Two layers refuse it: today
-  -- EVERY client UPDATE on users dies on the users_update_self policy's own
-  -- recursion ("infinite recursion detected in policy"), and behind that the
-  -- users_photo_pilot_guard trigger refuses the column. Either refusal passes;
-  -- what is asserted is the property: the flag did not move.
+  -- B1 a client cannot make themselves a pilot. Two layers refuse it: since
+  -- 0100 clients hold no UPDATE on users ("permission denied"; before 0100
+  -- the users_update_self policy's own recursion refused every client
+  -- UPDATE), and behind that the users_photo_pilot_guard trigger refuses the
+  -- column. Any of these refusals passes; what is asserted is the property:
+  -- the flag did not move.
   perform set_config('request.jwt.claims', json_build_object('sub', v_n, 'role', 'authenticated')::text, true);
   begin
     execute 'set local role authenticated';
     update users set photo_pilot = true where id = v_n;
   exception when others then
     v_blocked := sqlerrm like '%photo_pilot is not client-writable%'
-              or sqlerrm like '%infinite recursion detected in policy%';
+              or sqlerrm like '%infinite recursion detected in policy%'
+              or sqlerrm like '%permission denied for table users%';
   end;
   execute 'reset role';
   if not v_blocked or (select photo_pilot from users where id = v_n) then

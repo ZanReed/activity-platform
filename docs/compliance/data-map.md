@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-19-draft-67`. Mirrors migrations 0001–**0099**, verified
+> Version `2026-11-20-draft-68`. Mirrors migrations 0001–**0100**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-68` (2026-11-20) — 0100 adds no table or column: a client can no longer UPDATE `users`.** The `users_update_self` policy is dropped and the client UPDATE grant revoked, so a student's or teacher's own row (name, email, deletion date, educator attestation, caps exemption, timezone) changes only through the platform's audited server functions (`set_public_name`, `set_my_timezone`, sign-up and join). Before 0100 a client update already failed, on a policy error; the ruling makes the refusal deliberate. Reads are unchanged: each user still sees only their own row. The range moves to 0100.
 >
 > **`draft-67` (2026-11-19) — 0099 adds `users.photo_pilot`: photo answers are for PILOT teachers only.** A per-teacher flag, off by default, set by the author in SQL and not client-writable. Students may add a photo only to an activity whose owner is a pilot teacher, and only while the global switch is on (`photos_allowed_for`, asked by every gate). It holds no personal data of its own; it narrows who can collect the photos this map already lists. Ruled 2026-11-19: the author's local teachers first.
 >

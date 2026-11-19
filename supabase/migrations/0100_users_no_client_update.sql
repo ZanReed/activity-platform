@@ -1,0 +1,55 @@
+-- =============================================================================
+-- 0100_users_no_client_update.sql — retire the recursive users UPDATE policy;
+-- clients do not write `users` (author ruling 2026-11-20)
+-- -----------------------------------------------------------------------------
+-- THE BUG (TODOS, found 2026-10-18). Every client UPDATE on `users` failed:
+--
+--   ERROR: 42P17: infinite recursion detected in policy for relation "users"
+--
+-- users_update_self's WITH CHECK pinned role and account_tier by re-reading
+-- `users` — `role = (select role from users where id = auth.uid())`. Postgres
+-- applies `users`' SELECT policy to that inner read, and that policy carries
+-- its own sublink (`(select auth.uid())`). The rewriter refuses to expand a
+-- relation's sublink-bearing policies inside an expansion of the same
+-- relation, so the statement dies before any row is looked at. 0018 fixed
+-- the same hazard in the SELECT policy; it never reached the UPDATE one.
+--
+-- WHY NOT JUST BREAK THE RECURSION. The error was the ONLY thing stopping a
+-- client write. 0032 grants anon/authenticated table-level UPDATE (live's own
+-- state), and the policy pinned two columns of fifteen. A recursion-only fix
+-- would have let a signed-in teacher PATCH their own row to set
+-- teacher_caps_exempt (skipping the caps), clear deleted_at (undelete),
+-- forge educator_attested_at, or set display_name around set_public_name's
+-- checks. Nothing in the app writes `users` from a client: every write is a
+-- SECURITY DEFINER function owned by postgres (set_public_name,
+-- set_my_timezone, claim_teacher, redeem_join_code, run_analytics_maintenance,
+-- the signup trigger), which bypasses RLS and does not use these grants.
+--
+-- THE FIX (ruled "no client writes"). Drop the policy AND revoke the grant.
+-- Either alone stops the write (the grant with an error; RLS with no UPDATE
+-- policy as a silent 0-row update), and both keep it stopped if one is later
+-- loosened by mistake: a future UPDATE policy still meets "permission denied",
+-- and a future re-grant still meets RLS with no UPDATE policy. A new
+-- client-writable column goes through a definer RPC, like set_my_timezone.
+--
+-- ON 0032'S WARNING ("READ THIS BEFORE TIGHTENING"). That warning is against
+-- a LOCAL database granting less than live, which would mask RLS defects.
+-- This migration runs on both, so local and live stay identical. INSERT and
+-- DELETE keep their grants: `users` has no INSERT or DELETE policy, so RLS
+-- (forced since 0001) already refuses them; widening this ruling past UPDATE
+-- is a separate decision.
+--
+-- Behaviour change: none for the app. A client UPDATE that raised 42P17 now
+-- raises 42501 (permission denied). The two guard triggers
+-- (users_timezone_guard 0036/0063, users_photo_pilot_guard 0099) stay: they
+-- still cover any definer function that writes those columns.
+-- =============================================================================
+
+drop policy if exists users_update_self on users;
+
+revoke update on table users from anon, authenticated;
+
+-- =============================================================================
+-- Verification: scripts/verify-0100.sql
+-- (`pnpm verify:auth --target live|local --only verify-0100`)
+-- =============================================================================
