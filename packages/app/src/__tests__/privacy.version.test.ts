@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { POLICY_VERSION, policyChangedOn } from '../lib/policyVersion';
+import { POLICY_VERSION } from '../lib/policyVersion';
+import { policyChangedOn } from '../lib/policyDate';
 
 describe('privacy policy version sync', () => {
   it('POLICY_VERSION matches docs/compliance/privacy-policy.md', () => {

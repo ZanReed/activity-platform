@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
 import { PRESENT_FROM_CLASSES } from '../lib/presentFrom';
-import { policyChangedOn } from '../lib/policyVersion';
+import { policyChangedOn } from '../lib/policyDate';
 import { TeacherNav } from '../components/TeacherNav';
 import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
 import { useSession } from '../lib/SessionContext';

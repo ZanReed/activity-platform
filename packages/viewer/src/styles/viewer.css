@@ -2016,14 +2016,17 @@
      top of the row's last blocks. Measured on the stress-test worksheet
      (2026-11-20): the pushed block there was the Part 6 line chart, and a
      plain 280px div swapped in for the chart overlapped identically, so it is
-     the grid, not the chart. A one-column grid lays out exactly like a block
-     (one 1fr track, items at the start), so on paper it gives up nothing.
+     the grid, not the chart. flow-root, not block: like the grid it keeps the
+     column's margins inside the row (plain block let them collapse through,
+     and every printed question moved up to 32px closer to the next; CI's
+     print baselines caught it), and it is block layout, so the paged-grid
+     bug cannot reach it.
      Multi-column rows keep the grid; they need it to sit side by side. Bare
      attribute selector: only rows carry it (ViewerContainer), and it beats
      .viewer-row by source order at equal specificity; the shell CSS sits at
      its cap. */
   [data-column-count='1'] {
-    display: block;
+    display: flow-root;
   }
 
   /* App chrome never prints. The top bar is sticky page furniture — it carries

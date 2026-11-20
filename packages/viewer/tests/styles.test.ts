@@ -278,7 +278,7 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
     }
     expect(
       printBlocks.some((b) =>
-        /(^|[\s,}])\[data-column-count='1'\]\s*\{[^}]*display:\s*block/.test(b),
+        /(^|[\s,}])\[data-column-count='1'\]\s*\{[^}]*display:\s*flow-root/.test(b),
       ),
     ).toBe(true);
     const container = readFileSync(
