@@ -518,10 +518,11 @@ Chromium fires no `blur` when a focused input becomes disabled, and `BlankInput`
 
 ## Mixed practice: three items filed by its eng review (2026-10-19; [mixed-practice.md](docs/design/mixed-practice.md))
 
-- **Gradebook export (ER-8).** No grades export exists for anything. Mixed
-  practice v1 records and shows graded scores only. **Trigger:** the first
-  grades export is designed — then design it once for activity grades
-  (`check_grades`) AND graded practice scores together.
+- **Gradebook export (ER-8). TRIGGER FIRED; RULED 2026-11-20**
+  ([gradebook-export.md](docs/design/gradebook-export.md), GB-1..GB-13). The
+  old line here, "no grades export exists", was wrong from 2026-11-13: E-1's
+  class progress CSV existed, without hand grades, DoL or practice scores. The
+  ruled design extends that file with all three.
 - **"Mark as taught" for paper-only lessons (ER-10, reversed by C-145).**
   Taught = EACH STUDENT'S own first check, so a lesson run on paper never
   enters anyone's pool. A mark applies to the students present, never the roll.
