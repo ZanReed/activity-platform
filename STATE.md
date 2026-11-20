@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**0100, 0101 LIVE 2026-11-20**, verified live.
+**0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
 **Gradebook export: 0102 LIVE 2026-11-20** (verify-0102/0061/0028/0017 green live; [doc](docs/design/gradebook-export.md)). **Push owed.** Q15 drafted, unsent.
 

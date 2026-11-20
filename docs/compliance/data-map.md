@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-20-draft-70`. Mirrors migrations 0001–**0102**, verified
+> Version `2026-11-20-draft-71`. Mirrors migrations 0001–**0103**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-71` (2026-11-20) — 0103 adds no table or column: the last IP hashes are cleared.** Seven `audit_log` rows (`submission.create`, 2026-06-16 to 2026-07-29, from the anonymous ingest path 0029 removed) still carried an `ip_hash`; 0103 sets every one to NULL. The rows stay for their 2-year window. Nothing writes the column any more (verify-0103 checks that no function names it), so it is empty for good. The range moves to 0103.
 >
 > **`draft-70` (2026-11-20) — 0102 adds no table or column: a teacher's class GRADEBOOK file.** A new teacher-only read, `class_gradebook` (`is_class_teacher`; live roster × the class's activities), returns per student the totals of RELEASED hand grades, DoL passes that have a check on the class's activity, pooled graded practice scores, and the roster's **emails**; the class progress page turns it, with the grid it already loads, into a CSV the teacher **downloads to their own computer** (docs/design/gradebook-export.md). The download is not new (E-1, 2026-11-13, carried names and auto-marked percents) but was never recorded here: it is now a row in Flows. **From the moment it is downloaded, that copy is outside this platform's retention and deletion**, held under the school's own policy; counsel question Q15 (DRAFT) asks whether that needs more than this note. The range moves to 0102.
 >
@@ -465,7 +467,7 @@
 | `submissions.ip_hash` | salted SHA-256 of IP | student | ~~ingest edge~~ (writer demolished) | abuse detection ONLY | **CLOSED at S9 Drop 3** — all rows wiped by 0029, ingest path dropped; zero rows remain, nothing can write new ones |
 | `submissions.user_agent` | browser string | student | same | abuse detection ONLY | closed with ip_hash (same wipe) |
 | ~~`grades.*`~~ | ⚰ **TOMBSTONE — the table was DROPPED by 0034 (2026-08-16)**, having never held a row. Teacher feedback lives in `check_grades` above, keyed to a specific check rather than to the never-written `submissions`. Kept as a row because earlier drafts, the purge function's history, and `retention-policy.md` all cited it | — | — | — | — |
-| `audit_log.actor_id` + `action` (+`ip_hash`) | who did what when | both | triggers/RPCs | security review | **2 years** — and the row outlives the account: on purge `actor_id` goes NULL and `metadata.actor_purged` is stamped (0024), so the event survives its window without naming a person |
+| `audit_log.actor_id` + `action` (+`ip_hash`, **always NULL since 0103**: no writer) | who did what when | both | triggers/RPCs | security review | **2 years** — and the row outlives the account: on purge `actor_id` goes NULL and `metadata.actor_purged` is stamped (0024), so the event survives its window without naming a person |
 | **`assignment_students.display_name`** | ⚠ **a STUDENT NAME column, in a table no earlier draft of this document mentioned** — found 2026-08-17 by sweeping `information_schema` for person-referencing columns instead of reading migration diffs. Part of the **dormant 0001-era assignment machinery** (Phase-3 Classroom integration, designed and never wired). **0 rows, and no code path writes it** | student | — (no writer) | none today | **retire with the table** — TODOS carries "Drop the dormant `assignments` table"; until then it is an empty column with no writer, which is a latent surface rather than held data |
 | `assignments.teacher_id` | teacher identity on the same dormant machinery | teacher | — (no writer) | none today | as above; **0 rows** |
 | `activities.owner_id` / `activity_versions.created_by` | teacher identity on authored content | teacher | editor / `publish_activity` | ownership, authorization (`can_edit_activity`) | account lifetime; blocks account purge until the content is gone (0023's work-before-account precedence) |
