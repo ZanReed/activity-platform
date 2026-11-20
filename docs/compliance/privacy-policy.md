@@ -12,6 +12,10 @@
 > the school clears it). The table now says what is kept and for how long,
 > and the "do not collect" line says photos of you are still not collected.
 > The gradebook sentence under "Who sees what" is new (gradebook-export.md).
+> The IP row is corrected too: the hashed IP and browser type it described
+> came from the old published-page submissions, deleted with them on
+> 2026-08-14 (migration 0029). What remains is a one-minute, in-memory request
+> count on the two sign-in-free lookups (`get-activity`'s meta branches).
 >
 > `draft-4` (2026-10-06): **students under 13 may use the platform when their
 > school has authorized it.** The teacher now confirms one of two statements
@@ -98,7 +102,7 @@ them and their teacher, and an account with no class reaches none of it.
 | Educator confirmation (teachers only) | The teacher, at setup | Recording who confirmed their school authorizes this, and when |
 | Activity responses, scores, attempt counts | Your work | The whole point — your teacher reviews it |
 | Photos of your working on paper | You, only if you choose to add one to a question, and only where your teacher has photo answers turned on | So your teacher can mark working you did on paper. Location and other hidden photo data are removed. Only you and your teacher can see it. It is deleted at most 30 days after your teacher releases the grade on it |
-| A one-way hash of your IP address, browser type | Automatic, on submission | Abuse detection only. We never store your raw IP. Deleted after 30 days |
+| Your IP address | Automatic, when an activity or class link is looked up before sign-in | Stopping automated abuse only: the server counts requests per address for one minute, in memory. It is not saved in our database, and nothing records your browser type |
 
 We do **not** collect: age or birthdate, location, contacts, photos of you
 (only the photos of your working described above, which you choose), browsing
