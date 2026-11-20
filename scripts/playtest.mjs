@@ -37,6 +37,9 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), '../..');
+const POLICY_VERSION = readFileSync(join(REPO_ROOT, 'packages/app/src/lib/policyVersion.ts'), 'utf8')
+    .match(/^export const POLICY_VERSION = '([^']+)';/m)?.[1];
+if (!POLICY_VERSION) throw new Error('playtest: could not read POLICY_VERSION from packages/app/src/lib/policyVersion.ts');
 const ACCOUNTS = JSON.parse(
     readFileSync(join(REPO_ROOT, 'packages/app/src/dev/playtestAccounts.json'), 'utf8'),
 );
@@ -304,7 +307,9 @@ async function seed(stack, args) {
     const cls = await rpc(stack, teacher.token, 'create_class', {
         p_name: ACCOUNTS.className,
         p_expected_domain: ACCOUNTS.domain,
-        p_assertion_text_version: 'local-playtest',
+        // The policy version in force, so the class card shows no "policy
+        // changed" notice (it would on any other string).
+        p_assertion_text_version: POLICY_VERSION,
         p_includes_under_13: false,
     });
     for (const s of students) await rpc(stack, s.token, 'join_class', { p_join_code: cls.join_code });

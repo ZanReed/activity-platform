@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
 import { PRESENT_FROM_CLASSES } from '../lib/presentFrom';
+import { policyChangedOn } from '../lib/policyVersion';
 import { TeacherNav } from '../components/TeacherNav';
 import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
 import { useSession } from '../lib/SessionContext';
@@ -12,6 +13,7 @@ import ClassActivitiesPanel, {
 import {
     AGE_STATEMENT_PROMPT,
     AGE_STATEMENTS,
+    ASSERTION_TEXT_VERSION,
     createClass,
     formatDate,
     joinUrlFor,
@@ -426,6 +428,43 @@ function ClassCard({
         {info.helpRequestsOn ? 'Turn off' : 'Turn on'}
         </button>
         </span>
+        {/* The policy's "Changes" section promises teachers hear of a change
+            first (TODOS → "Tell teachers when the privacy policy changes",
+            author 2026-11-20: notice only). A class confirmed against an older
+            version shows this line until its teacher confirms again; it never
+            blocks the class. It stays on screen while the form is open, so its
+            button keeps keyboard focus (Fable review) and the form follows it. */}
+        {info.assertionTextVersion !== ASSERTION_TEXT_VERSION && (
+            <p
+            className="mt-2 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning-strong"
+            data-policy-notice
+            >
+            The privacy policy changed on{' '}
+            {policyChangedOn().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}.{' '}
+            <Link
+            to="/privacy"
+            target="_blank"
+            rel="noopener"
+            aria-label="Review the privacy policy (opens in a new tab)"
+            className="font-medium underline underline-offset-2"
+            >
+            Review it
+            </Link>
+            , then{' '}
+            <button
+            type="button"
+            onClick={() => {
+                setAgeDraft(null);
+                setEditingAge(true);
+            }}
+            aria-label={`Confirm the age statement again: ${info.name}`}
+            className="font-medium underline underline-offset-2"
+            >
+            confirm the age statement again
+            </button>
+            .
+            </p>
+        )}
         {editingAge && (
             <form
             className="mt-2 rounded-md border border-line bg-surface p-3"

@@ -286,32 +286,22 @@ server refused every action), but the page looked broken. A student now gets
 classes); teachers, admins and a still-loading role see the page as before.
 `Classes.test.tsx` → "a student on /classes" (mutation-tested).
 
-## Tell teachers when the privacy policy changes (found 2026-11-20, POLICY_VERSION draft-4 → draft-5)
+## Tell teachers when the privacy policy changes — BUILT 2026-11-20 (notice only)
 
-The policy's own "Changes" section promises that teachers are told **before**
-students see new terms. Nothing in the app does that. A bump today is silent:
-new classes record the new version, and existing ones keep the old one.
+Built as the author ruled ("notice only", 2026-11-20): a class whose
+`assertionTextVersion` ≠ `POLICY_VERSION` shows one line on its Classes card,
+"The privacy policy changed on <date>. Review it, then confirm the age
+statement again", linking to `/privacy` and opening the existing re-confirm
+form. It never blocks the class and clears when the teacher re-confirms
+(`Classes.test.tsx`, mutation-tested both ways). The date is the version
+string's prefix (`policyChangedOn`, pinned by `privacy.version.test.ts`).
 
-Almost everything needed is already built. Each class row stores the version
-its teacher confirmed (`classes.assertion_text_version`, loaded by
-`lib/classes.ts` as `assertionTextVersion`). The re-confirm control from 0053
-(`reconfirmClassAge`, Classes.tsx) restamps that version.
-
-**Recommended shape (app-only, no migration):** when a class's
-`assertionTextVersion` ≠ `POLICY_VERSION`, its card on Classes shows one line,
-"The privacy policy changed on <date>. Review it and confirm again", with links
-to `/privacy` and to the existing re-confirm. The line is a notice only and
-never blocks the class (students keep working). It goes away when the teacher
-re-confirms.
-
-**Open questions for the author:**
-1. Notice only, or should a class whose teacher hasn't re-confirmed within N
-   days stop admitting new students by join code?
-2. Should students see anything?
-
-**Trigger:** the first teacher other than the author creates a class, or the
-next POLICY_VERSION bump, whichever comes first. Due before February classes
-either way.
+**Still open, each with its trigger:**
+1. Should a class whose teacher hasn't re-confirmed within N days stop
+   admitting new students by join code? **Trigger:** a policy change that a
+   school says must be accepted before new students join.
+2. Should students see anything? **Trigger:** a change that alters what is
+   collected from students themselves (not only teacher-side).
 
 ## Due dates (author, 2026-11-13)
 

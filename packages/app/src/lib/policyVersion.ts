@@ -27,3 +27,12 @@
 // it described died with the published-page wire, 0029). A class created
 // from here records draft-5.
 export const POLICY_VERSION = '2026-11-20-draft-5';
+
+/**
+ * The day the policy in force took effect, read from the version string's
+ * date prefix (YYYY-MM-DD; policyVersion.test.ts pins the shape). Parsed at
+ * LOCAL midnight so it shows the same day in NZ and the US.
+ */
+export function policyChangedOn(): Date {
+    return new Date(`${POLICY_VERSION.slice(0, 10)}T00:00:00`);
+}

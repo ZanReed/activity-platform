@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { POLICY_VERSION } from '../lib/policyVersion';
+import { POLICY_VERSION, policyChangedOn } from '../lib/policyVersion';
 
 describe('privacy policy version sync', () => {
   it('POLICY_VERSION matches docs/compliance/privacy-policy.md', () => {
@@ -15,5 +15,15 @@ describe('privacy policy version sync', () => {
       'utf8',
     );
     expect(md).toContain(`\`${POLICY_VERSION}\``);
+  });
+
+  // The class-card notice reads the change date from this prefix.
+  it('POLICY_VERSION starts with the day it took effect (YYYY-MM-DD)', () => {
+    expect(POLICY_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}-/);
+    const d = policyChangedOn();
+    expect(Number.isNaN(d.getTime())).toBe(false);
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-')).toBe(
+      POLICY_VERSION.slice(0, 10).split('-').map(Number).join('-'),
+    );
   });
 });

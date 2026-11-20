@@ -283,6 +283,55 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
         expect(screen.queryByRole('radio')).toBeNull();
     });
 
+    // TODOS → "Tell teachers when the privacy policy changes" (author
+    // 2026-11-20: notice only). This class confirmed against draft-3.
+    it('a class confirmed against an older policy shows the notice until its teacher confirms again', async () => {
+        h.rpc.mockImplementation(() =>
+            Promise.resolve({
+                data: { id: 'class-1', includes_under_13: false, age_assertion_at: '2026-11-20T01:00:00Z', assertion_text_version: ASSERTION_TEXT_VERSION },
+                error: null,
+            }),
+        );
+        renderClasses();
+        const notice = await screen.findByText(/^The privacy policy changed on /);
+        expect(notice.closest('[data-policy-notice]')).toBeTruthy();
+        const review = within(notice.closest('[data-policy-notice]') as HTMLElement).getByRole('link', { name: 'Review the privacy policy (opens in a new tab)' });
+        expect(review.getAttribute('href')).toBe('/privacy');
+        // It never blocks the class: the join code and every link stay.
+        expect(screen.getByRole('link', { name: /^Progress: / })).toBeTruthy();
+
+        const again = screen.getByRole('button', { name: /^Confirm the age statement again: / });
+        fireEvent.click(again);
+        // The button is still there, so keyboard focus is not dropped.
+        expect(document.body.contains(again)).toBe(true);
+        // The same form as "Change age confirmation", nothing pre-picked.
+        const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+        expect(radios.some((r) => r.checked)).toBe(false);
+        fireEvent.click(screen.getByLabelText(AGE_STATEMENTS.thirteenPlus));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+        await waitFor(() => expect(screen.queryByRole('radio')).toBeNull());
+        expect(h.rpc).toHaveBeenCalledWith('reconfirm_class_age', {
+            p_class_id: 'class-1',
+            p_includes_under_13: false,
+            p_assertion_text_version: ASSERTION_TEXT_VERSION,
+        });
+        expect(document.querySelector('[data-policy-notice]')).toBeNull();
+    });
+
+    it('a class confirmed against the current policy shows no notice', async () => {
+        h.listResult.current = {
+            data: [{
+                id: 'class-1', name: 'Algebra I — Period 3', join_code: 'QX7M2P', expected_domain: null,
+                age_assertion_at: '2026-11-20T00:00:00Z', assertion_text_version: ASSERTION_TEXT_VERSION,
+                includes_under_13: false, created_at: '2026-08-12T00:00:00Z',
+            }],
+            error: null,
+        };
+        renderClasses();
+        await screen.findByTestId('class-age-statement');
+        expect(document.querySelector('[data-policy-notice]')).toBeNull();
+    });
+
     // S9 (ST-14): the class's "ask for help" switch, on by default, one click
     // through the audited RPC.
     it('says whether students can ask for help, and switches it through set_class_help', async () => {

@@ -70,4 +70,4 @@ phone. About an hour.
 
 - **A DPA for the first school.** On demand, as counsel's Q7 answer allows. The trigger is the first district conversation, and its jurisdiction is decided then. Until then, a school without its own DPA signs [school-authorization-template.md](compliance/school-authorization-template.md), refreshed 2026-11-20.
 - **Counsel Q14 (photos) and Q15 (gradebook download)** are drafted in [counsel-review-packet.md](compliance/counsel-review-packet.md) and unsent. Photos stay off until Q14 is answered.
-- **Telling teachers when the privacy policy changes.** Filed with a recommended shape and two questions ([TODOS.md](../TODOS.md) → "Tell teachers when the privacy policy changes"). Due before the first teacher other than you creates a class.
+- **Telling teachers when the privacy policy changes.** Built 2026-11-20 as a notice on each class card (TODOS). Existing classes, yours included, will show it until they are re-confirmed against draft-5.
