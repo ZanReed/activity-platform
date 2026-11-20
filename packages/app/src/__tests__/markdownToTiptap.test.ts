@@ -22,6 +22,7 @@ import {
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
 import { wrapBlocksStrict } from '../editor/strictGrid';
+import { modeOfSampleNames, modeOfSampleWarning } from '../lib/seedRules';
 import { importMetaSummary } from '../lib/importMetaSummary';
 import { applyImportedMeta, DEFAULT_TITLE } from '../lib/applyImportedMeta';
 import { buildEditorExtensions } from '../editor/editorExtensions';
@@ -4230,5 +4231,57 @@ describe('mode of a sample has no real answer (2026-11-20)', () => {
         expect(warned.warnings.some((w) => /mode\(scores\) has no real answer/.test(w))).toBe(true);
         const fine = convert(fence + 'Scores: {scores}. Median {{=median(scores)}}. Mode of p {{=mode(p)}}.');
         expect(fine.warnings.some((w) => /has no real answer/.test(w))).toBe(false);
+    });
+
+    // The review's gaps (2026-11-21): every place a graded seeded expression
+    // lives, and every spelling of a single-argument mode.
+    const fence = '```seed\nscores: sample 6 of 10..30\np: list 1, 2, 2\n```\n\nScores: {scores}. Pick {p}. ';
+    const noRealAnswer = (md: string): string[] => convert(md).warnings.filter((w) => /has no real answer/.test(w));
+
+    it.each([
+        ['whitespace inside the call', '{{=mode( scores )}}'],
+        ['nested in a larger expression', '{{=mode(scores) + 1}}'],
+        ['an acceptable answer', '{{=median(scores) | mode(scores)}}'],
+        ['a math blank', '{{==mode(scores)}}'],
+    ])('warns on mode of a sample in %s, once, in the one wording', (_label, body) => {
+        expect(noRealAnswer(fence + body)).toEqual([modeOfSampleWarning('scores')]);
+    });
+
+    it.each([
+        ['mode over listed values', '{{=mode(scores, 3)}}'],
+        ['mode of a list variable', '{{=mode(p)}}'],
+        ['median of a sample', '{{=median(scores)}}'],
+        ['median of a sample in a gap', '$$m = \\gap{median(scores)}$$'],
+        ['a longer name that starts with the sample', '{{=mode(scores_b)}}'],
+    ])('does not warn on %s', (_label, body) => {
+        expect(noRealAnswer(fence + body)).toEqual([]);
+    });
+
+    // A `\\gap{…}` cannot carry a seeded mode (C-163: no seeds in a gap): its
+    // answer goes through latexToAscii, which reads `mode(scores)` as a product
+    // of single letters. modeOfSampleNames still reads prompts (an editor-typed
+    // acceptable answer is plain text), so if a gap ever learns to spell a
+    // function call, this tripwire goes red and the warning must fire here.
+    it('a gap cannot spell a seeded mode, so it never warns (tripwire)', () => {
+        const r = convert(fence + '$$m = \\gap{mode(scores)}$$');
+        const answers = JSON.stringify(r.blocks).match(/"prompts":\[\{[^\]]*"answer":"([^"]*)"/)?.[1];
+        expect(answers).toBe('m o d e(s c o r e s)');
+        expect(r.warnings.filter((w) => /has no real answer/.test(w))).toEqual([]);
+    });
+
+    it('checks the activity outside a DoL that carries its own seed', () => {
+        const md = '```meta\nskill: a.b\ndol_skills: a.b\n```\n\n' + fence + '{{=mode(scores)}}\n\n'
+            + '## Check {checkpoint dol}\n\n```seed\nk: int 1..9\n```\n\n{k} doubled: {{=2*k}}';
+        expect(noRealAnswer(md)).toEqual([modeOfSampleWarning('scores')]);
+    });
+
+    it('modeOfSampleNames reads the schema shape too (flat blank, block prompts)', () => {
+        const body = [
+            { type: 'blank', answer: 'mode(a)', acceptableAnswers: [] },
+            { type: 'mathBlock', latex: 'x', prompts: [{ id: 'g1', answer: '1', acceptableAnswers: ['mode( b ) - 1'] }] },
+            { type: 'blank', answer: 'mode(c, d)', acceptableAnswers: [] },
+        ];
+        expect(modeOfSampleNames(body, ['a', 'b', 'c'])).toEqual(['a', 'b']);
+        expect(modeOfSampleNames(body, [])).toEqual([]);
     });
 });

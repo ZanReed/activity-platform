@@ -130,6 +130,15 @@ describe('variable sets and the cap (BE-5)', () => {
         expect(r.problems.some((p) => /10100 combinations, over the cap of 10000/.test(p))).toBe(true);
     });
 
+    // Mode of a sample has no real answer (2026-11-20): a bank can never ask it,
+    // because neither the file's fence nor a template section can declare one.
+    it('a bank cannot declare a sample at all (so mode-of-a-sample cannot arise; pins BE-5)', () => {
+        const fileFence = parse(bank('s: sample 6 of 10..30', '## t1\n\nData {s}: {{=mode(s)}}'));
+        expect(fileFence.problems.some((p) => /`sample` variables are refused/.test(p))).toBe(true);
+        const inSection = parse(bank('a: int 1..3', '## t1\n\n```seed\ns: sample 6 of 10..30\n```\n\n{a} and {{=mode(s)}}'));
+        expect(inSection.problems.some((p) => /a ```seed fence inside a bank template/.test(p))).toBe(true);
+    });
+
     it('sample is refused in banks', () => {
         const r = parse(bank('s: sample 3 of 1..9', '## t1\n\n{{=1}}'));
         expect(r.problems.some((p) => /`sample` variables are refused/.test(p))).toBe(true);

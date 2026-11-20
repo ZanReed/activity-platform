@@ -55,6 +55,38 @@ function sampleDistinct(
 // every spelling to equal its value).
 const SPELLINGS = new WeakMap<SeedValues, Record<string, string>>();
 
+// THE FIXED DECIMAL PLACES of a spelled list variable: d when EVERY authored
+// spelling of the variable (not just the drawn one) is a plain decimal with
+// exactly d > 0 places ("1.50, 1.75, 2.25" → 2). Read by the answer-key
+// display (seeded/resolveEntry.ts displaySeededEntry) so a key over a
+// dollar-priced variable prints "4.50", not "4.5". Over ALL spellings, so
+// every printing of the activity agrees whichever value it drew; a mixed list
+// ("2, 2.50") has none. Same side-table discipline as SPELLINGS: display
+// only, absent on any map not returned by deriveSeedValues.
+const PLACES = new WeakMap<SeedValues, Record<string, number>>();
+const FIXED_DECIMAL = /^-?\d+\.(\d+)$/;
+
+function fixedPlaces(
+  text: readonly string[] | undefined,
+  values: readonly number[],
+): number | undefined {
+  // No stored spellings means every value was written exactly as its number
+  // prints (the importer stores `text` only when a spelling differs, e.g.
+  // "1.50"), so "1.25, 1.75, 2.25" still fixes 2 places (Fable review).
+  const spelt = text ?? values.map(String);
+  if (spelt.length !== values.length || values.length === 0) return undefined;
+  let d: number | undefined;
+  for (const t of spelt) {
+    const m = FIXED_DECIMAL.exec(t.trim());
+    if (!m) return undefined;
+    const here = m[1]!.length;
+    if (d !== undefined && here !== d) return undefined;
+    d = here;
+  }
+  // Cap: toFixed prints float noise past ~15 places and throws past 100.
+  return d !== undefined && d <= 10 ? d : undefined;
+}
+
 /** Derive every declared variable's value for one (seed, template) pair. */
 export function deriveSeedValues(
   vars: readonly SeedVar[],
@@ -62,6 +94,7 @@ export function deriveSeedValues(
 ): SeedValues {
   const out: SeedValues = {};
   const spelled: Record<string, string> = {};
+  const places: Record<string, number> = {};
   for (const v of vars) {
     const rng = mulberry32(seedFrom(`${seed}:${v.name}`));
     const spec = v.spec;
@@ -74,11 +107,14 @@ export function deriveSeedValues(
       if (text !== undefined && text !== '' && Number(text) === spec.values[i]) {
         spelled[v.name] = text;
       }
+      const d = fixedPlaces(spec.text, spec.values);
+      if (d !== undefined) places[v.name] = d;
     } else {
       out[v.name] = sampleDistinct(rng, spec.n, spec.min, spec.max);
     }
   }
   if (Object.keys(spelled).length > 0) SPELLINGS.set(out, spelled);
+  if (Object.keys(places).length > 0) PLACES.set(out, places);
   return out;
 }
 
@@ -101,4 +137,12 @@ export function seedText(values: SeedValues, name: string): string | undefined {
     if (spelled !== undefined) return spelled;
   }
   return formatSeedValue(v);
+}
+
+/** The fixed decimal places the author spelled the list variable `name` with
+ *  (see PLACES), or undefined: not a list, spellings mixed or absent, or a map
+ *  that did not come from deriveSeedValues (a bank row, a DoL table, a copy).
+ *  DISPLAY only — never read by a grading path. */
+export function seedPlaces(values: SeedValues, name: string): number | undefined {
+  return PLACES.get(values)?.[name];
 }

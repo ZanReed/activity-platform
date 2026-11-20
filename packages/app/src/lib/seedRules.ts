@@ -176,3 +176,57 @@ export function withoutOwnSeedDolSections(content: readonly JSONContent[]): JSON
     }
     return out;
 }
+
+/** One prompt or blank's graded strings: its answer and its acceptable answers. */
+function answerStrings(holder: Record<string, unknown>): string[] {
+    const out: string[] = [];
+    if (typeof holder.answer === 'string') out.push(holder.answer);
+    if (Array.isArray(holder.acceptableAnswers)) {
+        for (const a of holder.acceptableAnswers) if (typeof a === 'string') out.push(a);
+    }
+    return out;
+}
+
+/**
+ * The `sample` variables whose MODE an answer key asks for (2026-11-20). A
+ * sample draws DISTINCT values, so every value ties and mode() is always the
+ * smallest: the question has no real answer. Single-argument `mode(name)` only,
+ * anywhere in the expression (`mode(s) + 1` counts); `mode(a, b)` over listed
+ * values is a different question and is left alone.
+ *
+ * It reads every place a graded seeded expression lives — the same two the
+ * grader's seeded-key pass resolves (viewer/src/server/grading/walk.ts): a
+ * `blank` (fields under `attrs` in Tiptap JSON, flat in the schema shape) and
+ * a math prompt (a `\gap{…}`; a `prompts` array on a math node). Only an
+ * activity-level ```seed fence can declare a sample: the DoL and practice-bank
+ * fences use the bank grammar, which refuses `sample` outright (BE-5), so the
+ * importer's activity path is the one caller.
+ */
+export function modeOfSampleNames(body: unknown, sampleNames: readonly string[]): string[] {
+    if (sampleNames.length === 0) return [];
+    const modeOf = new RegExp(`\\bmode\\s*\\(\\s*(${sampleNames.join('|')})\\s*\\)`, 'g');
+    const found = new Set<string>();
+    const scan = (entries: string[]): void => {
+        for (const entry of entries) for (const m of entry.matchAll(modeOf)) found.add(m[1]!);
+    };
+    const visit = (node: unknown): void => {
+        if (Array.isArray(node)) {
+            node.forEach(visit);
+            return;
+        }
+        if (node === null || typeof node !== 'object') return;
+        const obj = node as Record<string, unknown>;
+        if (obj.type === 'blank') scan(answerStrings((obj.attrs as Record<string, unknown> | undefined) ?? obj));
+        if (Array.isArray(obj.prompts)) {
+            for (const p of obj.prompts) if (p !== null && typeof p === 'object') scan(answerStrings(p as Record<string, unknown>));
+        }
+        for (const v of Object.values(obj)) if (v !== null && typeof v === 'object') visit(v);
+    };
+    visit(body);
+    return [...found];
+}
+
+/** The importer's wording for a `modeOfSampleNames` finding (one wording, every caller). */
+export function modeOfSampleWarning(name: string): string {
+    return `Seed: mode(${name}) has no real answer — a sample’s values are all different, so every value ties and mode is always the smallest. Ask for the median, mean or range instead.`;
+}

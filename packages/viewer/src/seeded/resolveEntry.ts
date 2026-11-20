@@ -17,7 +17,7 @@
 
 import { compileFunction, displayFormKey, freeVariables } from '@activity/graph-kit/scorers';
 import { bindSeedNames } from '../sanitize/substitute.js';
-import type { SeedValues } from '../sanitize/seedValues.js';
+import { seedPlaces, type SeedValues } from '../sanitize/seedValues.js';
 
 export function resolveSeededEntry(
   entry: string,
@@ -73,9 +73,24 @@ export function displaySeededEntry(
   // A math entry that resolved to a plain number (a sample aggregate) reads
   // like a numeric key: float noise trimmed.
   if (answerType !== 'math' || /^-?\d[\d.]*(?:e[+-]?\d+)?$/.test(resolved)) {
-    return displayNumber(resolved);
+    return displayNumber(resolved, spelledPlaces(entry, values));
   }
   return displayFormKey(resolved) ?? resolved;
+}
+
+// The expression grammar's bare identifier — the same pattern bindSeedNames
+// binds with (sanitize/substitute.ts NAME_RE), so "referenced" means exactly
+// "bound".
+const NAME_RE = /(?<![a-zA-Z0-9_])[a-z][a-z0-9_]*/g;
+
+/** The most decimal places any list variable the entry references was
+ *  SPELLED with (`p: list 1.50, 1.75` → 2), or 0 when none was. */
+function spelledPlaces(entry: string, values: SeedValues): number {
+  let d = 0;
+  for (const name of entry.match(NAME_RE) ?? []) {
+    d = Math.max(d, seedPlaces(values, name) ?? 0);
+  }
+  return d;
 }
 
 /** An evaluated key as a person reads it: binary float noise trimmed
@@ -83,11 +98,21 @@ export function displaySeededEntry(
  *  digits, so no real value is rounded. The value is NOT rounded to a
  *  shown precision — a key sheet prints the exact answer ("78.625"), and the
  *  grader compares the untrimmed resolveSeededEntry form. A non-number (a
- *  bound string the evaluator could not run) passes through. */
-function displayNumber(resolved: string): string {
+ *  bound string the evaluator could not run) passes through.
+ *
+ *  `places` (the entry's spelled list variables, spelledPlaces) only ever
+ *  PADS: 4.5 shows "4.50" when a referenced price was spelled "1.50", but a
+ *  value that needs more digits keeps them all (4.125 stays "4.125", never
+ *  "4.13") — padding cannot change the number, so it cannot change a mark. */
+function displayNumber(resolved: string, places = 0): string {
   if (!/^-?\d/.test(resolved)) return resolved;
   const n = Number(resolved);
+  if (!Number.isFinite(n)) return resolved;
   // 15 significant digits: trims float noise without rounding a real value
   // (a 10-digit cut turned 12345678912 into 12345678910; Fable review).
-  return Number.isFinite(n) ? String(Number(n.toPrecision(15))) : resolved;
+  const shown = String(Number(n.toPrecision(15)));
+  if (places === 0 || /e/i.test(shown)) return shown;
+  const dot = shown.indexOf('.');
+  const has = dot < 0 ? 0 : shown.length - dot - 1;
+  return has >= places ? shown : Number(shown).toFixed(places);
 }

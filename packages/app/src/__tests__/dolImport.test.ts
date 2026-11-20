@@ -246,3 +246,23 @@ describe('the `{checkpoint dol}` section (D65)', () => {
         expect(capped.total).toBe(2000);
     });
 });
+
+// Mode of a sample has no real answer (2026-11-20). A DoL can never ask it: its
+// own fence uses the bank grammar, which refuses `sample`, and an activity-level
+// sample inside the DoL is refused as an activity variable. Both FAIL the file,
+// which is stronger than the activity path's warning (seedRules.modeOfSampleNames).
+describe('a DoL cannot ask for the mode of a sample', () => {
+    const META_FENCE = '```meta\nskill: a.b\ndol_skills: a.b\n```\n\n';
+    it('its own seed fence refuses a sample', () => {
+        const r = convert(META_FENCE + '## Check {checkpoint dol}\n\n```seed\ns: sample 6 of 10..30\n```\n\nData {s}: {{=mode(s)}}');
+        expect(r.dolProblems?.some((p) => /`sample` variables are refused/.test(p))).toBe(true);
+    });
+    it.each([
+        ['with its own seed', '```seed\nk: int 1..9\n```\n\n{k}: {{=k}} and '],
+        ['with no seed', ''],
+    ])('an activity-level sample inside it is refused, %s', (_label, dolSeed) => {
+        const md = META_FENCE + '```seed\nscores: sample 6 of 10..30\n```\n\nScores {scores}.\n\n'
+            + '## Check {checkpoint dol}\n\n' + dolSeed + '{{=mode(scores)}}';
+        expect(convert(md).dolProblems?.some((p) => /\{scores\} is an activity-level seed variable used inside the DoL/.test(p))).toBe(true);
+    });
+});

@@ -389,7 +389,9 @@ function answersOf(slot: Slot): PracticeAnswers {
       if (authored === undefined) continue;
       // The released answer is SHOWN, so it gets the display form (FG-6):
       // a seeded `{{===g*(p*x - q)}}` reads `6(3x - 2)`, not the bound
-      // `(6)*((3)*x-(2))`. The same function print uses.
+      // `(6)*((3)*x-(2))`. The same function print uses. A bank row's
+      // values carry no list spellings, so a released number shows its
+      // shortest form ("4.5"), never print's padded "4.50" (seedPlaces).
       const answer = displaySeededEntry(authored, key.answerType, slot.values);
       blanks[key.id] = { answer, ...(key.unit ? { unit: key.unit } : {}) };
     }

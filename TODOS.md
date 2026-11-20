@@ -32,10 +32,17 @@ statistics to numeric blanks, since `==` evaluates what the student types); the
 calculator and student-side graph mounts handle a container gone mid-load
 (student mounts reject `HostDetachedError`, the viewer stays quiet only when it
 cancelled); multi-column rows print as flex with each column's weight carried
-(`--activity-column-grow`). **Still open, tiny:** with a page margin over ~0.8in
-a figure row no longer stacks to one column on paper; the `mode(<sample>)`
-warning skips DoL/bank seed fences; a stored title loses `\$`; numeric seeded
-keys show the shortest form (4.5, not 4.50).
+(`--activity-column-grow`). **The three tiny items — closed 2026-11-21:** answer keys print a seeded value
+to the decimals the author spelled (3 × 1.50 → 4.50, display only; DoL and
+bank maps keep the shortest form); the `mode(<sample>)` check is one shared
+helper (seedRules.ts), and DoL and bank seed fences already REFUSE `sample`,
+now pinned by tests; the "figure row no longer stacks on a wide-margin page"
+item was not real: Chromium evaluates `(max-width: 41rem)` against the whole
+sheet (816px Letter), so that rule never fired on paper before the flex
+change either (measured). **Left, filed with no trigger yet:** stacking
+figure rows on a wide-margin page would need a container query; a `\gap{}`
+answer naming a seed variable gets no warning; the settings drawer does not
+run the `mode(<sample>)` check; a stored title loses `\$`.
 
 **The prompt wording — FIXED 2026-11-20 (author: "fix the prompt-wording
 findings too"):** the prompt is now MARKDOWN_IMPORT_SHARED (embedded verbatim
