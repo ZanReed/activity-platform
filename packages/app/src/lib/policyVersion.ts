@@ -21,4 +21,9 @@
 // attestation stored by claim_teacher records THIS string, so a teacher who
 // confirmed against draft-2 wording stays distinguishable from one who
 // confirmed against draft-3.
-export const POLICY_VERSION = '2026-10-06-draft-4';
+// draft-4 (2026-10-06): under-13 use by school authorization (0053).
+// draft-5 (2026-11-20): the policy names photos of working (0093-0099), the
+// teacher's gradebook download (0102), and corrects the IP row (the hashed IP
+// it described died with the published-page wire, 0029). A class created
+// from here records draft-5.
+export const POLICY_VERSION = '2026-11-20-draft-5';
