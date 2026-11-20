@@ -33,7 +33,8 @@ the audit log.
 educational purposes only, under COPPA's school-consent provision, and
 confirms its teachers may make statement (b) on its behalf.
 
-*(As of policy version `2026-10-06-draft-4`. Until `2026-08-15-draft-3` the
+*(Statement (b) available since policy version `2026-10-06-draft-4`; the
+current version is `2026-11-20-draft-5`. Until `2026-08-15-draft-3` the
 Platform was limited to students 13 or older and this checkbox was marked
 "not available".)*
 
@@ -43,6 +44,14 @@ The Platform collects and processes only the data listed in the attached
 [data map](data-map.md), for the sole purpose of providing the classroom
 service. No sale of data, no advertising, no behavioral tracking. The
 Platform's subprocessors: Supabase (database/auth), Cloudflare (hosting).
+
+**Teacher downloads.** A teacher can download a spreadsheet of their own
+class: students' names, school emails, progress, scores and released grades.
+That copy is made by the School's own teacher on the School's own device, and
+from then on it is held, kept and deleted under the School's records policy.
+The Platform's retention and deletion (§4, §5(b)) do not reach it.
+*(Drafted 2026-11-20, pending counsel question Q15(a) on whether this
+sentence is enough.)*
 
 ## 4. Retention
 

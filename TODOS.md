@@ -286,6 +286,33 @@ server refused every action), but the page looked broken. A student now gets
 classes); teachers, admins and a still-loading role see the page as before.
 `Classes.test.tsx` → "a student on /classes" (mutation-tested).
 
+## Tell teachers when the privacy policy changes (found 2026-11-20, POLICY_VERSION draft-4 → draft-5)
+
+The policy's own "Changes" section promises that teachers are told **before**
+students see new terms. Nothing in the app does that. A bump today is silent:
+new classes record the new version, and existing ones keep the old one.
+
+Almost everything needed is already built. Each class row stores the version
+its teacher confirmed (`classes.assertion_text_version`, loaded by
+`lib/classes.ts` as `assertionTextVersion`). The re-confirm control from 0053
+(`reconfirmClassAge`, Classes.tsx) restamps that version.
+
+**Recommended shape (app-only, no migration):** when a class's
+`assertionTextVersion` ≠ `POLICY_VERSION`, its card on Classes shows one line,
+"The privacy policy changed on <date>. Review it and confirm again", with links
+to `/privacy` and to the existing re-confirm. The line is a notice only and
+never blocks the class (students keep working). It goes away when the teacher
+re-confirms.
+
+**Open questions for the author:**
+1. Notice only, or should a class whose teacher hasn't re-confirmed within N
+   days stop admitting new students by join code?
+2. Should students see anything?
+
+**Trigger:** the first teacher other than the author creates a class, or the
+next POLICY_VERSION bump, whichever comes first. Due before February classes
+either way.
+
 ## Due dates (author, 2026-11-13)
 
 Wanted by the author even though the HoD asked to hold the wider planning work.
@@ -3471,9 +3498,13 @@ surprise: the first district that asks will be mid-conversation, and the delay i
 visible to them. The cheap version of this is to know, before that call, which
 regime applies and what the template must contain.
 
-**Trigger:** the D24 counsel read (Q7 asks exactly this — should a template exist
-BEFORE the first outside teacher, or is on-demand right?), or the first district
-conversation, whichever comes first.
+**Trigger:** ~~the D24 counsel read~~ **FIRED and answered (2026-10-06):** counsel's
+"current measures are sufficient" covered Q7, so on-demand sequencing stands. The
+trigger is now **the first district conversation**. In the meantime, the
+teacher-facing [school-authorization-template.md](docs/compliance/school-authorization-template.md)
+is what a school without its own DPA signs. It was refreshed 2026-11-20
+(teacher-download clause, policy draft-5). The DPA's jurisdiction (NZ Privacy
+Act 2020 or a US state regime) is decided with that first school and counsel.
 
 **Where to start:** `docs/compliance/school-authorization-template.md` is the
 teacher-facing half and already exists; the DPA is the district-facing half and

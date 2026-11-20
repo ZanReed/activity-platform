@@ -22,7 +22,7 @@ Author-only: pushes, deploys, migrations.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
-**Gradebook export: 0102 LIVE 2026-11-20** (verify-0102/0061/0028/0017 green live; [doc](docs/design/gradebook-export.md)). **Push owed.** Q15 drafted, unsent.
+**Gradebook export LIVE and pushed 2026-11-20.** **February readiness:** [docs/february-readiness.md](docs/february-readiness.md) (one school visit, classroom, live-only, paperwork).
 
 **Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0099 LIVE; no pilots yet). Sweep token LIVE. Then Pro, Q14, pg_net, Vault, arm, proof, flip, pin bump.
 
