@@ -1,0 +1,16 @@
+/* =============================================================================
+ * activityPrint.css — print rules only the teacher Print view needs. Loaded
+ * with this lazy route, so they cost the shell stylesheet nothing (its budget,
+ * scripts/perf-budgets.mjs, sits at its cap). The route's other print rules
+ * (hide the chrome, unbox the sheet) stay in index.css.
+ * ========================================================================== */
+@media print {
+    /* The sidebar is hidden in print, but its 260px grid track is not: at any
+     * width where md: applies, the sheet auto-placed INTO that track and
+     * printed as a strip down the left third of every page (found by the
+     * 2026-11-20 stress-test print; present since S5.5 T4). Spanning every
+     * track is right with or without the breakpoint. */
+    .activity-print__sheet {
+        grid-column: 1 / -1;
+    }
+}

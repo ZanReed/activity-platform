@@ -1394,6 +1394,21 @@ describe('AI code-fence wrapper (safety net)', () => {
         expect(blocks('```md\n# Hi\n```')).toEqual(blocks('# Hi'));
     });
 
+    // The prompt's four-backtick wrapper (stress test 2026-11-20): inner
+    // three-backtick fences survive it, the meta fence included.
+    it('unwraps a ````markdown fence whose content has its own ``` fences', () => {
+        const inner = '```meta\ntitle: Inside\n```\n\n# Hi\n\nThe answer is {{Paris}}.';
+        const r = convert('````markdown\n' + inner + '\n````');
+        expect(r.meta?.title).toBe('Inside');
+        expect(blocks('````markdown\n' + inner + '\n````')).toEqual(blocks(inner));
+        expect(r.warnings.some((w) => /code/i.test(w))).toBe(false);
+    });
+
+    it('unwraps a bare ```` fence too, but not one closed by a different run', () => {
+        expect(blocks('````\n# Hi\n````')).toEqual(blocks('# Hi'));
+        expect(blocks('````\n# Hi\n```')).not.toEqual(blocks('# Hi'));
+    });
+
     it('does NOT unwrap a plain ``` code block (still flattened to text + warning)', () => {
         const result = convert('```\nconst x = 1;\n```');
         expect(result.blocks[0]!.type).toBe('paragraph');

@@ -89,7 +89,7 @@ The importer is deterministic, additive, and never destructive: anything it does
 - 🚨 **Never put a `{{…}}` blank inside `$…$` or `$$…$$`.** A blank inside maths is not a blank: it is absorbed whole into the equation, so **the answer is rendered to the student**, the question is not marked, and any `:: mis.*` binding disappears — which makes the sensor data say nobody made that mistake. Use `\gap{…}` (below) inside an equation, or move the blank into the surrounding prose. The importer now **warns** on this and `--strict` fails the run, but the warning is the safety net, not the rule.
 - **In-equation gaps (`\gap{…}`, Model A).** Inside `$…$` or `$$…$$`, `\gap{answer}` becomes a gradeable gap *inside* the rendered equation — the natural "complete the step" authoring for a faded worked example or a math-completion problem (`$$2x = \gap{8}$$`). The answer is graded by math equivalence (any equivalent form counts, so `8` / `8.0` / `4+4` all pass); the stored equation empties the gap so the answer never leaks to the student. Balanced braces work (`\gap{\frac{1}{2}}`). `|`-alternates aren't parsed (a `|` is a real LaTeX token); acceptable-answer lists and tolerances are added in the editor. `\gap[form]{12ab}` holds a gap to its answer's form (the `{{===…}}` rule above); a gap still takes no `!` entries or seeds.
 - **Image URLs must be absolute** (`https://…`). A relative or empty URL is skipped with a warning.
-- **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence is unwrapped automatically on import. (A plain ```` ``` ```` code block in the *middle* of your content is still treated as a code block and flattened — only outer fences are stripped.)
+- **Wrapping the model's reply in a code fence is fine — recommended, even.** Asking the model to put its whole response inside a fenced code block is how you get a **Copy** button and the *raw* (unrendered) Markdown instead of a formatted preview you can't paste. The Copy button hands you the contents *without* the ```` ``` ```` lines, so the importer never sees the fence. The prompt asks for a **four**-backtick outer fence (````` ````markdown `````), because the activity's own blocks use three backticks and a three-backtick outer fence ends at the first of them: in the chat the Copy button then grabs a fragment, and a paste loses its first fenced block (the stress test of 2026-11-20 lost its whole ```` ```meta ```` fence this way). As a safety net, a paste that is entirely wrapped in a ```` ```markdown ```` fence, or in any fence of four or more backticks, is unwrapped automatically on import. (A plain ```` ``` ```` code block, or one in the *middle* of your content, is still treated as a code block and flattened — only outer fences are stripped.)
 
 ## Not supported (degrades to plain text, with a warning)
 
@@ -121,10 +121,12 @@ This is the exact text behind the dialog's **Copy AI prompt** button. Paste it i
 
 ```text
 You are writing a classroom activity that I will import by pasting Markdown.
-Put your ENTIRE reply inside a single fenced code block — begin and end it
-with a line of three backtick characters — and write nothing outside it. That
-makes this chat show a Copy button, so I get the raw Markdown instead of a
-rendered preview. Inside that block, follow these rules exactly.
+Put your ENTIRE reply inside a single fenced code block that begins with a
+line of FOUR backticks and the word markdown (````markdown) and ends with a
+line of four backticks (````). Four, not three: the blocks inside use three
+backticks, and three outside would end the block at the first of them. Write
+nothing outside it. That makes this chat show a Copy button, so I get the raw
+Markdown instead of a rendered preview. Inside that block, follow these rules exactly.
 
 STRUCTURE
 - Headings use #, ##, ### (three levels only).

@@ -3,6 +3,64 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## Stress test 2026-11-20 — what the AI route and print got wrong (author: "build it")
+
+A fresh model, given ONLY the "Copy AI prompt" text, wrote an activity using
+every feature ([docs/walkthrough/](docs/walkthrough/)). It was imported in the
+playtest and printed to PDF (worksheet, answer key, greyscale). **Fixed the
+same day:** the prompt's three-backtick outer fence (it swallowed the first
+inner fence, so every AI paste lost its ```meta settings; prompt now asks for
+````markdown and the importer unwraps any 4+ backtick fence), and the Print
+view printing in a 260px strip (the hidden sidebar's grid track; S5.5 T4).
+Everything below is open. **Trigger: the author's ruling on this list** (most
+are prompt wording; the importer/print items are code).
+
+**Silently wrong for students (fix first):**
+1. **A blank containing `|` inside a table cell breaks.** The cell splits on
+   it: 7 questions ungraded, 6 answers shown as text, no warning
+   (markdownToTiptap.ts ~3157; `\|` works). The prompt says every sigil works
+   in cells. Fix: teach `\|` and warn on an unclosed `{{` in a cell.
+2. **A repeated match option makes two identical cards**; pairing with the
+   twin is marked wrong (parseMatchFence, no dedupe). The prompt says items
+   may share an option. Fix: dedupe identical option text, or reword.
+3. **Data-plot questions print empty axes with no data** (dot plot, histogram,
+   box plot): unanswerable on paper. Print the data list.
+4. **A line chart overlaps what follows it in print** (Part 7 heading and
+   Q80/Q81 drawn over each other).
+5. **The answer key prints a seeded expression raw** ("mean([62,88,…") instead
+   of the student's value.
+6. **Maths in worked/faded example titles shows as raw `$…$`.**
+7. **`${p}` shows "$1.5"** for 1.50 (seed values print with `String(v)`); the
+   prompt's own example does it.
+8. **A show-only graph's `alt:` is dropped** (warns "no answer") — screen
+   readers get nothing.
+9. **Editor: every graph/number line throws "container not found" on load**
+   (17 per open, dev build; likely StrictMode double mount). Check a prod
+   build before calling it noise.
+
+**The prompt says something wrong:**
+10. It teaches `:: mis.*` ids to teachers, against catalogueAuthoringPrompt.ts's
+    own rationale; invented ids are stored unchecked.
+11. **The catalogue prompt embeds the teacher half, which teaches `unit:` and
+    `minutes:`, then forbids both** — CLAUDE.md's "never teach `unit:`" rule is
+    broken today, and `catalogueAuthoringPrompt.test.ts` only scans the
+    catalogue-only part. Widen the test.
+12. "Don't use tables" vs the TABLES section; "feedback: immediate" pairing vs
+    "immediate is RESERVED".
+
+**The prompt is silent (one line each):** where the Check sits ({checkpoint}
+ends a section; Part 1 shares Part 2's); `unit:` before any `|`; only
+alternates double `!!`/`??`; `answer: none` is enough; open/closed apply in
+order; `show: curve/region` and non-linear `line`; transform mistake syntax;
+bin edges; quartile method; maths allowed in hints; three-way `~`; a cuboid
+gets its own figure; no `mistake:`/`hint:` on number lines/data plots (the
+block becomes text); `work:` is print-only; only use image URLs the teacher
+gave; `dotted` draws dashed.
+
+**Print also showed:** page 1 is the title alone (the reference sheet starts
+page 2); ~33 pages for a 40-minute sheet at `work: 2`; Fig captions sit
+right-aligned; roman-numeral labels in a correspondence sit on their own line.
+
 ## GUI gaps — features with no way to insert or manage them in the app (audit + rule, author 2026-11-12)
 
 The rule is in CLAUDE.md ("EVERY FEATURE SHIPS WITH A GUI"). The roster is

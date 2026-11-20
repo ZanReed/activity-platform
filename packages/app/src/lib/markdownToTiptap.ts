@@ -665,9 +665,15 @@ interface MathSpan {
 // but if a paste arrives wrapped entirely in a ```markdown / ```md fence, unwrap
 // it here. Scoped to a markdown-tagged OUTER fence so a plain ``` code block in
 // the middle of content is still treated as code and flattened, not unwrapped.
+// The AI prompt asks for a FOUR-backtick outer fence, since the activity's own
+// fences use three and a three-backtick wrapper ends at the first of them
+// (stress test 2026-11-20). Unwrapped: a ```markdown / ```md fence of any
+// length, or any bare fence of four or more backticks, closed by the same run.
+// A bare three-backtick block stays a code block (flattened, with a warning).
 function stripMarkdownFence(src: string): string {
-    const m = /^\s*```(?:markdown|md)[^\n]*\n([\s\S]*?)\n```\s*$/i.exec(src);
-    return m ? m[1]! : src;
+    const m = /^\s*(`{3,})(markdown|md)?[^\S\n]*\n([\s\S]*?)\n\1[^\S\n]*\s*$/i.exec(src);
+    if (!m) return src;
+    return m[2] || m[1]!.length >= 4 ? m[3]! : src;
 }
 
 // Order matters: code spans first (so their `$` is protected), then $$display$$

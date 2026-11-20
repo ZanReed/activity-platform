@@ -59,6 +59,7 @@ import {
 import { seedForForm } from '@activity/viewer/seeded-print';
 import '@activity/viewer/tokens.css';
 import '@activity/viewer/viewer.css';
+import './activityPrint.css';
 import { supabase } from '../lib/supabase';
 import {
     reloadOnceForStaleBuild,

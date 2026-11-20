@@ -13,10 +13,12 @@
 
 export const MARKDOWN_IMPORT_AI_PROMPT = [
     'You are writing a classroom activity that I will import by pasting Markdown.',
-    'Put your ENTIRE reply inside a single fenced code block — begin and end it',
-    'with a line of three backtick characters — and write nothing outside it. That',
-    'makes this chat show a Copy button, so I get the raw Markdown instead of a',
-    'rendered preview. Inside that block, follow these rules exactly.',
+    'Put your ENTIRE reply inside a single fenced code block that begins with a',
+    'line of FOUR backticks and the word markdown (````markdown) and ends with a',
+    'line of four backticks (````). Four, not three: the blocks inside use three',
+    'backticks, and three outside would end the block at the first of them. Write',
+    'nothing outside it. That makes this chat show a Copy button, so I get the raw',
+    'Markdown instead of a rendered preview. Inside that block, follow these rules exactly.',
     '',
     'STRUCTURE',
     '- Headings use #, ##, ### (three levels only).',
