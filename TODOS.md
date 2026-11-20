@@ -33,24 +33,14 @@ multi-column rows may still overprint in print (unverified); a stored title
 loses `\$`, so "Costs $5, then $x$" would mis-pair; numeric seeded keys show
 the shortest form (4.5, not 4.50).
 
-**The prompt says something wrong:**
-10. It teaches `:: mis.*` ids to teachers, against catalogueAuthoringPrompt.ts's
-    own rationale; invented ids are stored unchecked.
-11. **The catalogue prompt embeds the teacher half, which teaches `unit:` and
-    `minutes:`, then forbids both** — CLAUDE.md's "never teach `unit:`" rule is
-    broken today, and `catalogueAuthoringPrompt.test.ts` only scans the
-    catalogue-only part. Widen the test.
-12. "Don't use tables" vs the TABLES section; "feedback: immediate" pairing vs
-    "immediate is RESERVED".
-
-**The prompt is silent (one line each):** where the Check sits ({checkpoint}
-ends a section; Part 1 shares Part 2's); `unit:` before any `|`; only
-alternates double `!!`/`??`; `answer: none` is enough; open/closed apply in
-order; `show: curve/region` and non-linear `line`; transform mistake syntax;
-bin edges; quartile method; maths allowed in hints; three-way `~`; a cuboid
-gets its own figure; no `mistake:`/`hint:` on number lines/data plots (the
-block becomes text); `work:` is print-only; only use image URLs the teacher
-gave; `dotted` draws dashed.
+**The prompt wording — FIXED 2026-11-20 (author: "fix the prompt-wording
+findings too"):** the prompt is now MARKDOWN_IMPORT_SHARED (embedded verbatim
+by the catalogue prompt) + a teacher-only tail (`unit:`, `minutes:`, never a
+`mis.*` id), so the catalogue builder is no longer taught `unit:`/`minutes:`
+(the test now scans the whole composed prompt) and teachers are no longer
+taught invented ids (the catalogue section teaches the graph and unit-outcome
+binding forms instead). The tables and `feedback: immediate` contradictions
+are gone, and the triage's one-line clarifications (checkpoint placement, unit: order, bins, quartiles and the rest) are in the prompt.
 
 **Print also showed:** page 1 is the title alone (the reference sheet starts
 page 2); ~33 pages for a 40-minute sheet at `work: 2`; Fig captions sit

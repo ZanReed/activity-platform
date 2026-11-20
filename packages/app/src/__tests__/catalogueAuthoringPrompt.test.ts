@@ -22,7 +22,7 @@ import {
     getMarkdownImporter,
     type MarkdownImporter,
 } from '../lib/markdownToTiptap';
-import { MARKDOWN_IMPORT_AI_PROMPT } from '../lib/markdownImportPrompt';
+import { MARKDOWN_IMPORT_AI_PROMPT, MARKDOWN_IMPORT_SHARED } from '../lib/markdownImportPrompt';
 import { CATALOGUE_AUTHORING_PROMPT } from '../lib/catalogueAuthoringPrompt';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -56,16 +56,23 @@ describe('the published doc IS the constant', () => {
 });
 
 describe('the shared half is included, not copied', () => {
-    it('contains the teacher prompt verbatim', () => {
+    it('contains the shared rules verbatim', () => {
         // The single-source property. If someone "tidies" this into a restated
         // copy, the copy starts drifting the day the format changes — which is
         // the exact failure the builder is retiring its own copy to escape.
-        expect(CATALOGUE_AUTHORING_PROMPT).toContain(MARKDOWN_IMPORT_AI_PROMPT);
+        expect(CATALOGUE_AUTHORING_PROMPT).toContain(MARKDOWN_IMPORT_SHARED);
+        // …and the teacher prompt is those same rules plus a teacher-only tail.
+        expect(MARKDOWN_IMPORT_AI_PROMPT.startsWith(MARKDOWN_IMPORT_SHARED)).toBe(true);
+    });
+
+    it('does NOT carry the teacher-only lines (unit:, minutes:, the mis.* ban)', () => {
+        expect(CATALOGUE_AUTHORING_PROMPT).not.toMatch(/FOR YOUR OWN ACTIVITY/);
+        expect(MARKDOWN_IMPORT_AI_PROMPT).toMatch(/FOR YOUR OWN ACTIVITY/);
     });
 
     it('adds the catalogue rules after it', () => {
         expect(CATALOGUE_AUTHORING_PROMPT.length).toBeGreaterThan(
-            MARKDOWN_IMPORT_AI_PROMPT.length,
+            MARKDOWN_IMPORT_SHARED.length,
         );
         expect(CATALOGUE_AUTHORING_PROMPT).toMatch(/CATALOGUE FILES/);
     });
@@ -110,11 +117,12 @@ describe('the two rules the prompt exists to enforce', () => {
         // An assistant emits a meta fence on every reply. If this prompt taught
         // `unit:`, every drafted file would override its chain's registered
         // title and the report would fire on 100% of the catalogue.
-        const catalogueOnly = CATALOGUE_AUTHORING_PROMPT.slice(
-            MARKDOWN_IMPORT_AI_PROMPT.length,
-        );
-        expect(catalogueOnly).not.toMatch(/^\s*-?\s*unit:/m);
-        expect(catalogueOnly).toMatch(/DO NOT WRITE A unit: KEY/);
+        // The WHOLE composed prompt (stress test 2026-11-20: this used to scan
+        // only the catalogue-only tail, while the embedded teacher half taught
+        // `unit:` and `minutes:` in its meta example).
+        expect(CATALOGUE_AUTHORING_PROMPT).not.toMatch(/^\s*-?\s*unit:/m);
+        expect(CATALOGUE_AUTHORING_PROMPT).not.toMatch(/^\s*-?\s*minutes:/m);
+        expect(CATALOGUE_AUTHORING_PROMPT).toMatch(/DO NOT WRITE A unit: KEY/);
     });
 
     it('warns about blanks inside maths, and the converter really does warn', () => {

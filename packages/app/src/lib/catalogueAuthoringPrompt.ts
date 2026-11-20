@@ -18,7 +18,7 @@
 // that can validate, so it is the one that teaches the ids.
 //
 // ⚠ THIS FILE COMPOSES, IT DOES NOT COPY. The shared half is included by
-// reference (MARKDOWN_IMPORT_AI_PROMPT, verbatim) rather than restated, because
+// reference (MARKDOWN_IMPORT_SHARED, verbatim) rather than restated, because
 // a hand-maintained second copy of the format rules is precisely the drift the
 // curriculum builder names as its system's known weak point — it keeps one such
 // copy today and this prompt is what retires it. `catalogueAuthoringPrompt
@@ -34,7 +34,7 @@
 // every row is a report nobody reads the real divergence out of.
 // =============================================================================
 
-import { MARKDOWN_IMPORT_AI_PROMPT } from './markdownImportPrompt';
+import { IMPORT_PROMPT_CLOSING, MARKDOWN_IMPORT_SHARED } from './markdownImportPrompt';
 
 const VIDEO_SECTION = [
     'PAUSE-POINT CLIPS — the ```video fence',
@@ -127,6 +127,9 @@ const CATALOGUE_SECTION = [
     '- A wrong answer worth anticipating can name the misconception it senses, by',
     '  appending a third segment: {{12 | !21 :: digits reversed :: mis.place-value.digit-reversal}}',
     '  and, on a multiple-choice distractor: ( ) $4 per kg :: mis.roc.uses-endpoint-value',
+    '  The same third segment works on a ```graph fence\'s mistake: lines,',
+    '  e.g. mistake: (-5,1), (-2,1), (-4,4) :: A slide, not a flip. :: mis.reflect.translates',
+    '  and on the reserved unit outcomes (!unit-missing :: … :: mis.…).',
     '- Ids come from the misconception registry. NEVER invent one. If a wrong',
     '  answer is worth anticipating and has no id, write the feedback text and',
     '  leave a note for a human to add the id — an unregistered id fragments the',
@@ -180,9 +183,11 @@ const CATALOGUE_SECTION = [
  *  catalogue-only rules. One file for the curriculum builder to point at, so
  *  the copy it keeps by hand can be retired. */
 export const CATALOGUE_AUTHORING_PROMPT = [
-    MARKDOWN_IMPORT_AI_PROMPT,
+    MARKDOWN_IMPORT_SHARED,
     '',
     CATALOGUE_SECTION,
     '',
     VIDEO_SECTION,
+    '',
+    IMPORT_PROMPT_CLOSING,
 ].join('\n');

@@ -33,8 +33,13 @@ STRUCTURE
 - Headings use #, ##, ### (three levels only).
 - Put a blank line between every block. Each problem must be its own
   paragraph separated by a blank line — lines that touch merge into one block.
-- To start a new checkpoint section, end a heading with {checkpoint}:
+- End a heading with {checkpoint} to give its part a Check button:
   ## Part 2 {checkpoint}
+  That heading starts a section that runs to the next {checkpoint} heading
+  (plain headings do not end it), and its Check sits at the end of that
+  section. Anything before the first {checkpoint} heading is checked with
+  the first one, so mark every part that needs its own Check, Part 1
+  included. #, ## and ### headings all work.
 
 FILL-IN-THE-BLANK
 - Wrap each answer in double curly braces:  The capital of France is {{Paris}}.
@@ -42,6 +47,7 @@ FILL-IN-THE-BLANK
 - When two blanks may be answered in either order (e.g. factoring), mark the
   second one with a leading tilde:  (x + {{2}})(x + {{~3}}). Each answer still
   counts once, so 2 and 3 in either order is right but 2 and 2 is not.
+  For three or more order-free blanks, tilde every one after the first.
 - Text answers ignore capitals: {{Paris}} also accepts paris. When capitals
   matter (a chemical symbol), put ^ first:  the symbol for magnesium is {{^Mg}}.
 - Always put a real answer inside the braces (an empty {{}} is ignored).
@@ -62,8 +68,9 @@ FILL-IN-THE-BLANK
   with tolerance:  {{=1.5 +- 0.1 unit: km/h}}. Two reserved mistake
   matches fire on unit OUTCOMES rather than typed text:  !unit-missing ::
   fires when the value is right but no unit was typed, and !unit-wrong ::
-  when the value is right but the unit is not accepted — both take the
-  optional trailing :: mis.* binding like any other mistake segment.
+  when the value is right but the unit is not accepted. Put unit: right
+  after the number, before any | segment: {{=20 unit: cm² | ?Length × width}}.
+  A !wrong value on a unit blank matches with or without a unit typed.
 - For a MATH answer graded by expression equivalence (2a, a+a and a*2 all
   count as equal), use two equals signs:  simplify to {{==2a}}. Combine with
   the tilde as {{~==2a}}.
@@ -85,8 +92,12 @@ FILL-IN-THE-BLANK
     {{Paris | !Lyon :: That is the third-largest city, not the capital}}
 - Inside the braces the order is: the answer, then any mix of |alternate
   answers, one ?hint, and !wrong :: feedback pairs. Hint and feedback text
-  cannot contain |, {, or }. For an accepted answer that itself starts with
-  ? or !, double the mark:  {{a | ??x}} also accepts the literal "?x".
+  cannot contain |, {, or } outside $…$ maths (inside maths they are fine).
+  For an accepted ALTERNATE that itself starts with ? or !, double the mark:
+  {{a | ??x}} also accepts the literal "?x". The first answer is always
+  literal, so it never needs doubling. A specific !wrong match wins over
+  !form-wrong. On a == blank, a !wrong that is equal to the answer is marked
+  right and never fires, so pick wrong answers that are really different.
 - Blanks work only in normal paragraphs and list items — never inside a heading.
 - A numbered or bulleted list whose items each contain a blank becomes one
   problem per item — a clean way to write a problem set.
@@ -137,8 +148,10 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   y - 5 = 2(x - 1), x^2 - 4, x = 4), an inequality (the <, <=, >, >= sign
   sets the dotted/solid boundary and the shaded side), a point list like
   (2, 3), (4, 5), a ray or segment like ray (1, 2) through (3, 4) open or
-  segment (1, 2) to (3, 4) (open/closed set each endpoint style, default
-  closed), a region like region (0,0), (4,0), (2,4), or the word none for
+  segment (1, 2) to (3, 4) (open/closed set the endpoint styles in order:
+  the first word styles the first point, a second word the second, so
+  open closed gives an open start; a ray's one word styles its start;
+  default closed), a region like region (0,0), (4,0), (2,4), or the word none for
   a "cannot be graphed" trick question. Supported answer curves: linear,
   quadratic, cubic, quartic, absolute value (y = 2|x - 3| + 1), square
   root (y = 2*sqrt(x - 3) + 1), exponential, logarithmic, and vertical
@@ -160,12 +173,15 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     answer: y = (x - 2)^2 + 1     (the target the student must reach)
     options: type-equation        (also require typing the target equation)
   Without type-equation the student only drags. The two mistake: tokens
-  drawn-not-written and written-not-drawn match when only one channel is right.
+  drawn-not-written and written-not-drawn match when only one channel is right:
+    mistake: drawn-not-written :: You dragged it right; now type the equation.
 - options: (comma-separated) turn on grading behaviours:
     allow-no-solution     give the student a "no solution" choice
     no-solution-correct   make "no solution" THE correct answer and any drawn answer a decoy (a trick question)
     no-builtin-feedback   no effect yet: automatic mistake hints are not shown to students, so write each mistake you want caught as a mistake: line
     type-equation         with start:, also require the typed target equation
+  answer: none alone is enough for a trick question (it turns both on); use
+  no-solution-correct only when you also want a drawn decoy answer.
 - A SHOWN SHAPE BESIDE THE QUESTION: show: lines written WITH an answer: are
   fixed on the student's graph (and on the printed sheet) for them to work
   from - the shape to reflect, the mirror line, points a line must pass
@@ -180,7 +196,7 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
     show: polygon A B C
     show: line x = 0 dashed
     answer: (-1,1), (-4,1), (-2,4)
-    mistake: (-5,1), (-2,1), (-4,4) :: That is a slide, not a flip. :: mis.reflect.translates
+    mistake: (-5,1), (-2,1), (-4,4) :: That is a slide, not a flip.
   Write a MIRROR LINE as show: line ... dashed (x = 2, y = -1, y = x): it
   runs across the whole graph. A centre of rotation is a named point. The
   plotted points are marked as a set, in any order; letters are not marked.
@@ -194,9 +210,11 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
 - For an ungraded figure, use show: lines instead of an answer (add an alt:
   line saying what the figure shows; screen readers announce it):
     show: point (2, 3) closed "A"
-    show: line y = x dashed      (dotted works too)
+    show: line y = x dashed      (dotted draws the same dashed line)
     show: line y > 2x + 1 for x >= 0   (inequalities shade; domains clip)
-    show: expression sin(x)      (plots any formula)
+    show: expression sin(x)      (plots any formula; line and curve take any
+                                  equation too: show: curve y = x^2)
+    show: region (0,0), (4,0), (2,4)   (a shaded polygon)
     show: ray (0,0) (2,1) open
     show: segment (0,0) (3,2) arrow   (a vector: the head at the second point)
 
@@ -213,6 +231,7 @@ NUMBER LINES (a fenced block with the `numberline` tag becomes a 1-D number-line
 - axis: -10..10 step 2 (optional) sets the window and tick step; left out,
   the axis fits the answer automatically.
 - Optional line:  solution: <worked explanation>
+- No mistake: or hint: lines here: a number line with one imports as plain text.
 
 DATA PLOTS (a fenced block with the `dataplot` tag becomes a statistics-chart question)
 - ```dataplot … ``` with one statement per line:
@@ -230,7 +249,11 @@ DATA PLOTS (a fenced block with the `dataplot` tag becomes a statistics-chart qu
   is also the bar (bin) width.
 - A boxplot answer may add how close each of the five handles must be:
   answer: boxplot tolerance 1   (default 0.5).
+- A histogram bin includes its left edge, not its right (the last bin includes
+  the maximum). Box-plot quartiles are the medians of the lower and upper
+  halves, leaving the middle value out when the count is odd.
 - Optional line:  solution: <worked explanation>
+- No mistake: or hint: lines here: a data plot with one imports as plain text.
 
 MULTIPLE CHOICE (a fenced block with the `mc` tag becomes a multiple-choice question)
 - ```mc … ``` with one statement per line:
@@ -531,7 +554,8 @@ GEOMETRY FIGURE (a `figure` fence draws a labelled shape in the worksheet)
   and height 3 in the usual slanted textbook view, labelled 4 cm / 2 cm /
   3 cm (leave the unit word off for no labels; units adds the unit-cube
   grid for counting layers, whole numbers up to 12 each). Hidden edges are
-  dashed; a line hidden: off leaves them out.
+  dashed; a line hidden: off leaves them out. Give a cuboid its own figure:
+  nothing positions it against points or polygons in the same fence.
 - Every figure prints "Not to scale" by itself. Write to scale on its own
   line only when the drawing is accurate (e.g. an angle to estimate).
   plane: on shows the grid and axes (for coordinate work); axes: -2..10,
@@ -627,13 +651,14 @@ SEEDED VARIABLES (optional — numbers that differ per student)
   reference; keep references in plain text.
 - Names are lowercase (letters/digits/underscores); short math words like pi,
   e, x, y, mean, min are reserved.
+- In a numeric {{=…}} answer, a sample works inside mean, min and max. Not
+  yet inside median, mode, sum, std or variance, and not in a == maths blank.
 
 ACTIVITY METADATA (optional, once, anywhere in the reply)
 - A ```meta fence names and files the activity. Plain `key: value` lines:
     ```meta
     title: Factoring Trinomials
     course: Algebra I
-    unit: Quadratics
     tags: factoring, vertex form, word problems
     role: lesson
     type: exit_ticket
@@ -643,16 +668,13 @@ ACTIVITY METADATA (optional, once, anywhere in the reply)
     ```
 - title NAMES the activity. Always include it — without it the activity
   imports as "Untitled activity" and has to be renamed by hand.
-- course/unit: where this sits in the year. tags: comma-separated topic
+- course: where this sits in the year. tags: comma-separated topic
   labels used to find activities across units — lowercase them or don't,
   they are normalized either way.
 - role is exactly one of lesson, review, or practice:
     lesson   = core teaching content
     review   = spaced retrieval, not day-of-teaching content
     practice = an as-needed resource shelf
-- minutes: about how long a typical class takes, start to finish, in whole
-  minutes (1–120), e.g. `minutes: 30`. Include it ONLY when the teacher told
-  you a time; never estimate one.
 - Do NOT put role words (lesson/review/practice) in tags — they belong in
   role. Omit any key you are unsure about; a wrong guess is worse than a
   missing one, because metadata already set by hand is never overwritten.
@@ -675,19 +697,23 @@ ACTIVITY SETTINGS (optional, same ```meta fence)
     on_check  = correctness stays hidden until the student presses Check.
     immediate is RESERVED and not active yet; do not set it.
 - calculator: off | scientific | graphing   (default off)
-- work: 3 lines        blank writing room under EVERY problem (default none).
+- work: 3 lines        blank writing room under EVERY question on the PRINTED
+    sheet (default none); never on screen, and never under prose or figures.
     Also takes 1in / 2.5cm / a plain number of rem. Use it on any sheet the
     student writes on by hand — without it a printed worksheet has no room
     to work in. One line is about 8mm.
-- Typical pairings: a quiz or exit ticket is submission: locked +
-  feedback: on_check; a practice sheet is submission: free +
-  feedback: immediate.
+- Typical pairings: a quiz or exit ticket is submission: locked; a practice
+  sheet is submission: free. Leave feedback: out of both (on_check is the
+  default).
 
 OTHER
 - Bold **like this**, italic *like this*, inline code `like this`.
-- Images:  ![a short description](https://full-image-url)
+- Images:  ![a short description](https://full-image-url). Only use an image
+  address the teacher gave you; never invent one. For a diagram, draw it
+  with a ```figure or ```graph fence instead, or leave it out.
 - Links:  [the text](https://full-address). https only; students open them in a new tab.
-- Don't use tables, blockquotes, or any code block inside the activity
+- Don't use blockquotes or any code block inside the activity (pipe tables
+  are fine, as above)
   other than ```graph, ```numberline, ```dataplot, ```mc, ```match,
   ```correspond, ```order,
   ```objectives, ```worked, ```faded, ```explain, ```shortanswer, ```essay, ```photo,
@@ -695,8 +721,6 @@ OTHER
   single
   outer block that wraps the whole reply and those fences are allowed;
   anything unsupported imports as plain text.
-
-When I describe the activity I want, reply with only that single code block.
 
 CATALOGUE FILES — additional rules for the batch importer
 Everything above still applies. These rules apply ONLY to .md files in the
@@ -771,6 +795,9 @@ MISCONCEPTION BINDINGS
 - A wrong answer worth anticipating can name the misconception it senses, by
   appending a third segment: {{12 | !21 :: digits reversed :: mis.place-value.digit-reversal}}
   and, on a multiple-choice distractor: ( ) $4 per kg :: mis.roc.uses-endpoint-value
+  The same third segment works on a ```graph fence's mistake: lines,
+  e.g. mistake: (-5,1), (-2,1), (-4,4) :: A slide, not a flip. :: mis.reflect.translates
+  and on the reserved unit outcomes (!unit-missing :: … :: mis.…).
 - Ids come from the misconception registry. NEVER invent one. If a wrong
   answer is worth anticipating and has no id, write the feedback text and
   leave a note for a human to add the id — an unregistered id fragments the
@@ -833,4 +860,6 @@ Write one `pause:` per ```faded block after the fence, ascending: each stops
 the clip at the next faded block. A video file needs `captions:` with an https
 .vtt file. `recorded_against:` is the hash a dry run prints. A section has one
 clip at most, and a DoL section, quiz, exam or `submission: locked` file has none.
+
+When I describe the activity I want, reply with only that single code block.
 ```
