@@ -194,6 +194,10 @@ describe('Activity Bank page', () => {
         // waitFor's 1 s to transform under a full parallel run. Warm it first,
         // so the row tests the panel, not the transformer's speed.
         await import('../lib/serialize');
+        // The panel renders through the lazy TeacherGuideEditor (Tiptap), whose
+        // first import under jsdom can pass waitFor's 1s on a loaded CI runner
+        // (failed CI run 44715656864): warm it too.
+        await import('../editor/TeacherGuideEditor');
         h.getBankTeacherGuide.mockResolvedValue({
             blocks: [
                 {
