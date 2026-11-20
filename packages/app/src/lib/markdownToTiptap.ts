@@ -65,7 +65,7 @@ import {
 import { latexToAscii } from '@activity/graph-kit/math-prompt-convert';
 import { parseFigureFence, SEGMENT_ENDPOINT_REFUSAL } from './figureFence';
 import { parseChartFence } from './chartFence';
-import { seedReferenceFindings, seedVarProblems, type SeedVarProblem } from './seedRules';
+import { listSpecFromText, seedReferenceFindings, seedVarProblems, type SeedVarProblem } from './seedRules';
 import {
     ACTIVITY_TYPES,
     type SeedVarSpec,
@@ -421,7 +421,7 @@ export function getMarkdownImporter(): Promise<MarkdownImporter> {
                 // then parse the placeholdered text.
                 const { text, spans } = extractMath(stripMarkdownFence(markdown));
                 const tokens = md.parse(
-                    protectEscapedBrackets(protectBlankBodies(text)),
+                    protectEscapedBrackets(protectBlankBodies(escapeBlankPipesOnTableLines(text))),
                     {},
                 ) as unknown as MdToken[];
                 return restoreBlankSentinels(restoreEscapedBrackets(
@@ -2805,6 +2805,23 @@ function parseCorrespondFence(src: string, ctx: Ctx): JSONContent | null {
     };
 }
 
+/**
+ * What a student SEES on a matching card, as a comparable string: its inline
+ * content (whitespace runs collapsed, so `x  + 1` and `x + 1` are one card),
+ * its image by URL, and its graph. Two cards with the same fingerprint are
+ * indistinguishable on the page, so they must be one card.
+ */
+function sideFingerprint(side: {
+    content: unknown;
+    image?: { src: string };
+    graph?: unknown;
+}): string {
+    return JSON.stringify(
+        [side.content, side.image?.src ?? null, side.graph ?? null],
+        (_k, v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ') : v),
+    );
+}
+
 function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
     const fail = (msg: string): null => {
         ctx.warnings.add('Matching block: ' + msg + ' — imported as plain text.');
@@ -2823,6 +2840,21 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
     const items: Side[] = [];
     const targets: Side[] = [];
     const key: Record<string, string> = {};
+    // ONE CARD PER DISTINCT OPTION (stress test 2026-11-20). Several items may
+    // share one option, and the key pairs item → card ID — so writing the same
+    // option on two pair lines used to mint two identical-looking cards, and a
+    // student who picked the "wrong" twin was marked wrong. An option whose
+    // content, image and graph match an earlier one reuses that card; a
+    // distractor that repeats a real option collapses into it the same way.
+    const targetByFingerprint = new Map<string, Side>();
+    const addTarget = (side: Side): Side => {
+        const fp = sideFingerprint(side);
+        const existing = targetByFingerprint.get(fp);
+        if (existing) return existing;
+        targetByFingerprint.set(fp, side);
+        targets.push(side);
+        return side;
+    };
 
     const buildSide = (raw: string): Side | null => {
         const cleaned = raw.replace(/\\=/g, '=');
@@ -2882,7 +2914,7 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
         if (distractor) {
             const side = buildSide(distractor[1] ?? '');
             if (!side) return fail('a distractor line needs option text');
-            targets.push(side);
+            addTarget(side);
             continue;
         }
 
@@ -2915,11 +2947,15 @@ function parseMatchFence(src: string, ctx: Ctx): JSONContent | null {
             return fail(`a pair line needs text on both sides ("${line}")`);
         }
         items.push(item);
-        targets.push(target);
-        key[item.id] = target.id;
+        key[item.id] = addTarget(target).id;
     }
 
     if (items.length < 2) return fail('needs at least two "item = option" lines');
+    if (targets.length < 2) {
+        return fail(
+            'needs at least two different options (every item names the same one — add a distractor line such as "= 0")',
+        );
+    }
 
     return {
         type: 'matching',
@@ -3161,9 +3197,102 @@ const DELIMITER_ROW_RE = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/;
  */
 function splitPipeRow(line: string): string[] {
     const trimmed = line.trim().replace(/^\|/, '').replace(/\|\s*$/, '');
-    return trimmed
-        .split(/(?<!\\)\|/)
-        .map((cell) => cell.replace(/\\\|/g, '|').trim());
+    // A `|` inside a `{{…}}` blank (its alternates, `?hint`, `!mistake`) or
+    // inside `$…$` math (`$|x|$`) is THAT construct's, never a cell boundary
+    // (stress test 2026-11-20: `{{=14 | !12 :: …}}` became two cells, the
+    // answer shown as text and ungraded). The bare-table path gets the same
+    // rule from escapeBlankPipesOnTableLines + extractMath before markdown-it.
+    const guarded = cellGuardedRanges(trimmed);
+    const cells: string[] = [];
+    let start = 0;
+    for (let i = 0; i < trimmed.length; i++) {
+        if (trimmed[i] !== '|' || trimmed[i - 1] === '\\') continue;
+        if (guarded.some(([a, b]) => i > a && i < b)) continue;
+        cells.push(trimmed.slice(start, i));
+        start = i + 1;
+    }
+    cells.push(trimmed.slice(start));
+    return cells.map((cell) => cell.replace(/\\\|/g, '|').trim());
+}
+
+/** `{{…}}` blank spans on one line (no nesting — a blank body forbids braces). */
+const LINE_BLANK_RE = /\{\{[^{}\n]*\}\}/g;
+
+/**
+ * Index ranges [start, end) on a pipe row whose `|` characters belong to a
+ * blank or a math span rather than to the table. Code spans are NOT guarded:
+ * GFM splits a code span on `|` too, and the two table forms must agree.
+ */
+function cellGuardedRanges(line: string): [number, number][] {
+    const ranges: [number, number][] = [];
+    const code: [number, number][] = [];
+    for (const m of line.matchAll(MATH_SCAN)) {
+        const at = m.index ?? 0;
+        if (m[1] !== undefined) code.push([at, at + m[0].length]);
+        else ranges.push([at, at + m[0].length]);
+    }
+    for (const m of line.matchAll(LINE_BLANK_RE)) {
+        const at = m.index ?? 0;
+        if (code.some(([a, b]) => at >= a && at < b)) continue;
+        ranges.push([at, at + m[0].length]);
+    }
+    return ranges;
+}
+
+/**
+ * The BARE-table half of the cell rule above. markdown-it splits a GFM row on
+ * every unescaped `|`, so on any line that could be a table row (it carries a
+ * `|` outside its blanks), each `|` INSIDE a `{{…}}` is given GFM's own escape,
+ * `\|`, before the parse. markdown-it removes that escape again — in a cell and
+ * in ordinary prose alike — so the blank arrives with its alternates intact,
+ * exactly as the hand-escaped spelling always did. Fenced code blocks (every
+ * ``` fence, ```table included) and inline code are left alone: a fence body
+ * is opaque to markdown-it and its own line grammar decides what `|` means.
+ */
+function escapeBlankPipesOnTableLines(src: string): string {
+    let fence: { char: string; len: number } | null = null;
+    return src
+        .split('\n')
+        .map((line) => {
+            const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
+            if (marker) {
+                const run = marker[1]!;
+                if (!fence) {
+                    fence = { char: run[0]!, len: run.length };
+                    return line;
+                }
+                if (run[0] === fence.char && run.length >= fence.len && line.trim() === run) {
+                    fence = null;
+                }
+                return line;
+            }
+            if (fence || !line.includes('{{')) return line;
+            if (!line.replace(LINE_BLANK_RE, '').includes('|')) return line;
+            const code = [...line.matchAll(/(`+)[\s\S]*?\1/g)].map(
+                (m): [number, number] => [m.index ?? 0, (m.index ?? 0) + m[0].length],
+            );
+            return line.replace(LINE_BLANK_RE, (blank, at: number) =>
+                code.some(([a, b]) => at >= a && at < b)
+                    ? blank
+                    : blank.replace(/(?<!\\)\|/g, '\\|'),
+            );
+        })
+        .join('\n');
+}
+
+/**
+ * A table cell that still holds half a blank — `{{` with no `}}`, or the
+ * reverse — is a blank the row split cut in two. The split above should make
+ * that impossible for a well-formed blank; this is the net under it, so a
+ * broken cell is NAMED rather than imported as silent, ungraded text.
+ */
+function warnHalfBlankCell(cell: string, ctx: Ctx): void {
+    const rest = cell.replace(LINE_BLANK_RE, '');
+    if (rest.includes('{{') || rest.includes('}}')) {
+        ctx.warnings.add(
+            `Table: the cell “${cell.trim()}” holds an unclosed {{…}} blank — it imported as plain text. Close it as {{answer}} inside one cell.`,
+        );
+    }
 }
 
 /** Per-column alignment from a delimiter row, or null when it carries none. */
@@ -3283,6 +3412,7 @@ function parseTableTokens(node: TokNode, ctx: Ctx): JSONContent | null {
                 continue;
             }
             const inline = findInline(cellNode);
+            if (inline) warnHalfBlankCell(inline.content, ctx);
             cells.push(inline ? mapInline(inline.children ?? [], ctx, true) : []);
         }
         if (cells.length > 0) rows.push(cells);
@@ -3348,7 +3478,12 @@ function parseTableFence(src: string, ctx: Ctx): JSONContent | null {
             continue;
         }
 
-        rows.push(splitPipeRow(line).map((cell) => fenceInline(cell, ctx, true)));
+        rows.push(
+            splitPipeRow(line).map((cell) => {
+                warnHalfBlankCell(cell, ctx);
+                return fenceInline(cell, ctx, true);
+            }),
+        );
     }
 
     if (rows.length === 0) {
@@ -3893,7 +4028,8 @@ function parseSeedSpecText(spec: string): SeedVarSpec | null {
     const sampleM = /^sample\s+(\d+)\s+of\s+(-?\d+)\s*\.\.\s*(-?\d+)$/.exec(spec);
     if (sampleM) return { kind: 'sample', n: Number(sampleM[1]), min: Number(sampleM[2]), max: Number(sampleM[3]) };
     const listM = /^list\s+(.+)$/.exec(spec);
-    if (listM) return { kind: 'list', values: (listM[1] ?? '').split(',').map((v) => Number(v.trim())) };
+    // Keeps the author's spellings (1.50) for display; values stay numbers.
+    if (listM) return listSpecFromText(listM[1] ?? '');
     return null;
 }
 
@@ -5263,8 +5399,6 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             ctx.figureProblems.push(p);
             return false;
         });
-    } else if (stimulusAlt) {
-        ctx.warnings.add('Graph block: alt: describes what is shown beside an answer; this graph has no answer, so it was ignored.');
     }
     return {
         type: 'interactiveGraph',
@@ -5279,7 +5413,9 @@ function parseGraphFence(src: string, ctx: Ctx): JSONContent | null {
             mistakeFeedback: mistakes,
             skills: [],
             stimulus,
-            ...(interaction && stimulus.length > 0 && stimulusAlt ? { stimulusAlt } : {}),
+            // A show-only figure (no answer) is where a screen reader needs the
+            // description most: it names the board (stress test 2026-11-20).
+            ...(stimulusAlt && (!interaction || stimulus.length > 0) ? { stimulusAlt } : {}),
         },
         content: graphPromptContent(prompt, ctx),
     };

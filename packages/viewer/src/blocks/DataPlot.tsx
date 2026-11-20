@@ -138,6 +138,21 @@ export default function DataPlot({
         </p>
       ) : null}
 
+      {/* THE DATASET, AS TEXT, for a build-the-chart question. Plotting `data`
+          IS the question, and nothing else on the block shows it: the board
+          and the print twin both start empty (the twin must — a drawn chart
+          would print the answer). Without this line the question is
+          unanswerable on screen AND on paper; the stress-test worksheet
+          printed three bare axes (2026-11-20). Plain ink text, so it survives
+          a greyscale photocopy. It is never a leak: `data` is served
+          (`derivableFromServed`), and for a seeded dataset sanitize has
+          already spliced this student's own drawn sample over the literal. */}
+      {!isDisplay && block.data.length > 0 ? (
+        <p className="viewer-data-plot__prompt" data-plot-values="true">
+          Data: {block.data.map(formatDatum).join(', ')}
+        </p>
+      ) : null}
+
       {/* A display chart prints the data it exists to show; a build-the-chart
           question prints an EMPTY frame, because plotting the data is the
           task. Narrowed on the interaction so the type system holds that
@@ -220,6 +235,12 @@ export default function DataPlot({
 // its own (very tall) default. Caught in /dev/viewer, where the dotplot filled
 // the viewport.
 const CANVAS_SIZE = { width: '100%', height: '18rem' } as const;
+
+/** A data value as a student reads it: no float noise (0.1 + 0.2 drawn by a
+ * seeded sample prints as 0.3, not 0.30000000000000004). */
+function formatDatum(v: number): string {
+  return Number.isInteger(v) ? String(v) : String(Math.round(v * 1e6) / 1e6);
+}
 
 /** Narration names what the student built, in the chart's own vocabulary. */
 function describe(interactionType: string, values: number[]): string {

@@ -327,7 +327,8 @@ export const InteractiveGraphBlock = z.object({
   // Guarded against rendered output by viewer/tests/components/
   // interactive-graph-stimulus.test.tsx and e2e/student/graph-stimulus.e2e.ts.
   stimulus: z.array(Drawable).default([]),
-  // What the stimulus shows, for a screen reader (optional). Joined to the
+  // What the stimulus shows, for a screen reader (optional) — or, on a
+  // show-only (display) graph, what the whole board shows. Joined to the
   // graph's accessible name; never holds an answer.
   stimulusAlt: z.string().optional(),
   // Variable block sizing: optional width fraction + alignment (sizing.ts).

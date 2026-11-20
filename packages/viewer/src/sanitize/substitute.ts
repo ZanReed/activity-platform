@@ -26,7 +26,7 @@
 // =============================================================================
 
 import type { SeedValues } from './seedValues.js';
-import { formatSeedValue } from './seedValues.js';
+import { seedText } from './seedValues.js';
 
 const REF_RE = /\{([a-z][a-z0-9_]*)\}/g;
 const SEED_MACRO_RE = /\\seed\{([a-z][a-z0-9_]*)\}/g;
@@ -39,33 +39,42 @@ const NAME_RE = /(?<![a-zA-Z0-9_])[a-z][a-z0-9_]*/g;
 /**
  * Bind declared names inside an EXPRESSION string (R6): scalars become a
  * parenthesized literal ("a*x + 3" → "(6)*x + 3", sign-safe), samples become
- * a mathjs array literal ("mean(data)" → "mean([55,61,78])"). Undeclared
+ * a bracketed list ("mean(data)" → "mean([55,61,78])"). Undeclared
  * identifiers — including function names like `mean` — pass through, and the
  * regex's greediness keeps `data2` from matching a declared `data`.
+ *
+ * `samples: 'args'` spells a sample as a bare argument list instead
+ * ("mean(data)" → "mean(55,61,78)"). That is the form the EVALUATOR can run:
+ * graph-kit's engine is mathjs/number — no arrays — and its aggregates
+ * (mean/min/max) are variadic, so the bracketed form never evaluates. The
+ * bracketed form stays the default: it is the readable bound key, and the
+ * importer's seed-row checks read it.
  */
-export function bindSeedNames(expr: string, values: SeedValues): string {
+export function bindSeedNames(
+  expr: string,
+  values: SeedValues,
+  opts: { samples?: 'list' | 'args' } = {},
+): string {
+  const args = opts.samples === 'args';
   return expr.replace(NAME_RE, (name) => {
     const v = values[name];
     if (v === undefined) return name;
-    return Array.isArray(v) ? `[${v.join(',')}]` : `(${v})`;
+    if (!Array.isArray(v)) return `(${v})`;
+    return args ? v.join(',') : `[${v.join(',')}]`;
   });
 }
 
 /** Interpolate `{name}` references in one prose string. Undeclared names are
  *  left exactly as written. */
 export function substituteText(text: string, values: SeedValues): string {
-  return text.replace(REF_RE, (whole, name: string) => {
-    const v = values[name];
-    return v === undefined ? whole : formatSeedValue(v);
-  });
+  return text.replace(REF_RE, (whole, name: string) => seedText(values, name) ?? whole);
 }
 
 /** Replace `\seed{name}` in one latex string (DL-17). Undeclared names stay
  *  as written; a bare `{name}` is never touched. */
 export function substituteLatex(latex: string, values: SeedValues): string {
   return latex.replace(SEED_MACRO_RE, (whole, name: string) => {
-    const v = values[name];
-    return v === undefined || Array.isArray(v) ? whole : formatSeedValue(v);
+    return Array.isArray(values[name]) ? whole : (seedText(values, name) ?? whole);
   });
 }
 

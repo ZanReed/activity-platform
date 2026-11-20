@@ -30,9 +30,13 @@
 // =============================================================================
 
 import { loadMathRenderer, residentMathRenderer } from './math.js';
+import { hasMathText } from './splitMathText.js';
 
 /** Inline/block node types whose presence means KaTeX will be needed. */
 const MATH_NODE_TYPES = new Set(['math_inline', 'math_block']);
+
+/** Blocks whose plain-string `title` may carry `$…$` (rendered by MathText). */
+const MATH_TITLE_TYPES = new Set(['worked_example', 'faded_worked_example']);
 
 /**
  * Depth cap for the structural scan.
@@ -74,6 +78,16 @@ export function documentUsesMath(doc: unknown): boolean {
         }
         const type = (node as { type?: unknown }).type;
         if (typeof type === 'string' && MATH_NODE_TYPES.has(type)) {
+            found = true;
+            return;
+        }
+        const title = (node as { title?: unknown }).title;
+        if (
+            typeof type === 'string' &&
+            MATH_TITLE_TYPES.has(type) &&
+            typeof title === 'string' &&
+            hasMathText(title)
+        ) {
             found = true;
             return;
         }

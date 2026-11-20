@@ -256,6 +256,38 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
     expect(print).not.toMatch(/\.viewer-block\s*,[^{]*\{[^}]*break-inside:\s*avoid/);
   });
 
+  it('prints a one-column row as a BLOCK, not a grid (paged-grid overlap, 2026-11-20)', () => {
+    // Chromium's paged layout under-sizes a grid row whose column spans pages
+    // once a break-inside:avoid block in it is pushed, and the next section
+    // overprints the row's last blocks (stress test: the Part 6 line chart,
+    // "Part 7" and questions 80/81 drawn on top of each other). Only a real
+    // page.pdf() shows the overlap — print emulation never paginates, and a
+    // multicol stand-in did not reproduce it — so this pins the two halves
+    // of the fix: the rule sits INSIDE a print block (so screen keeps its
+    // grid), and its selector names the attribute the container emits.
+    const printBlocks: string[] = [];
+    for (let at = code.indexOf('@media print'); at !== -1; at = code.indexOf('@media print', at + 1)) {
+      let depth = 0;
+      let end = code.indexOf('{', at);
+      do {
+        if (code[end] === '{') depth++;
+        else if (code[end] === '}') depth--;
+        end++;
+      } while (depth > 0 && end < code.length);
+      printBlocks.push(code.slice(at, end));
+    }
+    expect(
+      printBlocks.some((b) =>
+        /(^|[\s,}])\[data-column-count='1'\]\s*\{[^}]*display:\s*block/.test(b),
+      ),
+    ).toBe(true);
+    const container = readFileSync(
+      new URL('../src/container/ViewerContainer.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(container).toContain('data-column-count={row.columns.length}');
+  });
+
   it('hides the live kit board so only the static twin prints (S5-1)', () => {
     expect(print).toContain('.viewer-graph__canvas');
     expect(print).toContain('.viewer-number-line__canvas');

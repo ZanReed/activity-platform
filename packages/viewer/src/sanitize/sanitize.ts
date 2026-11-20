@@ -66,7 +66,11 @@ import type {
 // any `link` mark whose href is not https. A defence beside the schema's own
 // check (the handlers do not schema-parse), and a new rule, so cached rows
 // written before it must not survive it.
-export const SANITIZER_ALGO_REV = 5;
+// 5 -> 6 (2026-11-20, stress test): the serve path's schema parse learned the
+// optional seed `list.text` (authored spellings, "1.50"). A row cached by the
+// old function was parsed with the field stripped and would keep showing
+// "$1.5" after the redeploy; this orphans it.
+export const SANITIZER_ALGO_REV = 6;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */

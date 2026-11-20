@@ -37,6 +37,7 @@ import InteractiveGraph from '../../src/blocks/InteractiveGraph.js';
 import NumberLine from '../../src/blocks/NumberLine.js';
 import DataPlot from '../../src/blocks/DataPlot.js';
 import { sanitizedVariantFixtures } from '../../src/fixtures/index.js';
+import { substituteSeedValues } from '../../src/sanitize/substitute.js';
 import { TEST_USER_ID } from '../helpers/ids.js';
 
 function harness(ui: ReactElement) {
@@ -182,6 +183,46 @@ describe('a QUESTION prints empty axes', () => {
         `data_plot ${kind} printed its data`,
       ).toBe('0');
     }
+  });
+});
+
+describe('a build-the-chart question shows the data it asks for', () => {
+  // The twin is an empty frame (above), and so is the live board — so the
+  // dataset has to reach the page as TEXT or the question is unanswerable on
+  // paper and on screen alike. Found 2026-11-20: the stress-test worksheet
+  // printed three bare axes under "Make a dot plot of the data."
+  const valuesOf = (container: HTMLElement) =>
+    container.querySelector('[data-plot-values]')?.textContent ?? null;
+
+  it('prints every data value for each build kind (screen mode, which is what prints)', () => {
+    for (const kind of ['build_dotplot', 'build_histogram', 'build_boxplot']) {
+      const block = variant('data_plot', kind) as { data: number[] };
+      const { container } = harness(<DataPlot block={block as never} mode="screen" />);
+      const text = valuesOf(container);
+      expect(text, `data_plot ${kind} showed no data`).not.toBeNull();
+      // In order, comma-separated — the list a student copies from.
+      expect(text).toContain(block.data.join(', '));
+      // Outside the twin: the print stylesheet hides nothing it sits in.
+      expect(twinOf(container)?.contains(container.querySelector('[data-plot-values]'))).toBe(false);
+    }
+  });
+
+  it('prints THIS student’s drawn sample for a seeded dataset, not the literal', () => {
+    const base = variant('data_plot', 'build_histogram') as Record<string, unknown>;
+    const seeded = substituteSeedValues(
+      { ...base, data: [70, 70, 70], dataVar: 'scores' },
+      { scores: [53, 61.5, 88, 97] },
+    );
+    const { container } = harness(<DataPlot block={seeded as never} mode="screen" />);
+    expect(valuesOf(container)).toContain('53, 61.5, 88, 97');
+    expect(valuesOf(container)).not.toContain('70');
+  });
+
+  it('adds no data line to a display chart (its chart already shows the data)', () => {
+    const { container } = harness(
+      <DataPlot block={variant('data_plot', 'display') as never} mode="screen" />,
+    );
+    expect(valuesOf(container)).toBeNull();
   });
 });
 

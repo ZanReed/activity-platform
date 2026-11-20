@@ -222,7 +222,9 @@ const stimulusAltField: AdvancedField = {
     label: 'Describe the figure for screen readers',
     help: 'What the figure shown with the question looks like. Never give the answer here.',
     placeholder: 'e.g. Triangle ABC with a right angle at B',
-    when: (node) => Array.isArray(node.attrs.stimulus) && (node.attrs.stimulus as unknown[]).length > 0,
+    when: (node) =>
+        (Array.isArray(node.attrs.stimulus) && (node.attrs.stimulus as unknown[]).length > 0) ||
+        (node.attrs.interaction as { type?: string } | null)?.type === 'display',
     get: (node) => (node.attrs.stimulusAlt as string | null) ?? '',
     set: (editor, pos, value) => setNodeAttr(editor, pos, 'stimulusAlt', value.trim() === '' ? null : value),
 };

@@ -143,3 +143,23 @@ describe('stimulusAlt', () => {
     expect(container.querySelector('[data-stimulus-alt]')).toBeNull();
   });
 });
+
+describe('a show-only graph is named by its description (stress test 2026-11-20)', () => {
+  const display = (alt?: string) =>
+    served({
+      interaction: { type: 'display', drawables: [{ kind: 'point', at: [1, 1], label: 'A' }] },
+      stimulus: [],
+      stimulusAlt: alt,
+    });
+
+  it('the board is announced as "Graph: <description>"', () => {
+    const { container } = mount(display('A dashed line through the origin and point A'));
+    const board = container.querySelector('[role="img"]');
+    expect(board?.getAttribute('aria-label')).toBe('Graph: A dashed line through the origin and point A');
+  });
+
+  it('with no description it stays "Graph"', () => {
+    const { container } = mount(display());
+    expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('Graph');
+  });
+});

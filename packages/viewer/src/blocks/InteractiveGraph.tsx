@@ -351,7 +351,16 @@ export default function InteractiveGraph({
             // lazy chunk mounts.
             { role: 'img' }
           : { tabIndex: 0, role: 'application' })}
-        aria-label={isDisplay ? 'Graph' : 'Interactive graph'}
+        // A show-only figure is announced by its description (stimulusAlt,
+        // stress test 2026-11-20); a question's description is the hidden
+        // "The graph shows:" line above instead.
+        aria-label={
+          isDisplay
+            ? block.stimulusAlt?.trim()
+              ? `Graph: ${block.stimulusAlt.trim()}`
+              : 'Graph'
+            : 'Interactive graph'
+        }
       />
 
       {mountFailed ? (

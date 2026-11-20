@@ -11,6 +11,7 @@ import { useId } from 'react';
 import type { WorkedExampleBlock } from '@activity/schema';
 import type { BlockComponentProps } from '../registry/types.js';
 import { ChildBlocks } from './ChildBlocks.js';
+import { MathText } from '../inline/MathText.js';
 
 export default function WorkedExample({
   block,
@@ -25,7 +26,7 @@ export default function WorkedExample({
       aria-labelledby={titleId}
     >
       <h3 className="viewer-worked-example__title" id={titleId}>
-        {block.title}
+        <MathText text={block.title} />
       </h3>
       <div className="viewer-worked-example__body">
         <ChildBlocks blocks={block.content} mode={mode} />

@@ -462,6 +462,80 @@ describe('seeded values on the print surface (wishlist #6, R9/D6)', () => {
     });
 });
 
+describe('seeded aggregates + list spellings on the print surface (2026-11-20)', () => {
+    // The stress test's question 72: a `sample` inside mean()/max()/min().
+    // The engine has no arrays, so the bracketed bound form never evaluated
+    // and the key printed "mean([62,88,…" — and a list value authored as
+    // "1.50" printed "$1.5". Both read off the RENDERED page.
+    function aggregateDoc() {
+        const doc = authored();
+        (doc.meta as Record<string, unknown>).seedVars = [
+            { name: 'p', spec: { kind: 'list', values: [1.5, 1.75, 2.25], text: ['1.50', '1.75', '2.25'] } },
+            { name: 'scores', spec: { kind: 'sample', n: 8, min: 55, max: 99 } },
+        ];
+        doc.sections[0]!.rows.unshift({
+            id: '99999999-9999-4999-8999-999999999997',
+            columns: [
+                {
+                    id: '88888888-8888-4888-8888-888888888886',
+                    blocks: [
+                        {
+                            id: '77777777-7777-4777-8777-777777777775',
+                            type: 'fill_in_blank',
+                            content: [
+                                { type: 'text', text: 'AGGMARK Pens at ${p} each. Scores {scores}. Mean ' },
+                                {
+                                    type: 'blank',
+                                    id: '66666666-6666-4666-8666-666666666664',
+                                    answer: 'mean(scores)',
+                                    answerType: 'numeric',
+                                    tolerance: 0.01,
+                                    width: 6,
+                                },
+                                { type: 'text', text: ' range ' },
+                                {
+                                    type: 'blank',
+                                    id: '66666666-6666-4666-8666-666666666663',
+                                    answer: 'max(scores) - min(scores)',
+                                    answerType: 'numeric',
+                                    width: 6,
+                                },
+                            ],
+                        } as never,
+                    ],
+                },
+            ],
+        } as never);
+        return doc;
+    }
+
+    it('keys the evaluated mean and range of THIS printing, and prints the list value as written', async () => {
+        h.row.current = { id: ACTIVITY_ID, title: 'T', draft_content: aggregateDoc(), current_version_id: null };
+        renderRoute();
+        await waitFor(() => expect(document.querySelector('.viewer')).not.toBeNull());
+        const text =
+            Array.from(document.querySelectorAll('p, span, div')).find((el) =>
+                (el.textContent ?? '').includes('AGGMARK'),
+            )?.textContent ?? '';
+        // The list value keeps its trailing zero.
+        expect(text).toMatch(/Pens at \$(1\.50|1\.75|2\.25) each/);
+        const scores = (/Scores ([\d, ]+)\./.exec(text)?.[1] ?? '').split(',').map((s) => Number(s.trim()));
+        expect(scores).toHaveLength(8);
+
+        screen.getByLabelText(/show answers/i).click();
+        await waitFor(() =>
+            expect(document.querySelectorAll('input[data-answer-key="filled"]').length).toBeGreaterThan(0),
+        );
+        const keyed = Array.from(
+            document.querySelectorAll<HTMLInputElement>('input[data-answer-key="filled"]'),
+        ).map((el) => el.value);
+        const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+        expect(keyed).toContain(String(Number(mean.toPrecision(10))));
+        expect(keyed).toContain(String(Math.max(...scores) - Math.min(...scores)));
+        expect(keyed.some((k) => /mean|max|\[/.test(k))).toBe(false);
+    });
+});
+
 describe('saving a print setting (ruling D20A)', () => {
     it('writes ONLY meta.print, so a concurrent editor edit survives', async () => {
         renderRoute();

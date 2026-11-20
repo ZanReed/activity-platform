@@ -2008,6 +2008,24 @@
     padding: 0;
   }
 
+  /* A ONE-COLUMN ROW PRINTS AS A BLOCK, NOT A GRID. Chromium's paged layout
+     mis-sizes a grid row whose column runs across several pages: when a
+     break-inside:avoid block inside it is pushed to the next page, the row's
+     last fragment comes out shorter than its content, and everything after
+     the row — the next section's heading, its first question — is drawn on
+     top of the row's last blocks. Measured on the stress-test worksheet
+     (2026-11-20): the pushed block there was the Part 6 line chart, and a
+     plain 280px div swapped in for the chart overlapped identically, so it is
+     the grid, not the chart. A one-column grid lays out exactly like a block
+     (one 1fr track, items at the start), so on paper it gives up nothing.
+     Multi-column rows keep the grid; they need it to sit side by side. Bare
+     attribute selector: only rows carry it (ViewerContainer), and it beats
+     .viewer-row by source order at equal specificity; the shell CSS sits at
+     its cap. */
+  [data-column-count='1'] {
+    display: block;
+  }
+
   /* App chrome never prints. The top bar is sticky page furniture — it carries
      the Print control that opened this dialog, and its title would duplicate
      the worksheet heading below. Its screen job ends at the dialog. */

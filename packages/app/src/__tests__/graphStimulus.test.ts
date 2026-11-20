@@ -95,10 +95,16 @@ describe('failure rules', () => {
         expect(c.figureProblems!.some((p) => /shown cuboid/.test(p))).toBe(true);
     });
 
-    it('alt: on a graph with no answer is ignored with a warning', () => {
-        const r = graph('alt: a line', 'show: line y = x');
-        expect(attrsOf(r).stimulusAlt).toBeUndefined();
-        expect(r.warnings[0]).toMatch(/this graph has no answer/);
+    it('alt: on a show-only graph names the figure, with no warning (stress test 2026-11-20)', () => {
+        const r = graph('alt: a line through the origin', 'show: line y = x');
+        expect(attrsOf(r).stimulusAlt).toBe('a line through the origin');
+        expect(r.warnings).toEqual([]);
+        // …and survives save.
+        const meta = { title: 'T' } as Parameters<typeof tiptapToActivity>[1];
+        const block = tiptapToActivity(wrapBlocksStrict(r.blocks), meta)
+            .sections.flatMap((s) => s.rows.flatMap((row) => row.columns.flatMap((c) => c.blocks)))
+            .find((b) => b.type === 'interactive_graph') as InteractiveGraphBlock;
+        expect(block.stimulusAlt).toBe('a line through the origin');
     });
 });
 

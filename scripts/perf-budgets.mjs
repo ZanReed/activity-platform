@@ -290,8 +290,13 @@ export const SHELL_SPEND = [
         change: 'Media submissions slice 2c (phone QR handoff): the lazy /h route (its import, its preload entry, the Route element) and the PHOTO_HANDOFF_PATH constant in the shell seam; the QR panel, its encoder (uqr) and the phone page are all lazy chunks (checked: the encoder is only in PhotoHandoffPanel-*.js)',
         bytes: 259,
     },
+    {
+        date: '2026-11-20',
+        change: 'Stress-test student fixes: maths in worked/faded example titles (MathText + splitMathText, and mathPreload seeing titles), a build data plot shows its "Data: …" line, a show-only graph is named by its alt, seed list values print as authored (seedText) and seeded mean/min/max evaluate (argument-list binding, shared with the grader)',
+        bytes: 508,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 159996;
+export const SHELL_JS_BASELINE_BYTES = 160504;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
@@ -327,7 +332,11 @@ export const SHELL_SPEND_BAND_BYTES = 256;
 // measured: the student top bar's A− / A+ and Next, the forced-colours rules
 // for blank verdicts, Ctrl+P keeping the paper at its own size, and the new
 // utility classes batches 5–7 added to the one Tailwind sheet.
-export const SHELL_CSS_GZ_KIB = 16.75;
+// RAISED 16.75 -> 16.8 on 2026-11-20 (author approved), at 16.755 KiB
+// measured (17,157 B; main sat at 17,152, exactly the old cap): the print rule
+// that makes a one-column row a block, so a pushed chart no longer has the next
+// section's heading and questions printed over it (stress test 2026-11-20).
+export const SHELL_CSS_GZ_KIB = 16.8;
 
 /**
  * Service-worker precache budgets (S8 ruling D10; TODO ruling D19).

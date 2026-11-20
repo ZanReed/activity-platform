@@ -17,6 +17,7 @@ import { useId } from 'react';
 import type { FadedWorkedExampleBlock } from '@activity/schema';
 import type { BlockComponentProps } from '../registry/types.js';
 import { ChildBlocks } from './ChildBlocks.js';
+import { MathText } from '../inline/MathText.js';
 
 export default function FadedWorkedExample({
   block,
@@ -33,7 +34,7 @@ export default function FadedWorkedExample({
       aria-labelledby={titleId}
     >
       <h3 className="viewer-faded-example__title" id={titleId}>
-        {block.title}
+        <MathText text={block.title} />
       </h3>
 
       {block.showStepLabels ? (

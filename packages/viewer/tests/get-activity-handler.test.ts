@@ -927,7 +927,9 @@ describe('serve transforms vs SERVE_TRANSFORM_REV', () => {
     // SERVE_TRANSFORM_REV in src/server/serveRev.ts (so every device copy is
     // downloaded again), then record the new fingerprint against the new rev.
     expect({ rev: SERVE_TRANSFORM_REV, fingerprint }).toEqual({
-      rev: 1,
+      // rev 2 (2026-11-20): list spellings; this fixture has none, so the
+      // fingerprint is unchanged.
+      rev: 2,
       fingerprint: '21caa950b7bb3f99',
     });
   });

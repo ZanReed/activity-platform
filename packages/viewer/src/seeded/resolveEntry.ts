@@ -26,7 +26,12 @@ export function resolveSeededEntry(
   const bound = bindSeedNames(entry, values);
   if (bound === entry) return entry;
   if (answerType === 'math') return bound;
-  const fn = compileFunction(bound);
+  // Evaluate the ARGUMENT-list spelling: a sample inside an aggregate
+  // (`mean(scores)`, `max(scores) - min(scores)`) only runs that way — the
+  // engine has no arrays, so the bracketed `bound` never evaluated, and the
+  // key stayed the expression text: no student could match it, and the print
+  // key showed "mean([62,88,…" (2026-11-20).
+  const fn = compileFunction(bindSeedNames(entry, values, { samples: 'args' }));
   if (fn) {
     const v = fn(0);
     if (Number.isFinite(v)) return String(v);
@@ -47,6 +52,21 @@ export function displaySeededEntry(
   values: SeedValues,
 ): string {
   const resolved = resolveSeededEntry(entry, answerType, values);
-  if (answerType !== 'math' || resolved === entry) return resolved;
+  if (resolved === entry) return resolved;
+  if (answerType !== 'math') return displayNumber(resolved);
   return displayFormKey(resolved) ?? resolved;
+}
+
+/** An evaluated key as a person reads it: binary float noise trimmed
+ *  (`(3)*(1.1)` → "3.3", not "3.3000000000000003") at 15 significant
+ *  digits, so no real value is rounded. The value is NOT rounded to a
+ *  shown precision — a key sheet prints the exact answer ("78.625"), and the
+ *  grader compares the untrimmed resolveSeededEntry form. A non-number (a
+ *  bound string the evaluator could not run) passes through. */
+function displayNumber(resolved: string): string {
+  if (!/^-?\d/.test(resolved)) return resolved;
+  const n = Number(resolved);
+  // 15 significant digits: trims float noise without rounding a real value
+  // (a 10-digit cut turned 12345678912 into 12345678910; Fable review).
+  return Number.isFinite(n) ? String(Number(n.toPrecision(15))) : resolved;
 }

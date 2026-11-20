@@ -38,12 +38,24 @@ export const RESERVED_SEED_NAMES: readonly string[] = [
 const SEED_NAME_RE = /^[a-z][a-z0-9_]*$/;
 
 // int(min, max) — one integer draw, inclusive both ends.
-// list(values) — one draw from an authored list (the nice-numbers lever).
+// list(values[, text]) — one draw from an authored list (the nice-numbers
+//   lever); `text` keeps the author's spelling for display.
 // sample(n, min, max) — n DISTINCT integer draws (the statistics case).
 export const SeedVarSpec = z
   .discriminatedUnion('kind', [
     z.object({ kind: z.literal('int'), min: z.number().int(), max: z.number().int() }),
-    z.object({ kind: z.literal('list'), values: z.array(z.number()).min(1) }),
+    z.object({
+      kind: z.literal('list'),
+      values: z.array(z.number()).min(1),
+      // The author's own spelling of each value, index for index ("1.50"
+      // where `values` holds 1.5) — prose shows THIS, so trailing zeros
+      // survive (`pens at $1.50 each`); grading binds `values` and stays
+      // numeric (1.50 = 1.5). Written by the importer only when some value's
+      // spelling differs from String(Number(…)). Refined below: one entry per
+      // value, each spelling the SAME number, so the prose can never show a
+      // student a value the grader does not use.
+      text: z.array(z.string()).optional(),
+    }),
     z.object({
       kind: z.literal('sample'),
       n: z.number().int().min(1),
@@ -59,6 +71,19 @@ export const SeedVarSpec = z
         code: z.ZodIssueCode.custom,
         message: `${spec.kind}: min must be ≤ max`,
       });
+    }
+    if (spec.kind === 'list' && spec.text !== undefined) {
+      if (spec.text.length !== spec.values.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'list: text needs one spelling per value',
+        });
+      } else if (spec.text.some((t, i) => t.trim() === '' || Number(t) !== spec.values[i])) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'list: each text spelling must be the same number as its value',
+        });
+      }
     }
     if (spec.kind === 'sample' && spec.n > spec.max - spec.min + 1) {
       ctx.addIssue({

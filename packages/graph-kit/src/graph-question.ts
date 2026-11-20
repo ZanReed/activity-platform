@@ -1691,6 +1691,20 @@ export interface GraphAuthorHandle {
   destroy(): void;
 }
 
+/**
+ * True when a mount's container left the document while the board chunk was
+ * loading. JSXGraph finds its container BY ID in the document, so building a
+ * board there throws "HTML container element … not found" as an unhandled
+ * rejection — the caller has already torn down and can't catch it. It fired
+ * ~17 times on every editor open in dev (React StrictMode mounts, unmounts and
+ * remounts each NodeView effect before the first import resolves), and the
+ * same race exists in production whenever a figure unmounts during its first
+ * load. The host is gone, so there is nothing to draw: return an inert handle.
+ */
+function detachedDuringLoad(mount: HTMLElement): boolean {
+  return !mount.isConnected;
+}
+
 export async function mountGraphAuthor(
   mount: HTMLElement,
   rawConfig: unknown,
@@ -1746,6 +1760,8 @@ export async function mountGraphAuthor(
   const chrome = chromeColors(detectBoardTheme(mount));
   const { pill } = chromePills(chrome);
   const { createPointAnswerBoard } = await import('./board.js');
+  // See detachedDuringLoad: the host may have unmounted while board.js loaded.
+  if (detachedDuringLoad(mount)) return { getPoints: () => [], destroy: () => {} };
 
   const isLinear = authorRay || authorSegment;
   const isInequality = cfg.interactionType === 'graph_inequality';
@@ -1909,6 +1925,7 @@ export async function mountGraphDisplay(
   // Clear the renderer's no-JS placeholder before JSXGraph mounts.
   mount.textContent = '';
   const { createDisplayBoard } = await import('./board.js');
+  if (detachedDuringLoad(mount)) return { destroy: () => {} };
 
   const board = createDisplayBoard(mount, { ...axis, drawables });
   return { destroy: board.destroy };

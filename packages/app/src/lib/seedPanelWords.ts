@@ -8,7 +8,7 @@
 
 import type { SeedVar, SeedVarSpec } from '@activity/schema';
 import type { SeedReferenceFindings, SeedVarProblem } from './seedRules';
-import { seedVarProblems } from './seedRules';
+import { listSpecFromText, listSpecText, seedVarProblems } from './seedRules';
 
 export type SeedKind = SeedVarSpec['kind'];
 
@@ -30,17 +30,14 @@ export function rowFromVar(v: SeedVar): SeedRowDraft {
         min: spec.kind === 'list' ? '' : String(spec.min),
         max: spec.kind === 'list' ? '' : String(spec.max),
         n: spec.kind === 'sample' ? String(spec.n) : '',
-        values: spec.kind === 'list' ? spec.values.join(', ') : '',
+        values: spec.kind === 'list' ? listSpecText(spec) : '',
     };
 }
 
 const whole = (text: string): number => (/^-?\d+$/.test(text.trim()) ? Number(text.trim()) : Number.NaN);
 
 function specOf(row: SeedRowDraft): SeedVarSpec {
-    if (row.kind === 'list') {
-        const parts = row.values.split(',').map((v) => v.trim());
-        return { kind: 'list', values: parts.map((v) => (v === '' ? Number.NaN : Number(v))) };
-    }
+    if (row.kind === 'list') return listSpecFromText(row.values);
     if (row.kind === 'sample') return { kind: 'sample', n: whole(row.n), min: whole(row.min), max: whole(row.max) };
     return { kind: 'int', min: whole(row.min), max: whole(row.max) };
 }

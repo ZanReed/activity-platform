@@ -467,6 +467,8 @@ export async function mountNumberLineAuthor(
 
   mount.textContent = '';
   const { createNumberLineBoard } = await import('./number-line-board.js');
+  // Host unmounted while the chunk loaded (see graph-question.ts).
+  if (!mount.isConnected) return { destroy: () => {} };
 
   const starts = isInterval
     ? [cfg.correctInterval?.min ?? line.min, cfg.correctInterval?.max ?? line.max]

@@ -290,7 +290,8 @@ GRAPHS (a fenced block with the `graph` tag becomes a coordinate-plane question)
   show: segment (0,0) (3,2) arrow). The head is at the SECOND point, so
   write the tail first; arrow combines with dashed. It has no end dots.
   Not beside an answer: show: expression, cuboid.
-- For an ungraded figure, use show: lines instead of an answer:
+- For an ungraded figure, use show: lines instead of an answer (add an alt:
+  line saying what the figure shows; screen readers announce it):
     show: point (2, 3) closed "A"
     show: line y = x dashed      (dotted works too)
     show: line y > 2x + 1 for x >= 0   (inequalities shade; domains clip)
@@ -821,7 +822,7 @@ options: allow-no-solution
   - **A mirror line** is `show: line … dashed` (`x = 2`, `y = -1`, `y = x`): an infinite line across the window. A centre of rotation is a named point.
   - **Colour:** an uncoloured stimulus shape is drawn slate, so it cannot be mistaken for the student's own (blue) work.
   - **Marking is unchanged.** A point-list answer is marked as a set, in any order; labels are never marked. A `mistake:` line matches the same way, so write it as the whole wrong image (every point), with its `:: mis.*` binding if it has one.
-  - **`alt:`** (optional) describes what is shown, for screen readers. It never holds the answer.
+  - **`alt:`** (optional) describes what is shown, for screen readers. It never holds the answer. On a show-only graph (no `answer:`) it names the whole figure: the board is announced as "Graph: <alt>" (2026-11-20; it used to be dropped with a warning).
   - **Not beside an answer:** `show: expression …` and `cuboid`. Each is refused with a warning.
   - **Problems:** a `show:` line that cannot be read is skipped and reported, and the question still imports; the batch importer skips the whole file, exactly as for a `figure` problem.
 - `start:` a shown parent curve, making the block a TRANSFORM question (design #5): the student drags the dashed start curve onto the target given by `answer:` (which must then be an equation — not points, not a ray, not `none`). No verticals and no domain clauses on `start:`.
@@ -913,7 +914,7 @@ solution: Read the slope off the x coefficient.
 - **Distractor lines** — a line starting with `=` (or `->`) adds an option that matches nothing (defeats process-of-elimination).
 - **Letters are never authored.** The published page shuffles the options deterministically and letters them by position; the editor's key picker refers to options by their text for the same reason.
 - **Per-side images**: `![alt](https://…)` on either side becomes that side's figure (the MC choice-image contract: stripped from the text, image-only sides legal, bad URLs stay literal). **Per-side graphs**: `graph: <show-spec>` works on either side too — prefer the `->` separator on a graph line, since the formula usually contains `=`. *(Also previously documented as editor-only; corrected 2026-08-22.)*
-- Several items may share one option (categorization-style) — always allowed; each option card copies on dock when reused.
+- Several items may share one option (categorization-style) — always allowed. Write the shared option on each item's pair line: options that read the same (same text and math, ignoring extra spaces; same image URL; same graph) become **one** card that every such item is keyed to, and a distractor line repeating a real option adds nothing. A fence whose items all name a single option still needs a distractor, since a matching question needs two options.
 - `solution:` is the optional worked explanation.
 - At least two pair lines are required. Scoring is **per pair** (each item is one point).
 
@@ -1212,6 +1213,11 @@ paper.
 - **Cells hold a single line** of text, math, and blanks — no lists, no images,
   no paragraph breaks inside a cell.
 - **A caption** is just a paragraph above the table.
+- **A `|` inside a blank or inside `$…$` math never splits a cell**, in a bare
+  pipe table or a ` ```table ` fence alike — `| 4 | {{=14 | !12 :: Multiply
+  first.}} |` is two cells, and `$|x|$` stays one. (`\|` still works too.) A
+  cell left holding half a blank — a `{{` with no `}}` — imports with a warning
+  naming the cell.
 
 ## Columns blocks (```columns fence)
 
@@ -1432,6 +1438,13 @@ scores: sample 8 of 55..99 (8 DISTINCT whole numbers — a dataset)
 - **Prose references**: `{a}` anywhere in plain text renders the student's
   value ("You buy {a} pens at ${p}."). A `sample` variable renders as a
   comma-separated list.
+- **A list value shows as you wrote it**: `1.50` prints "1.50", not "1.5"
+  (2026-11-20). Grading compares numbers, so 1.5 and 1.50 both count.
+- **Numeric (`=`) answers can use `mean`, `min` and `max`** of a sample (fixed
+  2026-11-20: before, they never evaluated and the question could not be
+  answered right). `median`, `mode`, `sum`, `std` and `variance` are reserved
+  names but do NOT evaluate yet, and none of them works in a maths (`==`)
+  blank yet: don't use them there.
 - **Blank answers as expressions**: `{{=a*p}}`, `{{=mean(scores)}}` — evaluated
   per student at grade time. Math blanks bind too: `{{==a*x + p}}`.
 - **Mistake matchers as expressions**: `{{=a*p|!a+p :: Multiply, don't add.}}`

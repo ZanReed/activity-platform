@@ -1241,12 +1241,13 @@ function tiptapInteractiveGraphToActivity(node: JSONContent): InteractiveGraphBl
             ? (attrs.stimulus as InteractiveGraphBlock['stimulus'])
             : [],
     };
-    // The description belongs to the stimulus: with no figure shown, a kept
+    // The description belongs to a shown figure: the stimulus of a graded
+    // graph, or the whole board of a show-only one. With neither, a kept
     // description would still be announced ("The graph shows: …").
     if (
         typeof attrs.stimulusAlt === 'string' &&
         attrs.stimulusAlt.trim() !== '' &&
-        block.stimulus.length > 0
+        (block.stimulus.length > 0 || block.interaction.type === 'display')
     ) {
         block.stimulusAlt = attrs.stimulusAlt;
     }

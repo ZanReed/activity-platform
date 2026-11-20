@@ -35,6 +35,8 @@ import { SANITIZER_REV } from '../sanitize/sanitize.js';
 export const API_VERSION = 1;
 
 /** The per-student serve transforms' output (see the header). */
-export const SERVE_TRANSFORM_REV = 1;
+// 1 -> 2 (2026-11-20): substituteSeedValues shows a list value as authored
+// ("1.50"); a device copy made before would keep "1.5".
+export const SERVE_TRANSFORM_REV = 2;
 
 export const SERVE_REV = `${API_VERSION}.${ACTIVITY_SCHEMA_VERSION}.${SERVE_TRANSFORM_REV}.${SANITIZER_REV}`;

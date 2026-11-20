@@ -27,6 +27,27 @@ export type SeedVarProblem =
 
 const NAME = /^[a-z][a-z0-9_]*$/;
 
+/**
+ * A `list` declaration from its comma-separated text ("1.50, 1.75, 2.25"), the
+ * ONE parser both writers use. `values` are the numbers the grader binds;
+ * `text` keeps the author's spellings for display ("$1.50", not "$1.5") and is
+ * written only when some spelling differs from the number's own String() —
+ * so an ordinary list stores exactly what it always did. A part that is not a
+ * number is NaN (seedVarProblems words it), and then no `text` is written.
+ */
+export function listSpecFromText(raw: string): Extract<SeedVarSpec, { kind: 'list' }> {
+    const parts = raw.split(',').map((v) => v.trim());
+    const values = parts.map((v) => (v === '' ? Number.NaN : Number(v)));
+    const spelled = values.every((v) => Number.isFinite(v)) && parts.some((t, i) => t !== String(values[i]));
+    return spelled ? { kind: 'list', values, text: parts } : { kind: 'list', values };
+}
+
+/** A list declaration back as the text an author edits: their spellings when
+ *  stored, else the numbers. */
+export function listSpecText(spec: Extract<SeedVarSpec, { kind: 'list' }>): string {
+    return (spec.text && spec.text.length === spec.values.length ? spec.text : spec.values.map(String)).join(', ');
+}
+
 /** Everything wrong with one declaration. `otherNames` are the activity's other variables. */
 export function seedVarProblems(name: string, spec: SeedVarSpec, otherNames: readonly string[]): SeedVarProblem[] {
     const problems: SeedVarProblem[] = [];

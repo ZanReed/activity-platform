@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Editor as TiptapEditor } from '@tiptap/core';
 import type { SeedVar } from '@activity/schema';
-import { deriveSeedValues } from '@activity/viewer/seed-values';
+import { deriveSeedValues, seedText, type SeedValues } from '@activity/viewer/seed-values';
 import { seedReferenceFindings, withoutOwnSeedDolSections } from '../lib/seedRules';
 import {
     findingsText,
@@ -79,8 +79,10 @@ function useBodyFindings(
     }, [editor, key, tick, visible]);
 }
 
-function show(value: number | number[] | undefined): string {
-    if (!Array.isArray(value)) return String(value ?? '');
+function show(values: SeedValues, name: string): string {
+    const value = values[name];
+    // A single value renders as the prose will (a list keeps its spelling, "1.50").
+    if (!Array.isArray(value)) return seedText(values, name) ?? '';
     // A big sample would flood the drawer; the first few show its shape.
     return value.length > 12 ? `${value.slice(0, 12).join(', ')}, … (${value.length} numbers)` : value.join(', ');
 }
@@ -269,7 +271,7 @@ export default function SeedVarsPanel({
                     {stored.map((v, i) => (
                         <span key={v.name}>
                             {i > 0 ? '; ' : ''}
-                            <code>{v.name}</code> = {show(values[v.name])}
+                            <code>{v.name}</code> = {show(values, v.name)}
                         </span>
                     ))}
                     .{' '}

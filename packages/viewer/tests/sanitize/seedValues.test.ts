@@ -137,3 +137,41 @@ describe('substitution surfaces (D5 as built)', () => {
     ]);
   });
 });
+
+// A list value shows the way the author WROTE it (2026-11-20: `p: list 1.50,
+// 1.75, 2.25` printed "$1.5"). The spelling is display-only — the map stays
+// numbers, so the expression surfaces and the grader still see 1.5.
+describe('list spellings (spec.text)', () => {
+  const SPELLED: SeedVar[] = [
+    { name: 'p', spec: { kind: 'list', values: [1.5, 3, 2.25], text: ['1.50', '3.00', '2.25'] } },
+    { name: 'a', spec: { kind: 'int', min: 2, max: 9 } },
+  ];
+  const seeds = Array.from({ length: 40 }, (_, i) => `v1:s${i}`);
+
+  it('prose (text runs and \\seed{} latex) shows the authored spelling; the value stays numeric', () => {
+    const seen = new Set<string>();
+    for (const seed of seeds) {
+      const values = deriveSeedValues(SPELLED, seed);
+      expect(typeof values.p).toBe('number');
+      const shown = substituteText('Pens at ${p}, {a} of them.', values);
+      const m = /Pens at \$(\S+), (\d) of them\./.exec(shown);
+      expect(m, shown).not.toBeNull();
+      expect(['1.50', '3.00', '2.25']).toContain(m![1]);
+      expect(Number(m![1])).toBe(values.p);
+      seen.add(m![1]!);
+      const doc = { content: [{ type: 'math_inline', latex: '\\seed{p}\\times 2' }] };
+      const out = substituteSeedValues(doc, values) as typeof doc;
+      expect(out.content[0]!.latex).toBe(`${m![1]}\\times 2`);
+    }
+    // Every spelling drawn at least once over 40 seeds — the trailing-zero
+    // ones included, or the assertion above could pass on 2.25 alone.
+    expect(seen).toEqual(new Set(['1.50', '3.00', '2.25']));
+  });
+
+  it('a list with no text, and a copied map, format as String(v) (the fail-safe)', () => {
+    const plain = deriveSeedValues([{ name: 'p', spec: { kind: 'list', values: [1.5] } }], 'x');
+    expect(substituteText('{p}', plain)).toBe('1.5');
+    const copy = { ...deriveSeedValues(SPELLED, 'x') };
+    expect(substituteText('{p}', copy)).toBe(String(copy.p));
+  });
+});

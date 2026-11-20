@@ -680,7 +680,7 @@ describe('matching fence (```match)', () => {
 
     it('solution carries through', () => {
         const { blocks } = convert(
-            '```match\na = 1\nb = 1\nsolution: Same slope.\n```',
+            '```match\na = 1\nb = 2\nsolution: Same slope.\n```',
         );
         expect(blocks[0]!.attrs!.solution).toEqual([
             { type: 'text', text: 'Same slope.', marks: [] },
@@ -709,6 +709,49 @@ describe('matching fence (```match)', () => {
         const { blocks, warnings } = convert('```match\na = 1\n= 2\n```');
         expect(blocks[0]!.type).not.toBe('matching');
         expect(warnings.some((w) => w.includes('two'))).toBe(true);
+    });
+
+    it('a repeated option is ONE card that every item naming it is keyed to', () => {
+        // Stress test 2026-11-20: each pair line minted its own card, so the
+        // two "linear" cards looked identical and only one of them was right
+        // for each item — the grader keys item → card id.
+        const { blocks, warnings } = convert(
+            '```match\ny = 2x = linear\ny = x^2 = quadratic\ny = 3x  +  1 = linear\ny = 2^x = exponential\n= linear\n= $x$\n= $x$\n```',
+        );
+        expect(warnings).toHaveLength(0);
+        const attrs = blocks[0]!.attrs!;
+        const items = attrs.items as Side[];
+        const targets = attrs.targets as Side[];
+        const key = attrs.key as Record<string, string>;
+        const textOf = (s: Side) => JSON.stringify(s.content);
+        // linear, quadratic, exponential, $x$ — the distractor repeating
+        // "linear" and the second $x$ both collapsed.
+        expect(targets).toHaveLength(4);
+        expect(new Set(targets.map(textOf)).size).toBe(4);
+        const linear = targets.find((t) => textOf(t).includes('"linear"'))!;
+        expect(key[items[0]!.id]).toBe(linear.id);
+        expect(key[items[2]!.id]).toBe(linear.id);
+        expect(key[items[1]!.id]).not.toBe(linear.id);
+        // Every key entry names a card that exists.
+        const ids = new Set(targets.map((t) => t.id));
+        for (const id of Object.values(key)) expect(ids.has(id)).toBe(true);
+    });
+
+    it('options that differ only in their image stay separate cards', () => {
+        const { blocks } = convert(
+            '```match\na = ![p](https://example.com/1.png)\nb = ![p](https://example.com/2.png)\nc = ![p](https://example.com/1.png)\n```',
+        );
+        const targets = blocks[0]!.attrs!.targets as Side[];
+        expect(targets.map((t) => t.image?.src)).toEqual([
+            'https://example.com/1.png',
+            'https://example.com/2.png',
+        ]);
+    });
+
+    it('items that all name ONE option degrade — a matching needs two options', () => {
+        const { blocks, warnings } = convert('```match\na = 1\nb = 1\n```');
+        expect(blocks[0]!.type).not.toBe('matching');
+        expect(warnings.some((w) => w.includes('two different options'))).toBe(true);
     });
 
     it('a line with no separator degrades with a warning', () => {
@@ -1609,7 +1652,8 @@ describe('```seed fence (wishlist #6)', () => {
         expect(warnings).toEqual([]);
         expect(meta?.seedVars).toEqual([
             { name: 'a', spec: { kind: 'int', min: 2, max: 9 } },
-            { name: 'p', spec: { kind: 'list', values: [1.5, 1.75, 2.25] } },
+            // 1.50 keeps its spelling for display (stress test 2026-11-20).
+            { name: 'p', spec: { kind: 'list', values: [1.5, 1.75, 2.25], text: ['1.50', '1.75', '2.25'] } },
             { name: 'data', spec: { kind: 'sample', n: 8, min: 55, max: 99 } },
         ]);
     });
@@ -3784,6 +3828,93 @@ describe('Q18 — a stray pipe in prose is still prose', () => {
     });
 });
 
+describe('Q18b — a | inside a blank or math is never a cell boundary', () => {
+    // Stress test 2026-11-20: an AI writing the natural form from the prompt
+    // ("every sigil works in a cell") got `{{=14 | !12 :: …}}` split into two
+    // cells — the answer shown as text, ungraded — in BOTH table forms.
+    type Blank = {
+        answer: string;
+        acceptableAnswers: string[];
+        hint?: JSONContent[];
+        mistakeFeedback?: { match: string; feedback: JSONContent[] }[];
+    };
+    const blanksIn = (node: JSONContent): Blank[] => {
+        const out: Blank[] = [];
+        const walk = (n: JSONContent) => {
+            if (n.type === 'blank') out.push(n.attrs as Blank);
+            (n.content ?? []).forEach(walk);
+        };
+        walk(node);
+        return out;
+    };
+    const widths = (node: JSONContent): number[] =>
+        (node.content ?? []).map((row) => (row.content ?? []).length);
+    const ROWS = [
+        '| x | y | note |',
+        '|---|---|---|',
+        '| 4 | {{=14 | !12 :: Multiply x by 3 before adding 2.}} | a |',
+        '| 5 | {{=5 | ?Area divided by length}} | b |',
+        '| 6 | {{six | 6 | VI}} | $|x|$ |',
+    ];
+    const check = (md: string) => {
+        const { blocks: out, warnings } = convert(md);
+        const node = out[0]!;
+        expect(node.type).toBe('table');
+        expect(warnings).toEqual([]);
+        // Three columns on every row: nothing split, nothing dropped.
+        expect(widths(node)).toEqual([3, 3, 3, 3]);
+        const [mistake, hinted, alts] = blanksIn(node);
+        expect(mistake?.answer).toBe('14');
+        expect(mistake?.mistakeFeedback?.[0]?.match).toBe('12');
+        expect(JSON.stringify(mistake?.mistakeFeedback?.[0]?.feedback)).toContain(
+            'Multiply x by 3 before adding 2.',
+        );
+        expect(hinted?.answer).toBe('5');
+        expect(JSON.stringify(hinted?.hint)).toContain('Area divided by length');
+        expect(alts?.answer).toBe('six');
+        expect(alts?.acceptableAnswers).toEqual(['6', 'VI']);
+        // The `|x|` stays one math cell, in the last column.
+        const lastCell = node.content?.[3]?.content?.[2];
+        expect(JSON.stringify(lastCell)).toContain('"latex":"|x|"');
+        // No blank syntax leaked into text anywhere.
+        expect(JSON.stringify(node)).not.toContain('{{');
+    };
+
+    it('in a bare pipe table', () => {
+        check(ROWS.join('\n'));
+    });
+
+    it('in a ```table fence', () => {
+        check('```table\n' + ROWS.join('\n') + '\n```');
+    });
+
+    it('the hand-escaped \\| spelling still means the same thing', () => {
+        const [node] = blocks('| a | b |\n|---|---|\n| 1 | {{=5 \\| ?per metre}} |');
+        expect(widths(node!)).toEqual([2, 2]);
+        expect(blanksIn(node!)[0]?.answer).toBe('5');
+    });
+
+    it('a blank with alternates in prose is unchanged by the table pre-pass', () => {
+        const [node] = blocks('Name it: {{six | 6}} and a | stray pipe.');
+        expect(node?.type).toBe('fillInBlank');
+        const [blank] = blanksIn(node!);
+        expect(blank?.answer).toBe('six');
+        expect(blank?.acceptableAnswers).toEqual(['6']);
+    });
+
+    it('a blank inside inline code is left alone', () => {
+        const [node] = blocks('| a | b |\n|---|---|\n| `{{x}}` | 2 |');
+        expect(blanksIn(node!)).toEqual([]);
+    });
+
+    it('a cell holding half a blank is NAMED, not silently imported', () => {
+        const bare = convert('| a | b |\n|---|---|\n| {{=5 | 2 |');
+        expect(bare.warnings.join(' ')).toMatch(/unclosed \{\{…\}\} blank/);
+        const fenced = convert('```table\n| a | b |\n| {{=5 | 2 |\n```');
+        expect(fenced.warnings.join(' ')).toMatch(/unclosed \{\{…\}\} blank/);
+    });
+});
+
 describe('Q19 — CRITICAL: a table written before the block existed upgrades', () => {
     // THE PROMISE THAT MADE FREEZING THE CONTRACT WORTH ANYTHING. Between the
     // freeze and this slice, a pipe table imported as one masked paragraph — the
@@ -4080,5 +4211,14 @@ describe('escaped characters in plain-string fields', () => {
         const all = strings('```shortanswer\nprompt: Explain.\nrubric: A \\* B | 2 | why\n```');
         expect(all).toContain('A * B');
         expect(all).toContain('why');
+    });
+});
+
+describe('seed list spellings survive import (stress test 2026-11-20)', () => {
+    it('1.50 keeps its spelling; plain lists store no text', () => {
+        const spelled = convert('```seed\np: list 1.50, 1.75, 2.25\n```\n\nPens cost ${p}.');
+        expect(spelled.meta?.seedVars?.[0]?.spec).toEqual({ kind: 'list', values: [1.5, 1.75, 2.25], text: ['1.50', '1.75', '2.25'] });
+        const plain = convert('```seed\nq: list 1, 2, 3\n```\n\nThere are {q}.');
+        expect(plain.meta?.seedVars?.[0]?.spec).toEqual({ kind: 'list', values: [1, 2, 3] });
     });
 });

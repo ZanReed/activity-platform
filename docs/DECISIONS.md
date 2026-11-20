@@ -327,7 +327,7 @@ Ground truth was established from `packages/graph-kit/src` (not the design doc) 
 
 The self-built calculator may feel like Desmos in **workflow** — an expression list, type-and-see graphing, sliders, a table-and-fit regression flow — because workflow is the non-protectable, functional layer. It stays clear of Desmos's protected expression: the **name** (never "Desmos" / "College Board" / "SAT" as branding), the **assets** (no copied icons/CSS/SVG/code), and the **skin** (own colour identity, own icons, own micro-layout — not a pixel clone of their distinctive palette/typography as a recognisable whole). Be a functional twin; be a visual stranger. Before any commercial launch this gets an hour of a real IP attorney's time. Was parked in [design/calculator-tool.md](design/calculator-tool.md) "Strategic posture" until 2026-08-23, where a standing constraint was easy to miss.
 
-### The shell CSS cap — raised 14 → 15 (2026-08-23), 15 → 16.5 (2026-10-14)
+### The shell CSS cap — raised 14 → 15 (2026-08-23), 15 → 16.5 (2026-10-14), → 16.75 → 16.8 (2026-11-20)
 
 Raised at **13.13 KiB gz measured** — 6.6% headroom, under the ~10% policy. Set
 from *measurement + policy*, which is slice 1's rule run in the other direction:
@@ -365,6 +365,13 @@ assumed: the 17 viewer.css classes with no literal reference are all built at
 runtime (`viewer-callout--${variant}` and similar), so there is still no dead CSS
 to take. The progress-on-Home and completion-panel work (S2/S5) will spend part
 of this headroom on the same surface.
+
+**Then 16.5 → 16.75 (2026-11-15) and 16.75 → 16.8 (author approved,
+2026-11-20).** The second came when main sat at exactly 17,152 bytes, the old
+cap to the byte, and the print fix for a pushed chart having the next section
+printed over it (one-column rows print as a block) needed 5 more. Shortening
+its selector had already been tried. The thin headroom (~50 bytes) is
+deliberate: the next addition to this stylesheet brings a trim or a ruling.
 
 ### Runtime size budget amendment (2026-07-10)
 

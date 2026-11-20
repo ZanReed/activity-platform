@@ -15,28 +15,23 @@ view printing in a 260px strip (the hidden sidebar's grid track; S5.5 T4).
 Everything below is open. **Trigger: the author's ruling on this list** (most
 are prompt wording; the importer/print items are code).
 
-**Silently wrong for students (fix first):**
-1. **A blank containing `|` inside a table cell breaks.** The cell splits on
-   it: 7 questions ungraded, 6 answers shown as text, no warning
-   (markdownToTiptap.ts ~3157; `\|` works). The prompt says every sigil works
-   in cells. Fix: teach `\|` and warn on an unclosed `{{` in a cell.
-2. **A repeated match option makes two identical cards**; pairing with the
-   twin is marked wrong (parseMatchFence, no dedupe). The prompt says items
-   may share an option. Fix: dedupe identical option text, or reword.
-3. **Data-plot questions print empty axes with no data** (dot plot, histogram,
-   box plot): unanswerable on paper. Print the data list.
-4. **A line chart overlaps what follows it in print** (Part 7 heading and
-   Q80/Q81 drawn over each other).
-5. **The answer key prints a seeded expression raw** ("mean([62,88,…") instead
-   of the student's value.
-6. **Maths in worked/faded example titles shows as raw `$…$`.**
-7. **`${p}` shows "$1.5"** for 1.50 (seed values print with `String(v)`); the
-   prompt's own example does it.
-8. **A show-only graph's `alt:` is dropped** (warns "no answer") — screen
-   readers get nothing.
-9. **Editor: every graph/number line throws "container not found" on load**
-   (17 per open, dev build; likely StrictMode double mount). Check a prod
-   build before calling it noise.
+**Silently wrong for students — all 9 FIXED 2026-11-20 (author: "the 9
+student-facing ones"):** table-cell blanks with `|`; repeated match options
+(one card now); data-plot build questions now show "Data: …" (on screen too —
+they never showed the dataset); one-column rows print as block (Chromium's
+paged grid overprinted); seeded `mean`/`min`/`max` keys now evaluate — **this
+was also a live grading bug: every such question graded wrong** (needs the
+`check-activity` redeploy); list spellings kept (`1.50`, new optional
+`list.text`, needs the `get-activity` redeploy); maths in example titles;
+show-only graph `alt:` names the board; editor mounts bail when their
+container is gone (dev-only StrictMode race; prod build had 0 errors).
+**Left from that work, each small:** `median`/`mode`/`sum`/`std`/`variance`
+are reserved seed names graph-kit cannot evaluate (add them to
+`graph-kit/src/evaluate.ts`, or have the importer refuse them); the same
+mount race in `calculator.ts:842` and the student-side graph mounts;
+multi-column rows may still overprint in print (unverified); a stored title
+loses `\$`, so "Costs $5, then $x$" would mis-pair; numeric seeded keys show
+the shortest form (4.5, not 4.50).
 
 **The prompt says something wrong:**
 10. It teaches `:: mis.*` ids to teachers, against catalogueAuthoringPrompt.ts's

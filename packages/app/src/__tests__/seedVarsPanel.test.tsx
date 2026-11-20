@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Editor } from '@tiptap/core';
 import type { SeedVar } from '@activity/schema';
 import { seedReferenceFindings, seedVarProblems, withoutOwnSeedDolSections } from '../lib/seedRules';
-import { readRows } from '../lib/seedPanelWords';
+import { readRows, rowFromVar } from '../lib/seedPanelWords';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import SeedVarsPanel from '../components/SeedVarsPanel';
 
@@ -83,6 +83,11 @@ describe('readRows (the panel writes only a valid list)', () => {
         expect(read.vars).toBeNull();
         expect(read.problems.flat().join(' ')).toMatch(pattern);
     });
+    it('keeps a list\'s authored spellings (1.50 stays "1.50") and round-trips them to the field', () => {
+        const spec = readRows([row({ name: 'p', kind: 'list', values: '1.50, 1.75, 2.25' })]).vars?.[0]?.spec;
+        expect(spec).toEqual({ kind: 'list', values: [1.5, 1.75, 2.25], text: ['1.50', '1.75', '2.25'] });
+        expect(rowFromVar({ name: 'p', spec: spec! }).values).toBe('1.50, 1.75, 2.25');
+    });
     it('refuses the second of two same names', () => {
         expect(readRows([row(), row()]).problems).toEqual([[], ['Another variable is already called “a”.']]);
     });
@@ -124,6 +129,11 @@ describe('SeedVarsPanel', () => {
         const value = Number(/a = (\d+)/.exec(text)![1]);
         expect(value).toBeGreaterThanOrEqual(2);
         expect(value).toBeLessThanOrEqual(9);
+    });
+
+    it('the sample student shows a list value as the author wrote it', () => {
+        render(<SeedVarsPanel seedVars={[{ name: 'p', spec: { kind: 'list', values: [1.5], text: ['1.50'] } }]} onChange={() => {}} />);
+        expect(document.querySelector('[data-seed-sample]')!.textContent).toContain('p = 1.50');
     });
 
     it("reads the editor's document live: an undeclared {q} and an unused variable", () => {

@@ -396,6 +396,8 @@ describe('the declaration is where it is for a reason', () => {
     // redeploys are pending author actions, and no file using `{{^…}}` or a
     // question `hint:` may be imported before they are live.
     //
+    // MOVED 2026-11-20: '5-2c4345e7' → '6-2ddd6712' (SANITIZER_ALGO_REV 6, seed
+    // list spellings). Earlier:
     // MOVED 2026-11-18, deliberately: '5-618fdd13' → '5-2c4345e7'. Media
     // submissions slice 2 added the photo_response block, whose strip list
     // (rubric, answer, solution) is short_answer's. Both bundles regenerate in
@@ -408,7 +410,7 @@ describe('the declaration is where it is for a reason', () => {
     // SANITIZER_ALGO_REV 3 → 4 (the in-band walk now drops non-https links).
     // Both bundles regenerate in the same commit; get-activity and
     // check-activity redeploys are pending author actions, BEFORE the push.
-    expect(SANITIZER_REV).toBe('5-2c4345e7');
+    expect(SANITIZER_REV).toBe('6-2ddd6712');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {
