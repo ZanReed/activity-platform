@@ -22,7 +22,7 @@ Author-only: pushes, deploys, migrations.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
-**February:** [readiness](docs/february-readiness.md), [stress test](docs/walkthrough/). **Owed: `deploy:check` + `deploy:get-activity` (seed statistics).**
+**February:** [readiness](docs/february-readiness.md), [stress test](docs/walkthrough/). check-activity + get-activity redeployed, hash-verified 2026-11-21.
 
 **Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0099 LIVE; no pilots yet). Sweep token LIVE. Then Pro, Q14, pg_net, Vault, arm, proof, flip, pin bump.
 
