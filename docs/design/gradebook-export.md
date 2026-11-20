@@ -237,7 +237,7 @@ Effort: M (one migration, one file builder, no deploys).
 score 0091:984; `mixed_class_students` 0068:350, 389–395; `class_activities`
 0030:52, `due_on` 0087:25; `class_members` 0014:87; names 0099:450.
 
-## As built (2026-11-20, unpushed)
+## As built (2026-11-20; 0102 live, unpushed)
 
 Migration `0102_class_gradebook.sql` + `scripts/verify-0102.sql`, both
 mutation-tested: eight deliberate breaks, seven caught. The one that stayed
@@ -265,5 +265,7 @@ inside what GB-2 promised:**
 - **The file carries the roster's emails and the class's date** from the same
   read (GB-8, GB-13).
 
-**Pending (author):** apply 0102 on live and run `verify-0102` there, and only
-THEN push (OV-7: the page calls the new read). No function deploy.
+**0102 applied on live 2026-11-20** (`supabase db push`, by the session at the
+author's request). `verify-0102` passed on live, and so did verify-0061, -0028
+and -0017. No residue rows were left. **Pending (author): push.** No function
+deploy.

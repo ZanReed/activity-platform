@@ -22,7 +22,7 @@ Author-only: pushes, deploys, migrations.
 
 **0100, 0101 LIVE 2026-11-20**, verified live.
 
-**Gradebook export BUILT 2026-11-20** ([doc](docs/design/gradebook-export.md) → As built): **apply 0102, run verify-0102 live, THEN push** (OV-7). No deploy. Q15 drafted, unsent.
+**Gradebook export: 0102 LIVE 2026-11-20** (verify-0102/0061/0028/0017 green live; [doc](docs/design/gradebook-export.md)). **Push owed.** Q15 drafted, unsent.
 
 **Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0099 LIVE; no pilots yet). Sweep token LIVE. Then Pro, Q14, pg_net, Vault, arm, proof, flip, pin bump.
 

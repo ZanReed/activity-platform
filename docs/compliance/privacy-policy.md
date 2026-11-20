@@ -1,8 +1,17 @@
 # Privacy Policy — Activity Platform
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Effective date: ⟨date⟩ · Policy version: `2026-10-06-draft-4`
+> Effective date: ⟨date⟩ · Policy version: `2026-11-20-draft-5`
 > Operator: ⟨legal name / contact email⟩
+>
+> `draft-5` (2026-11-20): **photos of your working, and the teacher's
+> gradebook download.** "We do not collect … photos" stopped being the whole
+> truth when photo answers were built (0093–0099): a student can choose to add
+> a photo of their working on paper to a question, where their teacher has
+> photo answers on (a pilot, off for everyone else, and off everywhere until
+> the school clears it). The table now says what is kept and for how long,
+> and the "do not collect" line says photos of you are still not collected.
+> The gradebook sentence under "Who sees what" is new (gradebook-export.md).
 >
 > `draft-4` (2026-10-06): **students under 13 may use the platform when their
 > school has authorized it.** The teacher now confirms one of two statements
@@ -88,9 +97,11 @@ them and their teacher, and an account with no class reaches none of it.
 | Class memberships | You entering a join code | Connecting you to your teacher |
 | Educator confirmation (teachers only) | The teacher, at setup | Recording who confirmed their school authorizes this, and when |
 | Activity responses, scores, attempt counts | Your work | The whole point — your teacher reviews it |
+| Photos of your working on paper | You, only if you choose to add one to a question, and only where your teacher has photo answers turned on | So your teacher can mark working you did on paper. Location and other hidden photo data are removed. Only you and your teacher can see it. It is deleted at most 30 days after your teacher releases the grade on it |
 | A one-way hash of your IP address, browser type | Automatic, on submission | Abuse detection only. We never store your raw IP. Deleted after 30 days |
 
-We do **not** collect: age or birthdate, location, contacts, photos, browsing
+We do **not** collect: age or birthdate, location, contacts, photos of you
+(only the photos of your working described above, which you choose), browsing
 history, or anything from your Google account beyond email + name. We do not
 use cookies for advertising or analytics — only for keeping you signed in.
 
