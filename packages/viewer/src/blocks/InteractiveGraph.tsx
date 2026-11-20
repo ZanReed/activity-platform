@@ -209,9 +209,9 @@ export default function InteractiveGraph({
       cancelled = true;
       handleRef.current?.destroy();
       handleRef.current = null;
-      // Synchronous, even though the board may still be mid-mount: a
-      // late-resolving board builds into this now-detached div (invisible)
-      // and is freed by the cancelled → destroy path above.
+      // Synchronous, even though the board may still be mid-mount: a mount
+      // still loading then finds its host detached and rejects with
+      // HostDetachedError, which the cancelled check in .catch keeps quiet.
       host.remove();
     };
     // block.id keys the widget; the rest is read once at mount by design.

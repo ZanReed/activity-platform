@@ -55,6 +55,18 @@ describe('columnsTemplate — authored weights become grid tracks', () => {
   });
 });
 
+describe('columnStyle — the column weight, for print (2026-11-20)', () => {
+  it('carries an authored weight as --activity-column-grow, and nothing when unweighted', () => {
+    expect(columnStyle({ width: 2 })).toEqual({ '--activity-column-grow': '2' });
+    expect(columnStyle({ width: 1 / 3 })).toEqual({ '--activity-column-grow': '0.3333' });
+    expect(columnStyle({ width: 2, minHeight: 8 })).toEqual({
+      '--activity-cell-min-height': '8rem',
+      '--activity-column-grow': '2',
+    });
+    expect(columnStyle({})).toEqual({});
+  });
+});
+
 describe('columnStyle — reserved work space', () => {
   it('emits the authored floor in rem', () => {
     expect(columnStyle({ minHeight: 8 })).toEqual({

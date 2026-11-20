@@ -262,6 +262,20 @@ describe('evaluate — rounding, counting, aggregates', () => {
     expect(evaluate('max(3, 1, 2)')).toEqual({ ok: true, value: 3 });
     expect(evaluate('mean(1, 2, 3, 4)')).toEqual({ ok: true, value: 2.5 });
   });
+
+  it('median / mode / sum / std / variance are variadic, with the school definitions', () => {
+    expect(evaluate('median(9, 1, 7, 8, 2)')).toEqual({ ok: true, value: 7 });
+    expect(evaluate('median(4, 7, 7, 2, 2, 9)')).toEqual({ ok: true, value: 5.5 }); // even: mean of the middle two
+    expect(evaluate('mode(4, 7, 7, 2, 2, 9)')).toEqual({ ok: true, value: 2 }); // a tie: the smallest
+    expect(evaluate('mode(3, 8, 8, 1)')).toEqual({ ok: true, value: 8 });
+    expect(evaluate('sum(4, 7, 7, 2, 2, 9)')).toEqual({ ok: true, value: 31 });
+    // POPULATION forms (divide by n): σx, not the n − 1 sample form.
+    expect(evaluate('variance(2, 4, 4, 4, 5, 5, 7, 9)')).toEqual({ ok: true, value: 4 });
+    expect(evaluate('std(2, 4, 4, 4, 5, 5, 7, 9)')).toEqual({ ok: true, value: 2 });
+    for (const f of ['median', 'mode', 'sum', 'std', 'variance']) {
+      expect(evaluate(`${f}()`), f).toEqual({ ok: false, error: `${f} needs at least one number` });
+    }
+  });
 });
 
 describe('normalizeAsciiMath — spaced-letter reassembly (MathLive unknown names)', () => {
@@ -269,6 +283,12 @@ describe('normalizeAsciiMath — spaced-letter reassembly (MathLive unknown name
     expect(normalizeAsciiMath('f l o o r(2.7)')).toBe('floor(2.7)');
     expect(normalizeAsciiMath('n C r(5,2)')).toBe('nCr(5,2)');
     expect(normalizeAsciiMath('m e a n(1,2,3)')).toBe('mean(1,2,3)');
+    // `mode` reassembles BEFORE the infix-`mod` pass could read `mod e(`.
+    expect(normalizeAsciiMath('m o d e(1,2,2)')).toBe('mode(1,2,2)');
+    expect(normalizeAsciiMath('m e d i a n(1,2,3)')).toBe('median(1,2,3)');
+    expect(normalizeAsciiMath('v a r i a n c e(1,2)')).toBe('variance(1,2)');
+    expect(evaluate('s u m(1,2)')).toEqual({ ok: true, value: 3 });
+    expect(evaluate('s t d(1,3)')).toEqual({ ok: true, value: 1 });
     expect(normalizeAsciiMath('10m o d 3')).toBe('10 mod  3');
     expect(evaluate('10m o d3')).toEqual({ ok: true, value: 1 });
   });

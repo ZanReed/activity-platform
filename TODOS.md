@@ -25,13 +25,17 @@ was also a live grading bug: every such question graded wrong** (needs the
 `list.text`, needs the `get-activity` redeploy); maths in example titles;
 show-only graph `alt:` names the board; editor mounts bail when their
 container is gone (dev-only StrictMode race; prod build had 0 errors).
-**Left from that work, each small:** `median`/`mode`/`sum`/`std`/`variance`
-are reserved seed names graph-kit cannot evaluate (add them to
-`graph-kit/src/evaluate.ts`, or have the importer refuse them); the same
-mount race in `calculator.ts:842` and the student-side graph mounts;
-multi-column rows may still overprint in print (unverified); a stored title
-loses `\$`, so "Costs $5, then $x$" would mis-pair; numeric seeded keys show
-the shortest form (4.5, not 4.50).
+**Left from that work — FIXED 2026-11-20:** `median`, `mode`, `sum`, `std`,
+`variance` evaluate (population SD; mode = smallest of ties; the importer warns
+on `mode(<sample>)`); `==` blanks naming a sample grade (the prompt still steers
+statistics to numeric blanks, since `==` evaluates what the student types); the
+calculator and student-side graph mounts handle a container gone mid-load
+(student mounts reject `HostDetachedError`, the viewer stays quiet only when it
+cancelled); multi-column rows print as flex with each column's weight carried
+(`--activity-column-grow`). **Still open, tiny:** with a page margin over ~0.8in
+a figure row no longer stacks to one column on paper; the `mode(<sample>)`
+warning skips DoL/bank seed fences; a stored title loses `\$`; numeric seeded
+keys show the shortest form (4.5, not 4.50).
 
 **The prompt wording — FIXED 2026-11-20 (author: "fix the prompt-wording
 findings too"):** the prompt is now MARKDOWN_IMPORT_SHARED (embedded verbatim

@@ -10,11 +10,12 @@
 // Semantics: bind declared names first (R6 — a seeded symbol is a bound value
 // before ANY equivalence runs); math entries stay bound expressions
 // (mathEquivalent owns their comparison), numeric/text entries additionally
-// evaluate to the literal the existing compare expects. Fail-safe: anything
+// evaluate to the literal the existing compare expects — and so does a math
+// entry naming a sample with no symbol left (see below). Fail-safe: anything
 // the evaluator cannot resolve stays as its bound string.
 // =============================================================================
 
-import { compileFunction, displayFormKey } from '@activity/graph-kit/scorers';
+import { compileFunction, displayFormKey, freeVariables } from '@activity/graph-kit/scorers';
 import { bindSeedNames } from '../sanitize/substitute.js';
 import type { SeedValues } from '../sanitize/seedValues.js';
 
@@ -25,13 +26,29 @@ export function resolveSeededEntry(
 ): string {
   const bound = bindSeedNames(entry, values);
   if (bound === entry) return entry;
-  if (answerType === 'math') return bound;
   // Evaluate the ARGUMENT-list spelling: a sample inside an aggregate
   // (`mean(scores)`, `max(scores) - min(scores)`) only runs that way — the
   // engine has no arrays, so the bracketed `bound` never evaluated, and the
   // key stayed the expression text: no student could match it, and the print
   // key showed "mean([62,88,…" (2026-11-20).
-  const fn = compileFunction(bindSeedNames(entry, values, { samples: 'args' }));
+  const args = bindSeedNames(entry, values, { samples: 'args' });
+  if (answerType === 'math') {
+    // A math entry stays a bound EXPRESSION (mathEquivalent and form grading
+    // own its comparison) — unless it names a SAMPLE, where the bracketed
+    // form is not maths the engine can read at all. Such an entry with no
+    // free symbol left (`mean(scores)`, `max(s) - min(s)`) is a number, and
+    // is keyed AS one, so form grading's shape check sees the number a
+    // student types, not an aggregate call. One that still has a symbol
+    // (`mean(s)*x`) keys as the argument spelling, which value equivalence
+    // can sample. An entry naming no sample is untouched (args === bound).
+    if (args === bound) return bound;
+    if (freeVariables(args).length === 0) {
+      const v = compileFunction(args)?.(0);
+      if (v !== undefined && Number.isFinite(v)) return String(v);
+    }
+    return args;
+  }
+  const fn = compileFunction(args);
   if (fn) {
     const v = fn(0);
     if (Number.isFinite(v)) return String(v);
@@ -53,7 +70,11 @@ export function displaySeededEntry(
 ): string {
   const resolved = resolveSeededEntry(entry, answerType, values);
   if (resolved === entry) return resolved;
-  if (answerType !== 'math') return displayNumber(resolved);
+  // A math entry that resolved to a plain number (a sample aggregate) reads
+  // like a numeric key: float noise trimmed.
+  if (answerType !== 'math' || /^-?\d[\d.]*(?:e[+-]?\d+)?$/.test(resolved)) {
+    return displayNumber(resolved);
+  }
   return displayFormKey(resolved) ?? resolved;
 }
 

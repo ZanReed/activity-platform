@@ -398,6 +398,8 @@ export function mountCalculator(
   });
   const graphEl = el('div', 'gk-cal-graph');
   let boardController: BoardController | null = null;
+  // Set by destroy(); the lazy board load reads it (graphing mode, below).
+  let destroyed = false;
 
   // ---- Expression list (Stage 4, graphing only) -----------------------------
   // The single field is scientific-mode input; graphing replaces it with the
@@ -826,6 +828,14 @@ export function mountCalculator(
     graphEl.textContent = 'Loading graph…';
     import('./board.js')
       .then(({ createBoard }) => {
+        // destroy() ran while the chunk loaded (a remount on a restriction
+        // change, StrictMode's mount→cleanup→mount, the viewer unmounting):
+        // the panel is gone and JSXGraph would throw "'gk-board-N' not
+        // found" from initBoard. This is the caller's EXPLICIT cancellation —
+        // the handle exists before the board does — so stop quietly. A panel
+        // that is detached WITHOUT destroy() still takes the failure path
+        // below, so a genuine "graph failed to load" never goes silent.
+        if (destroyed) return;
         graphEl.textContent = '';
         // The calculator chrome is light-only for now (calculator-dark is a
         // later slice), so force the board light too — a dark board in a light
@@ -878,6 +888,7 @@ export function mountCalculator(
     close: () => setOpen(false),
     toggle: () => setOpen(!open),
     destroy: () => {
+      destroyed = true; // a board chunk still loading must not build (see above)
       // Remember the session's size (the native resize handle writes inline
       // width/height) so a re-open keeps it.
       // Sheet geometry is the stylesheet's, not the student's — remembering it

@@ -750,8 +750,11 @@ SEEDED VARIABLES (optional — numbers that differ per student)
   reference; keep references in plain text.
 - Names are lowercase (letters/digits/underscores); short math words like pi,
   e, x, y, mean, min are reserved.
-- In a numeric {{=…}} answer, a sample works inside mean, min and max. Not
-  yet inside median, mode, sum, std or variance, and not in a == maths blank.
+- In a numeric {{=…}} answer, a sample works inside mean, median, mode,
+  min, max, sum, std and variance. std and variance are POPULATION (divide by
+  n). A sample’s values all differ, so never ask for its mode. Put a
+  statistic in a numeric {{=…}} blank, not a == maths blank: a maths blank
+  would also accept the student typing median(…) itself.
 
 ACTIVITY METADATA (optional, once, anywhere in the reply)
 - A ```meta fence names and files the activity. Plain `key: value` lines:
@@ -1474,11 +1477,25 @@ scores: sample 8 of 55..99 (8 DISTINCT whole numbers — a dataset)
   comma-separated list.
 - **A list value shows as you wrote it**: `1.50` prints "1.50", not "1.5"
   (2026-11-20). Grading compares numbers, so 1.5 and 1.50 both count.
-- **Numeric (`=`) answers can use `mean`, `min` and `max`** of a sample (fixed
-  2026-11-20: before, they never evaluated and the question could not be
-  answered right). `median`, `mode`, `sum`, `std` and `variance` are reserved
-  names but do NOT evaluate yet, and none of them works in a maths (`==`)
-  blank yet: don't use them there.
+- **Answers can use `mean`, `median`, `mode`, `min`, `max`, `sum`, `std` and
+  `variance`** of a sample, in a numeric (`=`) blank and in a maths (`==`)
+  blank (mean/min/max fixed 2026-11-20 — before, they never evaluated and the
+  question could not be answered right; the other five and the `==` case
+  landed the same day). The definitions are the school ones:
+  - `median` — the middle value of the sorted data, or the mean of the two
+    middle values when the count is even.
+  - `mode` — the most frequent value; when values tie, the SMALLEST of them
+    (a grader needs one number). A `sample`'s values are all different, so
+    every value ties and `mode` returns the minimum — never ask for the mode
+    of a sample.
+  - `std` / `variance` — the POPULATION forms (divide by n, a calculator's
+    σx), not the sample (n − 1) forms.
+  - In a `==` blank, an aggregate with no other letter (`{{==mean(scores)}}`,
+    `{{==max(scores) - min(scores)}}`) is keyed as the number itself, so a
+    form blank (`{{===…}}`) expects the number, not the call.
+  - **Use a numeric (`=`) blank for a statistic.** A maths (`==`) blank
+    evaluates what the student types, so it would also accept
+    `median(62, 88, …)` typed out; a numeric blank only takes a number.
 - **Blank answers as expressions**: `{{=a*p}}`, `{{=mean(scores)}}` — evaluated
   per student at grade time. Math blanks bind too: `{{==a*x + p}}`.
 - **Mistake matchers as expressions**: `{{=a*p|!a+p :: Multiply, don't add.}}`

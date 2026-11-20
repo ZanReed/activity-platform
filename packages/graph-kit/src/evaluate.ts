@@ -115,6 +115,53 @@ function spread(name: string, xs: number[]): number[] {
   return xs;
 }
 
+// ---- Data-set statistics (seeded samples, 2026-11-20) -----------------------
+// Variadic, like min/max/mean: a seeded `sample` is bound as an ARGUMENT list
+// (`median(62,88,71)`) because this engine has no arrays. Each one is the
+// definition a Year 7–10 maths class uses for a data set:
+//   median   — the middle value of the sorted list; the mean of the two middle
+//              values when the count is even. The same rule as the box plot's
+//              five-number summary (data-plot-score.ts).
+//   mode     — the most frequent value; when several values tie, the SMALLEST
+//              of them. A grader needs one number, and "smallest" is the only
+//              rule a student can apply without being told which mode is
+//              wanted. Every value appearing once is a tie of all of them, so
+//              it returns the minimum — which is why the authoring prompt says
+//              never to ask for the mode of a `sample` (its draws are distinct).
+//   sum      — the total.
+//   std      — POPULATION standard deviation (divide by n): the "standard
+//              deviation of the data set" a school calculator shows as σx.
+//              NOT mathjs's default, which is the sample (n − 1) form.
+//   variance — POPULATION variance, std squared (divide by n).
+function statMedian(...xs: number[]): number {
+  const s = [...spread('median', xs)].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 1 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
+function statMode(...xs: number[]): number {
+  const counts = new Map<number, number>();
+  for (const v of spread('mode', xs)) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best = Number.NaN;
+  let bestCount = 0;
+  for (const [v, c] of counts) {
+    if (c > bestCount || (c === bestCount && v < best)) {
+      best = v;
+      bestCount = c;
+    }
+  }
+  return best;
+}
+function statSum(...xs: number[]): number {
+  return spread('sum', xs).reduce((s, v) => s + v, 0);
+}
+function statVariance(...xs: number[]): number {
+  const m = statSum(...spread('variance', xs)) / xs.length;
+  return xs.reduce((s, v) => s + (v - m) * (v - m), 0) / xs.length;
+}
+function statStd(...xs: number[]): number {
+  return Math.sqrt(statVariance(...spread('std', xs)));
+}
+
 // math.js instance: the parser + arithmetic operators only. Every named
 // function and constant is provided by us (below) so we own angle mode, the
 // ln/log10 naming, and the restriction gates.
@@ -178,13 +225,18 @@ const PROVIDED = {
       return Math.round(x * p) / p;
     },
     sign: (x: number) => Math.sign(x),
-    // Counting + aggregates — ungated. min/max/mean are variadic.
+    // Counting + aggregates — ungated. Every aggregate is variadic.
     nPr,
     nCr,
     min: (...xs: number[]) => Math.min(...spread('min', xs)),
     max: (...xs: number[]) => Math.max(...spread('max', xs)),
     mean: (...xs: number[]) =>
       spread('mean', xs).reduce((s, v) => s + v, 0) / xs.length,
+    median: statMedian,
+    mode: statMode,
+    sum: statSum,
+    std: statStd,
+    variance: statVariance,
 };
 math.import(PROVIDED, { override: true });
 
@@ -217,7 +269,9 @@ const SPACED_FN_RES = [
   'asinh', 'acosh', 'atanh',
   'asec', 'acsc', 'acot',
   'floor', 'ceil', 'round', 'sign',
-  'mean', 'min', 'max',
+  // `mode` must reassemble HERE, before the infix `mod` pass below would read
+  // the spaced `m o d e(` as `mod e(`.
+  'variance', 'median', 'mode', 'mean', 'min', 'max', 'sum', 'std',
   'nPr', 'nCr',
 ].map((name) => ({
   name,
@@ -261,7 +315,7 @@ export function normalizeAsciiMath(ascii: string): string {
   // (longer names alongside their prefixes are safe: the alternation backtracks
   // until the \s+\( actually follows, so `sinh (` matches sinh, not sin)
   s = s.replace(
-    /\b(asinh|acosh|atanh|sinh|cosh|tanh|asin|acos|atan|asec|acsc|acot|sin|cos|tan|sec|csc|cot|ln|log|sqrt|abs|exp|nthRoot|logBase|floor|ceil|round|sign|nPr|nCr|min|max|mean|mod)\s+\(/g,
+    /\b(asinh|acosh|atanh|sinh|cosh|tanh|asin|acos|atan|asec|acsc|acot|sin|cos|tan|sec|csc|cot|ln|log|sqrt|abs|exp|nthRoot|logBase|floor|ceil|round|sign|nPr|nCr|min|max|mean|median|mode|sum|std|variance|mod)\s+\(/g,
     '$1(',
   );
   // function name + space + a bare number/constant -> wrap in parens (\sin 30)

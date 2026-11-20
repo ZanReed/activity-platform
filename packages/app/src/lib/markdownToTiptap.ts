@@ -4141,6 +4141,30 @@ function validateSeedReferences(blocks: JSONContent[], ctx: Ctx): void {
             `Seed: mistake matcher \u201c${match}\u201d is a literal number on a seeded blank \u2014 write it as an expression over the variables so it matches every student\u2019s own values.`,
         );
     }
+    // A `sample` draws DISTINCT values, so every value ties and mode() is
+    // always the smallest one: a question with no real answer (2026-11-20).
+    const samples = (ctx.meta?.seedVars ?? []).filter((v) => v.spec.kind === 'sample').map((v) => v.name);
+    if (samples.length > 0) {
+        const modeOf = new RegExp(`\\bmode\\s*\\(\\s*(${samples.join('|')})\\s*\\)`);
+        const flagged = new Set<string>();
+        const visit = (node: unknown): void => {
+            if (Array.isArray(node)) return node.forEach(visit);
+            if (node === null || typeof node !== 'object') return;
+            const obj = node as Record<string, unknown>;
+            const attrs = obj.type === 'blank' ? (obj.attrs as Record<string, unknown> | undefined) : undefined;
+            for (const entry of [attrs?.answer, ...(Array.isArray(attrs?.acceptableAnswers) ? attrs.acceptableAnswers : [])]) {
+                const m = typeof entry === 'string' ? modeOf.exec(entry) : null;
+                if (m) flagged.add(m[1]!);
+            }
+            for (const v of Object.values(obj)) if (v && typeof v === 'object') visit(v);
+        };
+        visit(blocks);
+        for (const name of flagged) {
+            ctx.warnings.add(
+                `Seed: mode(${name}) has no real answer \u2014 a sample\u2019s values are all different, so every value ties and mode is always the smallest. Ask for the median, mean or range instead.`,
+            );
+        }
+    }
 }
 
 function parseMetaFence(src: string, ctx: Ctx): void {

@@ -287,12 +287,21 @@ test.describe('structural print rules', () => {
 
         // Side by side, and in the AUTHORED ratio: a 2:1 split that prints
         // 50/50 has lost the teacher's layout as surely as one that stacks.
-        const [display, tracks] = await row.evaluate((el) => [
-            getComputedStyle(el).display,
-            getComputedStyle(el).gridTemplateColumns,
-        ]);
-        expect(display).toBe('grid');
-        const [wide, narrow] = tracks.split(' ').map(parseFloat);
+        // Measured on the RENDERED columns, not the grid template: since
+        // 2026-11-20 a multi-column row prints as flex (Chromium's paged grid
+        // printed the next section over a row whose content was pushed to the
+        // next page), with each column's weight carried by its own
+        // --activity-column-grow.
+        const boxes = await row.evaluate((el) =>
+            [...el.children]
+                .filter((c) => c.classList.contains('viewer-column'))
+                .map((c) => c.getBoundingClientRect())
+                .map((r) => ({ left: r.left, top: r.top, width: r.width })),
+        );
+        expect(boxes).toHaveLength(2);
+        const [a, b] = boxes as [(typeof boxes)[number], (typeof boxes)[number]];
+        expect(Math.abs(a.top - b.top)).toBeLessThan(2); // side by side, not stacked
+        const [wide, narrow] = a.width >= b.width ? [a.width, b.width] : [b.width, a.width];
         expect(wide / narrow).toBeGreaterThan(1.8);
         expect(wide / narrow).toBeLessThan(2.2);
     });

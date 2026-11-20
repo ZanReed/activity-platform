@@ -286,6 +286,17 @@ describe('the print stylesheet agrees with the registry it mirrors', () => {
       'utf8',
     );
     expect(container).toContain('data-column-count={row.columns.length}');
+
+    // Multi-column rows overprint the same way (2026-11-20: 2- and 3-column
+    // rows whose tall equations were pushed to the next page), so every row
+    // prints as flex — side by side, but block-fragmented correctly — and the
+    // one-column rule must come AFTER it, or the equal-specificity flex rule
+    // would win and one-column rows would lose their flow-root.
+    const block = printBlocks.find((b) => b.includes("[data-column-count='1']")) ?? '';
+    const flex = block.search(/(^|[\s,}])\[data-column-count\]\s*\{[^}]*display:\s*flex/);
+    expect(flex).toBeGreaterThan(-1);
+    expect(block.indexOf("[data-column-count='1']")).toBeGreaterThan(flex);
+    expect(block).toMatch(/\.viewer-column\s*\{[^}]*flex:\s*var\(--activity-column-grow,\s*1\)\s+1\s+0/);
   });
 
   it('hides the live kit board so only the static twin prints (S5-1)', () => {

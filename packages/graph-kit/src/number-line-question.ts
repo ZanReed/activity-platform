@@ -31,6 +31,7 @@ import {
     detectBoardTheme,
     type ChromeColors,
 } from './graph-colors.js';
+import { assertHostAttached } from './graph-question.js';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -307,6 +308,9 @@ export async function mountNumberLineQuestion(
   // Clear the renderer's static SVG placeholder before JSXGraph mounts.
   mount.textContent = '';
   const { createNumberLineBoard } = await import('./number-line-board.js');
+  // Host left the document mid-load: reject by name and let the caller's own
+  // cancelled flag decide (see HostDetachedError in graph-question.ts).
+  assertHostAttached(mount, 'mountNumberLineQuestion');
 
   let answered = false;
 

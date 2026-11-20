@@ -94,10 +94,15 @@ export function rowStyle(columns: readonly ColumnLayout[]): CSSProperties {
  * which is fine today and would stop being fine the moment the fallback moves.
  */
 export function columnStyle(column: ColumnLayout): CSSProperties {
-  if (column.minHeight === undefined) return {};
-  return {
-    '--activity-cell-min-height': `${formatNumber(column.minHeight)}rem`,
-  } as CSSProperties;
+  const style: Record<string, string> = {};
+  if (column.minHeight !== undefined) {
+    style['--activity-cell-min-height'] = `${formatNumber(column.minHeight)}rem`;
+  }
+  // The column's weight, for PRINT: a multi-column row prints as flex (the
+  // paged grid overprints, viewer.css), and flex cannot read the row's
+  // template, so each column carries its own grow factor (2026-11-20).
+  if (column.width !== undefined) style['--activity-column-grow'] = formatNumber(column.width);
+  return style as CSSProperties;
 }
 
 /**

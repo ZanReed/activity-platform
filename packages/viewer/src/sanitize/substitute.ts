@@ -46,7 +46,8 @@ const NAME_RE = /(?<![a-zA-Z0-9_])[a-z][a-z0-9_]*/g;
  * `samples: 'args'` spells a sample as a bare argument list instead
  * ("mean(data)" → "mean(55,61,78)"). That is the form the EVALUATOR can run:
  * graph-kit's engine is mathjs/number — no arrays — and its aggregates
- * (mean/min/max) are variadic, so the bracketed form never evaluates. The
+ * (mean, median, mode, min, max, sum, std, variance) are variadic, so the
+ * bracketed form never evaluates. The
  * bracketed form stays the default: it is the readable bound key, and the
  * importer's seed-row checks read it.
  */

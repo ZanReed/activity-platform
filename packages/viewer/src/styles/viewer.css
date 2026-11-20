@@ -2021,10 +2021,23 @@
      and every printed question moved up to 32px closer to the next; CI's
      print baselines caught it), and it is block layout, so the paged-grid
      bug cannot reach it.
-     Multi-column rows keep the grid; they need it to sit side by side. Bare
-     attribute selector: only rows carry it (ViewerContainer), and it beats
-     .viewer-row by source order at equal specificity; the shell CSS sits at
-     its cap. */
+     Multi-column rows overprint the same way (2026-11-20: a 2- and a 3-column
+     row whose tall equations were pushed to the next page), so they print as
+     FLEX, which fragments correctly and keeps the columns side by side. Flex
+     cannot read --activity-columns-template, so each column carries its own
+     weight (--activity-column-grow, columnStyle) and a 2:1 split still prints
+     2:1. Bare attribute selectors: only rows carry
+     it (ViewerContainer), and they beat .viewer-row by source order at equal
+     specificity; the shell CSS sits at its cap. The one-column rule must come
+     after the flex one. */
+  [data-column-count] {
+    display: flex;
+  }
+
+  .viewer-column {
+    flex: var(--activity-column-grow, 1) 1 0;
+  }
+
   [data-column-count='1'] {
     display: flow-root;
   }

@@ -4222,3 +4222,13 @@ describe('seed list spellings survive import (stress test 2026-11-20)', () => {
         expect(plain.meta?.seedVars?.[0]?.spec).toEqual({ kind: 'list', values: [1, 2, 3] });
     });
 });
+
+describe('mode of a sample has no real answer (2026-11-20)', () => {
+    it('warns on {{=mode(sample)}}, not on median or on a list variable', () => {
+        const fence = '```seed\nscores: sample 6 of 10..30\np: list 1, 2, 2\n```\n\n';
+        const warned = convert(fence + 'Scores: {scores}. Mode {{=mode(scores)}}. Pick {p}.');
+        expect(warned.warnings.some((w) => /mode\(scores\) has no real answer/.test(w))).toBe(true);
+        const fine = convert(fence + 'Scores: {scores}. Median {{=median(scores)}}. Mode of p {{=mode(p)}}.');
+        expect(fine.warnings.some((w) => /has no real answer/.test(w))).toBe(false);
+    });
+});

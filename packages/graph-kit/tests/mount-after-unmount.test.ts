@@ -15,8 +15,15 @@
 // await and returns an inert handle instead.
 // =============================================================================
 import { describe, expect, it } from 'vitest';
-import { mountGraphAuthor, mountGraphDisplay } from '../src/graph-question.js';
-import { mountNumberLineAuthor } from '../src/number-line-question.js';
+import {
+  HostDetachedError,
+  mountGraphAuthor,
+  mountGraphDisplay,
+  mountGraphFunctionSystemQuestion,
+  mountGraphQuestion,
+  mountGraphSystemQuestion,
+} from '../src/graph-question.js';
+import { mountNumberLineAuthor, mountNumberLineQuestion } from '../src/number-line-question.js';
 
 /** Start a mount on a connected host, then unmount it before the import resolves. */
 async function unmountMidLoad<T extends { destroy(): void }>(
@@ -62,3 +69,80 @@ describe('a mount whose host left the document mid-load', () => {
     expect(el.childElementCount).toBe(0);
   });
 });
+
+// The STUDENT mounts reject by name instead of resolving inert: the kit cannot
+// tell "the block unmounted" from "the host was detached for a moment and the
+// caller still wants a board", and the viewer's `.catch` already can — it
+// reads its own `cancelled` flag (silent) or shows its mount-failed fallback.
+// An inert handle would turn the second case into a blank board with no error.
+// See HostDetachedError in graph-question.ts.
+describe('a STUDENT mount whose host left the document mid-load', () => {
+  /** Same race as unmountMidLoad, but the mount is expected to reject. */
+  async function rejectionOf(start: (el: HTMLElement) => Promise<unknown>) {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const pending = start(el);
+    el.remove();
+    const err = await pending.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    return { el, err };
+  }
+
+  function expectNamedDetach(err: unknown, el: HTMLElement): void {
+    expect(err).toBeInstanceOf(HostDetachedError);
+    expect((err as Error).name).toBe('HostDetachedError');
+    expect(el.childElementCount).toBe(0); // nothing built into the dead host
+  }
+
+  it('mountGraphQuestion rejects with HostDetachedError', async () => {
+    const { el, err } = await rejectionOf((el) =>
+      mountGraphQuestion(el, { interactionType: 'plot_point', axisConfig }),
+    );
+    expectNamedDetach(err, el);
+  });
+
+  it('mountGraphSystemQuestion rejects with HostDetachedError', async () => {
+    const { el, err } = await rejectionOf((el) =>
+      mountGraphSystemQuestion(el, {
+        interactionType: 'graph_inequality',
+        axisConfig,
+        answerKey: {
+          inequalities: [
+            { boundary: { family: 'linear', slope: 1, intercept: 0 }, shadeSide: 'above' },
+            { boundary: { family: 'linear', slope: -1, intercept: 2 }, shadeSide: 'below' },
+          ],
+        },
+      }),
+    );
+    expectNamedDetach(err, el);
+  });
+
+  it('mountGraphFunctionSystemQuestion rejects with HostDetachedError', async () => {
+    const { el, err } = await rejectionOf((el) =>
+      mountGraphFunctionSystemQuestion(el, {
+        interactionType: 'plot_function',
+        axisConfig,
+        answerKey: {
+          models: [
+            { family: 'linear', slope: 2, intercept: -1 },
+            { family: 'linear', slope: -1, intercept: 3 },
+          ],
+        },
+      }),
+    );
+    expectNamedDetach(err, el);
+  });
+
+  it('mountNumberLineQuestion rejects with HostDetachedError', async () => {
+    const { el, err } = await rejectionOf((el) =>
+      mountNumberLineQuestion(el, {
+        interactionType: 'plot_point',
+        config: { min: 0, max: 10, tickStep: 1 },
+      }),
+    );
+    expectNamedDetach(err, el);
+  });
+});
+

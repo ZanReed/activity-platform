@@ -367,6 +367,11 @@ export default function DevGraphQuestion() {
       handle = h;
       handleRef.current = h;
       setResp(h.getResponse());
+        }).catch((err: unknown) => {
+      // The kit rejects (HostDetachedError) when this effect was cleaned up
+      // before the board loaded (StrictMode's dev double-mount); only a
+      // failure while still mounted is real.
+      if (!disposed) throw err;
     });
     return () => {
       disposed = true;

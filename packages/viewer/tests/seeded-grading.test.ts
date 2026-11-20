@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { serveSeed } from '../src/sanitize/serveSeed.js';
 import { deriveSeedValues } from '../src/sanitize/seedValues.js';
 import { substituteSeedValues } from '../src/sanitize/substitute.js';
+import { substituteSeededAnswers } from '../src/print/seededPrint.js';
 import { gradeSection } from '../src/server/grading/index.js';
 import { emptySectionResponses } from '../src/check/wire.js';
 import type { SeedVar } from '@activity/schema';
@@ -228,5 +229,104 @@ describe('a spelled list value grades numerically (1.50 = 1.5)', () => {
       expect(r.items['b-two']?.verdict).toBe('correct');
       expect(r.items['b-one']?.verdict, one).toBe('correct');
     }
+  });
+});
+
+// The rest of the reserved aggregates (2026-11-20): median, mode, sum, std and
+// variance were reserved names the engine lacked, so a key over them never
+// evaluated and no student could be marked right. A HAND-PICKED dataset with
+// an even count and a two-way tie pins the definitions a Year 7–10 class uses
+// (a derived `sample` is all-distinct, so it cannot reach the mode rule):
+//   data 4, 7, 7, 2, 2, 9 → sorted 2, 2, 4, 7, 7, 9
+//   median (4 + 7) / 2 = 5.5 · mode 2 (2 and 7 tie; the smaller) · sum 31
+//   variance, POPULATION 257/36 ≈ 7.139 (the sample form would be 8.567)
+//   std, POPULATION √257 / 6 ≈ 2.672 (the sample form would be 2.927)
+describe('seeded aggregate keys (median, mode, sum, std, variance)', () => {
+  const DATA = { scores: [4, 7, 7, 2, 2, 9] };
+  type B = { id: string; answer: string; answerType: 'numeric' | 'math'; tolerance?: number; equivalence?: 'form' };
+  function grade(blanks: B[], typed: Record<string, string>, values: Record<string, number[]> = DATA) {
+    const d = {
+      schemaVersion: 2,
+      meta: { title: 'T', seedVars: [{ name: 'scores', spec: { kind: 'sample', n: 6, min: 1, max: 9 } }] },
+      sections: [{ id: SECTION, title: 'S', rows: [{ id: 'r1', columns: [{ id: 'c1', blocks: [{
+        id: 'fib-stats', type: 'fill_in_blank',
+        content: [
+          { type: 'text', text: 'Scores {scores}. ' },
+          ...blanks.map((b) => ({ type: 'blank', width: 6, ...b })),
+        ],
+      }] }] }] }],
+    };
+    return gradeSection({
+      document: substituteSeedValues(d, values) as never,
+      sectionId: SECTION,
+      responses: { ...emptySectionResponses(), blanks: typed },
+      seedValues: values,
+    }).items;
+  }
+  const NUMERIC: B[] = [
+    { id: 'med', answer: 'median(scores)', answerType: 'numeric' },
+    { id: 'mode', answer: 'mode(scores)', answerType: 'numeric' },
+    { id: 'sum', answer: 'sum(scores)', answerType: 'numeric' },
+    { id: 'var', answer: 'variance(scores)', answerType: 'numeric', tolerance: 0.01 },
+    { id: 'std', answer: 'std(scores)', answerType: 'numeric', tolerance: 0.01 },
+  ];
+
+  it('marks the school answer CORRECT in a numeric blank', () => {
+    const r = grade(NUMERIC, { med: '5.5', mode: '2', sum: '31', var: '7.14', std: '2.67' });
+    for (const id of ['med', 'mode', 'sum', 'var', 'std']) expect(r[id]?.verdict, id).toBe('correct');
+  });
+
+  it('marks the near-miss readings WRONG: lower middle, larger mode, the n − 1 forms', () => {
+    const r = grade(NUMERIC, { med: '4', mode: '7', sum: '30', var: '8.57', std: '2.93' });
+    for (const id of ['med', 'mode', 'sum', 'var', 'std']) expect(r[id]?.verdict, id).toBe('incorrect');
+  });
+
+  it('an odd count takes the middle value', () => {
+    const r = grade([NUMERIC[0]!], { med: '7' }, { scores: [9, 1, 7, 8, 2] });
+    expect(r.med?.verdict).toBe('correct');
+  });
+
+  it('a DERIVED even-count sample grades each student on their own median', () => {
+    const VARS: SeedVar[] = [{ name: 'scores', spec: { kind: 'sample', n: 8, min: 55, max: 99 } }];
+    const median = (id: string) => {
+      const s = [...(deriveSeedValues(VARS, serveSeed(VERSION, id)).scores as number[])].sort((x, y) => x - y);
+      return (s[3]! + s[4]!) / 2;
+    };
+    const a = median('student-alpha');
+    const b = median('student-bravo');
+    expect(a).not.toBe(b); // precondition, not luck
+    const values = deriveSeedValues(VARS, serveSeed(VERSION, 'student-alpha')) as Record<string, number[]>;
+    expect(grade([NUMERIC[0]!], { med: String(a) }, values).med?.verdict).toBe('correct');
+    expect(grade([NUMERIC[0]!], { med: String(b) }, values).med?.verdict).toBe('incorrect');
+  });
+
+  it('a MATH (==) blank evaluates a sample aggregate too', () => {
+    const MATH: B[] = [
+      { id: 'med', answer: 'median(scores)', answerType: 'math' },
+      { id: 'range', answer: 'max(scores) - min(scores)', answerType: 'math' },
+      { id: 'form', answer: 'median(scores)', answerType: 'math', equivalence: 'form' },
+      { id: 'lin', answer: 'sum(scores)*x', answerType: 'math' },
+    ];
+    const r = grade(MATH, { med: '11/2', range: '7', form: '5.5', lin: '31x' });
+    for (const id of ['med', 'range', 'form', 'lin']) expect(r[id]?.verdict, id).toBe('correct');
+    const w = grade(MATH, { med: '4', range: '9', form: '4', lin: '30x' });
+    for (const id of ['med', 'range', 'form', 'lin']) expect(w[id]?.verdict, id).toBe('incorrect');
+  });
+
+  it('the teacher’s answer key PRINTS the numbers, not the expressions', () => {
+    const blanks = [
+      { type: 'blank', answer: 'median(scores)', answerType: 'numeric' },
+      { type: 'blank', answer: 'mode(scores)', answerType: 'numeric' },
+      { type: 'blank', answer: 'sum(scores)', answerType: 'numeric' },
+      { type: 'blank', answer: 'variance(scores)', answerType: 'numeric' },
+      { type: 'blank', answer: 'std(scores)', answerType: 'numeric' },
+      { type: 'blank', answer: 'median(scores)', answerType: 'math' },
+      { type: 'blank', answer: 'mean(scores)', answerType: 'math', equivalence: 'form' },
+    ];
+    const out = substituteSeededAnswers({ content: blanks }, DATA) as { content: Array<{ answer: string }> };
+    expect(out.content.map((b) => b.answer)).toEqual([
+      '5.5', '2', '31', String(Number((257 / 36).toPrecision(15))), String(Number((Math.sqrt(257) / 6).toPrecision(15))),
+      '5.5', String(Number((31 / 6).toPrecision(15))),
+    ]);
   });
 });
