@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**0100, 0101 BUILT 2026-11-20:** apply; live verify-0100, 0099, 0028, 0017.
+**0100, 0101 LIVE 2026-11-20** (verify-0100, 0099, 0028, 0017, 0091 green live).
 
 **Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0099 LIVE; no pilots yet). Sweep token LIVE. Then Pro, Q14, pg_net, Vault, arm, proof, flip, pin bump.
 
