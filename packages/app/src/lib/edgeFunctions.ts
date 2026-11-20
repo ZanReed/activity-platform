@@ -92,5 +92,8 @@ export const CLASS_PROGRESS_RPC = 'class_progress';
 export const ACTIVITY_PROGRESS_RPC = 'activity_progress';
 export const CLASS_STUDENT_WORK_RPC = 'class_student_work';
 export const CLASS_MISCONCEPTIONS_RPC = 'class_misconceptions';
+/** The gradebook file's marks (0102, docs/design/gradebook-export.md): released
+ * hand-grade totals, DoL passes, graded practice. Wrapped by lib/gradebook. */
+export const CLASS_GRADEBOOK_RPC = 'class_gradebook';
 /** First tries on one activity (0062, docs/design/first-try-view.md). */
 export const ACTIVITY_FIRST_TRIES_RPC = 'activity_first_tries';

@@ -16,9 +16,11 @@ import {
   ACTIVITY_FIRST_TRIES_RPC,
   ACTIVITY_PROGRESS_RPC,
   CLASS_MISCONCEPTIONS_RPC,
+  CLASS_GRADEBOOK_RPC,
   CLASS_PROGRESS_RPC,
   CLASS_STUDENT_WORK_RPC,
 } from '../../src/lib/edgeFunctions';
+import type { ClassGradebook } from '../../src/lib/gradebook';
 import type {
   ActivityProgress,
   ClassMisconceptions,
@@ -204,6 +206,25 @@ export async function stubClassProgressApi(page: Page): Promise<ClassProgressStu
     stub.calls.push('class_progress');
     if (stub.failNext) return route.fulfill({ status: 500, json: { message: 'boom' } });
     return route.fulfill({ json: grid });
+  });
+  // The gradebook file's marks (0102), read on the download click only.
+  const gradebook: ClassGradebook = {
+    students: [
+      { student_id: CP_ANA, email: 'ana.lee@school.example' },
+      { student_id: CP_BEN, email: 'ben.carter@school.example' },
+      { student_id: CP_CALEB, email: null },
+    ],
+    hand: [{ student_id: CP_ANA, activity_id: CP_FRACTIONS, points: 3, possible: 4, pending: 1, stale: 0, from_older: 0 }],
+    hand_activities: [CP_FRACTIONS],
+    dol: [],
+    dol_activities: [],
+    practice: [],
+    practice_shown: false,
+    today: '2027-02-10',
+  };
+  await page.route(`**/rest/v1/rpc/${CLASS_GRADEBOOK_RPC}**`, (route) => {
+    stub.calls.push('class_gradebook');
+    return route.fulfill({ json: gradebook });
   });
   await page.route(`**/rest/v1/rpc/${CLASS_MISCONCEPTIONS_RPC}**`, (route) => {
     const body = route.request().postDataJSON() as { p_activity_id?: string | null };

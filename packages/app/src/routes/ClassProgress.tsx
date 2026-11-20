@@ -16,7 +16,8 @@
 
 import { dueWords, fetchClassDue, isPastDue, type ClassDue } from '../lib/dueDates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { classProgressCsv, classProgressFileName } from '../lib/progressCsv';
+import { gradebookCsv, gradebookFileName } from '../lib/progressCsv';
+import { fetchClassGradebook } from '../lib/gradebook';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import {
     cellStatus,
@@ -246,20 +247,12 @@ function Body({
                 onLeastDone={setLeastDone}
                 loaded={loaded}
             />
-            {/* E-1 (ui-review-group-e.md): the grid as a spreadsheet, built
-                from what this page loaded. Names are included even while
-                "hide names" is on: that switch is for a projector, and a
-                download goes to the teacher's own machine. */}
-            <p className="mb-3">
-                <button
-                    type="button"
-                    data-progress-csv
-                    onClick={() => downloadText(classProgressFileName(grid.class.name), classProgressCsv(grid, due?.byActivity))}
-                    className="text-sm font-medium text-strong underline underline-offset-2"
-                >
-                    Download CSV
-                </button>
-            </p>
+            {/* E-1 (ui-review-group-e.md), extended by gradebook-export.md:
+                the grid plus the marks as a spreadsheet. Names (and emails,
+                GB-8) are included even while "hide names" is on: that switch
+                is for a projector, and a download goes to the teacher's own
+                machine. */}
+            <DownloadGradebook grid={grid} due={due} />
             {grid.cells.length === 0 && (
                 <p className="mb-3 text-sm text-muted">No one has checked any work yet.</p>
             )}
@@ -450,6 +443,40 @@ function CellFace({ status }: { status: CellStatus }) {
             <span aria-hidden="true">◐</span> {status.checked}/{status.total}
             {older}
         </>
+    );
+}
+
+/** The gradebook download (GB-1): the marks are read on the click, not on
+ * every page view, then merged with the grid this page already loaded. */
+function DownloadGradebook({ grid, due }: { grid: ClassProgressData; due: ClassDue | null }) {
+    const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle');
+    const onClick = async () => {
+        setState('busy');
+        try {
+            const book = await fetchClassGradebook(grid.class.id);
+            downloadText(gradebookFileName(grid.class.name, book.today), gradebookCsv(grid, book, due?.byActivity));
+            setState('idle');
+        } catch {
+            setState('failed');
+        }
+    };
+    return (
+        <p className="mb-3">
+            <button
+                type="button"
+                data-progress-csv
+                disabled={state === 'busy'}
+                onClick={() => void onClick()}
+                className="text-sm font-medium text-strong underline underline-offset-2 disabled:opacity-60"
+            >
+                {state === 'busy' ? 'Preparing gradebook…' : 'Download gradebook (CSV)'}
+            </button>
+            {state === 'failed' && (
+                <span role="alert" className="ml-3 text-sm text-muted">
+                    The gradebook couldn't be prepared. Try again.
+                </span>
+            )}
+        </p>
     );
 }
 

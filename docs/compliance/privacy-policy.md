@@ -99,7 +99,9 @@ use cookies for advertising or analytics — only for keeping you signed in.
 - **Your teacher** sees your name **and school email**, your responses,
   scores, and grades for their own classes and activities. Not other teachers'
   classes. (The email is how the roster identifies you when Google supplies no
-  display name.)
+  display name.) Your teacher can **download** a spreadsheet of their class's
+  names, school emails, scores and grades to keep in the school's gradebook;
+  that copy is kept under your school's own records policy, not ours.
 - **Other students** see nothing of yours.
 - **The operator** (the person who runs the platform) can access the database
   for maintenance and security; access is logged.

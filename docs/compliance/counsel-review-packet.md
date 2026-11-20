@@ -427,6 +427,28 @@ Please answer:
   they then hold under the school's policy), or does the platform need to
   change its default?
 
+**Q15 — DRAFT, not yet sent. A teacher downloads a class gradebook
+(docs/design/gradebook-export.md, ruled 2026-11-20; migration 0102).** On the
+class progress page a teacher can download one spreadsheet of their class: each
+student's name and school email, how much of each activity they have done, the
+computer-marked percent, the hand-marked points the student has already been
+shown, mastery-check passes, and (only where the teacher switched practice
+scores on) practice scores. A simpler version without emails or hand marks has
+been downloadable since 2026-11-13. The file is built in the teacher's own
+browser and saved to their own computer; the platform keeps no copy and does
+not log the download.
+- (a) From the moment it is saved, the copy is outside the platform's
+  retention and deletion: removing a student's account later does not reach
+  it. The privacy page and retention policy say the copy is "kept under the
+  school's own records policy". Is that enough, or should the school
+  authorization template say so in terms?
+- (b) Should each download be recorded (who, which class, when) in the audit
+  log, as grade writes and releases are?
+- (c) Including the school email is the author's ruling (it is the most
+  reliable way to match the file to a school gradebook). Is an email in a file
+  a teacher holds acceptable for under-13 classes enrolled by school
+  authorization?
+
 ## 6. What this packet deliberately does not do
 
 - It does not ask counsel to review code, and no answer above depends on

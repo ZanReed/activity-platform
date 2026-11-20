@@ -20,7 +20,9 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**0100, 0101 LIVE 2026-11-20** (verify-0100, 0099, 0028, 0017, 0091 green live).
+**0100, 0101 LIVE 2026-11-20**, verified live.
+
+**Gradebook export BUILT 2026-11-20** ([doc](docs/design/gradebook-export.md) → As built): **apply 0102, run verify-0102 live, THEN push** (OV-7). No deploy. Q15 drafted, unsent.
 
 **Media submissions** ([doc](docs/design/media-submissions.md), 1–4, 6, 0097–0099 LIVE; no pilots yet). Sweep token LIVE. Then Pro, Q14, pg_net, Vault, arm, proof, flip, pin bump.
 
@@ -28,7 +30,7 @@ Author-only: pushes, deploys, migrations.
 
 **Schema shortlist S1–S8 LIVE (2026-11-16):** both functions deployed and hash-verified, pushed at `cf1d1edd`, CI green; prompt stamp refreshed; B-255 sent (`^`, `hint:`, https links). **S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md), ST-1..14 ruled): 0090 applied, verify-0090 5/5 on live, pushed `3274dc69`, CI green. `prune_help_requests` ARMED 2026-11-17 (author runs the `cron.schedule` in migrations/README, then `verify-0090` live). Ruled: no asking in locked / quiz / exam / DoL. S2's workSpace departure confirmed 2026-11-17. **No hints in a DoL LIVE 2026-11-17** (both functions hash-verified, `7ccc8aa5` pushed, CI green; sanitizer rev 4 → 5; B-257 sent).
 
-**Form grading (D60) LIVE 2026-11-14** ([form-grading.md](docs/design/form-grading.md) → As built): both functions hash-verified, pushed, CI green. Pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) MERGED `a4f2831` (C-193); repo stamp and catalogue-prompt stamp (`99ccd4c3`, `090a4f31…`) refreshed. **Nothing owed.**
+**Form grading (D60) LIVE 2026-11-14**, nothing owed ([form-grading.md](docs/design/form-grading.md) → As built; pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) merged).
 
 **UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 

@@ -236,3 +236,34 @@ Effort: M (one migration, one file builder, no deploys).
 0070:461, `dol_pass_status` 0070:530; `mixed_sessions` 0066:365, 0091:253,
 score 0091:984; `mixed_class_students` 0068:350, 389–395; `class_activities`
 0030:52, `due_on` 0087:25; `class_members` 0014:87; names 0099:450.
+
+## As built (2026-11-20, unpushed)
+
+Migration `0102_class_gradebook.sql` + `scripts/verify-0102.sql`, both
+mutation-tested: eight deliberate breaks, seven caught. The one that stayed
+green only matters for an activity whose OLDER version has rubrics and whose
+current one has none. Client: `lib/gradebook.ts`, `lib/progressCsv.ts`
+(`gradebookCsv`), and `DownloadGradebook` in `routes/ClassProgress.tsx`, which
+reads the marks on the click. Unit tests (four mutations, all red) and the
+student lane's download row are updated. Compliance: data-map draft-70,
+retention-policy draft-35, a privacy page sentence, and counsel **Q15** (DRAFT,
+not sent).
+
+**Differences from the rulings, all from the Fable review of the build, each
+inside what GB-2 promised:**
+- **"Points pending" counts POINTS**: the rubric totals of questions with no
+  released grade. A question count would have read as points. So points +
+  pending + points lost = possible.
+- **A released grade is the latest per question ACROSS versions** (the
+  student's own read, `get_my_released_feedback`). That way a republish doesn't
+  wipe out a mark the student has seen. The note column says "grade from an
+  earlier version". The denominator is still the shown version's.
+- **Points columns appear only where the current version's rubrics total more
+  than 0** (no 0 / 0 columns for rubric-less questions).
+- **A pruned practice session counts only if it had an answer**, as before the
+  prune (the prune is unarmed, so this is latent).
+- **The file carries the roster's emails and the class's date** from the same
+  read (GB-8, GB-13).
+
+**Pending (author):** apply 0102 on live and run `verify-0102` there, and only
+THEN push (OV-7: the page calls the new read). No function deploy.

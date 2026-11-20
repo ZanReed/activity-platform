@@ -188,22 +188,29 @@ test('on a phone the answers are a full page', async ({ page }) => {
   expect(overflow).toEqual({ by: 0, wide: [] });
 });
 
-// E-1 (docs/design/ui-review-group-e.md): the grid as a CSV, from the loaded data.
-test('Download CSV hands over the grid: one row per student, names included', async ({ page }) => {
+// E-1 (docs/design/ui-review-group-e.md), extended by gradebook-export.md:
+// the grid plus the marks, read on the click (GB-1).
+test('Download gradebook hands over the grid and the marks: one row per student, names and emails', async ({ page }) => {
   await stubIdentityApi(page, { role: 'teacher' });
   await signInAs(page);
-  await stubClassProgressApi(page);
+  const stub = await stubClassProgressApi(page);
   await page.goto(`/classes/${CP_CLASS_ID}/progress`);
   await expect(page.getByRole('heading', { name: 'Class progress' })).toBeVisible();
+  expect(stub.calls).not.toContain('class_gradebook');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download CSV' }).click(),
+    page.getByRole('button', { name: 'Download gradebook (CSV)' }).click(),
   ]);
-  expect(download.suggestedFilename()).toMatch(/ progress \d{4}-\d{2}-\d{2}\.csv$/);
+  // The class's own day from the read, not the browser's UTC date (GB-13).
+  expect(download.suggestedFilename()).toMatch(/ gradebook 2027-02-10\.csv$/);
   const path = await download.path();
   const text = (await import('node:fs')).readFileSync(path!, 'utf8');
   const lines = text.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
   expect(lines[0]).toContain('"Fractions 2 — sections checked"');
-  expect(lines.some((l) => l.startsWith('"Ana Lee"'))).toBe(true);
-  expect(lines.some((l) => l.startsWith('"Ben Carter"'))).toBe(true);
+  expect(lines[0]).toContain('"Fractions 2 — points possible"');
+  expect(lines[0]).not.toContain('"Decimals — points"');
+  const ana = lines.find((l) => l.startsWith('"Ana Lee"'));
+  expect(ana).toContain('"ana.lee@school.example"');
+  expect(ana).toContain('"3","4","1"');
+  expect(lines.some((l) => l.startsWith('"Ben Carter","ben.carter@school.example"'))).toBe(true);
 });
