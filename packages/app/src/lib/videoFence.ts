@@ -28,6 +28,8 @@ export interface VideoAttrs {
     recordedAgainst?: string;
     pauses: VideoPause[];
     stale?: boolean;
+    /** Editor-only (the fence has no key for it): absent = collapsed. */
+    display?: 'open' | 'collapsed';
 }
 
 export interface VideoParse {

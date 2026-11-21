@@ -24,9 +24,11 @@ import { mountVideoPlayer, type VideoPlayer } from './videoHosts.js';
 import { InlineContent } from '../inline/InlineContent.js';
 import { formatClipTime, pauseStep, rewindTarget } from './videoPauseGate.js';
 import { checkPause, readVideoSource, type PauseOutcome, type VideoSource } from './videoSource.js';
+import './Video.css';
 
 export const VIDEO_COPY = {
   open: 'Missed this lesson? Watch the catch-up',
+  play: 'Play video',
   stale: 'Video is out of date',
   unavailable: "The video isn't available right now",
   prompt: 'Your turn. Answer this one to keep the video going.',
@@ -287,6 +289,46 @@ export default function Video({ block, mode }: BlockComponentProps<VideoBlock>) 
   }, [block.id, mode, store]);
 
   if (mode === 'print' || !source) return <div hidden />;
+
+  // Author ruling 2026-11-21: a teacher may show the clip open on the page. It is
+  // still only a frame and a play button: the player, and so the host, loads on
+  // the press (VP-6), exactly as opening the card does.
+  if (block.display === 'open') {
+    const start = () => {
+      setFailed(!navigator.onLine);
+      setOpen(true);
+    };
+    return (
+      <div className="viewer-video" data-video-display="open">
+        <p className="viewer-video__stale">
+          <strong>{block.title}</strong>
+        </p>
+        {block.stale ? <p className="viewer-video__stale">{VIDEO_COPY.stale}</p> : null}
+        {open && failed ? (
+          <p className="viewer-video__unavailable" role="status">
+            {VIDEO_COPY.unavailable}
+          </p>
+        ) : null}
+        {open && !failed ? (
+          <ClipPlayer
+            pauses={block.pauses}
+            source={source}
+            sectionChecked={sectionChecked}
+            onFail={() => setFailed(true)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="viewer-video__poster"
+            aria-label={`${VIDEO_COPY.play}: ${block.title}`}
+            onClick={start}
+          >
+            <span aria-hidden="true">▶</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="viewer-video">

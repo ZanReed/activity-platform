@@ -1,0 +1,18 @@
+/* Video.css — loads with the lazy Video chunk, so the student shell pays nothing
+   for it (the shell CSS sits at its cap). The rest of the clip's styles are older
+   and live in viewer.css. */
+
+/* display: 'open': the frame the player fills; nothing loads until pressed. */
+.viewer-video__poster {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 0.5rem;
+  border: 1px solid;
+  border-radius: 6px;
+  background: var(--vw-color-hover);
+  color: inherit;
+  font-size: 2.5rem;
+  cursor: pointer;
+}

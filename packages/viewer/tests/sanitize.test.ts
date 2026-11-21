@@ -433,3 +433,24 @@ describe('SANITIZER_REV (the durable cache invalidation key)', () => {
   // recurring defect is the same fact stated twice with two different numbers.
   // Do not add a second `expect(SANITIZER_REV).toBe(...)` here.
 });
+
+// Author ruling 2026-11-21: a teacher's clip may be shown open. The serve path
+// (get-activity-handler: upgrade → sanitize) must carry `display`, or every open
+// clip quietly serves as the collapsed card. Bound to the served copy.
+describe('video display reaches the served copy', () => {
+  it("'open' survives the upgrade parse and sanitize; the URL still does not", async () => {
+    const { upgradeActivityDocument } = await import('@activity/schema');
+    const doc = JSON.parse(JSON.stringify(fullyLoadedDocument()));
+    const videos = (doc.sections as { rows: { columns: { blocks: { type: string; display?: string }[] }[] }[] }[])
+      .flatMap((s) => s.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)))
+      .filter((b) => b.type === 'video');
+    expect(videos.length).toBeGreaterThan(0);
+    for (const video of videos) video.display = 'open';
+    const served = sanitizeActivityDocument(upgradeActivityDocument(doc).doc);
+    const servedVideos = served.sections
+      .flatMap((s) => s.rows.flatMap((r) => r.columns.flatMap((c) => c.blocks)))
+      .filter((b) => b.type === 'video') as unknown as { display?: string; url?: string }[];
+    expect(servedVideos.map((v) => v.display)).toEqual(videos.map(() => 'open'));
+    expect(servedVideos.every((v) => v.url === undefined)).toBe(true);
+  });
+});

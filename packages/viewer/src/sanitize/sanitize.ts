@@ -70,7 +70,10 @@ import type {
 // optional seed `list.text` (authored spellings, "1.50"). A row cached by the
 // old function was parsed with the field stripped and would keep showing
 // "$1.5" after the redeploy; this orphans it.
-export const SANITIZER_ALGO_REV = 6;
+// 6 -> 7 (2026-11-21, video display): the same case as 5 -> 6. The serve
+// path's schema parse learned the optional video `display` ('open'); a row
+// cached by the old function lost it and would keep serving the collapsed card.
+export const SANITIZER_ALGO_REV = 7;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */

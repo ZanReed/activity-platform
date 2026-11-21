@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { videoHostOf } from '@activity/schema';
 import type { VideoAttrs } from '../../lib/videoFence';
 import { readDraft, toDraft, type Draft, type PauseDraft } from '../../lib/videoDraft';
@@ -30,6 +30,8 @@ export default function VideoForm({
     onDone: () => void;
 }) {
     const [draft, setDraft] = useState<Draft>(() => toDraft(data));
+    // One radio group per card: two cards on a page must not share a name.
+    const displayName = `video-display-${useId()}`;
     const [problems, setProblems] = useState<string[]>([]);
     const isFile = videoHostOf(draft.url.trim()) === 'file';
 
@@ -74,6 +76,32 @@ export default function VideoForm({
                     <input type="url" placeholder="https://…/captions.vtt" {...field('captions')} />
                 </label>
             )}
+            <fieldset className="video-form__display" disabled={disabled}>
+                <legend>How students see it</legend>
+                {(
+                    [
+                        ['open', 'Open on the page, ready to play'],
+                        ['collapsed', 'Collapsed behind a “Missed this lesson? Watch the catch-up” button'],
+                    ] as const
+                ).map(([value, label]) => (
+                    <label key={value}>
+                        <input
+                            type="radio"
+                            name={displayName}
+                            value={value}
+                            checked={draft.display === value}
+                            onChange={() => {
+                                const next = { ...draft, display: value };
+                                setDraft(next);
+                                // A new, empty card shows no problems for a choice
+                                // alone; the draft carries it to the first save.
+                                if (data) commit(next);
+                            }}
+                        />
+                        {label}
+                    </label>
+                ))}
+            </fieldset>
             <fieldset className="video-form__pauses" disabled={disabled}>
                 <legend>Pauses — each stops at the next faded example after the video, in order</legend>
                 {draft.pauses.map((row, i) => (

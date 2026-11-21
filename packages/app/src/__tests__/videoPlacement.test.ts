@@ -7,12 +7,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { clipIsPlaced, stampVideoStaleness, type ActivityDocument, type VideoBlock } from '@activity/schema';
 import { getMarkdownImporter, type MarkdownImporter } from '../lib/markdownToTiptap';
-import { tiptapToActivity } from '../lib/serialize';
+import { activityToTiptap, tiptapToActivity } from '../lib/serialize';
 import { wrapBlocksStrict } from '../editor/strictGrid';
 import { Editor } from '@tiptap/core';
 import { buildEditorExtensions } from '../editor/editorExtensions';
 import { clipReasons, clipState, keptClipsBefore, locateClip } from '../lib/videoPlacement';
-import { readDraft } from '../lib/videoDraft';
+import { readDraft, toDraft } from '../lib/videoDraft';
+import { parseVideoFence } from '../lib/videoFence';
 
 let convert: MarkdownImporter;
 beforeAll(async () => {
@@ -134,6 +135,7 @@ describe('the form writes only a clip the fence would accept (V-2)', () => {
         url: 'https://youtu.be/abc123',
         captions: '',
         pauses: [{ at: '3:20', rewind: '' }],
+        display: 'collapsed' as const,
         ...over,
     });
 
@@ -166,6 +168,31 @@ describe('the form writes only a clip the fence would accept (V-2)', () => {
         expect(read.problems.join(' ')).toMatch(pattern);
     });
 
+    // Author ruling 2026-11-21: open or collapsed, a new card opening by default.
+    it('a new card defaults to open; a stored clip without the field stays collapsed', () => {
+        expect(toDraft(null).display).toBe('open');
+        expect(toDraft({ title: 'A', url: 'https://youtu.be/abc123', pauses: [{ at: 1 }] }).display).toBe('collapsed');
+        expect(toDraft({ title: 'A', url: 'https://youtu.be/abc123', pauses: [{ at: 1 }], display: 'open' }).display).toBe('open');
+        expect(readDraft(draft({ display: 'open' }), null).attrs?.display).toBe('open');
+    });
+
+    it('an untouched stored clip reads back identical (a blur writes nothing)', () => {
+        const stored = { title: 'A', url: 'https://youtu.be/abc123', recordedAgainst: '3fa9c1d2', pauses: [{ at: 1 }] };
+        expect(readDraft(toDraft(stored), stored).attrs).toEqual(stored);
+        const open = { ...stored, display: 'open' as const };
+        expect(readDraft(toDraft(open), open).attrs).toEqual(open);
+    });
+
+    it('display survives a save and a reload, and the fence has no key for it', () => {
+        const doc = placedDoc();
+        const found = locateClip(doc, 0)!;
+        expect(found.video.display).toBeUndefined();
+        found.video.display = 'open';
+        const again = tiptapToActivity(activityToTiptap(doc), META);
+        expect(locateClip(again, 0)?.video.display).toBe('open');
+        expect(parseVideoFence('title: A\nurl: https://youtu.be/abc123\npause: 0:01\ndisplay: open').attrs).toBeNull();
+    });
+
     it('drops a leftover captions link once the link is YouTube', () => {
         expect(readDraft(draft({ captions: 'https://example.org/a.vtt' }), null).attrs?.captions).toBeUndefined();
     });
@@ -174,7 +201,7 @@ describe('the form writes only a clip the fence would accept (V-2)', () => {
 describe('Fable review fixes (2026-11-12)', () => {
     it('a new link drops the confirmation; the same link keeps it', () => {
         const stored = { title: 'A', url: 'https://youtu.be/abc123', recordedAgainst: '3fa9c1d2', pauses: [{ at: 1 }] };
-        const base = { title: 'A', url: 'https://youtu.be/abc123', captions: '', pauses: [{ at: '0:01', rewind: '' }] };
+        const base = { title: 'A', url: 'https://youtu.be/abc123', captions: '', pauses: [{ at: '0:01', rewind: '' }], display: 'collapsed' as const };
         expect(readDraft(base, stored).attrs?.recordedAgainst).toBe('3fa9c1d2');
         expect(readDraft({ ...base, url: 'https://youtu.be/xyz789' }, stored).attrs?.recordedAgainst).toBeUndefined();
     });

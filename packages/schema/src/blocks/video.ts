@@ -34,5 +34,11 @@ export const VideoBlock = z.object({
   recordedAgainst: z.string().optional(),
   pauses: z.array(VideoPause).min(1),
   stale: z.boolean().default(true),
+  // How students first see it (author ruling 2026-11-21). 'open': a full-width
+  // frame with the title and a play button. 'collapsed' (and absent, so every
+  // catalogue clip): the "Missed this lesson?" card. Either way nothing is
+  // fetched from the host until the student presses play (VP-6). Set only from
+  // the editor's form; the ```video fence has no key for it.
+  display: z.enum(['open', 'collapsed']).optional(),
 });
 export type VideoBlock = z.infer<typeof VideoBlock>;

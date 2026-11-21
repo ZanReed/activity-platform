@@ -58,14 +58,6 @@
   margin-top: 0.5rem;
 }
 
-.viewer-video__media,
-.viewer-video__frame iframe {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-}
-
 .viewer-video__stale,
 .viewer-video__unavailable,
 .viewer-video__jumps {

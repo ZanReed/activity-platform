@@ -1311,6 +1311,7 @@ function tiptapVideoToActivity(node: JSONContent): VideoBlock | null {
         pauses: data.pauses.map((pause) => ({ ...pause })),
         // Replaced by stampVideoStaleness once the whole section exists.
         stale: true,
+        ...(data.display ? { display: data.display } : {}),
     };
 }
 
@@ -1779,6 +1780,7 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                 ...(block.recordedAgainst ? { recordedAgainst: block.recordedAgainst } : {}),
                 pauses: block.pauses.map((pause) => ({ ...pause })),
                 stale: block.stale,
+                ...(block.display ? { display: block.display } : {}),
             };
             return { type: 'video', attrs: { id: block.id, data } };
         }

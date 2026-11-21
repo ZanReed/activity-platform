@@ -172,6 +172,18 @@ pause: 6:30
 - **R-4 · The importer stays strict** (`videoImport.ts`: a `## Lesson` heading and equal counts). That is C-176's contract with the curriculum side, so no letter, prompt, capability or pin change.
 - **Cost:** `clipIsPlaced` is in the grading bundle, so `check-activity` is redeployed. Until then the live server refuses the relaxed placements as before (fail closed).
 
+## Amendment 2026-11-21 (b): open or collapsed
+
+**Why:** the author, the same day. A teacher's own clip is often the main teaching, so hiding it behind "Missed this lesson?" is the wrong default for them. Ruled "yes to all five".
+
+- **D-1 · `display: 'open' | 'collapsed'` on the block**, set in the video's form ("How students see it"). Absent means collapsed.
+- **D-2 · A new editor card defaults to open.** A stored clip without the field (every catalogue clip, and teacher clips saved before today) stays collapsed. The ```video fence has no key for it, and `display:` is refused as an unreadable line, so the catalogue contract (C-176) and the prompt are unchanged. `capability-facts.json` did not move, so no pin bump.
+- **D-3 · Open is a full-width 16:9 frame with the title and a play button.** The player, and so the host, loads only on the press (VP-6 holds). No YouTube thumbnail, because that image is itself a request to Google.
+- **D-4 · Open drops the catch-up wording** and shows the title. Collapsed keeps it.
+- **D-5 · Pauses, "Keep going", the gate and print are unchanged.** Offline at the press shows "isn't available" and keeps the play button.
+- **Cost:** a schema field, so both server bundles move. `SANITIZER_ALGO_REV` 6 → 7 (Fable review): the serve path's parse drops an unknown field, so a row cached by the old function would keep serving collapsed; the bump orphans it. Deploy `get-activity` before the push anyway, and `check-activity` for bundle parity.
+- **Fable review fixes:** `display` is written only when open or already set, so an untouched stored clip reads back identical; a radio choice on an empty new card shows no problems; a served-path test (`sanitize.test.ts`) binds the field to the served copy and was mutation-tested.
+
 ## As built
 
 **Slice 3 (2026-11-03): pause checks and first tries.** Migration 0079, `check-activity` redeploy.

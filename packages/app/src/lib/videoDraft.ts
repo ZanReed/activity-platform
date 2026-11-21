@@ -18,6 +18,7 @@ export interface Draft {
     url: string;
     captions: string;
     pauses: PauseDraft[];
+    display: 'open' | 'collapsed';
 }
 
 export function toDraft(data: VideoAttrs | null): Draft {
@@ -25,6 +26,9 @@ export function toDraft(data: VideoAttrs | null): Draft {
         title: data?.title ?? '',
         url: data?.url ?? '',
         captions: data?.captions ?? '',
+        // A new card opens by default; a stored clip without the field (a
+        // catalogue clip, or one saved before 2026-11-21) stays collapsed.
+        display: data?.display ?? (data ? 'collapsed' : 'open'),
         pauses: data?.pauses.length
             ? data.pauses.map((p) => ({ at: formatTime(p.at), rewind: p.rewindTo === undefined ? '' : formatTime(p.rewindTo) }))
             : [{ at: '', rewind: '' }],
@@ -75,6 +79,10 @@ export function readDraft(draft: Draft, stored: VideoAttrs | null): { attrs: Vid
             ...(stored?.recordedAgainst && stored.url === clip.url ? { recordedAgainst: stored.recordedAgainst } : {}),
             pauses,
             ...(stored?.stale !== undefined ? { stale: stored.stale } : {}),
+            // Written only when it says something: an untouched stored clip
+            // without the field must read back identical, or a blur rewrites it
+            // (Fable review 2026-11-21). Absent = collapsed.
+            ...(draft.display === 'open' || stored?.display ? { display: draft.display } : {}),
         },
         problems: [],
     };

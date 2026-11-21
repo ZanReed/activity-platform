@@ -157,6 +157,58 @@ describe('the gate, on the client (VP-7)', () => {
   });
 });
 
+// Author ruling 2026-11-21: a teacher may show the clip open on the page.
+describe('display: open', () => {
+  beforeEach(() => setVideoLink(linkWith(async () => ok(FILE))));
+
+  it('shows the title and a play frame, no catch-up wording, and loads nothing until pressed', async () => {
+    const { container } = mount({ display: 'open' });
+    const playButton = await screen.findByRole('button', { name: `${VIDEO_COPY.play}: Comparing decimals` });
+    expect(container.querySelector('[data-video-display="open"]')).not.toBeNull();
+    expect(screen.getByText('Comparing decimals')).toBeTruthy();
+    expect(container.textContent).not.toContain(VIDEO_COPY.open);
+    expect(container.querySelector('video, iframe')).toBeNull();
+    fireEvent.click(playButton);
+    expect(container.querySelector('video')!.getAttribute('src')).toBe(FILE.url);
+    expect(play).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Play video/ })).toBeNull();
+  });
+
+  it('offline at the press: says so and keeps the play button to try again', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { container } = mount({ display: 'open' });
+    fireEvent.click(await screen.findByRole('button', { name: /Play video/ }));
+    expect(screen.getByText(VIDEO_COPY.unavailable)).toBeTruthy();
+    expect(container.querySelector('video')).toBeNull();
+    expect(screen.getByRole('button', { name: /Play video/ })).toBeTruthy();
+  });
+
+  it('collapsed, or no display at all, is the catch-up card', async () => {
+    mount({ display: 'collapsed' });
+    expect(await screen.findByRole('button', { name: /Missed this lesson/ })).toBeTruthy();
+    cleanup();
+    mount();
+    expect(await screen.findByRole('button', { name: /Missed this lesson/ })).toBeTruthy();
+  });
+
+  it('pauses still stop at the faded block in open mode', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = mount({ display: 'open' });
+    fireEvent.click(await screen.findByRole('button', { name: /Play video/ }));
+    currentTime = 11;
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(container.querySelector('[data-block-id="f1"] .viewer-video-stop')).not.toBeNull();
+  });
+
+  it('print: nothing', async () => {
+    const { container } = mount({ display: 'open' }, 'print');
+    await act(async () => {});
+    expect(container.querySelector('.viewer-video')).toBeNull();
+  });
+});
+
 describe('the card (VP-2)', () => {
   beforeEach(() => setVideoLink(linkWith(async () => ok(FILE))));
 
