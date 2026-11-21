@@ -142,7 +142,7 @@ pause: 6:30
 
 - **V-1:** a "Video" entry in the slash and Insert menus, under Media & figures. VP-10 and VP-11's "teacher-attached videos" are lifted.
 - **V-2:** the form sits on the card: title, link (YouTube or an https .mp4/.webm), captions (a file only, required there), and pauses (m:ss, optional rewind) with add and remove. It checks with the fence parser's own rules (`videoProblems` in `videoFence.ts`, now shared), and writes the node only when the whole draft is a valid clip. A stored clip is always one the importer would accept.
-- **V-3:** the card says live why a clip won't reach students (`lib/videoPlacement.ts`): quiz, exam, locked, DoL, not the Lesson section, a second clip, or pauses ≠ faded examples after it. It re-checks the whole document 300 ms after an edit, and when the activity's type or submission mode changes.
+- **V-3:** the card says live why a clip won't reach students (`lib/videoPlacement.ts`): quiz, exam, locked, DoL, a second clip, or more pauses than faded examples after it (the Lesson-title and equal-count reasons were dropped 2026-11-21, below). It re-checks the whole document 300 ms after an edit, and when the activity's type or submission mode changes.
 - **V-4:** "This video matches the lesson as it is now" sets `recorded_against` to the current beat hash. It is the teacher's own statement that the clip still matches, and it replaces the dry-run paste step for anyone without the importer.
 - **V-5:** insert anywhere, like every block; the card's reasons steer. Removal is the normal block controls.
 - **V-6:** a teacher's markdown paste still drops the fence (TODOS, with a trigger).
@@ -161,6 +161,16 @@ pause: 6:30
   - The card's clip counting is one function (`keptClipsBefore`), tested over incomplete cards, columns and sections.
   - The equivalence test asserts its baseline.
   - Each fix was mutation-tested.
+
+## Amendment 2026-11-21: the save rule relaxes for teachers' own clips
+
+**Why:** the author, 2026-11-21, after placing a clip in the stress-test activity. The "Lesson" title rule made teachers name a section a particular way, and the equal-count rule refused a clip that covers only the first faded example. Ruled "yes, relax both".
+
+- **R-1 · Any section title.** `clipIsPlaced` no longer reads the section's title. D64's "never first teaching, never the hook" stays a catalogue rule.
+- **R-2 · Fewer pauses than faded blocks.** Pauses map to the first N faded blocks after the clip. Any after those are ordinary questions: no stop, no pause verdict (the server's `index < pauses.length` already held this). More pauses than faded blocks is still refused, because a pause with nothing to stop at has nothing to ask.
+- **R-3 · The beat hash covers only the paused blocks** (`slice(0, pauses.length)`). Editing an unpaused faded block doesn't make the clip stale. When the counts are equal (every catalogue clip, and every clip placed before today) the hash is unchanged, so no stored `recorded_against` moves.
+- **R-4 · The importer stays strict** (`videoImport.ts`: a `## Lesson` heading and equal counts). That is C-176's contract with the curriculum side, so no letter, prompt, capability or pin change.
+- **Cost:** `clipIsPlaced` is in the grading bundle, so `check-activity` is redeployed. Until then the live server refuses the relaxed placements as before (fail closed).
 
 ## As built
 

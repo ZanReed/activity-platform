@@ -61,14 +61,28 @@ describe('videoBeatHash (VP-5, as revised by C-176)', () => {
     expect(hashWith(worked(), faded('0.8', 'The larger is ', ['.8']))).not.toBe(base);
   });
 
-  it('another faded block moves it', () => {
-    expect(hashWith(worked(), faded(), faded())).not.toBe(hashWith(worked(), faded()));
+  it('another faded block it pauses at moves it; one after its last pause does not', () => {
+    const twoPauses = (...rest: Block[]) => {
+      const video = { ...clip(), pauses: [{ at: 1 }, { at: 2 }] };
+      return videoBeatHash(sectionOf(video, ...rest), video);
+    };
+    expect(twoPauses(worked(), faded(), faded())).not.toBe(twoPauses(worked(), faded()));
+    // A one-pause clip: the second faded block is an ordinary question (2026-11-21).
+    expect(hashWith(worked(), faded(), faded('0.75'))).toBe(hashWith(worked(), faded()));
   });
 
   it('worked text moves it, re-spacing does not', () => {
     const base = hashWith(worked(), faded());
     expect(hashWith(worked('Line up the decimal points.'), faded())).not.toBe(base);
     expect(hashWith(worked('Line  up the\npoints.'), faded())).toBe(base);
+  });
+
+  // Golden: computed by the code BEFORE the 2026-11-21 relaxation. Equal counts
+  // (every catalogue clip) must hash exactly as before, or every stored
+  // recorded_against would go stale at once.
+  it('an equal-count clip hashes exactly as before the 2026-11-21 relaxation', () => {
+    const video = clip();
+    expect(videoBeatHash(sectionOf(video, worked(), faded()), video)).toBe('49b30a96');
   });
 
   it('a faded block above the clip is not a pause target and is not hashed', () => {
@@ -95,9 +109,10 @@ describe('stampVideoStaleness', () => {
     stampVideoStaleness([inPlace.section]);
     expect(inPlace.video.stale).toBe(false);
 
+    // Relaxed 2026-11-21: a teacher may put a clip in a section of any title.
     const review = stampedClip();
     stampVideoStaleness([{ ...review.section, title: 'Review' }]);
-    expect(review.video.stale).toBe(true);
+    expect(review.video.stale).toBe(false);
 
     const dol = stampedClip();
     stampVideoStaleness([{ ...dol.section, dol: { skills: [] } }]);

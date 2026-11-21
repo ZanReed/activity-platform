@@ -57,16 +57,14 @@ export function clipReasons(section: Section, video: VideoBlock, meta: ClipMeta)
         reasons.push("A locked activity can't have a video: its check can't be redone, so a pause mustn't answer first.");
     }
     if (section.dol != null) reasons.push("A DoL section can't have a video.");
-    if (section.title?.trim().toLowerCase() !== 'lesson') {
-        reasons.push('Move the video into the section titled “Lesson”.');
-    }
     if (blocksOf(section).filter((block) => block.type === 'video').length !== 1) {
         reasons.push('This section has another video. A section can have only one.');
     }
     const faded = videoPauseTargets(section, video).length;
-    if (faded !== video.pauses.length) {
+    if (video.pauses.length < 1) reasons.push('Add a pause.');
+    else if (video.pauses.length > faded) {
         reasons.push(
-            `The video has ${plural(video.pauses.length, 'pause', 'pauses')}, but ${plural(faded, 'faded example comes', 'faded examples come')} after it in this section. Each pause stops at the next faded example, so the numbers must match.`,
+            `The video has ${plural(video.pauses.length, 'pause', 'pauses')}, but only ${plural(faded, 'faded example comes', 'faded examples come')} after it in this section. Each pause stops at the next faded example, so remove a pause or add a faded example.`,
         );
     }
     return reasons;

@@ -41,11 +41,15 @@ const CASES: [string, (section: Section) => Record<string, string>][] = [
     ['an exam', () => ({ activityType: 'exam' })],
     ['a locked activity', () => ({ submissionMode: 'locked' })],
     ['a DoL section', (s) => ((s as { dol?: unknown }).dol = { skills: [] }, {})],
-    ['another section title', (s) => ((s.title = 'Review'), {})],
-    ['no section title', (s) => ((s.title = undefined as unknown as string), {})],
     ['a second clip', (s) => (firstColumn(s).push({ ...clipOf(s), id: crypto.randomUUID() }), {})],
-    ['an extra faded block', (s) => (firstColumn(s).push({ ...firstColumn(s).at(-1)!, id: crypto.randomUUID() }), {})],
     ['a second pause', (s) => (clipOf(s).pauses.push({ at: 900 }), {})],
+];
+
+// Relaxed 2026-11-21 for the editor: these were refusals and are now placed.
+const ALLOWED: [string, (section: Section) => void][] = [
+    ['another section title', (s) => (s.title = 'Review')],
+    ['no section title', (s) => (s.title = undefined as unknown as string)],
+    ['an extra faded block', (s) => firstColumn(s).push({ ...firstColumn(s).at(-1)!, id: crypto.randomUUID() })],
 ];
 
 describe('clipReasons ⇔ clipIsPlaced (one rule, two voices)', () => {
@@ -58,10 +62,17 @@ describe('clipReasons ⇔ clipIsPlaced (one rule, two voices)', () => {
         else expect(reasons.length).toBeGreaterThan(0);
     });
 
-    it('names the counts when pauses and faded examples differ', () => {
+    it.each(ALLOWED)('%s is placed', (_name, change) => {
+        const section = placedDoc().sections[0]!;
+        change(section);
+        expect(clipReasons(section, clipOf(section), {})).toEqual([]);
+        expect(clipIsPlaced(section, clipOf(section), {})).toBe(true);
+    });
+
+    it('names the counts when there are more pauses than faded examples', () => {
         const section = placedDoc().sections[0]!;
         clipOf(section).pauses.push({ at: 900 });
-        expect(clipReasons(section, clipOf(section), {}).join(' ')).toMatch(/2 pauses, but 1 faded example comes after it/);
+        expect(clipReasons(section, clipOf(section), {}).join(' ')).toMatch(/2 pauses, but only 1 faded example comes after it/);
     });
 });
 

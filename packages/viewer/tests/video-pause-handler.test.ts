@@ -41,7 +41,7 @@ const faded = (id: string, blanks: object[]) => ({
   }],
 });
 
-function storedDoc(meta: object = {}, section: object = {}) {
+function storedDoc(meta: object = {}, section: object = {}, pauses: object[] = [{ at: 1 }, { at: 2 }]) {
   return ActivityDocument.parse({
     schemaVersion: 2,
     meta: { title: 'Clip', course: 'Y9', ...meta },
@@ -56,7 +56,7 @@ function storedDoc(meta: object = {}, section: object = {}) {
           id: '8f8fad5b-d9cb-469f-a165-70867728950e',
           blocks: [
             faded(ABOVE, [blank(BLANK_ABOVE, '9')]),
-            { id: CLIP, type: 'video', title: 'Clip', url: 'https://youtu.be/x', pauses: [{ at: 1 }, { at: 2 }], stale: false },
+            { id: CLIP, type: 'video', title: 'Clip', url: 'https://youtu.be/x', pauses, stale: false },
             faded(FIRST, [
               blank(BLANK_A, '4', { mistakeFeedback: [{ match: '5', feedback: [{ type: 'text', text: 'You added.' }], misconceptionId: 'mis.vfy.adds' }] }),
               blank(BLANK_B, '6'),
@@ -223,7 +223,6 @@ describe('who gets a verdict', () => {
     ['a locked file', { submissionMode: 'locked' }, {}],
     ['a quiz', { activityType: 'quiz' }, {}],
     ['an exam', { activityType: 'exam' }, {}],
-    ['a section that is not the lesson', {}, { title: 'Practice' }],
   ])('a clip in %s gives no verdict, whatever its stored stale says', async (_name, meta, section) => {
     const h = harness({ readVersion: async () => ({ data: { content: storedDoc(meta, section) }, error: null }) });
     const { status, body } = await ask(h, FIRST, { [BLANK_A]: '4', [BLANK_B]: '6' });
@@ -240,6 +239,31 @@ describe('who gets a verdict', () => {
     const { status } = await ask(h, blockId, { [BLANK_ABOVE]: '9' });
     expect(status).toBe(404);
     expect(h.order).toEqual(['chain', 'read']);
+  });
+
+  // Relaxed 2026-11-21 (author ruling): a teacher's clip may sit in a section of
+  // any title, and may pause at fewer faded blocks than follow it.
+  it('a clip in a section not titled Lesson gives a verdict', async () => {
+    const h = harness({ readVersion: async () => ({ data: { content: storedDoc({}, { title: 'Practice' }) }, error: null }) });
+    const { status, body } = await ask(h, FIRST, { [BLANK_A]: '4', [BLANK_B]: '6' });
+    expect(status).toBe(200);
+    expect(body.state).toBe('right');
+  });
+
+  it('a one-pause clip: its first faded block is a pause, the one after it is not', async () => {
+    const onePause = async () => ({ data: { content: storedDoc({}, {}, [{ at: 1 }]) }, error: null });
+    const first = await ask(harness({ readVersion: onePause }), FIRST, { [BLANK_A]: '4', [BLANK_B]: '6' });
+    expect(first.status).toBe(200);
+    const h = harness({ readVersion: onePause });
+    const second = await ask(h, SECOND, { [BLANK_C]: '8' });
+    expect(second.status).toBe(404);
+    expect(h.records).toEqual([]);
+  });
+
+  it('more pauses than faded blocks after it: no verdict', async () => {
+    const h = harness({ readVersion: async () => ({ data: { content: storedDoc({}, {}, [{ at: 1 }, { at: 2 }, { at: 3 }]) }, error: null }) });
+    expect((await ask(h, FIRST, { [BLANK_A]: '4', [BLANK_B]: '6' })).status).toBe(404);
+    expect(h.records).toEqual([]);
   });
 
   it('a section already checked: no verdict', async () => {

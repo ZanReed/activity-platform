@@ -25,7 +25,8 @@ function blocksOf(section: SectionLike): Block[] {
   return section.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks));
 }
 
-/** The faded blocks a clip pauses at: those after it in its section, in order. */
+/** The faded blocks after a clip in its section, in order. Its pauses stop at the
+ * first `pauses.length` of them; any after those are ordinary questions. */
 export function videoPauseTargets(section: SectionLike, video: VideoBlock): Block[] {
   const blocks = blocksOf(section);
   const from = blocks.findIndex((block) => block.id === video.id);
@@ -82,7 +83,10 @@ export function videoBeatHash(section: SectionLike, video: VideoBlock): string {
   const worked = blocksOf(section)
     .filter((block) => block.type === 'worked_example')
     .map((block) => textOf(block).replace(/\s+/g, ''));
-  const faded = videoPauseTargets(section, video).map((block) => {
+  // Only the blocks it pauses at: an unpaused faded block after them is an
+  // ordinary question, and editing it must not make the clip stale. When the
+  // counts are equal (every catalogue clip) this is every faded block after it.
+  const faded = videoPauseTargets(section, video).slice(0, video.pauses.length).map((block) => {
     const keys: unknown[] = [];
     answerKeysOf(block, keys);
     return { blanks: keys.length, keys };
@@ -90,11 +94,17 @@ export function videoBeatHash(section: SectionLike, video: VideoBlock): string {
   return fnv1a(JSON.stringify({ worked, faded }));
 }
 
-// The importer refuses a clip that breaks these (videoImport.ts), but the editor
-// can copy, paste or drag its card anywhere. So the save rule is the same, and it
-// fails closed: a clip in the wrong place is stale, and students don't get it.
+// The save rule (and the grading server's: video-pause-handler.ts). It fails
+// closed: a clip in the wrong place is stale, and students don't get it.
 // A locked activity is refused too: its check can't be redone, so a pause must not
 // give a verdict before it, and its frozen section would disable the card's buttons.
+//
+// RELAXED 2026-11-21 (author ruling) for clips a teacher places in the editor:
+// any section title, and fewer pauses than faded blocks after the clip (the rest
+// stay ordinary questions). More pauses than faded blocks still fails: a pause
+// with no block to stop at has nothing to ask. The IMPORTER stays strict
+// (videoImport.ts: a `## Lesson` heading and equal counts), because that is the
+// catalogue's contract with the curriculum side (C-176), not ours to loosen.
 export interface VideoDocMeta {
   activityType?: string;
   submissionMode?: string;
@@ -106,9 +116,9 @@ export function clipIsPlaced(section: SectionLike, video: VideoBlock, meta: Vide
     meta.activityType !== 'exam' &&
     meta.submissionMode !== 'locked' &&
     section.dol == null &&
-    section.title?.trim().toLowerCase() === 'lesson' &&
     blocksOf(section).filter((block) => block.type === 'video').length === 1 &&
-    videoPauseTargets(section, video).length === video.pauses.length
+    video.pauses.length >= 1 &&
+    video.pauses.length <= videoPauseTargets(section, video).length
   );
 }
 
