@@ -24,6 +24,18 @@
 // starts after the blank's verdict mark (✗/✓) when that mark is on the same
 // line, so the tray never hides it after a check.
 //
+// TOP LAYER (author 2026-11-23). Where the browser has the Popover API, the
+// tray is a manual popover: drawn above the whole page, so no scroll box can
+// clip it. A table sits in an overflow-x box that clips BOTH axes, and a blank
+// in the last column of a one-row table had no room beside, below or above,
+// so the tray fell below inside the box and the table grew a scrollbar over
+// it. In the top layer the only clip is the visual viewport, and the tray is
+// placed with fixed coordinates, re-measured on any scroll. The element stays
+// where it is in the DOM, so Tab order (D3), focus-within and the screen-reader
+// order are unchanged. Without the API (Safari < 17, Chrome < 114) it keeps
+// the old in-flow placement. Its CSS is SuperscriptTray.css, which loads with
+// this chunk.
+//
 // PHONES (≤ 480 px, author 2026-10-16): any tray in the text flow is taller
 // than a line (44 px keys) and covers the lines above and below. There the
 // tray DOCKS instead: fixed at the bottom of the visible screen, right-aligned,
@@ -34,6 +46,10 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { PointerEvent, RefObject } from 'react';
+import './SuperscriptTray.css';
+
+/** The Popover API's top layer is available (see the header). */
+export const TOP_LAYER = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
 
 export type TrayPlacement = 'beside' | 'below' | 'above' | 'dock';
 
@@ -61,12 +77,14 @@ function inside(a: Box, clip: Box): boolean {
 }
 
 /** The visible region: the visual viewport, cut down by every ancestor that
- * clips (overflow other than visible). */
-function clipBoxFor(el: Element): Box {
+ * clips (overflow other than visible) — unless the tray is in the top layer,
+ * where no ancestor can clip it. */
+function clipBoxFor(el: Element, topLayer: boolean): Box {
   const vv = globalThis.visualViewport;
   let box: Box = vv
     ? { left: vv.offsetLeft, top: vv.offsetTop, right: vv.offsetLeft + vv.width, bottom: vv.offsetTop + vv.height }
     : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+  if (topLayer) return box;
   for (let node = el.parentElement; node; node = node.parentElement) {
     const style = getComputedStyle(node);
     if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
@@ -93,7 +111,7 @@ export function chooseTrayPlacement(
   clip: Box,
   others: readonly Box[],
   besideFrom: number = input.right,
-): { placement: TrayPlacement; shiftX: number } {
+): { placement: TrayPlacement; shiftX: number; box: Box } {
   const midY = (input.top + input.bottom) / 2;
   const candidates: Array<{ placement: TrayPlacement; box: Box }> = [
     {
@@ -126,11 +144,12 @@ export function chooseTrayPlacement(
     const shiftX = placement === 'beside' ? 0 : clamp(box);
     const moved = { ...box, left: box.left + shiftX, right: box.right + shiftX };
     if (inside(moved, clip) && !others.some((o) => overlaps(moved, o))) {
-      return { placement, shiftX };
+      return { placement, shiftX, box: moved };
     }
   }
   const below = candidates[1]!.box;
-  return { placement: 'below', shiftX: clamp(below) };
+  const shiftX = clamp(below);
+  return { placement: 'below', shiftX, box: { ...below, left: below.left + shiftX, right: below.right + shiftX } };
 }
 
 /** Phones dock below this width (the viewer's phone breakpoint). */
@@ -162,6 +181,22 @@ interface Place {
   shiftX: number;
   /** beside: `left` in px from the field; dock: `bottom` in px. */
   offset: number | null;
+  /** Top layer, not docked: fixed viewport coordinates. */
+  fixed?: { left: number; top: number };
+  /** Top layer: the blank itself is scrolled out of view or under a sticky
+   * bar, so the tray must not hang there on its own (Fable review P2). */
+  hidden?: boolean;
+}
+
+/** The blank is clipped away by a scroll box (a table scrolled sideways), or
+ * something else (a sticky bar) is on top of its centre. In the top layer
+ * nothing clips the tray any more, so it has to follow its blank out of sight. */
+function blankOutOfSight(field: Element, input: Box): boolean {
+  if (!overlaps(input, clipBoxFor(field, false))) return true;
+  const x = (input.left + input.right) / 2;
+  const y = (input.top + input.bottom) / 2;
+  const hit = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(x, y) : null;
+  return hit !== null && !field.contains(hit);
 }
 
 export interface SuperscriptTrayProps {
@@ -172,6 +207,9 @@ export interface SuperscriptTrayProps {
 
 export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTrayProps) {
   const trayRef = useRef<HTMLSpanElement>(null);
+  // In the top layer yet (a ref, not :popover-open, which older engines and
+  // jsdom cannot parse).
+  const shown = useRef(false);
   // Where the caret goes once the store has re-rendered the new value.
   const pendingCaret = useRef<number | null>(null);
 
@@ -200,7 +238,12 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
 
   const commit = (next: Place) =>
     setPlace((prev) =>
-      prev.placement === next.placement && prev.shiftX === next.shiftX && prev.offset === next.offset
+      prev.placement === next.placement &&
+      prev.shiftX === next.shiftX &&
+      prev.offset === next.offset &&
+      prev.fixed?.left === next.fixed?.left &&
+      prev.fixed?.top === next.fixed?.top &&
+      prev.hidden === next.hidden
         ? prev
         : next,
     );
@@ -215,6 +258,18 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
       const tray = trayRef.current;
       const field = fieldRef.current;
       if (!input || !tray || !field) return;
+      // Into the top layer before the first measure, so the first measure is
+      // of the tray where it will paint (the tray's own display: flex already
+      // beats the UA's display: none for a closed popover, so it has a size).
+      if (TOP_LAYER && !shown.current) {
+        try {
+          tray.showPopover();
+          shown.current = true;
+        } catch {
+          // Detached mid-unmount: nothing to place.
+          return;
+        }
+      }
       const t = tray.getBoundingClientRect();
       const i = input.getBoundingClientRect();
       const vv = globalThis.visualViewport;
@@ -246,21 +301,44 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
       const pill = field.parentElement?.querySelector(':scope > .viewer-state-pill');
       const p = pill?.getBoundingClientRect();
       const besideFrom = p && p.top < i.bottom && p.bottom > i.top ? Math.max(i.right, p.right) : i.right;
-      const next = chooseTrayPlacement(i, { width: t.width, height: t.height }, clipBoxFor(field), others, besideFrom);
+      const next = chooseTrayPlacement(i, { width: t.width, height: t.height }, clipBoxFor(field, TOP_LAYER), others, besideFrom);
+      if (TOP_LAYER) {
+        commit({
+          placement: next.placement,
+          shiftX: 0,
+          offset: null,
+          fixed: { left: next.box.left, top: next.box.top },
+          hidden: blankOutOfSight(field, i),
+        });
+        return;
+      }
       const f = field.getBoundingClientRect();
-      commit({ ...next, offset: next.placement === 'beside' ? besideFrom - f.left + GAP : null });
+      commit({ placement: next.placement, shiftX: next.shiftX, offset: next.placement === 'beside' ? besideFrom - f.left + GAP : null });
     };
     const onResize = () => measure(true);
-    const onPan = () => measure(false);
+    // One measure per frame however many scroll events arrive (Fable P2).
+    let frame = 0;
+    const onPan = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        measure(false);
+      });
+    };
     measure(true);
     const vv = globalThis.visualViewport;
     vv?.addEventListener('resize', onResize);
     vv?.addEventListener('scroll', onPan);
     window.addEventListener('resize', onResize);
+    // Fixed coordinates go stale when the page OR a table's scroll box moves
+    // the blank, so any scroll re-measures (capture: scroll does not bubble).
+    if (TOP_LAYER) window.addEventListener('scroll', onPan, { capture: true, passive: true });
     return () => {
       vv?.removeEventListener('resize', onResize);
       vv?.removeEventListener('scroll', onPan);
       window.removeEventListener('resize', onResize);
+      if (TOP_LAYER) window.removeEventListener('scroll', onPan, { capture: true });
+      if (frame) cancelAnimationFrame(frame);
     };
   }, [fieldRef, inputRef]);
 
@@ -272,7 +350,10 @@ export function SuperscriptTray({ fieldRef, inputRef, onChange }: SuperscriptTra
       ref={trayRef}
       className="viewer-blank__tray"
       data-placement={place.placement}
+      {...(TOP_LAYER ? { popover: 'manual' } : {})}
       style={{
+        ...(place.fixed ? { left: `${place.fixed.left}px`, top: `${place.fixed.top}px` } : {}),
+        ...(place.hidden ? { visibility: 'hidden' as const } : {}),
         ...(place.shiftX ? { translate: `${place.shiftX}px 0` } : {}),
         ...(place.offset !== null
           ? place.placement === 'dock'

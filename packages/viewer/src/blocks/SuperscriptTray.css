@@ -1,0 +1,23 @@
+/* SuperscriptTray.css — the ² ³ tray in the TOP LAYER (author 2026-11-23).
+   Loads with the lazy tray chunk; the tray's base look is in viewer.css.
+
+   A [popover] gets UA styles (centred with inset: 0 + margin: auto, Canvas
+   colours, overflow: auto). The tray keeps its own look and is placed with
+   fixed coordinates set inline, so the UA placement and the in-flow
+   placement rules (left: 100% + 6px, translateY(-50%), …) are undone here.
+   Without the Popover API the attribute is never set and nothing here applies.
+   The class is doubled on purpose: (0,3,0) beats viewer.css's placement rules
+   (0,2,0) whichever order the two stylesheets land in (Fable review P2:
+   equal specificity made the undo depend on chunk order). */
+.viewer-blank__tray.viewer-blank__tray[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  overflow: visible;
+  color: inherit;
+  transform: none;
+}
+
+.viewer-blank__tray.viewer-blank__tray[popover][data-placement='dock'] {
+  right: var(--space-3);
+}

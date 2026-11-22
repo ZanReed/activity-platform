@@ -758,6 +758,19 @@ Pass 7 re-rated: 9/10.
 - On a 375 px phone the 44 px tray covered the lines above and below. At ≤ 480 px the tray now DOCKS: fixed at the bottom of the visual viewport, right-aligned, above the sticky Check bar (and so above an open keyboard), scrolling the page just enough if the blank would sit behind it. Supersedes DR-1 on phones only; 44 px keys kept.
 Each fix has an e2e row (pill not overlapped after a wrong check; phone dock off the blank's block and above the Check bar) and a unit row (`besideFrom`, `dockLayout`); both e2e guards go red when the fix is reverted.
 
+## Amendment 2026-11-23: the tray moves to the top layer
+
+**Why:** the author's walkthrough. A blank in the LAST column of a ONE-row table had no room beside, below or above inside the table's scroll box (`.viewer-table { overflow-x: auto }` clips both axes). D5's fallback put the tray below, inside the box, so the table grew a scroll area and the keys sat under it. Ruled "build the fix".
+
+- **The tray is a manual popover** (`popover="manual"`, `showPopover()` on open) wherever the Popover API exists (Chrome 114+, Safari 17+). The top layer is above every scroll box, so the only clip is the visual viewport. The order beside → below → above and DR-6 (never cover another blank) are unchanged; they are now measured against the screen, not the table.
+- **Fixed coordinates**, from the chosen box (`chooseTrayPlacement` now returns it), re-measured on any scroll (capture listener: a table's own scroll does not bubble).
+- **The element does not move in the DOM**, so D3's Tab order (input → ² → ³), focus-within and the screen-reader order are unchanged. This is why a popover, not a portal.
+- **The phone dock is unchanged**, only drawn in the top layer.
+- **Without the API** the attribute is never set and the old in-flow placement applies, which is no worse than before.
+- **CSS:** `SuperscriptTray.css`, loaded with the lazy tray chunk; the shell pays nothing (shell CSS sits at its cap).
+- **Fable review (no P0/P1), its P2s fixed:** the popover CSS uses a doubled class (0,3,0) so the undo holds whatever order the stylesheets load in; the tray hides when its blank is clipped away by a scroll box or covered by a sticky bar (it no longer gets clipped with it); scroll re-measures once per frame. Untested here: WebKit and Firefox (the e2e lanes are Chromium).
+- **D5's e2e row changed meaning:** it asserted the tray stays INSIDE the table; it now asserts the key is clickable and the table grows no scroll. A new row (TL) is the author's case, and it fails on the old code (mutation-checked).
+
 ## Fable review (2026-10-17, gating the check-activity deploy)
 
 Fable reviewed `dac28dcc..edaf4e84`: committed grading bundle byte-identical to a rebuild; a 300k-case fuzz found no input where the unit fold breaks the widening-only rule; regex cost 0.2 ms on 100 KB. **No P0.** Dispositions (author, 2026-10-17):

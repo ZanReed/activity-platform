@@ -174,7 +174,7 @@ describe('placement (DR-1 beside → below → above; D5 clip; DR-6 never on a b
   const roomy = { left: 0, top: 0, right: 800, bottom: 600 };
 
   it('beside when the line has room', () => {
-    expect(chooseTrayPlacement(input, tray, roomy, [])).toEqual({ placement: 'beside', shiftX: 0 });
+    expect(chooseTrayPlacement(input, tray, roomy, [])).toMatchObject({ placement: 'beside', shiftX: 0 });
   });
 
   it('below when the clip box ends to the right (e.g. a table cell edge)', () => {
@@ -201,7 +201,7 @@ describe('placement (DR-1 beside → below → above; D5 clip; DR-6 never on a b
   it('slides a below tray left to stay inside the clip box', () => {
     const wide = { left: 300, top: 100, right: 360, bottom: 124 };
     const clip = { left: 0, top: 0, right: 370, bottom: 600 };
-    expect(chooseTrayPlacement(wide, tray, clip, [])).toEqual({ placement: 'below', shiftX: -30 });
+    expect(chooseTrayPlacement(wide, tray, clip, [])).toMatchObject({ placement: 'below', shiftX: -30 });
   });
 
   it('beside starts after the verdict mark when one is on the line', () => {
@@ -210,6 +210,13 @@ describe('placement (DR-1 beside → below → above; D5 clip; DR-6 never on a b
     expect(chooseTrayPlacement(input, tray, room, [], 220).placement).toBe('beside');
     // …and if the pill pushes it past the clip box, it falls back instead of covering the pill.
     expect(chooseTrayPlacement(input, tray, room, [], 240).placement).toBe('below');
+  });
+
+  it('returns the chosen box (the top layer places the tray with it)', () => {
+    const wide = { left: 300, top: 100, right: 360, bottom: 124 };
+    const clip = { left: 0, top: 0, right: 370, bottom: 600 };
+    expect(chooseTrayPlacement(wide, tray, clip, []).box).toEqual({ left: 270, right: 370, top: 130, bottom: 182 });
+    expect(chooseTrayPlacement(input, tray, roomy, []).box).toEqual({ left: 166, right: 266, top: 86, bottom: 138 });
   });
 
   it('falls back to below when nothing is clear', () => {
