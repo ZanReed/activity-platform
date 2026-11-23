@@ -114,7 +114,7 @@ jobs:
       - name: Viewer server bundle is up to date
         run: |
           pnpm bundle:viewer-server
-          git diff --exit-code -- \
+          git diff --exit-code --stat -- \
             supabase/functions/_shared/viewer-server.bundle.js \
           || {
             echo "::error::Committed viewer server bundle is stale. Run 'pnpm bundle:viewer-server' and commit the result.";
@@ -128,10 +128,13 @@ jobs:
       # (the graded form is already ascii). The bundle script exits non-zero
       # over the ceiling, so that regression fails the build rather than
       # quietly tripling a student's cold start.
+      # Both drift checks print --stat, not the diff: each bundle carries an
+      # inline source map, ONE line of megabytes, and printing it stalled the
+      # runner until the job's 15-minute timeout (2026-11-24) instead of failing.
       - name: Grading server bundle is up to date
         run: |
           pnpm bundle:grading-server
-          git diff --exit-code -- \
+          git diff --exit-code --stat -- \
             supabase/functions/_shared/grading-server.bundle.js \
           || {
             echo "::error::Committed grading server bundle is stale. Run 'pnpm bundle:grading-server' and commit the result.";
