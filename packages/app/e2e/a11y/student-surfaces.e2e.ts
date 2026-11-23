@@ -154,25 +154,17 @@ async function openWorksheet(page: Page): Promise<void> {
   );
 }
 
-// The ONE carve-out, scoped to a single rule on a single element type, with the
-// reason and an owner — never a blanket rule-disable (author-ruled 2026-08-14).
+// Carve-outs: scoped to a single rule on a single element type, each with the
+// reason, an owner and a row proving it is still load-bearing — never a blanket
+// rule-disable (author-ruled 2026-08-14).
 //
-//   RULE:    nested-interactive (serious)
-//   ELEMENT: <math-field> (MathLive 0.109.2)
-//   WHY:     MathLive's own structure — a focusable host (tabindex=0) wrapping a
-//            focusable `.ML__keyboard-sink` span with role="textbox". It is not
-//            reachable from our code: setting the host's tabindex to -1 does NOT
-//            clear the finding (verified against the running component), and the
-//            component exposes no API for its focus structure. Fixing it means
-//            changing MathLive.
-//   OWNER:   revisit at the next MathLive major; the sibling finding
-//            (aria-input-field-name) IS fixed, in math-prompt-mount.ts.
-//
-// Everything else stays strict, including nested-interactive ANYWHERE ELSE and
-// every other rule on math-field itself.
-const AXE_EXCLUSIONS: readonly { rule: string; selectorPrefix: string }[] = [
-  { rule: 'nested-interactive', selectorPrefix: 'math-field' },
-];
+// ⚰ NONE TODAY. The one there was — nested-interactive on <math-field>,
+// MathLive's focusable host wrapping its focusable `.ML__keyboard-sink` — was
+// RETIRED on 2026-11-24 when MathLive 0.109.2 → 0.111.4 stopped producing it.
+// Its liveness row failed exactly as designed ("nested-interactive no longer
+// fires — delete the AXE_EXCLUSIONS entry"), so the entry and the row were
+// deleted together. Add a new carve-out only with its own liveness row.
+const AXE_EXCLUSIONS: readonly { rule: string; selectorPrefix: string }[] = [];
 
 function isExcluded(ruleId: string, target: string): boolean {
   return AXE_EXCLUSIONS.some(
@@ -565,26 +557,6 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     await expect(status).toBeFocused();
 
     await expectNoAxeViolations(page);
-  });
-
-  test('the nested-interactive carve-out is still load-bearing', async ({
-    page,
-  }) => {
-    // P3/P5: an exclusion with no liveness proof outlives its reason silently.
-    // If a MathLive upgrade fixes the nesting, this row fails and the carve-out
-    // above must be DELETED rather than quietly kept forever. It also pins the
-    // scope — the finding is on math-field and nowhere else.
-    await openWorksheet(page);
-    const raw = await rawAxeViolations(page);
-    const nested = raw.find((v) => v.id === 'nested-interactive');
-    expect(
-      nested,
-      'nested-interactive no longer fires — delete the AXE_EXCLUSIONS entry',
-    ).toBeDefined();
-    expect(
-      nested!.nodes.every((target) => target.includes('math-field')),
-      'nested-interactive now fires outside math-field — re-scope the carve-out',
-    ).toBe(true);
   });
 
   test('the student Home', async ({ page }) => {

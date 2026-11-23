@@ -31,7 +31,7 @@ export interface MathPromptMountOptions {
 }
 
 /** MathLive builds a `.ML__keyboard-sink` span with `role="textbox"` and NO
- *  accessible name, and 0.109.2 exposes no API to give it one — `ariaLabel` in
+ *  accessible name, and 0.109.2 (and 0.111.4) expose no API to give it one — `ariaLabel` in
  *  its types belongs to menu items, and an `aria-label` on the HOST element does
  *  not reach the sink (both verified against the running component). A role
  *  without a name is axe `aria-input-field-name`, serious, WCAG A: a screen

@@ -32,7 +32,7 @@ import { MathfieldElement } from 'mathlive';
 
 // Bump alongside the `mathlive` dependency. Guarded: the app build FAILS if
 // this constant and the installed mathlive version diverge (vite.config.ts).
-const MATHLIVE_VERSION = '0.109.2';
+const MATHLIVE_VERSION = '0.111.4';
 
 function fontsDirectory(): string {
   try {
