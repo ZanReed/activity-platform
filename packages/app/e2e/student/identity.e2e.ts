@@ -15,6 +15,7 @@ import {
   joinUrl,
 } from '../helpers/studentSession';
 import { SIGN_IN_FAILED_COPY, JOIN_ERROR_COPY, LANDING_COPY } from '../../src/lib/authMessages';
+import { LIST_CLASS_MEMBERS_RPC } from '../../src/lib/edgeFunctions';
 
 const SUPABASE_URL = E2E_SUPABASE_URL;
 const CODE = 'QX7M2P';
@@ -200,7 +201,7 @@ test.describe('remove-student dialog (B14 + design 5a/5b)', () => {
         }],
       }),
     );
-    await page.route('**/rest/v1/rpc/list_class_members', (route) =>
+    await page.route(`**/rest/v1/rpc/${LIST_CLASS_MEMBERS_RPC}`, (route) =>
       route.fulfill({
         json: [{
           student_id: 's-1', display_name: 'Jordan P.', email: 'jordan@school.org',

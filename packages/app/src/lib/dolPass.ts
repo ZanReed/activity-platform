@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { DOL_PASS_STATUS_RPC } from './edgeFunctions';
 import type { CriterionEntry } from './grading';
 
 /** One student holding the pass this activity's DoL can grant. */
@@ -20,7 +21,7 @@ export interface DolPassRow {
 
 /** Who holds this DoL's pass (empty when the activity grants none). */
 export async function fetchDolPassStatus(activityId: string): Promise<DolPassRow[]> {
-  const { data, error } = await supabase.rpc('dol_pass_status', { p_activity_id: activityId });
+  const { data, error } = await supabase.rpc(DOL_PASS_STATUS_RPC, { p_activity_id: activityId });
   if (error) throw new Error(error.message);
   return (data ?? []) as DolPassRow[];
 }

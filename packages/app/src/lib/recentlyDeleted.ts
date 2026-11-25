@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { LIST_DELETED_ACTIVITIES_RPC, LIST_DELETED_CLASSES_RPC } from './edgeFunctions';
 
 export interface DeletedItem {
     id: string;
@@ -19,7 +20,7 @@ export interface DeletedItem {
 }
 
 export async function listDeletedClasses(): Promise<DeletedItem[]> {
-    const { data, error } = await supabase.rpc('list_deleted_classes');
+    const { data, error } = await supabase.rpc(LIST_DELETED_CLASSES_RPC);
     if (error) throw new Error(error.message);
     return ((data ?? []) as { id: string; name: string; deleted_at: string }[]).map((r) => ({
         id: r.id,
@@ -30,7 +31,7 @@ export async function listDeletedClasses(): Promise<DeletedItem[]> {
 }
 
 export async function listDeletedActivities(): Promise<DeletedItem[]> {
-    const { data, error } = await supabase.rpc('list_deleted_activities');
+    const { data, error } = await supabase.rpc(LIST_DELETED_ACTIVITIES_RPC);
     if (error) throw new Error(error.message);
     return ((data ?? []) as { id: string; title: string; deleted_at: string; purge_after: string }[]).map((r) => ({
         id: r.id,

@@ -19,10 +19,12 @@
 //
 // Each called row-set RPC needs an entry in BOUNDS below saying WHY its rows
 // stay under 1,000 — by construction (one row, one per section, an explicit
-// LIMIT, a cap), or by a caller that chunks or pages. "It's small today" is a
-// WATCH entry, not a bound: it says what grows and what to do before it nears
-// the cap. A function whose rows grow with use is fixed (jsonb or paging), not
-// listed. Neither roster is hand-written; only the reasons are (P4).
+// LIMIT, a cap that counts what the function returns), or by a caller that
+// chunks or pages. "It's small today" is NOT a bound: a read whose rows grow
+// with use returns one jsonb instead (0104, 0106) and its row-set name goes on
+// NEVER_CALL. There is no WATCH category any more (author, 2026-11-26: "fix all
+// the watch entries now"). Neither roster is hand-written; only the reasons
+// are (P4).
 //
 // NOT swept: table reads (`.from(...)`), cut by the same cap —
 // listTeacherClassActivities pages for that reason (classReads.test.ts); RPC
@@ -53,30 +55,20 @@ export const BOUNDS = {
   my_checked_section_ids: 'one row per section of ONE version the caller checked (0060)',
   my_latest_checks: 'one row per requested section of ONE version (DISTINCT ON section, 0060)',
   get_my_released_feedback: 'one row per hand-graded block of ONE activity for the caller (DISTINCT ON block)',
-  list_deleted_activities: 'one row per soft-deleted activity of the caller still inside the purge window (purge_soft_deleted removes them after it)',
   work_photo_deletion_batch: 'explicit LIMIT least(p_limit, 1000) — exactly max_rows at most (0093)',
   work_photo_orphans: 'explicit LIMIT least(p_limit, 1000) — exactly max_rows at most (0093)',
   work_photo_states: 'one row per id passed in; fetchPhotoStates sends at most PHOTO_STATES_CHUNK (500) ids per call',
-
-  // ---- WATCH: grows with use, small today -----------------------------------
-  list_bank:
-    'WATCH — one row per public Bank activity, ordered by course, so a cut drops the last course. Grows with the shared catalogue; return one jsonb or page before it nears 1,000 (review log A5 follow-up)',
-  my_activity_progress:
-    'WATCH — one row per (activity, version) assigned in the STUDENT\'s live classes; passing 1,000 needs one student in classes holding 1,000 assignments between them (review log A5 follow-up)',
-  list_class_activities:
-    'WATCH — one row per activity in the STUDENT\'s live classes; same growth as my_activity_progress (review log A5 follow-up)',
-  list_class_members:
-    'WATCH — one row per member of ONE class EVER, removed members included; the 50-member join cap (0033 §G, 0089) counts only live members and exempt teachers have none, so turnover grows it (review log A5 follow-up)',
-  dol_pass_status:
-    'WATCH — one row per student who holds the activity\'s DoL skill AND has checked the activity; nothing caps that set but the number of students who check one activity (review log A5 follow-up)',
-  list_deleted_classes:
-    'WATCH — one row per soft-deleted class of the caller; create_class\'s 5-class cap counts only LIVE classes and nothing purges deleted ones, so create-and-delete grows it (review log A5 follow-up)',
 };
 
-// The A5 regression pin: these two are row sets whose rows grow with a class
-// and were cut in production shape. The app reads them through 0104's jsonb
-// wrappers; no source may name them again, with or without a BOUNDS entry.
-const NEVER_CALL = ['list_grading_queue', 'list_grade_suggestions'];
+// The A5 regression pin: row sets whose rows grow with use. The app reads them
+// through 0104's and 0106's jsonb wrappers; no source may name them again, with
+// or without a BOUNDS entry.
+const NEVER_CALL = [
+  'list_grading_queue', 'list_grade_suggestions',                  // 0104
+  'list_bank', 'my_activity_progress', 'list_class_activities',    // 0106
+  'list_class_members', 'dol_pass_status', 'list_deleted_classes', // 0106
+  'list_deleted_activities',                                       // 0106 (bounded by time only)
+];
 
 // ---- derive: row-set functions from the migrations --------------------------
 export function rowsetFunctions() {
@@ -192,10 +184,10 @@ test('every row-set RPC the code names has a stated row bound', () => {
   );
 });
 
-test('the grading queue and its suggestions are never read as row sets again (A5)', () => {
+test('the growing reads are never read as row sets again (A5, 0104 + 0106)', () => {
   const names = quotedNames();
   for (const n of NEVER_CALL) {
-    assert.ok(!names.has(n), `${n} is named in ${[...(names.get(n) ?? [])].join(', ')} — read it through 0104's jsonb wrapper`);
+    assert.ok(!names.has(n), `${n} is named in ${[...(names.get(n) ?? [])].join(', ')} — read it through its jsonb wrapper (0104 / 0106)`);
     assert.ok(!(n in BOUNDS), `${n} must not get a BOUNDS entry`);
   }
 });
@@ -207,5 +199,6 @@ test('no BOUNDS entry is stale', () => {
     assert.ok(rowset.has(n), `BOUNDS.${n}: not a row-set function in the migrations any more — remove the entry`);
     assert.ok(names.has(n), `BOUNDS.${n}: no source names it any more — remove the entry`);
     assert.ok(why.length >= 20, `BOUNDS.${n}: say why the rows stay bounded`);
+    assert.ok(!/\bWATCH\b/.test(why), `BOUNDS.${n}: a WATCH entry is not a bound — return one jsonb (see 0106)`);
   }
 });

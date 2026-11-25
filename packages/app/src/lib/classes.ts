@@ -15,6 +15,7 @@ import { supabase } from './supabase';
 import { signedInUserId } from './currentUser';
 import { POLICY_VERSION } from './policyVersion';
 import { AUTH_CONTRACT } from './authMessages';
+import { LIST_CLASS_MEMBERS_RPC } from './edgeFunctions';
 
 // The assertion text version stored on class rows is the privacy-policy
 // version the teacher saw when asserting. Same string by construction.
@@ -239,7 +240,7 @@ export async function renameClass(classId: string, rawName: string): Promise<str
 
 /** Roster via the DEFINER RPC (ownership-gated server-side). */
 export async function listClassMembers(classId: string): Promise<ClassMember[]> {
-    const { data, error } = await supabase.rpc('list_class_members', {
+    const { data, error } = await supabase.rpc(LIST_CLASS_MEMBERS_RPC, {
         p_class_id: classId,
     });
     if (error) throw new Error(error.message);

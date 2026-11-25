@@ -64,12 +64,14 @@ export const PUBLISH_ACTIVITY_RPC = 'publish_activity';
 /** S9 Drop 2 (0030): the content-surface RPCs. */
 export const SHARE_ACTIVITY_RPC = 'share_activity_to_class';
 export const UNSHARE_ACTIVITY_RPC = 'unshare_activity_from_class';
-export const LIST_CLASS_ACTIVITIES_RPC = 'list_class_activities';
+// 0106: one jsonb, never cut at PostgREST's 1,000 rows (review A5 follow-up).
+export const LIST_CLASS_ACTIVITIES_RPC = 'list_class_activities_json';
 /** The course glossary's student read (0043, docs/design/glossary.md R1/EN-1):
  * one jsonb per published activity, deferred past first paint. */
 export const GLOSSARY_FOR_ACTIVITY_RPC = 'glossary_for_activity';
 /** The Activity Bank (0054, docs/design/activity-bank.md): copy-on-use. */
-export const LIST_BANK_RPC = 'list_bank';
+// 0106: one jsonb, never cut at PostgREST's 1,000 rows (review A5 follow-up).
+export const LIST_BANK_RPC = 'list_bank_json';
 export const BANK_TEACHER_GUIDE_RPC = 'get_bank_teacher_guide';
 export const COPY_BANK_ACTIVITY_RPC = 'copy_bank_activity';
 export const SET_ACTIVITY_LISTING_RPC = 'set_activity_listing';
@@ -81,7 +83,18 @@ export const SET_PUBLIC_NAME_RPC = 'set_public_name';
 export const MY_CHAIN_HOOKS_RPC = 'my_chain_hooks';
 /** The student Home's per-activity status (0059, student-experience review S2):
  * own checks on activities in the caller's live classes. */
-export const MY_ACTIVITY_PROGRESS_RPC = 'my_activity_progress';
+// 0106: one jsonb, never cut at PostgREST's 1,000 rows (review A5 follow-up).
+export const MY_ACTIVITY_PROGRESS_RPC = 'my_activity_progress_json';
+/** Four teacher reads 0106 also returns as ONE jsonb each (review A5
+ * follow-up): never call the inner row sets (`list_class_members`,
+ * `dol_pass_status`, `list_deleted_classes`, `list_deleted_activities`) — PostgREST cuts a row set at
+ * 1,000 rows with no error (scripts/tests/rowset-rpc-bounds.test.mjs). Kept
+ * HERE, not in a module of their own: three importers in three chunks made a
+ * separate module its own chunk, a whole extra download on every journey. */
+export const LIST_CLASS_MEMBERS_RPC = 'list_class_members_json';
+export const DOL_PASS_STATUS_RPC = 'dol_pass_status_json';
+export const LIST_DELETED_CLASSES_RPC = 'list_deleted_classes_json';
+export const LIST_DELETED_ACTIVITIES_RPC = 'list_deleted_activities_json';
 /** Restore's cheap read (0060, Fable F1/F6): the caller's distinct checked
  * section ids on one version. (Its sibling my_latest_checks is called by the
  * check-activity Edge Function, not the app.) */

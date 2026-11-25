@@ -27,7 +27,7 @@
 import type { Page, Route } from '@playwright/test';
 import { STUB_LANE_SUPABASE_URL } from './e2eOrigins';
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
-import { CHECK_ACTIVITY_FUNCTION, MY_CHECKED_SECTION_IDS_RPC } from '../../src/lib/edgeFunctions';
+import { CHECK_ACTIVITY_FUNCTION, LIST_CLASS_ACTIVITIES_RPC, MY_CHECKED_SECTION_IDS_RPC } from '../../src/lib/edgeFunctions';
 import { servedFixtureDocument } from '@activity/viewer/fixtures';
 // P2: the stub serves the PRODUCTION served-form revision, never a retyped one.
 import { SERVE_REV } from '../../../viewer/src/server/serveRev';
@@ -535,7 +535,7 @@ export async function stubIdentityApi(
   // EMPTY so identity rows render the per-class empty state instead of the
   // list-error line. Specs that need rows use content-surface.e2e.ts's
   // stateful stub instead.
-  await page.route('**/rest/v1/rpc/list_class_activities', async (route) => {
+  await page.route(`**/rest/v1/rpc/${LIST_CLASS_ACTIVITIES_RPC}`, async (route) => {
     await route.fulfill({ json: [] });
   });
 

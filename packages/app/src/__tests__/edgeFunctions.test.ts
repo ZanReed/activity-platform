@@ -11,6 +11,11 @@ import {
   IS_BANK_LISTER_RPC,
   LIST_BANK_RPC,
   LIST_CLASS_ACTIVITIES_RPC,
+  LIST_CLASS_MEMBERS_RPC,
+  DOL_PASS_STATUS_RPC,
+  LIST_DELETED_CLASSES_RPC,
+  LIST_DELETED_ACTIVITIES_RPC,
+  MY_ACTIVITY_PROGRESS_RPC,
   SET_ACTIVITY_LISTING_RPC,
   SET_PUBLIC_NAME_RPC,
   PUBLISH_ACTIVITY_RPC,
@@ -79,6 +84,13 @@ describe('rpc name constants', () => {
     SET_ACTIVITY_LISTING_RPC,
     IS_BANK_LISTER_RPC,
     SET_PUBLIC_NAME_RPC,
+    // 0106: a typo here would 404 in production while every mock (built from
+    // the same constant) stayed green.
+    MY_ACTIVITY_PROGRESS_RPC,
+    LIST_CLASS_MEMBERS_RPC,
+    DOL_PASS_STATUS_RPC,
+    LIST_DELETED_CLASSES_RPC,
+    LIST_DELETED_ACTIVITIES_RPC,
   ];
   it.each(rpcs)('%s is defined by a migration', (rpc) => {
     const definition = new RegExp(`create or replace function ${rpc}\\(`);

@@ -351,7 +351,7 @@ describe('an existing class — changing the age confirmation (U-2)', () => {
     it('Delete asks first, names the student count, and only Delete class deletes', async () => {
         h.rpc.mockImplementation(((name: string) =>
             Promise.resolve(
-                name === 'list_class_members'
+                name === 'list_class_members_json'
                     ? {
                           data: [
                               { student_id: 's1', display_name: 'Ava', email: 'a@x', joined_at: 'x', removed_at: null },
@@ -571,7 +571,7 @@ describe('the roster: count, search, removed, and the board', () => {
     });
     function membersAre(list: ReturnType<typeof member>[]) {
         h.rpc.mockImplementation(((name: string) =>
-            Promise.resolve(name === 'list_class_members' ? { data: list, error: null } : { data: null, error: null })) as never);
+            Promise.resolve(name === 'list_class_members_json' ? { data: list, error: null } : { data: null, error: null })) as never);
     }
     beforeEach(() => {
         h.listResult.current = { data: [CLASS], error: null };

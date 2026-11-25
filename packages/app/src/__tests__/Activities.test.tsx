@@ -182,7 +182,7 @@ describe('Recently deleted (G-6)', () => {
     it('lists deleted activities and Restore brings one back through restore_activity', async () => {
         h.rpc.mockImplementation(((fn: string) =>
             Promise.resolve(
-                fn === 'list_deleted_activities'
+                fn === 'list_deleted_activities_json'
                     ? { data: [{ id: 'gone', title: 'Old Quiz', deleted_at: '2026-11-10T00:00:00Z', purge_after: '2026-12-10T00:00:00Z' }], error: null }
                     : { data: null, error: null },
             )) as never);
@@ -260,7 +260,7 @@ describe('Activities delete-with-undo', () => {
             );
             // Only the delete WROTE to the server — no restore, no re-delete.
             // (The Recently deleted list reads, G-6, are not writes.)
-            const writes = (h.rpc.mock.calls as unknown as [string][]).filter(([fn]) => fn !== 'list_deleted_activities');
+            const writes = (h.rpc.mock.calls as unknown as [string][]).filter(([fn]) => fn !== 'list_deleted_activities_json');
             expect(writes).toHaveLength(1);
             expect(h.rpc).toHaveBeenCalledWith('soft_delete_activity', {
                 p_activity_id: 'a1',
