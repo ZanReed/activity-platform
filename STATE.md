@@ -22,7 +22,7 @@ Author-only: pushes, deploys, migrations.
 
 **[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows) LIVE 2026-11-26:** 0104 applied, verify-0104 5/5 live, pushed `90bee0eb`.
 
-**Review G-2 batch (2026-11-26, local commits on `main`, unpushed):** D6 — apply **0105** (FK indexes; any order against the push), then `pnpm verify:auth --target live --only verify-0105` (4 rows). B3 — after push, `pnpm deploy:get-activity` then `pnpm deploy:check` (no `--no-verify-jwt`), hash-verify both bundles. B1 — decide whether to purge `r2-final-backup-20260815/` from history (untracked now; saves ~8 MB; [plan](docs/reviews/2026-11-26-b1-history-purge-plan.md)).
+**Review G-2 batch (B1, B2-Tiptap, B3, C5, D6, E3) LIVE 2026-11-26:** pushed `12733c5c`; 0105 applied (verify-0105 4/4, verify-cron-jobs 5/5 live); get-activity + check-activity deployed, bundles hash-identical (viewer `ee636a71…`, grading `34457e4c…`). B1 history purge DECLINED (author delegated the call; ~8 MB, [plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept).
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 

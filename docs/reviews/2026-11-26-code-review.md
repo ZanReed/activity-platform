@@ -265,7 +265,7 @@ from history needs a rewrite and a force-push, which is the author's call.
 Also at the root: `s5.5-contact-sheet.zip` (692 KB, tracked), `HANDOFF.md`
 (retirement already owed), and an empty `tail/` directory.
 
-**Untracked 2026-11-26** (local commit, unpushed): `git rm -r --cached` plus a
+**Untracked 2026-11-26** (pushed `12733c5c`): `git rm -r --cached` plus a
 `r2-final-backup-*/` line in `.gitignore`; the 283 files stay on disk.
 **What it holds:** 131 HTML pages from the retired published-page era (nearly
 all titled as tests, e.g. "[TEST] Print Stress Test — Algebra II", "test build";
@@ -297,7 +297,9 @@ reachable from forks, cached views and old pull-request refs (`refs/pull/*`)
 until support purges them. The repo
 shrinks by about 8 MB. Leaving it costs little beyond the image question above.
 Runbook and recommendation (leave it, unless the image's copyright matters):
-[2026-11-26-b1-history-purge-plan.md](2026-11-26-b1-history-purge-plan.md). `s5.5-contact-sheet.zip` (tracked) and
+[2026-11-26-b1-history-purge-plan.md](2026-11-26-b1-history-purge-plan.md).
+**Decided 2026-11-26: history left as it is** (the author delegated the call;
+the runbook stays for the case where the image's copyright matters). `s5.5-contact-sheet.zip` (tracked) and
 `HANDOFF.md` are left as they were; `tail/` is an empty untracked folder.
 
 ### B2 ✔ Dependency advisories (`pnpm audit`: 3 critical, 46 high, 39 moderate)
@@ -322,7 +324,7 @@ There is no Dependabot or Renovate config and no `pnpm audit` step, so nothing
 surfaces these. **Recommend** a weekly audit in the existing Monday routine
 that reports only advisories on non-dev paths.
 
-**Tiptap half fixed 2026-11-26** (local commit, unpushed): every `@tiptap/*` at
+**Tiptap half fixed 2026-11-26** (pushed `12733c5c`): every `@tiptap/*` at
 **3.31.4**, pinned exact (the family had drifted to 3.23.1 + 3.23.4). One copy
 each of prosemirror-view (**1.42.9**, pinned to a settled patched release, not
 1.44.0 from two days earlier) and prosemirror-model; the stale `y-tiptap` 3.0.3
@@ -346,15 +348,17 @@ again" and is not logged. Real 500s return the raw message; a test pins that
 **Fix:** carry PostgREST's `code` and status through the port, one shared
 `rpcStatus()`, a fixed string for 500, log every non-404. **S.**
 
-**Fixed 2026-11-26** (local commit, unpushed). `packages/viewer/src/server/rpcStatus.ts`
+**Fixed 2026-11-26** (pushed `12733c5c`). `packages/viewer/src/server/rpcStatus.ts`
 holds the one mapping: 'Not available' → 404 first (it arrives as 42501 /
 HTTP 403), then HTTP 401, a PGRST301–303 code or our SQL's exact
 `'Not authorized'` → 401, anything else → 500 with a fixed message. All five
 sites use it; `DbResult` now carries `status` and `error.code` (the Deno
 entry points already returned supabase-js results whole). 401s log at warn,
 500s at error. The test that pinned the echoed `permission denied` now
-asserts it is NOT echoed. Both bundles rebuilt; the two redeploys are owed
-(STATE).
+asserts it is NOT echoed. Both bundles rebuilt. **LIVE 2026-11-26:** both functions
+deployed and hash-identical to the repo (viewer `ee636a71…`, grading
+`34457e4c…`); a garbage-token GET to get-activity returns 401 with the fixed
+message.
 
 ### B4 A check row's size is bounded only by a header the client controls
 `check-activity-handler.ts:713` trusts `content-length`; a chunked body has
@@ -492,7 +496,7 @@ touched; no data library in the student shell. **M, incremental.** A minimal
 teacher-side error log (message, route, build) needs your ruling; the student
 side is already gated by the telemetry item in TODOS.
 
-**Error boundary fixed 2026-11-26** (local commit, unpushed): `AppErrorBoundary`
+**Error boundary fixed 2026-11-26** (pushed `12733c5c`): `AppErrorBoundary`
 wraps every route in `App.tsx`, keyed by pathname. A render throw shows
 "Something went wrong on this page." and a focused Refresh button; it never
 reloads by itself. +311 B gz on the shell, recorded in `SHELL_SPEND` (158.3 of
@@ -634,8 +638,8 @@ account; 0072 indexed the same column on its own tables), then
 `work_photos.activity_id`. One migration. **S.** Nothing today; it lands the
 first night the purge has real work.
 
-**Fixed in code 2026-11-26, NOT applied** (local commit, unpushed; the author
-applies): migration **0105** adds 21 indexes: all 19 unindexed single-column foreign
+**Fixed 2026-11-26, LIVE** (0105 applied the same day; verify-0105 4/4 and
+verify-cron-jobs 5/5 on live): migration **0105** adds 21 indexes: all 19 unindexed single-column foreign
 keys in `public` (the review's nine plus ten user/version references the same
 purges scan) and 2 covered only by a partial index a delete cannot use
 (`class_members.student_id`, `classes.teacher_id`). `verify-0105` states the rule rather than a list, so a later
