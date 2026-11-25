@@ -28,6 +28,7 @@ import type { BlockComponentProps } from '../registry/types.js';
 import { residentMathRenderer, whenMathReady } from '../inline/math.js';
 import { StatePill } from './StatePill.js';
 import { mathPromptsSurface, type MathPromptsSurfaceHandle } from './kitSurfaces.js';
+import { useFollowedBlanks } from './useFollowStored.js';
 
 export default function MathBlock({
   block,
@@ -84,12 +85,10 @@ export default function MathBlock({
     return whenMathReady((render) => setHtml(render(fallbackLatex, true)));
   }, [html, fallbackLatex]);
 
-  // Snapshot restored gap values once, at mount (built once, not per render).
-  const initialRef = useRef<Record<string, string> | null>(null);
-  initialRef.current ??= Object.fromEntries(
-    prompts.map((p) => [p.id, store.getState().responses.blanks[p.id] ?? '']),
-  );
-  const initialValues = initialRef.current;
+  // Gap values seed the fields at mount; the fields own them after that, and
+  // a change from outside (server restore, tab hand-back, DoL form start)
+  // remounts them from the store (useFollowStored).
+  const follow = useFollowedBlanks(prompts.map((p) => p.id));
 
   useEffect(() => {
     // gapAnswers: an answered equation must keep its static render. Mounting
@@ -108,8 +107,11 @@ export default function MathBlock({
 
     void mathPromptsSurface()(host, {
       latex: block.latex,
-      initialValues,
-      onValue: (promptId, ascii) => store.setBlank(promptId, ascii),
+      initialValues: follow.shown.current,
+      onValue: (promptId, ascii) => {
+        follow.noteReported({ ...follow.shown.current, [promptId]: ascii });
+        store.setBlank(promptId, ascii);
+      },
     })
       .then((handle) => {
         if (cancelled) {
@@ -141,7 +143,7 @@ export default function MathBlock({
       setPromptsMounted(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.id, hasGaps, mode, gapAnswers]);
+  }, [block.id, hasGaps, mode, gapAnswers, follow.generation]);
 
   return (
     <div

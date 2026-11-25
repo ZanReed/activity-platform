@@ -23,7 +23,47 @@
 // one obvious to write.
 // =============================================================================
 
-import type { DataPlotQuestionHandle, DataPlotResponseData } from '@activity/graph-kit';
+import type {
+  DataPlotQuestionHandle,
+  DataPlotResponseData,
+  GraphQuestionHandle,
+  NumberLineQuestionHandle,
+} from '@activity/graph-kit';
+import type { GraphWork } from '../check/wire.js';
+
+// ---- Restore, and its echo --------------------------------------------------
+// Every kit's restore moves the handles through the same path a drag takes, so
+// it fires `onChange`. Until 2026-11-26 that echo went straight to the store:
+// the seam restored points only, the kit reported its DEFAULT shape, styles and
+// side, and the block wrote those over the student's saved work, so a reloaded
+// ray or inequality was graded on choices the student never made. Each seam
+// below now restores the WHOLE saved work and drops the echo while it does.
+//
+// Why drop it here rather than add a silent restore to the kit: the work being
+// restored is already in the store (that is where it came from), so the echo
+// can only ever repeat it or corrupt it. One flag in this file covers all three
+// kits and every block, and the kit's own contract stays as its other callers
+// (the editor preview, the dev harness) rely on. Every kit restore emits
+// synchronously, which is what makes a plain flag sufficient.
+function quietRestorer(): {
+  readonly restoring: boolean;
+  run(restore: () => void): void;
+} {
+  let restoring = false;
+  return {
+    get restoring() {
+      return restoring;
+    },
+    run(restore) {
+      restoring = true;
+      try {
+        restore();
+      } finally {
+        restoring = false;
+      }
+    },
+  };
+}
 
 /** What the student built, as the kit reports it. Mirrors the kit's
  * GraphResponseData minus everything grading-related — in ungraded mode the
@@ -79,7 +119,10 @@ export interface GraphSurfaceConfig {
 
 export interface GraphSurfaceHandle {
   getResponse(): GraphSurfaceResponse;
-  restore(points: [number, number][]): void;
+  /** Put the student's saved work back on the board: points AND every choice
+   * that rides with them (shape, endpoint styles, line style, side, "no
+   * solution"). Writes nothing to the store: see quietRestorer. */
+  restore(work: GraphWork): void;
   setLocked(locked: boolean): void;
   destroy(): void;
 }
@@ -107,6 +150,7 @@ export function graphSurface(): GraphSurface {
 const kitSurface: GraphSurface = async (mount, config, hooks) => {
   // The chunk boundary (P1A / D16).
   const kit = await import('@activity/graph-kit');
+  const quiet = quietRestorer();
   const handle = await kit.mountGraphQuestion(
     mount,
     {
@@ -122,16 +166,65 @@ const kitSurface: GraphSurface = async (mount, config, hooks) => {
       initialDragged: config.initialDragged,
     },
     {
-      onChange: (resp) => hooks.onChange?.(toSurfaceResponse(resp)),
+      onChange: (resp) => {
+        if (!quiet.restoring) hooks.onChange?.(toSurfaceResponse(resp));
+      },
     },
   );
   return {
     getResponse: () => toSurfaceResponse(handle.getResponse()),
-    restore: (points) => handle.restore(points),
+    restore: (work) => {
+      const args = toGraphRestore(work);
+      if (args) quiet.run(() => handle.restore(...args));
+    },
     setLocked: (locked) => handle.setLocked(locked),
     destroy: () => handle.destroy(),
   };
 };
+
+type GraphRestoreArgs = Parameters<GraphQuestionHandle['restore']>;
+type GraphRestoreExtras = NonNullable<GraphRestoreArgs[1]>;
+
+const SIDES = ['above', 'below', 'left', 'right'] as const;
+const asSide = (v: unknown): GraphRestoreExtras['side'] =>
+  SIDES.find((s) => s === v);
+
+/** Saved work → the graph kit's restore arguments: the inverse of
+ * `toSurfaceResponse` plus the block's own wire mapping. null when there is
+ * nothing to put back.
+ *
+ * transform_curve is the exception: its typed equation and drag bit ride the
+ * MOUNT config (`initialEquation`, `initialDragged`), and its points are
+ * restored only for work that was really dragged. Undragged work carries the
+ * seed positions, which sit on the parent curve; restoring them would read as
+ * drawn work (design A1). */
+export function toGraphRestore(work: GraphWork): GraphRestoreArgs | null {
+  if (work.interaction === 'transform_curve') {
+    return work.dragged === true && work.points.length > 0 ? [work.points] : null;
+  }
+  const extras: GraphRestoreExtras = {};
+  if (work.noSolution === true) extras.noSolution = true;
+  if (work.domain !== undefined) extras.domain = work.domain;
+  if (work.shape !== undefined) {
+    extras.shape = work.shape;
+    const [first, second] = work.endpointStyles ?? [];
+    if (work.shape === 'segment') {
+      if (first !== undefined && second !== undefined) extras.endpoints = [first, second];
+    } else if (first !== undefined) {
+      extras.fromStyle = first;
+    }
+  }
+  // graph_inequality: the line style and the shaded side travel in parts[0]
+  // (the wire's per-object slot; a single inequality is one part).
+  const part = work.parts?.[0];
+  if (part?.strict !== undefined) extras.strict = part.strict;
+  const side = asSide(part?.side);
+  if (side !== undefined) extras.side = side;
+
+  const points = extras.noSolution ? [] : work.points;
+  if (points.length === 0 && !extras.noSolution) return null;
+  return Object.keys(extras).length > 0 ? [points, extras] : [points];
+}
 
 /** Narrow the kit's response to the work-only shape. `correct`, `scored`,
  * `earned`, `total`, and mistake fields are dropped HERE so no grading signal
@@ -192,7 +285,12 @@ export interface NumberLineSurfaceConfig {
 }
 
 export interface NumberLineSurfaceHandle {
-  restore(values: number[]): void;
+  /** What the board shows now, narrowed like `onChange`. Read back by the
+   * restore tests; the block itself learns of changes through `onChange`. */
+  getResponse(): NumberLineSurfaceResponse;
+  /** Put the saved work back: point positions, or an interval's bounds AND
+   * their open/closed styles. Writes nothing to the store (quietRestorer). */
+  restore(work: GraphWork): void;
   setLocked(locked: boolean): void;
   destroy(): void;
 }
@@ -217,6 +315,7 @@ export function numberLineSurface(): NumberLineSurface {
 
 const kitNumberLineSurface: NumberLineSurface = async (mount, config, hooks) => {
   const kit = await import('@activity/graph-kit');
+  const quiet = quietRestorer();
   const handle = await kit.mountNumberLineQuestion(
     mount,
     {
@@ -226,20 +325,56 @@ const kitNumberLineSurface: NumberLineSurface = async (mount, config, hooks) => 
       questionShape: config.questionShape,
     },
     {
-      onChange: (resp) =>
-        hooks.onChange?.({
-          values: resp.studentPoints ?? [],
-          answered: resp.answered,
-          ...(resp.interval ? { interval: resp.interval } : {}),
-        }),
+      onChange: (resp) => {
+        if (!quiet.restoring) hooks.onChange?.(toNumberLineResponse(resp));
+      },
     },
   );
   return {
-    restore: (values) => handle.restore(values),
+    getResponse: () => toNumberLineResponse(handle.getResponse()),
+    restore: (work) => {
+      const args = toNumberLineRestore(work);
+      if (args) quiet.run(() => handle.restore(...args));
+    },
     setLocked: (locked) => handle.setLocked(locked),
     destroy: () => handle.destroy(),
   };
 };
+
+/** The kit's number-line report, minus `correct` and `scored`. */
+function toNumberLineResponse(
+  resp: ReturnType<NumberLineQuestionHandle['getResponse']>,
+): NumberLineSurfaceResponse {
+  return {
+    values: resp.studentPoints ?? [],
+    answered: resp.answered,
+    ...(resp.interval ? { interval: resp.interval } : {}),
+  };
+}
+
+type NumberLineRestoreArgs = Parameters<NumberLineQuestionHandle['restore']>;
+
+/** Saved work → the number-line kit's restore arguments. An interval is stored
+ * in `domain` with NO points (NumberLine.tsx), so keying the restore on points,
+ * as the block did until 2026-11-26, never restored an interval at all. */
+export function toNumberLineRestore(work: GraphWork): NumberLineRestoreArgs | null {
+  const d = work.domain;
+  if (d && (d.minX !== undefined || d.maxX !== undefined)) {
+    return [
+      [],
+      {
+        interval: {
+          ...(d.minX !== undefined ? { min: d.minX } : {}),
+          ...(d.minStyle !== undefined ? { minStyle: d.minStyle } : {}),
+          ...(d.maxX !== undefined ? { max: d.maxX } : {}),
+          ...(d.maxStyle !== undefined ? { maxStyle: d.maxStyle } : {}),
+        },
+      },
+    ];
+  }
+  if (work.points.length === 0) return null;
+  return [work.points.map(([v]) => v)];
+}
 
 // ---- Data plot --------------------------------------------------------------
 // The one canvas block whose kit widget already took an optional key: its
@@ -263,6 +398,8 @@ export interface DataPlotSurfaceConfig {
 }
 
 export interface DataPlotSurfaceHandle {
+  /** What the board shows now, narrowed like `onChange` (restore tests). */
+  getResponse(): DataPlotSurfaceResponse;
   restore(values: number[]): void;
   setLocked(locked: boolean): void;
   destroy(): void;
@@ -288,6 +425,7 @@ export function dataPlotSurface(): DataPlotSurface {
 
 const kitDataPlotSurface: DataPlotSurface = async (mount, config, hooks) => {
   const kit = await import('@activity/graph-kit');
+  const quiet = quietRestorer();
   const handle = await kit.mountDataPlotQuestion(
     mount,
     {
@@ -298,15 +436,20 @@ const kitDataPlotSurface: DataPlotSurface = async (mount, config, hooks) => {
       // a grading knob, so the server owns it.
     },
     {
-      onChange: (resp) =>
-        hooks.onChange?.({
-          values: readPlotValues(resp),
-          answered: resp.answered,
-        }),
+      onChange: (resp) => {
+        if (!quiet.restoring) {
+          hooks.onChange?.({ values: readPlotValues(resp), answered: resp.answered });
+        }
+      },
     },
   );
   return {
-    restore: (values) => handle.restore(toPlotRestore(config.interactionType, values)),
+    getResponse: () => {
+      const resp = handle.getResponse();
+      return { values: readPlotValues(resp), answered: resp.answered };
+    },
+    restore: (values) =>
+      quiet.run(() => handle.restore(toPlotRestore(config.interactionType, values))),
     setLocked: (locked) => handle.setLocked(locked),
     destroy: () => handle.destroy(),
   };

@@ -899,7 +899,13 @@ export async function mountGraphQuestion(
       resp.correct = false;
       return resp;
     }
-    if ((isRay && rayKey) || (isSegment && segmentKey)) {
+    // The student's CHOICES are reported whether or not a key is present: in
+    // the viewer's ungraded mode they are the answer the server grades. Until
+    // 2026-11-26 these two branches were gated on the key, so an ungraded
+    // board never reported a ray's shape or an inequality's side, and the
+    // server called every ray and segment unanswered and every inequality
+    // wrong. Only the SCORING below needs the key.
+    if (isRay || isSegment) {
       const ans = linearAnswer(pts);
       // Canonicalize the reported points + carry the shape/style choices so
       // the dashboard shows exactly the figure the student drew.
@@ -914,16 +920,17 @@ export async function mountGraphQuestion(
       if (isRay && rayKey) {
         const parts = scoreRayParts(rayKey, ans);
         resp.correct = parts.shape && parts.placement && parts.style;
-      } else if (segmentKey) {
+      } else if (isSegment && segmentKey) {
         const parts = scoreSegmentParts(segmentKey, ans);
         resp.correct = parts.earned === parts.total;
       }
       return resp;
     }
-    if (isInequality && ineqKey) {
-      const ans = { points: pts, strict, side: side ?? ('above' as const) };
+    if (isInequality) {
       resp.strict = strict;
       if (side) resp.side = side;
+      if (!ineqKey) return resp;
+      const ans = { points: pts, strict, side: side ?? ('above' as const) };
       const parts = scoreInequalityParts(ineqKey, ans);
       // An unpicked side is an unanswered part, never a lucky default.
       const sideOk = side !== null && parts.side;
@@ -1042,7 +1049,12 @@ export async function mountGraphQuestion(
 
   // ---- Control bar (inequality style/side + the no-solution choice) ----------
   // The kit owns the .graph-canvas subtree; the bar overlays its bottom edge.
-  const vertical = isInequality && ineqKey?.boundary.family === 'vertical';
+  // Ungraded mode has no key, so the boundary's family comes from the served
+  // question shape: a vertical boundary is shaded left/right, and the grader
+  // expects those words for it.
+  const vertical =
+    isInequality &&
+    (ineqKey ? ineqKey.boundary.family : cfg.questionShape?.family) === 'vertical';
   const sideA = vertical ? ('left' as const) : ('above' as const);
   const sideB = vertical ? ('right' as const) : ('below' as const);
   let solidBtn: HTMLButtonElement | null = null;

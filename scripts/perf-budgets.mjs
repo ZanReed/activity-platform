@@ -300,8 +300,13 @@ export const SHELL_SPEND = [
         change: 'Code-review defect fixes: a failed maths load is tried again (whenMathReady and its three callers), the section-frozen context that locks graphs in a locked section, the block index naming a gradable block the wire cannot carry, and the answered count reading the grader-bonded graph rule; the graph, number-line and data-plot blocks and the kit are lazy chunks. Measured against the recorded baseline, so it includes any in-band drift since 2026-11-20',
         bytes: 333,
     },
+    {
+        date: '2026-11-26',
+        change: 'Review defect A2, second pass: the seam\'s whole-work restore for the graph and number line (toGraphRestore, toNumberLineRestore) and its echo flag, useFollowStored (a mounted widget remounts when the store changes under it) and the inline maths gaps\' use of it; the graph, number-line, data-plot and math blocks themselves are lazy chunks',
+        bytes: 637,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 160837;
+export const SHELL_JS_BASELINE_BYTES = 161474;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

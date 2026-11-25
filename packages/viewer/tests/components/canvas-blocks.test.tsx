@@ -40,14 +40,14 @@ const variantOf = (type: 'number_line' | 'data_plot', interaction: string) =>
 
 /** Records the mount and lets a test emit student moves. */
 function fakeSurface<R>() {
-  const restored: number[][] = [];
+  const restored: unknown[] = [];
   const calls: unknown[] = [];
   let emit: ((r: R) => void) | undefined;
   const surface = vi.fn(async (_el: HTMLElement, config: unknown, hooks: { onChange?: (r: R) => void }) => {
     calls.push(config);
     emit = hooks.onChange;
     return {
-      restore: (v: number[]) => restored.push(v),
+      restore: (v: unknown) => restored.push(v),
       setLocked: () => {},
       destroy: () => {},
     };
@@ -141,8 +141,12 @@ describe('NumberLine — 1-D geometry in the shared wire slot', () => {
     const fake = fakeSurface<{ values: number[]; answered: boolean }>();
     setNumberLineSurface(fake.surface as never);
     const block = variantOf('number_line', 'plot_point');
-    mount(NumberLine, block, [[5, 0]]);
-    await waitFor(() => expect(fake.restored).toEqual([[5]]));
+    const { store } = mount(NumberLine, block, [[5, 0]]);
+    // The block hands over the whole stored work; the seam does the 1-D
+    // mapping (toNumberLineRestore, pinned in canvas-restore.test.ts).
+    await waitFor(() =>
+      expect(fake.restored).toEqual([store.getState().responses.graphs[block.id]]),
+    );
   });
 
   it('passes the derived questionShape and NO answer key', async () => {

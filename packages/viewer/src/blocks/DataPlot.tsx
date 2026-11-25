@@ -28,8 +28,11 @@ import {
   useBlockSolution,
   useItemResult,
   useSectionFrozen,
+  useResponse,
   useViewer,
 } from '../container/context.js';
+import type { GraphWork } from '../check/wire.js';
+import { useFollowStored } from './useFollowStored.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { dataPlotSurface, type DataPlotSurfaceHandle } from './kitSurfaces.js';
@@ -71,7 +74,9 @@ export default function DataPlot({
   const phase = useBlockPhase(block.id);
   const result = useItemResult(block.id);
   const solution = useBlockSolution(block.id);
-  const initialRef = useRef(store.getState().responses.graphs[block.id]);
+  // Seeded at mount, remounted when the store changes under it (see
+  // useFollowStored and InteractiveGraph).
+  const follow = useFollowStored(useResponse('graphs', block.id));
 
   useEffect(() => {
     if (isDisplay || mode === 'print') return;
@@ -80,6 +85,7 @@ export default function DataPlot({
 
     let cancelled = false;
     const mount = dataPlotSurface();
+    const seed = follow.shown.current;
     // Per-mount host: see InteractiveGraph's header (StrictMode double-mount).
     const host = document.createElement('div');
     host.dataset.graphBoardHost = 'true';
@@ -103,12 +109,14 @@ export default function DataPlot({
             setNarration(describe(interactionType, response.values));
             return;
           }
-          store.setGraphWork(block.id, {
+          const work: GraphWork = {
             interaction: interactionType,
             // Chart values in the shared canvas wire slot: dot values, bin
             // heights, or the five-number summary, depending on the chart.
             points: response.values.map((v, i) => [i, v] as [number, number]),
-          });
+          };
+          follow.noteReported(work);
+          store.setGraphWork(block.id, work);
           setNarration(describe(interactionType, response.values));
         },
       },
@@ -119,9 +127,8 @@ export default function DataPlot({
           return;
         }
         handleRef.current = handle;
-        const prior = initialRef.current;
-        if (prior?.points?.length) {
-          handle.restore(prior.points.map(([, v]) => v));
+        if (seed?.points.length) {
+          handle.restore(seed.points.map(([, v]) => v));
         }
         // After the restore, so a frozen board still shows the saved work.
         if (frozenRef.current) handle.setLocked(true);
@@ -143,7 +150,7 @@ export default function DataPlot({
       host.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.id, isDisplay, mode]);
+  }, [block.id, isDisplay, mode, follow.generation]);
 
   useEffect(() => {
     handleRef.current?.setLocked(frozen);

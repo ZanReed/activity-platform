@@ -18,6 +18,7 @@ import {
   setGraphSurface,
 } from '../../src/index.js';
 import type { GraphSurfaceResponse, MockCheckScript } from '../../src/index.js';
+import type { GraphWork } from '../../src/check/wire.js';
 import InteractiveGraph from '../../src/blocks/InteractiveGraph.js';
 import { sanitizedVariantFixtures } from '../../src/fixtures/index.js';
 import { TEST_USER_ID } from '../helpers/ids.js';
@@ -41,7 +42,7 @@ const transformCurve = variants.find(
  * student moves. */
 function fakeSurface() {
   const calls: unknown[] = [];
-  const restored: [number, number][][] = [];
+  const restored: GraphWork[] = [];
   let destroyed = 0;
   let emit: ((r: GraphSurfaceResponse) => void) | undefined;
   let current: GraphSurfaceResponse = { points: [], answered: false };
@@ -53,7 +54,7 @@ function fakeSurface() {
     emit = hooks.onChange;
     return {
       getResponse: () => current,
-      restore: (pts: [number, number][]) => restored.push(pts),
+      restore: (work: GraphWork) => restored.push(work),
       setLocked: () => {},
       destroy: () => {
         destroyed += 1;
@@ -159,8 +160,11 @@ describe('mounting the surface', () => {
   it('restores prior work on mount (reload keeps the student’s graph)', async () => {
     const fake = fakeSurface();
     setGraphSurface(fake.surface);
-    mount(plotPoint, { seed: true });
-    await waitFor(() => expect(fake.restored).toEqual([[[3, 4]]]));
+    const { store } = mount(plotPoint, { seed: true });
+    // The WHOLE stored work goes to the seam, which maps it onto the kit.
+    await waitFor(() =>
+      expect(fake.restored).toEqual([store.getState().responses.graphs[plotPoint.id]]),
+    );
   });
 });
 
@@ -237,13 +241,11 @@ describe('response wiring (the store is the source of truth)', () => {
       await waitFor(() => expect(fake.calls).toHaveLength(1));
       const cfg = fake.calls[0] as Record<string, unknown>;
       expect(cfg.initialEquation, `dragged=${dragged}`).toBe('y = x^2');
-      if (dragged) {
-        await waitFor(() => expect(fake.restored).toEqual([[[1, 1]]]));
-        expect(cfg.initialDragged).toBe(true);
-      } else {
-        expect(fake.restored).toEqual([]);
-        expect(cfg.initialDragged).toBeUndefined();
-      }
+      // The block hands the seam the whole work either way; the seam's
+      // toGraphRestore is what skips undragged seed points (pinned in
+      // canvas-restore.test.ts and against the real kit).
+      await waitFor(() => expect(fake.restored).toHaveLength(1));
+      expect(cfg.initialDragged).toBe(dragged ? true : undefined);
       utils.unmount();
       setGraphSurface(null);
     }

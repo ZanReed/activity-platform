@@ -100,12 +100,14 @@ describe.each(['build_dotplot', 'build_histogram', 'build_boxplot'])(
         { onChange: (r) => seen.push(r.values) },
       );
 
-      // A restore puts the saved answer on the board, and the board reports it
-      // back. If the restore were still a no-op, nothing would be reported.
+      // A restore puts the saved answer on the board, and the board shows it.
+      // If the restore were still a no-op, the board would show its defaults.
+      // The restore reports NOTHING through onChange: the saved work is
+      // already in the store, so an echo could only repeat or corrupt it.
       const answer = rightAnswer(block);
       handle.restore(answer);
-      expect(seen.length, 'the board reported the restored work').toBeGreaterThan(0);
-      const reported = seen[seen.length - 1]!;
+      expect(seen, 'a restore writes nothing back').toEqual([]);
+      const reported = handle.getResponse().values;
       expect(reported.length, 'the seam kept the values').toBeGreaterThan(0);
 
       expect(gradeAlone(block, reported)?.verdict).toBe('correct');
@@ -127,7 +129,7 @@ describe('build_boxplot', () => {
     );
     const answer = rightAnswer(block);
     handle.restore(answer);
-    expect(seen[seen.length - 1]).toEqual(answer);
+    expect(handle.getResponse().values).toEqual(answer);
     handle.destroy();
   });
 

@@ -36,9 +36,12 @@ import {
   useBlockPhase,
   useBlockSolution,
   useItemResult,
+  useResponse,
   useSectionFrozen,
   useViewer,
 } from '../container/context.js';
+import type { GraphWork } from '../check/wire.js';
+import { useFollowStored } from './useFollowStored.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
@@ -75,9 +78,12 @@ export default function InteractiveGraph({
   const result = useItemResult(block.id);
   const solution = useBlockSolution(block.id);
 
-  // Bootstrap value, read ONCE at mount: re-seeding on every render would
-  // fight the student's dragging.
-  const initialRef = useRef(store.getState().responses.graphs[block.id]);
+  // The board is seeded from the store at mount and owns its state after
+  // that; re-seeding on every render would fight the student's dragging. A
+  // change that arrives from OUTSIDE (a server restore, a tab hand-back, a DoL
+  // form start) moves `follow.generation`, which remounts the board from the
+  // stored work. See useFollowStored.
+  const follow = useFollowStored(useResponse('graphs', block.id));
 
   useEffect(() => {
     // Display graphs take no input, and print mode renders the static
@@ -88,6 +94,7 @@ export default function InteractiveGraph({
 
     let cancelled = false;
     const mount = graphSurface();
+    const seed = follow.shown.current;
 
     // Each mount gets its OWN child container instead of the shared canvas
     // div. React dev-mode (StrictMode) runs mount → cleanup → mount, and both
@@ -120,8 +127,8 @@ export default function InteractiveGraph({
           : {}),
         // transform_curve: the SHOWN parent + the reload channels. `start`
         // survives sanitize by design — it is the question. The buffered
-        // equation/drag bit ride the config because the restore handle is
-        // points-only (design A2).
+        // equation/drag bit ride the config because the kit's restore has no
+        // channel for them (design A2 of draggable-curve.md).
         ...(interactionType === 'transform_curve'
           ? {
               startModel: (
@@ -130,10 +137,10 @@ export default function InteractiveGraph({
               requireEquation:
                 (block.interaction as { requireEquation?: boolean } | undefined)
                   ?.requireEquation !== false,
-              ...(initialRef.current?.equation !== undefined
-                ? { initialEquation: initialRef.current.equation }
+              ...(seed?.equation !== undefined
+                ? { initialEquation: seed.equation }
                 : {}),
-              ...(initialRef.current?.dragged === true
+              ...(seed?.dragged === true
                 ? { initialDragged: true }
                 : {}),
             }
@@ -141,9 +148,19 @@ export default function InteractiveGraph({
       },
       {
         onChange: (response) => {
+          // A report with `answered: false` before anything is stored is the
+          // board narrating a keyboard focus move (Tab between handles), not
+          // an answer: storing it would put the default handle positions on
+          // the wire, and the grader would mark them. Once work IS stored, an
+          // unanswered report is a real retraction (transform_curve's typed
+          // equation cleared) and is recorded like any other change.
+          if (!response.answered && store.getState().responses.graphs[block.id] === undefined) {
+            setNarration(describePoints(response.points));
+            return;
+          }
           // The kit reports; the STORE decides. Work only — the surface has
           // already dropped anything grading-shaped.
-          store.setGraphWork(block.id, {
+          const work: GraphWork = {
             interaction: interactionType,
             points: response.points,
             ...(response.noSolution !== undefined
@@ -180,7 +197,9 @@ export default function InteractiveGraph({
                   ],
                 }
               : {}),
-          });
+          };
+          follow.noteReported(work);
+          store.setGraphWork(block.id, work);
           setNarration(describePoints(response.points));
         },
       },
@@ -191,16 +210,10 @@ export default function InteractiveGraph({
           return;
         }
         handleRef.current = handle;
-        // Restore prior work (reload / re-open).
-        const prior = initialRef.current;
-        // transform_curve: restore points only for genuinely DRAGGED work —
-        // restoring buffered seed positions would pin the handles there and
-        // the equation/drag channels already rode the mount config.
-        if (prior?.points?.length) {
-          if (interactionType !== 'transform_curve' || prior.dragged === true) {
-            handle.restore(prior.points);
-          }
-        }
+        // Restore prior work (reload / re-open / a later store change). The
+        // seam maps the whole saved work onto the kit, writes nothing back,
+        // and skips transform_curve's undragged seed points (toGraphRestore).
+        if (seed) handle.restore(seed);
         // After the restore, so a frozen board still shows the saved work.
         if (frozenRef.current) handle.setLocked(true);
       })
@@ -227,9 +240,10 @@ export default function InteractiveGraph({
       // HostDetachedError, which the cancelled check in .catch keeps quiet.
       host.remove();
     };
-    // block.id keys the widget; the rest is read once at mount by design.
+    // block.id keys the widget, and `generation` remounts it when the store
+    // changed under it; the rest is read once at mount by design.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.id, isDisplay, mode]);
+  }, [block.id, isDisplay, mode, follow.generation]);
 
   useEffect(() => {
     handleRef.current?.setLocked(frozen);

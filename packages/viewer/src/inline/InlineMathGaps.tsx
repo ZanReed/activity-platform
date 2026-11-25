@@ -13,6 +13,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { AnswerKeyContext } from '../answer-key/context.js';
 import { mathPromptsSurface } from '../blocks/kitSurfaces.js';
+import { useFollowedBlanks } from '../blocks/useFollowStored.js';
 import { StatePill } from '../blocks/StatePill.js';
 import { useViewer, useViewerSelector } from '../container/context.js';
 import { InlineContent, InlineMath } from './InlineContent.js';
@@ -41,10 +42,9 @@ export default function InlineMathGaps({ node }: { node: Record<string, unknown>
   const hasKey = promptIds.some((id) => answers[id]);
   const hostRef = useRef<HTMLSpanElement | null>(null);
   const [mounted, setMounted] = useState(false);
-  // Read once, at mount: the field owns the value after that.
-  const initial = useRef(
-    Object.fromEntries(promptIds.map((id) => [id, store.getState().responses.blanks[id] ?? ''])),
-  );
+  // Seeded at mount, and the field owns the value after that; a change from
+  // outside remounts it from the store (useFollowStored).
+  const follow = useFollowedBlanks(promptIds);
   // The gaps' results, as a string so the selector compares by value: each
   // gap's verdict and its feedback (FG-5's built-in line reaches a gap too).
   const resultsKey = useViewerSelector((s) => {
@@ -73,8 +73,11 @@ export default function InlineMathGaps({ node }: { node: Record<string, unknown>
     el.appendChild(host);
     void mathPromptsSurface()(host, {
       latex,
-      initialValues: initial.current,
-      onValue: (id, ascii) => store.setBlank(id, ascii),
+      initialValues: follow.shown.current,
+      onValue: (id, ascii) => {
+        follow.noteReported({ ...follow.shown.current, [id]: ascii });
+        store.setBlank(id, ascii);
+      },
     })
       .then((handle) => {
         if (cancelled) {
@@ -95,7 +98,7 @@ export default function InlineMathGaps({ node }: { node: Record<string, unknown>
       setMounted(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latex, hasKey]);
+  }, [latex, hasKey, follow.generation]);
 
   return (
     // data-gap-ids: the student top bar's Next finds a gap by its id here.

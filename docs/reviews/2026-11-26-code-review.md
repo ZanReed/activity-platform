@@ -23,7 +23,8 @@ Effort: S = under a day, M = a few days, L = a week or more.
 
 > **Fixed 2026-11-26, same day (author: "Yes, fix them"):** A0 (new, below), A1,
 > A3, A4, A6 and A7 except the touch-scroll item. Also fixed on the way: the
-> data-plot half of A2 (restore was a no-op). **Still open:** the rest of A2,
+> data-plot half of A2 (restore was a no-op). **The rest of A2 was fixed the
+> same day** (graph, number line, maths gaps; see A2 below). **Still open:**
 > A5, and A7's touch scrolling (needs an iPad). Both Edge Functions need a
 > redeploy for the server-side fixes to reach students (STATE → Pending author
 > actions). **Not checked in a browser:** the graph freeze was tested against
@@ -56,7 +57,7 @@ through this seam. Authorable and importable today.
 the kit's response type instead of `as unknown as`; one test per `data_plot`
 variant that runs real kit output through `gradeSection`. **S.**
 
-### A2 Graph, number-line and data-plot answers are not restored faithfully
+### A2 ✔ Graph, number-line and data-plot answers are not restored faithfully
 - The canvas blocks read the store once at first render and never subscribe
   (`InteractiveGraph.tsx:69`, `NumberLine.tsx:50`, `DataPlot.tsx:63`,
   `MathBlock.tsx:94`), so a server restore, a tab hand-back or a DoL form start
@@ -71,6 +72,47 @@ variant that runs real kit output through `gradeSection`. **S.**
 **Fix:** `restore(work)` carrying the whole saved work, a silent restore in the
 kit that does not emit, blocks subscribe and re-apply. Remove the `as never`.
 **M.** (The "warm re-entry may start empty" part is unverified.)
+
+> **✔ Fixed 2026-11-26 (second pass).** Each claim was reproduced against the
+> REAL kit first: JSXGraph mounts in jsdom, so
+> `viewer/tests/components/canvas-restore-real-kit.test.tsx` drives the real
+> graph and number-line boards through the block, the seam and the store, and
+> every guard was mutation-tested (revert → red → restore).
+> - **Worse than claimed, and the root:** the kit's ungraded mode (the only
+>   mode the viewer mounts) never REPORTED a ray's or segment's shape and
+>   endpoint styles, or an inequality's line style and side: that code sat
+>   inside `if (key)` branches in `graph-question.ts`. So the server has been
+>   calling every `plot_ray`/`plot_segment` answer unanswered and every
+>   `graph_inequality` wrong, before any reload. A vertical boundary also
+>   offered "Shade above/below". Fixed in the kit; scoring stays key-only
+>   (`graph-kit/tests/ungraded-choices.test.ts`).
+> - **Restore drops the extras:** confirmed. The seam now restores the whole
+>   `GraphWork` (`toGraphRestore`, `toNumberLineRestore`, typed against the
+>   kit's own restore parameters). A number-line interval was never restored
+>   at all: it is stored with no points and the block keyed the restore on
+>   points.
+> - **The restore echo overwrote saved work:** confirmed (the echo carried the
+>   board's defaults). Dropped in the seam, not the kit: the restored work is
+>   already in the store, one flag covers all three kits, and the kit's other
+>   callers keep their contract.
+> - **Blocks never followed a later store change:** confirmed for graph,
+>   number line, data plot, `MathBlock` and `InlineMathGaps`.
+>   `blocks/useFollowStored.ts` remounts the widget when the stored value stops
+>   matching what it shows (a restore can only add state, so a remount is the
+>   only way to show exactly the stored work). Pinned with fake surfaces in
+>   `canvas-follow-store.test.tsx`; render-scope is unchanged.
+> - **Tab before any answer was stored as one** (graph and number line, as for
+>   data plots): fixed; once work is stored, an unanswered report is a real
+>   retraction (a cleared transform equation) and is still recorded.
+>
+> No server bundle moved, so no Edge Function redeploy: this reaches students
+> on the next SPA push. **Not checked in a real browser:** jsdom has no layout,
+> so no drag was tested, only the boards' own pills and keyboard. **Found, not
+> fixed (separate gaps):** a domain-restricted `plot_function` shows no domain
+> endpoints in the viewer (the controls need the key) and the grader does not
+> score the domain either; and the viewer always mounts the single-question
+> board, so a `graph_inequality` system or `plot_function` system sends one
+> part where the grader expects N.
 
 ### A3 ✔ A locked or frozen section does not freeze its graphs
 The freeze is `<fieldset disabled>`; its CSS covers only

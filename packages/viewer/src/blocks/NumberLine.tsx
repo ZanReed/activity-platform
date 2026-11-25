@@ -27,9 +27,12 @@ import {
   useBlockPhase,
   useBlockSolution,
   useItemResult,
+  useResponse,
   useSectionFrozen,
   useViewer,
 } from '../container/context.js';
+import type { GraphWork } from '../check/wire.js';
+import { useFollowStored } from './useFollowStored.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { numberLineSurface, type NumberLineSurfaceHandle } from './kitSurfaces.js';
@@ -58,7 +61,9 @@ export default function NumberLine({
   const phase = useBlockPhase(block.id);
   const result = useItemResult(block.id);
   const solution = useBlockSolution(block.id);
-  const initialRef = useRef(store.getState().responses.graphs[block.id]);
+  // Seeded at mount, remounted when the store changes under it (see
+  // useFollowStored and InteractiveGraph).
+  const follow = useFollowStored(useResponse('graphs', block.id));
 
   useEffect(() => {
     if (mode === 'print') return;
@@ -67,6 +72,7 @@ export default function NumberLine({
 
     let cancelled = false;
     const mount = numberLineSurface();
+    const seed = follow.shown.current;
     const host = document.createElement('div');
     host.dataset.graphBoardHost = 'true';
     Object.assign(host.style, CANVAS_HOST_STYLE);
@@ -81,7 +87,13 @@ export default function NumberLine({
       },
       {
         onChange: (response) => {
-          store.setGraphWork(block.id, {
+          // Tab between handles reports `answered: false`; before anything is
+          // stored that is narration, not an answer (see InteractiveGraph).
+          if (!response.answered && store.getState().responses.graphs[block.id] === undefined) {
+            setNarration(describe(response.values, response.interval));
+            return;
+          }
+          const work: GraphWork = {
             interaction: interactionType,
             // 1-D positions in the shared 2-D wire slot.
             points: response.values.map((v) => [v, 0] as [number, number]),
@@ -103,7 +115,9 @@ export default function NumberLine({
                   },
                 }
               : {}),
-          });
+          };
+          follow.noteReported(work);
+          store.setGraphWork(block.id, work);
           setNarration(describe(response.values, response.interval));
         },
       },
@@ -114,10 +128,8 @@ export default function NumberLine({
           return;
         }
         handleRef.current = handle;
-        const prior = initialRef.current;
-        if (prior?.points?.length) {
-          handle.restore(prior.points.map(([v]) => v));
-        }
+        // The whole saved work, interval styles included (toNumberLineRestore).
+        if (seed) handle.restore(seed);
         // After the restore, so a frozen board still shows the saved work.
         if (frozenRef.current) handle.setLocked(true);
       })
@@ -138,7 +150,7 @@ export default function NumberLine({
       host.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.id, mode]);
+  }, [block.id, mode, follow.generation]);
 
   useEffect(() => {
     handleRef.current?.setLocked(frozen);
