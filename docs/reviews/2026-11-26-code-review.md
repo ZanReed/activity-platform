@@ -281,8 +281,12 @@ eyes. It is not a person and not a student's image. It looks like commercial
 third-party art, so redistributing it from a public repo is a copyright
 question, not a privacy one.
 
-**The history is unchanged; that is the author's call.** Every clone still
-downloads the ~68 MB, and the files stay readable at `f7aefee3`. Purging them
+**The history is unchanged; that is the author's call.** The files stay
+readable at `f7aefee3`. *Correction (measured the same day):* they cost only
+**7.7 MB of the pack**, because the HTML compresses heavily. The pack's bulk
+is the committed Edge Function bundles' history (56 MB). The "68 MB" and "the
+pack is 74 MB, most of it this folder" figures above are raw sizes, not what a
+clone downloads. Purging them
 means `git filter-repo --path r2-final-backup-20260815 --invert-paths` on a
 fresh clone (filter-repo drops the `origin` remote; re-add it), then a
 force-push of every branch and tag, not only `main`. The cost: every commit since 2026-08-21
@@ -291,8 +295,9 @@ logs and the curriculum boundary page's stamps stop resolving. Every other
 checkout and cloud branch has to re-clone. GitHub keeps the old objects
 reachable from forks, cached views and old pull-request refs (`refs/pull/*`)
 until support purges them. The repo
-shrinks by most of its 77 MB pack. Leaving it costs only the download size,
-plus the image question above. `s5.5-contact-sheet.zip` (tracked) and
+shrinks by about 8 MB. Leaving it costs little beyond the image question above.
+Runbook and recommendation (leave it, unless the image's copyright matters):
+[2026-11-26-b1-history-purge-plan.md](2026-11-26-b1-history-purge-plan.md). `s5.5-contact-sheet.zip` (tracked) and
 `HANDOFF.md` are left as they were; `tail/` is an empty untracked folder.
 
 ### B2 ✔ Dependency advisories (`pnpm audit`: 3 critical, 46 high, 39 moderate)
