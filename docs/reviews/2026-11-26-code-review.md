@@ -128,8 +128,8 @@ kit that does not emit, blocks subscribe and re-apply. Remove the `as never`.
 > Pinned end to end (authored block → sanitizer → real board → store →
 > grader → reload) in `canvas-systems-domain-real-kit.test.tsx`; eight guards
 > mutation-tested. `SANITIZER_ALGO_REV` 7 → 8; both bundles regenerated, so
-> `get-activity` and `check-activity` must be redeployed (already owed in
-> STATE).
+> `get-activity` and `check-activity` were redeployed 2026-11-26; both
+> deployed bundles hash-match the repo.
 
 ### A3 ✔ A locked or frozen section does not freeze its graphs
 The freeze is `<fieldset disabled>`; its CSS covers only
