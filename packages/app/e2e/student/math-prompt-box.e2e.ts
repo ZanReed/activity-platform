@@ -27,22 +27,47 @@ async function boxAndGlyphs(page: Page, latex: string) {
         setPromptValue: (id: string, v: string) => void;
         shadowRoot: ShadowRoot;
       };
+      const read = () => {
+        const sr = mf.shadowRoot;
+        const outline = sr.querySelector('.ML__prompt')?.getBoundingClientRect();
+        const atom = sr.querySelector('.ML__prompt-atom');
+        const answer = atom ? [...atom.children].find((c) => !c.classList.contains('ML__prompt')) : undefined;
+        const leaves = answer
+          ? [...answer.querySelectorAll('*')].filter((el) => !el.children.length && el.textContent?.trim())
+          : [];
+        const glyphs = leaves.map((el) => el.getBoundingClientRect());
+        return {
+          text: leaves.map((el) => el.textContent).join(''),
+          box: { top: outline?.top ?? NaN, bottom: outline?.bottom ?? NaN },
+          glyphs: { top: Math.min(...glyphs.map((g) => g.top)), bottom: Math.max(...glyphs.map((g) => g.bottom)) },
+        };
+      };
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const before = read().text;
       mf.focus();
       mf.setPromptValue(gap!, value!);
-      // MathLive redraws on a later frame: wait for it, then two more frames.
-      await new Promise((r) => setTimeout(r, 400));
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const sr = mf.shadowRoot;
-      const outline = sr.querySelector('.ML__prompt')!.getBoundingClientRect();
-      const atom = sr.querySelector('.ML__prompt-atom')!;
-      const answer = [...atom.children].find((c) => !c.classList.contains('ML__prompt'))!;
-      const leaves = [...answer.querySelectorAll('*')].filter((el) => !el.children.length && el.textContent?.trim());
-      const glyphs = leaves.map((el) => el.getBoundingClientRect());
-      return {
-        text: leaves.map((el) => el.textContent).join(''),
-        box: { top: outline.top, bottom: outline.bottom },
-        glyphs: { top: Math.min(...glyphs.map((g) => g.top)), bottom: Math.max(...glyphs.map((g) => g.bottom)) },
-      };
+      // MathLive redraws on a later frame, and how much later depends on the
+      // machine: a fixed 400 ms sleep measured an empty field on a slow CI
+      // runner (2026-11-25). Wait instead until the NEW answer is drawn (its
+      // text differs from the last one's; every value below renders
+      // differently) and has held still for one more pair of frames.
+      const deadline = performance.now() + 5_000;
+      let last = read();
+      while (performance.now() < deadline) {
+        await frames();
+        const now = read();
+        const settled =
+          now.text !== '' &&
+          now.text !== before &&
+          now.text === last.text &&
+          now.box.top === last.box.top &&
+          now.box.bottom === last.box.bottom &&
+          now.glyphs.top === last.glyphs.top &&
+          now.glyphs.bottom === last.glyphs.bottom;
+        last = now;
+        if (settled) break;
+      }
+      return last;
     },
     [latex, GAP],
   );
