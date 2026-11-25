@@ -599,6 +599,15 @@ account; 0072 indexed the same column on its own tables), then
 `work_photos.activity_id`. One migration. **S.** Nothing today; it lands the
 first night the purge has real work.
 
+**Fixed in code 2026-11-26, NOT applied** (local commit, unpushed; the author
+applies): migration **0105** adds 21 indexes: all 19 unindexed single-column foreign
+keys in `public` (the review's nine plus ten user/version references the same
+purges scan) and 2 covered only by a partial index a delete cannot use
+(`class_members.student_id`, `classes.teacher_id`). `verify-0105` states the rule rather than a list, so a later
+unindexed FK goes red there. Tested on the local stack inside a rolled-back
+transaction: 4/4 green with 0105, 3 of 4 red without it. The dead `assignments` table's
+two are exempted by name (retirement filed).
+
 ### D7 Smaller
 - Each graph drag event clones the store and recomputes an unmemoised print
   SVG (`InteractiveGraph.tsx:248`), and every board mounts at load with no

@@ -90,6 +90,7 @@ export const AUTH_VERIFY_SET = [
   'verify-0102.sql',
   'verify-0103.sql',
   'verify-0104.sql',
+  'verify-0105.sql',
   'verify-0071.sql',
   'verify-0072.sql',
   'verify-0070.sql',

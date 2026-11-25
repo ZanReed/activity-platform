@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-26-draft-72`. Mirrors migrations 0001–**0104**, verified
+> Version `2026-11-26-draft-73`. Mirrors migrations 0001–**0105**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-73` (2026-11-26) — 0105 adds no table or column.** It adds 21 indexes under foreign keys that had none or only a partial one (code review D6), so deletes stop scanning whole tables. No field, reader or retention changes. The range moves to 0105.
 >
 > **`draft-72` (2026-11-26) — 0104 adds no table or column.** It adds two read wrappers, `grading_queue` and `grade_suggestions`, that return the grading queue and its AI suggestions to the same teacher as one jsonb value instead of a row set (a row set was cut at 1,000 rows). The fields and who may read them are unchanged; the inner functions keep every gate. The range moves to 0104.
 >
