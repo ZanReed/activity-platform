@@ -14,6 +14,14 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
+## Database snapshot and types (review C1) — DESIGN PASS written 2026-11-26, rulings owed
+
+[docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md): eight
+decisions (source of truth, where the output lives, how far to type the client, the Edge Functions,
+a function index, migrating the hand-written shapes, the apply rule, what it does not fix) and a
+five-slice plan. Nothing built. **Trigger: the author's rulings on D1–D8.** After that, slice 1 (the
+RPC argument test, S) can ship alone; the rest is not queued — ranking is the author's.
+
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 
 **Trigger: the author's walkthrough.** Each is a look, not a build; a finding files its own entry.
