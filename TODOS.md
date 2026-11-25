@@ -3,6 +3,17 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## Whole-repo code review 2026-11-26 — findings logged, nothing ranked or built
+
+The log is [docs/reviews/2026-11-26-code-review.md](docs/reviews/2026-11-26-code-review.md);
+it is not restated here. Section A is defects (a box-plot question can never be
+marked; graphs are not restored or frozen faithfully; a server throw arrives
+with no CORS headers; the grading queue is cut at 1,000 rows). Section B is
+security and hygiene (the R2 backup is tracked in the public repo; dependency
+advisories; database error text reaches students). C–E are structural debt,
+efficiency and missed platform updates. Its section G is a suggested order
+only: ranking is the author's.
+
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 
 **Trigger: the author's walkthrough.** Each is a look, not a build; a finding files its own entry.
