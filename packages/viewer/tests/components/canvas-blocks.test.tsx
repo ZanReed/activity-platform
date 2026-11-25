@@ -218,3 +218,19 @@ describe('DataPlot — chart values, and the verdict it refuses to keep', () => 
     expect(fake.surface).not.toHaveBeenCalled();
   });
 });
+
+describe('DataPlot — a cursor move is not stored (2026-11-26)', () => {
+  it('ignores a report that says the board is not answered', async () => {
+    const fake = fakeSurface<{ values: number[]; answered: boolean }>();
+    setDataPlotSurface(fake.surface as never);
+    const block = variantOf('data_plot', 'build_boxplot');
+    const { store } = mount(DataPlot, block);
+    await waitFor(() => expect(fake.calls).toHaveLength(1));
+
+    await fake.move({ values: [1, 2, 3, 4, 5], answered: false });
+    expect(store.getState().responses.graphs[block.id]).toBeUndefined();
+
+    await fake.move({ values: [1, 2, 3, 4, 5], answered: true });
+    expect(store.getState().responses.graphs[block.id]?.points).toHaveLength(5);
+  });
+});

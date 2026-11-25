@@ -21,6 +21,30 @@ Effort: S = under a day, M = a few days, L = a week or more.
 
 ## A. Defects found (these are bugs, not debt)
 
+> **Fixed 2026-11-26, same day (author: "Yes, fix them"):** A0 (new, below), A1,
+> A3, A4, A6 and A7 except the touch-scroll item. Also fixed on the way: the
+> data-plot half of A2 (restore was a no-op). **Still open:** the rest of A2,
+> A5, and A7's touch scrolling (needs an iPad). Both Edge Functions need a
+> redeploy for the server-side fixes to reach students (STATE → Pending author
+> actions). **Not checked in a browser:** the graph freeze was tested against
+> fake boards and the kit's own lock, not by dragging a real handle; and the
+> maths retry is proven in unit tests only, where the failure is injected after
+> the module loads. Chromium has at times remembered a failed `import()` for the
+> life of a page, in which case the retry would do nothing there. Worth one
+> check on a Chromebook with request blocking before crediting it (P3).
+
+### A0 Histogram and box-plot questions have never recorded an answer
+Found while writing A1's test, and worse than A1. In
+`graph-kit/src/data-plot-question.ts` each chart's branch declared its own
+`function build` inside an `if` block. In a module those are block-scoped, so
+the change hook resolved to the dot plot's `build`, whose board is never
+initialised on the other two paths: **every change to a histogram or a box plot
+threw a ReferenceError inside the board's event handler.** The bars and handles
+moved on screen and nothing was stored. Nothing in the repo mounted this
+function in a test. Dot plots were unaffected. Fixed with one `build` binding
+assigned per branch; `viewer/tests/components/canvas-seam-real-kit.test.tsx`
+now runs all three charts through the real kit, the seam and the grader.
+
 ### A1 ✔ A "build a box plot" question can never be marked
 The kit reports the five handles as an object
 (`graph-kit/src/data-plot-board.ts:711`), the viewer's seam only reads arrays

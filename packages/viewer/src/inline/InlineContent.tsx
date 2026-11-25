@@ -40,7 +40,7 @@ import { Suspense, lazy, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { GLOSSARY_LINK_MARK } from '@activity/schema';
 import { useGlossaryNav, useGlossaryOpen } from '../glossary/context.js';
-import { loadMathRenderer, residentMathRenderer } from './math.js';
+import { residentMathRenderer, whenMathReady } from './math.js';
 
 // Rich definitions (paragraphs, display math, lists, figures) render through
 // the paper glossary's block renderer. Lazy, because it pulls GraphFigure and
@@ -299,13 +299,7 @@ export function InlineMath({ latex }: { latex: string }) {
 
   useEffect(() => {
     if (html !== null) return;
-    let cancelled = false;
-    void loadMathRenderer().then((render) => {
-      if (!cancelled) setHtml(render(latex, false));
-    });
-    return () => {
-      cancelled = true;
-    };
+    return whenMathReady((render) => setHtml(render(latex, false)));
   }, [html, latex]);
 
   if (html === null) {

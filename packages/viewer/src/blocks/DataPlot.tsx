@@ -23,7 +23,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DataPlotBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useBlockPhase, useBlockSolution, useItemResult, useViewer } from '../container/context.js';
+import {
+  useBlockPhase,
+  useBlockSolution,
+  useItemResult,
+  useSectionFrozen,
+  useViewer,
+} from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { dataPlotSurface, type DataPlotSurfaceHandle } from './kitSurfaces.js';
@@ -49,6 +55,11 @@ export default function DataPlot({
   mode = 'screen',
 }: BlockComponentProps<DataPlotBlock>) {
   const { store } = useViewer();
+  // A locked section freezes its board too (see SectionFrozenContext). The ref
+  // is for the mount below, whose handle arrives after this render.
+  const frozen = useSectionFrozen();
+  const frozenRef = useRef(frozen);
+  frozenRef.current = frozen;
   const answerValues = useBlockAnswerKey(block.id)?.dataPlotValues;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<DataPlotSurfaceHandle | null>(null);
@@ -84,6 +95,14 @@ export default function DataPlot({
       },
       {
         onChange: (response) => {
+          // Moving the keyboard cursor between bins or handles is reported
+          // too, with `answered: false`. Storing that would put the board's
+          // default positions on the wire as if they were an answer, and the
+          // grader would mark a student wrong for tabbing past the chart.
+          if (!response.answered) {
+            setNarration(describe(interactionType, response.values));
+            return;
+          }
           store.setGraphWork(block.id, {
             interaction: interactionType,
             // Chart values in the shared canvas wire slot: dot values, bin
@@ -104,6 +123,8 @@ export default function DataPlot({
         if (prior?.points?.length) {
           handle.restore(prior.points.map(([, v]) => v));
         }
+        // After the restore, so a frozen board still shows the saved work.
+        if (frozenRef.current) handle.setLocked(true);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -123,6 +144,10 @@ export default function DataPlot({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [block.id, isDisplay, mode]);
+
+  useEffect(() => {
+    handleRef.current?.setLocked(frozen);
+  }, [frozen]);
 
   return (
     <div

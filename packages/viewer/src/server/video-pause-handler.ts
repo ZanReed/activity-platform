@@ -24,7 +24,7 @@ import {
   type VideoPauseResult,
 } from '../check/wire.js';
 import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
-import { gradeSection } from './grading/index.js';
+import { gradeSection, PhotosMismatchError } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
 import { autoGradedIds, seedContextFor } from './dol.js';
 import { jwtSub } from './jwt.js';
@@ -158,18 +158,31 @@ export function createVideoPauseHandler(deps: VideoPauseDeps) {
       // a DoL gets no hint either (author ruling 2026-11-16).
       sections: [{ id: target.sectionId, ...dolMarkerOf(ctx.doc, target.sectionId), rows: [{ columns: [{ blocks: [block] }] }] }],
     };
-    const graded: SectionCheckResult = gradeSection({
-      document: alone as never,
-      sectionId: target.sectionId,
-      responses: checked.responses,
-      seedValues: ctx.seedValues,
-      servedOrderings: deps.servedOrderings?.({
-        document: ctx.doc,
-        versionId: versionId!,
-        studentId,
+    // A pause question is one auto-graded block: a `photos` entry can never
+    // belong to it, and the grader throws on one. A bad request, not a server
+    // fault (the check path answers the same way).
+    let graded: SectionCheckResult;
+    try {
+      graded = gradeSection({
+        document: alone as never,
         sectionId: target.sectionId,
-      }),
-    });
+        responses: checked.responses,
+        seedValues: ctx.seedValues,
+        servedOrderings: deps.servedOrderings?.({
+          document: ctx.doc,
+          versionId: versionId!,
+          studentId,
+          sectionId: target.sectionId,
+        }),
+      });
+    } catch (err) {
+      if (err instanceof PhotosMismatchError) {
+        return cors.errorResponse(req, 400, 'These photos don’t match this question', {
+          code: 'bad_photos',
+        });
+      }
+      throw err;
+    }
 
     const respond = (result: Omit<VideoPauseResult, 'wireVersion'>) =>
       cors.jsonResponse(req, { wireVersion: CHECK_WIRE_VERSION, ...result });

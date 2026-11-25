@@ -10,6 +10,10 @@
 // =============================================================================
 
 import { describe, expect, it, vi } from 'vitest';
+import { autoGradedIds } from '../src/server/dol.js';
+import { autoGradedIdsOf } from '../src/server/grading/gradedIds.js';
+import { inventorySection } from '../src/server/grading/walk.js';
+import { authoredFixtureDocument } from '../src/fixtures/index.js';
 import { ActivityDocument } from '@activity/schema';
 import { createGetActivityHandler, type GetActivityDb } from '../src/server/get-activity-handler.js';
 import {
@@ -321,5 +325,35 @@ describe('seedForForm — the client surfaces (DE-18)', () => {
     expect(text).toContain(`${v1.a} \\\\times 2`);
     expect(JSON.stringify(f1.keyed.sections[1]!.rows)).toContain(`"answer":"${v1.k}"`);
     expect(JSON.stringify(f2.served.sections[1]!.rows)).not.toBe(text);
+  });
+});
+
+describe('the one list of auto-graded parts (2026-11-26)', () => {
+  // It was written out twice (here and in practice-handler) and the two had
+  // drifted: this one counted a display-only graph as a part to get right.
+  it('a display-only graph is a stimulus, not a part', () => {
+    const display = { id: 'g-display', type: 'interactive_graph', interaction: { type: 'display' } };
+    const plotted = { id: 'g-plot', type: 'interactive_graph', interaction: { type: 'plot_point' } };
+    expect(autoGradedIds(display)).toEqual([]);
+    expect(autoGradedIds(plotted)).toEqual(['g-plot']);
+  });
+
+  it('over the every-block fixture: every auto-graded family is present, and no hand-graded part is', () => {
+    const doc = authoredFixtureDocument() as unknown as { sections: Array<{ rows: unknown[] }> };
+    const inv = inventorySection(doc.sections[0] as never);
+    const ids = new Set(autoGradedIdsOf(inv));
+    // Anti-vacuity: the fixture really holds each family.
+    for (const family of ['multipleChoice', 'matching', 'correspondence', 'ordering'] as const) {
+      expect(inv[family].length, family).toBeGreaterThan(0);
+      for (const item of inv[family]) expect(ids.has(item.blockId), family).toBe(true);
+    }
+    expect(inv.blankGroupsByBlock.length).toBeGreaterThan(0);
+    for (const g of inv.blankGroupsByBlock) for (const k of g.keys) expect(ids.has(k.id)).toBe(true);
+    expect(inv.freeText.length).toBeGreaterThan(0);
+    for (const id of inv.freeText) expect(ids.has(id)).toBe(false);
+    for (const p of inv.photos) expect(ids.has(p.blockId)).toBe(false);
+    const displayGraphs = inv.graphs.filter((g) => g.block.interaction?.type === 'display');
+    expect(displayGraphs.length).toBeGreaterThan(0);
+    for (const g of displayGraphs) expect(ids.has(g.blockId)).toBe(false);
   });
 });

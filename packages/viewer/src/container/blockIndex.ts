@@ -41,6 +41,18 @@ const GRAPH_FAMILY: ReadonlySet<string> = new Set([
   'data_plot',
 ]);
 
+/** Types whose answers travel in-band (blanks, math gaps) or in child blocks.
+ * An instance of one with nothing to fill in, such as a fill-in-the-blank
+ * sentence the author has not put a blank in yet, takes no answer at all: it is
+ * not work the wire failed to carry, and must not be reported as such. */
+const IN_BAND_BY_DESIGN: ReadonlySet<string> = new Set([
+  'fill_in_blank',
+  'math_block',
+  'table',
+  'worked_example',
+  'faded_worked_example',
+]);
+
 export interface SectionIndex {
   sectionId: string;
   /**
@@ -194,6 +206,19 @@ function visit(block: SanitizedBlock, index: SectionIndex): void {
         // server dispatches on the served interaction type.
         if (GRAPH_FAMILY.has(type)) {
           index.items.graphs = [...(index.items.graphs ?? []), id];
+        } else if (
+          !IN_BAND_BY_DESIGN.has(type) &&
+          inBand.length === 0 &&
+          childBlocksOf(block).length === 0
+        ) {
+          // A block that takes an answer, has no category above, and carries
+          // its answer neither in-band (blanks, math gaps) nor in child
+          // blocks: nothing on the wire can hold what the student does in it.
+          // This branch used to fall through in silence, so the roster below
+          // was declared, test-pinned empty, and could never be anything else
+          // (2026-11-26; policy P3). tests/blockIndex-unsupported.test.ts
+          // forces it to fire once.
+          index.unsupported.push(id);
         }
         break;
     }

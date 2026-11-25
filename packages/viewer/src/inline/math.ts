@@ -61,7 +61,8 @@ export async function loadMathRenderer(): Promise<MathRenderer> {
   // a real fraction followed by the loose digits "15⁄6 6 15". The editor
   // imports this CSS in its own NodeViews; the student surface never loads
   // the editor, so it must import it here.
-  loading ??= Promise.all([
+  if (loading) return loading;
+  const attempt = Promise.all([
     import('katex'),
     import('katex/dist/katex.min.css'),
   ]).then(([mod]) => {
@@ -93,5 +94,51 @@ export async function loadMathRenderer(): Promise<MathRenderer> {
     markOnce(MARKS.mathRendered);
     return renderer;
   });
-  return loading;
+  loading = attempt;
+  // A FAILED LOAD IS NOT REMEMBERED (2026-11-26). `loading ??=` kept the
+  // rejected promise for the life of the page, so one dropped request on
+  // school Wi-Fi left every equation as raw LaTeX until a manual reload,
+  // whatever the callers did. Clearing it lets the next call try again.
+  attempt.catch(() => {
+    if (loading === attempt) loading = null;
+  });
+  return attempt;
+}
+
+/** How long to wait before each further try at the math chunk. Three tries
+ * after the first, then stop: the LaTeX fallback is readable, and a network
+ * that has been down for 20 seconds is not one to keep hammering. */
+export const MATH_RETRY_DELAYS_MS = [2000, 5000, 15000] as const;
+
+/**
+ * Call `onReady` with the renderer once it has loaded, trying again after a
+ * failed load. What the math components use in their effects in place of a
+ * bare `loadMathRenderer().then(...)`, which had no catch: a failed chunk was
+ * an unhandled rejection and the component never asked again.
+ *
+ * @returns a cancel function for the effect's cleanup.
+ */
+export function whenMathReady(
+  onReady: (render: MathRenderer) => void,
+  delays: readonly number[] = MATH_RETRY_DELAYS_MS,
+): () => void {
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const attemptLoad = (tryIndex: number): void => {
+    loadMathRenderer().then(
+      (render) => {
+        if (!cancelled) onReady(render);
+      },
+      () => {
+        const delay = delays[tryIndex];
+        if (cancelled || delay === undefined) return;
+        timer = setTimeout(() => attemptLoad(tryIndex + 1), delay);
+      },
+    );
+  };
+  attemptLoad(0);
+  return () => {
+    cancelled = true;
+    if (timer !== undefined) clearTimeout(timer);
+  };
 }

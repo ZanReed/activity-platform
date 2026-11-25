@@ -21,6 +21,7 @@ import { serveSeed } from '../sanitize/serveSeed.js';
 import { deriveSeedValues, type SeedValues } from '../sanitize/seedValues.js';
 import { substituteBySection } from '../sanitize/substitute.js';
 import { deriveDolValues, dolSeedKey, findDolSection } from '../sanitize/dolForm.js';
+import { autoGradedIdsOf } from './grading/gradedIds.js';
 import { inventorySection, type RawSection } from './grading/walk.js';
 import type { SectionCheckResult } from '../check/wire.js';
 import type { DolPrimary } from './dolPrimary.js';
@@ -64,15 +65,9 @@ export function seedContextFor(
 /** Every auto-graded item of the primary block correct (DE-7). */
 /** Every item in one block the grader can call right or wrong (free text is not). */
 export function autoGradedIds(block: unknown): string[] {
-  const inv = inventorySection({ rows: [{ columns: [{ blocks: [block] }] }] } as unknown as RawSection);
-  return [
-    ...inv.blankGroupsByBlock.flatMap((g) => g.keys.map((k) => k.id)),
-    ...inv.multipleChoice.map((m) => m.blockId),
-    ...inv.matching.map((m) => m.blockId),
-    ...inv.correspondence.map((c) => c.blockId),
-    ...inv.ordering.map((o) => o.blockId),
-    ...inv.graphs.map((g) => g.blockId),
-  ];
+  return autoGradedIdsOf(
+    inventorySection({ rows: [{ columns: [{ blocks: [block] }] }] } as unknown as RawSection),
+  );
 }
 
 export function primaryCorrect(

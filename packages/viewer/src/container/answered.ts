@@ -7,6 +7,7 @@
 // the two can never disagree.
 // =============================================================================
 
+import { graphWorkTouched } from '../store/buffer.js';
 import { RESPONSE_CATEGORIES } from '../store/store.js';
 import type { SectionIndex } from './blockIndex.js';
 
@@ -21,16 +22,18 @@ function isBlankResponse(v: unknown): boolean {
   return false;
 }
 
-/** A graph's work always names its interaction, so it is blank when nothing
- * is placed and "cannot be graphed" isn't chosen. An ORDERING is never blank:
- * it is served in an order, and a student who agrees with that order has
- * answered it without moving anything (nothing is stored until they do). */
+/** A graph's work always names its interaction, so "is the object empty"
+ * cannot tell whether it is answered. The ONE definition is the buffer's
+ * `graphWorkTouched`, which is bonded to the grader's own `isUntouched`
+ * (tests/buffer.test.ts). This used to be a third, shorter rule (points or
+ * "cannot be graphed" only), so a typed equation or a single dragged interval
+ * bound was counted as blank in the confirm before a one-way lock while the
+ * grader would have marked it (2026-11-26). An ORDERING is never blank: it is
+ * served in an order, and a student who agrees with that order has answered it
+ * without moving anything (nothing is stored until they do). */
 function isUnanswered(category: (typeof RESPONSE_CATEGORIES)[number], v: unknown): boolean {
   if (category === 'orderings') return false;
-  if (category === 'graphs' && v !== undefined) {
-    const g = v as { noSolution?: boolean; points?: unknown[] };
-    return !g.noSolution && (g.points ?? []).length === 0;
-  }
+  if (category === 'graphs' && v !== undefined) return !graphWorkTouched(v);
   return isBlankResponse(v);
 }
 

@@ -290,7 +290,7 @@ export function createGetActivityHandler(
   const { db, cors } = deps;
   const metaRateLimited = createMetaRateLimiter(deps.now ?? Date.now);
 
-  return async function handleGetActivity(req: Request): Promise<Response> {
+  async function handleGetActivity(req: Request): Promise<Response> {
     const preflight = cors.handlePreflight(req);
     if (preflight) return preflight;
     if (req.method !== 'GET') {
@@ -633,5 +633,19 @@ export function createGetActivityHandler(
         },
       },
     );
+  }
+
+  // THE LAST LINE OF DEFENCE (2026-11-26). Anything that throws past the
+  // handler's own catches used to leave through Deno.serve as a bare 500 with
+  // NO CORS headers, which a browser reports as a network failure: the client
+  // could not tell a server bug from being offline, and nothing was logged
+  // under this function's name. Now it is a typed 500 the client can read.
+  return async function handleGetActivityGuarded(req: Request): Promise<Response> {
+    try {
+      return await handleGetActivity(req);
+    } catch (err) {
+      console.error('[get-activity] unhandled error', err);
+      return cors.errorResponse(req, 500, 'Could not load this activity', { code: 'internal' });
+    }
   };
 }

@@ -1705,9 +1705,13 @@
    `disabled` does not reach them. Without this, a stale tab could still drag a
    point — the drag would update the store and then be refused by the buffer's
    write gate, leaving the screen showing work that is not being saved. */
-.viewer-worksheet:disabled [data-graph-canvas] {
+.viewer-worksheet:disabled [data-graph-canvas],
+.viewer-section__inputs:disabled [data-graph-canvas] {
   pointer-events: none;
 }
+/* The rule above stops a finger or a mouse. The KEYBOARD is stopped by the
+   block itself (useSectionFrozen → the board's setLocked), because a canvas is
+   not a form control and `disabled` never reaches its key handlers. */
 
 /* Dim just enough to read as inactive while staying legible: the student's
    own work is still on this page and they may well be reading it. */

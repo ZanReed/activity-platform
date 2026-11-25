@@ -65,6 +65,18 @@ export interface ViewerContextValue {
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
+/** Whether the inputs around this block are frozen: its section is locked or
+ * DoL-frozen, or the whole worksheet is read-only. The container's
+ * `<fieldset disabled>` already stops every form control; this exists for the
+ * blocks that are NOT form controls (graph, number line, data plot), whose
+ * boards took pointer and keyboard input straight through a disabled fieldset
+ * (2026-11-26). A constant per section, so reading it re-renders nothing. */
+export const SectionFrozenContext = createContext(false);
+
+export function useSectionFrozen(): boolean {
+  return useContext(SectionFrozenContext);
+}
+
 export interface ViewerProviderProps {
   store: ViewerStore;
   /** blockId → sectionId. The container passes its index; tests can pass a

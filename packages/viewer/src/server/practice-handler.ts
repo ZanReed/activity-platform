@@ -49,8 +49,8 @@ import {
   type SectionResponses,
 } from '../check/wire.js';
 import { gradeSection } from './grading/index.js';
-import { graphTakesInput } from './grading/graphs.js';
 import { displaySeededEntry } from '../seeded/resolveEntry.js';
+import { autoGradedIdsOf } from './grading/gradedIds.js';
 import { inventorySection, type RawSection } from './grading/walk.js';
 import { sanitizeActivityDocument } from '../sanitize/sanitize.js';
 import { applyServeShuffles } from '../sanitize/shuffle.js';
@@ -366,17 +366,7 @@ function gradeSlot(
 
 /** Every graded part's id in the slot (the keys a verdict can carry). */
 function gradedIdsOf(slot: Slot): string[] {
-  const section = slot.raw.sections![0]!;
-  const inv = inventorySection(section);
-  return [
-    ...inv.blankGroupsByBlock.flatMap((g) => g.keys.map((k) => k.id)),
-    ...inv.multipleChoice.map((m) => m.blockId),
-    ...inv.matching.map((m) => m.blockId),
-    ...inv.correspondence.map((c) => c.blockId),
-    ...inv.ordering.map((o) => o.blockId),
-    // A display-only graph is a stimulus with no verdict: not a part to get right.
-    ...inv.graphs.filter((g) => graphTakesInput(g.block)).map((g) => g.blockId),
-  ];
+  return autoGradedIdsOf(inventorySection(slot.raw.sections![0]!));
 }
 
 /** The answers a recorded try releases (author ruling 2026-10-23). */

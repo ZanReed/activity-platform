@@ -58,7 +58,7 @@ import { unansweredItems } from './answered.js';
 import { hasLocalPhotos } from '../check/wire.js';
 import { BlockBoundary, type BlockCrash } from './BlockBoundary.js';
 import { dolOptionalBlockIds } from './dolOptional.js';
-import { ViewerProvider } from './context.js';
+import { SectionFrozenContext, ViewerProvider } from './context.js';
 import { indexDocument, type SectionIndex } from './blockIndex.js';
 import {
   checkGroups,
@@ -778,6 +778,7 @@ export function ViewerContainer({
                 <fieldset className="viewer-section__inputs" disabled={frozen}>
                   {/* T1: "Try again" only where a retry exists (StatePill). */}
                   <RetryContext.Provider value={!frozen && !readOnly && !externalCheck && !checkCannotBeRetried(status)}>
+                  <SectionFrozenContext.Provider value={frozen || readOnly}>
                   {section.rows.map((row) => (
                     <div
                       key={row.id}
@@ -825,6 +826,7 @@ export function ViewerContainer({
                       ))}
                     </div>
                   ))}
+                  </SectionFrozenContext.Provider>
                   </RetryContext.Provider>
                 </fieldset>
               </section>

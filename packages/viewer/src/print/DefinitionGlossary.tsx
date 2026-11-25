@@ -24,7 +24,7 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DefinitionBlock, GraphFigureBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { loadMathRenderer, residentMathRenderer } from '../inline/math.js';
+import { residentMathRenderer, whenMathReady } from '../inline/math.js';
 import GraphFigure from '../blocks/GraphFigure.js';
 import type { GlossaryEntry } from './definitions.js';
 
@@ -39,13 +39,7 @@ function GlossaryMath({ latex }: { latex: string }): ReactElement {
 
   useEffect(() => {
     if (html !== null) return;
-    let cancelled = false;
-    void loadMathRenderer().then((render) => {
-      if (!cancelled) setHtml(render(latex, true));
-    });
-    return () => {
-      cancelled = true;
-    };
+    return whenMathReady((render) => setHtml(render(latex, true)));
   }, [html, latex]);
 
   // The readable fallback is the LaTeX itself, exactly as elsewhere: a student

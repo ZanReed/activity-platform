@@ -129,12 +129,21 @@ export async function mountDataPlotQuestion(
   mount.textContent = '';
   const board = await import('./data-plot-board.js');
 
+  // ONE `build` binding, assigned by whichever branch runs (2026-11-26). Each
+  // branch used to DECLARE its own `function build` inside its `if` block. In a
+  // module those are block-scoped, so the `build` this hook closed over was
+  // the function-level one, the dot plot's, whose board `b` is never
+  // initialised on the other two paths: every change to a histogram or a box
+  // plot threw a ReferenceError inside the board's own event handler, and
+  // neither chart ever reported an answer. Nothing mounted this function in a
+  // test, so nothing saw it (viewer tests/components/canvas-seam-real-kit).
+  let build: (fromKeyboard?: boolean) => DataPlotResponseData;
   const onChange = ({ fromKeyboard }: { fromKeyboard: boolean }): void =>
     hooks.onChange?.(build(fromKeyboard));
 
   if (type === 'build_histogram') {
     const b: HistogramBoardController = board.createHistogramBoard(mount, config, data, { onChange });
-    function build(fromKeyboard = false): DataPlotResponseData {
+    build = (fromKeyboard = false): DataPlotResponseData => {
       const studentBins = b.getBins();
       const answered = b.hasAnswered();
       const a = b.getActive();
@@ -145,7 +154,7 @@ export async function mountDataPlotQuestion(
         studentBins,
         ...(fromKeyboard ? { cursor: `bin ${a.bin + 1}: ${a.freq}` } : {}),
       };
-    }
+    };
     return {
       getResponse: () => build(),
       restore: (s) => { if (s.studentBins) b.setBins(s.studentBins); },
@@ -156,7 +165,7 @@ export async function mountDataPlotQuestion(
 
   if (type === 'build_boxplot') {
     const b: BoxplotBoardController = board.createBoxplotBoard(mount, config, { onChange });
-    function build(fromKeyboard = false): DataPlotResponseData {
+    build = (fromKeyboard = false): DataPlotResponseData => {
       const studentFive = b.getFive();
       const answered = b.hasAnswered();
       const a = b.getActive();
@@ -167,7 +176,7 @@ export async function mountDataPlotQuestion(
         studentFive,
         ...(fromKeyboard ? { cursor: `${a.label}: ${a.value}` } : {}),
       };
-    }
+    };
     return {
       getResponse: () => build(),
       restore: (s) => { if (s.studentFive) b.setFive(s.studentFive); },
@@ -178,7 +187,7 @@ export async function mountDataPlotQuestion(
 
   // build_dotplot (default)
   const b: DataPlotBoardController = board.createDataPlotBoard(mount, config, { onChange });
-  function build(fromKeyboard = false): DataPlotResponseData {
+  build = (fromKeyboard = false): DataPlotResponseData => {
     const studentValues = b.getValues();
     const answered = b.hasAnswered();
     const c = b.getCursor();
@@ -189,7 +198,7 @@ export async function mountDataPlotQuestion(
       studentValues,
       ...(fromKeyboard ? { cursor: `${c.value}: ${c.count}` } : {}),
     };
-  }
+  };
   return {
     getResponse: () => build(),
     restore: (s) => { if (s.studentValues) b.setValues(s.studentValues); },

@@ -32,7 +32,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { InteractiveGraphBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useBlockPhase, useBlockSolution, useItemResult, useViewer } from '../container/context.js';
+import {
+  useBlockPhase,
+  useBlockSolution,
+  useItemResult,
+  useSectionFrozen,
+  useViewer,
+} from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { graphSurface, type GraphSurfaceHandle } from './kitSurfaces.js';
@@ -51,6 +57,11 @@ export default function InteractiveGraph({
   mode = 'screen',
 }: BlockComponentProps<InteractiveGraphBlock>) {
   const { store } = useViewer();
+  // A locked section freezes its board too (see SectionFrozenContext). The ref
+  // is for the mount below, whose handle arrives after this render.
+  const frozen = useSectionFrozen();
+  const frozenRef = useRef(frozen);
+  frozenRef.current = frozen;
   const answerKey = useBlockAnswerKey(block.id);
   const answerOverlay = answerKey?.graphOverlay;
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -190,6 +201,8 @@ export default function InteractiveGraph({
             handle.restore(prior.points);
           }
         }
+        // After the restore, so a frozen board still shows the saved work.
+        if (frozenRef.current) handle.setLocked(true);
       })
       .catch((err: unknown) => {
         // A board that fails to mount must SAY so. Without this the promise
@@ -217,6 +230,10 @@ export default function InteractiveGraph({
     // block.id keys the widget; the rest is read once at mount by design.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [block.id, isDisplay, mode]);
+
+  useEffect(() => {
+    handleRef.current?.setLocked(frozen);
+  }, [frozen]);
 
   return (
     <div

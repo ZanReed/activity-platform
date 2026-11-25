@@ -295,8 +295,13 @@ export const SHELL_SPEND = [
         change: 'Stress-test student fixes: maths in worked/faded example titles (MathText + splitMathText, and mathPreload seeing titles), a build data plot shows its "Data: …" line, a show-only graph is named by its alt, seed list values print as authored (seedText) and seeded mean/min/max evaluate (argument-list binding, shared with the grader)',
         bytes: 508,
     },
+    {
+        date: '2026-11-26',
+        change: 'Code-review defect fixes: a failed maths load is tried again (whenMathReady and its three callers), the section-frozen context that locks graphs in a locked section, the block index naming a gradable block the wire cannot carry, and the answered count reading the grader-bonded graph rule; the graph, number-line and data-plot blocks and the kit are lazy chunks. Measured against the recorded baseline, so it includes any in-band drift since 2026-11-20',
+        bytes: 333,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 160504;
+export const SHELL_JS_BASELINE_BYTES = 160837;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

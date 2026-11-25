@@ -293,3 +293,38 @@ describe('who gets a verdict', () => {
     expect(h.order).toEqual([]);
   });
 });
+
+describe('errors that used to leave with no CORS headers (2026-11-26)', () => {
+  it('a photos entry on a pause check is a 400, not a throw', async () => {
+    // A pause question is one auto-graded block, so a photo can never belong
+    // to it and the grader throws PhotosMismatchError. It was uncaught here.
+    const h = harness();
+    const { status, body } = await ask(h, FIRST, { [BLANK_A]: '4' }, {
+      responses: {
+        ...emptySectionResponses(),
+        blanks: { [BLANK_A]: '4' },
+        photos: { [FIRST]: [{ path: 'a/b.jpg' }] },
+      },
+    });
+    expect(status).toBe(400);
+    expect((body.details as { code?: string } | undefined)?.code).toBe('bad_photos');
+    expect(h.records).toEqual([]);
+  });
+
+  it('anything thrown past the handler comes back as a typed 500 through the CORS kit', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const h = harness({
+      versionForCheck: async () => {
+        throw new Error('the database client blew up');
+      },
+    });
+    const { status, body } = await ask(h, FIRST, { [BLANK_A]: '4' });
+    expect(status).toBe(500);
+    expect(body.error).toBe('Could not check this section');
+    expect((body.details as { code?: string }).code).toBe('internal');
+    // The thrown message is for the log, never for the student.
+    expect(JSON.stringify(body)).not.toContain('blew up');
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});

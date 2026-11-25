@@ -847,6 +847,11 @@ export async function mountGraphQuestion(
   // drag channel has genuinely been answered. `dragged` starts from the
   // restored work's flag — a reloaded board hasn't moved, but the student had.
   let equation = isTransform ? (cfg.initialEquation ?? '') : '';
+  // The typed-equation field mounts later, in an async closure, so the lock
+  // state is kept here for it to pick up when it arrives (2026-11-26: setLocked
+  // froze the board and the pills, and a keyboard could still type in here).
+  let equationField: { readOnly: boolean } | null = null;
+  let lockedNow = false;
   const restoredDragged = isTransform && cfg.initialDragged === true;
   // graph_inequality student choices. strict defaults to false (solid) — a
   // visible default the student must actively flip for a strict inequality.
@@ -1165,6 +1170,8 @@ export async function mountGraphQuestion(
         field.style.cssText =
           'flex:1;min-width:10rem;font-size:1rem;border-radius:6px;';
         field.setAttribute('aria-label', 'Type the equation (right-hand side)');
+        equationField = field;
+        field.readOnly = lockedNow;
         if (equation) {
           const { asciiToLatex } = await import('./math-prompt-convert.js');
           field.value = asciiToLatex(equation.replace(/^y\s*=\s*/i, ''));
@@ -1261,6 +1268,8 @@ export async function mountGraphQuestion(
       const buttons = [solidBtn, dottedBtn, sideABtn, sideBBtn, noSolBtn, minStyleBtn, maxStyleBtn];
       for (const b of buttons) if (b) b.disabled = locked;
       linear?.setDisabled(locked);
+      lockedNow = locked;
+      if (equationField) equationField.readOnly = locked;
     },
     destroy(): void {
       board.destroy();

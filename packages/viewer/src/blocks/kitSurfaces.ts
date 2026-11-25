@@ -23,6 +23,8 @@
 // one obvious to write.
 // =============================================================================
 
+import type { DataPlotQuestionHandle, DataPlotResponseData } from '@activity/graph-kit';
+
 /** What the student built, as the kit reports it. Mirrors the kit's
  * GraphResponseData minus everything grading-related — in ungraded mode the
  * kit reports `scored: false` and a meaningless `correct`, and this seam does
@@ -191,6 +193,7 @@ export interface NumberLineSurfaceConfig {
 
 export interface NumberLineSurfaceHandle {
   restore(values: number[]): void;
+  setLocked(locked: boolean): void;
   destroy(): void;
 }
 
@@ -233,6 +236,7 @@ const kitNumberLineSurface: NumberLineSurface = async (mount, config, hooks) => 
   );
   return {
     restore: (values) => handle.restore(values),
+    setLocked: (locked) => handle.setLocked(locked),
     destroy: () => handle.destroy(),
   };
 };
@@ -260,6 +264,7 @@ export interface DataPlotSurfaceConfig {
 
 export interface DataPlotSurfaceHandle {
   restore(values: number[]): void;
+  setLocked(locked: boolean): void;
   destroy(): void;
 }
 
@@ -295,27 +300,61 @@ const kitDataPlotSurface: DataPlotSurface = async (mount, config, hooks) => {
     {
       onChange: (resp) =>
         hooks.onChange?.({
-          values: readPlotValues(resp as unknown as Record<string, unknown>),
+          values: readPlotValues(resp),
           answered: resp.answered,
         }),
     },
   );
   return {
-    restore: (values) => handle.restore(values as never),
+    restore: (values) => handle.restore(toPlotRestore(config.interactionType, values)),
+    setLocked: (locked) => handle.setLocked(locked),
     destroy: () => handle.destroy(),
   };
 };
 
-/** Flatten whichever payload the chart reports into a plain number list —
- * `correct` is deliberately not among the fields read. */
-function readPlotValues(resp: Record<string, unknown>): number[] {
-  for (const field of ['studentValues', 'studentBins', 'studentFive']) {
-    const value = resp[field];
-    if (Array.isArray(value)) {
-      return value.filter((n): n is number => typeof n === 'number');
-    }
+/** The order a box plot's five handles travel in on the wire: the grader reads
+ * them back by position (server/grading/graphs.ts, `build_boxplot`). */
+const FIVE_ORDER = ['min', 'q1', 'median', 'q3', 'max'] as const;
+
+/** Flatten whichever payload the chart reports into a plain number list.
+ * `correct` is deliberately not among the fields read.
+ *
+ * Typed against the kit's own response (2026-11-26). It used to take a
+ * `Record<string, unknown>` behind a cast and read all three fields as arrays,
+ * but the box plot reports an OBJECT ({min,q1,median,q3,max}), so a box-plot
+ * answer was stored as [] and the grader called every one unanswered. */
+function readPlotValues(resp: DataPlotResponseData): number[] {
+  if (resp.studentValues) return [...resp.studentValues];
+  if (resp.studentBins) return [...resp.studentBins];
+  if (resp.studentFive) {
+    const five = resp.studentFive;
+    return FIVE_ORDER.map((k) => five[k]);
   }
   return [];
+}
+
+/** The inverse, for a reload: the stored number list back into the one field
+ * the kit restores from for this chart. A box plot with fewer than five stored
+ * values has nothing to restore. */
+function toPlotRestore(
+  interactionType: string,
+  values: number[],
+): Parameters<DataPlotQuestionHandle['restore']>[0] {
+  if (interactionType === 'build_histogram') return { studentBins: values };
+  if (interactionType === 'build_boxplot') {
+    const [min, q1, median, q3, max] = values;
+    if (
+      min === undefined ||
+      q1 === undefined ||
+      median === undefined ||
+      q3 === undefined ||
+      max === undefined
+    ) {
+      return {};
+    }
+    return { studentFive: { min, q1, median, q3, max } };
+  }
+  return { studentValues: values };
 }
 
 

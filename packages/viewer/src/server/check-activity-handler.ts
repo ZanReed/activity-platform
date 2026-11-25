@@ -697,7 +697,7 @@ export function createCheckActivityHandler(
     return cors.jsonResponse(req, { wireVersion: CHECK_WIRE_VERSION, sections });
   }
 
-  return async function handleCheckActivity(req: Request): Promise<Response> {
+  async function handleCheckActivity(req: Request): Promise<Response> {
     const preflight = cors.handlePreflight(req);
     if (preflight) return preflight;
     if (req.method !== 'POST') {
@@ -1047,5 +1047,19 @@ export function createCheckActivityHandler(
         ? {}
         : { currentVersionId: version.current_version_id }),
     });
+  }
+
+  // THE LAST LINE OF DEFENCE (2026-11-26). Anything that throws past the
+  // handler's own catches used to leave through Deno.serve as a bare 500 with
+  // NO CORS headers, which a browser reports as a network failure: the client
+  // could not tell a server bug from being offline, and nothing was logged
+  // under this function's name. Now it is a typed 500 the client can read.
+  return async function handleCheckActivityGuarded(req: Request): Promise<Response> {
+    try {
+      return await handleCheckActivity(req);
+    } catch (err) {
+      console.error('[check-activity] unhandled error', err);
+      return cors.errorResponse(req, 500, 'Could not check this section', { code: 'internal' });
+    }
   };
 }

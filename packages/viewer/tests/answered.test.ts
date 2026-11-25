@@ -37,4 +37,32 @@ describe('unansweredItems / questionCount', () => {
     };
     expect(unansweredItems(responses, sections)).toEqual([]);
   });
+
+  // The count has to agree with the grader (buffer.graphWorkTouched is bonded
+  // to the server's isUntouched). It used to look at points and "cannot be
+  // graphed" only, so these three read as blank in the confirm before a
+  // one-way lock while the grader would have marked them.
+  it.each([
+    ['a typed equation and no points', { interaction: 'transform_curve', points: [], equation: 'y = 2x' }],
+    ['one dragged interval bound', { interaction: 'plot_interval', points: [], domain: { minX: 2 } }],
+    ['a drag with no stored points', { interaction: 'transform_curve', points: [], dragged: true }],
+  ])('a graph with %s is answered', (_label, work) => {
+    const responses = {
+      blanks: { b1: 'a', b2: 'b' },
+      choices: { mc1: ['c1'] },
+      matches: { m1: { i1: 't1' } },
+      graphs: { g1: work },
+    };
+    expect(unansweredItems(responses, sections)).toEqual([]);
+  });
+
+  it('a graph with an empty equation and nothing else is still blank', () => {
+    const responses = {
+      blanks: { b1: 'a', b2: 'b' },
+      choices: { mc1: ['c1'] },
+      matches: { m1: { i1: 't1' } },
+      graphs: { g1: { interaction: 'transform_curve', points: [], equation: '  ' } },
+    };
+    expect(unansweredItems(responses, sections).map((u) => u.id)).toEqual(['g1']);
+  });
 });

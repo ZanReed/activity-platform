@@ -25,7 +25,7 @@ import { InlineContent } from '../inline/InlineContent.js';
 import { useBlockAnswerKey } from '../answer-key/context.js';
 import { useBlockPhase, useBlockSolution, useCheckedItems, useViewer } from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
-import { loadMathRenderer, residentMathRenderer } from '../inline/math.js';
+import { residentMathRenderer, whenMathReady } from '../inline/math.js';
 import { StatePill } from './StatePill.js';
 import { mathPromptsSurface, type MathPromptsSurfaceHandle } from './kitSurfaces.js';
 
@@ -81,13 +81,7 @@ export default function MathBlock({
   });
   useEffect(() => {
     if (html !== null) return;
-    let cancelled = false;
-    void loadMathRenderer().then((render) => {
-      if (!cancelled) setHtml(render(fallbackLatex, true));
-    });
-    return () => {
-      cancelled = true;
-    };
+    return whenMathReady((render) => setHtml(render(fallbackLatex, true)));
   }, [html, fallbackLatex]);
 
   // Snapshot restored gap values once, at mount (built once, not per render).

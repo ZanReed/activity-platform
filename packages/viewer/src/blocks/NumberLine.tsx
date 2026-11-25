@@ -23,7 +23,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NumberLineBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
-import { useBlockPhase, useBlockSolution, useItemResult, useViewer } from '../container/context.js';
+import {
+  useBlockPhase,
+  useBlockSolution,
+  useItemResult,
+  useSectionFrozen,
+  useViewer,
+} from '../container/context.js';
 import type { BlockComponentProps } from '../registry/types.js';
 import { StatePill } from './StatePill.js';
 import { numberLineSurface, type NumberLineSurfaceHandle } from './kitSurfaces.js';
@@ -37,6 +43,11 @@ export default function NumberLine({
   mode = 'screen',
 }: BlockComponentProps<NumberLineBlock>) {
   const { store } = useViewer();
+  // A locked section freezes its board too (see SectionFrozenContext). The ref
+  // is for the mount below, whose handle arrives after this render.
+  const frozen = useSectionFrozen();
+  const frozenRef = useRef(frozen);
+  frozenRef.current = frozen;
   const answerMarks = useBlockAnswerKey(block.id)?.numberLineMarks;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<NumberLineSurfaceHandle | null>(null);
@@ -107,6 +118,8 @@ export default function NumberLine({
         if (prior?.points?.length) {
           handle.restore(prior.points.map(([v]) => v));
         }
+        // After the restore, so a frozen board still shows the saved work.
+        if (frozenRef.current) handle.setLocked(true);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -126,6 +139,10 @@ export default function NumberLine({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [block.id, mode]);
+
+  useEffect(() => {
+    handleRef.current?.setLocked(frozen);
+  }, [frozen]);
 
   return (
     <div

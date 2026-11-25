@@ -1084,3 +1084,25 @@ describe('jwtSub (shuffle seed only — never authorization)', () => {
     expect(jwtSub(numericSub)).toBeNull();
   });
 });
+
+describe('the last line of defence (2026-11-26)', () => {
+  it('a throw becomes a typed 500 that still carries the CORS headers', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handler = createGetActivityHandler({
+      db: makeDb({
+        publicMeta: vi.fn(async () => {
+          throw new Error('the database client blew up');
+        }),
+      }),
+      cors,
+    });
+    const res = await handler(new Request(`${BASE}?activity_id=${ACTIVITY_ID}&meta=1`));
+    expect(res.status).toBe(500);
+    expect(res.headers.get('x-test-cors')).toBe('1');
+    const json = await body(res);
+    expect(json.error).toBe('Could not load this activity');
+    expect(JSON.stringify(json)).not.toContain('blew up');
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});
