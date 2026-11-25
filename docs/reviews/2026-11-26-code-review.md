@@ -265,6 +265,36 @@ from history needs a rewrite and a force-push, which is the author's call.
 Also at the root: `s5.5-contact-sheet.zip` (692 KB, tracked), `HANDOFF.md`
 (retirement already owed), and an empty `tail/` directory.
 
+**Untracked 2026-11-26** (local commit, unpushed): `git rm -r --cached` plus a
+`r2-final-backup-*/` line in `.gitignore`; the 283 files stay on disk.
+**What it holds:** 131 HTML pages from the retired published-page era (nearly
+all titled as tests, e.g. "[TEST] Print Stress Test — Algebra II", "test build";
+the rest "Untitled activity" / "New Activity!"),
+the old graph-kit and font builds under `shared/`, and the one upload. No
+email address, no token or key, no student work, and no student or teacher
+name except the author's first name once, typed as test text. The pages carry
+the project ref (public in the app bundle anyway) and the URLs of two deleted
+functions (`ingest-submission`, `get-feedback`), which answer nothing now. **The upload**
+(`uploads/290f0951…/d0d2817d….webp`, 710×1000) is a novelty picture: a sloth
+riding a pizza slice through space among tacos, with rainbow beams from its
+eyes. It is not a person and not a student's image. It looks like commercial
+third-party art, so redistributing it from a public repo is a copyright
+question, not a privacy one.
+
+**The history is unchanged; that is the author's call.** Every clone still
+downloads the ~68 MB, and the files stay readable at `f7aefee3`. Purging them
+means `git filter-repo --path r2-final-backup-20260815 --invert-paths` on a
+fresh clone (filter-repo drops the `origin` remote; re-add it), then a
+force-push of every branch and tag, not only `main`. The cost: every commit since 2026-08-21
+gets a new hash, so the hashes cited in STATE, HISTORY, DECISIONS, the review
+logs and the curriculum boundary page's stamps stop resolving. Every other
+checkout and cloud branch has to re-clone. GitHub keeps the old objects
+reachable from forks, cached views and old pull-request refs (`refs/pull/*`)
+until support purges them. The repo
+shrinks by most of its 77 MB pack. Leaving it costs only the download size,
+plus the image question above. `s5.5-contact-sheet.zip` (tracked) and
+`HANDOFF.md` are left as they were; `tail/` is an empty untracked folder.
+
 ### B2 ✔ Dependency advisories (`pnpm audit`: 3 critical, 46 high, 39 moderate)
 Most sit in dev chains. The ones that reach shipped code:
 

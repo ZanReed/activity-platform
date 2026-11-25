@@ -99,3 +99,12 @@ packages/app/e2e/**/*-darwin.png
 # any other worker-local state. The token file lives under ~/.config, never
 # in the repo.
 packages/grading-worker/var/
+
+# ---- The R2 bucket's final backup (D-13 teardown, 2026-08-15) ---------------
+# 283 objects, 68 MB: the retired published-page HTML (test pages), the old
+# graph-kit/font builds, and one test image upload. An ARCHIVE kept on disk at
+# the repo root, never meant to be tracked; it was committed by accident in
+# f7aefee3 (2026-08-21) and untracked on 2026-11-26 (code review B1). Untracking
+# does not remove it from history: that needs a rewrite + force-push, which is
+# the author's decision (the review log, B1).
+r2-final-backup-*/
