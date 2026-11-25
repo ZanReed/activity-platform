@@ -215,8 +215,12 @@ is 1,000 on one version.
   counts `prune_section_checks()` candidates across the WHOLE database and
   expects exactly its fixture's 3; live holds 19 real candidates of its own (a
   rolled-back dry run with no fixture returned 19; 19 + 3 = the 22 it saw). The
-  same over-scoping verify-0033's caps row had. Fix: assert on the fixture's
-  rows only. The prune is unarmed, so nothing was deleted. **S.**
+  same over-scoping verify-0033's caps row had. **Fixed 2026-11-26:** §C now
+  measures the real candidates under the same two watermarks before its
+  fixture exists and asserts baseline + its own 2 / 3 / 3; 11/11 on local and
+  live; mutation-tested (a wrong expected count goes red). On live the armed
+  leg still deletes the real candidates inside its rolled-back transaction,
+  which is B5's open question, not this row's. The prune is unarmed.
 - *Playtest replay has no answer for the teacher's class-activity read.* That
   was already true before this change (the recording predates `due_on`); the
   new order and paging params move it further. Re-record `class-walkthrough`.

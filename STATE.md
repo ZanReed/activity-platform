@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows) LIVE 2026-11-26:** 0104 applied, verify-0104 5/5 live, pushed `90bee0eb`. verify-0035 C is red on live for a data reason (its candidate count includes 19 real rows; review log A5).
+**[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows) LIVE 2026-11-26:** 0104 applied, verify-0104 5/5 live, pushed `90bee0eb`.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 

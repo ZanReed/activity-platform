@@ -103,7 +103,29 @@ declare
   v_stale     boolean;
   v_graded    boolean;
   v_rows      int;
+  -- The prune is GLOBAL: its counts include every real candidate in the
+  -- database, so on live the fixture's 3 arrived as 22 (2026-11-26: 19 real
+  -- superseded checks). These baselines are the real candidates under the SAME
+  -- two watermarks, measured before the fixture exists; every count below is
+  -- baseline + the fixture's own contribution, exact on any database.
+  v_base55    int;
+  v_base_now  int;
+  v_ledger    bigint;
 begin
+  -- ---- baselines (before any fixture row exists) ---------------------------
+  insert into analytics_job_runs (stale_cache_rows_deleted, section_check_rows,
+                                  census_versions, notes, rolled_through)
+  values (0, 0, 0, 'vfy0035: baseline watermark (rolled back)', now() - interval '55 days')
+  returning id into v_ledger;
+  v_base55 := (prune_section_checks()->>'candidates')::int;
+  delete from analytics_job_runs where id = v_ledger;
+  insert into analytics_job_runs (stale_cache_rows_deleted, section_check_rows,
+                                  census_versions, notes, rolled_through)
+  values (0, 0, 0, 'vfy0035: baseline watermark (rolled back)', now() - interval '6 minutes')
+  returning id into v_ledger;
+  v_base_now := (prune_section_checks()->>'candidates')::int;
+  delete from analytics_job_runs where id = v_ledger;
+
   -- ---- fixtures ----------------------------------------------------------
   insert into auth.users (id, email, raw_user_meta_data)
   values (v_teacher, 'vfy0035-t@vfy0035.example', '{}'::jsonb),
@@ -226,8 +248,8 @@ begin
                                   census_versions, notes, rolled_through)
   values (0, 7, 0, 'vfy0035: seeded watermark (rolled back)', now() - interval '55 days');
   v_res := prune_section_checks();
-  if (v_res->>'candidates')::int <> 2 then
-    raise exception 'FAIL clause 3 (watermark 55d): candidates=% (want 2: the two 60d rows)', v_res;
+  if (v_res->>'candidates')::int <> v_base55 + 2 then
+    raise exception 'FAIL clause 3 (watermark 55d): candidates=% (want % real + 2: the two 60d rows)', v_res, v_base55;
   end if;
 
   -- Advance the watermark (a SECOND ledger row — the function must pick it by
@@ -238,8 +260,8 @@ begin
                                   census_versions, notes, rolled_through)
   values (0, 7, 0, 'vfy0035: advanced watermark (rolled back)', now() - interval '6 minutes');
   v_res := prune_section_checks();
-  if (v_res->>'candidates')::int <> 3 then
-    raise exception 'FAIL clause 3/4 (fresh watermark): candidates=% (want 3: 60d+60d+45d; the 8d row is horizon-refused)', v_res;
+  if (v_res->>'candidates')::int <> v_base_now + 3 then
+    raise exception 'FAIL clause 3/4 (fresh watermark): candidates=% (want % real + 3: 60d+60d+45d; the 8d row is horizon-refused)', v_res, v_base_now;
   end if;
 
   -- ---- (K) the zero-arg call above was a DRY RUN: nothing deleted ---------
@@ -253,8 +275,10 @@ begin
 
   -- ---- (E) the P3 liveness leg: ARMED, production values ------------------
   v_res := prune_section_checks(p_dry_run => false);
-  if (v_res->>'deleted')::int <> 3 then
-    raise exception 'FAIL armed prune: deleted=% (want 3)', v_res->>'deleted';
+  -- On live this also deletes the v_base_now real candidates, inside this
+  -- EXPECTED-ROLLBACK transaction (review B5's open question covers that).
+  if (v_res->>'deleted')::int <> v_base_now + 3 then
+    raise exception 'FAIL armed prune: deleted=% (want % real + 3)', v_res->>'deleted', v_base_now;
   end if;
   if exists (select 1 from section_checks where id in (v_s1a1, v_s2a1, v_s2a2)) then
     raise exception 'FAIL armed prune: a candidate row survived';
