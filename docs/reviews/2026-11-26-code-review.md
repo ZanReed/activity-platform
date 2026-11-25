@@ -26,7 +26,8 @@ Effort: S = under a day, M = a few days, L = a week or more.
 > data-plot half of A2 (restore was a no-op). **The rest of A2 was fixed the
 > same day** (graph, number line, maths gaps; see A2 below). **A5 was fixed
 > the same day and is LIVE:** 0104 applied and verified on live, pushed at
-> `90bee0eb` (A5 below).
+> `90bee0eb`; the seven reads that grow the same way followed in 0106
+> (`757a98a1`, LIVE). See A5 below.
 > **Still open:** A7's touch scrolling (needs an iPad). Both Edge Functions need
 > a redeploy for the server-side fixes to reach students (STATE → Pending
 > author actions). **Not checked in a browser:** the graph freeze was tested against
@@ -201,13 +202,13 @@ is 1,000 on one version.
   a release changes `released_at` on the rows it names, so patching those rows
   locally (or having `upsert_check_grade` return the new row) would cut a
   1,200-element re-read to none. **S.**
-- *WATCH entries in the guard:* `list_bank` (grows with the public catalogue;
-  a cut drops the last course); the student's `my_activity_progress` and
-  `list_class_activities` (grow with one student's assignments);
-  `list_class_members` (removed members are returned and never counted by the
-  50 cap); `dol_pass_status` (uncapped by construction); `list_deleted_classes`
-  (the 5-class cap counts live classes only, and nothing purges deleted ones).
-  None is near 1,000; jsonb or paging before they are.
+- *The WATCH entries are FIXED and LIVE (0106, `757a98a1`; author: "fix all the
+  watch entries now").* `list_bank`, `my_activity_progress`,
+  `list_class_activities`, `list_class_members`, `dol_pass_status`,
+  `list_deleted_classes`, and a seventh the review of 0106 found
+  (`list_deleted_activities`, bounded only by the 30-day purge), each return
+  one jsonb through a `*_json` wrapper. The guard has no WATCH category: a
+  read that grows with use returns jsonb, and its row-set name is forbidden.
 - *Offset paging can repeat a row* when a share lands between two page reads
   of a teacher with more than 1,000 class-activity rows. Rare; dedupe by
   (class, activity) if it ever shows.
