@@ -155,7 +155,7 @@ export default function InteractiveGraph({
           // unanswered report is a real retraction (transform_curve's typed
           // equation cleared) and is recorded like any other change.
           if (!response.answered && store.getState().responses.graphs[block.id] === undefined) {
-            setNarration(describePoints(response.points));
+            setNarration(describePoints(response.points, response.parts));
             return;
           }
           // The kit reports; the STORE decides. Work only — the surface has
@@ -182,7 +182,12 @@ export default function InteractiveGraph({
             ...(response.dragged !== undefined
               ? { dragged: response.dragged }
               : {}),
-            ...(response.strict !== undefined || response.side !== undefined
+            // A SYSTEM board reports one part per curve or boundary; the
+            // grader matches them to the key in any order. A single
+            // inequality's style and side ride a one-part list instead.
+            ...(response.parts
+              ? { parts: response.parts }
+              : response.strict !== undefined || response.side !== undefined
               ? {
                   parts: [
                     {
@@ -200,7 +205,7 @@ export default function InteractiveGraph({
           };
           follow.noteReported(work);
           store.setGraphWork(block.id, work);
-          setNarration(describePoints(response.points));
+          setNarration(describePoints(response.points, response.parts));
         },
       },
     )
@@ -443,7 +448,16 @@ const CANVAS_SIZE = { width: '100%', aspectRatio: '1 / 1', minHeight: '18rem' } 
 
 /** Narration text for the live region. Says WHERE the handles are, which the
  * student could read off the grid themselves — never whether it is right. */
-function describePoints(points: [number, number][]): string {
+function describePoints(
+  points: [number, number][],
+  parts?: Array<{ points: [number, number][] }>,
+): string {
+  if (parts) {
+    // A system: each line's handles, numbered the way its chip is.
+    return parts
+      .map((p, i) => `Line ${i + 1}: ${describePoints(p.points)}`)
+      .join('. ');
+  }
   if (points.length === 0) return '';
   const round = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   return points

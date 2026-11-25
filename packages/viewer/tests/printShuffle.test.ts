@@ -396,6 +396,10 @@ describe('the declaration is where it is for a reason', () => {
     // redeploys are pending author actions, and no file using `{{^…}}` or a
     // question `hint:` may be imported before they are live.
     //
+    // MOVED 2026-11-26: '7-31b444a5' → '8-9ed721a8' (SANITIZER_ALGO_REV 8, the
+    // served question shape gained `domain` and `partFamilies`). Both bundles
+    // regenerate in the same commit; get-activity is redeployed BEFORE the
+    // push, then check-activity (it grades the range).
     // MOVED 2026-11-21: '6-2ddd6712' → '7-31b444a5' (SANITIZER_ALGO_REV 7, video
     // `display`). get-activity is deployed BEFORE the push.
     // MOVED 2026-11-20: '5-2c4345e7' → '6-2ddd6712' (SANITIZER_ALGO_REV 6, seed
@@ -412,7 +416,7 @@ describe('the declaration is where it is for a reason', () => {
     // SANITIZER_ALGO_REV 3 → 4 (the in-band walk now drops non-https links).
     // Both bundles regenerate in the same commit; get-activity and
     // check-activity redeploys are pending author actions, BEFORE the push.
-    expect(SANITIZER_REV).toBe('7-31b444a5');
+    expect(SANITIZER_REV).toBe('8-9ed721a8');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

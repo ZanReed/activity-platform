@@ -30,6 +30,7 @@ import {
   pointsOnModel,
   handlesForFamily,
   scoreBoxplot,
+  scoreDomain,
   scoreDotplot,
   scoreFunction,
   scoreFunctionSystem,
@@ -337,7 +338,24 @@ function scoreInteractiveGraph(
       // One model = one curve. Several = a system ("graph both lines"), where
       // the student's curves are matched to the models order-independently.
       if (models.length === 1) {
-        return scoreFunction(models[0] as never, curveOf(work));
+        const curveOk = scoreFunction(models[0] as never, curveOf(work));
+        // A curve with a range ("y = x² for x ≥ 0") is right only when its
+        // ends are too: each bounded end's position and open/closed style
+        // (the kit's own domain scorer, as the editor preview grades it).
+        // Until 2026-11-26 the range was ignored here, and the student board
+        // had no way to set it either.
+        const domain = readCurveDomain((interaction.domains as unknown[] | undefined)?.[0]);
+        if (!domain) return curveOk;
+        const d = work.domain ?? {};
+        return (
+          curveOk &&
+          scoreDomain(domain, {
+            ...(d.minX !== undefined ? { minX: d.minX } : {}),
+            ...(d.minStyle !== undefined ? { minStyle: d.minStyle } : {}),
+            ...(d.maxX !== undefined ? { maxX: d.maxX } : {}),
+            ...(d.maxStyle !== undefined ? { maxStyle: d.maxStyle } : {}),
+          })
+        );
       }
       const curves = (work.parts ?? []).map((p) => p.points ?? []);
       return scoreFunctionSystem(
@@ -528,6 +546,24 @@ function scoreDataPlot(
 }
 
 // ---- helpers ----------------------------------------------------------------
+
+/** A plot_function's authored range, read the way the kit's graded board
+ * reads it (an end counts only when its bound is a number; a missing style is
+ * closed). null when neither end is bounded. */
+function readCurveDomain(raw: unknown): Parameters<typeof scoreDomain>[0] | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const d = raw as Record<string, unknown>;
+  const out: Parameters<typeof scoreDomain>[0] = {};
+  if (typeof d.min === 'number') {
+    out.min = d.min;
+    out.minStyle = d.minStyle === 'open' ? 'open' : 'closed';
+  }
+  if (typeof d.max === 'number') {
+    out.max = d.max;
+    out.maxStyle = d.maxStyle === 'open' ? 'open' : 'closed';
+  }
+  return out.min === undefined && out.max === undefined ? null : out;
+}
 
 function num(value: unknown, fallback: number): number {
   return typeof value === 'number' && isFinite(value) ? value : fallback;

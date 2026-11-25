@@ -133,6 +133,10 @@ export interface SanitizedQuestionShape {
   handleCount?: number;
   family?: string;
   vertexCount?: number;
+  /** Which ends of a bounded plot_function are bounded (sanitize.ts). */
+  domain?: { min?: true; max?: true };
+  /** A system's per-part families, in authored order (sanitize.ts). */
+  partFamilies?: string[];
 }
 
 export type SanitizeBlockType<B> = B extends { type: 'math_block' }

@@ -107,12 +107,29 @@ kit that does not emit, blocks subscribe and re-apply. Remove the `as never`.
 >
 > No server bundle moved, so no Edge Function redeploy: this reaches students
 > on the next SPA push. **Not checked in a real browser:** jsdom has no layout,
-> so no drag was tested, only the boards' own pills and keyboard. **Found, not
-> fixed (separate gaps):** a domain-restricted `plot_function` shows no domain
-> endpoints in the viewer (the controls need the key) and the grader does not
-> score the domain either; and the viewer always mounts the single-question
-> board, so a `graph_inequality` system or `plot_function` system sends one
-> part where the grader expects N.
+> so no drag was tested, only the boards' own pills and keyboard.
+>
+> **✔ Two neighbouring gaps found during that pass, fixed the same day
+> (author: "Fix it" on both).** Neither was live (0 such questions in the 10
+> live activities), and both were authorable in the editor:
+> - **A curve with a range** ("y = x² for x ≥ 0"): the endpoint handles and
+>   style toggles hung off the key, so the viewer never showed them, and the
+>   grader ignored the range. The sanitizer now serves WHICH ends are bounded
+>   (`questionShape.domain`, booleans only; the bound and its style stay
+>   stripped), the kit draws the ends from it, and the grader scores the range
+>   with the kit's `scoreDomain`.
+> - **Systems** ("graph both lines", a system of inequalities): both system
+>   boards required the key, so the viewer mounted the one-part board and
+>   every system was marked wrong. The sanitizer serves each part's family
+>   (`questionShape.partFamilies`), both system boards gained an ungraded
+>   mode, and the seam routes to them, carries their parts out and restores
+>   them. An unpicked side is now reported as unpicked, not as 'above'.
+>
+> Pinned end to end (authored block → sanitizer → real board → store →
+> grader → reload) in `canvas-systems-domain-real-kit.test.tsx`; eight guards
+> mutation-tested. `SANITIZER_ALGO_REV` 7 → 8; both bundles regenerated, so
+> `get-activity` and `check-activity` must be redeployed (already owed in
+> STATE).
 
 ### A3 ✔ A locked or frozen section does not freeze its graphs
 The freeze is `<fieldset disabled>`; its CSS covers only

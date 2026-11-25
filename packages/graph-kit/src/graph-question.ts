@@ -458,6 +458,14 @@ export interface GraphQuestionConfig {
     family?: FunctionModel['family'];
     /** shade_region polygon vertices. Defaults to 3. */
     vertexCount?: number;
+    /** plot_function with a range: WHICH ends are bounded (never where, nor
+     *  open/closed). The board places an endpoint handle + style toggle per
+     *  bounded end. */
+    domain?: { min?: boolean; max?: boolean };
+    /** A SYSTEM (several curves or inequalities): each part's family, in
+     *  authored order. Its length is the number of parts. Read by
+     *  mountGraphSystemQuestion / mountGraphFunctionSystemQuestion. */
+    partFamilies?: FunctionModel['family'][];
   };
   /** Offer a "cannot be graphed / no solution" choice (Drop 4). */
   allowNoSolution?: boolean;
@@ -534,7 +542,9 @@ export interface GraphResponseData {
   parts?: {
     points: [number, number][];
     strict: boolean;
-    side: 'above' | 'below' | 'left' | 'right';
+    /** Absent while unpicked in ungraded mode (an unpicked side is no answer).
+     *  A keyed board reports 'above' for it, as it always has. */
+    side?: 'above' | 'below' | 'left' | 'right';
     correct: boolean;
   }[];
   /** plot_function SYSTEM (models.length > 1): one entry per plotted curve.
@@ -561,7 +571,8 @@ export interface GraphRestoreExtras {
   parts?: {
     points: [number, number][];
     strict: boolean;
-    side: 'above' | 'below' | 'left' | 'right';
+    /** Absent = the side was never picked; the restore leaves it unpicked. */
+    side?: 'above' | 'below' | 'left' | 'right';
   }[];
   /** plot_function SYSTEM: the N plotted curves to restore (mountGraphFunction-
    *  SystemQuestion reads this instead of the single points above). */
@@ -786,6 +797,22 @@ export async function mountGraphQuestion(
     interactionType === 'plot_function' && !ungraded
       ? readDomainKey(cfg.answerKey)
       : null;
+  // WHICH ends of a bounded curve the student places: from the key when there
+  // is one, else from the served question shape (ungraded mode). Not answer
+  // data: "for x ≥ 0" is in the prompt; the bound's value and its open/closed
+  // style are the answer, and those stay in the key. Before 2026-11-26 the
+  // endpoint UI hung off the key alone, so the viewer never showed it.
+  const domainBounds: { min: boolean; max: boolean } | null =
+    interactionType !== 'plot_function'
+      ? null
+      : domainKey
+        ? { min: typeof domainKey.min === 'number', max: typeof domainKey.max === 'number' }
+        : ungraded && (cfg.questionShape?.domain?.min || cfg.questionShape?.domain?.max)
+          ? {
+              min: cfg.questionShape.domain.min === true,
+              max: cfg.questionShape.domain.max === true,
+            }
+          : null;
   // transform_curve: the parent curve comes from the CONFIG (the served
   // interaction carries it — it is the question, not the key); the target
   // model comes from the key when one exists (published/editor/dev-harness
@@ -968,16 +995,17 @@ export async function mountGraphQuestion(
       return resp;
     }
     resp.correct = recipe.scorer(pts);
-    if (domainKey) {
+    if (domainBounds) {
       const xs = board.getDomainXs?.() ?? {};
       const ans = { minX: xs.minX, minStyle, maxX: xs.maxX, maxStyle };
       resp.domain = {
         ...(typeof xs.minX === 'number' && { minX: xs.minX, minStyle }),
         ...(typeof xs.maxX === 'number' && { maxX: xs.maxX, maxStyle }),
       };
-      const dp = scoreDomainParts(domainKey, ans);
-      const curveOk = resp.correct;
-      resp.correct = curveOk && dp.earned === dp.total;
+      if (domainKey) {
+        const dp = scoreDomainParts(domainKey, ans);
+        resp.correct = resp.correct && dp.earned === dp.total;
+      }
       return resp;
     }
     return resp;
@@ -1009,12 +1037,7 @@ export async function mountGraphQuestion(
       // rayThroughHandles/segmentBetweenHandles flags instead).
       linearShape: isRay || isSegment,
       vectorBetweenHandles: isVector,
-      domainEndpoints: domainKey
-        ? {
-            min: typeof domainKey.min === 'number',
-            max: typeof domainKey.max === 'number',
-          }
-        : undefined,
+      domainEndpoints: domainBounds ?? undefined,
       shadeBoundary: isInequality,
       polygon: recipe.polygon,
       ...(isTransform && startModel
@@ -1081,7 +1104,7 @@ export async function mountGraphQuestion(
   if (
     isInequality ||
     cfg.allowNoSolution ||
-    domainKey ||
+    domainBounds ||
     isRay ||
     isSegment ||
     requireEquation
@@ -1113,11 +1136,11 @@ export async function mountGraphQuestion(
       sideBBtn = pill(vertical ? 'Shade right' : 'Shade below', () => pickSide(sideB));
       bar.append(solidBtn, dottedBtn, sideABtn, sideBBtn);
     }
-    if (domainKey) {
+    if (domainBounds) {
       // One toggle per authored bound: open (hollow, excluded) vs closed. The
       // toggle also restyles the endpoint handle hollow/filled — same as the
       // ray/segment endpoints, so the pill and the drawn point always agree.
-      if (typeof domainKey.min === 'number') {
+      if (domainBounds.min) {
         minStyleBtn = pill('Start: ● closed', () => {
           minStyle = minStyle === 'closed' ? 'open' : 'closed';
           minStyleBtn!.textContent = minStyle === 'closed' ? 'Start: ● closed' : 'Start: ○ open';
@@ -1127,7 +1150,7 @@ export async function mountGraphQuestion(
         });
         bar.append(minStyleBtn);
       }
-      if (typeof domainKey.max === 'number') {
+      if (domainBounds.max) {
         maxStyleBtn = pill('End: ● closed', () => {
           maxStyle = maxStyle === 'closed' ? 'open' : 'closed';
           maxStyleBtn!.textContent = maxStyle === 'closed' ? 'End: ● closed' : 'End: ○ open';
@@ -1305,13 +1328,23 @@ export async function mountGraphSystemQuestion(
 ): Promise<GraphQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
   const axis = readAxis(cfg.axisConfig);
-  const keys = readInequalitySystemKey(cfg.answerKey);
+  // Ungraded input mode (the viewer): no key, so the boundaries' families come
+  // from the served question shape and nothing is scored. Before 2026-11-26
+  // this board required the key, so the viewer mounted the one-boundary board
+  // for a system and the grader, expecting N parts, marked every system wrong.
+  const ungraded = cfg.answerKey === undefined || cfg.answerKey === null;
+  const keys = ungraded ? [] : readInequalitySystemKey(cfg.answerKey);
+  const families: FunctionModel['family'][] = ungraded
+    ? [...(cfg.questionShape?.partFamilies ?? [])]
+    : keys.map((k) => k.boundary.family);
 
   // Per-boundary board recipe (handle count + curve derive), from each
   // boundary's family — the same plot_function machinery a single inequality's
   // boundary rides.
-  const specs: SystemBoundarySpec[] = keys.map((key) => {
-    const r = questionRecipe('plot_function', { models: [key.boundary] }, axis);
+  const specs: SystemBoundarySpec[] = families.map((family, i) => {
+    const r = ungraded
+      ? questionRecipe('plot_function', undefined, axis, { family })
+      : questionRecipe('plot_function', { models: [keys[i]!.boundary] }, axis);
     return {
       count: r.count,
       starts: r.starts,
@@ -1330,11 +1363,27 @@ export async function mountGraphSystemQuestion(
   assertHostAttached(mount, 'mountGraphSystemQuestion');
 
   let answered = false;
-  const stricts: boolean[] = keys.map(() => false);
-  const sides: ('above' | 'below' | 'left' | 'right' | null)[] = keys.map(() => null);
+  const stricts: boolean[] = families.map(() => false);
+  const sides: ('above' | 'below' | 'left' | 'right' | null)[] = families.map(() => null);
 
   function buildBase(): GraphResponseData {
     const allPts = board.getAllPoints();
+    if (ungraded) {
+      // Work only: what was drawn and chosen, never a verdict. An unpicked
+      // side is left out rather than defaulted, so it reads as unanswered.
+      return {
+        studentPoints: [],
+        correct: false,
+        scored: false,
+        answered,
+        parts: families.map((_, i) => ({
+          points: allPts[i] ?? [],
+          strict: stricts[i] ?? false,
+          ...(sides[i] ? { side: sides[i]! } : {}),
+          correct: false,
+        })),
+      };
+    }
     const parts = keys.map((_, i) => {
       const pts = allPts[i] ?? [];
       const sideI = sides[i] ?? null;
@@ -1452,7 +1501,7 @@ export async function mountGraphSystemQuestion(
   // selected boundary's side. null → sideA → sideB → sideA (never back to null —
   // an answer needs a side). Vertical boundaries flip left/right.
   const flipSide = (i: number): void => {
-    const vertical = keys[i]!.boundary.family === 'vertical';
+    const vertical = families[i] === 'vertical';
     const a = vertical ? ('left' as const) : ('above' as const);
     const b = vertical ? ('right' as const) : ('below' as const);
     setSide(i, sides[i] === a ? b : a);
@@ -1472,7 +1521,7 @@ export async function mountGraphSystemQuestion(
 
   function renderStrip(): void {
     stripEl.innerHTML = '';
-    keys.forEach((_key, i) => {
+    families.forEach((_family, i) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.disabled = locked;
@@ -1547,11 +1596,13 @@ export async function mountGraphSystemQuestion(
       if (!parts || parts.length === 0) return;
       answered = true;
       parts.forEach((p, i) => {
-        if (i >= keys.length) return;
+        if (i >= families.length) return;
         stricts[i] = p.strict;
-        sides[i] = p.side;
         board.setBoundaryDashed(i, p.strict);
-        board.setShadeSide(i, p.side);
+        if (p.side) {
+          sides[i] = p.side;
+          board.setShadeSide(i, p.side);
+        }
         if (p.points.length > 0) board.setPoints(i, p.points);
       });
       renderStrip();
@@ -1584,18 +1635,24 @@ export async function mountGraphFunctionSystemQuestion(
 ): Promise<GraphQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
   const axis = readAxis(cfg.axisConfig);
-  const models = readFunctionSystemModels(cfg.answerKey);
+  // Ungraded input mode: families from the served question shape, no scoring
+  // (see mountGraphSystemQuestion).
+  const ungraded = cfg.answerKey === undefined || cfg.answerKey === null;
+  const models = ungraded ? [] : readFunctionSystemModels(cfg.answerKey);
+  const families: FunctionModel['family'][] = ungraded
+    ? [...(cfg.questionShape?.partFamilies ?? [])]
+    : models.map((m) => m.family);
 
   // Per-curve board recipe from each model's family — same plot_function
   // machinery a single curve rides (handle count + fit-through-handles derive).
-  const specs: SystemBoundarySpec[] = models.map((model) => ({
-    count: handlesForFamily(model.family),
-    starts: startsForFamily(model.family, axis, handlesForFamily(model.family)),
+  const specs: SystemBoundarySpec[] = families.map((family) => ({
+    count: handlesForFamily(family),
+    starts: startsForFamily(family, axis, handlesForFamily(family)),
     deriveCurve: (pts) => {
-      const f = fitFunction(model.family, pts);
+      const f = fitFunction(family, pts);
       return f && 'predict' in f ? f.predict : null;
     },
-    lineThroughHandles: model.family === 'vertical',
+    lineThroughHandles: family === 'vertical',
   }));
 
   mount.textContent = '';
@@ -1606,6 +1663,15 @@ export async function mountGraphFunctionSystemQuestion(
 
   function buildBase(): GraphResponseData {
     const allPts = board.getAllPoints();
+    if (ungraded) {
+      return {
+        studentPoints: [],
+        correct: false,
+        scored: false,
+        answered,
+        curveParts: families.map((_, i) => ({ points: allPts[i] ?? [], correct: false })),
+      };
+    }
     const curveParts = models.map((_, i) => {
       const pts = allPts[i] ?? [];
       // Per-curve dashboard signal: does this curve match ANY authored model?
@@ -1648,7 +1714,7 @@ export async function mountGraphFunctionSystemQuestion(
       if (!curveParts || curveParts.length === 0) return;
       answered = true;
       curveParts.forEach((p, i) => {
-        if (i >= models.length) return;
+        if (i >= families.length) return;
         if (p.points.length > 0) board.setPoints(i, p.points);
       });
       report();

@@ -73,7 +73,12 @@ import type {
 // 6 -> 7 (2026-11-21, video display): the same case as 5 -> 6. The serve
 // path's schema parse learned the optional video `display` ('open'); a row
 // cached by the old function lost it and would keep serving the collapsed card.
-export const SANITIZER_ALGO_REV = 7;
+// 7 -> 8 (2026-11-26, review A2 follow-up): deriveQuestionShape began
+// serving `domain` (which ends of a bounded curve are bounded) and
+// `partFamilies` (a system's per-part families). No declaration changed, so
+// the computed rev would not have moved, and a cached row would keep serving
+// the shape without them: a one-boundary board for a system.
+export const SANITIZER_ALGO_REV = 8;
 
 /** FNV-1a 32-bit, hex. Tiny, dependency-free, stable across JS runtimes —
  * this is a cache-busting fingerprint, not security material. */
@@ -235,6 +240,14 @@ export interface QuestionShape {
   handleCount?: number;
   family?: string;
   vertexCount?: number;
+  /** plot_function with a range: WHICH ends are bounded, as two booleans.
+   * Never the bound's value or its open/closed style: those are the answer.
+   * "For x ≥ 0" is already in the prompt, so which end is bounded is not. */
+  domain?: { min?: true; max?: true };
+  /** A system (several curves, or several inequalities): each part's family,
+   * in authored order. The count is the question ("graph both lines"); the
+   * grader matches parts in any order, so the order gives nothing away. */
+  partFamilies?: string[];
 }
 
 /** A count survives only as a small positive integer. */
@@ -294,6 +307,37 @@ export function deriveQuestionShape(
       ?.boundary as Record<string, unknown> | undefined;
     const family = safeFamily(boundary?.family);
     if (family !== undefined) shape.family = family;
+  }
+
+  // A SYSTEM: one family per part, so the student board lays out N curves or
+  // N boundaries. Only for the two kinds that have system boards, and only
+  // when there really are several (one part is the single-question board).
+  const partSources =
+    kind === 'plot_function' && Array.isArray(models)
+      ? models
+      : kind === 'graph_inequality' && Array.isArray(inequalities)
+        ? inequalities.map(
+            (q) => (q as Record<string, unknown> | null)?.boundary as unknown,
+          )
+        : [];
+  if (partSources.length > 1 && safeCount(partSources.length) !== undefined) {
+    shape.partFamilies = partSources.map(
+      (m) => safeFamily((m as Record<string, unknown> | null)?.family) ?? 'linear',
+    );
+  }
+
+  // A one-curve plot_function with a range: which ends the student places.
+  const domain0 =
+    kind === 'plot_function' && Array.isArray(models) && models.length === 1
+      ? (interaction?.domains as unknown[] | undefined)?.[0]
+      : undefined;
+  if (domain0 !== null && typeof domain0 === 'object') {
+    const d = domain0 as Record<string, unknown>;
+    const min = typeof d.min === 'number' && Number.isFinite(d.min);
+    const max = typeof d.max === 'number' && Number.isFinite(d.max);
+    if (min || max) {
+      shape.domain = { ...(min ? { min: true as const } : {}), ...(max ? { max: true as const } : {}) };
+    }
   }
 
   // Polygon vertex count for shade_region.

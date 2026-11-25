@@ -93,6 +93,14 @@ export interface GraphSurfaceResponse {
    * student wrote, not whether it was right (the server parses and judges). */
   equation?: string;
   dragged?: boolean;
+  /** A SYSTEM board's per-part work: one entry per curve or boundary. For an
+   * inequality system each part carries its line style and, once picked, its
+   * side; a function system's parts are points only. */
+  parts?: Array<{
+    points: [number, number][];
+    strict?: boolean;
+    side?: 'above' | 'below' | 'left' | 'right';
+  }>;
 }
 
 export interface GraphSurfaceConfig {
@@ -102,6 +110,10 @@ export interface GraphSurfaceConfig {
     handleCount?: number;
     family?: string;
     vertexCount?: number;
+    /** Which ends of a bounded curve the student places (sanitize.ts). */
+    domain?: { min?: boolean; max?: boolean };
+    /** A system's per-part families: present ⇒ the system board. */
+    partFamilies?: string[];
   };
   allowNoSolution?: boolean;
   /** transform_curve: the SHOWN parent curve (served interaction material —
@@ -151,7 +163,15 @@ const kitSurface: GraphSurface = async (mount, config, hooks) => {
   // The chunk boundary (P1A / D16).
   const kit = await import('@activity/graph-kit');
   const quiet = quietRestorer();
-  const handle = await kit.mountGraphQuestion(
+  const system = isSystem(config);
+  // A system ("graph both lines", a system of inequalities) has its own board,
+  // one curve or boundary per part; everything else is the one-part board.
+  const mountQuestion = !system
+    ? kit.mountGraphQuestion
+    : config.interactionType === 'graph_inequality'
+      ? kit.mountGraphSystemQuestion
+      : kit.mountGraphFunctionSystemQuestion;
+  const handle = await mountQuestion(
     mount,
     {
       interactionType: config.interactionType,
@@ -174,13 +194,23 @@ const kitSurface: GraphSurface = async (mount, config, hooks) => {
   return {
     getResponse: () => toSurfaceResponse(handle.getResponse()),
     restore: (work) => {
-      const args = toGraphRestore(work);
+      const args = toGraphRestore(work, system);
       if (args) quiet.run(() => handle.restore(...args));
     },
     setLocked: (locked) => handle.setLocked(locked),
     destroy: () => handle.destroy(),
   };
 };
+
+/** Does this question mount a SYSTEM board? Only the two kinds that have one,
+ * and only with several parts served. */
+function isSystem(config: GraphSurfaceConfig): boolean {
+  return (
+    (config.interactionType === 'graph_inequality' ||
+      config.interactionType === 'plot_function') &&
+    (config.questionShape?.partFamilies?.length ?? 0) > 1
+  );
+}
 
 type GraphRestoreArgs = Parameters<GraphQuestionHandle['restore']>;
 type GraphRestoreExtras = NonNullable<GraphRestoreArgs[1]>;
@@ -198,7 +228,30 @@ const asSide = (v: unknown): GraphRestoreExtras['side'] =>
  * restored only for work that was really dragged. Undragged work carries the
  * seed positions, which sit on the parent curve; restoring them would read as
  * drawn work (design A1). */
-export function toGraphRestore(work: GraphWork): GraphRestoreArgs | null {
+export function toGraphRestore(work: GraphWork, system = false): GraphRestoreArgs | null {
+  if (system) {
+    // A system board restores from its parts alone; its top-level points are
+    // empty by construction. An inequality part keeps its style, and its side
+    // only when one was picked.
+    const parts = work.parts ?? [];
+    if (parts.length === 0) return null;
+    if (work.interaction === 'graph_inequality') {
+      return [
+        [],
+        {
+          parts: parts.map((p) => {
+            const side = asSide(p.side);
+            return {
+              points: p.points ?? [],
+              strict: p.strict === true,
+              ...(side !== undefined ? { side } : {}),
+            };
+          }),
+        },
+      ];
+    }
+    return [[], { curveParts: parts.map((p) => ({ points: p.points ?? [] })) }];
+  }
   if (work.interaction === 'transform_curve') {
     return work.dragged === true && work.points.length > 0 ? [work.points] : null;
   }
@@ -241,6 +294,12 @@ function toSurfaceResponse(resp: {
   endpoints?: ['open' | 'closed', 'open' | 'closed'];
   equation?: string;
   dragged?: boolean;
+  parts?: Array<{
+    points: [number, number][];
+    strict: boolean;
+    side?: 'above' | 'below' | 'left' | 'right';
+  }>;
+  curveParts?: Array<{ points: [number, number][] }>;
 }): GraphSurfaceResponse {
   // The kit reports a ray's single endpoint style as `fromStyle` and a
   // segment's pair as `endpoints`; the wire carries one ordered array for
@@ -258,6 +317,19 @@ function toSurfaceResponse(resp: {
     ...(endpointStyles !== undefined ? { endpointStyles } : {}),
     ...(resp.equation !== undefined ? { equation: resp.equation } : {}),
     ...(resp.dragged !== undefined ? { dragged: resp.dragged } : {}),
+    // A system's parts, narrowed field by field: each part's `correct` (a
+    // keyed board's per-part verdict) is dropped here like the rest.
+    ...(resp.parts
+      ? {
+          parts: resp.parts.map((p) => ({
+            points: p.points,
+            strict: p.strict,
+            ...(p.side !== undefined ? { side: p.side } : {}),
+          })),
+        }
+      : resp.curveParts
+        ? { parts: resp.curveParts.map((p) => ({ points: p.points })) }
+        : {}),
   };
 }
 

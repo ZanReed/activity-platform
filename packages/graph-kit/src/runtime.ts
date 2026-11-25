@@ -376,7 +376,10 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
         gs.shape = resp.shape;
         gs.fromStyle = resp.fromStyle;
         gs.endpoints = resp.endpoints;
-        gs.parts = resp.parts; // the N-boundary inequality-system answer (else undefined)
+        // The N-boundary inequality-system answer (else undefined). This runtime
+        // mounts KEYED boards, which always report a side ('above' when
+        // unpicked); the default only satisfies the now-optional type.
+        gs.parts = resp.parts?.map((p) => ({ ...p, side: p.side ?? 'above' }));
         gs.curveParts = resp.curveParts; // the N-curve function-system answer (else undefined)
         ctx.onUpdate();
       },

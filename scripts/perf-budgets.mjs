@@ -305,8 +305,13 @@ export const SHELL_SPEND = [
         change: 'Review defect A2, second pass: the seam\'s whole-work restore for the graph and number line (toGraphRestore, toNumberLineRestore) and its echo flag, useFollowStored (a mounted widget remounts when the store changes under it) and the inline maths gaps\' use of it; the graph, number-line, data-plot and math blocks themselves are lazy chunks',
         bytes: 637,
     },
+    {
+        date: '2026-11-26',
+        change: 'Review A2 follow-up (bounded curves, systems): the seam routes a served system to the kit\'s system boards, narrows their per-part work and restores it, plus the narration of a system\'s lines; the boards themselves are in the lazy kit chunk',
+        bytes: 288,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 161474;
+export const SHELL_JS_BASELINE_BYTES = 161762;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
