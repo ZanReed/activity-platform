@@ -687,6 +687,20 @@ No `engines` field and no `.nvmrc`: Node 24 is stated only in the workflow.
 - 10 unused indexes, 7 of them on the dead `assignments`/`submissions` tables
   whose retirement is already in TODOS.
 
+**Cron pinning and the two readers fixed 2026-11-26** (local commit, unpushed;
+nothing scheduled, unscheduled or re-timed). `scripts/verify-cron-jobs.sql`
+(registered in the runner) pins `purge-soft-deleted` (03:00) and
+`analytics-maintenance` (03:30) by name, hour, command and active flag, and a
+roster row fails on any cron job the repo does not name; the three cron rows
+are `@live-only` and ran green on live as read-only SQL. This used verify
+rows rather than the 0095-style self-scheduling migration the item
+suggested, because a migration that schedules would be scheduling. The README
+now carries the analytics job's recipe. TODOS → the check-rollup arming
+checklist names both readers, as step 4b plus a blocker paragraph. A refinement
+of the claim above: `record_check`'s insert loop numbers by `max` and refuses
+past the cap, so the server stays correct. The defect is `my_dol_state`, which
+would show one attempt and offer a retake the server then refuses. Still open: registering verify-0021…0026.
+
 ### E4 Documents that no longer match the code
 - CLAUDE.md: the R2 backup is "untracked" (B1).
 - `README.md:161-175`: the block-type checklist (C2); `~148` lists two

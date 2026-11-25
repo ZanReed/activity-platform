@@ -211,6 +211,12 @@ A few one-time setup steps in the Supabase dashboard:
    );
    ```
 
+   And the analytics roll-up (0026/0036), at 03:30 UTC:
+   ```sql
+   select cron.schedule('analytics-maintenance', '30 3 * * *', 'select run_analytics_maintenance();');
+   ```
+   `scripts/verify-cron-jobs.sql` pins both jobs (name, hour, command, active) and fails if cron holds any job this repo does not name; a deliberate change to a job edits that file in the same step.
+
    And the help-request cleanup (0090, armed by the author 2026-11-17):
    ```sql
    select cron.schedule('prune-help-requests', '45 3 * * *', 'select prune_help_requests(false);');

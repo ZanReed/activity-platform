@@ -2951,6 +2951,22 @@ silently become "M showed it · M still do". The misconception aggregate above m
 also serve that panel (or the panel must read it) before arming — add it to the arming
 checklist's verification step, and re-run verify-0061 after.
 
+🔁 **TWO MORE READERS OF THOSE ROWS (code review 2026-11-26, E3; not a suggestion to arm).**
+(1) **`mixed_taught`** (0066:477-487, the mixed-practice pool): a skill's *taught day* is the
+`min(created_at)` over the student's `section_checks` for that activity. Pruning the superseded
+attempts deletes the earliest rows, so the taught day moves LATER for every re-checked activity,
+and the spacing the pool schedules from moves with it. (2) **The DoL attempt count**:
+`my_dol_state` (0070:401, restated at 0072:320) reports `attempts` as `count(*)` of the student's
+rows for the section and derives `retake_open` and the retake day from the EARLIEST remaining row.
+`record_check` (latest body 0070:179) also checks the cap by `count(*)`, but its insert loop
+(0070:296-312) numbers by `max(attempt_number) + 1` and refuses past the cap, so the server stays
+correct. Pruning attempt 1 of a two-try DoL would make the screen show one attempt and offer a
+retake (dated from attempt 2) that the server then refuses with `section_locked`. Rubric-graded
+DoLs are kept by the prune (0035 clause 2), so this hits DoLs without a rubric. Before arming:
+keep every DoL section's rows, or move `my_dol_state` to `max(attempt_number)` and the first
+try's date; and `mixed_taught` must read a kept first-check day. Then re-run verify-0066,
+verify-0070 and verify-0072.
+
 **Trigger for ARMING:** real check growth on the `analytics_job_runs.section_check_rows` ledger
 (still 0 as of 2026-08-16 — 11 runs, all zero). No date; read the ledger. Building the rollup
 early was the author's deliberate call (momentum + every ruling fresh); arming has no such
@@ -3012,7 +3028,9 @@ record of WHY the schema looks like it does — read them before changing it, no
 everything below the watermark; trivially empty at 0 checks) · 4. ⏭ watermark advancing for **≥ N
 green nights, read off `analytics_job_runs` rows, not the cron registration (P3)**, with the
 **reconciliation pair not drifting between runs** (`checks_below_watermark` vs
-`rolled_checks_total` — movement is the signal, not the absolute) · 5. ⏭ verify-0035 + verify-0036
+`rolled_checks_total` — movement is the signal, not the absolute) · 4b. ⏭ **every reader of
+superseded attempts answered** (the blockers above: misconceptions, first tries 0062, class
+misconceptions 0061, `mixed_taught` 0066, the DoL attempt count 0070/0072) · 5. ⏭ verify-0035 + verify-0036
 re-run live · 6. ✅ **counsel packet Q10 answered** 2026-10-06 (the author reported counsel's
 reply to the whole packet: "current measures are sufficient"; n=1 aggregates surviving a purge
 were asked 2026-08-16). This arc is NOT started by that: the author started only the
