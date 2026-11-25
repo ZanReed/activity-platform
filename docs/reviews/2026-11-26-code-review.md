@@ -297,6 +297,16 @@ again" and is not logged. Real 500s return the raw message; a test pins that
 **Fix:** carry PostgREST's `code` and status through the port, one shared
 `rpcStatus()`, a fixed string for 500, log every non-404. **S.**
 
+**Fixed 2026-11-26** (local commit, unpushed). `packages/viewer/src/server/rpcStatus.ts`
+holds the one mapping: 'Not available' → 404 first (it arrives as 42501 /
+HTTP 403), then HTTP 401, a PGRST301–303 code or our SQL's exact
+`'Not authorized'` → 401, anything else → 500 with a fixed message. All five
+sites use it; `DbResult` now carries `status` and `error.code` (the Deno
+entry points already returned supabase-js results whole). 401s log at warn,
+500s at error. The test that pinned the echoed `permission denied` now
+asserts it is NOT echoed. Both bundles rebuilt; the two redeploys are owed
+(STATE).
+
 ### B4 A check row's size is bounded only by a header the client controls
 `check-activity-handler.ts:713` trusts `content-length`; a chunked body has
 none. photo-handoff already fixed this ("the declared length is a hint, not a

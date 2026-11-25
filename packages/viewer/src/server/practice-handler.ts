@@ -58,6 +58,7 @@ import { serveSeed } from '../sanitize/serveSeed.js';
 import type { SeedValues } from '../sanitize/seedValues.js';
 import { substituteSeedValues } from '../sanitize/substitute.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
+import { rpcFailure } from './rpcStatus.js';
 import { jwtSub } from './jwt.js';
 import { UUID_RE } from './uuid.js';
 
@@ -411,10 +412,9 @@ function resultOf(
 
 // ---- Error mapping --------------------------------------------------------------
 
-/** The caller RPCs' one no-oracle refusal → 404; a token problem → 401. */
-function rpcStatus(message: string): 404 | 401 | 500 {
-  return message.includes('Not available') ? 404 : /JWT|token|auth/i.test(message) ? 401 : 500;
-}
+// The caller RPCs' refusals map through rpcStatus.ts (review B3): 'Not
+// available' → 404, PostgREST's token errors → 401, anything else → a logged
+// 500 with a fixed message.
 
 // ---- The handlers -----------------------------------------------------------------
 
@@ -429,11 +429,10 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     const { classId, start } = validated.request;
 
     // ---- As the CALLER: membership, class live, mixed on, the plan --------
-    const { data, error } = await practice.startMixedSession(authHeader, classId, start);
+    const { data, error, status: httpStatus } = await practice.startMixedSession(authHeader, classId, start);
     if (error) {
-      const status = rpcStatus(error.message ?? '');
-      if (status === 500) console.error('[check-activity] start_mixed_session error:', error);
-      return cors.errorResponse(req, status, status === 404 ? 'Not available' : (error.message ?? ''));
+      const failure = rpcFailure('check-activity start_mixed_session', error, httpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
     const out = data as {
       state?: string;
@@ -568,11 +567,10 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     }
     const { activityId, versionId } = validated.request;
     // ---- As the CALLER: a first DoL try recorded, not passed, a retake left
-    const { data, error } = await practice.startDolPractice(authHeader, activityId, versionId);
+    const { data, error, status: httpStatus } = await practice.startDolPractice(authHeader, activityId, versionId);
     if (error) {
-      const status = rpcStatus(error.message ?? '');
-      if (status === 500) console.error('[check-activity] start_dol_practice error:', error);
-      return cors.errorResponse(req, status, status === 404 ? 'Not available' : (error.message ?? ''));
+      const failure = rpcFailure('check-activity start_dol_practice', error, httpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
     const out = data as {
       state?: string;
@@ -616,11 +614,10 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     const skip = validated.request.skip === true;
 
     // ---- As the CALLER: the session is theirs, live, and the slot planned --
-    const { data, error } = await ports.itemForCheck(authHeader, sessionId, seq);
+    const { data, error, status: httpStatus } = await ports.itemForCheck(authHeader, sessionId, seq);
     if (error) {
-      const status = rpcStatus(error.message ?? '');
-      if (status === 500) console.error(`[check-activity] ${ports.label} error:`, error);
-      return cors.errorResponse(req, status, status === 404 ? 'Not available' : (error.message ?? ''));
+      const failure = rpcFailure(`check-activity ${ports.label}`, error, httpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
     const auth = data as {
       replay?: boolean;

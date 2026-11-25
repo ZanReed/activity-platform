@@ -282,7 +282,8 @@ describe('the authorization chain (ruling S4-B1)', () => {
     const h = harness({
       versionForCheck: async () => ({
         data: null,
-        error: { message: 'JWT expired' },
+        error: { message: 'JWT expired', code: 'PGRST303' },
+        status: 401,
       }),
     });
     expect((await h.handler(post(validBody()))).status).toBe(401);

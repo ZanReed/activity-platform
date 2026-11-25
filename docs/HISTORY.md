@@ -1,5 +1,13 @@
 # HISTORY.md
 
+**▶ Moved out of STATE 2026-11-26 (closed records, nothing owed).** Kept verbatim:
+
+**Form grading (D60) LIVE 2026-11-14**, nothing owed ([form-grading.md](docs/design/form-grading.md) → As built; pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) merged).
+
+**Efficiency audit: 0064, 0065, function pin, `/assets/` header, #9, #14 LIVE**, verified.
+
+**Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
+
 **▶ Moved out of STATE 2026-10-20 (closed records, nothing owed).** Kept verbatim:
 
 **Closed 2026-10-10…12, nothing owed:** arrowhead Drops 1+2 (graded free vectors) live; 714 transformations + 715 nets imported, PUBLISHED and Bank-listed; figure grammar published as data (pinned at their `f0309d0`); shown-segment open/closed refused; number-line tolerance follows the tick step (`2d0a2886`).

@@ -32,6 +32,7 @@ import {
   createMetaRateLimiter,
 } from '../src/server/get-activity-handler.js';
 import { jwtSub } from '../src/server/jwt.js';
+import { RPC_FAILED_MESSAGE } from '../src/server/rpcStatus.js';
 import { SERVE_REV, SERVE_TRANSFORM_REV } from '../src/server/serveRev.js';
 import { createHash } from 'node:crypto';
 import { mulberry32, seedFrom } from '../src/sanitize/prng.js';
@@ -526,22 +527,65 @@ describe('auth gate + RESOLVE branch', () => {
     expect((await body(res)).error).toBe('Missing Authorization header');
   });
 
+  // Review B3: the status comes from what PostgREST SAYS (its HTTP status and
+  // PGRST code), never from the words in the message — and a 500 never echoes
+  // the database's text to the student.
   it.each([
-    ['invalid JWT: signature is invalid', 401],
-    ['JWT expired', 401],
-    ['bad auth token', 401],
-    ['permission denied for table foo', 500],
-  ])('maps RPC error %j to %i', async (message, status) => {
+    ['PostgREST 401 (bad signature)', { message: 'JWSInvalidSignature', code: 'PGRST301' }, 401, 401],
+    ['PGRST303 with no status (expired)', { message: 'JWT expired', code: 'PGRST303' }, undefined, 401],
+    ['gateway 401 with no code', { message: 'Invalid JWT' }, 401, 401],
+    ['an error that merely SAYS auth', { message: 'column author_id of relation auth.users', code: '42703' }, 400, 500],
+    ['a token word with no auth status', { message: 'bad auth token' }, 500, 500],
+    ["our SQL's no-auth.uid() raise", { message: 'Not authorized', code: 'P0001' }, 400, 401],
+    ['permission denied for table foo', { message: 'permission denied for table foo', code: '42501' }, 403, 500],
+  ])('maps %s', async (_label, error, httpStatus, status) => {
     const db = makeDb({
       publishedActivity: vi.fn(async () => ({
         data: null,
-        error: { message },
+        error,
+        status: httpStatus,
       })),
     });
     const handler = createGetActivityHandler({ db, cors });
     const res = await handler(authedRequest(`activity_id=${ACTIVITY_ID}`));
     expect(res.status).toBe(status);
-    expect((await body(res)).error).toBe(message);
+    const sent = (await body(res)).error;
+    // Never the database's own words, whichever way it went.
+    expect(sent).not.toBe(error.message);
+    if (status === 500) expect(sent).toBe(RPC_FAILED_MESSAGE);
+  });
+
+  it('logs every non-404 RPC failure, a misrouted 401 included', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      for (const [error, httpStatus] of [
+        [{ message: 'JWT expired', code: 'PGRST303' }, 401],
+        [{ message: 'permission denied for table foo', code: '42501' }, 403],
+      ] as const) {
+        const db = makeDb({
+          publishedActivity: vi.fn(async () => ({ data: null, error, status: httpStatus })),
+        });
+        await createGetActivityHandler({ db, cors })(authedRequest(`activity_id=${ACTIVITY_ID}`));
+      }
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(err).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+      err.mockRestore();
+    }
+  });
+
+  it('reads "Not available" as 404 even though PostgREST sends it as a 403 (42501)', async () => {
+    const db = makeDb({
+      publishedActivity: vi.fn(async () => ({
+        data: null,
+        error: { message: 'Not available', code: '42501' },
+        status: 403,
+      })),
+    });
+    const res = await createGetActivityHandler({ db, cors })(authedRequest(`activity_id=${ACTIVITY_ID}`));
+    expect(res.status).toBe(404);
   });
 
   it('maps the RPC "Not available" raise to a 404 with the canonical message', async () => {

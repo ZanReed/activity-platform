@@ -22,6 +22,8 @@ Author-only: pushes, deploys, migrations.
 
 **[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows) LIVE 2026-11-26:** 0104 applied, verify-0104 5/5 live, pushed `90bee0eb`.
 
+**Review G-2 batch (2026-11-26, local commits on `main`, unpushed):** B3 — after push, `pnpm deploy:get-activity` then `pnpm deploy:check` (no `--no-verify-jwt`), hash-verify both bundles.
+
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
 **February:** [readiness](docs/february-readiness.md), [stress test](docs/walkthrough/). **2026-11-26: both functions deployed (a65b9ede), hash-verified.**
@@ -31,8 +33,6 @@ Author-only: pushes, deploys, migrations.
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 
 **Schema shortlist S1–S8 + S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md)), pushed, CI green. `prune_help_requests` ARMED 2026-11-17. Ruled: no asking in locked / quiz / exam / DoL. **No hints in a DoL LIVE 2026-11-17** (sanitizer rev 5).
-
-**Form grading (D60) LIVE 2026-11-14**, nothing owed ([form-grading.md](docs/design/form-grading.md) → As built; pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) merged).
 
 **UI review 2026-11-13 (TODOS → "UI review"):** A–E pushed, CI green (0086 live). Designs: docs/design/ui-review-group-{a,b,c,d,e}.md. Pills no longer announce (DECISIONS). The rest of E has triggers in TODOS.
 
@@ -45,10 +45,6 @@ Author-only: pushes, deploys, migrations.
 **MIXED PRACTICE: slices 1–3 LIVE; slice 4 (teacher panel, "Who to see first") — 0068 APPLIED + VERIFIED live 2026-10-24 (verify-0068 4/4, verify-0066 11/11)** ([mixed-practice.md](docs/design/mixed-practice.md) → "Slice 4 — as built"; S4-1..5). Labels mirrored 2026-10-25. `/design-review` done 2026-11-04 (open items in TODOS). MP-15: `practice_bank` built (C-178); pin bump after push.
 
 **Period assembly LIVE (0081–0084).** **Period planner** ([period-planner.md](docs/design/period-planner.md) → As built): 0088 LIVE; steps 2–6 + "Present today" on each class card LIVE 2026-11-14 (e6193749, CI green). **Build complete**; next: real-classroom checks (doc → Not checked yet). #92 merged (C-191); next `--practice-registry` import mirrors `b4d730f3`.
-
-**Efficiency audit: 0064, 0065, function pin, `/assets/` header, #9, #14 LIVE**, verified.
-
-**Class progress (0061) + first tries (0062) LIVE** [first-try-view.md](docs/design/first-try-view.md); verify-0062 4/4, verify-0061 5/5; pushed through `3010fb2e`, green.
 
 **Superscript units LIVE (2026-10-17)**, hash-verified, stamp `201a0a29`. **HELD: B-184** until a curriculum session runs (content: [superscript-units.md](docs/design/superscript-units.md)).
 

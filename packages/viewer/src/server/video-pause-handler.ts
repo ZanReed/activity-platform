@@ -26,6 +26,7 @@ import {
 import type { SanitizedInlineNode } from '../sanitize/sanitized-types.js';
 import { gradeSection, PhotosMismatchError } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
+import { rpcFailure } from './rpcStatus.js';
 import { autoGradedIds, seedContextFor } from './dol.js';
 import { jwtSub } from './jwt.js';
 import { UUID_RE } from './uuid.js';
@@ -112,18 +113,16 @@ export function createVideoPauseHandler(deps: VideoPauseDeps) {
       return cors.errorResponse(req, 400, checked.failure.message, { code: checked.failure.code });
     }
 
-    const { data: version, error: authError } = await db.versionForCheck(authHeader, activityId!, versionId!);
-    if (authError || !version) {
-      const message = authError?.message ?? '';
-      if (/JWT|token|auth/i.test(message) && !message.includes('Not available')) {
-        return cors.errorResponse(req, 401, message);
-      }
-      if (authError && !message.includes('Not available')) {
-        console.error('[check-activity] pause authorization RPC error:', authError);
-        return cors.errorResponse(req, 500, 'Could not check that');
-      }
-      return cors.errorResponse(req, 404, 'Not available');
+    const {
+      data: version,
+      error: authError,
+      status: authHttpStatus,
+    } = await db.versionForCheck(authHeader, activityId!, versionId!);
+    if (authError) {
+      const failure = rpcFailure('check-activity pause', authError, authHttpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
+    if (!version) return cors.errorResponse(req, 404, 'Not available');
     const studentId = jwtSub(authHeader);
     if (!studentId) return cors.errorResponse(req, 500, 'Could not identify the student');
 

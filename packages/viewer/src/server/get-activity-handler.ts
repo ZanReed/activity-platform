@@ -102,6 +102,7 @@ import {
   type DolServedState,
 } from '../sanitize/dolForm.js';
 import { dolPrimary } from './dolPrimary.js';
+import { rpcFailure, type RpcErrorLike } from './rpcStatus.js';
 import type { SeedVar } from '@activity/schema';
 import type { SanitizedActivityDocument } from '../sanitize/sanitized-types.js';
 
@@ -116,10 +117,14 @@ export { API_VERSION } from './serveRev.js';
 // The handler never touches supabase-js or Deno directly; the entry point
 // implements these against the real clients, tests implement them with fakes.
 
-/** The `{ data, error }` shape every supabase-js query resolves to. */
+/** The `{ data, error, status }` shape every supabase-js query resolves to.
+ * `status` and `error.code` are what rpcStatus.ts reads (review B3): the
+ * entry points return supabase-js's result whole, so both arrive as-is. */
 export interface DbResult<T> {
   data: T | null;
-  error: { message?: string } | null;
+  error: RpcErrorLike | null;
+  /** PostgREST's HTTP status (supabase-js `status`); absent in some fakes. */
+  status?: number;
 }
 
 export interface PublishedActivityRow {
@@ -372,25 +377,16 @@ export function createGetActivityHandler(
       return cors.errorResponse(req, 401, 'Missing Authorization header');
     }
 
-    const { data: current, error: rpcError } = await db.publishedActivity(
-      authHeader,
-      activityId,
-    );
+    const {
+      data: current,
+      error: rpcError,
+      status: rpcHttpStatus,
+    } = await db.publishedActivity(authHeader, activityId);
     if (rpcError) {
-      const msg = rpcError.message ?? '';
-      // PostgREST surfaces a bad/expired JWT as a 401-class error; the RPC
-      // raises 'Not available' for missing/unpublished/deleted activities.
-      const status = msg.includes('Not available')
-        ? 404
-        : /JWT|token|auth/i.test(msg)
-          ? 401
-          : 500;
-      if (status === 500) console.error('[get-activity] RPC error:', rpcError);
-      return cors.errorResponse(
-        req,
-        status,
-        status === 404 ? 'Not available' : msg,
-      );
+      // The RPC raises 'Not available' for missing/unpublished/deleted
+      // activities; a bad/expired JWT is PostgREST's 401 (rpcStatus.ts).
+      const failure = rpcFailure('get-activity', rpcError, rpcHttpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
     if (!current) return cors.errorResponse(req, 404, 'Not available');
     const row = current;

@@ -45,6 +45,7 @@ import {
   SectionNotFoundError,
 } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
+import { rpcFailure } from './rpcStatus.js';
 import { jwtSub } from './jwt.js';
 import { dolAllowance, findDolSection } from '../sanitize/dolForm.js';
 import { dolPrimary, primaryCorrect, seedContextFor } from './dol.js';
@@ -567,22 +568,14 @@ export function createCheckActivityHandler(
     }
     const request = validated.request;
 
-    const { data: version, error: authError } = await db.versionForCheck(
-      authHeader,
-      request.activityId,
-      request.versionId,
-    );
+    const {
+      data: version,
+      error: authError,
+      status: authHttpStatus,
+    } = await db.versionForCheck(authHeader, request.activityId, request.versionId);
     if (authError) {
-      const msg = authError.message ?? '';
-      const status = msg.includes('Not available')
-        ? 404
-        : /JWT|token|auth/i.test(msg)
-          ? 401
-          : 500;
-      if (status === 500) {
-        console.error('[check-activity] restore authorization RPC error:', authError);
-      }
-      return cors.errorResponse(req, status, status === 404 ? 'Not available' : msg);
+      const failure = rpcFailure('check-activity restore', authError, authHttpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
     if (!version) return cors.errorResponse(req, 404, 'Not available');
 
@@ -770,28 +763,16 @@ export function createCheckActivityHandler(
         : null;
 
     // ---- The authorization chain, as the CALLER ---------------------------
-    const { data: version, error: authError } = await db.versionForCheck(
-      authHeader,
-      request.activityId,
-      request.versionId,
-    );
+    const {
+      data: version,
+      error: authError,
+      status: authHttpStatus,
+    } = await db.versionForCheck(authHeader, request.activityId, request.versionId);
     if (authError) {
-      const msg = authError.message ?? '';
       // 'Not available' is the RPC's single no-oracle message for missing /
       // unpublished / deleted / WRONG-PARENT. Deliberately indistinguishable.
-      const status = msg.includes('Not available')
-        ? 404
-        : /JWT|token|auth/i.test(msg)
-          ? 401
-          : 500;
-      if (status === 500) {
-        console.error('[check-activity] authorization RPC error:', authError);
-      }
-      return cors.errorResponse(
-        req,
-        status,
-        status === 404 ? 'Not available' : msg,
-      );
+      const failure = rpcFailure('check-activity', authError, authHttpStatus);
+      return cors.errorResponse(req, failure.status, failure.message);
     }
     if (!version) return cors.errorResponse(req, 404, 'Not available');
 
