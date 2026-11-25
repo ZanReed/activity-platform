@@ -3,6 +3,13 @@
 Deferred work items with enough context to pick up cold. Durable backlog lives in
 ROADMAP.md; this file is for concrete, near-term follow-ups surfaced during reviews.
 
+## Walkthrough checks owed (2026-11-21 → 24 session)
+
+**Trigger: the author's walkthrough.** Each is a look, not a build; a finding files its own entry.
+- **The ² ³ tray on an iPad / Safari.** It moved to the top layer (899be466, Popover API); the e2e lanes are Chromium only. Check a blank in a table's last column.
+- **A checked maths answer's colour.** Since MathLive 0.111.4 (6447fe69) the answer TEXT stays the ink colour; only the box outline and glow turn green/red. 0.109.2 coloured the text too, and 0.111.4 no longer lets us. Decide whether the outline alone is enough.
+- **Where a non-checkpoint section is checked.** A leading section with no checkpoint is checked by the NEXT checkpoint's button ("Check these 2 sections"); the author looked for feedback in section 1 and found none. Possible: a line at the end of such a section saying where it is checked. Per-blank instant feedback was considered and TABLED (author: section checks are the better pedagogy).
+
 ## Stress test 2026-11-20 — what the AI route and print got wrong (author: "build it")
 
 A fresh model, given ONLY the "Copy AI prompt" text, wrote an activity using
