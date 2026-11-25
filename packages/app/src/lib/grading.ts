@@ -15,6 +15,7 @@
  */
 import { supabase } from './supabase';
 import { MY_CHECKED_SECTION_IDS_RPC } from './edgeFunctions';
+import { GRADING_QUEUE_RPC } from './gradingQueueRpc';
 import type { ReleasedFeedbackRow } from '@activity/viewer';
 import type { ManuallyGradedType } from '@activity/schema';
 
@@ -113,11 +114,15 @@ export interface CriterionEntry {
   feedback?: string;
 }
 
+/** The whole queue in one read (0104): a jsonb array of 0099's rows, in its
+ *  order. A row-set read was cut at PostgREST's 1,000 rows with no error, and
+ *  the rows lost were the older version's students (review A5). */
 export async function fetchGradingQueue(activityId: string): Promise<GradingQueueRow[]> {
-  const { data, error } = await supabase.rpc('list_grading_queue', {
+  const { data, error } = await supabase.rpc(GRADING_QUEUE_RPC, {
     p_activity_id: activityId,
   });
   if (error) throw new Error(error.message);
+  // 0104 coalesces to '[]', so this is always an array.
   return (data ?? []) as GradingQueueRow[];
 }
 

@@ -1,7 +1,7 @@
 // =============================================================================
 // responsesLabels.ts: what the Responses page calls a section and a question
 // -----------------------------------------------------------------------------
-// The grading queue (0034 list_grading_queue) carries ids only. Responses
+// The grading queue (0034 list_grading_queue; one jsonb since 0104) carries ids only. Responses
 // printed the section id as its group heading, so a teacher saw an upper-cased
 // UUID and never the question (playtest sweep 2026-11-12). The words come from
 // the version's own document, read through the page-session cache

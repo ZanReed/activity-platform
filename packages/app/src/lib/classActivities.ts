@@ -81,6 +81,9 @@ export interface TeacherClassActivity {
  * visible to this reader). Newest first with the DR-1 tiebreak, mirroring the
  * student list — a deliberate verification affordance.
  */
+/** One page of the teacher's class-activity read; PostgREST's default max_rows. */
+export const CLASS_ACTIVITY_PAGE = 1000;
+
 export async function listTeacherClassActivities(): Promise<TeacherClassActivity[]> {
     // Narrowed through the caller's own classes (efficiency audit #4): the
     // unfiltered read seq-scanned every class_activities row on the platform,
@@ -88,15 +91,31 @@ export async function listTeacherClassActivities(): Promise<TeacherClassActivity
     // left.
     const uid = await signedInUserId();
     if (!uid) return [];
-    const { data, error } = await supabase
-        .from('class_activities')
-        .select(
-            'class_id, activity_id, added_at, due_on, activities(title, status, deleted_at, current_version_id), classes!inner(teacher_id)',
-        )
-        .eq('classes.teacher_id', uid)
-        .order('added_at', { ascending: false })
-        .order('activity_id', { ascending: false });
-    if (error) throw new Error(error.message);
+    // PAGED (review A5): a table read is cut at PostgREST's max_rows (1,000;
+    // config.toml sets none) with no error. Every class the teacher has ever
+    // had, deleted ones included, × its activities passes that within a couple
+    // of school years. The order is TOTAL — class_id completes the primary key
+    // — so no row can fall between two pages. CLASS_ACTIVITY_PAGE must not
+    // exceed the server's max_rows: a short page is what ends the loop. A
+    // share landing between two page reads can repeat one row (offset
+    // paging); rare past 1,000 rows, and noted in the review log.
+    const data: Row[] = [];
+    for (let from = 0; ; from += CLASS_ACTIVITY_PAGE) {
+        const { data: page, error } = await supabase
+            .from('class_activities')
+            .select(
+                'class_id, activity_id, added_at, due_on, activities(title, status, deleted_at, current_version_id), classes!inner(teacher_id)',
+            )
+            .eq('classes.teacher_id', uid)
+            .order('added_at', { ascending: false })
+            .order('activity_id', { ascending: false })
+            .order('class_id')
+            .range(from, from + CLASS_ACTIVITY_PAGE - 1);
+        if (error) throw new Error(error.message);
+        const rows = (page ?? []) as Row[];
+        data.push(...rows);
+        if (rows.length < CLASS_ACTIVITY_PAGE) break;
+    }
     interface Row {
         class_id: string;
         activity_id: string;
@@ -107,7 +126,7 @@ export async function listTeacherClassActivities(): Promise<TeacherClassActivity
             | { title: string; status: string; deleted_at: string | null; current_version_id: string | null }[]
             | null;
     }
-    return ((data ?? []) as Row[]).map((r) => {
+    return data.map((r) => {
         const a = Array.isArray(r.activities) ? r.activities[0] : r.activities;
         return {
             classId: r.class_id,

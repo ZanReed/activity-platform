@@ -705,7 +705,11 @@ export const TEACHER_JOURNEYS = [
         // left off" card and Hide done (with its per-class count). Measured
         // 8.5; the prefs module it reads is shared with the viewer, so no
         // library crossed in.
-        maxGzKiB: 8.75,
+        // 8.75 → 8.8 (2026-11-26, author: "keep the paging and raise the
+        // caps"): review A5 pages the teacher's class-activity read, which
+        // PostgREST cut at 1,000 rows with no error. Measured 8.742 → 8.757,
+        // the loop in classActivities.ts (shared with this chunk); no library.
+        maxGzKiB: 8.8,
         forbid: ['prosemirror', 'mathlive', 'mathjs', 'katex'],
         why: 'The signed-in landing for students and teachers. Preloaded by URL from index.html; must stay a list, never a heavy library.',
     },
@@ -778,7 +782,10 @@ export const TEACHER_JOURNEYS = [
         // growth. Main measured 14.245 and the same code 14.233–14.253
         // across rebuilds — the chunk hash names inside import specifiers
         // move the gzip total by ~0.02 — so the cap failed at random.
-        maxGzKiB: 14.5,
+        // 14.5 → 14.6 (2026-11-26, author: "keep the paging and raise the
+        // caps"): review A5's paged class-activity read. Measured 14.502
+        // (main, already over locally) → 14.531; the same loop, no library.
+        maxGzKiB: 14.6,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A list of classes, no editor.',
     },

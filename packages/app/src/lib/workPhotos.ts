@@ -60,17 +60,24 @@ export async function signWorkPhotos(keys: readonly PhotoKey[]): Promise<Record<
   return out;
 }
 
+/** Ids per work_photo_states call. The RPC returns one row per id it is
+ *  given, and PostgREST cuts a row set at max_rows (1,000) with no error, so a
+ *  queue with more photos than that lost the rest's states (review A5). Must
+ *  stay at or under max_rows. */
+export const PHOTO_STATES_CHUNK = 500;
+
 /** Photo id → why it can or cannot be shown, for one activity. */
 export async function fetchPhotoStates(activityId: string, photoIds: readonly string[]): Promise<Record<string, PhotoState>> {
-  if (photoIds.length === 0) return {};
-  const { data, error } = await supabase.rpc('work_photo_states', {
-    p_activity_id: activityId,
-    p_photo_ids: [...photoIds],
-  });
-  if (error) throw new Error(error.message);
   const out: Record<string, PhotoState> = {};
-  for (const row of (data ?? []) as Array<{ photo_id: string; state: string }>) {
-    if (row.state === 'ok' || row.state === 'changed' || row.state === 'removed') out[row.photo_id] = row.state;
+  for (let i = 0; i < photoIds.length; i += PHOTO_STATES_CHUNK) {
+    const { data, error } = await supabase.rpc('work_photo_states', {
+      p_activity_id: activityId,
+      p_photo_ids: photoIds.slice(i, i + PHOTO_STATES_CHUNK),
+    });
+    if (error) throw new Error(error.message);
+    for (const row of (data ?? []) as Array<{ photo_id: string; state: string }>) {
+      if (row.state === 'ok' || row.state === 'changed' || row.state === 'removed') out[row.photo_id] = row.state;
+    }
   }
   return out;
 }

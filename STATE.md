@@ -20,6 +20,8 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
+**[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows): migration 0104 NOT applied.** Order: apply 0104 → `pnpm verify:auth --target live --only verify-0104` (re-run -0034, -0035, -0042, -0096, -0097, -0099) → THEN push. The responses screen calls 0104's new `grading_queue` and `grade_suggestions`; pushed first, it fails for every teacher. No deploy.
+
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
 **February:** [readiness](docs/february-readiness.md), [stress test](docs/walkthrough/). **2026-11-26: both functions deployed (a65b9ede), hash-verified.**
@@ -28,7 +30,7 @@ Author-only: pushes, deploys, migrations.
 
 **Review period + skills diagnostic RULED 2026-11-17** ([review-period.md](docs/design/review-period.md), [skills-diagnostic.md](docs/design/skills-diagnostic.md)). Slices 2–4 LIVE. B-263 cleared #98, #99. **3b + 5 built; push before any import (review-period.md → 3b). B-264: small reviews.**
 
-**Schema shortlist S1–S8 LIVE (2026-11-16):** both functions deployed and hash-verified, pushed at `cf1d1edd`, CI green; prompt stamp refreshed; B-255 sent (`^`, `hint:`, https links). **S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md), ST-1..14 ruled): 0090 applied, verify-0090 5/5 on live, pushed `3274dc69`, CI green. `prune_help_requests` ARMED 2026-11-17 (author runs the `cron.schedule` in migrations/README, then `verify-0090` live). Ruled: no asking in locked / quiz / exam / DoL. S2's workSpace departure confirmed 2026-11-17. **No hints in a DoL LIVE 2026-11-17** (both functions hash-verified, `7ccc8aa5` pushed, CI green; sanitizer rev 4 → 5; B-257 sent).
+**Schema shortlist S1–S8 + S9 "Ask my teacher" LIVE 2026-11-16** ([ask-my-teacher.md](docs/design/ask-my-teacher.md)), pushed, CI green. `prune_help_requests` ARMED 2026-11-17. Ruled: no asking in locked / quiz / exam / DoL. **No hints in a DoL LIVE 2026-11-17** (sanitizer rev 5).
 
 **Form grading (D60) LIVE 2026-11-14**, nothing owed ([form-grading.md](docs/design/form-grading.md) → As built; pin bump [ZanReed/curriculum#94](https://github.com/ZanReed/curriculum/pull/94) merged).
 

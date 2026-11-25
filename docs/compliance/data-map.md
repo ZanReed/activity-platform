@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-20-draft-71`. Mirrors migrations 0001–**0103**, verified
+> Version `2026-11-26-draft-72`. Mirrors migrations 0001–**0104**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-72` (2026-11-26) — 0104 adds no table or column.** It adds two read wrappers, `grading_queue` and `grade_suggestions`, that return the grading queue and its AI suggestions to the same teacher as one jsonb value instead of a row set (a row set was cut at 1,000 rows). The fields and who may read them are unchanged; the inner functions keep every gate. The range moves to 0104.
 >
 > **`draft-71` (2026-11-20) — 0103 adds no table or column: the last IP hashes are cleared.** Seven `audit_log` rows (`submission.create`, 2026-06-16 to 2026-07-29, from the anonymous ingest path 0029 removed) still carried an `ip_hash`; 0103 sets every one to NULL. The rows stay for their 2-year window. Nothing writes the column any more (verify-0103 checks that no function names it), so it is empty for good. The range moves to 0103.
 >

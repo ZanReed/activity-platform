@@ -13,6 +13,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAs } from '../helpers/studentSession';
 import { stubIdentityApi } from '../helpers/studentSession';
+import { GRADE_SUGGESTIONS_RPC, GRADING_QUEUE_RPC } from '../../src/lib/gradingQueueRpc';
 
 const ACT = 'aaaaaaaa-0000-4000-8000-00000000f0d1';
 const STUDENT = 'dddddddd-0000-4000-8000-00000000f0d1';
@@ -69,9 +70,9 @@ async function setUp(page: Page, states: Record<string, string>) {
   const bytes = await jpeg(page);
   await stubIdentityApi(page, { role: 'teacher' });
   await signInAs(page);
-  await page.route('**/rest/v1/rpc/list_grading_queue**', (route) => route.fulfill({ json: [queueRow()] }));
+  await page.route(`**/rest/v1/rpc/${GRADING_QUEUE_RPC}**`, (route) => route.fulfill({ json: [queueRow()] }));
   await page.route('**/rest/v1/rpc/get_grading_assist_status**', (route) => route.fulfill({ json: null }));
-  await page.route('**/rest/v1/rpc/list_grade_suggestions**', (route) => route.fulfill({ json: [] }));
+  await page.route(`**/rest/v1/rpc/${GRADE_SUGGESTIONS_RPC}**`, (route) => route.fulfill({ json: [] }));
   const stateCalls: unknown[] = [];
   await page.route('**/rest/v1/rpc/work_photo_states**', async (route) => {
     stateCalls.push(route.request().postDataJSON());

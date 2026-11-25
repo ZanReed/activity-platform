@@ -32,6 +32,7 @@ import {
   stubIdentityApi,
 } from '../helpers/studentSession';
 import { LANDING_COPY } from '../../src/lib/authMessages';
+import { GRADING_QUEUE_RPC } from '../../src/lib/gradingQueueRpc';
 import { FT_CLASS_ID, stubFactsTeacherApi } from '../helpers/factsTeacherStub';
 import { SPRINT_CODE, stubFactsSprintApi } from '../helpers/factsSprintStub';
 
@@ -583,7 +584,7 @@ test.describe('axe — zero WCAG A/AA violations per student surface', () => {
     // textarea, and two buttons — the shapes a11y regressions live in.
     await signInAs(page);
     await stubIdentityApi(page, { role: 'teacher' });
-    await page.route('**/rest/v1/rpc/list_grading_queue', (route) =>
+    await page.route(`**/rest/v1/rpc/${GRADING_QUEUE_RPC}`, (route) =>
       route.fulfill({
         json: [
           {

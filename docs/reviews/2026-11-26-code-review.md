@@ -24,10 +24,13 @@ Effort: S = under a day, M = a few days, L = a week or more.
 > **Fixed 2026-11-26, same day (author: "Yes, fix them"):** A0 (new, below), A1,
 > A3, A4, A6 and A7 except the touch-scroll item. Also fixed on the way: the
 > data-plot half of A2 (restore was a no-op). **The rest of A2 was fixed the
-> same day** (graph, number line, maths gaps; see A2 below). **Still open:**
-> A5, and A7's touch scrolling (needs an iPad). Both Edge Functions need a
-> redeploy for the server-side fixes to reach students (STATE → Pending author
-> actions). **Not checked in a browser:** the graph freeze was tested against
+> same day** (graph, number line, maths gaps; see A2 below). **A5 was fixed
+> the same day too, but is NOT live:** migration 0104 must be applied (and
+> verify-0104 run) BEFORE the commit is pushed, because the responses screen
+> calls 0104's new functions (STATE → Pending author actions; A5 below).
+> **Still open:** A7's touch scrolling (needs an iPad). Both Edge Functions need
+> a redeploy for the server-side fixes to reach students (STATE → Pending
+> author actions). **Not checked in a browser:** the graph freeze was tested against
 > fake boards and the kit's own lock, not by dragging a real handle; and the
 > maths retry is proven in unit tests only, where the failure is injected after
 > the module loads. Chromium has at times remembered a failed `import()` for the
@@ -158,6 +161,60 @@ same trap was fixed one at a time in 0043 and 0060. `listTeacherClassActivities`
 has the same shape (5 sections × 200 activities).
 **Fix:** return one jsonb or scope by class/version; add a script test that
 lists every row-set RPC the app calls and requires a stated row bound. **S–M.**
+
+**Fixed 2026-11-26 (0104, unapplied).** Reproduced on the local stack first:
+150 students × 4 written answers × 2 versions gave 1,200 rows in SQL and HTTP
+200 with 1,000 rows over PostgREST (`Content-Range: 0-999/*`, no error). The
+cap is reachable without exempt teachers: 5 classes × 50 students × 4 answers
+is 1,000 on one version.
+- `grading_queue(activity)` returns `list_grading_queue`'s rows as ONE jsonb
+  array, in its order (WITH ORDINALITY). One jsonb rather than paging, because
+  the screen needs the whole queue at once (grouping, counts, a re-read after
+  every save) and paging would rebuild the same array in N round trips. A
+  wrapper rather than a restatement: 0099's body is untouched, so its 33
+  verify-script call sites stay valid. SECURITY INVOKER, so the gates and
+  error strings stay the inner function's. Same values, same order as the old
+  response, checked on the 1,200-row fixture.
+- **Two neighbours of the same defect, found by the new guard:**
+  `list_grade_suggestions` (the same screen; one row per queue row) has a
+  second wrapper, `grade_suggestions`. `work_photo_states` (one row per id
+  passed in; the screen passed every photo id in the queue) is now asked in
+  chunks of 500.
+- `listTeacherClassActivities` is a TABLE read, not an RPC, with the same
+  cut. It now pages 1,000 at a time in a total order (`class_id` completes the
+  key). No migration.
+- Guard: `scripts/tests/rowset-rpc-bounds.test.mjs` derives the row-set RPCs
+  from the migrations (latest definition wins) and the called names from
+  source (app, viewer, worker, Edge Functions). Each called one needs a stated
+  bound, and the queue's two row sets may never be named again.
+  Mutation-tested: deleting `list_bank`'s entry and calling
+  `list_grading_queue` from `grading.ts` both go red.
+- **No client fallback to the old RPC.** It would keep a truncating call in
+  the app and need removing later; the apply-then-push order is the standing
+  rule (OV-7).
+
+**Follow-ups (not done):**
+- *The re-read after every save is cheap to narrow.* `ActivityResponses.tsx`
+  `load({ refresh: true })` re-reads the whole queue and suggestions after each
+  save, confirm, reject and release. A save changes one (check, block) row and
+  a release changes `released_at` on the rows it names, so patching those rows
+  locally (or having `upsert_check_grade` return the new row) would cut a
+  1,200-element re-read to none. **S.**
+- *WATCH entries in the guard:* `list_bank` (grows with the public catalogue;
+  a cut drops the last course); the student's `my_activity_progress` and
+  `list_class_activities` (grow with one student's assignments);
+  `list_class_members` (removed members are returned and never counted by the
+  50 cap); `dol_pass_status` (uncapped by construction); `list_deleted_classes`
+  (the 5-class cap counts live classes only, and nothing purges deleted ones).
+  None is near 1,000; jsonb or paging before they are.
+- *Offset paging can repeat a row* when a share lands between two page reads
+  of a teacher with more than 1,000 class-activity rows. Rare; dedupe by
+  (class, activity) if it ever shows.
+- *Playtest replay has no answer for the teacher's class-activity read.* That
+  was already true before this change (the recording predates `due_on`); the
+  new order and paging params move it further. Re-record `class-walkthrough`.
+- *Table reads are not swept.* The guard covers RPCs only; other `.from()`
+  reads that grow with use would need their own sweep.
 
 ### A6 "N answered" disagrees with the grader for graphs
 `container/answered.ts:28-35` checks only `noSolution` and `points.length`;

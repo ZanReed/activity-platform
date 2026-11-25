@@ -45,6 +45,7 @@ const h = vi.hoisted(() => {
             is: () => qb,
             eq: () => qb,
             order: () => qb,
+            range: () => qb,
             then: (resolve: (v: unknown) => unknown) => resolve(result()),
         };
         return qb;

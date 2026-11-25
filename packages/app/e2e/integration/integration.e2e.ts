@@ -33,6 +33,7 @@ import {
 import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { supabaseStorageKey } from '../helpers/studentSession';
 import { FACT_PROBE_RPC } from '../../src/lib/factProbeRpc';
+import { GRADING_QUEUE_RPC } from '../../src/lib/gradingQueueRpc';
 import { expandFactScope } from '../../src/lib/factScope';
 import { answer, warmUp } from '../helpers/factsRun';
 import {
@@ -470,7 +471,7 @@ test('the teacher grades a REAL check, and nothing reaches the student until rel
   // real grading function, so this is genuinely end-to-end from student
   // keystroke to teacher score.
   const { data: checks } = await teacher.client
-    .rpc('list_grading_queue', { p_activity_id: activityId });
+    .rpc(GRADING_QUEUE_RPC, { p_activity_id: activityId });
   const queue = (checks ?? []) as Array<Record<string, unknown>>;
 
   // The fixture worksheet may carry no free-text block; if so this row has
@@ -515,7 +516,7 @@ test('the teacher grades a REAL check, and nothing reaches the student until rel
 
 test('a student cannot grade, and cannot read another student’s feedback', async () => {
   const { data: queue } = await teacher.client
-    .rpc('list_grading_queue', { p_activity_id: activityId });
+    .rpc(GRADING_QUEUE_RPC, { p_activity_id: activityId });
   const rows = (queue ?? []) as Array<Record<string, unknown>>;
   test.skip(rows.length === 0, 'fixture activity has no written-answer blocks');
 
@@ -530,7 +531,7 @@ test('a student cannot grade, and cannot read another student’s feedback', asy
   expect(gradeError).not.toBeNull();
 
   const { error: queueError } = await student.client
-    .rpc('list_grading_queue', { p_activity_id: activityId });
+    .rpc(GRADING_QUEUE_RPC, { p_activity_id: activityId });
   expect(queueError).not.toBeNull();
 });
 

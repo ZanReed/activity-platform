@@ -12,6 +12,7 @@
  */
 import { dolOptionalBlockIds } from '@activity/viewer';
 import { supabase } from './supabase';
+import { GRADE_SUGGESTIONS_RPC } from './gradingQueueRpc';
 import { getVersionContents } from './versionContent';
 import { isGradeable, type Block } from '@activity/schema';
 import type { CriterionEntry } from './grading';
@@ -71,8 +72,10 @@ export type RejectReason = 'wrong_points' | 'wrong_feedback' | 'wrong_misconcept
 
 /* ---- reads ---------------------------------------------------------------- */
 
+/** Every suggestion in one read (0104): a jsonb array, never cut at
+ *  PostgREST's 1,000 rows (review A5; it has the queue's cardinality). */
 export async function fetchSuggestions(activityId: string): Promise<SuggestionRow[]> {
-  const { data, error } = await supabase.rpc('list_grade_suggestions', {
+  const { data, error } = await supabase.rpc(GRADE_SUGGESTIONS_RPC, {
     p_activity_id: activityId,
   });
   if (error) throw new Error(error.message);

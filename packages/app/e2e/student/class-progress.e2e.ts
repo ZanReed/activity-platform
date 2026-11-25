@@ -13,6 +13,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { signInAs, stubIdentityApi } from '../helpers/studentSession';
+import { GRADE_SUGGESTIONS_RPC, GRADING_QUEUE_RPC } from '../../src/lib/gradingQueueRpc';
 import { CP_ANA, CP_CLASS_ID, CP_FRACTIONS, CP_NAMES, stubClassProgressApi } from '../helpers/classProgressStub';
 
 /** Every name, anywhere in the page: text, and every attribute of every element. */
@@ -139,9 +140,9 @@ test('class grid → answer panel → hide names → activity page → back from
   await activityPanel.getByRole('button', { name: 'Latest' }).click();
 
   // "N to grade" → Responses; its header's Progress tab goes back (C-7).
-  await page.route('**/rest/v1/rpc/list_grading_queue**', (route) => route.fulfill({ json: [] }));
+  await page.route(`**/rest/v1/rpc/${GRADING_QUEUE_RPC}**`, (route) => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/rpc/get_grading_assist_status**', (route) => route.fulfill({ json: null }));
-  await page.route('**/rest/v1/rpc/list_grade_suggestions**', (route) => route.fulfill({ json: [] }));
+  await page.route(`**/rest/v1/rpc/${GRADE_SUGGESTIONS_RPC}**`, (route) => route.fulfill({ json: [] }));
   await activityPanel.getByRole('link', { name: '1 to grade in Fractions 2' }).click();
   await expect(page).toHaveURL(/\/responses\?from=/);
   // Opened from the activity's own Progress page, the header's Progress tab
@@ -155,9 +156,9 @@ test('class grid → answer panel → hide names → activity page → back from
 test('Responses ignores a ?from= that is not an in-app progress path', async ({ page }) => {
   await stubIdentityApi(page, { role: 'teacher' });
   await signInAs(page);
-  await page.route('**/rest/v1/rpc/list_grading_queue**', (route) => route.fulfill({ json: [] }));
+  await page.route(`**/rest/v1/rpc/${GRADING_QUEUE_RPC}**`, (route) => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/rpc/get_grading_assist_status**', (route) => route.fulfill({ json: null }));
-  await page.route('**/rest/v1/rpc/list_grade_suggestions**', (route) => route.fulfill({ json: [] }));
+  await page.route(`**/rest/v1/rpc/${GRADE_SUGGESTIONS_RPC}**`, (route) => route.fulfill({ json: [] }));
   await page.goto(`/activity/${CP_FRACTIONS}/responses?from=${encodeURIComponent('//evil.example/progress')}`);
   await expect(page.getByRole('link', { name: '← My activities' })).toBeVisible();
   await expect(page.getByRole('link', { name: '← Class progress' })).toHaveCount(0);
