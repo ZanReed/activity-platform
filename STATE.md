@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows): migration 0104 NOT applied.** Order: apply 0104 → `pnpm verify:auth --target live --only verify-0104` (re-run -0034, -0035, -0042, -0096, -0097, -0099) → THEN push. The responses screen calls 0104's new `grading_queue` and `grade_suggestions`; pushed first, it fails for every teacher. No deploy.
+**[Review](docs/reviews/2026-11-26-code-review.md) A5 (grading queue cut at 1,000 rows) LIVE 2026-11-26:** 0104 applied, verify-0104 5/5 live, pushed `90bee0eb`. verify-0035 C is red on live for a data reason (its candidate count includes 19 real rows; review log A5).
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 

@@ -25,9 +25,8 @@ Effort: S = under a day, M = a few days, L = a week or more.
 > A3, A4, A6 and A7 except the touch-scroll item. Also fixed on the way: the
 > data-plot half of A2 (restore was a no-op). **The rest of A2 was fixed the
 > same day** (graph, number line, maths gaps; see A2 below). **A5 was fixed
-> the same day too, but is NOT live:** migration 0104 must be applied (and
-> verify-0104 run) BEFORE the commit is pushed, because the responses screen
-> calls 0104's new functions (STATE → Pending author actions; A5 below).
+> the same day and is LIVE:** 0104 applied and verified on live, pushed at
+> `90bee0eb` (A5 below).
 > **Still open:** A7's touch scrolling (needs an iPad). Both Edge Functions need
 > a redeploy for the server-side fixes to reach students (STATE → Pending
 > author actions). **Not checked in a browser:** the graph freeze was tested against
@@ -162,7 +161,9 @@ has the same shape (5 sections × 200 activities).
 **Fix:** return one jsonb or scope by class/version; add a script test that
 lists every row-set RPC the app calls and requires a stated row bound. **S–M.**
 
-**Fixed 2026-11-26 (0104, unapplied).** Reproduced on the local stack first:
+**Fixed and LIVE 2026-11-26** (0104 applied, verify-0104 5/5 on live, re-runs
+of verify-0034, -0042, -0096, -0097, -0099 green on live; pushed `90bee0eb`).
+Reproduced on the local stack first:
 150 students × 4 written answers × 2 versions gave 1,200 rows in SQL and HTTP
 200 with 1,000 rows over PostgREST (`Content-Range: 0-999/*`, no error). The
 cap is reachable without exempt teachers: 5 classes × 50 students × 4 answers
@@ -210,6 +211,12 @@ is 1,000 on one version.
 - *Offset paging can repeat a row* when a share lands between two page reads
   of a teacher with more than 1,000 class-activity rows. Rare; dedupe by
   (class, activity) if it ever shows.
+- *verify-0035 §C is red on live, and not because of 0104.* Its clause 3/4
+  counts `prune_section_checks()` candidates across the WHOLE database and
+  expects exactly its fixture's 3; live holds 19 real candidates of its own (a
+  rolled-back dry run with no fixture returned 19; 19 + 3 = the 22 it saw). The
+  same over-scoping verify-0033's caps row had. Fix: assert on the fixture's
+  rows only. The prune is unarmed, so nothing was deleted. **S.**
 - *Playtest replay has no answer for the teacher's class-activity read.* That
   was already true before this change (the recording predates `due_on`); the
   new order and paging params move it further. Re-record `class-walkthrough`.
