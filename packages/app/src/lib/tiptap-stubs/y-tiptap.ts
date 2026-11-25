@@ -22,7 +22,11 @@
 // every drag) and everything else may throw, because reaching it means a y-sync
 // plugin exists, which this app never installs.
 //
-// AUDITED AGAINST: @tiptap/extension-drag-handle 3.23.1
+// AUDITED AGAINST: @tiptap/extension-drag-handle 3.31.4
+//   (re-audited 2026-11-26 for the review-B2 bump from 3.23.1: same imported
+//   names; both position helpers still sit behind `if (!ystate)`; 3.31's new
+//   nodeRangeDrop path calls getAbsolutePos only when isChangeOrigin, which
+//   is always false here.)
 //   ^ read mechanically by scripts/tests/tiptap-stub-pin.test.mjs, which fails
 //     when the installed drag-handle or extension-collaboration version moves
 //     (the Tiptap family is bumped together; re-read both packages' dist then).

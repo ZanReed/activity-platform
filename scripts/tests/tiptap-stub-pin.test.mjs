@@ -9,9 +9,9 @@
 // change that, or import a new name, so this test fails on any version move
 // and reads the INSTALLED dist files to prove every imported name is exported.
 //
-// The Tiptap deps float on carets (the family is bumped together, per
-// CLAUDE.md), so the lockfile decides the installed version and this test is
-// what turns a bump into a re-audit. ZERO DEPENDENCIES: node:fs + node:path.
+// The Tiptap deps are pinned EXACT since the 2026-11-26 bump (review B2), so
+// the family cannot drift apart again, and this test is what turns a bump into
+// a re-audit. ZERO DEPENDENCIES: node:fs + node:path.
 // =============================================================================
 
 import { test } from 'node:test';
@@ -88,4 +88,17 @@ test('vite.config.ts still aliases @tiptap/y-tiptap at the stub', () => {
     assert.match(config, /'@tiptap\/y-tiptap':[\s\S]{0,200}?tiptap-stubs\/y-tiptap\.ts/,
         'the alias is gone, so yjs returns to the editor and this file guards nothing. ' +
         'Retire the stub, this test and the yjs absence row in perf-budgets.mjs together.');
+});
+
+test('the app\'s exact prosemirror-view pin is the copy @tiptap/pm itself loads (one copy only)', () => {
+    // Review B2 (2026-11-26) pinned prosemirror-view in packages/app/package.json
+    // only to choose a settled patched release. If a later Tiptap bump needs a
+    // higher range, that pin would quietly install a SECOND copy, and two
+    // prosemirror-views break instanceof checks. Bump or drop the pin with the family.
+    const pkg = JSON.parse(readFileSync(join(appDir, 'package.json'), 'utf8'));
+    const pinned = pkg.dependencies?.['prosemirror-view'];
+    if (!pinned) return; // pin dropped: nothing to keep in step
+    const pmDir = realpathSync(join(appDir, 'node_modules/@tiptap/pm'));
+    const viaPm = JSON.parse(readFileSync(join(dirname(dirname(pmDir)), 'prosemirror-view', 'package.json'), 'utf8')).version;
+    assert.equal(viaPm, pinned, `@tiptap/pm loads prosemirror-view ${viaPm} but the app pins ${pinned}: two copies. Bump or drop the pin with the Tiptap family.`);
 });

@@ -11,6 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Editor } from '@tiptap/core';
+import type { DecorationSet } from '@tiptap/pm/view';
 import { ActivityMeta } from '@activity/schema';
 import { getMarkdownImporter, type MarkdownImporter } from '../lib/markdownToTiptap';
 import { wrapBlocksStrict } from '../editor/strictGrid';
@@ -98,14 +99,25 @@ describe('find and replace', () => {
     });
 
     it('highlights follow the query and the document', () => {
+        // Read the plugin's DecorationSet, not the headless editor's DOM:
+        // since Tiptap 3.31 a headless editor builds the React node views at
+        // once (3.23 waited for EditorContent and fell back to the schema's
+        // plain DOM), so with nothing mounted the blocks' text never reaches
+        // e.view.dom. The decorations are what the mounted view draws.
         const e = editorFor(MD);
+        const classes = () =>
+            (findHighlightKey.get(e.state)!.props.decorations!.call(findHighlightKey.get(e.state)!, e.state) as DecorationSet | null)
+                ?.find()
+                .map((d) => (d as unknown as { type: { attrs: { class: string } } }).type.attrs.class) ?? [];
         e.view.dispatch(e.state.tr.setMeta(findHighlightKey, { query: 'apples', opts: { matchCase: false }, current: 0 }));
         expect(findHighlightKey.getState(e.state)?.matches).toHaveLength(1);
-        expect(e.view.dom.querySelectorAll('.find-match--current')).toHaveLength(1);
+        expect(classes()).toEqual(['find-match find-match--current']);
         e.commands.insertContentAt(1, 'apples ');
         expect(findHighlightKey.getState(e.state)?.matches).toHaveLength(2);
+        expect(classes()).toHaveLength(2);
+        expect(classes().filter((c) => c.includes('find-match--current'))).toHaveLength(1);
         e.view.dispatch(e.state.tr.setMeta(findHighlightKey, { query: '' }));
-        expect(e.view.dom.querySelectorAll('.find-match')).toHaveLength(0);
+        expect(classes()).toHaveLength(0);
         e.destroy();
     });
 });

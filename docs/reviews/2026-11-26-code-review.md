@@ -287,6 +287,20 @@ There is no Dependabot or Renovate config and no `pnpm audit` step, so nothing
 surfaces these. **Recommend** a weekly audit in the existing Monday routine
 that reports only advisories on non-dev paths.
 
+**Tiptap half fixed 2026-11-26** (local commit, unpushed): every `@tiptap/*` at
+**3.31.4**, pinned exact (the family had drifted to 3.23.1 + 3.23.4). One copy
+each of prosemirror-view (**1.42.9**, pinned to a settled patched release, not
+1.44.0 from two days earlier) and prosemirror-model; the stale `y-tiptap` 3.0.3
+peer that held the old copies is now declared at 3.1.0 (still aliased to the
+stub, re-audited against drag-handle 3.31.4). Only `linkifyjs` moved outside
+the family. One test changed: 3.31 builds React node views in a headless
+editor, so a find-highlight test now reads the DecorationSet instead of the
+DOM. Verified: `pnpm verify`; Playwright editor 287 passed / 27 skipped, a11y
+25, student 136 + 1 video timing flake that passed 3/3 alone (`.env.local`
+aside). **Still open:** the other advisories, and the weekly non-dev audit —
+the Monday routine is a cloud trigger outside the repo, so adding a step
+edits a standing schedule, which is the author's call.
+
 ### B3 ✔ Database error text is echoed to students, and 401 is decided by regex
 Five sites test `/JWT|token|auth/i` on the error message to choose 401
 (`get-activity-handler.ts:385`, `check-activity-handler.ts:579, 784`,
