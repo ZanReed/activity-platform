@@ -971,9 +971,14 @@ describe('Ask my teacher (S9, ST-3/ST-10)', () => {
         h.session.current = { access_token: 'tok', user: { id: STUDENT_ID } };
         h.load.current = served();
         const { container } = renderRoute(ACTIVITY);
-        await waitFor(() => expect(screen.getAllByRole('button', { name: 'Ask my teacher' }).length).toBeGreaterThan(0));
+        // Wait for the WHOLE state (every footer has its button), not just the
+        // first button: counting right after it appeared can race under load.
+        await waitFor(() => {
+            const n = container.querySelectorAll('.viewer-check-group__footer').length;
+            expect(n).toBeGreaterThan(0);
+            expect(screen.getAllByRole('button', { name: 'Ask my teacher' })).toHaveLength(n);
+        });
         const footers = container.querySelectorAll('.viewer-check-group__footer');
-        expect(screen.getAllByRole('button', { name: 'Ask my teacher' })).toHaveLength(footers.length);
         const first = footers[0]!.closest('[data-check-group]')!.querySelector('.viewer-section') as HTMLElement | null;
         fireEvent.click(screen.getAllByRole('button', { name: 'Ask my teacher' })[0]!);
         await waitFor(() => expect(help.asks).toHaveLength(1));
@@ -991,10 +996,14 @@ describe('Ask my teacher (S9, ST-3/ST-10)', () => {
             retakeOpen: false, passed: false, markFirst: false, practiceAvailable: false } };
         h.load.current = { ...served(), document: doc };
         const { container } = renderRoute(ACTIVITY);
-        await waitFor(() => expect(screen.getAllByRole('button', { name: 'Ask my teacher' }).length).toBeGreaterThan(0));
+        // Both footers rendered and the one Ask button present, in one wait: the
+        // DoL group's footer can mount after the first group's button (it raced
+        // under a full `pnpm verify`, 2026-11-26).
+        await waitFor(() => {
+            expect(container.querySelectorAll('.viewer-check-group__footer')).toHaveLength(2);
+            expect(screen.getAllByRole('button', { name: 'Ask my teacher' })).toHaveLength(1);
+        });
         const footers = Array.from(container.querySelectorAll('.viewer-check-group__footer'));
-        expect(footers.length).toBe(2);
-        expect(screen.getAllByRole('button', { name: 'Ask my teacher' })).toHaveLength(1);
         expect(footers[1]!.querySelector('.viewer-ask')).toBeNull();
     });
 
