@@ -310,8 +310,13 @@ export const SHELL_SPEND = [
         change: 'Review A2 follow-up (bounded curves, systems): the seam routes a served system to the kit\'s system boards, narrows their per-part work and restores it, plus the narration of a system\'s lines; the boards themselves are in the lazy kit chunk',
         bytes: 288,
     },
+    {
+        date: '2026-11-26',
+        change: 'Review C5: the route-level error boundary (AppErrorBoundary) around every route — a render throw shows a Refresh button instead of a blank page and takes focus; it must be eager, since a lazy net cannot catch the chunk that failed to load',
+        bytes: 311,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 161762;
+export const SHELL_JS_BASELINE_BYTES = 162073;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

@@ -443,6 +443,14 @@ touched; no data library in the student shell. **M, incremental.** A minimal
 teacher-side error log (message, route, build) needs your ruling; the student
 side is already gated by the telemetry item in TODOS.
 
+**Error boundary fixed 2026-11-26** (local commit, unpushed): `AppErrorBoundary`
+wraps every route in `App.tsx`, keyed by pathname. A render throw shows
+"Something went wrong on this page." and a focused Refresh button; it never
+reloads by itself. +311 B gz on the shell, recorded in `SHELL_SPEND` (158.3 of
+158.7 KiB; ~436 B of allowance left). Not covered: `SessionProvider`,
+`ThemeToggle` and `UpdateNotice` sit outside it (the notice deliberately). The
+loader, empty catches and error log are still open.
+
 ### C6 The same fact written in several places with no bond
 - ✔ **Response families:** three migrations carry a seven-item array
   (`0061:619`, `0062:124`, `0064:680`); the viewer's `RESPONSE_CATEGORIES` has

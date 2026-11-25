@@ -4,6 +4,7 @@ import { SessionProvider } from './lib/SessionContext';
 import RequireAuth from './components/RequireAuth';
 import ThemeToggle from './components/ThemeToggle';
 import UpdateNotice from './components/UpdateNotice';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import StudentViewer from './routes/StudentViewer';
 // Lazy, but preloaded by URL and awaited before the first render, so neither
 // shows the route fallback on a landing visit (lib/landingRoutes.ts, R5).
@@ -122,9 +123,13 @@ function RouteFallback() {
 
 export default function App() {
     // The student viewer route, `/a/:activityId` (and nothing else under /a).
-    const onActivityPage = useLocation().pathname.startsWith('/a/');
+    const { pathname } = useLocation();
+    const onActivityPage = pathname.startsWith('/a/');
     return (
         <SessionProvider>
+        {/* Review C5: a render throw on any route shows a Refresh button, not
+            a blank page. Keyed by path, so leaving the page clears it. */}
+        <AppErrorBoundary resetKey={pathname}>
         <Suspense fallback={<RouteFallback />}>
         <Routes>
         <Route path="/" element={<Home />} />
@@ -322,6 +327,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
+        </AppErrorBoundary>
         {/* Not inside an activity (author ruling D2, 2026-10-14): the
             reading tools own that bottom-left corner, and on phones it sat on
             the sticky Check bar. The student keeps it on Home; the choice
