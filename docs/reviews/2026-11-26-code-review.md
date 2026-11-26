@@ -502,6 +502,20 @@ place the close-out sweep does not look.
 `activityToTiptap` → `PMNode.fromJSON(schema).toJSON()` → `tiptapToActivity` →
 deep-equal after id normalisation. **S–M.** High value for its size.
 
+**Guard built 2026-11-26** (`packages/app/src/__tests__/editorRoundTrip.test.ts`):
+the viewer's authored fixture document (every registered type and variant),
+every importer body-fence example through the batch pipeline, and a layout
+document (titled DoL section, grid lines on, column widths and a min height,
+non-fallback worked-example titles), each through the real ProseMirror schema
+and back, ids renamed by first appearance. Block-type coverage is read from the
+schema's `Block` union. Mutation-tested: renaming four extension attrs
+(`hint`, `rubric`, `maxPhotos`), deleting a fixture, and dropping a section's
+title or DoL, a row's grid lines, a column's width or min height, or a worked
+example's title each went red. **Two real losses found**, held as tracked
+expected failures (TODOS → "Editor round trip"): a `problem` block is deleted by
+the first open → save, and a blank's authored `width` is dropped (no extension
+attr). Neither is reachable from the app or importer today.
+
 ### C4 The viewer ↔ graph-kit seam is untyped and tested only against fakes
 A1, A2 and A3 all live in `kitSurfaces.ts`, behind `as never` and
 `as unknown as`. The viewer's canvas tests use fake surfaces; the one

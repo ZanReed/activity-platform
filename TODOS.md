@@ -14,6 +14,21 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
+## Editor round trip: what the editor drops on save (review C3, found 2026-11-26)
+
+`packages/app/src/__tests__/editorRoundTrip.test.ts` holds each as a tracked expected
+failure (`KNOWN_BLOCK_LOSSES` / `KNOWN_FIELD_LOSSES`, each proved by an `it.fails` row
+that goes red when the loss is fixed — then delete the entry).
+- **A `problem` block is deleted by the first open → save.** `activityToTiptap` has no
+  mapping (`serialize.ts`, `case 'problem'` returns null). Nothing in the app or the
+  importer creates one (only `createProblemBlock`), so no stored document is known to
+  carry one. Fix: give it a node, or retire the type from the schema.
+- **A blank's authored `width` is deleted by the first open → save.** The Blank
+  extension declares no `width` attr; the viewer honours one (`blankSize.ts`: "an
+  authored width always wins"). Nothing in the app or importer writes `width`, so only
+  hand-made JSON carries it. Fix: declare the attr and carry it, or drop the field.
+- Trigger for both: the next change to `serialize.ts`'s blank or block switch.
+
 ## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); ALL FIVE slices BUILT
 
 [docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Built:
