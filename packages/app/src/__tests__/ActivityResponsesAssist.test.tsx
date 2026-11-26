@@ -178,7 +178,9 @@ beforeEach(() => {
   h.dolPrimaries.mockResolvedValue(new Set());
   h.dolPasses.mockResolvedValue([]);
   h.setDolPass.mockResolvedValue(undefined);
-  h.confirm.mockResolvedValue('confirmed');
+  // grade: null = a reply the page cannot patch from, so it re-reads (the
+  // DR-11 row below pins that path); the patch path has its own row.
+  h.confirm.mockResolvedValue({ status: 'confirmed', grade: null });
   h.reject.mockResolvedValue(undefined);
 });
 
@@ -247,6 +249,25 @@ describe('the pre-fill (DR-1/DR-2/DR-3)', () => {
     // In place: the panel never swapped out for the page's loading line.
     expect(screen.queryByText('Loading…')).toBeNull();
     expect(screen.getByLabelText(COPY.generalFeedback)).toBeTruthy();
+    // Let the delayed re-read land (it re-hydrates the drafts) before the test
+    // ends: otherwise it fires during the NEXT test and calls that test's mocks.
+    await waitFor(() => expect(h.suggestions).toHaveBeenCalledTimes(2));
+  });
+
+  it('a confirm whose reply carries the grade patches the row and the draft: no re-read (A5 follow-up)', async () => {
+    const other = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example' });
+    h.confirm.mockResolvedValue({
+      status: 'edited',
+      grade: { criteria: [{ criterionId: 'c1', earned: 3, maxPoints: 4 }], graded_at: '2026-11-26T00:00:00Z', released_at: null },
+    });
+    setup([row(), other], [suggestion()]);
+    await openFirstRow();
+    // Counts BEFORE the save: the claim is that the save added none.
+    const before = [h.queue, h.suggestions].map((f) => f.mock.calls.length);
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ASSIST_COPY.savedEdited));
+    await waitFor(() => expect(h.confirm).toHaveBeenCalledTimes(1));
+    expect([h.queue, h.suggestions].map((f) => f.mock.calls.length)).toEqual(before);
   });
 
   it('a draft that changed under the teacher reloads instead of guessing (EH-5)', async () => {

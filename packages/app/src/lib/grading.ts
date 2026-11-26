@@ -131,15 +131,20 @@ export async function saveCheckGrade(input: {
   blockId: string;
   criteria: CriterionEntry[];
   generalFeedback: string;
-}): Promise<void> {
-  const { error } = await supabase.rpc('upsert_check_grade', {
+}): Promise<unknown> {
+  const { data, error } = await supabase.rpc('upsert_check_grade', {
     p_check_id: input.checkId,
     p_block_id: input.blockId,
     p_criteria: input.criteria,
     p_general_feedback: input.generalFeedback,
   });
   if (error) throw new Error(error.message);
+  // The stored grade, RAW: the responses route parses it (queuePatch.ts) to
+  // patch its row in place. Parsing here would pull that module into the
+  // shell, which this file is part of.
+  return data;
 }
+
 
 /** Releases one student's unreleased grades on this activity, and returns how
  *  many became visible. Bulk release iterates THIS call per student rather

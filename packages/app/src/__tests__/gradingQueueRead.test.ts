@@ -101,3 +101,56 @@ describe('fetchPhotoStates', () => {
         expect(h.calls).toHaveLength(0);
     });
 });
+
+// Review A5 follow-up: the page patches a saved row instead of re-reading.
+// The integration lane compares the patch to the REAL server's re-read; these
+// rows pin the edges that lane's one fixture cannot reach.
+import { applySavedGrade, parseStoredGrade, storedFeedback } from '../lib/queuePatch';
+import type { GradingQueueRow } from '../lib/grading';
+
+describe('the in-place patch after a Save', () => {
+    it("stores feedback the way upsert_check_grade does: Postgres trim() strips SPACES only", () => {
+        expect(storedFeedback('  ok  ')).toBe('ok');
+        expect(storedFeedback('   ')).toBeNull();
+        expect(storedFeedback('')).toBeNull();
+        expect(storedFeedback('\nok\n')).toBe('\nok\n');
+    });
+
+    it('patches only the saved (check, block) row, and refuses a row it cannot find', () => {
+        const base = { graded: false, criteria: null, general_feedback: null, graded_at: null,
+            released_at: null, has_grader: false, stale: true } as unknown as GradingQueueRow;
+        const rows = [
+            { ...base, check_id: 'c1', block_id: 'b1' },
+            { ...base, check_id: 'c1', block_id: 'b2' },
+        ] as GradingQueueRow[];
+        const grade = parseStoredGrade({ criteria: [], graded_at: '2026-11-26T00:00:00Z', released_at: '2026-11-25T00:00:00Z' })!;
+        const next = applySavedGrade(rows, { checkId: 'c1', blockId: 'b1', grade, generalFeedback: ' hi ' })!;
+        expect(next[0]).toMatchObject({ graded: true, has_grader: true, stale: false, general_feedback: 'hi',
+            graded_at: '2026-11-26T00:00:00Z', released_at: '2026-11-25T00:00:00Z' });
+        expect(next[1]).toBe(rows[1]);
+        expect(applySavedGrade(rows, { checkId: 'cX', blockId: 'b1', grade, generalFeedback: '' })).toBeNull();
+    });
+
+    // The queue shows the grade with the LATEST graded_at across a row's
+    // checks, and a re-save keeps graded_at. If the row showed a NEWER grade
+    // (an older attempt graded later), the server still picks that one: only
+    // a re-read can say, so the patch refuses.
+    it('refuses when the row already shows a NEWER grade than the one saved', () => {
+        const shown = { check_id: 'c2', block_id: 'b1', graded: true, graded_at: '2026-11-26T12:00:00.5+00:00',
+            criteria: [], general_feedback: 'older attempt, graded later', released_at: null, has_grader: true,
+            stale: true } as unknown as GradingQueueRow;
+        const older = parseStoredGrade({ criteria: [], graded_at: '2026-11-26T09:00:00+00:00', released_at: null })!;
+        expect(applySavedGrade([shown], { checkId: 'c2', blockId: 'b1', grade: older, generalFeedback: 'x' })).toBeNull();
+        // Same instant, same text: this check's own grade re-saved — patched.
+        const same = parseStoredGrade({ criteria: [], graded_at: '2026-11-26T12:00:00.5+00:00', released_at: null })!;
+        expect(applySavedGrade([shown], { checkId: 'c2', blockId: 'b1', grade: same, generalFeedback: 'x' })).not.toBeNull();
+        // Newer: wins.
+        const newer = parseStoredGrade({ criteria: [], graded_at: '2026-11-26T13:00:00+00:00', released_at: null })!;
+        expect(applySavedGrade([shown], { checkId: 'c2', blockId: 'b1', grade: newer, generalFeedback: 'x' })).not.toBeNull();
+    });
+
+    it('a reply without a grade is not patched from', () => {
+        expect(parseStoredGrade(null)).toBeNull();
+        expect(parseStoredGrade({ status: 'ok' })).toBeNull();
+    });
+});

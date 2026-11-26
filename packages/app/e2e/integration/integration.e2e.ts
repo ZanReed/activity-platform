@@ -34,6 +34,8 @@ import { CHECK_WIRE_VERSION } from '@activity/viewer';
 import { supabaseStorageKey } from '../helpers/studentSession';
 import { FACT_PROBE_RPC } from '../../src/lib/factProbeRpc';
 import { GRADING_QUEUE_RPC } from '../../src/lib/gradingQueueRpc';
+import type { GradingQueueRow } from '../../src/lib/grading';
+import { applySavedGrade, parseStoredGrade } from '../../src/lib/queuePatch';
 import { expandFactScope } from '../../src/lib/factScope';
 import { answer, warmUp } from '../helpers/factsRun';
 import {
@@ -482,13 +484,33 @@ test('the teacher grades a REAL check, and nothing reaches the student until rel
   expect(row.graded).toBe(false);
   expect(row.student_label).not.toBeUndefined();
 
-  const { error: saveError } = await teacher.client.rpc('upsert_check_grade', {
+  // Padded on purpose: the server trims spaces, and the page's in-place patch
+  // must store what the server stores.
+  const sentFeedback = '  Real feedback through the real RPC.  ';
+  const { data: savedReply, error: saveError } = await teacher.client.rpc('upsert_check_grade', {
     p_check_id: row.check_id,
     p_block_id: row.block_id,
     p_criteria: [],
-    p_general_feedback: 'Real feedback through the real RPC.',
+    p_general_feedback: sentFeedback,
   });
   expect(saveError).toBeNull();
+
+  // Review A5 follow-up: the responses page no longer re-reads the queue after
+  // a Save; it patches the row from this reply. The patch must equal what the
+  // REAL server now returns for that row, field for field.
+  const grade = parseStoredGrade(savedReply);
+  expect(grade).not.toBeNull();
+  const patched = applySavedGrade(queue as unknown as GradingQueueRow[], {
+    checkId: row.check_id as string,
+    blockId: row.block_id as string,
+    grade: grade!,
+    generalFeedback: sentFeedback,
+  });
+  const { data: reread } = await teacher.client.rpc(GRADING_QUEUE_RPC, { p_activity_id: activityId });
+  const key = (r: Record<string, unknown>) => `${r.check_id}:${r.block_id}`;
+  const fromServer = ((reread ?? []) as Array<Record<string, unknown>>).find((r) => key(r) === key(row));
+  const fromPatch = patched?.find((r) => r.check_id === row.check_id && r.block_id === row.block_id);
+  expect(fromPatch).toEqual(fromServer);
 
   // BEFORE release the student sees nothing. This is the containment half of
   // the release ruling, asserted from the student's own client.

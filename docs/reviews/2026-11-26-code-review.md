@@ -196,12 +196,16 @@ is 1,000 on one version.
   rule (OV-7).
 
 **Follow-ups (not done):**
-- *The re-read after every save is cheap to narrow.* `ActivityResponses.tsx`
-  `load({ refresh: true })` re-reads the whole queue and suggestions after each
-  save, confirm, reject and release. A save changes one (check, block) row and
-  a release changes `released_at` on the rows it names, so patching those rows
-  locally (or having `upsert_check_grade` return the new row) would cut a
-  1,200-element re-read to none. **S.**
+- *The re-read after every save is NARROWED (author: "fix the re-read now").*
+  A Save or Confirm patches its one row from upsert_check_grade's reply
+  (`lib/queuePatch.ts`); a Reject patches the draft's status; a DoL tick
+  re-reads only the passes. A full re-read still happens for a Release, a
+  draft that moved, a row that showed a newer grade from an older attempt
+  (a re-save never moves `graded_at`), a Save while a load is in flight, and
+  whenever nothing is left to grade in the view (author-chosen, so new answers
+  still appear). The integration lane compares the patch to the real server's
+  re-read field for field (mutation-tested). Responses cap 38 → 38.6 (author:
+  "Yes, raise it").
 - *The WATCH entries are FIXED and LIVE (0106, `757a98a1`; author: "fix all the
   watch entries now").* `list_bank`, `my_activity_progress`,
   `list_class_activities`, `list_class_members`, `dol_pass_status`,

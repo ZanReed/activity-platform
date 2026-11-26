@@ -274,6 +274,48 @@ describe('the grading panel', () => {
     });
   });
 
+  // Review A5 follow-up: a Save changes ONE row, and the reply says how, so
+  // the page patches it instead of re-reading the queue, the suggestions and
+  // the DoL passes. (The mock's default reply carries no grade, which is the
+  // re-read fallback the next row pins.)
+  it('a save patches its row in place: no re-read, and the graded row leaves the to-grade list', async () => {
+    const other = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example' });
+    h.save.mockResolvedValue({
+      criteria: [{ criterionId: 'c1', earned: 2, maxPoints: 4 }],
+      graded_at: '2026-11-26T00:00:00Z',
+      released_at: null,
+    });
+    setup([row(), other]);
+    await waitFor(() => expect(document.querySelectorAll('[data-chip]').length).toBe(2));
+    fireEvent.click(document.querySelector('[data-chip]')!.closest('button')!);
+    await waitFor(() => expect(screen.getByLabelText(COPY.generalFeedback)).toBeTruthy());
+    // Counts BEFORE the save: the claim is that the save added none.
+    const before = [h.queue, h.suggestions, h.dolPasses].map((f) => f.mock.calls.length);
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.save).toHaveBeenCalledTimes(1));
+    // The patched row is graded, so the default (still-to-grade) list drops it.
+    await waitFor(() => expect(document.querySelectorAll('[data-chip]').length).toBe(1));
+    expect([h.queue, h.suggestions, h.dolPasses].map((f) => f.mock.calls.length)).toEqual(before);
+  });
+
+  // Option (b), author-chosen: grading the LAST row still to grade re-reads,
+  // so a student who checked in meanwhile appears ("All caught up" is when a
+  // new answer matters).
+  it('saving the last row still to grade re-reads the queue, to bring in new answers', async () => {
+    h.save.mockResolvedValue({
+      criteria: [{ criterionId: 'c1', earned: 2, maxPoints: 4 }],
+      graded_at: '2026-11-26T00:00:00Z',
+      released_at: null,
+    });
+    setup([row()]);
+    await waitFor(() => expect(document.querySelectorAll('[data-chip]').length).toBe(1));
+    fireEvent.click(document.querySelector('[data-chip]')!.closest('button')!);
+    await waitFor(() => expect(screen.getByLabelText(COPY.generalFeedback)).toBeTruthy());
+    const before = h.queue.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: COPY.save }));
+    await waitFor(() => expect(h.queue.mock.calls.length).toBe(before + 1));
+  });
+
   it('a failed re-read after a good save keeps the queue and panel, and says so', async () => {
     const other = row({ check_id: 'chk-2', student_id: 'stu-2', student_label: 'ari@school.example' });
     await openPanel(row(), [other]);

@@ -60,6 +60,7 @@ import {
   unreleasedBadge,
   type GradingQueueRow,
 } from '../lib/grading';
+import { applySavedGrade, parseStoredGrade, type SavedChange } from '../lib/queuePatch';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { WorkPhotoCount, WorkPhotoStrip, photoIdsOf } from '../components/WorkPhotos';
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
@@ -250,6 +251,19 @@ export default function ActivityResponses() {
   // Each assist hydration carries a generation, so a slow one from an earlier
   // save never overwrites the result of a later one.
   const assistGen = useRef(0);
+  // True while an assist read is in flight: a draft patched now would be
+  // overwritten by that read's older answer (review of the A5 follow-up).
+  const assistLoading = useRef(false);
+  // The same two guards for the queue itself: only the newest load may land,
+  // and a Save made while one is in flight re-reads instead of patching (that
+  // load began before the write, so it would undo the patch).
+  const loadGen = useRef(0);
+  // The newest generation that has LANDED: an answer newer than it may land
+  // even if a still-newer load is in flight (that one may fail, and its
+  // failure must not throw away a good answer).
+  const landedGen = useRef(0);
+  const queueLoading = useRef(0);
+  const dolGen = useRef(0);
 
   // The queue renders the moment it arrives; the assist layer hydrates AFTER
   // it, in the background, and DEGRADES to nothing on failure. Both halves of
@@ -260,6 +274,7 @@ export default function ActivityResponses() {
   const hydrateAssist = useCallback(
     async (queue: GradingQueueRow[]) => {
       const gen = ++assistGen.current;
+      assistLoading.current = true;
       try {
         const [sugg, status, specs] = await Promise.all([
           fetchSuggestions(id),
@@ -275,6 +290,8 @@ export default function ActivityResponses() {
         if (gen !== assistGen.current) return;
         setSuggestions([]);
         setAssistStatus({ provider: 'off' });
+      } finally {
+        if (gen === assistGen.current) assistLoading.current = false;
       }
     },
     [id],
@@ -286,10 +303,15 @@ export default function ActivityResponses() {
   const load = useCallback(
     async (opts: { refresh?: boolean } = {}) => {
       if (!opts.refresh) setLoading(true);
+      const gen = ++loadGen.current;
+      queueLoading.current += 1;
       let queue: GradingQueueRow[];
       try {
         queue = await fetchGradingQueue(id);
       } catch (err) {
+        queueLoading.current -= 1;
+        // Only the newest load reports a failure; an older one's is moot.
+        if (gen !== loadGen.current) return;
         const message = err instanceof Error ? err.message : String(err);
         if (opts.refresh) {
           setRefreshError(message);
@@ -300,6 +322,10 @@ export default function ActivityResponses() {
         setLoading(false);
         return;
       }
+      queueLoading.current -= 1;
+      // Never land on top of a NEWER answer that already landed.
+      if (gen <= landedGen.current) return;
+      landedGen.current = gen;
       setRows(queue);
       setError(null);
       setRefreshError(null);
@@ -312,12 +338,15 @@ export default function ActivityResponses() {
           const versions = [...new Set(queue.map((r) => r.activity_version_id))];
           void fetchDolOptionals(versions).then(setDolOptionals, () => setDolOptionals(new Set()));
           void fetchQueueLabels(versions).then(setLabels, () => setLabels(emptyQueueLabels()));
+          // The same generation as a Save's DoL re-read, so an older read
+          // landing late cannot wipe a pass the teacher just set.
+          const dg = ++dolGen.current;
           const [primaries, passes] = await Promise.all([
             fetchDolPrimaries(versions),
             fetchDolPassStatus(id),
           ]);
           setDolPrimaries(primaries);
-          setDolPasses(new Map(passes.map((p) => [p.student_id, p])));
+          if (dg === dolGen.current) setDolPasses(new Map(passes.map((p) => [p.student_id, p])));
         } catch {
           setDolPrimaries(new Set());
         }
@@ -326,6 +355,57 @@ export default function ActivityResponses() {
     [id, hydrateAssist],
   );
   const refresh = useCallback(() => load({ refresh: true }), [load]);
+
+  // After a panel write (review A5 follow-up). A save or confirm changes ONE
+  // row, and the server's reply says exactly how, so the page patches that
+  // row instead of re-reading the queue, the suggestions, the assist status
+  // and the DoL passes — four reads that grew with the class, after every
+  // Save. Anything it cannot compute (no change given, no grade in the reply,
+  // no matching row) falls back to the full re-read, so a gap can only cost a
+  // read, never show a wrong row.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  // Whether anything is still to grade in the CURRENT view (filters applied):
+  // set below, once owed/shownFor exist. When a patch would leave nothing,
+  // the page re-reads instead — that is when a student who checked in since
+  // the last read matters, and before this narrowing every Save brought them
+  // in (review of the A5 follow-up, author-chosen option b).
+  const stillOwedRef = useRef<(rs: readonly GradingQueueRow[]) => boolean>(() => true);
+  const onSaved = useCallback(
+    async (change?: SavedChange) => {
+      if (!change) return refresh();
+      const patchDraft = (id: string, status: SuggestionRow['status']) => {
+        // An assist read in flight began before this write: re-read the
+        // drafts after it instead (the generation drops the older one).
+        if (assistLoading.current) return void hydrateAssist(rowsRef.current ?? []);
+        setSuggestions((prev) => prev.map((s) => (s.suggestion_id === id ? { ...s, status } : s)));
+      };
+      if (change.kind === 'rejected') return patchDraft(change.suggestionId, 'rejected');
+      const grade = parseStoredGrade(change.reply);
+      const saved = grade && {
+        checkId: change.checkId,
+        blockId: change.blockId,
+        grade,
+        generalFeedback: change.generalFeedback,
+      };
+      // Patch only from the LATEST rows, only when no queue read is in flight,
+      // and only when the patch is sure (applySavedGrade); otherwise re-read.
+      const patched = saved && queueLoading.current === 0 && rowsRef.current
+        ? applySavedGrade(rowsRef.current, saved)
+        : null;
+      if (!saved || !patched || !stillOwedRef.current(patched)) return refresh();
+      setRows((prev) => (prev && applySavedGrade(prev, saved)) || prev);
+      if (change.suggestion) patchDraft(change.suggestion.id, change.suggestion.status);
+      if (change.dolChanged) {
+        const gen = ++dolGen.current;
+        void fetchDolPassStatus(id).then(
+          (passes) => gen === dolGen.current && setDolPasses(new Map(passes.map((p) => [p.student_id, p]))),
+          () => undefined,
+        );
+      }
+    },
+    [refresh, hydrateAssist, id],
+  );
 
   useEffect(() => {
     void load();
@@ -353,6 +433,7 @@ export default function ActivityResponses() {
       (student === '' || (student === OUTSIDE ? row.student_label === null : row.student_id === student)),
     [mineOnly, student, classStudents],
   );
+  stillOwedRef.current = (rs) => rs.some((r) => owed(r) && shownFor(r));
   const visible = useMemo(
     () => (rows ?? []).filter((row) => shownFor(row) && (needsOnly ? owed(row) : true)),
     [rows, needsOnly, owed, shownFor],
@@ -826,7 +907,7 @@ export default function ActivityResponses() {
                         : null
                     }
                     name={nameOf(current)}
-                    onSaved={refresh}
+                    onSaved={onSaved}
                     onDirtyChange={setDirty}
                     onNext={nextKey ? () => choose(nextKey, true) : null}
                     autoFocus={focusPanel}

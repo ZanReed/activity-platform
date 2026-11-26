@@ -801,7 +801,13 @@ export const TEACHER_JOURNEYS = [
         // Next to grade and the unsaved-grade prompt (teacher-grading.md D8)
         // measured 36.9 → 37.6. Already trimmed once: Hide names reads the
         // flag directly instead of loading progress/common (−1.3 KiB).
-        maxGzKiB: 38,
+        // 38 → 38.6 (2026-11-26, author: "Yes, raise it"): a Save patches its
+        // row in place instead of re-reading the whole queue (review A5
+        // follow-up; queuePatch.ts, the onSaved guards, re-read when nothing
+        // is left to grade). Measured 37.960 → 38.494 before the last rule;
+        // no library. Kept OUT of the shell: imported from grading.ts it cost
+        // the shell +0.22 KiB.
+        maxGzKiB: 38.6,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard of the whole class: it never seeds (studentId null), so it must not reach the evaluator (T4) or the editor.',
     },

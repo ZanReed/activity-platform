@@ -17,6 +17,7 @@ import {
   type CriterionEntry,
   type GradingQueueRow,
 } from '../lib/grading';
+import type { SavedChange } from '../lib/queuePatch';
 import { DOL_PASS_COPY, baseLevelMet, baseLevelOf, setDolPass, type DolPassRow } from '../lib/dolPass';
 // TYPES only from lib/gradingAssist: the page hands this panel the values it
 // needs (`assist`). A value import here would make that module one only the
@@ -104,7 +105,10 @@ export default function GradePanel({
   dol: { pass: DolPassRow | null } | null;
   /** The student as this page names them (Hide names applied). */
   name: string;
-  onSaved: () => Promise<void>;
+  /** After a write. With a change the page patches in place; without one it
+   *  re-reads everything (review A5 follow-up: a save no longer re-reads the
+   *  whole queue). */
+  onSaved: (change?: SavedChange) => Promise<void>;
   /** Reports whether the panel holds entries Save has not sent. */
   onDirtyChange: (dirty: boolean) => void;
   /** Opens the next response still to grade; null when none is left. */
@@ -223,6 +227,7 @@ export default function GradePanel({
     setSaveError(null);
     setOutcome(null);
     try {
+      let change: SavedChange;
       if (prefill && !rejected) {
         // Confirm = the existing Save (DR-3). The server computes the DR-2
         // diff against the stored draft; the client only reports strikes.
@@ -234,24 +239,46 @@ export default function GradePanel({
           struckMis: [...struck],
         });
         setOutcome(
-          result === 'confirmed' ? ASSIST_COPY.savedConfirmed : ASSIST_COPY.savedEdited,
+          result.status === 'confirmed' ? ASSIST_COPY.savedConfirmed : ASSIST_COPY.savedEdited,
         );
+        change = {
+          kind: 'grade',
+          checkId: row.check_id,
+          blockId: row.block_id,
+          reply: result.grade,
+          generalFeedback: general,
+          suggestion: { id: prefill.suggestion_id, status: result.status },
+          dolChanged: false,
+        };
       } else {
-        await saveCheckGrade({
+        const reply = await saveCheckGrade({
           checkId: row.check_id,
           blockId: row.block_id,
           criteria: entries,
           generalFeedback: general,
         });
+        change = {
+          kind: 'grade',
+          checkId: row.check_id,
+          blockId: row.block_id,
+          reply,
+          generalFeedback: general,
+          dolChanged: false,
+        };
       }
       // The pass rides the same Save (DL-11): set it when ticked and absent,
       // clear it when unticked and the pass is a TEACHER's (an auto one stands).
       if (dol && storedPass?.source !== 'auto') {
-        if (ticked && storedPass === null) await setDolPass(row.check_id, true);
-        else if (!ticked && storedPass?.source === 'teacher') await setDolPass(row.check_id, false);
+        if (ticked && storedPass === null) {
+          await setDolPass(row.check_id, true);
+          change.dolChanged = true;
+        } else if (!ticked && storedPass?.source === 'teacher') {
+          await setDolPass(row.check_id, false);
+          change.dolChanged = true;
+        }
       }
       setBaseline(sent);
-      await onSaved();
+      await onSaved(change);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes('suggestion_changed')) {
@@ -289,7 +316,8 @@ export default function GradePanel({
       setRejecting(false);
       setRejected(true);
       setOutcome(ASSIST_COPY.draftRejected);
-      await onSaved();
+      // A reject changes the draft, not the queue: patch its status only.
+      await onSaved({ kind: 'rejected', suggestionId: prefill.suggestion_id });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setSaveError(message.includes('suggestion_changed') ? ASSIST_COPY.draftChanged : COPY.saveFailed);

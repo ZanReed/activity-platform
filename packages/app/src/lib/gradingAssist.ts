@@ -179,7 +179,7 @@ export async function confirmSuggestion(input: {
   criteria: CriterionEntry[];
   generalFeedback: string;
   struckMis: string[];
-}): Promise<'confirmed' | 'edited'> {
+}): Promise<{ status: 'confirmed' | 'edited'; grade: unknown }> {
   const { data, error } = await supabase.rpc('confirm_grade_suggestion', {
     p_suggestion_id: input.suggestionId,
     p_expected_updated_at: input.expectedUpdatedAt,
@@ -188,9 +188,13 @@ export async function confirmSuggestion(input: {
     p_struck_mis: input.struckMis,
   });
   if (error) throw new Error(error.message);
-  return ((data as { status?: string } | null)?.status ?? 'confirmed') as
-    | 'confirmed'
-    | 'edited';
+  const reply = data as { status?: string; grade?: unknown } | null;
+  return {
+    status: (reply?.status === 'edited' ? 'edited' : 'confirmed'),
+    // The grade it wrote through upsert_check_grade (0042 §K), RAW: the page
+    // parses it (queuePatch.ts) to patch the row instead of re-reading.
+    grade: reply?.grade ?? null,
+  };
 }
 
 export async function rejectSuggestion(input: {
