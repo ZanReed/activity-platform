@@ -15,12 +15,20 @@
 //   - Depth-capped: a pathological object must not hang the student's
 //     critical path.
 //   - Fire-and-forget, rejection swallowed: the ES module cache dedupes with
-//     the mount-time `import('@activity/graph-kit')` calls in kitSurfaces.ts,
-//     which retry on mount — a failed preload degrades to exactly the
-//     behaviour that shipped before it.
+//     the mount-time imports in kitSurfaces.ts, which retry on mount — a
+//     failed preload degrades to exactly the behaviour that shipped before it.
+//   - PER WIDGET, by subpath (review D1, 2026-11-26): it used to fetch the
+//     package barrel, which carries MathLive and mathjs, so a data plot paid
+//     for both before it drew a dot. Each kit type now preloads the same
+//     subpath its seam mounts from, and nothing else.
 // =============================================================================
 
 import { blockRegistry, registeredBlockTypes } from '../registry/registry.js';
+import {
+    loadDataPlotQuestion,
+    loadGraphQuestion,
+    loadNumberLineQuestion,
+} from './kitSurfaces.js';
 
 /**
  * Block types that summon the kit — DERIVED from the registry (P4), not a
@@ -34,15 +42,35 @@ const KIT_BLOCK_TYPES: ReadonlySet<string> = new Set(
     ),
 );
 
+/**
+ * What each kit type's seam imports (kitSurfaces.ts), so the preload warms
+ * exactly that module. Keyed by block type; `kitPreload.test.ts` bonds the
+ * keys to KIT_BLOCK_TYPES, so a new kit type cannot be detected and then
+ * silently not preloaded.
+ */
+export const KIT_PRELOADERS: Readonly<Record<string, () => Promise<unknown>>> = {
+    interactive_graph: loadGraphQuestion,
+    number_line: loadNumberLineQuestion,
+    data_plot: loadDataPlotQuestion,
+};
+
+/** The kit types the registry marks (exported for the bond test). */
+export const kitBlockTypes = (): ReadonlySet<string> => KIT_BLOCK_TYPES;
+
 /** Same cap, same reason as mathPreload's: real content sits well inside it. */
 const MAX_DEPTH = 24;
 
-/** Does this document contain a kit-backed graph block anywhere? */
-export function documentUsesGraphKit(doc: unknown): boolean {
-    let found = false;
+/** Every kit-backed block type this document contains (empty: none). */
+export function graphKitTypesIn(doc: unknown): Set<string> {
+    const found = new Set<string>();
 
     const visit = (node: unknown, depth: number): void => {
-        if (found || depth > MAX_DEPTH || node === null || typeof node !== 'object') {
+        if (
+            found.size === KIT_BLOCK_TYPES.size ||
+            depth > MAX_DEPTH ||
+            node === null ||
+            typeof node !== 'object'
+        ) {
             return;
         }
         if (Array.isArray(node)) {
@@ -51,7 +79,7 @@ export function documentUsesGraphKit(doc: unknown): boolean {
         }
         const type = (node as { type?: unknown }).type;
         if (typeof type === 'string' && KIT_BLOCK_TYPES.has(type)) {
-            found = true;
+            found.add(type);
             return;
         }
         for (const value of Object.values(node as Record<string, unknown>)) {
@@ -63,25 +91,38 @@ export function documentUsesGraphKit(doc: unknown): boolean {
     return found;
 }
 
-let fired = false;
+/** Does this document contain a kit-backed graph block anywhere? */
+export function documentUsesGraphKit(doc: unknown): boolean {
+    return graphKitTypesIn(doc).size > 0;
+}
+
+/** Kit types whose module has been asked for (the module cache holds them). */
+const fired = new Set<string>();
 
 /**
- * Start loading the graph kit if (and only if) this document needs it.
- * @returns whether a preload was triggered (for tests and instrumentation).
+ * Start loading the kit module of each kit type this document uses, once per
+ * type per page.
+ * @returns whether any preload was triggered (for tests and instrumentation).
  */
 export function preloadGraphKitIfNeeded(doc: unknown): boolean {
-    if (fired) return false; // the module cache holds it; nothing to add
-    if (!documentUsesGraphKit(doc)) return false;
-    fired = true;
-    void import('@activity/graph-kit').catch(() => {
-        // Swallowed deliberately: kit surfaces retry on mount and render their
-        // own load-failure state. A preload must never be able to break a page.
-        fired = false; // allow a later attempt to try again
-    });
-    return true;
+    if (fired.size === KIT_BLOCK_TYPES.size) return false;
+    let triggered = false;
+    for (const type of graphKitTypesIn(doc)) {
+        const load = KIT_PRELOADERS[type];
+        if (fired.has(type) || !load) continue;
+        fired.add(type);
+        triggered = true;
+        void load().catch(() => {
+            // Swallowed deliberately: kit surfaces retry on mount and render
+            // their own load-failure state. A preload must never be able to
+            // break a page.
+            fired.delete(type); // allow a later attempt to try again
+        });
+    }
+    return triggered;
 }
 
 /** Test seam: forget that a preload fired. */
 export function resetGraphKitPreload(): void {
-    fired = false;
+    fired.clear();
 }

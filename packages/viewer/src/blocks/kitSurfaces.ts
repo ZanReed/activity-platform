@@ -23,13 +23,26 @@
 // one obvious to write.
 // =============================================================================
 
+// SUBPATHS, never the package barrel (review D1, 2026-11-26). The barrel
+// re-exports the math-prompt mount, so importing it put MathLive (~225 KiB gz)
+// and mathjs (~44 KiB gz) on every graph, number line and data plot. Each seam
+// below imports only its own widget; `kitBarrel.test.ts` fails on a barrel
+// import anywhere under packages/viewer/src, and the perf budget's student
+// journeys check the built chunks.
 import type {
   DataPlotQuestionHandle,
   DataPlotResponseData,
-  GraphQuestionHandle,
-  NumberLineQuestionHandle,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/data-plot-question';
+import type { GraphQuestionHandle } from '@activity/graph-kit/graph-question';
+import type { NumberLineQuestionHandle } from '@activity/graph-kit/number-line-question';
 import type { GraphWork } from '../check/wire.js';
+
+/** The chunk boundary for each widget: ONE dynamic import per subpath, shared
+ * with the preload (kitPreload.ts) so the two cannot drift apart and the
+ * student shell carries each import site once. */
+export const loadGraphQuestion = () => import('@activity/graph-kit/graph-question');
+export const loadNumberLineQuestion = () => import('@activity/graph-kit/number-line-question');
+export const loadDataPlotQuestion = () => import('@activity/graph-kit/data-plot-question');
 
 // ---- Restore, and its echo --------------------------------------------------
 // Every kit's restore moves the handles through the same path a drag takes, so
@@ -160,8 +173,10 @@ export function graphSurface(): GraphSurface {
 }
 
 const kitSurface: GraphSurface = async (mount, config, hooks) => {
-  // The chunk boundary (P1A / D16).
-  const kit = await import('@activity/graph-kit');
+  // The chunk boundary (P1A / D16). mathjs comes with it (the board draws
+  // curves with it); MathLive does not: transform_curve's equation field
+  // loads it on demand.
+  const kit = await loadGraphQuestion();
   const quiet = quietRestorer();
   const system = isSystem(config);
   // A system ("graph both lines", a system of inequalities) has its own board,
@@ -386,7 +401,7 @@ export function numberLineSurface(): NumberLineSurface {
 }
 
 const kitNumberLineSurface: NumberLineSurface = async (mount, config, hooks) => {
-  const kit = await import('@activity/graph-kit');
+  const kit = await loadNumberLineQuestion();
   const quiet = quietRestorer();
   const handle = await kit.mountNumberLineQuestion(
     mount,
@@ -496,7 +511,7 @@ export function dataPlotSurface(): DataPlotSurface {
 }
 
 const kitDataPlotSurface: DataPlotSurface = async (mount, config, hooks) => {
-  const kit = await import('@activity/graph-kit');
+  const kit = await loadDataPlotQuestion();
   const quiet = quietRestorer();
   const handle = await kit.mountDataPlotQuestion(
     mount,
@@ -605,7 +620,7 @@ export function mathPromptsSurface(): MathPromptsSurface {
 }
 
 const kitMathPromptsSurface: MathPromptsSurface = async (host, opts) => {
-  const kit = await import('@activity/graph-kit');
+  const kit = await import('@activity/graph-kit/math-prompt-mount');
   const mounted = kit.mountMathPrompts(host, opts);
   return { destroy: () => mounted.destroy() };
 };
@@ -658,8 +673,9 @@ export function calculatorSurface(): CalculatorSurface {
 }
 
 const kitCalculatorSurface: CalculatorSurface = async (mount, restrictions, hooks) => {
-  const kit = await import('@activity/graph-kit');
-  // The kit's own mountCalculator is already async (it splits MathLive into a
-  // second chunk behind the entry), so this awaits two boundaries, not one.
+  // The calculator module itself, not the barrel's async wrapper around it:
+  // one boundary instead of two (barrel, then calculator), and the barrel's
+  // own static imports stay off this path too. Its mount is synchronous.
+  const kit = await import('@activity/graph-kit/calculator');
   return kit.mountCalculator(mount, restrictions, hooks);
 };

@@ -19,7 +19,12 @@
     "./static-svg": "./src/static-svg.ts",
     "./chart-svg": "./src/static-svg/chart-svg.ts",
     "./model-format": "./src/model-format.ts",
-    "./seed-expr": "./src/seed-expr.ts"
+    "./seed-expr": "./src/seed-expr.ts",
+    "./graph-question": "./src/graph-question.ts",
+    "./number-line-question": "./src/number-line-question.ts",
+    "./data-plot-question": "./src/data-plot-question.ts",
+    "./math-prompt-mount": "./src/math-prompt-mount.ts",
+    "./calculator": "./src/calculator.ts"
   },
   "scripts": {
     "test": "vitest run",

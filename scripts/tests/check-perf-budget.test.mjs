@@ -26,7 +26,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { randomBytes } from 'node:crypto';
-import { SHELL_SPEND_BAND_BYTES, TEACHER_JOURNEYS } from '../perf-budgets.mjs';
+import { SHELL_SPEND_BAND_BYTES, STUDENT_KIT_JOURNEYS, TEACHER_JOURNEYS } from '../perf-budgets.mjs';
 
 /**
  * Filler that gzip genuinely cannot shrink.
@@ -73,6 +73,9 @@ function runBudget(distPath, extraEnv = {}) {
  * exactly one thing. Starting from green is what makes each failure
  * attributable to the single mutation under test.
  */
+/** What the fixture entry dynamically imports: each student kit's seam module. */
+const KIT_ENTRY_DYNAMIC = STUDENT_KIT_JOURNEYS.map((j) => `../graph-kit/src/${j.modules[0]}.ts`);
+
 function makeHealthyDist(overrides = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'perf-budget-'));
     mkdirSync(join(dir, 'assets'), { recursive: true });
@@ -92,7 +95,10 @@ function makeHealthyDist(overrides = {}) {
     // One chunk per ledger row, each carrying its library's real marker.
     const chunks = overrides.chunks ?? {
         'assets/katex-fixture.js': 'throw new ParseError("KaTeX parse error: x")',
-        'assets/mathlive-fixture.js': 'class MathfieldElement extends HTMLElement{}',
+        // Carries the student-kit MathLive marker too (the library's own
+        // console prefix): those rows fail as vacuous when nothing matches.
+        'assets/mathlive-fixture.js':
+            'class MathfieldElement extends HTMLElement{};console.error("MathLive 0.111.4: x")',
         'assets/jsx-fixture.js': 'JXG.Board = function(){}',
         'assets/pm-fixture.js': 'class ReplaceError extends Error{}',
         // One per ledger row — and that is enforced, not merely tidy: a ledger
@@ -127,6 +133,17 @@ function makeHealthyDist(overrides = {}) {
         if (!(file in chunks)) writeFileSync(join(dir, file), `const ${j.name}Route=1;`);
         journeyManifest[j.route] = { file, isDynamicEntry: true, imports: ['index.html'] };
     }
+    // One chunk per student-kit module, each a dynamic import of the entry
+    // (STUDENT_KIT_JOURNEYS): the shape the real build has, a facade key for
+    // a module only the viewer imports.
+    const kitManifest = {};
+    for (const j of STUDENT_KIT_JOURNEYS) {
+        for (const mod of j.modules) {
+            const file = `assets/kit-${mod}-fixture.js`;
+            if (!(file in chunks)) writeFileSync(join(dir, file), `const kit=1;`);
+            kitManifest[`../graph-kit/src/${mod}.ts`] = { file, isDynamicEntry: true, imports: ['index.html'] };
+        }
+    }
     writeFileSync(
         join(dir, '.vite/manifest.json'),
         JSON.stringify(
@@ -135,8 +152,10 @@ function makeHealthyDist(overrides = {}) {
                     file: entryFile,
                     isEntry: true,
                     css: ['assets/index-fixture.css'],
+                    dynamicImports: KIT_ENTRY_DYNAMIC,
                 },
                 ...journeyManifest,
+                ...kitManifest,
                 ...(overrides.extraManifest ?? {}),
             },
         ),
@@ -222,7 +241,10 @@ test('VACUITY: a ledger row matching zero chunks fails', () => {
     const dir = makeHealthyDist({
         chunks: {
             'assets/katex-fixture.js': 'throw new ParseError("KaTeX parse error: x")',
-            'assets/mathlive-fixture.js': 'class MathfieldElement extends HTMLElement{}',
+            // Carries the student-kit MathLive marker too (the library's own
+        // console prefix): those rows fail as vacuous when nothing matches.
+        'assets/mathlive-fixture.js':
+            'class MathfieldElement extends HTMLElement{};console.error("MathLive 0.111.4: x")',
             'assets/jsx-fixture.js': 'JXG.Board = function(){}',
         },
     });
@@ -395,7 +417,10 @@ test('a stubbed-out library returning to a LAZY chunk fails too, and names it', 
     const dir = makeHealthyDist({
         chunks: {
             'assets/katex-fixture.js': 'throw new ParseError("KaTeX parse error: x")',
-            'assets/mathlive-fixture.js': 'class MathfieldElement extends HTMLElement{}',
+            // Carries the student-kit MathLive marker too (the library's own
+        // console prefix): those rows fail as vacuous when nothing matches.
+        'assets/mathlive-fixture.js':
+            'class MathfieldElement extends HTMLElement{};console.error("MathLive 0.111.4: x")',
             'assets/jsx-fixture.js': 'JXG.Board = function(){}',
             'assets/pm-fixture.js': 'class ReplaceError extends Error{}',
             // The image popover: a lazy chunk the shell purity rows never read.
@@ -553,7 +578,12 @@ test('journey: chunks the shell already loaded do not count against a route', ()
     const bank = TEACHER_JOURNEYS.find((j) => j.name === 'bank');
     const dir = makeHealthyDist({
         extraManifest: {
-            'index.html': { file: 'assets/index-fixture.js', isEntry: true, imports: ['src/shared.ts'] },
+            'index.html': {
+                file: 'assets/index-fixture.js',
+                isEntry: true,
+                imports: ['src/shared.ts'],
+                dynamicImports: KIT_ENTRY_DYNAMIC,
+            },
             'src/shared.ts': { file: 'assets/mathlive-fixture.js' },
             [bank.route]: { file: 'assets/journey-bank-fixture.js', imports: ['src/shared.ts'] },
         },
@@ -591,7 +621,12 @@ test('VACUITY: a journey route inside the shell closure fails instead of measuri
     const editor = TEACHER_JOURNEYS[0];
     const dir = makeHealthyDist({
         extraManifest: {
-            'index.html': { file: 'assets/index-fixture.js', isEntry: true, imports: [editor.route] },
+            'index.html': {
+                file: 'assets/index-fixture.js',
+                isEntry: true,
+                imports: [editor.route],
+                dynamicImports: KIT_ENTRY_DYNAMIC,
+            },
         },
     });
     try {
@@ -674,6 +709,81 @@ test('route preload: a chunk filed under the WRONG URL pattern fails (R5)', () =
         assert.equal(code, 1, out);
         assert.match(out, /index\.html preloads Home\.tsx\s+NO/);
         assert.match(out, /index\.html preloads JoinClass\.tsx\s+NO/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Student kit journeys (review D1)
+// -----------------------------------------------------------------------------
+
+test('student kit: mathjs reached by a data plot through a static import fails and names the chunk', () => {
+    // The D1 shape: one helper imported from a module that carries mathjs.
+    const dir = makeHealthyDist({
+        extraManifest: {
+            '../graph-kit/src/data-plot-question.ts': {
+                file: 'assets/kit-data-plot-question-fixture.js',
+                isDynamicEntry: true,
+                imports: ['_evaluate.js'],
+            },
+            '_evaluate.js': { file: 'assets/mathjs-fixture.js', name: 'evaluate' },
+        },
+    });
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /student kit: data plot is free of mathjs/);
+        assert.match(out, /mathjs-fixture\.js/, 'failure must name the chunk');
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('student kit: a module rollup shares with the editor is found by its chunk name', () => {
+    const dir = makeHealthyDist();
+    const manifestPath = join(dir, '.vite/manifest.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const shared = manifest['../graph-kit/src/graph-question.ts'];
+    delete manifest['../graph-kit/src/graph-question.ts'];
+    manifest['_graph-question-abc.js'] = { ...shared, name: 'graph-question' };
+    manifest['index.html'].dynamicImports = manifest['index.html'].dynamicImports.map((k) =>
+        k === '../graph-kit/src/graph-question.ts' ? '_graph-question-abc.js' : k,
+    );
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 0, out);
+        assert.match(out, /student kit: graph is free of mathlive\s+absent/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('VACUITY: a kit seam module the shell does not dynamically import fails (the barrel came back)', () => {
+    const dir = makeHealthyDist();
+    const manifestPath = join(dir, '.vite/manifest.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest['index.html'].dynamicImports = ['../graph-kit/src/index.ts'];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /VACUITY guard/);
+        assert.match(out, /does not dynamically import/);
+    } finally {
+        cleanup(dir);
+    }
+});
+
+test('VACUITY: a student-kit library marker that matches nothing fails', () => {
+    const dir = makeHealthyDist();
+    writeFileSync(join(dir, 'assets/mathlive-fixture.js'), 'class MathfieldElement extends HTMLElement{}');
+    try {
+        const { code, out } = runBudget(dir);
+        assert.equal(code, 1, out);
+        assert.match(out, /the mathlive marker \/.*\/ matches no chunk/);
+        assert.match(out, /student kit: the mathlive marker is live\s+NO MATCH/);
     } finally {
         cleanup(dir);
     }

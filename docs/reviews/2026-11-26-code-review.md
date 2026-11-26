@@ -644,6 +644,29 @@ cannot see it. Byte figures are from a local dist; re-measure.
 number-line and data-plot activities. **M.** Likely the largest student-facing
 win in this review. (TODOS says the legacy runtime is unreachable; it ships.)
 
+> **✔ Fixed 2026-11-26 (measured first, CI env build).** The claim held. What
+> mounting each widget downloads beyond the shell (gz KiB, its static closure
+> plus the board it fetches at once), before → after:
+> graph **550.6 → 309.5**, number line **544.0 → 244.9**, data plot
+> **307.0 → 6.4**, maths answer box **303.3 → 225.7**. What each one truly
+> needs: the graph keeps mathjs (its board draws curves with it) and JSXGraph,
+> and loads MathLive only when a transform_curve equation field renders; the
+> number line and the data plot need neither; a maths answer box needs MathLive
+> only. The number line was also reaching mathjs on its own, through one helper
+> it imported from `graph-question.ts`; that helper moved to the leaf
+> `host-attached.ts`. Graph-kit gained five subpaths (graph-question,
+> number-line-question, data-plot-question, math-prompt-mount, calculator); the
+> seams and the preload use them, and the preload now warms only the widgets a
+> document holds. Guards: `packages/viewer/tests/kitBarrel.test.ts` (no barrel
+> specifier under `packages/viewer/src`) and `STUDENT_KIT_JOURNEYS` in
+> `scripts/perf-budgets.mjs` (caps plus "free of" rows on the built chunks, and
+> a vacuity stop if the shell stops dynamically importing a widget's module).
+> Both mutation-tested. The shell paid +148 B gz for it (SHELL_SPEND row). No
+> scorer or server file changed, so neither Edge Function bundle moved and no
+> deploy is owed. The legacy runtime is off the student path; teacher code
+> that imports the barrel (the editor's config drawer, the dev routes) still
+> carries it, untouched here.
+
 ### D2 The class grids call a definer function per block per student
 `class_progress` and `activity_progress` (`0099:501-526`) unnest the whole
 document once per latest check and pass `photos_allowed_for(...)`, a definer

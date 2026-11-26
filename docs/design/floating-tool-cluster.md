@@ -98,6 +98,13 @@ inlines dynamic imports and reports a misleading 609 KiB gz):
 and `kitPreload` warms it for kit-bearing documents. **On an activity that
 already has a graph block or a math gap, a calculator costs 8.3 KiB gz and
 nothing else.** Worst case — calculator on a document with neither — was stated as ~281 KiB gz.
+
+> **Superseded 2026-11-26 (review D1):** the seams no longer import the barrel.
+> Each widget loads its own subpath, so a graph, number line or data plot no
+> longer brings MathLive, and the calculator now imports `calculator.ts`
+> directly. A calculator therefore costs its MathLive and mathjs on any
+> activity without a maths answer box (it shares mathjs with a graph). Measured
+> after the change: the calculator's closure is 282.9 KiB gz beyond the shell.
 ⚠ **That omitted JSXGraph**, which graphing mode needs, and the one motivating
 activity is `calculator: graphing`. Measured against the real build: ~8.7
 (calculator) + 262.8 (MathLive) + 238 (JSXGraph) + ~7 (board) + ~6 (kit entry)

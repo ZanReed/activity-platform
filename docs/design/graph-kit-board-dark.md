@@ -7,8 +7,9 @@
 > **Historical:** the delivery mechanism this status line names — **R2-hosted kits** (`NNS6KNUS`,
 > `NXZNIEUK`), the kit manifest, and `upload:graph-kit` — died at S9 Drop 4 and the D-13 teardown
 > (2026-08-15). The kit is now built from the workspace and shipped as an **app-bundled lazy
-> chunk**: viewer and editor both reach it through `import('@activity/graph-kit')`
-> (`packages/viewer/src/blocks/kitSurfaces.ts`). No upload step exists for a kit change. Likewise
+> chunk**: the viewer reaches each widget through its own graph-kit subpath
+> (`packages/viewer/src/blocks/kitSurfaces.ts`, since review D1 on 2026-11-26; it was the
+> barrel before), the editor through the barrel. No upload step exists for a kit change. Likewise
 > `renderDataPlotSvg` is described below as "a renderer static SVG" — `packages/renderer` is gone;
 > it lives in `packages/graph-kit/src/static-svg/`.
 >

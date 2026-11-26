@@ -31,7 +31,7 @@ import {
     detectBoardTheme,
     type ChromeColors,
 } from './graph-colors.js';
-import { assertHostAttached } from './graph-question.js';
+import { assertHostAttached } from './host-attached.js';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -309,7 +309,7 @@ export async function mountNumberLineQuestion(
   mount.textContent = '';
   const { createNumberLineBoard } = await import('./number-line-board.js');
   // Host left the document mid-load: reject by name and let the caller's own
-  // cancelled flag decide (see HostDetachedError in graph-question.ts).
+  // cancelled flag decide (see HostDetachedError in host-attached.ts).
   assertHostAttached(mount, 'mountNumberLineQuestion');
 
   let answered = false;

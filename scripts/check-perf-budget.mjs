@@ -55,6 +55,8 @@ import {
     ABSENT_FROM_BUILD,
     SHELL_EVICTED,
     TEACHER_JOURNEYS,
+    STUDENT_KIT_JOURNEYS,
+    STUDENT_KIT_LIBRARIES,
     stripAssetSpecifiers,
 } from './perf-budgets.mjs';
 
@@ -412,6 +414,107 @@ for (const j of TEACHER_JOURNEYS) {
                     'barrel) and make it lazy or move what the route needs into a ' +
                     'module of its own. Background: docs/design/shell-size-review.md §8.',
             });
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Rows — student kit journeys (review D1)
+// -----------------------------------------------------------------------------
+// What mounting one graph-kit widget downloads beyond the shell. See
+// STUDENT_KIT_JOURNEYS in perf-budgets.mjs for why modules[0] must be a dynamic
+// import of the entry, and why the library markers are their own.
+{
+    const kitKey = (mod) => {
+        const keys = Object.keys(manifest).filter(
+            (k) =>
+                k === `../graph-kit/src/${mod}.ts` ||
+                (k.startsWith('_') && manifest[k].name === mod),
+        );
+        require_(
+            keys.length === 1,
+            `student kit journey: graph-kit module "${mod}" matches ${keys.length} ` +
+                'manifest entries (want 1). It was renamed, merged into another chunk, ' +
+                'or split; update STUDENT_KIT_JOURNEYS in scripts/perf-budgets.mjs.',
+        );
+        return keys[0];
+    };
+    const entryDynamic = new Set(entry.dynamicImports ?? []);
+    // A marker that matches nothing would make every "free of" row for it pass
+    // vacuously, so it fails as a row of its own (like a ledger row that
+    // matches no chunk).
+    for (const [lib, marker] of Object.entries(STUDENT_KIT_LIBRARIES)) {
+        const live = jsChunks.some((c) => marker.test(stripAssetSpecifiers(readFileSync(c.path, 'utf8'))));
+        const name = `student kit: the ${lib} marker is live`;
+        rows.push({ name, actual: live ? 'yes' : 'NO MATCH', cap: 'yes', unit: '', ok: live });
+        if (!live) {
+            failures.push({
+                name,
+                actual: 'NO MATCH',
+                cap: 'yes',
+                unit: '',
+                detail:
+                    `the ${lib} marker ${marker} matches no chunk in the build, so every ` +
+                    '"free of" row for it would pass vacuously. The library changed its ' +
+                    'strings; pick a new marker from its own code (STUDENT_KIT_LIBRARIES).',
+            });
+        }
+    }
+    for (const j of STUDENT_KIT_JOURNEYS) {
+        const keys = j.modules.map(kitKey);
+        require_(
+            entryDynamic.has(keys[0]),
+            `student kit journey "${j.name}": the shell does not dynamically import ` +
+                `${keys[0]} (graph-kit's ${j.modules[0]}), so this row would measure a ` +
+                'chunk no student loads. If a seam in packages/viewer/src/blocks/' +
+                'kitSurfaces.ts went back to the @activity/graph-kit barrel, that is ' +
+                'the bug: import the subpath (review D1).',
+        );
+        for (const k of keys) {
+            require_(
+                !shellClosure.has(k),
+                `student kit journey "${j.name}": ${k} is in the shell's static closure, ` +
+                    'so the widget joined the student shell (ruling D16).',
+            );
+        }
+        const all = new Set();
+        for (const k of keys) staticClosure(k, all);
+        const chunks = [...all]
+            .filter((k) => !shellClosure.has(k))
+            .map((k) => {
+                const buf = readFileSync(join(dist, manifest[k].file));
+                return { file: manifest[k].file, gz: gzKiB(buf), source: buf.toString('utf8') };
+            });
+        record(
+            `student kit: ${j.name}`,
+            chunks.reduce((sum, c) => sum + c.gz, 0),
+            j.maxGzKiB,
+            'KiB',
+            `mounting a ${j.name} downloads ${chunks.length} chunk(s) beyond the shell: ` +
+                [...chunks].sort((a, b) => b.gz - a.gz).slice(0, 6)
+                    .map((c) => `${c.file} (${fmt(c.gz)} KiB)`).join(', ') +
+                `. ${j.why}`,
+        );
+        for (const lib of j.forbid) {
+            const marker = STUDENT_KIT_LIBRARIES[lib];
+            require_(marker, `student kit journey "${j.name}" forbids "${lib}", which is not in STUDENT_KIT_LIBRARIES.`);
+            const hits = chunks.filter((c) => marker.test(stripAssetSpecifiers(c.source)));
+            const name = `student kit: ${j.name} is free of ${lib}`;
+            rows.push({ name, actual: hits.length ? 'PRESENT' : 'absent', cap: 'absent', unit: '', ok: hits.length === 0 });
+            if (hits.length) {
+                failures.push({
+                    name,
+                    actual: 'PRESENT',
+                    cap: 'absent',
+                    unit: '',
+                    detail:
+                        `${lib} code is in what a ${j.name} mounts (${j.modules.join(', ')}) via ` +
+                        hits.map((c) => `${c.file} (${fmt(c.gz)} KiB)`).join(', ') +
+                        `. ${j.why} Find the static import in packages/graph-kit/src that ` +
+                        'reached it (review D1: number-line-question.ts once imported one ' +
+                        'helper from graph-question.ts, and mathjs came with it).',
+                });
+            }
         }
     }
 }

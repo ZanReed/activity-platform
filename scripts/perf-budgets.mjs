@@ -315,8 +315,13 @@ export const SHELL_SPEND = [
         change: 'Review C5: the route-level error boundary (AppErrorBoundary) around every route — a render throw shows a Refresh button instead of a blank page and takes focus; it must be eager, since a lazy net cannot catch the chunk that failed to load',
         bytes: 311,
     },
+    {
+        date: '2026-11-26',
+        change: 'Review D1 (graph-kit subpaths): each kit seam and the preload import its own widget instead of the barrel, so the preload tracks kit types per document and Vite\'s preload map names each widget\'s chunks. +148 B measured against main with the two seam files swapped back; the other 106 B is in-band drift already on main (measured 162179 there)',
+        bytes: 254,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 162073;
+export const SHELL_JS_BASELINE_BYTES = 162327;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**
@@ -824,6 +829,83 @@ export const TEACHER_JOURNEYS = [
         maxGzKiB: 33,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: "One student's answers. It seeds, but loads the seeding code (and mathjs) only when the activity has seed variables or a DoL section (T4-2), via loadSeeding() in lib/answerText.ts.",
+    },
+];
+
+/**
+ * STUDENT KIT JOURNEYS — what a student downloads to MOUNT one graph-kit
+ * widget (review D1, 2026-11-26).
+ *
+ * Until 2026-11-26 every kit seam in packages/viewer/src/blocks/kitSurfaces.ts
+ * (and the preload) imported the @activity/graph-kit BARREL, which re-exports
+ * the math-prompt mount, so a data plot downloaded MathLive and mathjs it
+ * never runs. The seams now import subpaths; these rows hold that on the BUILT
+ * chunks, where the claim is actually true or false (the source half is
+ * packages/viewer/tests/kitBarrel.test.ts).
+ *
+ * A row = the static closure of each listed graph-kit module, minus the shell.
+ * `modules[0]` is the module the seam imports; the rest are what its mount
+ * fetches at once (the board). The check FAILS AS VACUOUS unless modules[0] is
+ * a dynamic import of the shell's own entry chunk: if the seam went back to the
+ * barrel, this module would still be built (the editor uses it) and its row
+ * would stay clean while students loaded the barrel again. A module is found
+ * by its manifest key `../graph-kit/src/<name>.ts`, or by its chunk `name` when
+ * rollup shares it with the editor (`_graph-question-<hash>.js`).
+ *
+ * `forbid` names keys of STUDENT_KIT_LIBRARIES, not CHUNK_LEDGER rows, because
+ * the ledger's MathLive marker (/MathfieldElement/) also matches OUR code: the
+ * graph chunk's lazy `import('mathlive')` for transform_curve's equation field
+ * destructures that name. These markers are the libraries' own strings, and
+ * each must match some chunk in the build, so a rotted marker fails rather
+ * than reporting "absent" forever.
+ *
+ * What each widget legitimately needs (measured 2026-11-26): the graph needs
+ * mathjs (its board draws curves and the equation preview parses with it) and
+ * loads MathLive only when a transform_curve equation field renders. The
+ * number line and the data plot need neither. A maths answer box needs
+ * MathLive and not mathjs. The calculator needs both and has no row.
+ *
+ * Measured 2026-11-26, CI env (gz KiB beyond the shell). Before → after:
+ * graph 550.6 → 309.5, number line 544.0 → 244.9, data plot 307.0 → 6.4,
+ * maths answer box 303.3 → 225.7. Caps are ~10% over "after", coarse like the
+ * teacher rows: JSXGraph (239.1) dominates two of them and has its own row.
+ */
+export const STUDENT_KIT_LIBRARIES = {
+    // MathLive's own console prefix, a template literal that survives
+    // minification; only mathlive.min contains it.
+    mathlive: /MathLive \d+\.\d+\.\d+:/,
+    mathjs: CHUNK_LEDGER.find((r) => r.name === 'mathjs').marker,
+    jsxgraph: CHUNK_LEDGER.find((r) => r.name === 'jsxgraph').marker,
+};
+
+export const STUDENT_KIT_JOURNEYS = [
+    {
+        name: 'graph',
+        modules: ['graph-question', 'board'],
+        maxGzKiB: 340,
+        forbid: ['mathlive'],
+        why: 'An interactive graph. mathjs and JSXGraph are its own; MathLive loads only when a transform_curve equation field renders.',
+    },
+    {
+        name: 'number line',
+        modules: ['number-line-question', 'number-line-board'],
+        maxGzKiB: 270,
+        forbid: ['mathlive', 'mathjs'],
+        why: 'A 1-D board. It shares only host-attached.ts with the graph question; importing graph-question.ts again would bring mathjs back.',
+    },
+    {
+        name: 'data plot',
+        modules: ['data-plot-question', 'data-plot-board'],
+        maxGzKiB: 7,
+        forbid: ['mathlive', 'mathjs', 'jsxgraph'],
+        why: 'An SVG dot plot, histogram or box plot: no board engine and no maths library.',
+    },
+    {
+        name: 'maths answer box',
+        modules: ['math-prompt-mount'],
+        maxGzKiB: 248,
+        forbid: ['mathjs'],
+        why: 'MathLive input fields. Grading is on the server, so the evaluator never loads here.',
     },
 ];
 
