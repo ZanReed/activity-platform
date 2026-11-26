@@ -443,6 +443,16 @@ reviewers reached it independently.
    from `pg_get_functiondef`. Do not squash the migrations; their headers are
    the decision record. **M.**
 
+**Design pass 2026-11-26, all eight decisions RULED yes by the author**
+([database-snapshot-and-types.md](../design/database-snapshot-and-types.md)).
+**Recommendation 2 BUILT the same day as slice 1:** `scripts/tests/rpc-arguments.test.mjs`
+reads all 128 call sites (119 functions; app, viewer, worker, Edge Functions,
+the local `call()`/`rpc()` helpers and the auth contract's JSON names
+included) and fails on a missing function, an unknown or missing argument, or
+a call two overloads fit. Zero drift today; mutation-tested on 11 cases.
+Slices 2–5 (index, `db:types`, typed client, typed ports) are ruled but not
+queued.
+
 ### C2 Adding one block type touches about 34 places, and the app half is unguarded
 The viewer keys everything off one registry and fails to compile when a type is
 missing. The app has about 14 separate hand-kept rosters under two spellings of

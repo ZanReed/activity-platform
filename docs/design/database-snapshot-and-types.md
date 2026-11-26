@@ -1,6 +1,7 @@
 # Database snapshot and types — design pass (review C1)
 
-**Status: DESIGN PASS, 2026-11-26. Nothing built. Waiting on the author's yes/no per decision (§3).**
+**Status: RULED 2026-11-26 — the author said yes to all eight recommendations (D1–D8) as written.
+Slice 1 BUILT the same day: `scripts/tests/rpc-arguments.test.mjs`. Slices 2–5 are ruled, not queued.**
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C1, with A5, C6 and C10
 as the same family. Not in the build queue (TODOS entry carries its trigger; ranking is the author's).
 

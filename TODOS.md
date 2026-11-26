@@ -14,13 +14,21 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Database snapshot and types (review C1) — DESIGN PASS written 2026-11-26, rulings owed
+## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slice 1 BUILT
 
-[docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md): eight
-decisions (source of truth, where the output lives, how far to type the client, the Edge Functions,
-a function index, migrating the hand-written shapes, the apply rule, what it does not fix) and a
-five-slice plan. Nothing built. **Trigger: the author's rulings on D1–D8.** After that, slice 1 (the
-RPC argument test, S) can ship alone; the rest is not queued — ranking is the author's.
+[docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Slice 1,
+the RPC argument test (`scripts/tests/rpc-arguments.test.mjs`), is built: every call names a live
+function with arguments exactly one overload accepts. Slices 2–5 are ruled but NOT queued (ranking
+is the author's):
+- **Slice 2 — shared migration parser + generated function index (M).** Trigger: the next time a
+  session has to grep for "which file holds this function's live body", or the next restatement of
+  a function already defined 3+ times. It moves the four parsers (rowset-rpc-bounds, rpc-arguments,
+  postgrestHints, data-map-coverage) onto one module. Fix on the way: `rowset-rpc-bounds` keys overloads by ARITY, so a
+  new same-arity overload of a different type replaces the old one in its view (rpc-arguments keys
+  by input types, as Postgres does; found while mutation-testing slice 1).
+- **Slices 3–5 — `db:types` + live diff, typed client, typed ports (M, M–L, S–M).** Trigger: the
+  first result-shape or table-column drift that reaches live or a red integration lane; 3 pays only
+  with 4.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 
