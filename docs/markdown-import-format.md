@@ -1826,7 +1826,7 @@ y: 0..20 step 5
 - **A `line` chart is a time series on evenly spaced categories**: the points are joined in the order written. There is no real time scale, so write the categories as the times (`Mon, Tue, …`, `Jan, Feb, …`).
 - **Screen readers** get the chart's numbers as a table (caption = title, one column per category, one row per series), built from the same data and always present.
 - **Numbers of five or more digits** are written with a thin space (`12 000`).
-- **In the editor** the block shows the chart with a **Chart source** button: the same lines as the fence, re-read by the same parser when you press Apply.
+- **In the editor** select the chart and its command bar offers **Edit chart** (a form) and **Chart source**: the same lines as the fence, re-read by the same parser when you press Apply.
 
 **Problems.** A line that cannot be read (an unknown key, a series with a value that is not a number, a series with the wrong number of values, a `y:` that does not start at 0 or does not reach the data) is **skipped**. Data the chart cannot hold (more than 12 categories, a fifth series, a negative value, an empty category name) is **refused**. A chart with no `title:`, and a chart with several series where one has no name, are reported too.
 

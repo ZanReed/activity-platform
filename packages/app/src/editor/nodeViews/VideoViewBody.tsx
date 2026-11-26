@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import type { ActivityMeta } from '@activity/schema';
 import { formatTime, videoAttrsComplete, type VideoAttrs } from '../../lib/videoFence';
@@ -6,7 +6,7 @@ import { clipState, keptClipsBefore, locateClip, type ClipState } from '../../li
 import { tiptapToActivity } from '../../lib/serialize';
 import type { VideoStorage } from '../extensions/Video';
 import VideoForm from './VideoForm';
-import { useCardRequest } from '../components/cardRequests';
+import { useCardRequests, useHasCommandBar } from '../components/cardRequests';
 
 // ============================================================================
 // VideoViewBody — the catch-up clip's card (D64 amendment 2026-11-12, V-2…V-5).
@@ -37,16 +37,13 @@ export default function VideoViewBody({ node, updateAttributes, editor, getPos }
     const [editing, setEditing] = useState(data === null);
     const [state, setState] = useState<ClipState | null>(null);
 
-    // The command bar's "Edit video" (blockControls.ts) opens the same form
-    // as the card's own button.
-    const request = useCardRequest(node.attrs.id as string);
-    const lastRequest = useRef(request.nonce);
-    useEffect(() => {
-        if (request.nonce === lastRequest.current) return;
-        lastRequest.current = request.nonce;
+    // In an editor with a command bar, "Edit video" lives on the bar and
+    // reaches this card as a request (cardRequests.ts). Elsewhere the card
+    // shows the button itself.
+    const hasBar = useHasCommandBar(editor);
+    useCardRequests(editor, node.attrs.id as string, () => {
         if (!disabled) setEditing(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [request.nonce]);
+    });
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -141,7 +138,7 @@ export default function VideoViewBody({ node, updateAttributes, editor, getPos }
                         onChange={(next) => updateAttributes({ data: next })}
                         onDone={() => setEditing(false)}
                     />
-                ) : (
+                ) : hasBar ? null : (
                     <div className="graph-figure-view__actions">
                         <button type="button" disabled={disabled} onClick={() => setEditing(true)}>
                             Edit video

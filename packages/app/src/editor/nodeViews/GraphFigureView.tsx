@@ -9,6 +9,7 @@ import DrawableListEditor, {
 import type { GraphAxisConfig, DrawableAttr } from '../extensions/InteractiveGraph';
 import { AxisWindowError, useAxisWindowGuard } from '../components/axisWindow';
 import { formatFigureSource, parseFigureSource } from '../../lib/figureSource';
+import { useCardRequests, useHasCommandBar } from '../components/cardRequests';
 
 // ============================================================================
 // GraphFigureView — NodeView for the static graph-figure block (reference-
@@ -46,6 +47,32 @@ export default function GraphFigureView({
     const drawables = node.attrs.drawables as DrawableAttr[];
     const id = (node.attrs.id as string) || 'figure';
     const disabled = !editor.isEditable;
+
+    const openSource = (): void => {
+        setSourceProblems([]);
+        setSource(
+            formatFigureSource({
+                axis,
+                drawables,
+                alt: node.attrs.alt as string | null,
+                caption: node.attrs.caption as string | null,
+                plane: node.attrs.plane !== false,
+                toScale: node.attrs.toScale === true,
+            }),
+        );
+    };
+
+    // In an editor with a command bar, "Edit figure" and "Figure source" live
+    // on the bar and reach this card as requests (cardRequests.ts). The
+    // reference panel and the definition dialog have no bar, so there the
+    // card shows the two buttons itself.
+    const hasBar = useHasCommandBar(editor);
+    useCardRequests(editor, node.attrs.id as string, (action) => {
+        // An open panel wins: switching would drop source lines not yet applied.
+        if (disabled || editing || source) return;
+        if (action === 'source') openSource();
+        else setEditing(true);
+    });
 
     const previewSvg = useMemo(
         () =>
@@ -85,7 +112,7 @@ export default function GraphFigureView({
                 aria-hidden="true"
                 dangerouslySetInnerHTML={{ __html: previewSvg }}
             />
-            {!editing && (
+            {!hasBar && !editing && !source && (
                 <div
                     className="graph-figure-view__actions"
                     contentEditable={false}
@@ -100,19 +127,7 @@ export default function GraphFigureView({
                     <button
                         type="button"
                         disabled={disabled}
-                        onClick={() => {
-                            setSourceProblems([]);
-                            setSource(
-                                formatFigureSource({
-                                    axis,
-                                    drawables,
-                                    alt: node.attrs.alt as string | null,
-                                    caption: node.attrs.caption as string | null,
-                                    plane: node.attrs.plane !== false,
-                                    toScale: node.attrs.toScale === true,
-                                }),
-                            );
-                        }}
+                        onClick={openSource}
                     >
                         Figure source
                     </button>

@@ -1,7 +1,7 @@
 // =============================================================================
 // chart-source.e2e.ts — a statistics chart authored in the editor (Y7 T12, Q8)
 // -----------------------------------------------------------------------------
-// The slash menu offers "Chart", and its "Chart source" popover edits the
+// The slash menu offers "Chart", and its bar's "Chart source" popover edits the
 // chart as the same ```chart lines the importer reads, re-parsed on Apply. The
 // text is generated from the node, never stored, so re-opening shows text
 // regenerated from what was applied. The chart's node view is a LAZY chunk
@@ -22,6 +22,23 @@ async function boot(page: Page) {
         (window as any).__tiptapEditor.chain().focus('end').insertChart().run();
     });
     await expect(page.locator('.chart-view')).toHaveCount(1);
+}
+
+/** Bar only (author ruling 2026-11-27): select the chart and use its command
+ *  bar — in the main editor the card shows no buttons of its own. */
+async function fromBar(page: Page, label: 'Chart source' | 'Edit chart') {
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ed = (window as any).__tiptapEditor;
+        let pos: number | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ed.state.doc.descendants((n: any, p: number) => {
+            if (pos === null && n.type.name === 'chart') pos = p;
+            return pos === null;
+        });
+        ed.commands.setNodeSelection(pos);
+    });
+    await page.locator('.block-command-bar').getByRole('button', { name: label }).click();
 }
 
 function chartData(page: Page) {
@@ -53,7 +70,7 @@ test('insert a chart, edit its source, apply — the node, the preview and the r
     // The default chart draws: three bars.
     await expect(page.locator('.chart-view__preview rect[data-bar]')).toHaveCount(3);
 
-    await page.locator('.chart-view').getByRole('button', { name: 'Chart source' }).click();
+    await fromBar(page, 'Chart source');
     const text = page.locator('.graph-figure-source__text');
     await expect(text).toHaveValue(/type: bar/);
     await text.fill(SOURCE);
@@ -73,13 +90,13 @@ test('insert a chart, edit its source, apply — the node, the preview and the r
     await expect(page.locator('.chart-view__preview [data-chart-text="title"]')).toHaveText('How we get to school');
 
     // Re-open: the text is REGENERATED from the stored node.
-    await page.locator('.chart-view').getByRole('button', { name: 'Chart source' }).click();
+    await fromBar(page, 'Chart source');
     await expect(text).toHaveValue(SOURCE);
 });
 
 test('a bad line is reported and the chart keeps the lines that worked', async ({ page }) => {
     await boot(page);
-    await page.locator('.chart-view').getByRole('button', { name: 'Chart source' }).click();
+    await fromBar(page, 'Chart source');
     await page.locator('.graph-figure-source__text').fill(SOURCE + '\nseries: Car = 1, 2');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.locator('.graph-figure-source__problems')).toContainText('"series: Car = 1, 2"');
@@ -90,7 +107,7 @@ test('a bad line is reported and the chart keeps the lines that worked', async (
 // block, not only fence text.
 test('Edit chart: the form changes the type, a value, a name and the grid, and the picture follows', async ({ page }) => {
     await boot(page);
-    await page.locator('.chart-view').getByRole('button', { name: 'Edit chart' }).click();
+    await fromBar(page, 'Edit chart');
     const form = page.locator('.chart-form');
 
     // A title, committed on blur.
@@ -130,7 +147,7 @@ test('Edit chart: the form changes the type, a value, a name and the grid, and t
 
 test('Edit chart: a value the chart cannot hold snaps back instead of reaching the node', async ({ page }) => {
     await boot(page);
-    await page.locator('.chart-view').getByRole('button', { name: 'Edit chart' }).click();
+    await fromBar(page, 'Edit chart');
     const form = page.locator('.chart-form');
     const before = await chartData(page);
 

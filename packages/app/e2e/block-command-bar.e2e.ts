@@ -7,8 +7,9 @@ import { test, expect, type Page } from '@playwright/test';
 // universal actions (Duplicate/Delete) + a ⚙ gear for blocks that have
 // settings. Almost no block has a block-specific "primary" — you edit a block
 // by clicking into it, so an "enter edit" button would just duplicate a click.
-// The one exception is `image`: clicking selects the atom (no inline editor),
-// so Replace/Caption are the only way to open its edit popover.
+// The exceptions are the atoms with no inline editor — `image`, and the chart,
+// video and figure cards: clicking selects them, so their buttons live on the
+// bar ("bar only", author ruling 2026-11-27).
 // ============================================================================
 
 const BAR = '.block-command-bar';
@@ -301,4 +302,73 @@ test("a video's bar reopens the card's form", async ({ page }) => {
     await expect(bar).toHaveAttribute('data-block-type', 'video');
     await bar.getByRole('button', { name: 'Edit video' }).click();
     await expect(form).toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// Bar only for chart, video and figure (author ruling 2026-11-27), as for the
+// image: in the main editor these cards show no buttons of their own. (Editors
+// with no bar — the reference panel, the definition dialog — keep the card's
+// buttons; that half is a unit test, cardButtons.test.tsx.)
+// ---------------------------------------------------------------------------
+
+test("a figure's bar opens the card's form and its source", async ({ page }) => {
+    await bootEmpty(page);
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus('end').insertGraphFigure().run();
+    });
+    await expect(page.locator('.graph-figure-view__preview')).toBeVisible();
+    await selectFirstNode(page, 'graphFigure');
+    const bar = page.locator(BAR);
+    await expect(bar).toHaveAttribute('data-block-type', 'graphFigure');
+    await bar.getByRole('button', { name: 'Edit figure' }).click();
+    await expect(page.locator('.graph-figure-view__editor')).toBeVisible();
+
+    // An open panel wins: the bar cannot swap the form for the source.
+    await selectFirstNode(page, 'graphFigure');
+    await page.locator(BAR).getByRole('button', { name: 'Figure source' }).click();
+    await expect(page.locator('.graph-figure-view__editor')).toBeVisible();
+    await expect(page.locator('.graph-figure-source')).toHaveCount(0);
+});
+
+for (const [command, typeName, card, labels] of [
+    ['insertChart', 'chart', '.chart-view', ['Edit chart', 'Chart source']],
+    ['insertGraphFigure', 'graphFigure', '.graph-figure-view', ['Edit figure', 'Figure source']],
+] as const) {
+    test(`a fresh ${typeName} is selected with its bar showing, and its card has no buttons`, async ({ page }) => {
+        await bootEmpty(page);
+        await page.evaluate((cmd) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).__tiptapEditor.chain().focus('end')[cmd]().run();
+        }, command);
+        await expect(page.locator(card)).toHaveCount(1);
+        // One obvious step to edit it: the bar is already there.
+        const bar = page.locator(BAR);
+        await expect(bar).toHaveAttribute('data-block-type', typeName);
+        for (const label of labels) {
+            await expect(bar.getByRole('button', { name: label })).toBeVisible();
+            await expect(page.locator(card).getByRole('button', { name: label })).toHaveCount(0);
+        }
+        // Still none once the bar has gone.
+        await page.evaluate(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).__tiptapEditor.commands.setTextSelection(1);
+        });
+        await expect(bar).toHaveCount(0);
+        await expect(page.locator(card).getByRole('button')).toHaveCount(0);
+    });
+}
+
+test("a video card has no Edit button of its own", async ({ page }) => {
+    await bootEmpty(page);
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus('end').insertVideo().run();
+    });
+    const form = page.locator('[data-video-form="true"]');
+    await expect(form).toBeVisible();
+    await form.getByRole('button', { name: 'Discard unsaved changes' }).click();
+    await expect(form).toHaveCount(0);
+    await expect(page.locator('.video-view')).toBeVisible();
+    await expect(page.locator('.video-view').getByRole('button', { name: 'Edit video' })).toHaveCount(0);
 });

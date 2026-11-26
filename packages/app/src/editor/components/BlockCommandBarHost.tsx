@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { ChevronDown, Settings, Check } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
 } from '../blockControls';
 import AdvancedDrawer from './AdvancedDrawer';
 import { selectedBlock } from '../selectedBlock';
+import { registerCommandBar } from './cardRequests';
 
 // What the drawer below the bar is currently showing.
 type DrawerContent =
@@ -72,6 +73,12 @@ export default function BlockCommandBarHost({
     // arrives in the SAME transaction that selects the block — can set
     // settingsMode true afterward without the reset clobbering it.
     const lastSelKey = useRef<string | null>(null);
+
+    // Tell the chart, video and figure cards this editor has a bar, so they
+    // leave their buttons to it (cardRequests.ts). Editors without this host
+    // keep the buttons on the card. A layout effect, so the cards' buttons do
+    // not show for a frame before the bar registers.
+    useLayoutEffect(() => (editor ? registerCommandBar(editor) : undefined), [editor]);
 
     // Phase 1 — detect the selected block. Only pos/type/controls here; NO DOM
     // measurement (measuring inside the transaction handler reads pre-layout

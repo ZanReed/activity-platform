@@ -509,7 +509,13 @@ reference panel let a typed `---` make a rule that vanished on save
 **The five blocks with no command bar have one since 2026-11-27** (author ruling:
 bare entries for both lists and the callout; a chart and a video also get bar
 buttons that open the panels their cards own, through `cardRequests.ts`). The
-guard now asserts no insertable node is without a bar. Not done: the
+guard now asserts no insertable node is without a bar. **Bar only, 2026-11-27**
+(author ruling): chart, video and figure cards show no buttons of their own
+where the editor has a bar (as the image); the reference panel and definition
+dialog have none, so there the card keeps its buttons (`useHasCommandBar`). A
+bar request is addressed by editor and id (a copy pasted into the panel keeps
+its id) and consumed by the card that handles it. Guarded by
+`cardRequests.test.tsx`, `cardButtons.test.tsx` and `block-command-bar.e2e.ts`. Not done: the
 `editorBlockRegistry` (the **M** durable fix) and the editor CSS (no unit guard).
 
 ### C3 No test round-trips a document through the editor's schema

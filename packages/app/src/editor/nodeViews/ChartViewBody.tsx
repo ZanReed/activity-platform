@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { renderChartSvg } from '@activity/graph-kit/chart-svg';
 import {
@@ -7,7 +7,7 @@ import {
     type ChartAttrs,
 } from '../../lib/chartFence';
 import ChartForm from './ChartForm';
-import { useCardRequest } from '../components/cardRequests';
+import { useCardRequests, useHasCommandBar } from '../components/cardRequests';
 
 // ============================================================================
 // ChartViewBody — the chart block's NodeView (Y7 charts, T12; Q8), loaded
@@ -48,25 +48,20 @@ export default function ChartViewBody({ node, updateAttributes, editor }: NodeVi
     // React state, like the source popover, for the same NodeView reason.
     const [editing, setEditing] = useState(false);
 
-    // The command bar's "Edit chart" / "Chart source" (blockControls.ts) open
-    // the same two panels as the buttons below.
-    const request = useCardRequest(node.attrs.id as string);
-    const lastRequest = useRef(request.nonce);
-    useEffect(() => {
-        if (request.nonce === lastRequest.current) return;
-        lastRequest.current = request.nonce;
-        // A panel already open wins, as on the card, which hides its own
-        // buttons then: switching would drop source lines not yet applied.
+    // In an editor with a command bar, "Edit chart" and "Chart source" live
+    // on the bar and reach this card as requests (cardRequests.ts). Elsewhere
+    // (the reference panel) the card shows the two buttons itself.
+    const hasBar = useHasCommandBar(editor);
+    useCardRequests(editor, node.attrs.id as string, (action) => {
+        // An open panel wins: switching would drop source lines not yet applied.
         if (disabled || editing || source) return;
-        if (request.action === 'source') {
+        if (action === 'source') {
             setProblems([]);
             setSource(formatChartSource(data));
         } else {
             setEditing(true);
         }
-        // `data` and the panel state are read at the moment of the request.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [request.nonce]);
+    });
 
     const svg = useMemo(() => renderChartSvg(data, 'edchart-' + id), [data, id]);
 
@@ -92,7 +87,7 @@ export default function ChartViewBody({ node, updateAttributes, editor }: NodeVi
                     onDone={() => setEditing(false)}
                 />
             )}
-            {!source && !editing && (
+            {!hasBar && !source && !editing && (
                 <div className="graph-figure-view__actions" contentEditable={false}>
                     <button type="button" disabled={disabled} onClick={() => setEditing(true)}>
                         Edit chart

@@ -211,7 +211,7 @@ export const universalActions: ReadonlyArray<ControlEntry> = [
 // block (caret for text, the math field for math), so an "enter edit" button
 // would only duplicate a click. The exceptions are the atoms with no inline
 // editor: `image` (Replace/Caption are the only way to open its edit popover)
-// and the `chart` and `video` cards (the bar opens the panels the card owns).
+// and the `chart`, `video` and figure cards (the bar opens the panels the card owns).
 
 /** The student-answer placeholder, shared by the free-text blocks' Advanced. */
 /** What a graded graph's "Shown with the question" figure depicts, for a
@@ -455,7 +455,7 @@ const multiSelectField: AdvancedField = {
 // The registry, keyed by ProseMirror node-type name. Adding a block type =
 // one entry here (+ its NodeView/extension). controlsFor is the host's lookup.
 // Most blocks have no block-specific primary — click edits them, so the bar is
-// the universal actions + ⚙ settings. `image`, `chart` and `video` carry primaries.
+// the universal actions + ⚙ settings. `image`, `chart`, `video` and `graphFigure` carry primaries.
 // ============================================================================
 
 // --- Image drawer fields ---------------------------------------------------
@@ -517,9 +517,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     bulletList: { primary: [] },
     orderedList: { primary: [] },
     callout: { primary: [] },
-    // A chart's and a video's panels are local state in their cards (typing in
-    // a form drops node selection), so the bar asks the card to open them
-    // (cardRequests.ts). The card's own buttons stay.
+    // A chart's, a video's and a figure's panels are local state in their
+    // cards (typing in a form drops node selection), so the bar asks the card
+    // to open them (cardRequests.ts). Bar only, as for the image: in an editor
+    // with a bar the card shows no buttons of its own.
     chart: {
         primary: [
             { label: 'Edit chart', icon: Pencil, onActivate: openCardPanel('edit') },
@@ -782,7 +783,10 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     // "caption/alt → drawer" decomposition).
     fillInBlank: { primary: [], advanced: questionAdvancedWithNumbering },
     graphFigure: {
-        primary: [],
+        primary: [
+            { label: 'Edit figure', icon: Pencil, onActivate: openCardPanel('edit') },
+            { label: 'Figure source', icon: FileText, onActivate: openCardPanel('source') },
+        ],
         advanced: [{ group: 'Description', fields: [figureAltField, figureCaptionField] }],
     },
     image: {
@@ -836,7 +840,7 @@ function openCardPanel(action: CardAction): (editor: Editor, pos: number) => voi
             // Saved block ids are minted by serialize, so nothing else reads it.
             editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'id', id).setMeta('addToHistory', false));
         }
-        requestCardAction(id, action);
+        requestCardAction(editor, id, action);
     };
 }
 
