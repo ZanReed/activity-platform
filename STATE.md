@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md): A5, G-2 and C1 LIVE, CI green at `5591edaa`.** A5: 0104 + 0106. G-2: 0105 applied, both bundles hash-identical; B1 purge DECLINED ([plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept). C1 ([design](docs/design/database-snapshot-and-types.md)): all five slices plus `deno check` on the Edge Functions; functions redeployed, hash-identical. New per-migration duties: `pnpm db:index` and `pnpm db:types` (CLAUDE.md). **D1 built (app-only, push owed, no deploy):** kit widgets load by graph-kit subpath; a data plot fetches 6.4 KiB gz, not 307. Open items: the review log.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md): A5, G-2 and C1 LIVE, CI green at `5591edaa`** (A5: 0104 + 0106; G-2: 0105, bundles hash-identical; B1 purge DECLINED, [plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept; C1, [design](docs/design/database-snapshot-and-types.md): five slices + `deno check`, functions redeployed). Per-migration duties: `pnpm db:index`, `pnpm db:types` (CLAUDE.md). **D1 built (app-only, push owed, no deploy):** kit widgets load by graph-kit subpath; a data plot fetches 6.4 KiB gz, not 307. **G-4 guards built (tests + two one-line app fixes, push owed, no deploy):** C3 editor round trip, C8 frozen documents, C2 touch-list guards, C6 family bond; findings in TODOS. Open items: the review log.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
