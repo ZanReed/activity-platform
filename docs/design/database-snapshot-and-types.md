@@ -6,7 +6,7 @@ as the same family. Not in the build queue (TODOS entry carries its trigger; ran
 
 ## 1. The problem in one paragraph
 
-To learn what the database is *today*, you replay 104 migrations in your head. A function restated
+To learn what the database is *today*, you replay 106 migrations in your head. A function restated
 three times in two days (`class_progress` in 0096, 0097, 0099) lives in whichever file came last, and
 you find it by grep. On the other side of the wire, the app, the viewer, the grading worker and the
 Edge Functions call those functions by string, with argument objects and result shapes typed by hand.
@@ -22,9 +22,11 @@ honoured, the same rules as `scripts/tests/rowset-rpc-bounds.test.mjs`) and of t
 read-only. Nothing written to the repo.
 
 **The database**
-- 104 migrations on both sides (live `schema_migrations`: 104 rows, max `0104`).
-- 344 `create function` statements for 222 names; 71 names are defined more than once.
-- Live `public` holds 209 callable functions plus 11 trigger functions. **The set of names in live
+- 106 migrations on both sides (live `schema_migrations`: 106 rows, max `0106`; re-measured after
+  0105/0106 landed the same day — first measured at 104).
+- 351 `create function` statements for 229 names; 71 names are defined more than once.
+- Live `public` holds 228 functions (218 callable plus 10 trigger functions), the same 228 name/arity
+  pairs the migrations produce. **The set of names in live
   matches the set the migrations produce, exactly** (no live-only function, no repo-only function).
   Bodies were not compared; that needs a local stack (slice 3's live check does it).
 - One overload pair is live: `photo_answers_on()` and `photo_answers_on(p_activity_id)`.
@@ -53,13 +55,13 @@ read-only. Nothing written to the repo.
 
 | the 113 called functions return | count | generated type gives |
 |---|---|---|
-| `jsonb` | 72 | `Json` — no shape at all |
-| a row set (`TABLE`/`SETOF`) | 17 | full row type |
+| `jsonb` | 79 | `Json` — no shape at all |
+| a row set (`TABLE`/`SETOF`) | 10 | full row type |
 | a scalar or nothing | 24 | exact type |
 
-So generated types type **every argument** (113 of 113), **every table read** (46), and the 17 row
-sets — but **64% of the results the app reads stay hand-written**, because the house style is "return
-one jsonb". This is the most important fact in this doc: types are not the whole answer.
+So generated types type **every argument** (113 of 113), **every table read** (46), and the 10 row
+sets — but **70% of the results the app reads stay hand-written**, because the house style is "return
+one jsonb" (0106 moved seven more reads from row sets to jsonb wrappers, the A5 follow-up). This is the most important fact in this doc: types are not the whole answer.
 
 **Real failures of this family** (history, git, memory):
 - *Wrong relationship name, live.* `3b883f64` (2026-11-12): an embed hint named
@@ -122,10 +124,10 @@ every migration.
 - **(a) Type the client and route every RPC through one typed `rpc()`** in `lib/db.ts`:
   `createClient<Database>`, the Proxy cast becomes `SupabaseClient<Database>`, the four local
   `call(fn: string)` helpers become generic over the function name, the name constants get `as const`.
-  `tsc` then checks every argument object and every table read. The 72 jsonb results keep their
+  `tsc` then checks every argument object and every table read. The 79 jsonb results keep their
   hand-written shapes, but in **one map keyed by function name**, so the cast happens in one place.
 - **(b) Leave the client untyped; rely on slice 1's argument test.** Catches drift in CI, no
-  refactor, but nothing types the 17 row sets or 46 table reads, and the embed-hint class stays with its
+  refactor, but nothing types the 10 row sets or 46 table reads, and the embed-hint class stays with its
   own parser.
 - **(c) Type the client, leave direct calls where they are.** Most of (a)'s value, no central map.
 
@@ -157,7 +159,7 @@ untyped `.rpc()` calls (`record_check` has 15 parameters).
   and fails on difference.
 - **(b) One snapshot file per function body** (`pg_get_functiondef` from the local stack). A
   migration that restates a 600-line function would then show as a readable diff of the body. Strong,
-  but 209 files that need the stack to regenerate.
+  but 218 files that need the stack to regenerate.
 - **(c) Squash the migrations.** No: their headers are the decision record.
 
 **Recommend (a) now, (b) not now** (revisit if restated-function reviews keep being expensive). Build
@@ -168,7 +170,7 @@ onto it, so there is one set of regexes to get right.
 - Arguments: **all at once** in slice 4 — once the client is typed, `tsc` lists every bad call.
 - Result casts: **as files are touched**, with a ratchet: a test counts `data … as` casts outside
   `lib/db.ts` and fails if the number goes up.
-- New hand-written jsonb shapes: they are unavoidable (72 functions), so the guard is a
+- New hand-written jsonb shapes: they are unavoidable (79 functions), so the guard is a
   **"checked against" stamp**: each entry in the jsonb shape map records the migration it was checked
   against. When a function is restated in a later migration, the test fails: "`class_progress` was
   restated in 0105; re-read its `jsonb_build_object` keys and bump". That turns "remember to check the
@@ -191,7 +193,7 @@ question 2. It is the check that would have caught the Bank push and the `get-ac
 **Recommend.** It turns "what is the database?" into one command for live as well as for main.
 
 ### D8. What this does NOT fix
-- **Most result shapes.** 72 of the 113 called functions return jsonb; their shapes stay hand-written.
+- **Most result shapes.** 79 of the 113 called functions return jsonb; their shapes stay hand-written.
   D6's stamp makes restating them visible, not automatic.
 - **Row caps.** A row set typed perfectly is still cut at 1,000; the A5 guard stays. Table reads
   (`.from()`) are still not swept for caps.
