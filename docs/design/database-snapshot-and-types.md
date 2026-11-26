@@ -83,7 +83,8 @@ one jsonb" (0106 moved seven more reads from row sets to jsonb wrappers, the A5 
   the whole class activities panel in its error state. Typed `.from().select()` resolves embed hints
   against the generated relationships, so an unknown hint types the result as an error and the code
   reading it fails `tsc` (to be confirmed on 2.105.3 in slice 4, not assumed). (Since guarded by
-  `postgrestHints.test.ts`, a hand-rolled migration parser.)
+  `postgrestHints.test.ts`, a hand-rolled migration parser; since slice 2 it is
+  `scripts/tests/postgrest-hints.test.mjs` on the shared parser.)
 - *Rows silently cut at 1,000.* A5 / 0104 (2026-11-26), and 0043 and 0060 before it. **Types do not
   catch this**; the A5 guard does.
 - *Code ahead of the database, live.* The Bank (0054, 2026-10-07): the app was pushed before the

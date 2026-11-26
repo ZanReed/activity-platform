@@ -20,9 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review](docs/reviews/2026-11-26-code-review.md) A5 (row sets cut at 1,000 rows) LIVE 2026-11-26:** 0104 (grading queue) and 0106 (seven more reads) applied, verified live, pushed `90bee0eb` / `757a98a1`. The guard has no WATCH category left. A grading Save now patches its row instead of re-reading the queue (`c24c1d52`, CI green; Responses cap 38.6).
-
-**Review G-2 batch (B1, B2-Tiptap, B3, C5, D6, E3) LIVE 2026-11-26:** pushed `12733c5c`; 0105 applied (verify-0105 4/4, verify-cron-jobs 5/5 live); get-activity + check-activity deployed, bundles hash-identical (viewer `ee636a71…`, grading `34457e4c…`). B1 history purge DECLINED (author delegated the call; ~8 MB, [plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept).
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md): A5, G-2 and C1 LIVE, CI green at `5591edaa`.** A5: 0104 + 0106 (growing reads return one jsonb; no WATCH left). G-2: 0105 applied, both bundles hash-identical; B1 purge DECLINED ([plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept). C1 ([design](docs/design/database-snapshot-and-types.md)): all five slices plus `deno check` on the Edge Functions; the four functions redeployed, every file hash-identical. New per-migration duties: `pnpm db:index` and `pnpm db:types` (CLAUDE.md). Open items: the review log.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
