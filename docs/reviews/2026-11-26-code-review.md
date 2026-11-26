@@ -490,6 +490,25 @@ viewer's `indexDocument`; the bank lists cover the block union) and a README
 refresh. **S.** A real `editorBlockRegistry: Record<BlockType, …>` is the
 durable fix. **M.**
 
+**Guards built 2026-11-26** (`app/src/__tests__/blockTypeGuards.test.ts`,
+`panelGuideRosters.test.tsx`; README's checklist refreshed): every node a
+column, the reference panel or the teacher guide can make has a
+`tiptapBlockToActivity` case (the panel and guide are read from the mounted
+editors' own schemas); worked and guided examples keep every child their node
+accepts; `answerText`'s index files the same items under the same families, in
+order, as the viewer's `indexDocument`; `bankImport`'s lists are classified
+against the registry's `family`, and its scored-response count equals the
+viewer's item count block by block; insertable nodes with no command bar are a
+pinned list. Mutation-tested: dropped serializer case, worked-example child
+filter, maths-gap count, essay family / refusal, ordering in the graded list,
+a new viewer category, a `blockControls` entry, the two fixes reverted. **Found
+and fixed (one line each):** a display-only graph or data plot was a question
+line in the teacher's answer panel for every student (`answerText.ts`); the
+reference panel let a typed `---` make a rule that vanished on save
+(`ReferencePanelEditor.tsx`, `horizontalRule: false` as in the guide editor).
+**Open question** (TODOS): five blocks show no command bar. Not done: the
+`editorBlockRegistry` (the **M** durable fix) and the editor CSS (no unit guard).
+
 ### C3 No test round-trips a document through the editor's schema
 Every editor open is document → editor → ProseMirror schema → document, and
 each field is held by its own test. The batch importer goes importer →

@@ -98,7 +98,7 @@ const KNOWN_META = new Set(['kind', 'status', 'skill', 'role', 'chain', 'discrim
  *  RECORDS free text and never marks it (FREE_TEXT_TYPES in the viewer's
  *  grading/walk.ts), so every one of those is here; the schema has no
  *  free-drawing or self-rated block today — a future one joins this list. */
-const REFUSED_BLOCKS: Record<string, string> = {
+export const REFUSED_BLOCKS: Readonly<Record<string, string>> = {
     short_answer: 'a short-answer response (not auto-scorable)',
     essay: 'an essay response (not auto-scorable)',
     photo_response: 'a photo of working (graded by hand, not auto-scorable)',
@@ -109,7 +109,7 @@ const REFUSED_BLOCKS: Record<string, string> = {
 };
 
 /** Response blocks the grader scores (plus inline blanks and math gaps). */
-const GRADED_BLOCKS = new Set([
+export const GRADED_BLOCKS: ReadonlySet<string> = new Set([
     'multiple_choice', 'matching', 'ordering', 'interactive_graph',
     'number_line', 'correspondence', 'data_plot',
 ]);
@@ -342,7 +342,7 @@ function collectRefs(doc: ActivityDocument): Refs {
 
 // ---- PB-9 / PB-8 -------------------------------------------------------------
 
-function blockCensus(doc: ActivityDocument): { refused: string[]; graded: number } {
+export function blockCensus(doc: ActivityDocument): { refused: string[]; graded: number } {
     const refused = new Set<string>();
     let graded = 0;
     const visit = (node: unknown): void => {

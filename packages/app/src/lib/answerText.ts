@@ -252,7 +252,10 @@ function visit(block: Block, topBlockId: string, items: ItemPlace[]): void {
         }),
     );
     const family = BLOCK_FAMILY[block.type];
-    if (family) items.push({ itemId: block.id, family, block, topBlockId });
+    // A display-only graph or data plot takes no answer (the viewer's index and
+    // the grader skip it too; review C2, 2026-11-26) — it is not a question line.
+    const display = (block as { interaction?: { type?: unknown } }).interaction?.type === 'display';
+    if (family && !display) items.push({ itemId: block.id, family, block, topBlockId });
     for (const value of Object.values(block as Record<string, unknown>)) {
         if (isBlockArray(value)) for (const child of value) visit(child, topBlockId, items);
     }

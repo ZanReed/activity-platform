@@ -77,6 +77,9 @@ export default function ReferencePanelEditor({
                 ...UNSAVED_STARTER_KIT_MARKS,
                 blockquote: false,
                 codeBlock: false,
+                // serialize.ts has no horizontal-rule block: a typed `---`
+                // made one that vanished on save (review C2, 2026-11-26).
+                horizontalRule: false,
             }),
             MathInline,
             MathBlock,
