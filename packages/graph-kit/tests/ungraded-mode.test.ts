@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { describe, expect, it } from 'vitest';
-import { questionRecipe } from '../src/index.js';
+import { questionRecipe } from '../src/graph-question.js';
 
 const AXIS = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
 

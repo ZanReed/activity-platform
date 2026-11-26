@@ -4,8 +4,8 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import {
     mountNumberLineAuthor,
     type NumberLineAuthorHandle,
-    type StudentInterval,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/number-line-question';
+import type { StudentInterval } from '@activity/graph-kit/scorers';
 import { QuestionSettingsSummary } from '../components/QuestionSettings';
 import { usePreviewToggle } from '../components/usePreviewToggle';
 import PromptField from '../components/PromptField';

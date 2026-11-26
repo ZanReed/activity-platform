@@ -8,8 +8,8 @@
 // =============================================================================
 
 import { describe, it, expect } from 'vitest';
-import { parseGraphFormula } from '@activity/graph-kit';
-import type { ParsedFormula } from '@activity/graph-kit';
+import { parseGraphFormula } from '@activity/graph-kit/formula';
+import type { ParsedFormula } from '@activity/graph-kit/formula';
 import {
     curveFromFormula,
     drawablesFromFreeform,

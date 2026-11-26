@@ -841,7 +841,7 @@ export const TEACHER_JOURNEYS = [
  * the math-prompt mount, so a data plot downloaded MathLive and mathjs it
  * never runs. The seams now import subpaths; these rows hold that on the BUILT
  * chunks, where the claim is actually true or false (the source half is
- * packages/viewer/tests/kitBarrel.test.ts).
+ * scripts/tests/graph-kit-barrel.test.mjs, repo-wide).
  *
  * A row = the static closure of each listed graph-kit module, minus the shell.
  * `modules[0]` is the module the seam imports; the rest are what its mount

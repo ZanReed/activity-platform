@@ -4,7 +4,7 @@ import {
     formatPoints,
     formatRay,
     formatSegment,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/formula';
 import type { DrawableAttr } from '../extensions/InteractiveGraph';
 import { formatCurveDomain } from '../../lib/graphDomain';
 import { drawablesFromFreeform } from './drawableFormulaLogic';

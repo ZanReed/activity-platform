@@ -24,7 +24,10 @@
     "./number-line-question": "./src/number-line-question.ts",
     "./data-plot-question": "./src/data-plot-question.ts",
     "./math-prompt-mount": "./src/math-prompt-mount.ts",
-    "./calculator": "./src/calculator.ts"
+    "./calculator": "./src/calculator.ts",
+    "./evaluate": "./src/evaluate.ts",
+    "./mistakes": "./src/mistakes.ts",
+    "./data-table": "./src/data-table.ts"
   },
   "scripts": {
     "test": "vitest run",

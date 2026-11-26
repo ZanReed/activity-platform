@@ -1,9 +1,6 @@
-import {
-    parseGraphFormula,
-    parseRaySegment,
-    compileFunction,
-} from '@activity/graph-kit';
-import type { ParsedFormula } from '@activity/graph-kit';
+import { parseGraphFormula, parseRaySegment } from '@activity/graph-kit/formula';
+import type { ParsedFormula } from '@activity/graph-kit/formula';
+import { compileFunction } from '@activity/graph-kit/evaluate';
 import type {
     DrawableAttr,
     FunctionModelAttr,

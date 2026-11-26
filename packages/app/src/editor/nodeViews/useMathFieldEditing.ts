@@ -27,7 +27,7 @@ import katex from 'katex';
 import type { NodeViewProps } from '@tiptap/react';
 import type { MathfieldElement } from 'mathlive';
 import type { MathPrompt } from '@activity/schema';
-import { asciiToLatex } from '@activity/graph-kit';
+import { asciiToLatex } from '@activity/graph-kit/math-prompt-convert';
 import { readOpenSignal, type MathOpenMode } from '../extensions/MathFocus';
 import {
   hasPlaceholders,

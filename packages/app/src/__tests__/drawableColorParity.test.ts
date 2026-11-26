@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DrawableColor } from '@activity/schema';
-import { DRAWABLE_PALETTE_KEYS } from '@activity/graph-kit';
+import { DRAWABLE_PALETTE_KEYS } from '@activity/graph-kit/drawable-palette';
 
 // ============================================================================
 // Drawable color contract: the palette KEY list is defined in TWO places on

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGraphFormula } from '@activity/graph-kit';
+import { parseGraphFormula } from '@activity/graph-kit/formula';
 import { toCurveDomain, formatCurveDomain } from '../lib/graphDomain';
 
 describe('toCurveDomain', () => {

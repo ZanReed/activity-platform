@@ -11,7 +11,7 @@ import {
   type NumberLineQuestionHandle,
   type NumberLineResponseData,
   type NumberLineRestoreExtras,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/number-line-question';
 
 interface Scenario {
   label: string;

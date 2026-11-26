@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
+import { isReservedTransformMatch } from '@activity/graph-kit/mistakes';
 import {
-    isReservedTransformMatch,
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
     parseVector,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/formula';
 import InlineRichTextEditor from './InlineRichTextEditor';
 import DraftNumberInput from './DraftNumberInput';
 import { BlockSizingField } from './BlockSizingField';

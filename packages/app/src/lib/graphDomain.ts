@@ -1,4 +1,4 @@
-import type { ParsedDomain } from '@activity/graph-kit';
+import type { ParsedDomain } from '@activity/graph-kit/formula';
 
 // The curve-drawable domain shape (schema `CurveDomain`): endpoint inclusion is
 // carried as a style word, not a boolean, because that's what the renderers

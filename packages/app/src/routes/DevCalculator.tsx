@@ -3,7 +3,9 @@
 // toggles for the restriction flags so the gating is exercisable by hand.
 // Route: /dev/calculator (DEV builds only — see App.tsx).
 import { useEffect, useRef, useState } from 'react';
-import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
+import type { CalculatorHandle } from '@activity/graph-kit/calculator';
+
+const loadCalculator = () => import('@activity/graph-kit/calculator');
 
 const ALL_MODELS = ['linear', 'quadratic', 'exponential', 'logarithmic'] as const;
 type Model = (typeof ALL_MODELS)[number];
@@ -28,7 +30,9 @@ export default function DevCalculator() {
     if (!mountEl) return;
     let cancelled = false;
     let handle: CalculatorHandle | null = null;
-    void mountCalculator(
+    // Dynamic import: the calculator chunk loads only when a preview mounts
+    // (the barrel's lazy wrapper used to do this; review D1).
+    void loadCalculator().then(({ mountCalculator }) => mountCalculator(
       mountEl,
       {
         mode,
@@ -39,7 +43,7 @@ export default function DevCalculator() {
         maxExpressions: maxExpr,
       },
       { onToggle: (open) => setOpenState(open), floating: true },
-    ).then((h) => {
+    )).then((h) => {
       if (cancelled) {
         h.destroy();
         return;

@@ -723,8 +723,8 @@ win in this review. (TODOS says the legacy runtime is unreachable; it ships.)
 > `host-attached.ts`. Graph-kit gained five subpaths (graph-question,
 > number-line-question, data-plot-question, math-prompt-mount, calculator); the
 > seams and the preload use them, and the preload now warms only the widgets a
-> document holds. Guards: `packages/viewer/tests/kitBarrel.test.ts` (no barrel
-> specifier under `packages/viewer/src`) and `STUDENT_KIT_JOURNEYS` in
+> document holds. Guards: a source test with no barrel specifier under
+> `packages/viewer/src` (widened repo-wide on 2026-11-27, below) and `STUDENT_KIT_JOURNEYS` in
 > `scripts/perf-budgets.mjs` (caps plus "free of" rows on the built chunks, and
 > a vacuity stop if the shell stops dynamically importing a widget's module).
 > Both mutation-tested. The shell paid +148 B gz for it (SHELL_SPEND row). No
@@ -732,6 +732,19 @@ win in this review. (TODOS says the legacy runtime is unreachable; it ships.)
 > deploy is owed. The legacy runtime is off the student path; teacher code
 > that imports the barrel (the editor's config drawer, the dev routes) still
 > carries it, untouched here.
+>
+> **✔ Widened 2026-11-27.** The 14 teacher files that still imported the barrel
+> (editor node views and settings, the config drawer, the four dev routes) and
+> six app tests now import subpaths; graph-kit gained three (`evaluate`,
+> `mistakes`, `data-table`). The config drawer's calculator preview keeps the
+> barrel's laziness with `import('@activity/graph-kit/calculator')`. The
+> viewer-only test became `scripts/tests/graph-kit-barrel.test.mjs`, which scans
+> every import site in `packages/`, `scripts/` and `supabase/functions/`
+> (mutation-tested on an editor file and an app test), and CLAUDE.md's rule now
+> says "anywhere". Sizes barely moved (editor journey 722.4 → 722.2 KiB gz, shell
+> −28 B, student rows unchanged): the graph and number-line widgets stay shared
+> chunks because the editor's node views use them directly, so the gain is the
+> guard, not bytes.
 
 ### D2 The class grids call a definer function per block per student
 `class_progress` and `activity_progress` (`0099:501-526`) unnest the whole

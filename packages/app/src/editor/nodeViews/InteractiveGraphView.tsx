@@ -5,8 +5,11 @@ import PromptField from '../components/PromptField';
 import {
     mountGraphAuthor,
     mountGraphDisplay,
-    fitFunction,
-    handlesForFamily,
+    type GraphAuthorHandle,
+    type GraphDisplayHandle,
+} from '@activity/graph-kit/graph-question';
+import { fitFunction, handlesForFamily, rayKeyShape } from '@activity/graph-kit/scorers';
+import {
     parseGraphFormula,
     parsePointList,
     parseRaySegment,
@@ -16,10 +19,7 @@ import {
     formatRay,
     formatSegment,
     formatVector,
-    rayKeyShape,
-    type GraphAuthorHandle,
-    type GraphDisplayHandle,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/formula';
 import DrawableListEditor, { ALL_DRAWABLE_KINDS } from '../components/DrawableListEditor';
 import { stimulusDrawables } from '@activity/graph-kit/static-svg';
 import { figureSizingStyle, readSizingAttrs } from '../figureSizingStyle';

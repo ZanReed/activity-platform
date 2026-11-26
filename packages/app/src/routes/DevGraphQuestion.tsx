@@ -15,7 +15,7 @@ import {
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/graph-question';
 
 interface Scenario {
   label: string;

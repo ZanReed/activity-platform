@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createDataTable, type DataTableHandle } from '@activity/graph-kit';
+import { createDataTable, type DataTableHandle } from '@activity/graph-kit/data-table';
 
 let host: HTMLElement;
 let onChange: () => void;

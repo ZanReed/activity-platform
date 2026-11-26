@@ -26,8 +26,8 @@
 // SUBPATHS, never the package barrel (review D1, 2026-11-26). The barrel
 // re-exports the math-prompt mount, so importing it put MathLive (~225 KiB gz)
 // and mathjs (~44 KiB gz) on every graph, number line and data plot. Each seam
-// below imports only its own widget; `kitBarrel.test.ts` fails on a barrel
-// import anywhere under packages/viewer/src, and the perf budget's student
+// below imports only its own widget; scripts/tests/graph-kit-barrel.test.mjs
+// fails on a barrel import anywhere in the repo, and the perf budget's student
 // journeys check the built chunks.
 import type {
   DataPlotQuestionHandle,

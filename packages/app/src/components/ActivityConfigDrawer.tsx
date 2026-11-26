@@ -34,7 +34,7 @@ import {
     type RegressionModel,
 } from '@activity/schema';
 import { FONT_MENU, FONT_REGISTRY, fontFamilyValue } from '@activity/schema';
-import { mountCalculator, type CalculatorHandle } from '@activity/graph-kit';
+import type { CalculatorHandle } from '@activity/graph-kit/calculator';
 import ReferencePanelEditor from '../editor/ReferencePanelEditor';
 import TeacherGuideEditor from '../editor/TeacherGuideEditor';
 import { ensureActivityFontLoaded } from '../lib/fonts';
@@ -48,6 +48,8 @@ import {
     PEDAGOGICAL_ROLE_LABELS,
     type PedagogicalRole,
 } from '../lib/pedagogicalRole';
+
+const loadCalculator = () => import('@activity/graph-kit/calculator');
 
 // The row-native taxonomy fields (taxonomy R1/R4/R7). These are NOT part of
 // ActivityMeta and never travel in the document: tags + pedagogical_role live
@@ -875,8 +877,8 @@ function CalculatorPreview({
     const [open, setOpen] = useState(true);
     // join() so the array's identity churn doesn't re-mount on every render
     const modelsKey = restrictions.allowedRegressionModels.join(',');
-    // mountCalculator is async (the calculator chunk loads behind the kit
-    // entry), so guard the resolved handle against an effect that already
+    // The calculator chunk loads on first use (loadCalculator), so guard
+    // the resolved handle against an effect that already
     // cleaned up (a restriction flag changed mid-load) — destroy it instead
     // of installing it.
     useEffect(() => {
@@ -884,10 +886,12 @@ function CalculatorPreview({
         if (!el) return;
         let cancelled = false;
         let handle: CalculatorHandle | null = null;
-        void mountCalculator(el, restrictions, {
+        // Dynamic import: the calculator chunk loads only when a preview mounts
+        // (the barrel's lazy wrapper used to do this; review D1).
+        void loadCalculator().then(({ mountCalculator }) => mountCalculator(el, restrictions, {
             floating: true,
             onToggle: setOpen,
-        }).then((h) => {
+        })).then((h) => {
             if (cancelled) {
                 h.destroy();
                 return;

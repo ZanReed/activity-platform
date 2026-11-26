@@ -1,4 +1,4 @@
-import { parseGraphFormula, type ParsedDomain } from '@activity/graph-kit';
+import { parseGraphFormula, type ParsedDomain } from '@activity/graph-kit/formula';
 import type {
     FunctionInteractionAttr,
     FunctionModelAttr,

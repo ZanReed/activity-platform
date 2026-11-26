@@ -11,7 +11,7 @@ import {
   mountDataPlotQuestion,
   type DataPlotQuestionHandle,
   type DataPlotResponseData,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/data-plot-question';
 
 interface Scenario {
   label: string;

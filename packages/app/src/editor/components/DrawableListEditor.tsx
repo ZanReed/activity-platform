@@ -5,7 +5,7 @@ import {
     DRAWABLE_PALETTE_KEYS,
     resolveDrawableColor,
     type DrawableColorKey,
-} from '@activity/graph-kit';
+} from '@activity/graph-kit/drawable-palette';
 import type { DrawableAttr } from '../extensions/InteractiveGraph';
 import FormulaField from './FormulaField';
 import { drawablesFromFreeform } from './drawableFormulaLogic';

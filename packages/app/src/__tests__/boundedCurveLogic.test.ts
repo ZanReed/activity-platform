@@ -9,8 +9,8 @@
 // =============================================================================
 
 import { describe, it, expect } from 'vitest';
-import { parseGraphFormula } from '@activity/graph-kit';
-import type { ParsedFormula } from '@activity/graph-kit';
+import { parseGraphFormula } from '@activity/graph-kit/formula';
+import type { ParsedFormula } from '@activity/graph-kit/formula';
 import { linearDomainToRayOrSegment, routeCurveFormula, type LinearModel } from '../editor/nodeViews/boundedCurveLogic';
 
 // Pull a linear model + domain straight from the parser, so the test exercises

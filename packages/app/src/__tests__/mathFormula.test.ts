@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { convertLatexToAsciiMath } from 'mathlive';
-import { parseGraphFormula, parseRaySegment, parsePointList } from '@activity/graph-kit';
+import { parseGraphFormula, parseRaySegment, parsePointList } from '@activity/graph-kit/formula';
 import { formulaToLatex, mathFieldAsciiToFormula } from '../lib/mathFormula';
 
 // Seed → serialize → clean: what a teacher sees committed from math mode.
