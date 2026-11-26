@@ -594,6 +594,25 @@ an `UpgradeError` on a live activity, found by a student.
 different dates as frozen fixtures that must parse; optionally a `report:parse`
 script run before `deploy:get-activity`. **S.**
 
+**Guard built 2026-11-26** (`packages/schema/tests/published-shapes.test.ts`):
+seven frozen documents under `tests/fixtures/published/`, written by the repo's
+own code at five dates (2026-08-16 → 11-26) from a `git archive` of each named
+commit: the viewer's authored fixture document at four dates, the stress-test
+activity through the 11-21 batch pipeline, and a seeded and an unseeded DoL
+through today's. Live `activity_versions` rows were not copied: they are the
+real catalogue with its answer keys, and the repo is public. Each must pass
+`upgradeActivityDocument` (the server's read) keeping every block and every
+stored value; defaults may add keys, and a field retired on purpose is listed
+per fixture with its commit. sha256 pins and a directory/manifest check make an
+edit or deletion red; together the fixtures must hold every block type in the
+union. A deliberate change is fixed in `upgrade.ts` (the frozen bytes then pass
+untouched), or, if a data migration rewrites live rows, the same rewrite is
+applied to the fixture with a `migratedBy` entry. Mutation-tested: a blank
+`width` max, a strict meta (only the August fixture caught it), a renamed MC
+`correct` with its default, DoL `skills` min 3, `retake` pinned to either
+value, a fixture byte edit, a deleted fixture, an unfrozen type. Nothing found
+on current code. The optional `report:parse` over live rows is not built.
+
 ### C9 The importer's fence dispatch
 `mapBlock` is 281 lines with 27 tag checks, reconciled with its registry by a
 test that regex-scrapes the source file. Directive keys (`prompt:`, `hint:`,
