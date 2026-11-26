@@ -578,6 +578,25 @@ loader, empty catches and error log are still open.
   eight (`photos` is missing in SQL). The house rule says each new category gets
   its own map, so this list will grow. A node test in the style of
   `manually-graded-types.test.mjs`. **S.**
+
+  **Response-family bond built 2026-11-26**
+  (`scripts/tests/response-families.test.mjs`): the viewer's `RESPONSE_CATEGORIES`
+  is canonical. The app's `ANSWER_FAMILIES` must equal it in order;
+  check-activity's item ceiling (`countItems`) must count every family; the two
+  marked-id lists (`markedIdsSent`, the mock's `gradableItemIds`) must be every
+  family but the recorded `freeText` and `photos`; and every family array in a
+  LIVE function body (read through C1's `scripts/lib/migrations.mjs`, so
+  superseded bodies are ignored) must equal it in order, less a pinned known
+  gap. The two holders are pinned by name (`activity_first_tries`, 0062;
+  `class_misconceptions`, 0064, which superseded 0061's copy); a tripwire fails
+  any other live body naming three or more families in another spelling, and
+  another fails a function outside `public` (the parser reads `public` only).
+  **Finding:** both holders lack `photos`, inert because they only read judged
+  verdicts; tracked in TODOS. Mutation-tested: a new family, reordered app list,
+  reordered 0064 array, the gap cleared, a `'{…}'::text[]` and an `IN` list in a
+  probe migration, a non-public probe function, `photos` out of the ceiling, a
+  family out of each marked-id list; editing superseded 0061 stayed green. Not
+  done: one SQL helper returning the list (the copies would end).
 - **The check preamble** (authorize, identify, load, upgrade) exists three
   times with drift (`check-activity-handler.ts:570-634`, `773-826`,
   `video-pause-handler.ts:116-141`). Seven request modes ride one endpoint. One

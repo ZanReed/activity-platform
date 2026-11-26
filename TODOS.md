@@ -38,6 +38,15 @@ cards carry their own forms) or a gap? `blockTypeGuards.test.ts` pins the five e
 so a new block cannot join them by accident; answering this means adding entries or
 writing the reason next to `NO_COMMAND_BAR`. No trigger: it waits on the ruling.
 
+## SQL response-family arrays miss `photos` (review C6, found 2026-11-26)
+
+`activity_first_tries` (0062) and `class_misconceptions` (0064, which restated 0061's)
+find an item's family by walking `array['blanks', …, 'graphs']`; `photos` is missing.
+Inert today: both only look at judged verdicts, and a photo is recorded, never judged.
+`scripts/tests/response-families.test.mjs` pins it as `KNOWN_SQL_GAP`. Trigger: the next
+migration that restates either function adds `photos` and deletes the gap entry (the
+test goes red until it does). A shared SQL helper returning the list would end the copies.
+
 ## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); ALL FIVE slices BUILT
 
 [docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Built:
