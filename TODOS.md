@@ -49,9 +49,10 @@ constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
   `EdgeClient`, and photo-handoff's and sweep's fetch helpers are typed the same way.
   It found and fixed three real type gaps (a served-orderings cast, two `Uint8Array` bodies). A select
   typo on a port field typed `unknown` passes the type check (SelectQueryError fits `unknown`), so
-  `db-types.test.mjs` also checks every Edge Function `.select()` column by name. **Owed by the author:**
-  redeploy the four functions when convenient so live source matches main — behaviour is unchanged
-  (types, casts, and `rpc(name, ...args)` sending `args[0] ?? {}`, the same object every caller passes); both bundles unchanged.
+  `db-types.test.mjs` also checks every Edge Function `.select()` column by name. **Redeployed 2026-11-26** (author's request): all four
+  live, every deployed file byte-identical to main (downloaded and hashed), `verify_jwt` true for
+  check-activity and sweep-work-photos, false for get-activity and photo-handoff; the type-only `_shared`
+  files are not in the deployed source, as expected.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 
