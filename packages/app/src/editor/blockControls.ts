@@ -9,7 +9,8 @@ import { renderGraphSettings } from './components/GraphSettings';
 import { renderNumberLineSettings } from './components/NumberLineSettings';
 import { renderResetCrop } from './components/ImageDrawerFields';
 import { requestCropMode } from './components/cropMode';
-import { ArrowDown, ArrowUp, Copy, Trash2, Image as ImageIcon, Crop } from 'lucide-react';
+import { requestCardAction, type CardAction } from './components/cardRequests';
+import { ArrowDown, ArrowUp, Copy, Trash2, Image as ImageIcon, Crop, Pencil, FileText } from 'lucide-react';
 import { canMoveBlockAt, duplicateBlockAt, moveBlockAt } from './extensions/BlockReorderShortcuts';
 import { linesToRem, remToLines } from '../lib/workSpaceUnits';
 import { OPEN_IMAGE_POPOVER } from './extensions/Image';
@@ -208,9 +209,9 @@ export const universalActions: ReadonlyArray<ControlEntry> = [
 
 // Almost no block has a block-specific `primary`: you edit by clicking into the
 // block (caret for text, the math field for math), so an "enter edit" button
-// would only duplicate a click. The one exception is `image` — clicking an
-// image selects the atom (there's no inline editor), so Replace/Caption are the
-// only way to open its (no-longer-auto-opening) edit popover.
+// would only duplicate a click. The exceptions are the atoms with no inline
+// editor: `image` (Replace/Caption are the only way to open its edit popover)
+// and the `chart` and `video` cards (the bar opens the panels the card owns).
 
 /** The student-answer placeholder, shared by the free-text blocks' Advanced. */
 /** What a graded graph's "Shown with the question" figure depicts, for a
@@ -454,7 +455,7 @@ const multiSelectField: AdvancedField = {
 // The registry, keyed by ProseMirror node-type name. Adding a block type =
 // one entry here (+ its NodeView/extension). controlsFor is the host's lookup.
 // Most blocks have no block-specific primary — click edits them, so the bar is
-// the universal actions + ⚙ settings. Only `image` carries a primary.
+// the universal actions + ⚙ settings. `image`, `chart` and `video` carry primaries.
 // ============================================================================
 
 // --- Image drawer fields ---------------------------------------------------
@@ -508,6 +509,26 @@ const resetCropField: AdvancedField = {
 export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
     paragraph: { primary: [] },
     heading: { primary: [] },
+    // Text blocks with nothing to configure: the bar is the universal actions,
+    // as for a paragraph. A list is selected WHOLE (SelectBlock's Esc walks up
+    // to the block under the column), so Move and Delete act on the list, not
+    // on one item. The callout's style stays on its own always-visible
+    // switcher (author ruling 2026-11-27: bare entry).
+    bulletList: { primary: [] },
+    orderedList: { primary: [] },
+    callout: { primary: [] },
+    // A chart's and a video's panels are local state in their cards (typing in
+    // a form drops node selection), so the bar asks the card to open them
+    // (cardRequests.ts). The card's own buttons stay.
+    chart: {
+        primary: [
+            { label: 'Edit chart', icon: Pencil, onActivate: openCardPanel('edit') },
+            { label: 'Chart source', icon: FileText, onActivate: openCardPanel('source') },
+        ],
+    },
+    video: {
+        primary: [{ label: 'Edit video', icon: Pencil, onActivate: openCardPanel('edit') }],
+    },
     // Worked solution + numbering. Both apply only to a gap-bearing equation;
     // on a plain display equation the solution never reveals and it's never
     // numbered, so the controls are inert there.
@@ -789,6 +810,34 @@ export const blockControlsRegistry: Readonly<Record<string, BlockControls>> = {
 function enterCropMode(editor: Editor, pos: number): void {
     const id = editor.state.doc.nodeAt(pos)?.attrs.id as string | undefined;
     if (id) requestCropMode(id);
+}
+
+/** Ask the selected chart or video card to open one of its own panels. */
+function openCardPanel(action: CardAction): (editor: Editor, pos: number) => void {
+    return (editor, pos) => {
+        const node = editor.state.doc.nodeAt(pos);
+        if (!node) return;
+        let id = node.attrs.id as string;
+        // The request is addressed by id, so this card needs one of its own. A
+        // video fresh from the slash menu has none until its first save, and a
+        // duplicated or pasted card carries its original's (only blanks are
+        // re-minted on copy), which would open both cards' panels at once.
+        let shared = false;
+        if (id) {
+            editor.state.doc.descendants((other, otherPos) => {
+                if (otherPos !== pos && other.type === node.type && other.attrs.id === id) shared = true;
+                return !shared;
+            });
+        }
+        if (!id || shared) {
+            id = crypto.randomUUID();
+            // Not an undo step: the teacher did not edit anything, and undoing
+            // it would hand the card back an id with a different request count.
+            // Saved block ids are minted by serialize, so nothing else reads it.
+            editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'id', id).setMeta('addToHistory', false));
+        }
+        requestCardAction(id, action);
+    };
 }
 
 /** Ask ImagePopoverHost to open the image source popover. */

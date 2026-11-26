@@ -29,15 +29,6 @@ that goes red when the loss is fixed — then delete the entry).
   hand-made JSON carries it. Fix: declare the attr and carry it, or drop the field.
 - Trigger for both: the next change to `serialize.ts`'s blank or block switch.
 
-## Five blocks have no command bar (review C2, found 2026-11-26) — author question
-
-`BlockCommandBarHost` shows the bar (universal actions + ⚙ settings) only for a node
-with an entry in `editor/blockControls.ts`. Selecting a **bullet list, numbered list,
-callout, chart or video** shows no bar today. Is that deliberate (the chart and video
-cards carry their own forms) or a gap? `blockTypeGuards.test.ts` pins the five exactly,
-so a new block cannot join them by accident; answering this means adding entries or
-writing the reason next to `NO_COMMAND_BAR`. No trigger: it waits on the ruling.
-
 ## SQL response-family arrays miss `photos` (review C6, found 2026-11-26)
 
 `activity_first_tries` (0062) and `class_misconceptions` (0064, which restated 0061's)

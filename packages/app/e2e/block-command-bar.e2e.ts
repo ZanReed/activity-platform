@@ -191,3 +191,114 @@ test('the bar swaps contents when selection moves between block types', async ({
     await expect(bar.getByRole('button', { name: 'Replace' })).toHaveCount(0);
     await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
 });
+
+// ---------------------------------------------------------------------------
+// Lists, callout, chart and video (author ruling 2026-11-27). These five had no
+// bar at all. Lists and the callout get the universal actions; a chart and a
+// video also get buttons that open the panels their cards own.
+// ---------------------------------------------------------------------------
+
+/** Run an editor command chain on the empty playground. */
+async function bootEmpty(page: Page): Promise<void> {
+    await page.goto('/playground?empty=1');
+    await expect(page.locator('.ProseMirror')).toBeVisible();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await page.waitForFunction(() => Boolean((window as any).__tiptapEditor));
+}
+
+for (const [command, typeName] of [
+    ['toggleBulletList', 'bulletList'],
+    ['toggleOrderedList', 'orderedList'],
+] as const) {
+    test(`Esc inside a ${typeName} selects the whole list and shows its bar`, async ({ page }) => {
+        await bootEmpty(page);
+        await page.evaluate((cmd) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ed = (window as any).__tiptapEditor;
+            ed.chain().focus('end').insertContent('one')[cmd]().run();
+        }, command);
+        await page.keyboard.type('\ntwo');
+        await page.keyboard.press('Escape');
+        const bar = page.locator(BAR);
+        await expect(bar).toBeVisible();
+        // The LIST, not one item: Delete here must remove both items.
+        await expect(bar).toHaveAttribute('data-block-type', typeName);
+        await expect(bar.getByRole('button', { name: 'Duplicate' })).toBeVisible();
+        await bar.getByRole('button', { name: 'Delete' }).click();
+        await expect(page.locator('.ProseMirror li')).toHaveCount(0);
+    });
+}
+
+test('a callout shows the bar with the universal actions', async ({ page }) => {
+    await bootEmpty(page);
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus('end').insertCallout().run();
+    });
+    await selectFirstNode(page, 'callout');
+    const bar = page.locator(BAR);
+    await expect(bar).toHaveAttribute('data-block-type', 'callout');
+    await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
+});
+
+test("a chart's bar opens the card's form and its source", async ({ page }) => {
+    await bootEmpty(page);
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus('end').insertChart().run();
+    });
+    await expect(page.locator('.chart-view__preview')).toBeVisible();
+    await selectFirstNode(page, 'chart');
+    const bar = page.locator(BAR);
+    await expect(bar).toHaveAttribute('data-block-type', 'chart');
+
+    await bar.getByRole('button', { name: 'Edit chart' }).click();
+    await expect(page.locator('.chart-view .chart-form')).toBeVisible();
+
+    // An open panel wins, as on the card: the bar cannot swap it away.
+    await selectFirstNode(page, 'chart');
+    await page.locator(BAR).getByRole('button', { name: 'Chart source' }).click();
+    await expect(page.locator('.chart-view .chart-form')).toBeVisible();
+    await expect(page.locator('.graph-figure-source')).toHaveCount(0);
+
+    await page.locator('.chart-view .chart-form').getByRole('button', { name: 'Done' }).click();
+    await selectFirstNode(page, 'chart');
+    await page.locator(BAR).getByRole('button', { name: 'Chart source' }).click();
+    await expect(page.locator('.graph-figure-source__text')).toHaveValue(/type: bar/);
+});
+
+test('a duplicated chart opens only its own form from the bar', async ({ page }) => {
+    await bootEmpty(page);
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus('end').insertChart().run();
+    });
+    await expect(page.locator('.chart-view__preview')).toBeVisible();
+    await selectFirstNode(page, 'chart');
+    await page.locator(BAR).getByRole('button', { name: 'Duplicate' }).click();
+    await expect(page.locator('.chart-view')).toHaveCount(2);
+
+    await selectFirstNode(page, 'chart');
+    await page.locator(BAR).getByRole('button', { name: 'Edit chart' }).click();
+    await expect(page.locator('.chart-form')).toHaveCount(1);
+});
+
+test("a video's bar reopens the card's form", async ({ page }) => {
+    await bootEmpty(page);
+    await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__tiptapEditor.chain().focus('end').insertVideo().run();
+    });
+    // A new card opens straight into its form; close it first. "Done" is
+    // refused on an empty video, so leave by discarding.
+    const form = page.locator('[data-video-form="true"]');
+    await expect(form).toBeVisible();
+    await form.getByRole('button', { name: 'Discard unsaved changes' }).click();
+    await expect(form).toHaveCount(0);
+
+    await selectFirstNode(page, 'video');
+    const bar = page.locator(BAR);
+    await expect(bar).toHaveAttribute('data-block-type', 'video');
+    await bar.getByRole('button', { name: 'Edit video' }).click();
+    await expect(form).toBeVisible();
+});

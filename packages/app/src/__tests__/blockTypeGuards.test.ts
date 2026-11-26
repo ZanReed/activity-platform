@@ -424,21 +424,27 @@ describe("the bank importer's block lists cover every block type (C2)", () => {
     });
 });
 
-describe('every insertable node has a command-bar decision (C2)', () => {
+describe('every insertable node has a command bar (C2)', () => {
     // BlockCommandBarHost shows the bar (universal actions + ⚙ settings) only
-    // for a node with a blockControlsRegistry entry. These insertable nodes
-    // have none today, so selecting one shows no bar — whether that is right is
-    // an open author question (TODOS → "Five blocks have no command bar").
-    // Pinned exactly: a NEW node must get an entry or be added here on purpose.
-    const NO_COMMAND_BAR = ['bulletList', 'callout', 'chart', 'orderedList', 'video'];
+    // for a node with a blockControlsRegistry entry; a node without one cannot
+    // be moved, duplicated or deleted from the bar. Five had none until the
+    // author ruled 2026-11-27 (lists, callout, chart, video). A NEW insertable
+    // node must get an entry: the roster is read from the editor's schema.
     const pmSchema = getSchema(buildEditorExtensions());
     const column = pmSchema.nodes.column!;
     const insertable = Object.values(pmSchema.nodes)
         .filter((type) => column.contentMatch.matchType(type) !== null)
         .map((type) => type.name);
 
-    it('the nodes without a bar are exactly the pinned list', () => {
-        expect(insertable.filter((n) => !(n in blockControlsRegistry)).sort()).toEqual(NO_COMMAND_BAR);
+    it('the schema offers the blocks this guard is about', () => {
+        // Liveness: an empty or mis-derived roster would pass the next row.
+        expect(insertable).toEqual(
+            expect.arrayContaining(['paragraph', 'bulletList', 'orderedList', 'callout', 'chart', 'video']),
+        );
+    });
+
+    it('no insertable node is without a bar', () => {
+        expect(insertable.filter((n) => !(n in blockControlsRegistry)).sort()).toEqual([]);
     });
 });
 

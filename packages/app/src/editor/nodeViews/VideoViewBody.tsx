@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import type { ActivityMeta } from '@activity/schema';
 import { formatTime, videoAttrsComplete, type VideoAttrs } from '../../lib/videoFence';
@@ -6,6 +6,7 @@ import { clipState, keptClipsBefore, locateClip, type ClipState } from '../../li
 import { tiptapToActivity } from '../../lib/serialize';
 import type { VideoStorage } from '../extensions/Video';
 import VideoForm from './VideoForm';
+import { useCardRequest } from '../components/cardRequests';
 
 // ============================================================================
 // VideoViewBody — the catch-up clip's card (D64 amendment 2026-11-12, V-2…V-5).
@@ -35,6 +36,17 @@ export default function VideoViewBody({ node, updateAttributes, editor, getPos }
     const disabled = !editor.isEditable;
     const [editing, setEditing] = useState(data === null);
     const [state, setState] = useState<ClipState | null>(null);
+
+    // The command bar's "Edit video" (blockControls.ts) opens the same form
+    // as the card's own button.
+    const request = useCardRequest(node.attrs.id as string);
+    const lastRequest = useRef(request.nonce);
+    useEffect(() => {
+        if (request.nonce === lastRequest.current) return;
+        lastRequest.current = request.nonce;
+        if (!disabled) setEditing(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [request.nonce]);
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;

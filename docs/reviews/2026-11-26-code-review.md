@@ -506,7 +506,10 @@ and fixed (one line each):** a display-only graph or data plot was a question
 line in the teacher's answer panel for every student (`answerText.ts`); the
 reference panel let a typed `---` make a rule that vanished on save
 (`ReferencePanelEditor.tsx`, `horizontalRule: false` as in the guide editor).
-**Open question** (TODOS): five blocks show no command bar. Not done: the
+**The five blocks with no command bar have one since 2026-11-27** (author ruling:
+bare entries for both lists and the callout; a chart and a video also get bar
+buttons that open the panels their cards own, through `cardRequests.ts`). The
+guard now asserts no insertable node is without a bar. Not done: the
 `editorBlockRegistry` (the **M** durable fix) and the editor CSS (no unit guard).
 
 ### C3 No test round-trips a document through the editor's schema

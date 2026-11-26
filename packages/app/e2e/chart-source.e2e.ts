@@ -53,7 +53,7 @@ test('insert a chart, edit its source, apply — the node, the preview and the r
     // The default chart draws: three bars.
     await expect(page.locator('.chart-view__preview rect[data-bar]')).toHaveCount(3);
 
-    await page.getByRole('button', { name: 'Chart source' }).click();
+    await page.locator('.chart-view').getByRole('button', { name: 'Chart source' }).click();
     const text = page.locator('.graph-figure-source__text');
     await expect(text).toHaveValue(/type: bar/);
     await text.fill(SOURCE);
@@ -73,13 +73,13 @@ test('insert a chart, edit its source, apply — the node, the preview and the r
     await expect(page.locator('.chart-view__preview [data-chart-text="title"]')).toHaveText('How we get to school');
 
     // Re-open: the text is REGENERATED from the stored node.
-    await page.getByRole('button', { name: 'Chart source' }).click();
+    await page.locator('.chart-view').getByRole('button', { name: 'Chart source' }).click();
     await expect(text).toHaveValue(SOURCE);
 });
 
 test('a bad line is reported and the chart keeps the lines that worked', async ({ page }) => {
     await boot(page);
-    await page.getByRole('button', { name: 'Chart source' }).click();
+    await page.locator('.chart-view').getByRole('button', { name: 'Chart source' }).click();
     await page.locator('.graph-figure-source__text').fill(SOURCE + '\nseries: Car = 1, 2');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.locator('.graph-figure-source__problems')).toContainText('"series: Car = 1, 2"');
@@ -90,7 +90,7 @@ test('a bad line is reported and the chart keeps the lines that worked', async (
 // block, not only fence text.
 test('Edit chart: the form changes the type, a value, a name and the grid, and the picture follows', async ({ page }) => {
     await boot(page);
-    await page.getByRole('button', { name: 'Edit chart' }).click();
+    await page.locator('.chart-view').getByRole('button', { name: 'Edit chart' }).click();
     const form = page.locator('.chart-form');
 
     // A title, committed on blur.
@@ -130,7 +130,7 @@ test('Edit chart: the form changes the type, a value, a name and the grid, and t
 
 test('Edit chart: a value the chart cannot hold snaps back instead of reaching the node', async ({ page }) => {
     await boot(page);
-    await page.getByRole('button', { name: 'Edit chart' }).click();
+    await page.locator('.chart-view').getByRole('button', { name: 'Edit chart' }).click();
     const form = page.locator('.chart-form');
     const before = await chartData(page);
 
