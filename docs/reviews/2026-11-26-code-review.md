@@ -455,8 +455,11 @@ sweep's call, hidden by a nested generic). Zero drift today; mutation-tested.
 **Recommendation 3 BUILT the same day as slice 2:** the generated
 [docs/function-index.md](../function-index.md) (`pnpm db:index`, CI drift test),
 on one shared parser (`scripts/lib/migrations.mjs`) that all four migration
-readers now use. Slices 3–5 (`db:types`, typed client, typed ports) are ruled
-but not queued.
+readers now use. **Recommendation 1's first half BUILT as slice 3:**
+`pnpm db:types` (from the local stack, committed with a sha256 stamp of the
+migrations, CI-checked) and `pnpm db:types:live-diff` (live matched main at
+0106). Typing the app client (slice 4) and the ports (slice 5) are ruled but
+not queued.
 
 ### C2 Adding one block type touches about 34 places, and the app half is unguarded
 The viewer keys everything off one registry and fails to compile when a type is

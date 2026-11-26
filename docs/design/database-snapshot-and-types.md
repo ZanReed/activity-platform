@@ -3,7 +3,9 @@
 **Status: RULED 2026-11-26 — the author said yes to all eight recommendations (D1–D8) as written.
 Slices 1 and 2 BUILT the same day: `scripts/tests/rpc-arguments.test.mjs`; the shared parser
 `scripts/lib/migrations.mjs` (+ `scripts/lib/rpc-calls.mjs`) with all four guards moved onto it, and
-the generated [function index](../function-index.md) (`pnpm db:index`). Slices 3–5 are ruled, not queued.**
+the generated [function index](../function-index.md) (`pnpm db:index`). Slice 3 BUILT the same day:
+`pnpm db:types` → `packages/db-types/database.types.ts` + the Deno copy, stamp test, and
+`pnpm db:types:live-diff` (live matched main at 0106). Slices 4–5 are ruled, not queued.**
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C1, with A5, C6 and C10
 as the same family. Not in the build queue (TODOS entry carries its trigger; ranking is the author's).
 

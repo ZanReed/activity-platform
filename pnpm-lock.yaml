@@ -223,6 +223,8 @@ importers:
         specifier: ^7.4.1
         version: 7.4.1
 
+  packages/db-types: {}
+
   packages/grading-worker:
     dependencies:
       '@supabase/supabase-js':

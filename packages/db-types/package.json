@@ -1,0 +1,13 @@
+{
+  "name": "@activity/db-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generated TypeScript types for the database (pnpm db:types). Types only: no runtime export.",
+  "type": "module",
+  "types": "./database.types.ts",
+  "exports": {
+    ".": {
+      "types": "./database.types.ts"
+    }
+  }
+}

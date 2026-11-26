@@ -14,7 +14,7 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slices 1–2 BUILT
+## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slices 1–3 BUILT
 
 [docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Built:
 slice 1, the RPC argument test (`scripts/tests/rpc-arguments.test.mjs`); slice 2, the shared parser
@@ -30,9 +30,16 @@ constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
   `CREATE OR REPLACE FUNCTION public.…`); FIXED 2026-11-26, it now reads the live body through the
   parser's `functionBody`. The other seven were not checked one by one for the same miss. Trigger for moving them: the next time one
   of them goes wrong, or its function is restated.
-- **Slices 3–5 — `db:types` + live diff, typed client, typed ports (M, M–L, S–M).** Proposed trigger:
-  the first result-shape or table-column drift that reaches live or a red integration lane; 3 pays only
-  with 4.
+- **Slice 3 BUILT 2026-11-26:** `pnpm db:types` (local stack → `packages/db-types/database.types.ts` +
+  its Deno copy, sha256-stamped), `scripts/tests/db-types.test.mjs` (stamp, copies, and the generated
+  signatures vs the parser: 216 functions, exact), `pnpm db:types:live-diff` (live matched main at 0106;
+  signatures only — not bodies, RLS or grants). The generator refuses a local stack whose applied
+  migrations differ from the files in content (Fable review: version-only checking let stale types
+  through). Cost: any migration edit, even a comment, needs a Docker regeneration before CI is green.
+  Nothing imports the types yet — that is slice 4.
+- **Slices 4–5 — typed client, typed ports (M–L, S–M).** Proposed trigger: the first result-shape or
+  table-column drift that reaches live or a red integration lane. Until 4 lands, the types file is a
+  reference and a live-diff tool, not a compile-time check.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 
