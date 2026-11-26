@@ -96,6 +96,22 @@ jobs:
       - name: Budget script tests
         run: node --test scripts/tests/*.test.mjs
 
+      # Typecheck the four Edge Functions (review C1, the deno-check step).
+      # They are Deno, so nothing above checks them. scripts/deno-check/deno.json
+      # is CHECK-ONLY (deploys never read it): its import map points the two
+      # committed bundles at the TypeScript they are built from (the bundle
+      # drift steps below prove they match) and resolves npm packages from the
+      # installed node_modules, so the handlers' ports, the clients typed by
+      # the generated schema and every RPC/table read are checked. Pinned to the
+      # Deno it was proven with; bump it deliberately. Needs esm.sh reachable
+      # (supabase-js's types; no lock, by design) — an esm.sh outage reds this
+      # step, not the code.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.8
+      - name: Edge Functions typecheck
+        run: deno check --config scripts/deno-check/deno.json supabase/functions/*/index.ts
+
       # The perf job serves THIS dist rather than rebuilding, so the lane
       # measures the exact artifact the budgets above just passed.
       - name: Upload built app

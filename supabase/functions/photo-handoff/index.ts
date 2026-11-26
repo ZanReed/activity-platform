@@ -26,7 +26,7 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const BUCKET = 'student-work';
 
 const ports: HandoffPorts = {
-  async rpc(name, args) {
+  async rpc(name, ...args) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
       method: 'POST',
       headers: {
@@ -34,7 +34,7 @@ const ports: HandoffPorts = {
         apikey: SERVICE_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(args),
+      body: JSON.stringify(args[0] ?? {}),
     });
     const text = await res.text();
     if (!res.ok) return { ok: false, message: text };

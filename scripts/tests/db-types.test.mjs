@@ -24,10 +24,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { REPO, functions, highestMigration } from '../lib/migrations.mjs';
-import { DB_TYPES_FILES, migrationsHash, appliedMismatch } from '../db-types.mjs';
+import { DB_TYPES_FILES, RPC_TYPES_FILES, migrationsHash, appliedMismatch } from '../db-types.mjs';
 import { databaseBody } from '../db-types-live-diff.mjs';
 
 const [main, deno] = DB_TYPES_FILES.map((f) => readFileSync(resolve(REPO, f), 'utf8'));
@@ -39,8 +39,10 @@ test('the types were generated from THESE migrations (run `pnpm db:types`)', () 
   assert.equal(stamp[2], migrationsHash(), 'a migration file changed since the types were generated — run `pnpm db:types` and commit both copies');
 });
 
-test('the Deno copy is byte-identical', () => {
+test('the Deno copies are byte-identical', () => {
   assert.ok(main === deno, `${DB_TYPES_FILES[1]} differs from ${DB_TYPES_FILES[0]} — \`pnpm db:types\` writes both`);
+  const [rpc, rpcDeno] = RPC_TYPES_FILES.map((f) => readFileSync(resolve(REPO, f), 'utf8'));
+  assert.ok(rpc === rpcDeno, `${RPC_TYPES_FILES[1]} differs from ${RPC_TYPES_FILES[0]} — \`pnpm db:types\` copies it (or copy it by hand: it is not generated)`);
 });
 
 /** name -> sorted overload signatures `a,b?` from the generated Functions section. */
@@ -101,4 +103,39 @@ test('the live diff ignores the hosted preamble and helper formatting, not a rea
   assert.equal(databaseBody(hosted), databaseBody(local));
   assert.notEqual(databaseBody(local.replace('p_a', 'p_b')), databaseBody(local));
   assert.match(databaseBody(main), /^export type Database = \{[\s\S]*Functions: \{[\s\S]*\n\}$/, 'the committed file has a Database type');
+});
+
+// ---- the Edge Functions' table reads name real columns ---------------------------
+// deno check (scripts/deno-check/) types these reads, but a port field typed
+// `unknown` (a jsonb the handler validates, e.g. `content`) accepts even
+// supabase-js's SelectQueryError — so `.select('contents')` passed it (probed
+// 2026-11-26). This reads every `.from('t').select('a, b')` in the four
+// index.ts files and checks each column against the generated table row.
+test("every column an Edge Function selects exists in the generated table", () => {
+  const tables = new Map();
+  const tsec = main.slice(main.indexOf('\n    Tables: {'), main.indexOf('\n    Views: {'));
+  for (const part of tsec.split(/\n(?=      [a-z_0-9]+: \{)/).slice(1)) {
+    const name = part.match(/^      ([a-z_0-9]+):/)[1];
+    const row = part.slice(part.indexOf('Row: {'), part.indexOf('Insert: {'));
+    tables.set(name, new Set([...row.matchAll(/^\s{10}([a-z_0-9]+)\??:/gm)].map((m) => m[1])));
+  }
+  assert.ok(tables.get('activity_versions')?.has('content'), 'the types file parse is broken (vacuity)');
+  const fnDir = resolve(REPO, 'supabase/functions');
+  const problems = [];
+  let seen = 0;
+  for (const fn of readdirSync(fnDir).filter((d) => !d.startsWith('_'))) {
+    const p = join(fnDir, fn, 'index.ts');
+    let src;
+    try { src = readFileSync(p, 'utf8'); } catch { continue; }
+    for (const m of src.matchAll(/\.from\(\s*'([a-z_0-9]+)'\s*\)\s*\.select\(\s*'([^']*)'/g)) {
+      seen++;
+      const cols = tables.get(m[1]);
+      if (!cols) { problems.push(`${fn}: table ${m[1]} is not in the generated schema`); continue; }
+      for (const c of m[2].split(',').map((x) => x.trim()).filter((x) => x && x !== '*' && !x.includes('('))) {
+        if (!cols.has(c.split(':').pop().trim())) problems.push(`${fn}: ${m[1]}.${c} is not a column`);
+      }
+    }
+  }
+  assert.ok(seen >= 6, `only ${seen} table reads found in supabase/functions — the scan is broken (8 on 2026-11-26)`);
+  assert.deepEqual(problems, [], `\n${problems.join('\n')}\n`);
 });

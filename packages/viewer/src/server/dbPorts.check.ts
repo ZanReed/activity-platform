@@ -4,17 +4,18 @@
 // -----------------------------------------------------------------------------
 // The handlers in this directory read the database through hand-written port
 // types (VersionForCheckRow, OwnCheckRow, …) that the Edge Functions' index.ts
-// files fill with supabase-js calls. Nothing typechecks those Deno files (no
-// Deno in CI), so a column renamed or retyped in a migration would reach the
-// handlers unnoticed. This file checks, at compile time, that every port field
+// files fill with supabase-js calls. CI's `deno check` step now checks that
+// glue directly (scripts/deno-check/); this file is the viewer-side half,
+// run by the viewer's own tsc: it checks, at compile time, that every port field
 // is a column the generated schema (@activity/db-types, `pnpm db:types`) gives
 // the function or table behind it, with a type the column's value fits;
 // `unknown` fields (a jsonb the handler validates itself) only have to exist.
 //
 // THE MAPPING IS HAND-KEPT: each line below names the function or table that
 // supabase/functions/{check,get}-activity/index.ts uses for that port today
-// (checked 2026-11-26). If index.ts switches a port to another source, nothing
-// here notices — that needs the Deno files typechecked (TODOS).
+// (checked 2026-11-26). If index.ts switches a port to another source, this
+// file does not notice; `deno check` on index.ts does — except for the six
+// jsonb ports, whose result index.ts casts to the port's declared type.
 //
 // It fails, rather than passing vacuously, when the source stops being a row
 // set (a read rewrapped as jsonb, as 0104/0106 did — `RowOf` is then `never`)

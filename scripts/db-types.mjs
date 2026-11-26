@@ -34,12 +34,16 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { REPO, readMigrations, highestMigration } from './lib/migrations.mjs';
 
 export const DB_TYPES_FILES = ['packages/db-types/database.types.ts', 'supabase/functions/_shared/database.types.ts'];
+/** The hand-written call types (packages/db-types/rpc.ts) and their Deno copy:
+ *  the Edge Functions cannot import outside supabase/functions at deploy. The
+ *  copy keeps `./database.types.ts` resolving to its sibling. */
+export const RPC_TYPES_FILES = ['packages/db-types/rpc.ts', 'supabase/functions/_shared/database.rpc.ts'];
 
 /** sha256 over every migration file, in apply order, name and bytes. */
 export function migrationsHash(root = REPO) {
@@ -132,6 +136,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     mkdirSync(dirname(resolve(REPO, f)), { recursive: true });
     writeFileSync(resolve(REPO, f), text);
   }
+  writeFileSync(resolve(REPO, RPC_TYPES_FILES[1]), readFileSync(resolve(REPO, RPC_TYPES_FILES[0]), 'utf8'));
   console.log(`wrote ${DB_TYPES_FILES.join(' and ')} (migrations through ${highestMigration()}${reset ? ', after a reset' : ''})`);
   if (reset) console.log('local data was wiped: `pnpm playtest:seed` re-seeds it');
 }

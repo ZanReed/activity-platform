@@ -31,6 +31,7 @@
 // photo's id (the Chromebook learns that from its own poll).
 // =============================================================================
 
+import type { FnName, RpcArgs } from '../_shared/database.rpc.ts';
 import { stripJpegMetadata } from './jpegStrip.ts';
 
 /** The bucket's file_size_limit (0093), the same number the client re-encodes to. */
@@ -57,9 +58,10 @@ export type HandoffRefusal = keyof typeof HANDOFF_REFUSALS;
 export type RpcResult = { ok: true; data: unknown } | { ok: false; message: string };
 
 export interface HandoffPorts {
-  rpc(name: string, args: Record<string, unknown>): Promise<RpcResult>;
+  /** Name and arguments typed by the schema (deno check, review C1). */
+  rpc<F extends FnName>(name: F, ...args: RpcArgs<F>): Promise<RpcResult>;
   /** Write the JPEG at `objectName` in the student-work bucket, never overwriting. */
-  putObject(objectName: string, jpeg: Uint8Array): Promise<boolean>;
+  putObject(objectName: string, jpeg: Uint8Array<ArrayBuffer>): Promise<boolean>;
 }
 
 export interface HandoffReply {
@@ -154,7 +156,7 @@ export async function handleHandoff(req: Request, ports: HandoffPorts): Promise<
 }
 
 /** The request body, or 'too_big' the moment it passes `limit` bytes. */
-async function readCapped(req: Request, limit: number): Promise<Uint8Array | 'too_big'> {
+async function readCapped(req: Request, limit: number): Promise<Uint8Array<ArrayBuffer> | 'too_big'> {
   if (!req.body) return new Uint8Array(0);
   const reader = req.body.getReader();
   const chunks: Uint8Array[] = [];

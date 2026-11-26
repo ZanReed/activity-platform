@@ -34,7 +34,7 @@ import PhotoResponse, {
   REMOVED_AFTER_RELEASE_TEXT,
 } from '../../src/blocks/PhotoResponse.js';
 import { PhotoError } from '../../src/blocks/photoUpload.js';
-import { setPhotoLink } from '../../src/blocks/photoLinkSeam.js';
+import { setPhotoLink, type PhotoClient } from '../../src/blocks/photoLinkSeam.js';
 import { ViewerProvider } from '../../src/container/context.js';
 import { createViewerStore } from '../../src/store/store.js';
 import { createMockCheckService } from '../../src/check/mock.js';
@@ -67,7 +67,8 @@ function mount(block: Record<string, unknown> = BLOCK, checkService: unknown = c
 
 const live = () =>
   setPhotoLink({
-    client: { rpc: async () => ({ data: null, error: null }), auth: { getSession: async () => ({ data: { session: null } }) } },
+    // A fake: it need not match the seam's generic, schema-typed signature.
+    client: { rpc: (async () => ({ data: null, error: null })) as unknown as PhotoClient['rpc'], auth: { getSession: async () => ({ data: { session: null } }) } },
     storageBase: () => 'https://storage.test/storage/v1',
     anonKey: () => 'anon',
   });

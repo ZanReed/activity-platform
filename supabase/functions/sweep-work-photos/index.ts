@@ -51,6 +51,8 @@
 // one by accident.
 // =============================================================================
 
+import type { FnName, ReturnsOf, RpcArgs } from '../_shared/database.rpc.ts';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 // The caller's secret. Below 32 characters it is treated as unset: a short
@@ -83,14 +85,15 @@ const serviceHeaders = {
   'Content-Type': 'application/json',
 };
 
-async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
+// Name, arguments and result typed by the schema (deno check, review C1).
+async function rpc<F extends FnName>(name: F, ...args: RpcArgs<F>): Promise<ReturnsOf<F>> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: 'POST',
     headers: serviceHeaders,
-    body: JSON.stringify(args),
+    body: JSON.stringify(args[0] ?? {}),
   });
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status} ${await res.text()}`);
-  return (await res.json()) as T;
+  return (await res.json()) as ReturnsOf<F>;
 }
 
 /** Asks Storage to delete `names`; returns how many it reported deleted. A
@@ -125,9 +128,9 @@ Deno.serve(async (req) => {
   const dryRun = !(body && typeof body === 'object' && (body as { dryRun?: unknown }).dryRun === false);
 
   try {
-    const due = await rpc<Record<string, unknown>>('sweep_work_photos_due', { p_dry_run: dryRun });
-    const queued = await rpc<string[]>('work_photo_deletion_batch', { p_limit: BATCH });
-    const orphans = await rpc<string[]>('work_photo_orphans', { p_limit: BATCH });
+    const due = (await rpc('sweep_work_photos_due', { p_dry_run: dryRun })) as Record<string, unknown>; // jsonb
+    const queued = await rpc('work_photo_deletion_batch', { p_limit: BATCH });
+    const orphans = await rpc('work_photo_orphans', { p_limit: BATCH });
 
     if (dryRun) {
       return json(200, {
@@ -151,7 +154,7 @@ Deno.serve(async (req) => {
       orphansSeen += orphanBatch.length;
       storageDeleted += await deleteObjects([...batch, ...orphanBatch], failures);
       const cleared = batch.length
-        ? await rpc<number>('work_photo_deletions_done', { p_names: batch })
+        ? await rpc('work_photo_deletions_done', { p_names: batch })
         : 0;
       queueCleared += cleared;
       // A round that removed nothing would repeat forever (Storage is down,
@@ -161,12 +164,12 @@ Deno.serve(async (req) => {
         more = true;
         break;
       }
-      batch = await rpc<string[]>('work_photo_deletion_batch', { p_limit: BATCH });
-      orphanBatch = await rpc<string[]>('work_photo_orphans', { p_limit: BATCH });
+      batch = await rpc('work_photo_deletion_batch', { p_limit: BATCH });
+      orphanBatch = await rpc('work_photo_orphans', { p_limit: BATCH });
       // Orphans whose delete failed come back unchanged; don't loop on them.
       if (!batch.length && orphanBatch.length && failures.length) break;
     }
-    const stillQueued = (await rpc<string[]>('work_photo_deletion_batch', { p_limit: 1 })).length > 0;
+    const stillQueued = (await rpc('work_photo_deletion_batch', { p_limit: 1 })).length > 0;
 
     return json(failures.length ? 207 : 200, {
       dryRun: false,

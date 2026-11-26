@@ -28,6 +28,7 @@
 // a floating `@2` let each deploy resolve a different minor (audit 2026-10).
 // Bump the two functions and the app together.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
+import type { Database, EdgeClient } from '../_shared/db.ts';
 import {
   createGetActivityHandler,
   type GetActivityDb,
@@ -47,17 +48,17 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 // Service-role client, shared across requests (stateless REST wrapper).
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
-});
+}) as unknown as EdgeClient;
 
 const db: GetActivityDb = {
   async publicMeta(activityId) {
     // Anon client — get_activity_public_meta is the one anon-callable RPC
     // (postgres-owned DEFINER; 0017 documents the deliberate grant).
-    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false },
-    });
+    }) as unknown as EdgeClient;
     return await anonClient
       .rpc('get_activity_public_meta', { p_activity_id: activityId })
       .maybeSingle();
@@ -67,9 +68,9 @@ const db: GetActivityDb = {
     // Anon client — get_class_public_meta joined the anon-RPC roster at 0030
     // (the join gate's pre-auth class-name lookup; verify-0028 §A pins the
     // roster at exactly two).
-    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false },
-    });
+    }) as unknown as EdgeClient;
     return await anonClient
       .rpc('get_class_public_meta', { p_join_code: joinCode })
       .maybeSingle();
@@ -78,10 +79,10 @@ const db: GetActivityDb = {
   async publishedActivity(authHeader, activityId) {
     // User-scoped client: the RPC runs as the caller, so the DB enforces the
     // access rule (authenticated + published + not deleted) — not this file.
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
-    });
+    }) as unknown as EdgeClient;
     return await userClient
       .rpc('get_published_activity', { p_activity_id: activityId })
       .maybeSingle();
@@ -107,7 +108,8 @@ const db: GetActivityDb = {
   async upsertCache(row) {
     const { error } = await admin
       .from('activity_version_reads')
-      .upsert(row, { onConflict: 'version_id,sanitizer_rev' });
+      // `content` is the sanitized document (unknown to the port; jsonb here).
+      .upsert(row as Database['public']['Tables']['activity_version_reads']['Insert'], { onConflict: 'version_id,sanitizer_rev' });
     return { error };
   },
 
@@ -137,16 +139,17 @@ const db: GetActivityDb = {
   async dolState(authHeader, args) {
     // 0070 (D65, DE-1): AS THE CALLER — the student's own DoL state, keyed on
     // auth.uid() in the SQL. Only reached for a document that has a DoL.
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
-    });
-    return await userClient.rpc('my_dol_state', {
+    }) as unknown as EdgeClient;
+    // jsonb result: its shape is the port's own (the handler validates it).
+    return (await userClient.rpc('my_dol_state', {
       p_activity_id: args.activityId,
       p_version_id: args.versionId,
       p_section_id: args.sectionId,
       p_rubric_primary: args.rubricPrimary,
-    });
+    })) as unknown as Awaited<ReturnType<GetActivityDb['dolState']>>;
   },
 };
 

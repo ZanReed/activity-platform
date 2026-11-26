@@ -463,8 +463,8 @@ schema and every call goes through `lib/db.ts`; jsonb shapes in one map with
 `@shape-as-of` stamps; casts 94 → 77, ratcheted. **Slice 5 BUILT the same day:** the worker
 and the viewer's seams are typed through shared call types, and the server
 ports' row types are checked against the schema at compile time. The Edge
-Functions' `index.ts` stay untyped — nothing typechecks Deno here; `deno
-check` in CI is the author's call (TODOS).
+Functions followed the same day: CI runs `deno check` on all four with a
+check-only config, and their clients are typed by the schema.
 
 ### C2 Adding one block type touches about 34 places, and the app half is unguarded
 The viewer keys everything off one registry and fails to compile when a type is

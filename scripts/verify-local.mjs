@@ -91,6 +91,13 @@ const GATES = [
         ci: '"Budget script tests"',
     },
     {
+        name: 'edge functions typecheck',
+        // Needs Deno on the PATH (CI pins v2.9.8): `brew install deno`.
+        cmd: 'command -v deno >/dev/null || { echo "deno is not installed: brew install deno (CI pins v2.9.8)"; exit 1; }; ' +
+            'deno check --config scripts/deno-check/deno.json supabase/functions/*/index.ts',
+        ci: '"Edge Functions typecheck"',
+    },
+    {
         name: 'viewer bundle drift',
         cmd:
             'pnpm bundle:viewer-server >/dev/null && ' +

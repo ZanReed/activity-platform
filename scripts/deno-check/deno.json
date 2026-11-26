@@ -1,0 +1,45 @@
+{
+  "//": "CHECK-ONLY config for `deno check supabase/functions/*/index.ts` (CI step \"Edge Functions typecheck\", review C1). Deploys never read it. The import map points the two committed bundles at the TypeScript they are built from and the @activity/* packages at their source; npm packages resolve from the installed node_modules. No lock: deno check runs nothing, and esm.sh may rebuild a pinned package's files.",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "lib": [
+      "deno.window",
+      "dom"
+    ]
+  },
+  "imports": {
+    "@activity/schema": "../../packages/schema/src/index.ts",
+    "@activity/schema/bank-seed": "../../packages/schema/src/bank-seed.ts",
+    "@activity/graph-kit": "../../packages/graph-kit/src/index.ts",
+    "@activity/graph-kit/runtime-contract": "../../packages/graph-kit/src/runtime-contract.ts",
+    "@activity/graph-kit/drawable-palette": "../../packages/graph-kit/src/drawable-palette.ts",
+    "@activity/graph-kit/math-equivalent": "../../packages/graph-kit/src/math-equivalent.ts",
+    "@activity/graph-kit/formula": "../../packages/graph-kit/src/formula.ts",
+    "@activity/graph-kit/math-prompt-convert": "../../packages/graph-kit/src/math-prompt-convert.ts",
+    "@activity/graph-kit/scorers": "../../packages/graph-kit/src/scorers.ts",
+    "@activity/graph-kit/static-svg": "../../packages/graph-kit/src/static-svg.ts",
+    "@activity/graph-kit/chart-svg": "../../packages/graph-kit/src/static-svg/chart-svg.ts",
+    "@activity/graph-kit/model-format": "../../packages/graph-kit/src/model-format.ts",
+    "@activity/graph-kit/seed-expr": "../../packages/graph-kit/src/seed-expr.ts",
+    "@activity/viewer": "../../packages/viewer/src/index.ts",
+    "@activity/viewer/fixtures": "../../packages/viewer/src/fixtures/index.ts",
+    "@activity/viewer/grading-corpus": "../../packages/viewer/src/server/grading/corpus.ts",
+    "@activity/viewer/tokens.css": "../../packages/viewer/src/tokens/tokens.css",
+    "@activity/viewer/viewer.css": "../../packages/viewer/src/styles/viewer.css",
+    "@activity/viewer/fixtures/leak": "../../packages/viewer/src/fixtures/leakFixture.ts",
+    "@activity/viewer/seeded-print": "../../packages/viewer/src/print/seededPrint.ts",
+    "@activity/viewer/seed-values": "../../packages/viewer/src/sanitize/seedValues.ts",
+    "@activity/viewer/draft-preview": "../../packages/viewer/src/preview/draftPreview.ts",
+    "@activity/viewer/photo-handoff": "../../packages/viewer/src/blocks/photoHandoffPhone.ts",
+    "@activity/db-types": "../../packages/db-types/database.types.ts",
+    "@activity/db-types/rpc": "../../packages/db-types/rpc.ts",
+    "../../supabase/functions/_shared/grading-server.bundle.js": "../../packages/viewer/src/server/grading-entry.ts",
+    "../../supabase/functions/_shared/viewer-server.bundle.js": "../../packages/viewer/src/server/index.ts"
+  },
+  "unstable": [
+    "sloppy-imports"
+  ],
+  "nodeModulesDir": "manual",
+  "lock": false
+}

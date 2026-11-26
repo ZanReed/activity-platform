@@ -148,6 +148,7 @@ test('the stamp check fails a stale stamp, directly and through a delegated resu
 });
 
 // ---- slice 5: the viewer's seams and the grading worker ------------------------
+// (The Edge Functions are typechecked separately: CI's `deno check` step.)
 // Their calls go straight to a client's .rpc(), so the TYPE on that client is
 // the whole check. Pin it, so a seam re-declared as `rpc(name: string, …)` or a
 // worker file reaching for the untyped SupabaseClient goes red. Not seen: a

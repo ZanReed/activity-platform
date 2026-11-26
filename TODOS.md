@@ -44,10 +44,14 @@ constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
   77 `data as X` casts (as files are touched), and the table writes that cast an ActivityDocument to Json.
 - **Slice 5 BUILT 2026-11-26:** worker client and viewer seams typed through `@activity/db-types/rpc`;
   `packages/viewer/src/server/dbPorts.check.ts` checks the server ports' row types against the schema at
-  compile time (bundles byte-identical). **Open, needs the author's call:** the Edge Functions' `index.ts`
-  are untyped because nothing typechecks Deno here. `deno check supabase/functions/*/index.ts` in CI
-  would let them use `createClient<Database>` and the shared types (a new CI tool). Trigger: the first
-  Edge Function glue bug (wrong column read, a port filled with the wrong field) that reaches a lane or live.
+  compile time (bundles byte-identical). **Edge Functions typechecked 2026-11-26 (author: "yes, add it"):** CI runs `deno check` with the
+  check-only `scripts/deno-check/deno.json` (Deno v2.9.8); check-activity's and get-activity's clients are
+  `EdgeClient`, and photo-handoff's and sweep's fetch helpers are typed the same way.
+  It found and fixed three real type gaps (a served-orderings cast, two `Uint8Array` bodies). A select
+  typo on a port field typed `unknown` passes the type check (SelectQueryError fits `unknown`), so
+  `db-types.test.mjs` also checks every Edge Function `.select()` column by name. **Owed by the author:**
+  redeploy the four functions when convenient so live source matches main — behaviour is unchanged
+  (types, casts, and `rpc(name, ...args)` sending `args[0] ?? {}`, the same object every caller passes); both bundles unchanged.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 

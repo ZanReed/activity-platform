@@ -35,6 +35,7 @@
 // a floating `@2` let each deploy resolve a different minor (audit 2026-10).
 // Bump the two functions and the app together.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
+import type { Database, EdgeClient } from '../_shared/db.ts';
 import {
   computeServedOrderings,
   createCheckActivityHandler,
@@ -56,26 +57,26 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Missing required Supabase environment variables');
 }
 
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
-});
+}) as unknown as EdgeClient;
 
 /** A client that carries the caller's JWT, so the RPC runs AS the caller. */
 function asCaller(authHeader: string) {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false },
-  });
+  }) as unknown as EdgeClient;
 }
 
 const db: CheckActivityDb = {
   async versionForCheck(authHeader, activityId, versionId) {
     // User-scoped: the RPC runs as the caller, so the DB enforces the rule
     // (authenticated + published + the version BELONGS to the activity).
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
-    });
+    }) as unknown as EdgeClient;
     return await userClient
       .rpc('get_activity_version_for_check', {
         p_activity_id: activityId,
@@ -93,14 +94,15 @@ const db: CheckActivityDb = {
   },
 
   async recordPauseTry(args) {
-    return await admin.rpc('record_video_pause_try', {
+    // jsonb result: its shape is the port's own (the handler validates it).
+    return (await admin.rpc('record_video_pause_try', {
       p_student_id: args.studentId,
       p_activity_id: args.activityId,
       p_version_id: args.versionId,
       p_section_id: args.sectionId,
       p_block_id: args.blockId,
       p_correct: args.correct,
-    });
+    })) as unknown as Awaited<ReturnType<CheckActivityDb['recordPauseTry']>>;
   },
 
   async readVersion(versionId) {
@@ -124,7 +126,8 @@ const db: CheckActivityDb = {
   },
 
   async recordCheck(args) {
-    return await admin
+    // jsonb result: its shape is the port's own (the handler validates it).
+    return (await admin
       .rpc('record_check', {
         p_student_id: args.studentId,
         p_activity_id: args.activityId,
@@ -151,7 +154,7 @@ const db: CheckActivityDb = {
             }
           : {}),
       })
-      .single();
+      .single()) as unknown as Awaited<ReturnType<CheckActivityDb['recordCheck']>>;
   },
 
   async ownLatestChecks(authHeader, _studentId, versionId, sectionIds) {
@@ -163,10 +166,10 @@ const db: CheckActivityDb = {
     // reached, while a class teacher's RLS policy admits students' rows (F6).
     // verify-0060 now proves the teacher case. `_studentId` (the same JWT
     // subject) stays in the port for the handler's own bookkeeping.
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
-    });
+    }) as unknown as EdgeClient;
     return await userClient.rpc('my_latest_checks', {
       p_version_id: versionId,
       p_section_ids: sectionIds,
@@ -175,12 +178,13 @@ const db: CheckActivityDb = {
 
   async dolState(authHeader, args) {
     // 0070 (D65, DE-1): AS THE CALLER — keyed on auth.uid(), never the sub.
-    return await asCaller(authHeader).rpc('my_dol_state', {
+    // jsonb result: its shape is the port's own (the handler validates it).
+    return (await asCaller(authHeader).rpc('my_dol_state', {
       p_activity_id: args.activityId,
       p_version_id: args.versionId,
       p_section_id: args.sectionId,
       p_rubric_primary: args.rubricPrimary,
-    });
+    })) as unknown as Awaited<ReturnType<CheckActivityDb['dolState']>>;
   },
 };
 
@@ -220,7 +224,8 @@ const practice: PracticeDb & DolPracticeDb = {
   },
 
   async recordAttempt(args) {
-    return await admin
+    // jsonb result: its shape is the port's own (the handler validates it).
+    return (await admin
       .rpc('record_mixed_attempt', {
         p_student_id: args.studentId,
         p_session_id: args.sessionId,
@@ -229,7 +234,7 @@ const practice: PracticeDb & DolPracticeDb = {
         p_skipped: args.skipped,
         p_responses: args.responses,
         p_verdicts: args.verdicts,
-      });
+      })) as unknown as Awaited<ReturnType<PracticeDb['recordAttempt']>>;
   },
 
   // D65 slice 2 (0072): the DoL pair on its own tables, the same split — the
@@ -265,7 +270,8 @@ const practice: PracticeDb & DolPracticeDb = {
   },
 
   async recordDolAttempt(args) {
-    return await admin
+    // jsonb result: its shape is the port's own (the handler validates it).
+    return (await admin
       .rpc('record_dol_practice_attempt', {
         p_student_id: args.studentId,
         p_session_id: args.sessionId,
@@ -274,7 +280,7 @@ const practice: PracticeDb & DolPracticeDb = {
         p_skipped: args.skipped,
         p_responses: args.responses,
         p_verdicts: args.verdicts,
-      });
+      })) as unknown as Awaited<ReturnType<DolPracticeDb['recordDolAttempt']>>;
   },
 };
 
@@ -288,7 +294,7 @@ Deno.serve(
     // handed and reads "unchanged from what we served" as an untouched list.
     servedOrderings: ({ document, versionId, studentId, sectionId, seedKey }) =>
       computeServedOrderings(
-        document as { sections?: unknown[] },
+        document as Parameters<typeof computeServedOrderings>[0],
         sectionId,
         versionId,
         studentId,

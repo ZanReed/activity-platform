@@ -52,5 +52,16 @@ export interface RpcResponse<R> {
  * with no wrapper and no runtime change.
  */
 export interface TypedRpc {
-  rpc<F extends FnName>(fn: F, ...args: RpcArgs<F>): PromiseLike<RpcResponse<ReturnsOf<F>>>;
+  rpc<F extends FnName>(fn: F, ...args: RpcArgs<F>): RpcCall<ReturnsOf<F>>;
+}
+
+/** One row of a row-set result (a scalar stays itself). */
+type Row<R> = R extends (infer E)[] ? E : R;
+
+/** What `.rpc()` returns: awaitable for the whole result, and — as supabase-js's
+ *  builder really is — narrowed to one row by `.single()` (exactly one, else an
+ *  error) or `.maybeSingle()` (zero or one; `data` null when none). */
+export interface RpcCall<R> extends PromiseLike<RpcResponse<R>> {
+  single(): PromiseLike<RpcResponse<Row<R>>>;
+  maybeSingle(): PromiseLike<RpcResponse<Row<R>>>;
 }

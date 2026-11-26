@@ -41,7 +41,9 @@ function isPlainJfif(bytes: Uint8Array, start: number, length: number): boolean 
   );
 }
 
-export function stripJpegMetadata(bytes: Uint8Array): Uint8Array | null {
+// Returns a NEW, ArrayBuffer-backed array (concat), which is what a fetch body
+// accepts under Deno's libs (deno check, review C1).
+export function stripJpegMetadata(bytes: Uint8Array): Uint8Array<ArrayBuffer> | null {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
   const keep: Uint8Array[] = [bytes.subarray(0, 2)];
   let sawFrame = false;
@@ -111,7 +113,7 @@ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array | null {
   return null; // no EOI
 }
 
-function concat(parts: Uint8Array[]): Uint8Array {
+function concat(parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let at = 0;
   for (const p of parts) {
