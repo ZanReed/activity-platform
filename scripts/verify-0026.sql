@@ -1,15 +1,7 @@
 -- =============================================================================
 -- verify-0026.sql — author walkthrough for the analytics census (S7)
 -- -----------------------------------------------------------------------------
--- Run AFTER applying 0026_analytics_census.sql (SQL editor, service role).
---
--- ⚠ RUN SECTION 0 FIRST — it answers "is the migration actually live?".
---
--- A GREEN RUN PRINTS NOTICES AND NO ERROR. This script uses the verify-0020
--- shape (begin / one DO block with PASS-FAIL counters / rollback) rather than
--- the raise-exception-to-force-rollback shape of 0022-0025, precisely because
--- that one reports success as a scary P0001 and cost two round-trips to read
--- correctly. Any ERROR here is a real failure.
+-- Originally run by hand after applying 0026_analytics_census.sql.
 --
 -- Everything in section C builds its OWN fixtures — a fixture activity, two
 -- real student accounts through the real signup trigger, and hand-written
@@ -30,19 +22,72 @@
 -- student both refused "Not available", one ledger row. Rollback verified clean
 -- afterward (no fixture activity, domain, auth user, check, census or ledger row
 -- survived, and the sweep's own deletes rolled back with it).
+--
+-- PORTED TO THE RUNNER 2026-11-26 (code review E3). Run with
+-- `pnpm verify:auth --target live|local --only verify-0026`. §A repeats the
+-- catalog and grant checks (A1-A3, B1-B4) as rows live can run; §C is the original self-counting
+-- block, now judged by its final raise and @local-only (review B5: it runs
+-- run_analytics_maintenance and builds accounts). RETIRED in the port: the
+-- old section 0 (folded into §A) and section D's four inspection queries
+-- (census coverage, job health, unattributed items, cache orphans), which
+-- had no pass condition; verify-cron-jobs pins the job itself.
 -- =============================================================================
 
--- ===================== 0. PRECONDITION — run this FIRST ======================
--- EXPECT: applied = t. If f, run `supabase db push` and start over from here.
-select count(*) = 3 as applied,
-       case when count(*) = 3
-            then 'OK — 0026 is live, continue'
-            else 'STOP — 0026 NOT APPLIED. Run: supabase db push'
-       end as verdict
+-- @section A-shape
+-- @expect-rows
+select 'census_functions_hardened',
+       count(*) = 3,
+       count(*) || ' of write_version_census, run_analytics_maintenance, get_activity_analytics are DEFINER with search_path=public'
 from pg_proc
-where proname in ('write_version_census', 'run_analytics_maintenance',
-                  'get_activity_analytics');
+where proname in ('write_version_census', 'run_analytics_maintenance', 'get_activity_analytics')
+  and prosecdef
+  and array_to_string(coalesce(proconfig, '{}'), ',') like '%search_path=public%';
+select 'census_tables_cascade',
+       count(*) = 2,
+       'both census tables CASCADE from activity_versions, so they never block deleting one'
+from pg_constraint c join pg_class t on t.oid = c.conrelid
+where t.relname in ('activity_version_census', 'activity_version_items')
+  and c.contype = 'f' and c.confdeltype = 'c';
+select 'ledger_has_no_fks',
+       count(*) = 0,
+       'analytics_job_runs carries no foreign key, so it outlives what it reports on'
+from pg_constraint c join pg_class t on t.oid = c.conrelid
+where t.relname = 'analytics_job_runs' and c.contype = 'f';
+-- B1-B4, as rows live runs too (they are also inside §C's block).
+select 'analytics_tables_locked_down',
+       (select count(*) from pg_class
+         where relname in ('activity_version_census', 'activity_version_items', 'analytics_job_runs')
+           and relrowsecurity and relforcerowsecurity) = 3
+       and (select count(*) from pg_policies
+             where tablename in ('activity_version_census', 'activity_version_items', 'analytics_job_runs')) = 0,
+       'RLS forced with zero policies on all three tables; the DEFINER RPC is the only read path';
+select 'analytics_no_anon_or_public_grant',
+       not exists (select 1 from pg_proc p
+                    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                    left join pg_roles g on g.oid = a.grantee
+                   where p.proname in ('write_version_census', 'run_analytics_maintenance', 'get_activity_analytics')
+                     and coalesce(g.rolname, 'PUBLIC') in ('anon', 'PUBLIC')),
+       'no anon or PUBLIC grant on any analytics function';
+select 'analytics_writes_not_signed_in',
+       not exists (select 1 from pg_proc p
+                    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                    left join pg_roles g on g.oid = a.grantee
+                   where p.proname in ('write_version_census', 'run_analytics_maintenance')
+                     and g.rolname = 'authenticated'),
+       'the write paths are not executable by a signed-in user';
+-- B4, the de-identification pin: these tables describe authored content and
+-- job bookkeeping, never a student.
+select 'analytics_no_identifier_columns',
+       count(*) = 0,
+       count(*) || ' identifier column(s) on the analytics tables'
+from information_schema.columns
+where table_schema = 'public'
+  and table_name in ('activity_version_census', 'activity_version_items', 'analytics_job_runs')
+  and column_name in ('student_id', 'user_id', 'actor_id', 'email', 'display_name', 'ip_hash');
 
+-- @section C-behavior
+-- @expect-error VERIFY-0026 ALL PASS
+-- @local-only
 begin;
 
 create function pg_temp.impersonate(p_sub text, p_role text) returns void as $$
@@ -455,52 +500,14 @@ begin
   end if;
 
   -- ======================= Verdict ==========================================
-  raise notice '=== verify-0026: % PASS, % FAIL ===', v_pass, v_fail;
+  -- The runner judges this section by the raise text (expect-error). The
+  -- block ALWAYS raises, so nothing it built can survive even without the
+  -- trailing rollback.
   if v_fail > 0 then
-    raise exception 'verify-0026 FAILED with % failures — see warnings above', v_fail;
+    raise exception 'VERIFY-0026 FAILED: % pass, % fail — see the warnings above', v_pass, v_fail;
   end if;
+  raise exception 'VERIFY-0026 ALL PASS (% checks, rolled back)', v_pass;
 end;
 $$;
 
 rollback;
-
--- ============================ D. Live state ==================================
--- Read-only, AFTER the rollback: what the real database looks like right now.
-
--- D1. Census coverage. A version appears here once a student has opened it
---     (the census is written on the first cache-filling read) or once the
---     backfill has run. versions_uncensused > 0 is normal and simply means
---     "nobody has opened those versions since 0026 shipped" — the fix, if you
---     want full coverage now, is `node scripts/backfill-census.js`.
-select
-  (select count(*) from activity_versions)                            as versions_total,
-  (select count(distinct version_id) from activity_version_census)    as versions_censused,
-  (select count(*) from activity_versions v
-     where not exists (select 1 from activity_version_census c
-                       where c.version_id = v.id))                    as versions_uncensused,
-  (select count(*) from activity_version_items)                       as item_map_rows;
-
--- D2. Job health. last_run_at null = the cron job has never run; schedule it:
---   select cron.schedule('analytics-maintenance', '30 3 * * *',
---                        'select run_analytics_maintenance();');
-select max(ran_at) as last_run_at,
-       count(*)    as runs_recorded,
-       (select section_check_rows from analytics_job_runs order by ran_at desc limit 1)
-         as section_checks_at_last_run
-from analytics_job_runs;
-
--- D3. Real unattributed exposure: check items no census row explains. Expect 0
---     once the backfill has run. A non-zero count is not data loss — the raw
---     checks are intact — it means the census is behind and re-running the
---     backfill will attribute them.
-select count(*) as unattributed_items
-from section_checks sc
-cross join lateral jsonb_each(sc.verdicts) e
-left join activity_version_items i
-  on i.version_id = sc.activity_version_id and i.item_id = e.key
-where i.item_id is null;
-
--- D4. Read-cache orphans still on disk (what the sweep will clean tonight).
-select sanitizer_rev, count(*) as rows
-from activity_version_reads
-group by 1 order by 2 desc;

@@ -987,6 +987,11 @@ verify-0030's `client_grant_is_select_only` had errored on EVERY run since
 2026-08-14 (`privilege_type` compared to `text[]` without a cast) and was never
 reported; cast fixed, green locally and on live (live verify 274 rows, 0 fail).
 Guards: `scripts/tests/verify-runner.test.mjs`, each rule mutation-tested red.
+**`-- @local-only` (2026-11-26, review B5/E3):** placed right after `@section`, it
+makes `--target live` SKIP the whole section. It is for sections that build fixtures
+or run the purge; a unit test fails if a new section runs `purge_soft_deleted()`
+or `run_analytics_maintenance()` without it. Seven older sections are named
+exceptions until B5 moves them: verify-0029/0033/0035/0036/0045/0050/0066.
 
 ## The sprint's bar is 9 of 10 (author ruling SB-1/SB-2, 2026-10-06)
 

@@ -25,6 +25,13 @@
  *                               statement needs something the local stack
  *                               lacks (pg_cron's cron.job). --target local
  *                               leaves it out and prints SKIP; live runs it.
+ *   -- @local-only              (right after @section, any mode) the WHOLE
+ *                               section runs on --target local only; live
+ *                               prints SKIP. For sections that build fixtures
+ *                               or call a function that deletes data (the
+ *                               purge), however well they roll back (review
+ *                               2026-11-26, B5). Catalog, grant and cron rows
+ *                               stay in sections live still runs.
  *
  * An expect-rows section is judged STRICTLY (TODOS → "The verify runner drops
  * a row that ERRORS or returns NULL", 2026-10-06). psql runs with
@@ -137,6 +144,12 @@ export const AUTH_VERIFY_SET = [
   'verify-0017.sql',
   'verify-image-storage.sql',
   'verify-0020.sql',
+  'verify-0021.sql',
+  'verify-0022.sql',
+  'verify-0023.sql',
+  'verify-0024.sql',
+  'verify-0025.sql',
+  'verify-0026.sql',
 ];
 
 /** A check row named literally at the start of a line: `select '<id>',`. */
@@ -157,17 +170,27 @@ export function parseSections(sql, file) {
       close();
       current = {
         id: sect[1], file, mode: 'expect-rows', expectText: null, sql: [],
-        expectedIds: [], liveOnly: [], liveOnlyLines: new Set(),
+        expectedIds: [], liveOnly: [], liveOnlyLines: new Set(), localOnly: false,
       };
       continue;
     }
-    if (!current) continue; // preamble prose stays runner-invisible
+    if (!current) {
+      if (/^--\s*@local-only\b/.test(line)) throw new Error(`${file}: @local-only before any @section marks nothing`);
+      continue; // preamble prose stays runner-invisible
+    }
     const err = line.match(/^--\s*@expect-error\s+(.+)$/);
     const log = line.match(/^--\s*@expect-log\s+(.+)$/);
     if (err) { current.mode = 'expect-error'; current.expectText = err[1].trim(); continue; }
     if (log) { current.mode = 'expect-log'; current.expectText = log[1].trim(); continue; }
     if (/^--\s*@expect-rows\b/.test(line)) { current.mode = 'expect-rows'; continue; }
     if (/^--\s*@live-only\b/.test(line)) { liveOnly = { id: null }; continue; }
+    if (/^--\s*@local-only\b/.test(line)) {
+      if (current.sql.some((l) => l.trim() && !l.trim().startsWith('--'))) {
+        throw new Error(`${file} section ${current.id}: @local-only must come before the section's SQL`);
+      }
+      current.localOnly = true;
+      continue;
+    }
     const named = line.match(LITERAL_ROW);
     if (named) {
       current.expectedIds.push(named[1]);
@@ -187,6 +210,9 @@ export function parseSections(sql, file) {
   for (const s of sections) {
     if (s.mode !== 'expect-rows' && s.liveOnly.length > 0) {
       throw new Error(`${file} section ${s.id}: @live-only is for expect-rows sections only`);
+    }
+    if (s.localOnly && s.liveOnly.length > 0) {
+      throw new Error(`${file} section ${s.id}: a @local-only section cannot hold @live-only rows`);
     }
   }
   return sections;
@@ -341,6 +367,11 @@ function main() {
     }
     console.log(`\n${basename(file)} — ${sections.length} sections (target: ${target})`);
     for (const section of sections) {
+      if (section.localOnly && target === 'live') {
+        skip += 1;
+        console.log(`  SKIP  ${section.id} (local-only: builds fixtures or calls the purge; runs on --target local)`);
+        continue;
+      }
       const sql = sectionSql(section, target);
       const res = spawnSync('psql', [dbUrl, '--csv', '-t', '-q', '-X', '-v', 'ON_ERROR_STOP=0', ...contractVars()], {
         input: sql, encoding: 'utf8', timeout: 120_000,
@@ -360,7 +391,7 @@ function main() {
     }
   }
 
-  console.log(`\n${pass} passed, ${fail} failed${skip ? `, ${skip} skipped (live-only)` : ''} across ${files.length} scripts.`);
+  console.log(`\n${pass} passed, ${fail} failed${skip ? `, ${skip} skipped (${target === 'live' ? 'local-only' : 'live-only'})` : ''} across ${files.length} scripts.`);
   if (fail > 0) {
     console.log('\nFailing section SQL (paste into a session or the SQL editor to investigate):');
     for (const f of failures.slice(0, 3)) {

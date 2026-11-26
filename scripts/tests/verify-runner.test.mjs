@@ -205,3 +205,63 @@ test('the cron rows in the real set are the live-only ones, and only they', () =
     'verify-cron-jobs.sql:purge_is_scheduled_nightly',
   ]);
 });
+
+test('@local-only marks the whole section, and must come before its SQL', () => {
+  const [a, b] = parseSections(
+    [
+      '-- @section a',
+      '-- @expect-error EXPECTED ROLLBACK',
+      '-- @local-only',
+      "do $$ begin raise exception 'EXPECTED ROLLBACK'; end $$;",
+      '-- @section b',
+      '-- @expect-rows',
+      "select 'x', true, '';",
+    ].join('\n'),
+    'f.sql',
+  );
+  assert.equal(a.localOnly, true);
+  assert.equal(b.localOnly, false);
+  assert.throws(
+    () => parseSections("-- @section a\nselect 'x', true, '';\n-- @local-only", 'f.sql'),
+    /must come before/,
+  );
+  assert.throws(
+    () => parseSections("-- @section a\n-- @local-only\n-- @live-only\nselect 'x', true, '';", 'f.sql'),
+    /cannot hold @live-only/,
+  );
+});
+
+// Review 2026-11-26, B5: a section that RUNS the purge (rolled back or not)
+// belongs on the local stack only. New ones must say so; the seven that predate
+// @local-only are named below until B5's migration of them, and the list may
+// only shrink.
+test('every section that runs the purge or the analytics sweep is @local-only (B5)', () => {
+  const LEGACY_LIVE_PURGE = new Set([
+    'verify-0029.sql:D2-purge-liveness',
+    'verify-0033.sql:C-behavior-matrix',
+    'verify-0035.sql:C-behavioral-matrix',
+    'verify-0036.sql:C-behavioral-matrix',
+    'verify-0045.sql:D-purge',
+    'verify-0050.sql:B-engine',
+    'verify-0066.sql:B-engine',
+  ]);
+  // Both delete rows: the purge hard-deletes; the sweep deletes cache rows and
+  // stamps the watermark the check prune reads.
+  const calls = /(?<!')\b(perform|select)\s+(public\.)?(purge_soft_deleted|run_analytics_maintenance)\s*\(/i;
+  const offenders = [];
+  const legacySeen = new Set();
+  for (const file of AUTH_VERIFY_SET) {
+    const sql = readFileSync(resolve(ROOT, 'scripts', file), 'utf8');
+    for (const s of parseSections(sql, file)) {
+      const runsPurge = s.sql.some((l) => !l.trim().startsWith('--') && calls.test(l));
+      if (!runsPurge || s.localOnly) continue;
+      const key = `${file}:${s.id}`;
+      if (LEGACY_LIVE_PURGE.has(key)) legacySeen.add(key);
+      else offenders.push(key);
+    }
+  }
+  assert.deepEqual(offenders, [], 'mark these sections -- @local-only (review B5)');
+  for (const key of LEGACY_LIVE_PURGE) {
+    assert.ok(legacySeen.has(key), `${key} no longer runs the purge on live: drop it from LEGACY_LIVE_PURGE`);
+  }
+});

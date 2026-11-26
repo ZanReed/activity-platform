@@ -384,6 +384,13 @@ undo it. The runner has `@live-only` and no `@local-only`.
 sections with it, keep catalog/grant/cron rows on live. A judgement call, and
 yours. **S–M.**
 
+**Mechanism built 2026-11-26** (the author chose it): `-- @local-only` right
+after `@section` makes `--target live` skip the whole section. verify-0021…0026
+use it. A test in `verify-runner.test.mjs` fails if a NEW section runs
+`purge_soft_deleted()` without it. **Still open:** moving the older purge and sweep
+sections (verify-0029, 0033, 0035, 0036, 0045, 0050, 0066) to it. The test names
+them (seven, with verify-0035), and that list may only shrink.
+
 ### B6 Live database advisors (read 2026-11-26)
 - **4 functions with a mutable `search_path`:** `analytics_day`,
   `analytics_default_zone`, `analytics_rolled_boundary`, `users_timezone_guard`.
@@ -739,7 +746,17 @@ now carries the analytics job's recipe. TODOS → the check-rollup arming
 checklist names both readers, as step 4b plus a blocker paragraph. A refinement
 of the claim above: `record_check`'s insert loop numbers by `max` and refuses
 past the cap, so the server stays correct. The defect is `my_dol_state`, which
-would show one attempt and offer a retake the server then refuses. Still open: registering verify-0021…0026.
+would show one attempt and offer a retake the server then refuses.
+
+**verify-0021…0026 registered 2026-11-26.** Each prose EXPECT is now a check
+row, judged against today's functions. Claims later migrations superseded are
+retired with a note naming the migration (the `submissions` rows, 0029;
+"no account can purge", 0024; dated data claims). Each purge proof builds its
+own fixtures (0024's original named a live account by uuid) and runs under
+`@local-only`. 0026's grant and de-identification checks (B1–B4) also became
+rows that live runs. Local: 7/7/5/6/5/8 pass. Live: every read-only row passes
+and the five local-only sections are skipped. The guard also covers
+`run_analytics_maintenance()`, so verify-0035's matrix joins the legacy list.
 
 ### E4 Documents that no longer match the code
 - CLAUDE.md: the R2 backup is "untracked" (B1).
