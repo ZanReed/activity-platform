@@ -210,6 +210,21 @@ export function functions(root = REPO) {
   return { live, history };
 }
 
+/** The raw text of a definition's dollar-quoted body (comments and literals
+ *  kept): from `def.line` to the closing tag. For tests that check what a
+ *  live body says — bind them to `functions().live`, never to a string
+ *  search, which a `CREATE OR REPLACE FUNCTION public.x` spelling defeats. */
+export function functionBody(def, root = REPO) {
+  const raw = readMigrations(root).find((m) => m.file === def.file).raw;
+  const from = raw.split('\n').slice(0, def.line - 1).join('\n').length;
+  const open = raw.slice(from).match(/\bas\s+(\$[\w]*\$)/i);
+  if (!open) throw new Error(`${def.name}: no dollar-quoted body after ${def.file}:${def.line}`);
+  const start = from + open.index + open[0].length;
+  const end = raw.indexOf(open[1], start);
+  if (end < 0) throw new Error(`${def.name}: unterminated body at ${def.file}:${def.line}`);
+  return raw.slice(start, end);
+}
+
 // ---- constraints and tables -------------------------------------------------------------
 
 /** Every `constraint <name>` a migration writes (comments excluded; a

@@ -23,15 +23,13 @@ generated [docs/function-index.md](docs/function-index.md) (`pnpm db:index`, dri
 the row-set guard fixed its arity-keyed overloads; the embed-hint test moved from the app's vitest suite
 to `scripts/tests/postgrest-hints.test.mjs` and no longer counts prose like "constraint below" as a
 constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
-- **Eight other tests still read the migrations by hand** (Fable review 2026-11-26):
-  `manually-graded-types`, `dol-optional-gradeable`, `rate-ceiling`, `migrations-index`,
+- **Seven other tests still read the migrations by hand** (Fable review 2026-11-26):
+  `manually-graded-types`, `rate-ceiling`, `migrations-index`,
   `retention-windows`, `glossary-cap` (scripts/tests) and `authContract.test.ts`, `edgeFunctions.test.ts`
-  (app). **One is reading a dead body today:** `dol-optional-gradeable.test.mjs:19` finds the "latest"
-  `dol_optional_block` by the lowercase string `create or replace function dol_optional_block`, but the
-  live one is `0096_photo_grading.sql:493`, written `CREATE OR REPLACE FUNCTION public.…`, so it reads
-  0094's superseded body. Harmless while the two bodies agree. Trigger: the next change to
-  `dol_optional_block`, or any one of these eight going wrong. Fix: give the parser a `body` field and
-  move them onto it.
+  (app). `dol-optional-gradeable` was reading 0094's superseded body (a lowercase string search missed 0096's
+  `CREATE OR REPLACE FUNCTION public.…`); FIXED 2026-11-26, it now reads the live body through the
+  parser's `functionBody`. The other seven were not checked one by one for the same miss. Trigger for moving them: the next time one
+  of them goes wrong, or its function is restated.
 - **Slices 3–5 — `db:types` + live diff, typed client, typed ports (M, M–L, S–M).** Proposed trigger:
   the first result-shape or table-column drift that reaches live or a red integration lane; 3 pays only
   with 4.

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { functions, constraintNames, tableColumns, stripSql, argType, highestMigration } from '../lib/migrations.mjs';
+import { functions, functionBody, constraintNames, tableColumns, stripSql, argType, highestMigration } from '../lib/migrations.mjs';
 
 /** A repo root holding only these migrations: { '0001_a.sql': '…', … }. */
 function fixture(files) {
@@ -147,6 +147,17 @@ test('tables, added columns and the highest migration', () => {
     assert.match(created[0].body, /email text/);
     assert.deepEqual(added.map((a) => [a.table, a.column]), [['people', 'graded_by']]);
     assert.equal(highestMigration(root), '0007');
+  });
+});
+
+test('functionBody returns the LIVE body, whatever the CREATE spelling', () => {
+  withFixture({
+    '0001_a.sql': fn('f()', "returns void language sql as $$ select 'old' $$;"),
+    '0002_b.sql': "-- restated\nCREATE OR REPLACE FUNCTION public.f()\nRETURNS void LANGUAGE plpgsql AS $body$\nbegin perform 'new'; -- kept\nend $body$;\n",
+  }, (root) => {
+    const [d] = functions(root).live.get('f');
+    assert.equal(d.file, '0002_b.sql');
+    assert.equal(functionBody(d, root), "\nbegin perform 'new'; -- kept\nend ");
   });
 });
 

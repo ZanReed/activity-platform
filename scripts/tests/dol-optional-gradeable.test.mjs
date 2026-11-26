@@ -9,27 +9,25 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { functions, functionBody } from '../lib/migrations.mjs';
 
 const root = new URL('../../', import.meta.url);
 const predicates = readFileSync(new URL('packages/schema/src/block-predicates.ts', root), 'utf8');
-// The LATEST migration that (re)defines the function — 0076, then 0094 (photo
-// answers). Found, not named, so the next re-creation cannot leave this test
-// reading a superseded body.
-const DEFINES = 'create or replace function dol_optional_block';
-const latest = readdirSync(new URL('supabase/migrations/', root))
-  .filter((f) => f.endsWith('.sql'))
-  .sort()
-  .filter((f) => readFileSync(new URL(`supabase/migrations/${f}`, root), 'utf8').includes(DEFINES))
-  .at(-1);
-const migration = readFileSync(new URL(`supabase/migrations/${latest}`, root), 'utf8');
+// The LIVE definition, from the shared parser (review C1). Until 2026-11-26
+// this was a search for the lowercase string `create or replace function
+// dol_optional_block`, which missed 0096's `CREATE OR REPLACE FUNCTION
+// public.dol_optional_block` and read 0094's superseded body (Fable review).
+const defs = functions().live.get('dol_optional_block') ?? [];
+const latest = defs[0]?.file;
 
 test('every type isGradeable names is in dol_optional_block', () => {
   const start = predicates.indexOf('export function isGradeable');
   const end = predicates.indexOf('\n}\n', start);
   const types = [...predicates.slice(start, end).matchAll(/case '([a-z_]+)':/g)].map((m) => m[1]);
   assert.ok(types.length >= 13, `parsed only ${types.length} types`);
-  const fn = migration.slice(migration.indexOf(DEFINES), migration.length);
+  assert.equal(defs.length, 1, 'one live dol_optional_block');
+  const fn = functionBody(defs[0]);
   // Only the `gradable` CTE: the function names the manually graded types a
   // second time (the optional-marking list), and a whole-body search passed
   // with a type missing from the gradable list (mutation-tested 2026-11-18).
