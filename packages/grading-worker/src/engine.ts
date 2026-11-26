@@ -4,7 +4,7 @@
  * counted, printed in the run summary) — log-and-skip, never log-and-stall,
  * never silent.
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { WorkerClient } from './db.ts';
 import type { WorkerConfig } from './config.ts';
 import { buildGradingPrompt, type RegistryEntry } from './promptBuilder.ts';
 import { buildOutputJsonSchema, validateModelOutput } from './outputSchema.ts';
@@ -53,7 +53,7 @@ export interface ProcessOptions {
 /** Process one claimed batch. Mutates `counters`; returns false when the run
  *  should abort (inference server down after retries — W-4's abort case). */
 export async function processItems(
-  client: SupabaseClient,
+  client: WorkerClient,
   config: WorkerConfig,
   items: ClaimItem[],
   counters: RunCounters,
@@ -182,7 +182,7 @@ export async function processItems(
 
 /** One claim + process round. Returns the claim result for gating decisions. */
 export async function claimAndProcess(
-  client: SupabaseClient,
+  client: WorkerClient,
   config: WorkerConfig,
   counters: RunCounters,
   opts: ProcessOptions & { study?: boolean; studyCheckIds?: string[] },

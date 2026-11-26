@@ -14,7 +14,7 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slices 1–4 BUILT
+## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); ALL FIVE slices BUILT
 
 [docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Built:
 slice 1, the RPC argument test (`scripts/tests/rpc-arguments.test.mjs`); slice 2, the shared parser
@@ -42,8 +42,12 @@ constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
   `@shape-as-of` stamps (`scripts/tests/db-rpc.test.mjs`); result casts 94 → 77, ratcheted. The FIRST
   stamps record the shapes the app already relied on, not a key-by-key re-read of each body. Left:
   77 `data as X` casts (as files are touched), and the table writes that cast an ActivityDocument to Json.
-- **Slice 5 — typed viewer ports, worker and Edge Function calls (S–M).** Proposed trigger: the first
-  argument or shape drift in `supabase/functions` or `packages/viewer/src/server` that a lane catches late.
+- **Slice 5 BUILT 2026-11-26:** worker client and viewer seams typed through `@activity/db-types/rpc`;
+  `packages/viewer/src/server/dbPorts.check.ts` checks the server ports' row types against the schema at
+  compile time (bundles byte-identical). **Open, needs the author's call:** the Edge Functions' `index.ts`
+  are untyped because nothing typechecks Deno here. `deno check supabase/functions/*/index.ts` in CI
+  would let them use `createClient<Database>` and the shared types (a new CI tool). Trigger: the first
+  Edge Function glue bug (wrong column read, a port filled with the wrong field) that reaches a lane or live.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 

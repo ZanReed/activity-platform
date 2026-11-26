@@ -2,12 +2,15 @@
   "name": "@activity/db-types",
   "version": "0.0.0",
   "private": true,
-  "description": "Generated TypeScript types for the database (pnpm db:types). Types only: no runtime export.",
+  "description": "Database types: database.types.ts is generated (pnpm db:types); rpc.ts holds the hand-written call-argument types over it. Types only: no runtime export.",
   "type": "module",
   "types": "./database.types.ts",
   "exports": {
     ".": {
       "types": "./database.types.ts"
+    },
+    "./rpc": {
+      "types": "./rpc.ts"
     }
   }
 }

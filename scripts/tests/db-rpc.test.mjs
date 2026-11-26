@@ -146,3 +146,31 @@ test('the stamp check fails a stale stamp, directly and through a delegated resu
   assert.match(stampProblems([{ fn: 'set_class_plan', asOf: own, derivedFrom: null }], live).join('\n'), /class_plan \(whose result set_class_plan returns\)/);
   assert.match(stampProblems([{ fn: 'list_bank_json', asOf: effectiveAsOf('list_bank_json', live).latest, derivedFrom: 'list_class_members' }], live).join('\n'), /no longer returns to_jsonb/);
 });
+
+// ---- slice 5: the viewer's seams and the grading worker ------------------------
+// Their calls go straight to a client's .rpc(), so the TYPE on that client is
+// the whole check. Pin it, so a seam re-declared as `rpc(name: string, …)` or a
+// worker file reaching for the untyped SupabaseClient goes red. Not seen: a
+// client cast through `any` / `as never` at a call site.
+test('the viewer seams and the worker call through the schema-typed client', () => {
+  for (const f of ['packages/viewer/src/blocks/videoSourceSeam.ts', 'packages/viewer/src/blocks/photoLinkSeam.ts']) {
+    const s = stripComments(readFileSync(resolve(REPO, f), 'utf8'));
+    assert.match(s, /\brpc:\s*TypedRpc\['rpc'\];/, `${f}: its client's rpc must be TypedRpc['rpc'] (@activity/db-types/rpc)`);
+  }
+  const worker = resolve(REPO, 'packages/grading-worker');
+  const walk = (d, out = []) => {
+    for (const n of readdirSync(d)) {
+      if (n === 'node_modules' || n === 'dist') continue;
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) walk(p, out); else if (/\.ts$/.test(n)) out.push(p);
+    }
+    return out;
+  };
+  const files = [...walk(join(worker, 'src')), ...walk(join(worker, 'tests'))];
+  assert.ok(files.some((f) => f.includes('/cli/')), 'the worker walk must reach src/cli (vacuity)');
+  const untyped = files.filter((f) => !f.endsWith('/src/db.ts'))
+    .filter((f) => /\bSupabaseClient\b/.test(stripComments(readFileSync(f, 'utf8'))))
+    .map((f) => relative(REPO, f));
+  assert.deepEqual(untyped, [], 'grading-worker: use WorkerClient (src/db.ts), not the untyped SupabaseClient');
+  assert.match(readFileSync(join(worker, 'src/db.ts'), 'utf8'), /WorkerClient = Omit<SupabaseClient<Database>, 'rpc'> & TypedRpc/);
+});

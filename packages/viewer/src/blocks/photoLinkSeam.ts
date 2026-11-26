@@ -3,8 +3,12 @@
 // photo block's lazy chunk (photoUpload.ts) does the rest. A surface with no
 // seam set — the teacher's draft preview, a fixture page — gets a block that
 // shows what a student would see and makes no request at all.
+import type { TypedRpc } from '@activity/db-types/rpc';
+
 export interface PhotoClient {
-  rpc(name: string, args: Record<string, string | number>): PromiseLike<{ data: unknown; error: unknown }>;
+  /** Typed by the generated schema (review C1 slice 5): the name must be a
+   *  live function and the arguments its parameters. Types only. */
+  rpc: TypedRpc['rpc'];
   auth: {
     getSession(): Promise<{
       data: { session: { access_token: string; user: { id: string } } | null };

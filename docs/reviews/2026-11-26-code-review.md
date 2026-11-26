@@ -460,8 +460,11 @@ readers now use. **Recommendation 1's first half BUILT as slice 3:**
 migrations, CI-checked) and `pnpm db:types:live-diff` (live matched main at
 0106). **Slice 4 BUILT the same day:** the app client is typed from the generated
 schema and every call goes through `lib/db.ts`; jsonb shapes in one map with
-`@shape-as-of` stamps; casts 94 → 77, ratcheted. Typing the viewer ports,
-worker and Edge Functions (slice 5) is ruled but not queued.
+`@shape-as-of` stamps; casts 94 → 77, ratcheted. **Slice 5 BUILT the same day:** the worker
+and the viewer's seams are typed through shared call types, and the server
+ports' row types are checked against the schema at compile time. The Edge
+Functions' `index.ts` stay untyped — nothing typechecks Deno here; `deno
+check` in CI is the author's call (TODOS).
 
 ### C2 Adding one block type touches about 34 places, and the app half is unguarded
 The viewer keys everything off one registry and fails to compile when a type is

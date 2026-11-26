@@ -4,7 +4,7 @@
  * and the submit path surfaces the server's named refusals (`lease_expired`,
  * the validation matrix) as distinct outcomes for the W-4 taxonomy.
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { WorkerClient } from './db.ts';
 import type { Anchor, ClaimedBlock, RegistryEntry } from './promptBuilder.ts';
 import type { ModelOutput } from './outputSchema.ts';
 
@@ -39,7 +39,7 @@ export interface ClaimOptions {
 }
 
 export async function claimSuggestions(
-  client: SupabaseClient,
+  client: WorkerClient,
   opts: ClaimOptions,
 ): Promise<ClaimResult> {
   const { data, error } = await client.rpc('claim_grade_suggestions', {
@@ -52,7 +52,9 @@ export async function claimSuggestions(
     p_study_check_ids: opts.studyCheckIds ?? null,
   });
   if (error) throw new Error(`claim failed: ${error.message}`);
-  return data as ClaimResult;
+  // claim_grade_suggestions returns jsonb; ClaimResult is its hand-written
+  // shape (0042 §H), kept in this one file with the call.
+  return data as unknown as ClaimResult;
 }
 
 export type SubmitOutcome =
@@ -61,7 +63,7 @@ export type SubmitOutcome =
   | { kind: 'validation_reject'; reason: string };
 
 export async function submitSuggestion(
-  client: SupabaseClient,
+  client: WorkerClient,
   suggestionId: string,
   output: ModelOutput,
   stamps: { modelId: string; promptRev: number; schemaRev: number },
@@ -84,7 +86,7 @@ export async function submitSuggestion(
   return { kind: 'validation_reject', reason: error.message };
 }
 
-export async function fetchRegistry(client: SupabaseClient): Promise<RegistryEntry[]> {
+export async function fetchRegistry(client: WorkerClient): Promise<RegistryEntry[]> {
   const { data, error } = await client
     .from('misconception_registry')
     .select('id, skill, description');

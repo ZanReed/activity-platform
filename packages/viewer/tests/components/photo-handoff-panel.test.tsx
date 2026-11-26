@@ -21,7 +21,7 @@ vi.mock('../../src/blocks/photoUpload.js', async (importOriginal) => {
 
 import PhotoHandoffPanel, { GRACE_MS, HANDOFF_INTRO, POLL_MS, handoffRefusalText } from '../../src/blocks/PhotoHandoffPanel.js';
 import PhotoResponse, { USE_PHONE_LABEL } from '../../src/blocks/PhotoResponse.js';
-import { PHOTO_HANDOFF_PATH, setPhotoLink } from '../../src/blocks/photoLinkSeam.js';
+import { PHOTO_HANDOFF_PATH, setPhotoLink, type PhotoClient } from '../../src/blocks/photoLinkSeam.js';
 import { ViewerProvider } from '../../src/container/context.js';
 import { createViewerStore } from '../../src/store/store.js';
 import { createMockCheckService } from '../../src/check/mock.js';
@@ -59,7 +59,7 @@ function seam(rpc?: Rpc) {
           if (name === 'start_photo_handoff') return startResult;
           if (name === 'photo_handoff_status') return { data: status, error: null };
           return { data: null, error: null };
-        })),
+        })) as unknown as PhotoClient['rpc'], // a fake: it need not match the seam's generic, schema-typed signature
       auth: { getSession: async () => ({ data: { session: null } }) },
     },
     storageBase: () => 'https://storage.test/storage/v1',

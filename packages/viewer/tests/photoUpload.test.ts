@@ -2,7 +2,7 @@
 // (The re-encode runs in a real browser: app e2e student/photo-response.)
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { addPhoto, objectName } from '../src/blocks/photoUpload.js';
-import { setPhotoLink } from '../src/blocks/photoLinkSeam.js';
+import { setPhotoLink, type PhotoClient } from '../src/blocks/photoLinkSeam.js';
 
 const PHOTO = '77777777-0000-4000-8000-000000000001';
 const IDS = { activityId: 'act', versionId: 'ver', blockId: 'blk' };
@@ -10,10 +10,11 @@ const IDS = { activityId: 'act', versionId: 'ver', blockId: 'blk' };
 function link(calls: Array<[string, Record<string, string | number>]>) {
   setPhotoLink({
     client: {
-      rpc: async (name, args) => {
+      // A fake: it need not match the seam's generic, schema-typed signature.
+      rpc: (async (name: string, args: Record<string, string | number>) => {
         calls.push([name, args]);
         return name === 'reserve_work_photo' ? { data: PHOTO, error: null } : { data: true, error: null };
-      },
+      }) as unknown as PhotoClient['rpc'],
       auth: { getSession: async () => ({ data: { session: { access_token: 'tok', user: { id: 'uid' } } } }) },
     },
     storageBase: () => 'https://storage.test/storage/v1',

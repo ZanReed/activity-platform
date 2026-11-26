@@ -8,7 +8,9 @@
  * No service key anywhere (D3): the worker is a plain authenticated client,
  * and the RPCs it calls are gated on the teacher's own edit relationship.
  */
-import { createClient, type SupabaseClient, type Session } from '@supabase/supabase-js';
+import { createClient, type Session } from '@supabase/supabase-js';
+import type { Database } from '@activity/db-types';
+import type { WorkerClient } from './db.ts';
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -16,8 +18,11 @@ import type { WorkerConfig } from './config.ts';
 
 const CALLBACK_PORT = 54329;
 
-function makeClient(config: WorkerConfig): SupabaseClient {
-  return createClient(config.supabaseUrl, config.supabaseAnonKey, {
+function makeClient(config: WorkerConfig): WorkerClient {
+  // The ONE cast to the loosened call type (db.ts): supabase-js's own rpc()
+  // signature is stricter (no null arguments) and overloaded, so it is not
+  // assignable to TypedRpc; the runtime object is the same client.
+  return createClient<Database>(config.supabaseUrl, config.supabaseAnonKey, {
     auth: {
       flowType: 'pkce',
       persistSession: true,
@@ -27,7 +32,7 @@ function makeClient(config: WorkerConfig): SupabaseClient {
       // this process; the durable artifact is the token file we write.
       storage: memoryStorage(),
     },
-  });
+  }) as unknown as WorkerClient;
 }
 
 function memoryStorage() {
@@ -143,7 +148,7 @@ export class SessionExpiredError extends Error {
  * Load the token file into a client. Refresh once up front (tokens on disk
  * are usually stale); callers re-invoke `refresh` between batches.
  */
-export async function loadAuthedClient(config: WorkerConfig): Promise<SupabaseClient> {
+export async function loadAuthedClient(config: WorkerConfig): Promise<WorkerClient> {
   if (!existsSync(config.sessionPath)) {
     throw new Error(
       `No session at ${config.sessionPath}.\n  Fix: run \`pnpm worker:login\` once.`,
@@ -161,7 +166,7 @@ export async function loadAuthedClient(config: WorkerConfig): Promise<SupabaseCl
 }
 
 /** In-loop refresh (W-1). Persists the rotated token; loud failure. */
-export async function refresh(config: WorkerConfig, client: SupabaseClient): Promise<void> {
+export async function refresh(config: WorkerConfig, client: WorkerClient): Promise<void> {
   const { data, error } = await client.auth.refreshSession();
   if (error || !data.session) throw new SessionExpiredError();
   persistSession(config, data.session);

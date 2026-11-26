@@ -8,7 +8,13 @@ the generated [function index](../function-index.md) (`pnpm db:index`). Slice 3 
 `pnpm db:types:live-diff` (live matched main at 0106). Slice 4 BUILT the same day: the app's client is
 `SupabaseClient<Database>`, every call goes through `lib/db.ts`, 41 jsonb shapes live in
 `lib/dbShapes.ts` (8 derived from the row set their wrapper returns, every column nullable), result casts 94 → 77 with a
-ratchet, +16 B gz on the student shell. Slice 5 is ruled, not queued.**
+ratchet, +34 B gz on the student shell. Slice 5 BUILT the same day: the grading worker's client and the
+viewer's photo/video seams are typed through the shared `@activity/db-types/rpc` call types, and
+`packages/viewer/src/server/dbPorts.check.ts` checks at compile time that every server port's row type (a hand-kept port→source roster)
+fits the generated row behind it (both server bundles byte-identical, no redeploy). **Not done, on
+purpose:** typing the Edge Functions' `index.ts` — they are Deno and nothing typechecks them (no Deno
+locally or in CI); their RPC arguments stay covered by `rpc-arguments.test.mjs`. Adding `deno check` to
+CI would close it; that is the author's call. All five slices are built.**
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C1, with A5, C6 and C10
 as the same family. Not in the build queue (TODOS entry carries its trigger; ranking is the author's).
 

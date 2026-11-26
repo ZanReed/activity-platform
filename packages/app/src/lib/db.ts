@@ -13,46 +13,23 @@
 // hand-written shape is attached to a function. Nothing here changes what is
 // sent: the call goes straight to supabase.rpc with the same name and object.
 //
-// Two places the generated argument types are stricter than Postgres, loosened
-// here on purpose:
-//   * any argument may be `null` (the generator types args as non-null, but a
-//     SQL function receives NULL for any of them, and the app sends null on
-//     purpose — "clear the due date", "no expected domain");
-//   * a `jsonb` argument takes any object or array (the generator's `Json` has
-//     an index signature that an interface like ActivityDocument lacks).
+// The argument types are @activity/db-types/rpc's, shared with the grading
+// worker and the viewer's seams: generated, loosened only where Postgres is
+// looser (null for any argument; any object for a jsonb one).
 //
 // scripts/tests/db-rpc.test.mjs forbids `supabase.rpc(` anywhere else in the
 // app, and counts the remaining `as` casts of `data` so they only go down.
 // =============================================================================
 
 import type { PostgrestError } from '@supabase/supabase-js';
-import type { Database, Json } from '@activity/db-types';
+import type { FnName, ReturnsOf, RpcArgs } from '@activity/db-types/rpc';
 import { supabase } from './supabase';
 import type { JsonShapes } from './dbShapes';
 
-type Functions = Database['public']['Functions'];
-
-/** Every function the migrations leave live in `public`. */
-export type FnName = keyof Functions;
-
-/** A value a SQL `jsonb` parameter accepts. */
-type JsonInput = string | number | boolean | null | object;
-
-// A `jsonb` parameter is typed `Json` (or `Json | undefined` when it has a
-// default); `NonNullable` on both sides, because Json itself includes null.
-type LooseArg<V> = NonNullable<Json> extends NonNullable<V> ? JsonInput | Extract<V, undefined> : V | null;
-type LooseArgs<A> = { [K in keyof A]: LooseArg<A[K]> };
-
-/** The arguments of `F` (a union when it is overloaded; `never` = none). */
-type ArgsOf<F extends FnName> = Functions[F] extends infer O ? (O extends { Args: infer A } ? A : never) : never;
+export type { FnName, RpcArgs };
 
 /** What `F` returns: its JsonShapes entry when it has one, else the schema's type. */
-export type ResultOf<F extends FnName> = F extends keyof JsonShapes
-  ? JsonShapes[F]
-  : Functions[F] extends infer O ? (O extends { Returns: infer R } ? R : never) : never;
-
-/** rpc()'s argument list for `F`: none, or its (loosened) argument object. */
-export type RpcArgs<F extends FnName> = [ArgsOf<F>] extends [never] ? [] | [Record<string, never>] : [LooseArgs<ArgsOf<F>>];
+export type ResultOf<F extends FnName> = F extends keyof JsonShapes ? JsonShapes[F] : ReturnsOf<F>;
 
 export interface RpcResult<F extends FnName> {
   data: ResultOf<F> | null;
