@@ -13,12 +13,13 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { rpc } from './db';
 
 export { daysUntil, dueWords, isDueThisWeek, isPastDue, studentDueLabel } from './dueWords';
 
 /** Set or clear (null) a class activity's due date (0087, audited). */
 export async function setClassActivityDue(classId: string, activityId: string, dueOn: string | null): Promise<string | null> {
-    const { data, error } = await supabase.rpc('set_class_activity_due', {
+    const { data, error } = await rpc('set_class_activity_due', {
         p_class_id: classId,
         p_activity_id: activityId,
         p_due_on: dueOn,
@@ -30,7 +31,7 @@ export async function setClassActivityDue(classId: string, activityId: string, d
 /** A class's today, 'YYYY-MM-DD', in its timezone (0087). A teacher's classes
  *  share the teacher's zone, so one call serves a whole Classes page. */
 export async function classLocalDate(classId: string): Promise<string> {
-    const { data, error } = await supabase.rpc('class_local_date', { p_class_id: classId });
+    const { data, error } = await rpc('class_local_date', { p_class_id: classId });
     if (error) throw new Error(error.message);
     return data as string;
 }

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@activity/db-types';
 
 // Read once at module load. Vite inlines these at build time, so changing
 // .env.local requires restarting `pnpm dev`. The fail-loud check below catches
@@ -42,17 +43,21 @@ export const MISSING_ENV =
 // The fail-loud property is preserved where it matters: the moment anything
 // actually USES the client, the same error with the same instructions throws.
 // What changed is that not-using-it no longer costs you the app.
-let client: SupabaseClient | null = null;
+// Typed by the generated schema (review C1 slice 4): `pnpm db:types` writes
+// @activity/db-types from the migrations, so tsc checks every table read and
+// every RPC's arguments. Types only — no bytes ship.
+export type Db = SupabaseClient<Database>;
+let client: Db | null = null;
 
-function getClient(): SupabaseClient {
+function getClient(): Db {
   if (!client) {
     if (!url || !anonKey) throw new Error(MISSING_ENV);
-    client = createClient(url, anonKey);
+    client = createClient<Database>(url, anonKey);
   }
   return client;
 }
 
-export const supabase = new Proxy({} as SupabaseClient, {
+export const supabase = new Proxy({} as Db, {
   get(_target, prop, receiver) {
     return Reflect.get(getClient(), prop, receiver);
   },

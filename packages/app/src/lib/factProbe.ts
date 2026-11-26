@@ -9,7 +9,7 @@
 // it out of anything the shell imports.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc, rpcOrThrow } from './db';
 import { FACT_PROBE_RPC } from './factProbeRpc';
 import type { AttemptRecord, ProbeItem } from '../practice/factRun';
 import type { Baselines } from '../practice/baseline';
@@ -42,7 +42,7 @@ export type EntryState =
       };
 
 export async function fetchEntry(code: string): Promise<EntryState> {
-    const { data, error } = await supabase.rpc(FACT_PROBE_RPC.entry, { p_code: code });
+    const { data, error } = await rpc(FACT_PROBE_RPC.entry, { p_code: code });
     if (error) throw new Error(error.message);
     return data as EntryState;
 }
@@ -58,7 +58,7 @@ export async function saveAttempts(
     attempts: AttemptRecord[],
     options: { baselines?: Baselines | null; finished?: boolean } = {},
 ): Promise<SaveResult> {
-    const { data, error } = await supabase.rpc(FACT_PROBE_RPC.save, {
+    const { data, error } = await rpc(FACT_PROBE_RPC.save, {
         p_probe_id: probeId,
         p_attempts: attempts.map((a) => ({
             n: a.n,
@@ -74,7 +74,7 @@ export async function saveAttempts(
         p_app_build: typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : null,
     });
     if (error) throw new Error(error.message);
-    return data as SaveResult;
+    return data!;
 }
 
 // ---- the teacher ----------------------------------------------------------------
@@ -192,26 +192,21 @@ export interface ProbeOverview {
     probes: ProbeSummary[];
 }
 
-async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-    const { data, error } = await supabase.rpc(fn, args);
-    if (error) throw new Error(error.message);
-    return data as T;
-}
 
 export const fetchOverview = (classId: string) =>
-    call<ProbeOverview>(FACT_PROBE_RPC.overview, { p_class_id: classId });
+    rpcOrThrow(FACT_PROBE_RPC.overview, { p_class_id: classId });
 
 export const fetchResults = (probeId: string) =>
-    call<ProbeResults>(FACT_PROBE_RPC.results, { p_probe_id: probeId });
+    rpcOrThrow(FACT_PROBE_RPC.results, { p_probe_id: probeId });
 
 export const openProbe = (classId: string, yearLevel: number) =>
-    call<{ probe_id: string }>(FACT_PROBE_RPC.open, { p_class_id: classId, p_year_level: yearLevel });
+    rpcOrThrow(FACT_PROBE_RPC.open, { p_class_id: classId, p_year_level: yearLevel });
 
 export const setClassYearEnd = (classId: string, endsOn: string) =>
-    call<string>(FACT_PROBE_RPC.yearEnd, { p_class_id: classId, p_ends_on: endsOn });
+    rpcOrThrow(FACT_PROBE_RPC.yearEnd, { p_class_id: classId, p_ends_on: endsOn });
 
 export const closeProbe = (probeId: string) =>
-    call<ClassStat>(FACT_PROBE_RPC.close, { p_probe_id: probeId });
+    rpcOrThrow(FACT_PROBE_RPC.close, { p_probe_id: probeId });
 
 /** The student link for a class (DR-1): typeable from the board. */
 export function factsLink(origin: string, joinCode: string): string {

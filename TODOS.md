@@ -14,7 +14,7 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slices 1–3 BUILT
+## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slices 1–4 BUILT
 
 [docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Built:
 slice 1, the RPC argument test (`scripts/tests/rpc-arguments.test.mjs`); slice 2, the shared parser
@@ -37,9 +37,13 @@ constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
   migrations differ from the files in content (Fable review: version-only checking let stale types
   through). Cost: any migration edit, even a comment, needs a Docker regeneration before CI is green.
   Nothing imports the types yet — that is slice 4.
-- **Slices 4–5 — typed client, typed ports (M–L, S–M).** Proposed trigger: the first result-shape or
-  table-column drift that reaches live or a red integration lane. Until 4 lands, the types file is a
-  reference and a live-diff tool, not a compile-time check.
+- **Slice 4 BUILT 2026-11-26:** `SupabaseClient<Database>`; every app call through `lib/db.ts`
+  (`rpc()`, `rpcOrThrow()` replacing four local helpers); 41 jsonb shapes in `lib/dbShapes.ts` with
+  `@shape-as-of` stamps (`scripts/tests/db-rpc.test.mjs`); result casts 94 → 77, ratcheted. The FIRST
+  stamps record the shapes the app already relied on, not a key-by-key re-read of each body. Left:
+  77 `data as X` casts (as files are touched), and the table writes that cast an ActivityDocument to Json.
+- **Slice 5 — typed viewer ports, worker and Edge Function calls (S–M).** Proposed trigger: the first
+  argument or shape drift in `supabase/functions` or `packages/viewer/src/server` that a lane catches late.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)
 

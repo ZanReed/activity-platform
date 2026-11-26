@@ -337,7 +337,12 @@ it('W-10: no student route reaches the teacher reads (import graph from the stud
     const reach = (file: string) => {
         if (seen.has(file)) return;
         seen.add(file);
-        const text = readFileSync(file, 'utf8');
+        // Type-only imports are erased (verbatimModuleSyntax) and ship nothing:
+        // lib/db.ts types its results from lib/dbShapes.ts, which names teacher
+        // reads, without a byte of it reaching a student route (review C1 slice 4).
+        const text = readFileSync(file, 'utf8')
+            .replace(/^\s*import\s+type\s[^;]*?\bfrom\s*['"][^'"]+['"]\s*;?/gm, '')
+            .replace(/^\s*export\s+type\s*\{[^}]*\}\s*from\s*['"][^'"]+['"]\s*;?/gm, '');
         for (const m of text.matchAll(/(?:import|from)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) {
             const base = resolve(dirname(file), m[1]!);
             const hit = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'].map((x) => base + x).find((p) => existsSync(p) && !p.endsWith('/'));

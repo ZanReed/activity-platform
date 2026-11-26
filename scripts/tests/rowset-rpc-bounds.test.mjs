@@ -108,6 +108,10 @@ export function quotedNames() {
   const seen = new Map(); // name -> Set(file)
   for (const d of SOURCE_DIRS) {
     for (const file of sourceFiles(resolve(ROOT, d))) {
+      // lib/dbShapes.ts is types only (review C1 slice 4): it names a row set
+      // in `RowsOf<'list_grading_queue'>` to DERIVE a wrapper's shape, and a
+      // type cannot call anything. Every other file is swept.
+      if (relative(ROOT, file) === 'packages/app/src/lib/dbShapes.ts') continue;
       const src = stripJsComments(readFileSync(file, 'utf8'));
       for (const m of src.matchAll(/(['"`])([a-z][a-z_0-9]*)\1/g)) {
         if (!seen.has(m[2])) seen.set(m[2], new Set());

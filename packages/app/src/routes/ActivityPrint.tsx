@@ -38,6 +38,7 @@
 // about what a block looks like, they only disagree about the paper.
 // =============================================================================
 
+import type { Json } from '@activity/db-types';
 import { trackRowWrite } from '../lib/pendingRowWrites';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
@@ -318,7 +319,9 @@ export default function ActivityPrint() {
         const { error } = await supabase
             .from('activities')
             .update({
-                draft_content: next,
+                // A jsonb column: the generated `Json` has an index signature the document
+                // interface lacks, so it is cast for the TYPE only (review C1 slice 4).
+                draft_content: next as unknown as Json,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', id);

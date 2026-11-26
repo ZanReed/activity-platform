@@ -8,7 +8,7 @@
 // lib/classHelp.ts, so a student who has no one to ask pays for none of it.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 
 export const MY_HELP_STATE_RPC = 'my_help_state';
 export const ASK_TEACHER_RPC = 'ask_teacher';
@@ -39,7 +39,7 @@ export function toHelpState(d: unknown): HelpState {
 }
 
 export async function fetchHelpState(versionId: string): Promise<HelpState> {
-    const { data, error } = await supabase.rpc(MY_HELP_STATE_RPC, { p_version_id: versionId });
+    const { data, error } = await rpc(MY_HELP_STATE_RPC, { p_version_id: versionId });
     if (error) throw new Error(error.message);
     return toHelpState(data);
 }

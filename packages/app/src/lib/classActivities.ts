@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { functionsBase, supabase } from './supabase';
+import { rpc } from './db';
 import { signedInUserId } from './currentUser';
 import {
     LIST_CLASS_ACTIVITIES_RPC,
@@ -40,7 +41,7 @@ export interface StudentClassActivity {
 }
 
 export async function listClassActivities(): Promise<StudentClassActivity[]> {
-    const { data, error } = await supabase.rpc(LIST_CLASS_ACTIVITIES_RPC);
+    const { data, error } = await rpc(LIST_CLASS_ACTIVITIES_RPC);
     if (error) throw new Error(error.message);
     interface Row {
         class_id: string;
@@ -203,7 +204,7 @@ export async function shareActivityToClass(
     classId: string,
     activityId: string,
 ): Promise<void> {
-    const { error } = await supabase.rpc(SHARE_ACTIVITY_RPC, {
+    const { error } = await rpc(SHARE_ACTIVITY_RPC, {
         p_class_id: classId,
         p_activity_id: activityId,
     });
@@ -214,7 +215,7 @@ export async function unshareActivityFromClass(
     classId: string,
     activityId: string,
 ): Promise<void> {
-    const { error } = await supabase.rpc(UNSHARE_ACTIVITY_RPC, {
+    const { error } = await rpc(UNSHARE_ACTIVITY_RPC, {
         p_class_id: classId,
         p_activity_id: activityId,
     });
@@ -275,7 +276,7 @@ export interface ActivityProgress {
 /** The student Home's status read (S2). THROWS on failure; Home treats a
  * failure as "no status" and keeps the plain list (degraded, not broken). */
 export async function listMyActivityProgress(): Promise<ActivityProgress[]> {
-    const { data, error } = await supabase.rpc(MY_ACTIVITY_PROGRESS_RPC);
+    const { data, error } = await rpc(MY_ACTIVITY_PROGRESS_RPC);
     if (error) throw new Error(error.message);
     interface Row {
         activity_id: string;

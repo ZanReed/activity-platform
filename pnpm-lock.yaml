@@ -144,6 +144,9 @@ importers:
         specifier: ^6.3.7
         version: 6.3.7
     devDependencies:
+      '@activity/db-types':
+        specifier: workspace:*
+        version: link:../db-types
       '@axe-core/playwright':
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.61.1)

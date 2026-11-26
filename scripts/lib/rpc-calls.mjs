@@ -55,6 +55,9 @@ function stripJs(src) {
  *  limited to names some migration created (a DROPPED function's constant
  *  must still resolve, so its caller reports "no live definition"). A key that maps to two
  *  different names is ambiguous and dropped (the caller reports it unread). */
+/** Narrowing literals that disagree with the value they narrow (see below). */
+export const aliasConflicts = [];
+
 function constantTable(srcs, ever) {
   const seen = new Map();
   for (const { s } of srcs) {
@@ -66,11 +69,15 @@ function constantTable(srcs, ever) {
   }
   const out = new Map();
   for (const [k, v] of seen) if (v.size === 1) out.set(k, [...v][0]);
-  // One level of aliasing: `const X_RPC = AUTH_CONTRACT.rpcNames.redeemJoinCode;`
-  for (const { s } of srcs) {
-    for (const m of s.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.([A-Za-z_$][\w$]*)\s*;/g)) {
+  // One level of aliasing: `const X_RPC = AUTH_CONTRACT.rpcNames.redeemJoinCode;`,
+  // optionally narrowed for the typed client: `… as 'redeem_join_code';`. The
+  // RUNTIME value (the property's) wins; a narrowing literal that disagrees
+  // with it is recorded, because tsc would check the wrong function's arguments.
+  for (const { rel, s } of srcs) {
+    for (const m of s.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.([A-Za-z_$][\w$]*)\s*(?:as\s+['"]([a-z][a-z_0-9]*)['"]\s*)?;/g)) {
       const name = out.get(m[2]);
       if (name && !out.has(m[1])) out.set(m[1], name);
+      if (name && m[3] && m[3] !== name) aliasConflicts.push(`${rel}: ${m[1]} is narrowed to '${m[3]}' but its value is '${name}'`);
     }
   }
   return out;
@@ -113,7 +120,7 @@ const NOT_A_NAME = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', '
  *  parameters it hands to `.rpc(` or puts in a `/rpc/${…}` URL. Returns
  *  name -> { nameIdx, argsIdx | null, start, end } (argsIdx null = it only
  *  builds the URL; the arguments travel in the enclosing call's body). */
-function helpersIn(s) {
+function helpersIn(s, wrapped = false) {
   const out = new Map();
   const def = new RegExp(String.raw`(?:function\s+(${ID})\s*${GENERIC}\s*\(|(?:const|let|var)\s+(${ID})\s*=\s*(?:async\s*)?\(|(?:^|[\s,{])(?:async\s+)?(${ID})\s*${GENERIC}\s*\()`, 'gm');
   for (const m of s.matchAll(def)) {
@@ -136,7 +143,8 @@ function helpersIn(s) {
       bodyEnd = closeOf(s, brace + 1, '{', '}');
     }
     const body = s.slice(close, bodyEnd);
-    const nameIdx = params.findIndex((p) => p && (body.includes(`.rpc(${p}`) || body.includes(`/rpc/\${${p}}`)));
+    const nameIdx = params.findIndex((p) => p && (body.includes(`.rpc(${p}`) || body.includes(`/rpc/\${${p}}`)
+      || (wrapped && new RegExp(`(?<![\\w$.])rpc(?:OrThrow)?\\s*${GENERIC}\\(\\s*${p.replace(/\$/g, '\\$')}\\b`).test(body))));
     if (nameIdx < 0) continue;
     out.set(name, { nameIdx, argsIdx: nameIdx + 1 < params.length ? nameIdx + 1 : null, param: params[nameIdx], start: m.index, end: bodyEnd });
   }
@@ -166,6 +174,12 @@ function nextArg(s, i) {
   return s.slice(at, j).trim();
 }
 
+/** The app's typed rpc() wrapper: read as a call SHAPE, not scanned as a caller. */
+export const WRAPPER = 'packages/app/src/lib/db.ts';
+/** Its jsonb shape map: types only, naming row sets in `RowsOf<'x'>` to derive
+ *  a wrapper's shape. A type calls nothing, so it is not a quoting site. */
+export const SHAPES = 'packages/app/src/lib/dbShapes.ts';
+
 export function rpcCalls(root = REPO) {
   const { live, history } = functions(root);
   const ever = new Set(history.keys());
@@ -181,7 +195,15 @@ export function rpcCalls(root = REPO) {
   for (const { rel, s } of srcs) {
     if (rel.endsWith('.json')) continue;
     const line = (i) => s.slice(0, i).split('\n').length;
-    const helpers = helpersIn(s);
+    if (rel === WRAPPER) continue; // its one `client.rpc(fn, args)` passes every call through
+    // The app's typed wrapper (packages/app/src/lib/db.ts, review C1 slice 4):
+    // a file that imports `rpc` from a `…/db` module calls it as rpc(name, args),
+    // and a local helper may hand its parameter to it.
+    const fromDb = s.match(/import\s*\{([^}]*)\}\s*from\s*['"][^'"]*\/db['"]/)?.[1] ?? '';
+    const wrapperFns = ['rpc', 'rpcOrThrow'].filter((n) => new RegExp(`\\b${n}\\b`).test(fromDb));
+    const wrapped = wrapperFns.length > 0;
+    const helpers = helpersIn(s, wrapped);
+    for (const n of wrapperFns) helpers.set(n, { nameIdx: 0, argsIdx: 1, param: null, start: -1, end: -1 });
     const shapes = [['\\.rpc', { nameIdx: 0, argsIdx: 1 }], ...[...helpers].map(([h, v]) => [`(?<![\\w$.])${h.replace(/\$/g, '\\$')}`, v])];
     for (const [pattern, h] of shapes) {
       for (const m of s.matchAll(new RegExp(`${pattern}\\s*${GENERIC}\\(\\s*`, 'g'))) {
@@ -218,6 +240,7 @@ export function quotedFunctionNames(root = REPO) {
   const out = new Map();
   for (const d of SOURCE_DIRS) {
     for (const p of sourceFiles(root, resolve(root, d))) {
+      if (relative(root, p) === SHAPES) continue;
       const s = stripJs(readFileSync(p, 'utf8'));
       for (const m of s.matchAll(/(['"`])([a-z][a-z_0-9]*)\1/g)) {
         if (!ever.has(m[2])) continue;

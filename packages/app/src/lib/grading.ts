@@ -13,7 +13,7 @@
  * round-trip" assertion exists in verify-0034 §D precisely because that
  * failure shipped undetected once.
  */
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { MY_CHECKED_SECTION_IDS_RPC } from './edgeFunctions';
 import { GRADING_QUEUE_RPC } from './gradingQueueRpc';
 import type { ReleasedFeedbackRow } from '@activity/viewer';
@@ -30,7 +30,7 @@ import type { ManuallyGradedType } from '@activity/schema';
 export async function fetchReleasedFeedbackRows(
   activityId: string,
 ): Promise<ReleasedFeedbackRow[]> {
-  const { data, error } = await supabase.rpc('get_my_released_feedback', {
+  const { data, error } = await rpc('get_my_released_feedback', {
     p_activity_id: activityId,
   });
   if (error) throw new Error(error.message);
@@ -49,7 +49,7 @@ export async function fetchReleasedFeedbackRows(
  * route shows "sign in again" instead of a Try again that cannot work.
  */
 export async function fetchMyCheckedSectionIds(versionId: string): Promise<string[]> {
-  const { data, error } = await supabase.rpc(MY_CHECKED_SECTION_IDS_RPC, {
+  const { data, error } = await rpc(MY_CHECKED_SECTION_IDS_RPC, {
     p_version_id: versionId,
   });
   if (error) {
@@ -118,7 +118,7 @@ export interface CriterionEntry {
  *  order. A row-set read was cut at PostgREST's 1,000 rows with no error, and
  *  the rows lost were the older version's students (review A5). */
 export async function fetchGradingQueue(activityId: string): Promise<GradingQueueRow[]> {
-  const { data, error } = await supabase.rpc(GRADING_QUEUE_RPC, {
+  const { data, error } = await rpc(GRADING_QUEUE_RPC, {
     p_activity_id: activityId,
   });
   if (error) throw new Error(error.message);
@@ -132,7 +132,7 @@ export async function saveCheckGrade(input: {
   criteria: CriterionEntry[];
   generalFeedback: string;
 }): Promise<unknown> {
-  const { data, error } = await supabase.rpc('upsert_check_grade', {
+  const { data, error } = await rpc('upsert_check_grade', {
     p_check_id: input.checkId,
     p_block_id: input.blockId,
     p_criteria: input.criteria,
@@ -154,7 +154,7 @@ export async function releaseGrades(
   activityId: string,
   studentId: string,
 ): Promise<number> {
-  const { data, error } = await supabase.rpc('release_check_grades', {
+  const { data, error } = await rpc('release_check_grades', {
     p_activity_id: activityId,
     p_student_id: studentId,
   });

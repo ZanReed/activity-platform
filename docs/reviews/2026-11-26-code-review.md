@@ -458,8 +458,10 @@ on one shared parser (`scripts/lib/migrations.mjs`) that all four migration
 readers now use. **Recommendation 1's first half BUILT as slice 3:**
 `pnpm db:types` (from the local stack, committed with a sha256 stamp of the
 migrations, CI-checked) and `pnpm db:types:live-diff` (live matched main at
-0106). Typing the app client (slice 4) and the ports (slice 5) are ruled but
-not queued.
+0106). **Slice 4 BUILT the same day:** the app client is typed from the generated
+schema and every call goes through `lib/db.ts`; jsonb shapes in one map with
+`@shape-as-of` stamps; casts 94 → 77, ratcheted. Typing the viewer ports,
+worker and Edge Functions (slice 5) is ruled but not queued.
 
 ### C2 Adding one block type touches about 34 places, and the app half is unguarded
 The viewer keys everything off one registry and fails to compile when a type is

@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { rpc } from './db';
 import { signedInUserId } from './currentUser';
 import { POLICY_VERSION } from './policyVersion';
 import { AUTH_CONTRACT } from './authMessages';
@@ -27,8 +28,12 @@ export const ATTESTATION_TEXT_VERSION = POLICY_VERSION;
 
 // RPC names come from the contract, never retyped (P2 — the same rule that
 // made PUBLISH_ACTIVITY_RPC a constant at S9 Drop 1).
-const REDEEM_JOIN_CODE_RPC = AUTH_CONTRACT.rpcNames.redeemJoinCode;
-const CLAIM_TEACHER_RPC = AUTH_CONTRACT.rpcNames.claimTeacher;
+// A JSON import types its strings as `string`, so each is narrowed to the
+// function it names for rpc()'s typed arguments (types only). The VALUE is still
+// the contract's: scripts/tests/rpc-arguments.test.mjs reads the JSON and checks
+// that name's arguments, so a contract edit cannot slip past both checks.
+const REDEEM_JOIN_CODE_RPC = AUTH_CONTRACT.rpcNames.redeemJoinCode as 'redeem_join_code';
+const CLAIM_TEACHER_RPC = AUTH_CONTRACT.rpcNames.claimTeacher as 'claim_teacher';
 
 // The two statements a teacher chooses between (U-1; the author approved
 // this wording 2026-10-06, POLICY_VERSION 2026-10-06-draft-4). History: the
@@ -70,7 +75,7 @@ export interface ClassMember {
     removedAt: string | null;
 }
 
-interface ClassRow {
+export interface ClassRow {
     id: string;
     name: string;
     join_code: string;
@@ -148,14 +153,14 @@ export async function createClass(input: CreateClassInput): Promise<ClassInfo> {
     const name = input.name.trim();
     if (name.length === 0) throw new Error('Class name is required');
 
-    const { data, error } = await supabase.rpc('create_class', {
+    const { data, error } = await rpc('create_class', {
         p_name: name,
         p_expected_domain: normalizeExpectedDomain(input.expectedDomain),
         p_assertion_text_version: ASSERTION_TEXT_VERSION,
         p_includes_under_13: input.includesUnder13,
     });
     if (error) throw new Error(error.message);
-    return rowToClass(data as ClassRow);
+    return rowToClass(data!);
 }
 
 /**
@@ -167,7 +172,7 @@ export async function reconfirmClassAge(
     classId: string,
     includesUnder13: boolean,
 ): Promise<Pick<ClassInfo, 'includesUnder13' | 'ageAssertionAt' | 'assertionTextVersion'>> {
-    const { data, error } = await supabase.rpc('reconfirm_class_age', {
+    const { data, error } = await rpc('reconfirm_class_age', {
         p_class_id: classId,
         p_includes_under_13: includesUnder13,
         p_assertion_text_version: ASSERTION_TEXT_VERSION,
@@ -188,7 +193,7 @@ export async function reconfirmClassAge(
  * posted link died); collision retry moved into the RPC.
  */
 export async function regenerateJoinCode(classId: string): Promise<string> {
-    const { data, error } = await supabase.rpc('regenerate_join_code', {
+    const { data, error } = await rpc('regenerate_join_code', {
         p_class_id: classId,
     });
     if (error) throw new Error(error.message);
@@ -204,7 +209,7 @@ export async function updateClassDomain(
     classId: string,
     rawDomain: string,
 ): Promise<string | null> {
-    const { data, error } = await supabase.rpc('update_class_domain', {
+    const { data, error } = await rpc('update_class_domain', {
         p_class_id: classId,
         p_domain: normalizeExpectedDomain(rawDomain),
     });
@@ -215,7 +220,7 @@ export async function updateClassDomain(
 /** S9 (0090, ST-14): whether students in this class can ask for help, through
  *  the audited `set_class_help` RPC. Returns the stored value. */
 export async function setClassHelp(classId: string, on: boolean): Promise<boolean> {
-    const { data, error } = await supabase.rpc('set_class_help', { p_class_id: classId, p_on: on });
+    const { data, error } = await rpc('set_class_help', { p_class_id: classId, p_on: on });
     if (error) throw new Error(error.message);
     return (data as { on: boolean }).on;
 }
@@ -240,7 +245,7 @@ export async function renameClass(classId: string, rawName: string): Promise<str
 
 /** Roster via the DEFINER RPC (ownership-gated server-side). */
 export async function listClassMembers(classId: string): Promise<ClassMember[]> {
-    const { data, error } = await supabase.rpc(LIST_CLASS_MEMBERS_RPC, {
+    const { data, error } = await rpc(LIST_CLASS_MEMBERS_RPC, {
         p_class_id: classId,
     });
     if (error) throw new Error(error.message);
@@ -279,7 +284,7 @@ export async function removeClassMember(
 /** Move a student to another of the caller's classes (0089, S5): out of one,
  *  into the other, in one audited step. Their work is untouched. */
 export async function moveClassMember(studentId: string, fromClassId: string, toClassId: string): Promise<void> {
-    const { error } = await supabase.rpc('move_class_member', {
+    const { error } = await rpc('move_class_member', {
         p_student_id: studentId,
         p_from_class: fromClassId,
         p_to_class: toClassId,
@@ -289,7 +294,7 @@ export async function moveClassMember(studentId: string, fromClassId: string, to
 
 /** Soft delete via RPC (same 0008 pattern as activities). */
 export async function softDeleteClass(classId: string): Promise<void> {
-    const { error } = await supabase.rpc('soft_delete_class', {
+    const { error } = await rpc('soft_delete_class', {
         p_class_id: classId,
     });
     if (error) throw new Error(error.message);
@@ -317,7 +322,7 @@ export interface JoinedClass {
  * classifyJoinError() and render JOIN_ERROR_COPY, never the raw message.
  */
 export async function joinClass(code: string): Promise<JoinedClass> {
-    const { data, error } = await supabase.rpc('join_class', {
+    const { data, error } = await rpc('join_class', {
         p_join_code: code.trim().toUpperCase(),
     });
     if (error) throw new Error(error.message);
@@ -338,7 +343,7 @@ export async function joinClass(code: string): Promise<JoinedClass> {
  * classifyRedeemError() and render REDEEM_ERROR_COPY, never the raw message.
  */
 export async function redeemJoinCode(code: string): Promise<JoinedClass> {
-    const { data, error } = await supabase.rpc(REDEEM_JOIN_CODE_RPC, {
+    const { data, error } = await rpc(REDEEM_JOIN_CODE_RPC, {
         p_join_code: code.trim().toUpperCase(),
     });
     if (error) throw new Error(error.message);
@@ -352,7 +357,7 @@ export async function redeemJoinCode(code: string): Promise<JoinedClass> {
  * construction ASSERTION_TEXT_VERSION uses for the per-class age assertion.
  */
 export async function claimTeacher(): Promise<void> {
-    const { error } = await supabase.rpc(CLAIM_TEACHER_RPC, {
+    const { error } = await rpc(CLAIM_TEACHER_RPC, {
         p_attestation_version: ATTESTATION_TEXT_VERSION,
     });
     if (error) throw new Error(error.message);

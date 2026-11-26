@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import type { Json } from '@activity/db-types';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import { BarChart3, ClipboardCheck, Copy, Import, Library, Trash2, Users } from 'lucide-react';
@@ -8,6 +9,7 @@ import ActivityRowMenu from '../components/ActivityRowMenu';
 import { listDeletedActivities, restoreActivity, type DeletedItem } from '../lib/recentlyDeleted';
 import { createEmptyDocument } from '@activity/schema';
 import { supabase } from '../lib/supabase';
+import { rpc } from '../lib/db';
 import { useSession } from '../lib/SessionContext';
 import { slugify, slugWithSuffix } from '../lib/slug';
 import { copyOwnActivity } from '../lib/copyActivity';
@@ -396,7 +398,9 @@ export default function Activities() {
                 owner_id: session.user.id,
                 title,
                 slug: slugWithSuffix(base, attempt),
-                    draft_content: doc,
+                    // A jsonb column: the generated `Json` has an index signature the document
+                // interface lacks, so it is cast for the TYPE only (review C1 slice 4).
+                draft_content: doc as unknown as Json,
             })
             .select('id')
             .single();
@@ -449,7 +453,7 @@ export default function Activities() {
     const handleDelete = async (activity: ActivityRow) => {
         setDeletingId(activity.id);
         setActionError(null);
-        const { error } = await supabase.rpc('soft_delete_activity', {
+        const { error } = await rpc('soft_delete_activity', {
             p_activity_id: activity.id,
         });
         setDeletingId(null);
@@ -485,7 +489,7 @@ export default function Activities() {
     const handleUndo = async (activity: ActivityRow) => {
         dismissUndo(activity.id);
         setActionError(null);
-        const { error } = await supabase.rpc('restore_activity', {
+        const { error } = await rpc('restore_activity', {
             p_activity_id: activity.id,
         });
         if (error) {

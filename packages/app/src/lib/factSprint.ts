@@ -8,7 +8,7 @@
 // it out of anything the shell imports.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { FACT_PROBE_RPC } from './factProbeRpc';
 import type { AttemptRecord, ProbeItem, SprintFamily } from '../practice/factRun';
 import type { Baselines } from '../practice/baseline';
@@ -41,7 +41,7 @@ export type SprintEntry =
     | (Common & { state: 'ready'; due: number; minutes?: number; session?: SprintSession });
 
 export async function fetchSprintEntry(code: string, start = false): Promise<SprintEntry> {
-    const { data, error } = await supabase.rpc(FACT_PROBE_RPC.sprintEntry, {
+    const { data, error } = await rpc(FACT_PROBE_RPC.sprintEntry, {
         p_code: code,
         p_start: start,
     });
@@ -64,7 +64,7 @@ export async function saveSprintAttempts(
     attempts: AttemptRecord[],
     options: { baselines?: Baselines | null; finished?: boolean } = {},
 ): Promise<SprintSaveResult> {
-    const { data, error } = await supabase.rpc(FACT_PROBE_RPC.sprintSave, {
+    const { data, error } = await rpc(FACT_PROBE_RPC.sprintSave, {
         p_session_id: sessionId,
         p_attempts: attempts.map((a) => ({
             n: a.n,
@@ -81,12 +81,12 @@ export async function saveSprintAttempts(
         p_app_build: typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : null,
     });
     if (error) throw new Error(error.message);
-    return data as SprintSaveResult;
+    return data!;
 }
 
 /** The teacher's switch (SP-2). Throws the server's reason by name. */
 export async function setFactSprint(classId: string, on: boolean): Promise<{ on: boolean; on_at: string | null }> {
-    const { data, error } = await supabase.rpc(FACT_PROBE_RPC.sprintSwitch, {
+    const { data, error } = await rpc(FACT_PROBE_RPC.sprintSwitch, {
         p_class_id: classId,
         p_on: on,
     });
@@ -124,7 +124,7 @@ export interface SprintOverview {
 }
 
 export async function fetchSprintOverview(classId: string): Promise<SprintOverview> {
-    const { data, error } = await supabase.rpc(FACT_PROBE_RPC.sprintOverview, { p_class_id: classId });
+    const { data, error } = await rpc(FACT_PROBE_RPC.sprintOverview, { p_class_id: classId });
     if (error) throw new Error(error.message);
-    return data as SprintOverview;
+    return data!;
 }

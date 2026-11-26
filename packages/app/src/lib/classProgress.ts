@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { rpcOrThrow } from './db';
 import { getVersionContents, type VersionContent } from './versionContent';
 import {
     ACTIVITY_FIRST_TRIES_RPC,
@@ -181,18 +182,13 @@ export interface FirstTries {
 
 // ---- The reads ---------------------------------------------------------------
 
-async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
-    const { data, error } = await supabase.rpc(name, args);
-    if (error) throw new Error(error.message);
-    return data as T;
-}
 
 export function fetchClassProgress(classId: string): Promise<ClassProgress> {
-    return rpc(CLASS_PROGRESS_RPC, { p_class_id: classId });
+    return rpcOrThrow(CLASS_PROGRESS_RPC, { p_class_id: classId });
 }
 
 export function fetchActivityProgress(activityId: string): Promise<ActivityProgress> {
-    return rpc(ACTIVITY_PROGRESS_RPC, { p_activity_id: activityId });
+    return rpcOrThrow(ACTIVITY_PROGRESS_RPC, { p_activity_id: activityId });
 }
 
 /** classId NULL = the activity page's form (any class of the caller's). */
@@ -201,7 +197,7 @@ export function fetchStudentWork(
     studentId: string,
     activityId: string,
 ): Promise<StudentWork> {
-    return rpc(CLASS_STUDENT_WORK_RPC, {
+    return rpcOrThrow(CLASS_STUDENT_WORK_RPC, {
         p_class_id: classId,
         p_student_id: studentId,
         p_activity_id: activityId,
@@ -212,11 +208,11 @@ export function fetchMisconceptions(
     classId: string | null,
     activityId: string | null = null,
 ): Promise<ClassMisconceptions> {
-    return rpc(CLASS_MISCONCEPTIONS_RPC, { p_class_id: classId, p_activity_id: activityId });
+    return rpcOrThrow(CLASS_MISCONCEPTIONS_RPC, { p_class_id: classId, p_activity_id: activityId });
 }
 
 export function fetchFirstTries(activityId: string): Promise<FirstTries> {
-    return rpc(ACTIVITY_FIRST_TRIES_RPC, { p_activity_id: activityId });
+    return rpcOrThrow(ACTIVITY_FIRST_TRIES_RPC, { p_activity_id: activityId });
 }
 
 /** The versions' content, read under the teacher's OWN RLS (activity

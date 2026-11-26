@@ -6,7 +6,7 @@
 // route's budget never carries it.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 
 export interface PhotoUsage {
     photos: number;
@@ -15,7 +15,7 @@ export interface PhotoUsage {
 }
 
 export async function fetchMyPhotoUsage(): Promise<PhotoUsage> {
-    const { data, error } = await supabase.rpc('my_work_photo_usage');
+    const { data, error } = await rpc('my_work_photo_usage');
     if (error) throw new Error(error.message);
     const row = (Array.isArray(data) ? data[0] : data) as Partial<Record<keyof PhotoUsage, number | string>> | null;
     const num = (v: number | string | undefined) => Number(v ?? 0) || 0;

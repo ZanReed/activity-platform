@@ -10,6 +10,7 @@
 
 import type { TeacherGuide } from '@activity/schema';
 import { supabase } from './supabase';
+import { rpc } from './db';
 import {
     BANK_TEACHER_GUIDE_RPC,
     COPY_BANK_ACTIVITY_RPC,
@@ -38,7 +39,7 @@ export interface BankEntry {
 }
 
 export async function listBank(): Promise<BankEntry[]> {
-    const { data, error } = await supabase.rpc(LIST_BANK_RPC);
+    const { data, error } = await rpc(LIST_BANK_RPC);
     if (error) throw new Error(error.message);
     return (data ?? []) as BankEntry[];
 }
@@ -66,7 +67,7 @@ export async function listMyBankCopies(ownerId: string): Promise<Map<string, str
 
 /** The current version's teacher guide, or null (none, or not listed). */
 export async function getBankTeacherGuide(activityId: string): Promise<TeacherGuide | null> {
-    const { data, error } = await supabase.rpc(BANK_TEACHER_GUIDE_RPC, {
+    const { data, error } = await rpc(BANK_TEACHER_GUIDE_RPC, {
         p_activity_id: activityId,
     });
     if (error) throw new Error(error.message);
@@ -76,7 +77,7 @@ export async function getBankTeacherGuide(activityId: string): Promise<TeacherGu
 /** Copy a listed activity into the caller's library; returns the new id.
  *  The copy arrives PUBLISHED (BK-2), ready to share to a class. */
 export async function copyBankActivity(activityId: string): Promise<string> {
-    const { data, error } = await supabase.rpc(COPY_BANK_ACTIVITY_RPC, {
+    const { data, error } = await rpc(COPY_BANK_ACTIVITY_RPC, {
         p_activity_id: activityId,
     });
     if (error) throw new Error(error.message);
@@ -85,7 +86,7 @@ export async function copyBankActivity(activityId: string): Promise<string> {
 
 /** List or unlist one of the caller's activities (curator only to list). */
 export async function setActivityListing(activityId: string, listed: boolean): Promise<void> {
-    const { error } = await supabase.rpc(SET_ACTIVITY_LISTING_RPC, {
+    const { error } = await rpc(SET_ACTIVITY_LISTING_RPC, {
         p_activity_id: activityId,
         p_listed: listed,
     });
@@ -94,7 +95,7 @@ export async function setActivityListing(activityId: string, listed: boolean): P
 
 /** Whether the signed-in teacher may list (BK-3: caps-exempt or admin). */
 export async function isBankLister(): Promise<boolean> {
-    const { data, error } = await supabase.rpc(IS_BANK_LISTER_RPC);
+    const { data, error } = await rpc(IS_BANK_LISTER_RPC);
     if (error) return false;
     return data === true;
 }
@@ -118,7 +119,7 @@ export async function getMyPublicName(userId: string): Promise<PublicName> {
 
 /** Opt in with a name, or opt out with an empty string (0055, BK-13). */
 export async function setPublicName(name: string): Promise<PublicName> {
-    const { data, error } = await supabase.rpc(SET_PUBLIC_NAME_RPC, { p_name: name });
+    const { data, error } = await rpc(SET_PUBLIC_NAME_RPC, { p_name: name });
     if (error) throw new Error(error.message);
     const out = data as { display_name: string | null; opted_in: boolean };
     return { name: out.display_name, optedIn: out.opted_in };

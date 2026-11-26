@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { CLASS_TODAY_RPC, SET_CLASS_TODAY_RPC } from './classTodayRpc';
-import { supabase } from './supabase';
+import { rpc } from './db';
 
 export interface TodayActivity {
     activity_id: string;
@@ -25,9 +25,9 @@ export interface ClassToday {
 export const MAX_TODAY = 6;
 
 export async function fetchClassToday(classId: string): Promise<ClassToday> {
-    const { data, error } = await supabase.rpc(CLASS_TODAY_RPC, { p_class_id: classId });
+    const { data, error } = await rpc(CLASS_TODAY_RPC, { p_class_id: classId });
     if (error) throw new Error(error.message);
-    return data as ClassToday;
+    return data!;
 }
 
 export async function setClassToday(
@@ -35,11 +35,11 @@ export async function setClassToday(
     activityId: string,
     on: boolean,
 ): Promise<ClassToday> {
-    const { data, error } = await supabase.rpc(SET_CLASS_TODAY_RPC, {
+    const { data, error } = await rpc(SET_CLASS_TODAY_RPC, {
         p_class_id: classId,
         p_activity_id: activityId,
         p_on: on,
     });
     if (error) throw new Error(error.message);
-    return data as ClassToday;
+    return data!;
 }

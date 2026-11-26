@@ -5,7 +5,10 @@ Slices 1 and 2 BUILT the same day: `scripts/tests/rpc-arguments.test.mjs`; the s
 `scripts/lib/migrations.mjs` (+ `scripts/lib/rpc-calls.mjs`) with all four guards moved onto it, and
 the generated [function index](../function-index.md) (`pnpm db:index`). Slice 3 BUILT the same day:
 `pnpm db:types` → `packages/db-types/database.types.ts` + the Deno copy, stamp test, and
-`pnpm db:types:live-diff` (live matched main at 0106). Slices 4–5 are ruled, not queued.**
+`pnpm db:types:live-diff` (live matched main at 0106). Slice 4 BUILT the same day: the app's client is
+`SupabaseClient<Database>`, every call goes through `lib/db.ts`, 41 jsonb shapes live in
+`lib/dbShapes.ts` (8 derived from the row set their wrapper returns, every column nullable), result casts 94 → 77 with a
+ratchet, +16 B gz on the student shell. Slice 5 is ruled, not queued.**
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C1, with A5, C6 and C10
 as the same family. Not in the build queue (TODOS entry carries its trigger; ranking is the author's).
 

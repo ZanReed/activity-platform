@@ -55,6 +55,7 @@
     "tippy.js": "^6.3.7"
   },
   "devDependencies": {
+    "@activity/db-types": "workspace:*",
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.61.1",

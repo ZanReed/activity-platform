@@ -11,7 +11,7 @@
  * reports chip strikes.
  */
 import { dolOptionalBlockIds } from '@activity/viewer';
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { GRADE_SUGGESTIONS_RPC } from './gradingQueueRpc';
 import { getVersionContents } from './versionContent';
 import { isGradeable, type Block } from '@activity/schema';
@@ -75,17 +75,17 @@ export type RejectReason = 'wrong_points' | 'wrong_feedback' | 'wrong_misconcept
 /** Every suggestion in one read (0104): a jsonb array, never cut at
  *  PostgREST's 1,000 rows (review A5; it has the queue's cardinality). */
 export async function fetchSuggestions(activityId: string): Promise<SuggestionRow[]> {
-  const { data, error } = await supabase.rpc(GRADE_SUGGESTIONS_RPC, {
+  const { data, error } = await rpc(GRADE_SUGGESTIONS_RPC, {
     p_activity_id: activityId,
   });
   if (error) throw new Error(error.message);
-  return (data ?? []) as SuggestionRow[];
+  return data ?? [];
 }
 
 export async function fetchAssistStatus(): Promise<AssistStatus> {
-  const { data, error } = await supabase.rpc('get_grading_assist_status');
+  const { data, error } = await rpc('get_grading_assist_status');
   if (error) throw new Error(error.message);
-  return (data ?? { provider: 'off' }) as AssistStatus;
+  return data ?? { provider: 'off' };
 }
 
 /** The pinned rubric per (version, block), read from the teacher's own
@@ -180,7 +180,7 @@ export async function confirmSuggestion(input: {
   generalFeedback: string;
   struckMis: string[];
 }): Promise<{ status: 'confirmed' | 'edited'; grade: unknown }> {
-  const { data, error } = await supabase.rpc('confirm_grade_suggestion', {
+  const { data, error } = await rpc('confirm_grade_suggestion', {
     p_suggestion_id: input.suggestionId,
     p_expected_updated_at: input.expectedUpdatedAt,
     p_criteria: input.criteria,
@@ -202,7 +202,7 @@ export async function rejectSuggestion(input: {
   expectedUpdatedAt: string;
   reason: RejectReason | null;
 }): Promise<void> {
-  const { error } = await supabase.rpc('reject_grade_suggestion', {
+  const { error } = await rpc('reject_grade_suggestion', {
     p_suggestion_id: input.suggestionId,
     p_expected_updated_at: input.expectedUpdatedAt,
     p_reason: input.reason,

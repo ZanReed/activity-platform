@@ -7,7 +7,7 @@
 // anything: a teacher places every day by hand (§18 as read in C-188).
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc, rpcOrThrow } from './db';
 import { MIXED_PRACTICE_RPC } from './mixedPracticeRpc';
 
 /** RPC names, exported so test mocks derive from them (policy P2). */
@@ -210,20 +210,15 @@ export function planErrorMessage(err: unknown): string {
 
 // ---- the calls ---------------------------------------------------------------
 
-async function call(fn: string, args: Record<string, unknown>): Promise<ClassPlan> {
-    const { data, error } = await supabase.rpc(fn, args);
-    if (error) throw new Error(error.message);
-    return data as ClassPlan;
-}
 
 export const fetchClassPlan = (classId: string, from: string, to: string) =>
-    call(CLASS_PLAN_RPC.read, { p_class_id: classId, p_from: from, p_to: to });
+    rpcOrThrow(CLASS_PLAN_RPC.read, { p_class_id: classId, p_from: from, p_to: to });
 
 export const setClassPlan = (classId: string, onDate: string, activityId: string, on: boolean) =>
-    call(CLASS_PLAN_RPC.set, { p_class_id: classId, p_on_date: onDate, p_activity_id: activityId, p_on: on });
+    rpcOrThrow(CLASS_PLAN_RPC.set, { p_class_id: classId, p_on_date: onDate, p_activity_id: activityId, p_on: on });
 
 export const moveClassPlanItem = (classId: string, fromDate: string, activityId: string, toDate: string) =>
-    call(CLASS_PLAN_RPC.move, {
+    rpcOrThrow(CLASS_PLAN_RPC.move, {
         p_class_id: classId,
         p_from_date: fromDate,
         p_activity_id: activityId,
@@ -231,7 +226,7 @@ export const moveClassPlanItem = (classId: string, fromDate: string, activityId:
     });
 
 export const reorderClassPlan = (classId: string, onDate: string, activityIds: string[]) =>
-    call(CLASS_PLAN_RPC.reorder, { p_class_id: classId, p_on_date: onDate, p_activity_ids: activityIds });
+    rpcOrThrow(CLASS_PLAN_RPC.reorder, { p_class_id: classId, p_on_date: onDate, p_activity_ids: activityIds });
 
 // ---- review periods (0091, 0092; review-period.md RV-2, RV-7, RV-10) ------------
 
@@ -261,7 +256,7 @@ export async function setClassReview(
     focusChains: string[] = [],
     isDouble = false,
 ): Promise<void> {
-    const { error } = await supabase.rpc(MIXED_PRACTICE_RPC.setReview, {
+    const { error } = await rpc(MIXED_PRACTICE_RPC.setReview, {
         p_class_id: classId,
         p_on_date: onDate,
         p_on: on,
@@ -272,7 +267,7 @@ export async function setClassReview(
 }
 
 export async function fetchReviewPreview(classId: string, isDouble: boolean, onDate: string): Promise<ReviewPreview> {
-    const { data, error } = await supabase.rpc(MIXED_PRACTICE_RPC.reviewPreview, {
+    const { data, error } = await rpc(MIXED_PRACTICE_RPC.reviewPreview, {
         p_class_id: classId,
         p_is_double: isDouble,
         p_on_date: onDate,

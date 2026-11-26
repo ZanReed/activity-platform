@@ -17,6 +17,7 @@
 // for the next revision.
 // =============================================================================
 
+import type { Json } from '@activity/db-types';
 import { useSession } from '../lib/SessionContext';
 import { usePhotoPilot } from '../lib/photoPilot';
 import {
@@ -784,7 +785,9 @@ export default function ActivityEditor() {
         let query = supabase
         .from('activities')
         .update({
-            draft_content: parsed.data,
+            // A jsonb column: the generated `Json` has an index signature the document
+            // interface lacks, so it is cast for the TYPE only (review C1 slice 4).
+            draft_content: parsed.data as unknown as Json,
             title: safeMeta.title,
             tags,
             pedagogical_role: pedagogicalRole,

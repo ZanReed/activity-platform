@@ -9,7 +9,7 @@
 // clients hold no UPDATE on users at all).
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 
 /** RPC names, exported so test mocks derive from them (policy P2). */
 export const MY_TIMEZONE_RPC = 'my_timezone';
@@ -66,13 +66,13 @@ function parse(data: unknown): MyTimezone {
 }
 
 export async function fetchMyTimezone(): Promise<MyTimezone> {
-    const { data, error } = await supabase.rpc(MY_TIMEZONE_RPC);
+    const { data, error } = await rpc(MY_TIMEZONE_RPC);
     if (error) throw new Error(error.message);
     return parse(data);
 }
 
 export async function saveMyTimezone(zone: string): Promise<MyTimezone> {
-    const { data, error } = await supabase.rpc(SET_MY_TIMEZONE_RPC, { p_zone: zone });
+    const { data, error } = await rpc(SET_MY_TIMEZONE_RPC, { p_zone: zone });
     if (error) {
         throw new Error(
             error.message === 'bad_zone' ? `“${zone}” isn’t a timezone the server knows.` : error.message,

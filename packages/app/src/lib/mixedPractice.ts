@@ -29,6 +29,7 @@ import {
     type SectionResponses,
 } from '@activity/viewer';
 import { supabase, functionsBase } from './supabase';
+import { rpc } from './db';
 import { CHECK_ACTIVITY_FUNCTION, edgeFunctionUrl } from './edgeFunctions';
 import { MIXED_PRACTICE_RPC } from './mixedPracticeRpc';
 
@@ -76,7 +77,7 @@ export type MixedPreview =
           review?: boolean;
       };
 
-interface RawPreview {
+export interface RawPreview {
     state: Exclude<PracticeStartState, 'started'>;
     done_today: number;
     graded: boolean;
@@ -94,7 +95,7 @@ interface RawPreview {
  * "no class": the entry has already told membership apart, so here it reads
  * as off. Any other failure throws. */
 export async function previewMixed(classId: string): Promise<MixedPreview> {
-    const { data, error } = await supabase.rpc(MIXED_PRACTICE_RPC.start, {
+    const { data, error } = await rpc(MIXED_PRACTICE_RPC.start, {
         p_class_id: classId,
         p_start: false,
     });
@@ -102,7 +103,7 @@ export async function previewMixed(classId: string): Promise<MixedPreview> {
         if (/not available/i.test(error.message)) return { state: 'off' };
         throw new Error(error.message);
     }
-    const raw = data as RawPreview;
+    const raw = data!;
     const common = {
         doneToday: raw.done_today ?? 0,
         graded: raw.graded === true,
@@ -235,7 +236,7 @@ export interface FinishedCounts {
 }
 
 export async function finishMixed(sessionId: string): Promise<FinishedCounts> {
-    const { data, error } = await supabase.rpc(MIXED_PRACTICE_RPC.finish, { p_session_id: sessionId });
+    const { data, error } = await rpc(MIXED_PRACTICE_RPC.finish, { p_session_id: sessionId });
     if (error) throw new Error(error.message);
-    return data as FinishedCounts;
+    return data!;
 }

@@ -15,11 +15,11 @@
  */
 import { createGlossaryCache, type GlossaryCache, type GlossaryService } from '@activity/viewer';
 import { GLOSSARY_FOR_ACTIVITY_RPC } from './edgeFunctions';
-import { supabase } from './supabase';
+import { rpc } from './db';
 
 export const glossaryService: GlossaryService = {
   async load(activityId) {
-    const { data, error } = await supabase.rpc(GLOSSARY_FOR_ACTIVITY_RPC, {
+    const { data, error } = await rpc(GLOSSARY_FOR_ACTIVITY_RPC, {
       p_activity_id: activityId,
     });
     if (error) throw new Error(error.message);

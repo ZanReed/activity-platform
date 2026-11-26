@@ -9,7 +9,7 @@
 // ⚠ Called only from the LAZY class progress route, on the download click.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { CLASS_GRADEBOOK_RPC } from './edgeFunctions';
 
 /** One student on one activity with hand-graded questions, on the version the
@@ -51,7 +51,7 @@ export interface ClassGradebook {
 }
 
 export async function fetchClassGradebook(classId: string): Promise<ClassGradebook> {
-    const { data, error } = await supabase.rpc(CLASS_GRADEBOOK_RPC, { p_class_id: classId });
+    const { data, error } = await rpc(CLASS_GRADEBOOK_RPC, { p_class_id: classId });
     if (error) throw new Error(error.message);
-    return data as ClassGradebook;
+    return data!;
 }

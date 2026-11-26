@@ -23,6 +23,7 @@ import { ActivityDocument } from '@activity/schema';
 import { PUBLISH_ACTIVITY_RPC } from './edgeFunctions';
 import { findPublishProblems, publishProblemsSentence } from './prePublishCheck';
 import { supabase } from './supabase';
+import { rpc } from './db';
 import { INVALID_DOC_MESSAGE, mapPublishRpcError } from './usePublish';
 
 /** The list-row fields this needs (Activities.tsx selects them). */
@@ -103,7 +104,7 @@ export async function republishMany(
         } else if (problems.length > 0) {
             results.push({ id, ok: false, message: publishProblemsSentence(problems) });
         } else {
-            const { data: versionId, error } = await supabase.rpc(PUBLISH_ACTIVITY_RPC, { p_activity_id: id });
+            const { data: versionId, error } = await rpc(PUBLISH_ACTIVITY_RPC, { p_activity_id: id });
             if (error) results.push({ id, ok: false, message: mapPublishRpcError(error) });
             else if (typeof versionId !== 'string') {
                 results.push({ id, ok: false, message: 'Publish returned an unexpected value' });

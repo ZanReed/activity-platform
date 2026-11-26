@@ -9,7 +9,7 @@
 // anything the shell imports.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpcOrThrow } from './db';
 import { MIXED_PRACTICE_RPC } from './mixedPracticeRpc';
 
 /** A skill as the panel shows it: the mirrored label, else the id (W-6). */
@@ -86,28 +86,23 @@ export interface RecentTry {
     mistakes: { id: string; label: string | null }[];
 }
 
-async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-    const { data, error } = await supabase.rpc(fn, args);
-    if (error) throw new Error(error.message);
-    return data as T;
-}
 
 export const fetchMixedSummary = (classId: string) =>
-    call<MixedSummary>(MIXED_PRACTICE_RPC.summary, { p_class_id: classId });
+    rpcOrThrow(MIXED_PRACTICE_RPC.summary, { p_class_id: classId });
 export const fetchMixedStudents = (classId: string) =>
-    call<MixedStudentRow[]>(MIXED_PRACTICE_RPC.students, { p_class_id: classId });
+    rpcOrThrow(MIXED_PRACTICE_RPC.students, { p_class_id: classId });
 export const fetchWhoFirst = (classId: string) =>
-    call<WhoFirst>(MIXED_PRACTICE_RPC.whoFirst, { p_class_id: classId });
+    rpcOrThrow(MIXED_PRACTICE_RPC.whoFirst, { p_class_id: classId });
 export const fetchStudentRecent = (classId: string, studentId: string) =>
-    call<RecentTry[]>(MIXED_PRACTICE_RPC.studentRecent, { p_class_id: classId, p_student_id: studentId });
+    rpcOrThrow(MIXED_PRACTICE_RPC.studentRecent, { p_class_id: classId, p_student_id: studentId });
 export const setMixedPractice = (classId: string, on: boolean) =>
-    call<{ on: boolean; on_at: string | null }>(MIXED_PRACTICE_RPC.setOn, { p_class_id: classId, p_on: on });
+    rpcOrThrow(MIXED_PRACTICE_RPC.setOn, { p_class_id: classId, p_on: on });
 export const setMixedSettings = (classId: string, items: number | null, graded: boolean) =>
-    call<unknown>(MIXED_PRACTICE_RPC.setSettings, { p_class_id: classId, p_items: items, p_graded: graded });
+    rpcOrThrow(MIXED_PRACTICE_RPC.setSettings, { p_class_id: classId, p_items: items, p_graded: graded });
 
 /** 0091: one of the mirrored period lengths, or null for the shortest. */
 export const setClassPeriodMinutes = (classId: string, minutes: number | null) =>
-    call<{ period_minutes: number | null }>(MIXED_PRACTICE_RPC.setPeriodMinutes, {
+    rpcOrThrow(MIXED_PRACTICE_RPC.setPeriodMinutes, {
         p_class_id: classId,
         p_minutes: minutes,
     });

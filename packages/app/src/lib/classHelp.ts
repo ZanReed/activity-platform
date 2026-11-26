@@ -5,7 +5,7 @@
 // lib/helpRequests.ts so none of it reaches the student shell.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 
 export const CLASS_HELP_OPEN_RPC = 'class_help_open';
 export const END_HELP_RPC = 'end_help';
@@ -57,13 +57,13 @@ function toClassHelp(d: unknown): ClassHelp {
 }
 
 export async function fetchClassHelp(classId: string): Promise<ClassHelp> {
-    const { data, error } = await supabase.rpc(CLASS_HELP_OPEN_RPC, { p_class_id: classId });
+    const { data, error } = await rpc(CLASS_HELP_OPEN_RPC, { p_class_id: classId });
     if (error) throw new Error(error.message);
     return toClassHelp(data);
 }
 
 export async function endHelp(requestId: string): Promise<ClassHelp> {
-    const { data, error } = await supabase.rpc(END_HELP_RPC, { p_request_id: requestId });
+    const { data, error } = await rpc(END_HELP_RPC, { p_request_id: requestId });
     if (error) throw new Error(error.message);
     return toClassHelp(data);
 }

@@ -8,7 +8,7 @@
 // and before 0086 is applied the RPCs simply don't exist yet).
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { LIST_DELETED_ACTIVITIES_RPC, LIST_DELETED_CLASSES_RPC } from './edgeFunctions';
 
 export interface DeletedItem {
@@ -20,7 +20,7 @@ export interface DeletedItem {
 }
 
 export async function listDeletedClasses(): Promise<DeletedItem[]> {
-    const { data, error } = await supabase.rpc(LIST_DELETED_CLASSES_RPC);
+    const { data, error } = await rpc(LIST_DELETED_CLASSES_RPC);
     if (error) throw new Error(error.message);
     return ((data ?? []) as { id: string; name: string; deleted_at: string }[]).map((r) => ({
         id: r.id,
@@ -31,7 +31,7 @@ export async function listDeletedClasses(): Promise<DeletedItem[]> {
 }
 
 export async function listDeletedActivities(): Promise<DeletedItem[]> {
-    const { data, error } = await supabase.rpc(LIST_DELETED_ACTIVITIES_RPC);
+    const { data, error } = await rpc(LIST_DELETED_ACTIVITIES_RPC);
     if (error) throw new Error(error.message);
     return ((data ?? []) as { id: string; title: string; deleted_at: string; purge_after: string }[]).map((r) => ({
         id: r.id,
@@ -42,11 +42,11 @@ export async function listDeletedActivities(): Promise<DeletedItem[]> {
 }
 
 export async function restoreClass(classId: string): Promise<void> {
-    const { error } = await supabase.rpc('restore_class', { p_class_id: classId });
+    const { error } = await rpc('restore_class', { p_class_id: classId });
     if (error) throw new Error(error.message);
 }
 
 export async function restoreActivity(activityId: string): Promise<void> {
-    const { error } = await supabase.rpc('restore_activity', { p_activity_id: activityId });
+    const { error } = await rpc('restore_activity', { p_activity_id: activityId });
     if (error) throw new Error(error.message);
 }

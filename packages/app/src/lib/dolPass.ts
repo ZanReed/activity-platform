@@ -6,7 +6,7 @@
 // (scripts/perf-budgets.mjs) pays for every byte a teacher-only helper adds.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { DOL_PASS_STATUS_RPC } from './edgeFunctions';
 import type { CriterionEntry } from './grading';
 
@@ -21,7 +21,7 @@ export interface DolPassRow {
 
 /** Who holds this DoL's pass (empty when the activity grants none). */
 export async function fetchDolPassStatus(activityId: string): Promise<DolPassRow[]> {
-  const { data, error } = await supabase.rpc(DOL_PASS_STATUS_RPC, { p_activity_id: activityId });
+  const { data, error } = await rpc(DOL_PASS_STATUS_RPC, { p_activity_id: activityId });
   if (error) throw new Error(error.message);
   return (data ?? []) as DolPassRow[];
 }
@@ -29,7 +29,7 @@ export async function fetchDolPassStatus(activityId: string): Promise<DolPassRow
 /** The teacher's tick on a rubric primary (set) or the untick of THEIR OWN
  *  tick (clear) — an auto pass is never removed. Audited server-side. */
 export async function setDolPass(checkId: string, passed: boolean): Promise<void> {
-  const { error } = await supabase.rpc('set_dol_pass', { p_check_id: checkId, p_passed: passed });
+  const { error } = await rpc('set_dol_pass', { p_check_id: checkId, p_passed: passed });
   if (error) throw new Error(error.message);
 }
 

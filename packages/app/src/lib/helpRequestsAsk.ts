@@ -3,7 +3,7 @@
 // by the lazy AskTeacher chunk, never by the shell (see lib/helpRequests.ts).
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { ASK_TEACHER_RPC, WITHDRAW_HELP_RPC, toHelpState, type HelpState } from './helpRequests';
 
 /** Why an ask failed, in words a student reads. Never "try again" where
@@ -17,7 +17,7 @@ export function askErrorWords(message: string): string {
 }
 
 export async function askTeacher(versionId: string, sectionId: string): Promise<HelpState> {
-    const { data, error } = await supabase.rpc(ASK_TEACHER_RPC, {
+    const { data, error } = await rpc(ASK_TEACHER_RPC, {
         p_version_id: versionId,
         p_section_id: sectionId,
     });
@@ -26,7 +26,7 @@ export async function askTeacher(versionId: string, sectionId: string): Promise<
 }
 
 export async function withdrawHelp(versionId: string, sectionId: string): Promise<HelpState> {
-    const { data, error } = await supabase.rpc(WITHDRAW_HELP_RPC, {
+    const { data, error } = await rpc(WITHDRAW_HELP_RPC, {
         p_version_id: versionId,
         p_section_id: sectionId,
     });

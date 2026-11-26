@@ -13,6 +13,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { rpc } from './db';
 import { formatListDate } from './classActivities';
 import { MY_CHAIN_HOOKS_RPC } from './edgeFunctions';
 
@@ -35,7 +36,7 @@ export interface MyChainHooks {
 export const NO_CHAIN_HOOKS: MyChainHooks = { activityChains: {}, chains: {} };
 
 export async function fetchMyChainHooks(): Promise<MyChainHooks> {
-    const { data, error } = await supabase.rpc(MY_CHAIN_HOOKS_RPC);
+    const { data, error } = await rpc(MY_CHAIN_HOOKS_RPC);
     if (error) throw new Error(error.message);
     const d = (data ?? {}) as Partial<MyChainHooks>;
     return { activityChains: d.activityChains ?? {}, chains: d.chains ?? {} };

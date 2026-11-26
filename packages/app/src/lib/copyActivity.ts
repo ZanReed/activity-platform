@@ -14,18 +14,6 @@
 import { supabase } from './supabase';
 import { slugify, slugWithSuffix } from './slug';
 
-interface SourceRow {
-    title: string;
-    course: string | null;
-    unit: string | null;
-    description: string | null;
-    tags: string[] | null;
-    pedagogical_role: string | null;
-    /** PP-5: the time is a fact about the content, so a copy keeps it. */
-    minutes: number | null;
-    draft_content: unknown;
-    current_version_id: string | null;
-}
 
 export function copyTitle(title: string): string {
     return `${title} (copy)`;
@@ -39,9 +27,11 @@ export async function copyOwnActivity(sourceId: string, ownerId: string): Promis
         .eq('id', sourceId)
         .single();
     if (error) throw new Error(error.message);
-    const row = src as SourceRow;
+    // Typed by the select itself (review C1 slice 4): the hand-written row this
+    // replaced said `course: string | null`, but the column is NOT NULL.
+    const row = src;
 
-    let content = row.draft_content;
+    let content: unknown = row.draft_content;
     if (content == null && row.current_version_id) {
         const { data: v, error: vErr } = await supabase
             .from('activity_versions')

@@ -27,7 +27,7 @@
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '../lib/supabase';
+import { rpc } from '../lib/db';
 import { labelFor, NOT_QUESTIONS, UNATTRIBUTED } from '../lib/analyticsLabels';
 
 interface AnalyticsKey {
@@ -46,7 +46,7 @@ interface AnalyticsKey {
     students: number;
 }
 
-interface AnalyticsPayload {
+export interface AnalyticsPayload {
     activity_id: string;
     current_version_id: string | null;
     censused: boolean;
@@ -85,9 +85,11 @@ export default function ActivityAnalytics() {
         let cancelled = false;
         async function load() {
             setLoading(true);
-            const { data: result, error: rpcError } = await supabase.rpc(
+            const { data: result, error: rpcError } = await rpc(
                 'get_activity_analytics',
-                { p_activity_id: id },
+                // The route always has :id. Were it missing, '' fails the uuid cast
+                // and shows the RPC's error, as the old omitted argument did.
+                { p_activity_id: id ?? '' },
             );
             if (cancelled) return;
             if (rpcError) {
@@ -98,7 +100,7 @@ export default function ActivityAnalytics() {
                 setData(null);
             } else {
                 setError(null);
-                setData(result as AnalyticsPayload);
+                setData(result);
             }
             setLoading(false);
         }

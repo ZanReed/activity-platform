@@ -8,7 +8,7 @@
 // ⚠ Called only from the LAZY tracker route. Keep it out of the student shell.
 // =============================================================================
 
-import { supabase } from './supabase';
+import { rpc } from './db';
 import { UNIT_TRACKER_RPC } from './unitTrackerRpc';
 
 export type TrackerStatus = 'not_started' | 'learning' | 'keep_practising' | 'passed';
@@ -88,20 +88,20 @@ export function nextLine(unit: StudentTrackerUnit): { text: string; href: string
 }
 
 export async function fetchMyTracker(classId: string): Promise<StudentTrackerUnit[]> {
-    const { data, error } = await supabase.rpc(UNIT_TRACKER_RPC.mine, { p_class_id: classId });
+    const { data, error } = await rpc(UNIT_TRACKER_RPC.mine, { p_class_id: classId });
     if (error) throw error;
-    return (data as { units: StudentTrackerUnit[] }).units;
+    return data!.units;
 }
 
 export async function fetchClassTracker(classId: string): Promise<TeacherTrackerUnit[]> {
-    const { data, error } = await supabase.rpc(UNIT_TRACKER_RPC.teacher, { p_class_id: classId });
+    const { data, error } = await rpc(UNIT_TRACKER_RPC.teacher, { p_class_id: classId });
     if (error) throw error;
-    return (data as { units: TeacherTrackerUnit[] }).units;
+    return data!.units;
 }
 
 /** Empty wording removes the row's wording, which returns it to the fallback. */
 export async function saveTrackerWording(skillId: string, wording: string): Promise<void> {
-    const { error } = await supabase.rpc(UNIT_TRACKER_RPC.setWording, {
+    const { error } = await rpc(UNIT_TRACKER_RPC.setWording, {
         p_skill_id: skillId,
         p_wording: wording,
     });

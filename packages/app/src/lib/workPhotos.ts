@@ -18,6 +18,7 @@
 // =============================================================================
 
 import { supabase, storageBase, supabaseAnonKey } from './supabase';
+import { rpc } from './db';
 
 export const WORK_PHOTO_BUCKET = 'student-work';
 const SIGN_SECONDS = 600;
@@ -70,7 +71,7 @@ export const PHOTO_STATES_CHUNK = 500;
 export async function fetchPhotoStates(activityId: string, photoIds: readonly string[]): Promise<Record<string, PhotoState>> {
   const out: Record<string, PhotoState> = {};
   for (let i = 0; i < photoIds.length; i += PHOTO_STATES_CHUNK) {
-    const { data, error } = await supabase.rpc('work_photo_states', {
+    const { data, error } = await rpc('work_photo_states', {
       p_activity_id: activityId,
       p_photo_ids: photoIds.slice(i, i + PHOTO_STATES_CHUNK),
     });

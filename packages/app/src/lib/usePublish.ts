@@ -24,6 +24,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityDocument } from '@activity/schema';
 import { supabase } from './supabase';
+import { rpc } from './db';
 import { PUBLISH_ACTIVITY_RPC } from './edgeFunctions';
 import { findPublishProblems, type PublishProblem } from './prePublishCheck';
 
@@ -131,7 +132,7 @@ export function usePublish(
 
         // 3. The atomic publish. Runs user-scoped: the RPC checks ownership
         // via can_edit_activity(auth.uid()) internally.
-        const { data: versionId, error } = await supabase.rpc(
+        const { data: versionId, error } = await rpc(
             PUBLISH_ACTIVITY_RPC,
             { p_activity_id: activityId },
         );

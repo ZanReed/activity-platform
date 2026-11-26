@@ -43,7 +43,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rpcCalls, quotedFunctionNames } from '../lib/rpc-calls.mjs';
+import { rpcCalls, quotedFunctionNames, aliasConflicts } from '../lib/rpc-calls.mjs';
 
 /** Calls the scan cannot read, keyed `file:token`. Say why it is safe. */
 export const UNREAD = {
@@ -112,6 +112,7 @@ test('every RPC call names a live function with arguments one overload accepts',
     for (const p of check(c, live)) problems.push(`${c.file}:${c.line} ${p}`);
   }
   assert.deepEqual(problems, [], `\n${problems.join('\n')}\n`);
+  assert.deepEqual(aliasConflicts, [], 'a constant narrowed for the typed client names a different function than its value');
   for (const [k, why] of Object.entries(UNREAD)) {
     assert.ok(unreadSeen.has(k), `UNREAD['${k}'] matches no call any more — remove it`);
     assert.ok(why.length >= 20, `UNREAD['${k}']: say why it is safe`);
