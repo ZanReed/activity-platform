@@ -15,7 +15,8 @@
 // (P8/P11) that a promise in prose guarding a compliance document is not a
 // control.
 //
-// HOW IT WORKS, and its honest limit: it greps the MIGRATION SQL for column
+// HOW IT WORKS, and its honest limit: it reads the MIGRATION SQL (through
+// scripts/lib/migrations.mjs, the shared parser) for column
 // names that name or reference a person, then asserts the data map mentions the
 // owning table. It cannot see a column added outside a migration (a dashboard
 // edit) — the same blind spot every md↔SQL pin in this repo has, and the reason
@@ -32,18 +33,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { REPO as repo, tableColumns, highestMigration } from '../lib/migrations.mjs';
 
-const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dataMap = readFileSync(join(repo, 'docs/compliance/data-map.md'), 'utf8');
-
-const migrationsDir = join(repo, 'supabase/migrations');
-const sql = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith('.sql'))
-    .map((f) => readFileSync(join(migrationsDir, f), 'utf8'))
-    .join('\n');
 
 /**
  * Columns that either NAME a person or point at one. `%_by` catches the
@@ -56,25 +50,20 @@ const PERSON_COLUMN = new RegExp(
 );
 
 /**
- * Tables created by a migration, paired with their column block, so a table is
- * only flagged when one of ITS columns is person-referencing. Non-greedy to the
- * first `);` at line start — the shape every migration in this repo uses.
+ * Tables created by a migration, paired with their column block (the shared
+ * parser, scripts/lib/migrations.mjs, comments excluded), so a table is only
+ * flagged when one of ITS columns is person-referencing; plus `alter table X
+ * add column <person col>` — how 0033 and 0036 added theirs.
  */
-function tablesWithPersonColumns(ddl) {
+function tablesWithPersonColumns() {
     const found = new Set();
-    const re = /create table (?:if not exists )?(\w+)\s*\(([\s\S]*?)\n\);/g;
-    for (const [, table, body] of ddl.matchAll(re)) {
-        if (PERSON_COLUMN.test(body)) found.add(table);
-    }
-    // `alter table X add column <person col>` — how 0033 and 0036 added theirs.
-    const alterRe = /alter table (\w+)\s+add column\s+(\w+)/g;
-    for (const [, table, column] of ddl.matchAll(alterRe)) {
-        if (PERSON_COLUMN.test(column)) found.add(table);
-    }
+    const { created, added } = tableColumns();
+    for (const { table, body } of created) if (PERSON_COLUMN.test(body)) found.add(table);
+    for (const { table, column } of added) if (PERSON_COLUMN.test(column)) found.add(table);
     return found;
 }
 
-const tables = tablesWithPersonColumns(sql);
+const tables = tablesWithPersonColumns();
 
 test('the sweep finds the tables it is supposed to find (guard the guard)', () => {
     // P11: a coverage claim needs its own proof. If the regexes rot, the test
@@ -106,11 +95,7 @@ test('data-map.md states the migration range it mirrors, and it is current', () 
     const claimed = dataMap.match(/Mirrors migrations 0001–\*\*(\d{4})\*\*/);
     assert.ok(claimed, 'data-map.md no longer states the migration range it mirrors');
 
-    const highest = readdirSync(migrationsDir)
-        .filter((f) => /^\d{4}_.*\.sql$/.test(f))
-        .map((f) => f.slice(0, 4))
-        .sort()
-        .at(-1);
+    const highest = highestMigration();
 
     assert.equal(
         claimed[1],

@@ -14,20 +14,26 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slice 1 BUILT
+## Database snapshot and types (review C1) — RULED 2026-11-26 (yes to D1–D8); slices 1–2 BUILT
 
-[docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Slice 1,
-the RPC argument test (`scripts/tests/rpc-arguments.test.mjs`), is built: every call names a live
-function with arguments exactly one overload accepts. Slices 2–5 are ruled but NOT queued (ranking
-is the author's):
-- **Slice 2 — shared migration parser + generated function index (M).** Trigger: the next time a
-  session has to grep for "which file holds this function's live body", or the next restatement of
-  a function already defined 3+ times. It moves the four parsers (rowset-rpc-bounds, rpc-arguments,
-  postgrestHints, data-map-coverage) onto one module. Fix on the way: `rowset-rpc-bounds` keys overloads by ARITY, so a
-  new same-arity overload of a different type replaces the old one in its view (rpc-arguments keys
-  by input types, as Postgres does; found while mutation-testing slice 1).
-- **Slices 3–5 — `db:types` + live diff, typed client, typed ports (M, M–L, S–M).** Trigger: the
-  first result-shape or table-column drift that reaches live or a red integration lane; 3 pays only
+[docs/design/database-snapshot-and-types.md](docs/design/database-snapshot-and-types.md). Built:
+slice 1, the RPC argument test (`scripts/tests/rpc-arguments.test.mjs`); slice 2, the shared parser
+(`scripts/lib/migrations.mjs`, `scripts/lib/rpc-calls.mjs`) under all four migration readers, and the
+generated [docs/function-index.md](docs/function-index.md) (`pnpm db:index`, drift-tested). Moving
+the row-set guard fixed its arity-keyed overloads; the embed-hint test moved from the app's vitest suite
+to `scripts/tests/postgrest-hints.test.mjs` and no longer counts prose like "constraint below" as a
+constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
+- **Eight other tests still read the migrations by hand** (Fable review 2026-11-26):
+  `manually-graded-types`, `dol-optional-gradeable`, `rate-ceiling`, `migrations-index`,
+  `retention-windows`, `glossary-cap` (scripts/tests) and `authContract.test.ts`, `edgeFunctions.test.ts`
+  (app). **One is reading a dead body today:** `dol-optional-gradeable.test.mjs:19` finds the "latest"
+  `dol_optional_block` by the lowercase string `create or replace function dol_optional_block`, but the
+  live one is `0096_photo_grading.sql:493`, written `CREATE OR REPLACE FUNCTION public.…`, so it reads
+  0094's superseded body. Harmless while the two bodies agree. Trigger: the next change to
+  `dol_optional_block`, or any one of these eight going wrong. Fix: give the parser a `body` field and
+  move them onto it.
+- **Slices 3–5 — `db:types` + live diff, typed client, typed ports (M, M–L, S–M).** Proposed trigger:
+  the first result-shape or table-column drift that reaches live or a red integration lane; 3 pays only
   with 4.
 
 ## Walkthrough checks owed (2026-11-21 → 24 session)

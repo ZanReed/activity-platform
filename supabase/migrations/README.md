@@ -2,6 +2,8 @@
 
 Schema for the activity platform. **The applied set is whatever `supabase migration list` reports against the live project — check it, don't trust a range pinned here** (this header has rotted twice by pinning one: it said "0017 queued" after 0017 was live, then "0020 not yet applied" after 0020 was live). Per-migration verification records live in STATE.md; anything genuinely pending appears under STATE.md → "Pending author actions".
 
+**What the migrations add up to today:** [docs/function-index.md](../../docs/function-index.md) — one row per live function with the file and line of its LATEST definition, its arguments, definer/invoker, and its callers. It is generated: **a migration that creates, replaces or drops a function runs `pnpm db:index` in the same commit** (`scripts/tests/function-index.test.mjs` fails on a stale index; no database needed, so a cloud session can do it). `scripts/tests/rpc-arguments.test.mjs` fails if a migration removes or renames a parameter the code still sends. Both read the SQL through one parser, `scripts/lib/migrations.mjs`.
+
 ## Files
 
 | File | What it does |

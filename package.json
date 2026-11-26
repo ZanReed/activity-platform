@@ -17,6 +17,7 @@
     "import:batch": "node --env-file-if-exists=.env.supabase scripts/batch-import.mjs",
     "prompt:catalogue": "node scripts/write-catalogue-prompt.mjs",
     "facts:capabilities": "node scripts/write-capability-facts.mjs",
+    "db:index": "node scripts/function-index.mjs",
     "report:stale": "node --env-file-if-exists=.env.supabase scripts/stale-publications.mjs",
     "verify": "node scripts/verify-local.mjs",
     "verify:auth": "node scripts/verify-runner.mjs",

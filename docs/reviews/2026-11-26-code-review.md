@@ -446,12 +446,17 @@ reviewers reached it independently.
 **Design pass 2026-11-26, all eight decisions RULED yes by the author**
 ([database-snapshot-and-types.md](../design/database-snapshot-and-types.md)).
 **Recommendation 2 BUILT the same day as slice 1:** `scripts/tests/rpc-arguments.test.mjs`
-reads all 128 call sites (119 functions; app, viewer, worker, Edge Functions,
-the local `call()`/`rpc()` helpers and the auth contract's JSON names
-included) and fails on a missing function, an unknown or missing argument, or
-a call two overloads fit. Zero drift today; mutation-tested on 11 cases.
-Slices 2–5 (index, `db:types`, typed client, typed ports) are ruled but not
-queued.
+reads all 157 call sites (126 functions; app, viewer, worker, Edge Functions,
+and — after the slice-2 review — the batch importer and the playtest/e2e
+seeders in `scripts/`) and fails on a missing function, an unknown or missing
+argument, or a call two overloads fit. A completeness check fails if the code
+quotes a function name the scan never saw as a call (that found the photo
+sweep's call, hidden by a nested generic). Zero drift today; mutation-tested.
+**Recommendation 3 BUILT the same day as slice 2:** the generated
+[docs/function-index.md](../function-index.md) (`pnpm db:index`, CI drift test),
+on one shared parser (`scripts/lib/migrations.mjs`) that all four migration
+readers now use. Slices 3–5 (`db:types`, typed client, typed ports) are ruled
+but not queued.
 
 ### C2 Adding one block type touches about 34 places, and the app half is unguarded
 The viewer keys everything off one registry and fails to compile when a type is

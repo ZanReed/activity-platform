@@ -34,11 +34,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { resolve, dirname, relative, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const MIGRATIONS = resolve(ROOT, 'supabase/migrations');
+import { resolve, relative, join } from 'node:path';
+import { REPO as ROOT, functions } from '../lib/migrations.mjs';
 
 /** The reasons. Keyed by function name; the text is read by people, so say
  *  the mechanism, not a number observed once (P11). */
@@ -71,57 +68,15 @@ const NEVER_CALL = [
 ];
 
 // ---- derive: row-set functions from the migrations --------------------------
-export function rowsetFunctions() {
-  const files = readdirSync(MIGRATIONS).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
-  // Keyed by name AND arity, so a scalar overload cannot hide a row-set one
-  // (a name is a row set if ANY of its live overloads is).
-  const latest = new Map(); // `${name}/${arity}` -> { name, rowset, file }
-  const def = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?"?([a-z_0-9]+)"?\s*\(([\s\S]*?)\)\s*returns\s+(setof\b|table\b|[\w.[\]"]+)/gi;
-  const drop = /drop\s+function\s+(?:if\s+exists\s+)?([^;]+);/gi;
-  for (const f of files) {
-    const sql = stripSql(readFileSync(resolve(MIGRATIONS, f), 'utf8'));
-    const events = [];
-    for (const m of sql.matchAll(def)) {
-      events.push({ at: m.index, name: m[1].toLowerCase(), arity: arity(m[2]), rowset: /^(setof|table)$/i.test(m[3]) });
-    }
-    for (const m of sql.matchAll(drop)) {
-      // `drop function a(uuid), b(text, int) cascade;` — every name in the list.
-      for (const d of m[1].matchAll(/(?:public\.)?"?([a-z_0-9]+)"?\s*(\(([^)]*)\))?/gi)) {
-        if (/^(cascade|restrict)$/i.test(d[1])) continue;
-        events.push({ at: m.index, name: d[1].toLowerCase(), arity: d[2] ? arity(d[3]) : null, drop: true });
-      }
-    }
-    events.sort((a, b) => a.at - b.at);
-    for (const e of events) {
-      if (!e.drop) latest.set(`${e.name}/${e.arity}`, { name: e.name, rowset: e.rowset, file: f });
-      else for (const k of [...latest.keys()]) {
-        if (k === `${e.name}/${e.arity}` || (e.arity === null && k.startsWith(`${e.name}/`))) latest.delete(k);
-      }
-    }
-  }
+// Through the shared parser (scripts/lib/migrations.mjs, review C1 slice 2):
+// overloads keyed by input TYPES, as Postgres keys them. A name is a row set
+// if ANY of its live overloads is, so a scalar overload cannot hide one.
+export function rowsetFunctions(root = ROOT) {
   const out = new Map();
-  for (const v of latest.values()) if (v.rowset) out.set(v.name, v);
-  return out;
-}
-
-/** Top-level argument count of a parameter list (types may hold commas, e.g. numeric(10,2)). */
-function arity(params) {
-  let depth = 0, n = params.trim() ? 1 : 0;
-  for (const ch of params) {
-    if (ch === '(') depth++;
-    else if (ch === ')') depth--;
-    else if (ch === ',' && depth === 0) n++;
+  for (const defs of functions(root).live.values()) {
+    for (const d of defs) if (d.rowset && !out.has(d.name)) out.set(d.name, d);
   }
-  return n;
-}
-
-/** Drops comments and single-quoted literals (a `comment on … is '… drop
- *  function x …'` must not drop x). Dollar-quoted bodies stay: a function
- *  body may hold DDL that runs (EXECUTE), and the definitions sit outside them. */
-function stripSql(sql) {
-  // ONE left-to-right pass: a `--` inside a literal is text, and an
-  // apostrophe inside a `--` comment is not a quote.
-  return sql.replace(/'(?:[^']|'')*'|--[^\n]*|\/\*[\s\S]*?\*\//g, (m) => (m.startsWith("'") ? "''" : ''));
+  return out;
 }
 
 // ---- derive: names the code calls --------------------------------------------
