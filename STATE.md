@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** A5, G-2, C1, D1, G-4, vitest 5.1.2, the `problem`/`width` retirement and C5 slices 1–4 are LIVE (record: HISTORY → 2026-11-28). Owed from those: one real `client_errors` row read back (TODOS → Shared data loading). **Database batch BUILT 2026-11-28, all local, nothing live:** B4 `98853000`, D5 `a2b32cd9`, D2+D3 **0108** `7a9b4a28`, B6 **0109** `7e2588b6`, C10 **0110**. Author, in order: apply 0108, 0109, 0110 and run `verify-0108`…`0110` live; then `pnpm deploy:check` and `pnpm deploy:get-activity`, hash-verified; then push; then the dashboard's leaked-password look (B6). Open items: the review log.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** A5, G-2, C1, D1, G-4, vitest 5.1.2, the `problem`/`width` retirement and C5 slices 1–4 are LIVE (record: HISTORY → 2026-11-28). Owed from those: one real `client_errors` row read back (TODOS → Shared data loading). **Database batch LIVE 2026-11-28:** B4 `98853000`, D5 `a2b32cd9`, D2+D3 **0108** `7a9b4a28`, B6 **0109** `7e2588b6`, C10 **0110** `e1107b81`. 0108–0110 applied (live verify 575/0), check-activity + get-activity redeployed and hash-verified byte-identical. Author: push; then the dashboard's leaked-password look (B6). Open items: the review log.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
