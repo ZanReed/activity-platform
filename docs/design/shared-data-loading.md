@@ -1,6 +1,9 @@
 # Shared data loading and failure reporting — design pass (review C5)
 
-**Status: DESIGN PASS, 2026-11-27. Nothing built. Waiting on the author's yes/no per decision (§8).**
+**Status: RULED 2026-11-27 — the author said yes to all eleven decisions (§8) as recommended: 1(a) our
+own `useLoad` shaped like SWR, the library question re-asked at slice 2, slices 1 and 4 built before
+the first February class.**
+**Slice 1 BUILT 2026-11-27:** `lib/useLoad.ts` + `components/LoadStatus.tsx`; both progress pages moved onto it and `useProgressLoad` deleted; 13 rendered-output rows in `__tests__/useLoad.test.tsx` (mutation-tested); `SHELL_EVICTED` holds both modules out of the student shell (0 shell bytes).
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C5. The error-boundary half
 of C5 is BUILT (`AppErrorBoundary`, c9168fdc, pushed 12733c5c). This doc covers the rest: how screens
 load data, and how anyone learns that a load broke. Not in the build queue; ranking is the author's
@@ -41,7 +44,7 @@ counted, not a change in the code.
 |---|---|---|---|
 | P1 | `useEffect` with a local `let cancelled / live / alive` flag, so an answer that lands after you leave is ignored | 50 flags in 34 files (review: 48 in 32; wider match adds `active`, `mounted`, … → 56 in 39) | `routes/Classes.tsx:724`, `routes/Bank.tsx` (5), `routes/StudentViewer.tsx:229` |
 | P2 | A counter ref ("generation" / "seq"), so only the newest answer lands | 6 files | `progress/HelpStrip.tsx:27`, `practice/TodayPanel.tsx:51`, `routes/ClassPlan.tsx:89`, `routes/ActivityResponses.tsx:253-266` (four counters on one screen) |
-| P3 | The one shared loader, `useProgressLoad` (first-load failed vs refused vs refresh failed; keeps the last good data; "Updated 9:41") | 2 routes | `progress/common.tsx:27`, used by `routes/ClassProgress.tsx:65`, `routes/ActivityProgress.tsx:73` |
+| P3 | The one shared loader, `useProgressLoad` (as measured; replaced by `useLoad` in slice 1) (first-load failed vs refused vs refresh failed; keeps the last good data; "Updated 9:41") | 2 routes | `progress/common.tsx:27`, used by `routes/ClassProgress.tsx:65`, `routes/ActivityProgress.tsx:73` |
 | P4 | A module-level promise cache that lives for the page session | 4 | `lib/skillLabels.ts:15`, `lib/misconceptionList.ts:19`, `lib/versionContent.ts:31` (user-keyed), `lib/glossaryService.ts:30` |
 | P5 | Polling with `setInterval` | 4 data polls | `progress/HelpStrip.tsx:59` (15 s, pauses when the tab is hidden), `routes/FactsTeacher.tsx:467` (5 s while a snapshot is open, visible tab only), `components/WorkPhotoViewer.tsx:92` (re-signs photo links every 9 min) |
 | P6 | Fire-and-forget with the failure thrown away | 38 silent promise catches (`.catch(() => undefined)` and friends); 42 `catch {}` blocks with nothing but a comment inside (review counted 87 with a looser rule) | `routes/Classes.tsx:680` (roster counts), `practice/TodayPanel.tsx:83,86`, `progress/HelpStrip.tsx:40` |
@@ -72,7 +75,7 @@ Also: three small shared hooks for one dataset each (`useTeacherClassActivities`
 **What already works, and should be kept**
 - The student viewer (P7) is the most careful loader in the repo and is already tuned to the shell
   budget. It is not a candidate for change.
-- `useProgressLoad` (P3) already has the right shape for teacher screens. It is the seed of the
+- `useProgressLoad` (P3) had the right shape for teacher screens. It is the seed of the
   shared hook, as the review said.
 - The four module caches (P4) already forget a failed read, so a failure is not cached forever
   (`skillLabels.ts:21`, `versionContent.ts:72-76`).
@@ -131,7 +134,7 @@ be safe.
 
 ### Option A — a small in-house hook, `useLoad`, promoted from `useProgressLoad` (recommended)
 
-One hook in `lib/useLoad.ts`, plus one small view (`<LoadState>`) that draws its states the same way
+One hook in `lib/useLoad.ts`, plus one small view (`<LoadStatus>`; the hook's result type is `LoadState`) that draws its states the same way
 on every teacher screen:
 - **latest-wins** built in (the P2 counter, once, tested once);
 - **first load failed** → a plain sentence and a "Try again" button; the server's raw text only under a
@@ -232,7 +235,7 @@ module caches (P4), which can later sit under `useLoad`'s cache but do not need 
 
 ## 6. Slicing plan (each slice ships on its own)
 
-**Slice 1 — the hook, on its two existing users.** Add `lib/useLoad.ts` and `<LoadState>` (promoted
+**Slice 1 — the hook, on its two existing users.** Add `lib/useLoad.ts` and `components/LoadStatus.tsx` (promoted
 from `useProgressLoad`, plus the slow flag, the "Details" toggle and `reportLoadFailure()`, which in
 this slice only writes to the console). Its call shape is SWR's: `useLoad(key, loader)`, where the key
 names the data (`['classProgress', classId]`), so a later swap to SWR changes the import, not the

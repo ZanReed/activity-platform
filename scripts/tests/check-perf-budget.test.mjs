@@ -120,6 +120,8 @@ function makeHealthyDist(overrides = {}) {
         // The two routes R5 moved out of the shell (SHELL_EVICTED).
         'assets/Home-evicted-fixture.js': 'h("p",{"data-list-loading":!0})',
         'assets/JoinClass-evicted-fixture.js': 'h("p",null,"You\'re joining a class")',
+        // The teacher loader (review C5 slice 1, SHELL_EVICTED).
+        'assets/LoadStatus-evicted-fixture.js': 'h("p",{"data-load-status":"loading"})',
     };
     for (const [file, body] of Object.entries(chunks)) {
         writeFileSync(join(dir, file), body);

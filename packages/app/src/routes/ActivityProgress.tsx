@@ -38,15 +38,16 @@ import {
 } from '../lib/classProgress';
 import {
     Controls,
-    LoadFailed,
+    PROGRESS_REFUSED,
     RefreshLine,
     Stat,
     lastCheckWords,
     useHideNames,
     useLeastDoneFirst,
-    useProgressLoad,
     type ProgressOutletContext,
 } from '../progress/common';
+import LoadStatus from '../components/LoadStatus';
+import { useLoad, type LoadState } from '../lib/useLoad';
 import MisconceptionPanel from '../progress/MisconceptionPanel';
 import WrongAnswersPanel from '../progress/WrongAnswersPanel';
 import FirstTriesPanel from '../progress/FirstTriesPanel';
@@ -70,7 +71,7 @@ export default function ActivityProgress() {
     const { id = '', studentId } = useParams();
     const location = useLocation();
     const base = `/activity/${id}/progress`;
-    const loaded = useProgressLoad<Loaded>(async () => {
+    const loaded = useLoad<Loaded>(['activityProgress', id], async () => {
         const [grid, mis, first, passes] = await Promise.all([
             fetchActivityProgress(id),
             fetchMisconceptions(null, id).catch(() => null),
@@ -115,7 +116,7 @@ export default function ActivityProgress() {
             // Tags then read as unknown; the counts still show.
         }
         return { grid, mis, first, descriptions, docs, dolPassed };
-    }, [id]);
+    });
     const [hideNames, setHideNames] = useHideNames();
     const [leastDone, setLeastDone] = useLeastDoneFirst();
 
@@ -174,7 +175,7 @@ function Body({
     here,
     selected,
 }: {
-    loaded: ReturnType<typeof useProgressLoad<Loaded>>;
+    loaded: LoadState<Loaded>;
     hideNames: boolean;
     setHideNames: (on: boolean) => void;
     leastDone: boolean;
@@ -184,15 +185,8 @@ function Body({
     here: string;
     selected: string | null;
 }) {
-    if (loaded.failed) {
-        return <LoadFailed refused={loaded.refused} onRetry={loaded.reload} />;
-    }
     if (!loaded.data) {
-        return (
-            <p role="status" className="text-sm text-muted">
-                Loading…
-            </p>
-        );
+        return <LoadStatus state={loaded} what="progress" refusedText={PROGRESS_REFUSED} />;
     }
     const { grid, mis, first, descriptions, docs, dolPassed } = loaded.data;
     const activityId = grid.activity.id;

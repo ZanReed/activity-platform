@@ -662,6 +662,15 @@ export const SHELL_EVICTED = [
         marker: /You're joining a class/,
         why: 'Only a join link shows it. A visit to /join/… preloads it beside the entry.',
     },
+    // Review C5 slice 1 (2026-11-27, shared-data-loading.md decision 3): the
+    // teacher screens' loader. The student side keeps its own. Two markers, one
+    // per module, so either one alone reaching the entry chunk fails:
+    // LoadStatus's attribute and useLoad's console prefix.
+    {
+        name: 'the teacher loader (useLoad + LoadStatus)',
+        marker: /data-load-status|\[load\] /,
+        why: 'Teacher screens only (decision 3): the student viewer, Home and the practice screens keep their own loaders.',
+    },
 ];
 
 /**

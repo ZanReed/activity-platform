@@ -38,15 +38,16 @@ import {
 } from '../lib/classProgress';
 import {
     Controls,
-    LoadFailed,
+    PROGRESS_REFUSED,
     RefreshLine,
     Stat,
     lastCheckWords,
     useHideNames,
     useLeastDoneFirst,
-    useProgressLoad,
     type ProgressOutletContext,
 } from '../progress/common';
+import LoadStatus from '../components/LoadStatus';
+import { useLoad, type LoadState } from '../lib/useLoad';
 import MisconceptionPanel from '../progress/MisconceptionPanel';
 import { HelpStrip, useClassHelp } from '../progress/HelpStrip';
 import '../styles/teacherTable.css';
@@ -62,13 +63,13 @@ export default function ClassProgress() {
     const { classId = '', studentId, activityId } = useParams();
     const location = useLocation();
     const base = `/classes/${classId}/progress`;
-    const loaded = useProgressLoad<Loaded>(async () => {
+    const loaded = useLoad<Loaded>(['classProgress', classId], async () => {
         const [grid, mis] = await Promise.all([
             fetchClassProgress(classId),
             fetchMisconceptions(classId).catch(() => null),
         ]);
         return { grid, mis };
-    }, [classId]);
+    });
     // DD-4: the class's due dates load BESIDE the grid, never in its way — a
     // slow or failed read only means the labels arrive late or not at all.
     const [due, setDue] = useState<ClassDue | null>(null);
@@ -160,7 +161,7 @@ function Body({
 }: {
     /** S9: `student:activity` keys with an open help request. */
     asking: ReadonlySet<string>;
-    loaded: ReturnType<typeof useProgressLoad<Loaded>>;
+    loaded: LoadState<Loaded>;
     /** DD-4: null until (or unless) the due read lands. */
     due: ClassDue | null;
     hideNames: boolean;
@@ -173,15 +174,8 @@ function Body({
     here: string;
 }) {
     const [copied, setCopied] = useState(false);
-    if (loaded.failed) {
-        return <LoadFailed refused={loaded.refused} onRetry={loaded.reload} />;
-    }
     if (!loaded.data) {
-        return (
-            <p role="status" className="text-sm text-muted">
-                Loading…
-            </p>
-        );
+        return <LoadStatus state={loaded} what="progress" refusedText={PROGRESS_REFUSED} />;
     }
     const { grid, mis } = loaded.data;
     const dueOf = (aid: string) => due?.byActivity.get(aid) ?? null;
