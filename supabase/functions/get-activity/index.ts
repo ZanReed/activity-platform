@@ -48,8 +48,13 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 // Service-role client, shared across requests (stateless REST wrapper).
+// D5 (review 2026-11-26): every client here sets autoRefreshToken: false. In
+// the pinned auth-js a client otherwise starts a 30-second refresh interval
+// that is never cleared — one per request, alive for the isolate's lifetime.
+// None of these clients holds a session to refresh: the service key and the
+// caller's own JWT are fixed headers. (persistSession was already off.)
 const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
+  auth: { persistSession: false, autoRefreshToken: false },
 }) as unknown as EdgeClient;
 
 const db: GetActivityDb = {
@@ -57,7 +62,7 @@ const db: GetActivityDb = {
     // Anon client — get_activity_public_meta is the one anon-callable RPC
     // (postgres-owned DEFINER; 0017 documents the deliberate grant).
     const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as EdgeClient;
     return await anonClient
       .rpc('get_activity_public_meta', { p_activity_id: activityId })
@@ -69,7 +74,7 @@ const db: GetActivityDb = {
     // (the join gate's pre-auth class-name lookup; verify-0028 §A pins the
     // roster at exactly two).
     const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as EdgeClient;
     return await anonClient
       .rpc('get_class_public_meta', { p_join_code: joinCode })
@@ -81,7 +86,7 @@ const db: GetActivityDb = {
     // access rule (authenticated + published + not deleted) — not this file.
     const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as EdgeClient;
     return await userClient
       .rpc('get_published_activity', { p_activity_id: activityId })
@@ -141,7 +146,7 @@ const db: GetActivityDb = {
     // auth.uid() in the SQL. Only reached for a document that has a DoL.
     const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as EdgeClient;
     // jsonb result: its shape is the port's own (the handler validates it).
     return (await userClient.rpc('my_dol_state', {

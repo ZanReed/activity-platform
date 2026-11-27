@@ -57,15 +57,20 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Missing required Supabase environment variables');
 }
 
+// D5 (review 2026-11-26): every client here sets autoRefreshToken: false. In
+// the pinned auth-js a client otherwise starts a 30-second refresh interval
+// that is never cleared — one per request, alive for the isolate's lifetime.
+// None of these clients holds a session to refresh: the service key and the
+// caller's own JWT are fixed headers. (persistSession was already off.)
 const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
+  auth: { persistSession: false, autoRefreshToken: false },
 }) as unknown as EdgeClient;
 
 /** A client that carries the caller's JWT, so the RPC runs AS the caller. */
 function asCaller(authHeader: string) {
   return createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false },
+    auth: { persistSession: false, autoRefreshToken: false },
   }) as unknown as EdgeClient;
 }
 
@@ -75,7 +80,7 @@ const db: CheckActivityDb = {
     // (authenticated + published + the version BELONGS to the activity).
     const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as EdgeClient;
     return await userClient
       .rpc('get_activity_version_for_check', {
@@ -168,7 +173,7 @@ const db: CheckActivityDb = {
     // subject) stays in the port for the handler's own bookkeeping.
     const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     }) as unknown as EdgeClient;
     return await userClient.rpc('my_latest_checks', {
       p_version_id: versionId,
