@@ -52,7 +52,10 @@ function fontsDirectory(): string {
   } catch {
     // import.meta.url unavailable — fall through to the CDN.
   }
-  return `https://cdn.jsdelivr.net/npm/mathlive@${MATHLIVE_VERSION}/dist/fonts`;
+  // The package ships its fonts at `<pkg>/fonts`, not `dist/fonts` (which 404'd
+  // all 20 files in dev until 2026-11-27); tests/mathlive-fonts-dir.test.ts
+  // checks this path against the installed package.
+  return `https://cdn.jsdelivr.net/npm/mathlive@${MATHLIVE_VERSION}/fonts`;
 }
 
 let configured = false;
