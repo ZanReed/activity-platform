@@ -145,6 +145,10 @@ refuses the second check from a document-derived flag the browser cannot omit.
 
 
 
+## Archived from STATE 2026-11-27 — student progress + restore going LIVE (2026-10-15)
+
+**Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
+
 ## Archived from STATE 2026-08-24 — the activity flow modes going LIVE (F11)
 
 The slice itself is [activity-flow-modes.md](design/activity-flow-modes.md)

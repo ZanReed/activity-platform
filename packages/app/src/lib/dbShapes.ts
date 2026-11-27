@@ -108,6 +108,8 @@ export interface JsonShapes {
   open_fact_probe: { probe_id: string };
   /** @shape-as-of 0092 — returns class_plan(), restated in 0092; keys re-read 2026-11-26 */
   reorder_class_plan: ClassPlan;
+  /** @shape-as-of 0107 */
+  report_client_error: { logged: boolean; repeat?: boolean; reason?: 'rate_limited' };
   /** @shape-as-of 0045 */
   save_fact_attempts: SaveResult;
   /** @shape-as-of 0050 */

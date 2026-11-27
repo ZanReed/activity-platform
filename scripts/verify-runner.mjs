@@ -99,6 +99,7 @@ export const AUTH_VERIFY_SET = [
   'verify-0104.sql',
   'verify-0105.sql',
   'verify-0106.sql',
+  'verify-0107.sql',
   'verify-cron-jobs.sql',
   'verify-0071.sql',
   'verify-0072.sql',

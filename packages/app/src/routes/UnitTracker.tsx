@@ -8,6 +8,7 @@
 // The server decides everything (0074); this file formats. Re-reads on open.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {

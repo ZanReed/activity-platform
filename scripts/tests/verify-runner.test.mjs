@@ -200,6 +200,7 @@ test('the cron rows in the real set are the live-only ones, and only they', () =
     'verify-0093.sql:sweep_armed_before_clearance',
     'verify-0093.sql:sweep_schedule_is_pinned_or_absent',
     'verify-0095.sql:prune_is_scheduled_nightly',
+    'verify-0107.sql:prune_is_scheduled_nightly',
     'verify-cron-jobs.sql:analytics_is_scheduled_nightly',
     'verify-cron-jobs.sql:cron_roster_is_known',
     'verify-cron-jobs.sql:purge_is_scheduled_nightly',

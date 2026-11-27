@@ -14,6 +14,24 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
+## Shared data loading (review C5) — RULED 2026-11-27 (yes to all 11); slices 1 and 4 BUILT
+
+Design and rulings: [shared-data-loading.md](docs/design/shared-data-loading.md). Slice 1
+(`useLoad` + `LoadStatus`, the progress pages on it) and slice 4 (the teacher-only error log,
+0107) are built. Left, each with its trigger:
+- **Apply 0107 live, then push** (author; UI that calls a new RPC is pushed only after its
+  migration is live). Then `verify-0107 --target live` (its cron row is live-only) and one real
+  failure on a teacher screen, read back from `client_errors`.
+- **Slice 2 — lists remember and refresh** (Activities, Classes, Bank; decisions 5 and 6).
+  Starts with the library check-in (decision 2): build the shared copy in `useLoad`, or swap in
+  SWR. The class list is fetched by 7 screens today. Trigger: the next change to any of those
+  three screens. Adds the ratchet on hand-written `cancelled/live/alive` flags (50 in 34 files on
+  2026-11-27).
+- **Slice 3 — the ~80 silent catches** (decision 9), after slice 4 so "report it" has somewhere
+  to go. Trigger: slice 2 landed, or the first `client_errors` row that a silent catch hid.
+- **Reading the log:** one saved query for now (newest first, grouped by route + source). A
+  small panel only if the query gets read weekly.
+
 ## Editor round trip: what the editor drops on save (review C3, found 2026-11-26)
 
 `packages/app/src/__tests__/editorRoundTrip.test.ts` holds each as a tracked expected

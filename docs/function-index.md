@@ -1,8 +1,8 @@
 # Function index — GENERATED, do not edit
 
-Every function the migrations leave live in `public`, through **0106**:
-228 overloads of 227 names; 42 return row sets,
-34 are `security invoker`, 125 names are called from the code, and
+Every function the migrations leave live in `public`, through **0107**:
+230 overloads of 229 names; 42 return row sets,
+34 are `security invoker`, 126 names are called from the code, and
 26 names have been defined three or more times. Written by `pnpm db:index`; CI fails
 when it is stale (`scripts/tests/function-index.test.mjs`). The parser and its limits:
 [scripts/lib/migrations.mjs](../scripts/lib/migrations.mjs). Design: review C1,
@@ -164,6 +164,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `photo_handoff_status(p_handoff_id uuid)` | jsonb | definer | [0095_photo_handoff.sql:287](../supabase/migrations/0095_photo_handoff.sql#L287) | 1 | 0095 | viewer, scripts |
 | `photo_ids_of(p_responses jsonb, p_block_id uuid)` | jsonb | invoker | [0096_photo_grading.sql:59](../supabase/migrations/0096_photo_grading.sql#L59) | 1 | — | — |
 | `photos_allowed_for(p_activity_id uuid)` | boolean | definer | [0099_photo_pilot.sql:62](../supabase/migrations/0099_photo_pilot.sql#L62) | 1 | 0097, 0099 | — |
+| `prune_client_errors(p_dry_run? boolean)` | jsonb | definer | [0107_client_errors.sql:152](../supabase/migrations/0107_client_errors.sql#L152) | 1 | 0107 | — |
 | `prune_fact_practice(p_dry_run? boolean)` | jsonb | definer | [0050_fact_sprint.sql:1110](../supabase/migrations/0050_fact_sprint.sql#L1110) | 2 | 0048, 0050 | — |
 | `prune_help_requests(p_dry_run? boolean)` | jsonb | definer | [0090_help_requests.sql:431](../supabase/migrations/0090_help_requests.sql#L431) | 1 | 0090 | — |
 | `prune_mixed_practice(p_dry_run? boolean)` | jsonb | definer | [0066_mixed_practice.sql:1155](../supabase/migrations/0066_mixed_practice.sql#L1155) | 1 | 0066 | — |
@@ -184,6 +185,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `reject_grade_suggestion(p_suggestion_id uuid, p_expected_updated_at timestamp with time zone, p_reason? text)` | jsonb | definer | [0042_grade_suggestions.sql:1220](../supabase/migrations/0042_grade_suggestions.sql#L1220) | 1 | 0042 | app |
 | `release_check_grades(p_activity_id uuid, p_student_id uuid)` | jsonb | definer | [0096_photo_grading.sql:711](../supabase/migrations/0096_photo_grading.sql#L711) | 2 | 0034, 0096 | app |
 | `reorder_class_plan(p_class_id uuid, p_on_date date, p_activity_ids uuid[])` | jsonb | definer | [0088_period_planner.sql:366](../supabase/migrations/0088_period_planner.sql#L366) | 1 | 0088 | app |
+| `report_client_error(p_kind text, p_route text, p_build text, p_source text, p_message text)` | jsonb | definer | [0107_client_errors.sql:78](../supabase/migrations/0107_client_errors.sql#L78) | 1 | 0107 | app |
 | `reserve_photo_for(p_uid uuid, p_activity_id uuid, p_version_id uuid, p_block_id uuid, p_source text)` | uuid | definer | [0095_photo_handoff.sql:103](../supabase/migrations/0095_photo_handoff.sql#L103) | 1 | 0095 | — |
 | `reserve_work_photo(p_activity_id uuid, p_version_id uuid, p_block_id uuid)` | uuid | definer | [0095_photo_handoff.sql:138](../supabase/migrations/0095_photo_handoff.sql#L138) | 2 | 0093, 0094, 0095, 0096, 0097, 0099 | viewer, scripts |
 | `restore_activity(p_activity_id uuid)` | void | definer | [0012_restore_activity.sql:31](../supabase/migrations/0012_restore_activity.sql#L31) | 1 | 0038 | app |

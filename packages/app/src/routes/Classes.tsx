@@ -1,3 +1,4 @@
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';

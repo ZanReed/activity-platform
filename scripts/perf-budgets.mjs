@@ -665,10 +665,11 @@ export const SHELL_EVICTED = [
     // Review C5 slice 1 (2026-11-27, shared-data-loading.md decision 3): the
     // teacher screens' loader. The student side keeps its own. Two markers, one
     // per module, so either one alone reaching the entry chunk fails:
-    // LoadStatus's attribute and useLoad's console prefix.
+    // LoadStatus's attribute, useLoad's console prefix, and the error log's
+    // RPC name (lib/clientErrors.ts, slice 4).
     {
         name: 'the teacher loader (useLoad + LoadStatus)',
-        marker: /data-load-status|\[load\] /,
+        marker: /data-load-status|\[load\] |report_client_error/,
         why: 'Teacher screens only (decision 3): the student viewer, Home and the practice screens keep their own loaders.',
     },
 ];

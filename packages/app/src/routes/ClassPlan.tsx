@@ -12,6 +12,7 @@
 // step 4b (PP-7, PP-10, PP-2's last day).
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';

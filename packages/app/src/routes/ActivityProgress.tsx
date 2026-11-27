@@ -12,6 +12,7 @@
 // A cell opens the same answer panel as the class page (DR-5).
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';

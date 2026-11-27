@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md): A5, G-2 and C1 LIVE, CI green at `5591edaa`** (A5: 0104 + 0106; G-2: 0105, bundles hash-identical; B1 purge DECLINED, [plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept; C1, [design](docs/design/database-snapshot-and-types.md): five slices + `deno check`, functions redeployed). Per-migration duties: `pnpm db:index`, `pnpm db:types` (CLAUDE.md). **D1 LIVE:** no graph-kit barrel imports (guarded); data plot 6.4 KiB gz, was 307. **vitest 5.1.2 LIVE (`f1cd747c`, green):** forks pool ends Node 24 SIGABRT; criticals cleared. **G-4 guards LIVE, CI green at `577cc68d`:** C3 round trip, C8 frozen documents, C2 touch list, C6 family bond; findings in TODOS. Chart/video/figure bar only, pushed. Open items: the review log.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md): A5, G-2 and C1 LIVE, CI green at `5591edaa`** (A5: 0104 + 0106; G-2: 0105, bundles hash-identical; B1 purge DECLINED, [plan](docs/reviews/2026-11-26-b1-history-purge-plan.md) kept; C1, [design](docs/design/database-snapshot-and-types.md): five slices + `deno check`, functions redeployed). Per-migration duties: `pnpm db:index`, `pnpm db:types` (CLAUDE.md). **D1 LIVE:** no graph-kit barrel imports (guarded); data plot 6.4 KiB gz, was 307. **vitest 5.1.2 LIVE (`f1cd747c`, green):** forks pool ends Node 24 SIGABRT; criticals cleared. **G-4 guards LIVE, CI green at `577cc68d`:** C3 round trip, C8 frozen documents, C2 touch list, C6 family bond; findings in TODOS. Chart/video/figure bar only, pushed. **C5 RULED 2026-11-27** (yes to all 11, [design](docs/design/shared-data-loading.md)): slice 1 (`useLoad`) and slice 4 (teacher-only error log, **0107**) BUILT, unpushed. **Apply 0107 live BEFORE pushing**, then `verify-0107 --target live` (TODOS → Shared data loading). Open items: the review log.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
@@ -46,7 +46,7 @@ Author-only: pushes, deploys, migrations.
 
 **Superscript units LIVE (2026-10-17)**, hash-verified, stamp `201a0a29`. **HELD: B-184** until a curriculum session runs (content: [superscript-units.md](docs/design/superscript-units.md)).
 
-**Student progress + restore are LIVE (2026-10-15)** ([student-experience-review.md](docs/design/student-experience-review.md) → As built): 0059 + 0060 applied and verified live (verify-0059/0060/0020/0040), Fable review done (no P0/P1; F1/F4/F6 fixed in 0060, F2/F3/F5 in TODOS), check-activity redeployed and hash-verified (bundle `00591bf8…`), pushed at 8b534455, CI green. **NEXT:** the walkthrough; its [checklist](https://claude.ai/artifact/WEUxCETSsyXK8x5nmH5ohH) `steps` was EMPTY when read 2026-10-15 (marks may be device-local). Prune UNSCHEDULED (ask before 2027-01-10).
+**Number-facts prune** (0048): UNSCHEDULED by ruling; ask before 2027-01-10.
 
 **D43 practice banks LIVE** (0058; chain 1 ratified, 21 items; record: [practice-banks.md](docs/design/practice-banks.md) → As built). `--allow-unretire` ruled.
 

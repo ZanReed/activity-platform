@@ -15,6 +15,7 @@
 //   * no student surface of any kind.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { supabase } from '../lib/supabase';

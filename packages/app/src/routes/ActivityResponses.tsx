@@ -46,6 +46,7 @@
 //    queue still loads — drafts are advisory, grading is the product.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { HIDE_NAMES_KEY, pseudonyms, readFlag, safeProgressPath, writeFlag } from '../lib/classProgress';

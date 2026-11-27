@@ -17,6 +17,7 @@
 // for the next revision.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import type { Json } from '@activity/db-types';
 import { useSession } from '../lib/SessionContext';
 import { usePhotoPilot } from '../lib/photoPilot';

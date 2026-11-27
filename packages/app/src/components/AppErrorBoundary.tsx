@@ -12,8 +12,10 @@
 // instead of leaving every later page poisoned.
 //
 // It sits in the student shell, so it is deliberately tiny: no icons, no
-// copy module, no reporting call (a teacher-side error log needs a ruling;
-// review C5).
+// copy module, and no reporting CODE. It only dispatches `app-render-threw`
+// on window (RENDER_THREW_EVENT in lib/clientErrors.ts, the teacher-only
+// error log, review C5 slice 4). That module is loaded by teacher routes
+// alone, so on a student's page nobody is listening and nothing is sent.
 // =============================================================================
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
@@ -41,6 +43,9 @@ export default class AppErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[app] a page failed to render:', error, info.componentStack);
+    // The string must equal RENDER_THREW_EVENT (lib/clientErrors.ts); an
+    // import would pull that module into the shell. clientErrors.test.ts pins it.
+    dispatchEvent(new CustomEvent('app-render-threw', { detail: error }));
   }
 
   override render() {

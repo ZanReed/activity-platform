@@ -13,6 +13,7 @@
 // grader attached, and under a wrong answer only, "Answer: …" (DR-6).
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { isManuallyGraded } from '@activity/schema';
 import { dolOptionalBlockIds } from '@activity/viewer';
 import { useEffect, useRef, useState } from 'react';

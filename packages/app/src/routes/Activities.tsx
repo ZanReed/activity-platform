@@ -1,3 +1,4 @@
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import type { Json } from '@activity/db-types';
 import { Link, useLocation, useNavigate } from 'react-router';

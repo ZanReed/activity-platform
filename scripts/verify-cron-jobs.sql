@@ -7,8 +7,8 @@
 -- by hand from commented SQL and no verify row named them, so a rebuilt or
 -- branched project would silently run no retention job at all and every
 -- verify script would stay green. These rows pin each job's name, hour,
--- command and active flag as read live on 2026-11-26, the way verify-0090 and
--- verify-0095 pin theirs. A deliberate change to either job edits THIS file in
+-- command and active flag as read live on 2026-11-26, the way verify-0090, verify-0095 and
+-- verify-0107 pin theirs. A deliberate change to either job edits THIS file in
 -- the same step (the README's "After the migrations are applied" is the
 -- recipe).
 --
@@ -51,10 +51,10 @@ select 'analytics_is_scheduled_nightly',
 select 'cron_roster_is_known',
        not exists (select 1 from cron.job
                     where jobname is null or jobname not in ('purge-soft-deleted', 'analytics-maintenance',
-                                          'prune-help-requests', 'prune-photo-handoffs',
+                                          'prune-help-requests', 'prune-photo-handoffs', 'prune-client-errors',
                                           'sweep-work-photo-rows', 'sweep-work-photos')),
        coalesce('unknown job(s): ' || (select string_agg(coalesce(jobname, '<unnamed #' || jobid || '>'), ', ' order by jobid) from cron.job
                 where jobname is null or jobname not in ('purge-soft-deleted', 'analytics-maintenance',
-                                      'prune-help-requests', 'prune-photo-handoffs',
+                                      'prune-help-requests', 'prune-photo-handoffs', 'prune-client-errors',
                                       'sweep-work-photo-rows', 'sweep-work-photos')),
                 'every cron job is one this repo names');

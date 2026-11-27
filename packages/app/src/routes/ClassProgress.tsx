@@ -14,6 +14,7 @@
 // Every scope rule is 0061's (verify-0061); this file formats.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { dueWords, fetchClassDue, isPastDue, type ClassDue } from '../lib/dueDates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gradebookCsv, gradebookFileName } from '../lib/progressCsv';

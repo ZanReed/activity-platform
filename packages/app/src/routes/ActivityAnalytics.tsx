@@ -24,6 +24,7 @@
 // analytics_job_runs instead, so it still reaches someone who can fix it.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';

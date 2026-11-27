@@ -15,6 +15,7 @@
 // reorder them).
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { FILTER_KEYS, topicGroups } from '../lib/listFilters';
 import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';

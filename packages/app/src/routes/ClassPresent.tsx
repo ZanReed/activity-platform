@@ -12,6 +12,7 @@
 // the class's Today & practice page.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';

@@ -30,6 +30,7 @@
 // Every number is the server's (fact_probe_results); this file formats it.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { listClasses } from '../lib/classes';

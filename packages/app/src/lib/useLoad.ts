@@ -64,9 +64,16 @@ export interface LoadFailure {
     error: unknown;
 }
 
-/** Where every failed load is reported. Slice 1: the console only. */
+/** Where every failed load is reported: the console, and the teacher-only
+ *  error log (slice 4, lib/clientErrors.ts — which checks the role itself).
+ *  Loaded on demand: the teacher journeys' size caps (perf-budgets.mjs →
+ *  TEACHER_JOURNEYS) count static imports, and the log never blocks a page. */
 export function reportLoadFailure(failure: LoadFailure): void {
     console.warn(`[load] ${failure.what}: ${failure.kind}`, failure.error);
+    void import('./clientErrors').then(
+        (m) => m.reportClientError({ kind: failure.kind, source: failure.what || null, error: failure.error }),
+        () => undefined,
+    );
 }
 
 function messageOf(e: unknown): string {

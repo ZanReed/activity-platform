@@ -38,6 +38,7 @@
 // about what a block looks like, they only disagree about the paper.
 // =============================================================================
 
+void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import type { Json } from '@activity/db-types';
 import { trackRowWrite } from '../lib/pendingRowWrites';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
