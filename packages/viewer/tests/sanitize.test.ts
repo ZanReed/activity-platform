@@ -372,7 +372,24 @@ describe('schema-vs-registry secret completeness (future-block guard)', () => {
 // -----------------------------------------------------------------------------
 
 describe('serve-time shuffles (deterministic per version + student)', () => {
-  const sanitized = sanitizeActivityDocument(fullyLoadedDocument());
+  // The shuffle is sub-seeded with the BLOCK ID, and the fixture mints a fresh
+  // crypto.randomUUID() per run, so with the fixture's id these permutations
+  // were re-dealt every run and 'differs across students' failed about 1 run
+  // in 353 (two random deals of 6 items coinciding; measured 2026-11-27 over
+  // 200,000 ids). Pin the id so every run deals the SAME permutations.
+  const ORDERING_ID = '00000000-0000-4000-8000-0000000000aa';
+  const sanitized = sanitizeActivityDocument(
+    (() => {
+      const doc = fullyLoadedDocument();
+      const ordering = doc.sections
+        .flatMap((s) => s.rows)
+        .flatMap((r) => r.columns.flatMap((c) => c.blocks))
+        .find((b) => b.type === 'ordering');
+      if (!ordering) throw new Error('fixture lost its ordering block');
+      ordering.id = ORDERING_ID;
+      return doc;
+    })(),
+  );
   const orderingTexts = (doc: SanitizedActivityDocument): string[] => {
     const ordering = doc.sections[0]!.rows
       .flatMap((r) => r.columns.flatMap((c) => c.blocks))
@@ -382,6 +399,13 @@ describe('serve-time shuffles (deterministic per version + student)', () => {
     return ordering.items.map((i) => i.content[0]?.text ?? '');
   };
   const authored = orderingTexts(sanitized);
+
+  it('seeds from the pinned ordering id (a random id makes this suite flaky)', () => {
+    const ordering = sanitized.sections[0]!.rows
+      .flatMap((r) => r.columns.flatMap((c) => c.blocks))
+      .find((b) => b.type === 'ordering') as { id?: string } | undefined;
+    expect(ordering?.id).toBe(ORDERING_ID);
+  });
 
   it('serves a permutation, not the authored order (the order IS the key)', () => {
     const served = orderingTexts(applyServeShuffles(sanitized, 'v1:student-a'));
@@ -399,8 +423,8 @@ describe('serve-time shuffles (deterministic per version + student)', () => {
     const a = orderingTexts(applyServeShuffles(sanitized, 'v1:student-a'));
     const b = orderingTexts(applyServeShuffles(sanitized, 'v1:student-b'));
     const c = orderingTexts(applyServeShuffles(sanitized, 'v2:student-a'));
-    // Deterministic seeds — these particular permutations of 6 items differ
-    // (verified once; the PRNG is fixed, so this can never flake).
+    // Deterministic only because ORDERING_ID is pinned above: the seed is
+    // (version, student, block id), and these permutations of 6 items differ.
     expect(a).not.toEqual(b);
     expect(a).not.toEqual(c);
   });
