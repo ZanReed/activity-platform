@@ -1,6 +1,6 @@
 # Function index — GENERATED, do not edit
 
-Every function the migrations leave live in `public`, through **0110**:
+Every function the migrations leave live in `public`, through **0111**:
 231 overloads of 230 names; 42 return row sets,
 35 are `security invoker`, 126 names are called from the code, and
 26 names have been defined three or more times. Written by `pnpm db:index`; CI fails
@@ -23,9 +23,9 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `analytics_rolled_boundary()` | timestamp with time zone | invoker | [0036_check_rollup.sql:206](../supabase/migrations/0036_check_rollup.sql#L206) | 1 | 0036, 0109 | — |
 | `ask_teacher(p_version_id uuid, p_section_id text)` | jsonb | definer | [0090_help_requests.sql:229](../supabase/migrations/0090_help_requests.sql#L229) | 1 | 0090 | app |
 | `bank_version_is_assessment(p_version_id uuid)` | boolean | definer | [0054_activity_bank.sql:94](../supabase/migrations/0054_activity_bank.sql#L94) | 1 | 0054 | — |
-| `can_access_assignment(p_assignment_id uuid)` | boolean | invoker | [0009_security_housekeeping.sql:187](../supabase/migrations/0009_security_housekeeping.sql#L187) | 2 | 0109 | — |
-| `can_edit_activity(p_activity_id uuid)` | boolean | invoker | [0009_security_housekeeping.sql:172](../supabase/migrations/0009_security_housekeeping.sql#L172) | 2 | 0034, 0037, 0042, 0054, 0093, image-storage | — |
-| `can_read_activity(p_activity_id uuid)` | boolean | invoker | [0009_security_housekeeping.sql:157](../supabase/migrations/0009_security_housekeeping.sql#L157) | 2 | 0020, 0030, 0034, 0036, 0042, 0043, 0054, 0061, 0093, 0109 | — |
+| `can_access_assignment(p_assignment_id uuid)` | boolean | invoker | [0009_security_housekeeping.sql:187](../supabase/migrations/0009_security_housekeeping.sql#L187) | 2 | 0109, 0111 | — |
+| `can_edit_activity(p_activity_id uuid)` | boolean | invoker | [0009_security_housekeeping.sql:172](../supabase/migrations/0009_security_housekeeping.sql#L172) | 2 | 0034, 0037, 0042, 0054, 0093, 0111, image-storage | — |
+| `can_read_activity(p_activity_id uuid)` | boolean | invoker | [0009_security_housekeeping.sql:157](../supabase/migrations/0009_security_housekeeping.sql#L157) | 2 | 0020, 0030, 0034, 0036, 0042, 0043, 0054, 0061, 0093, 0109, 0111 | — |
 | `claim_grade_suggestions(p_limit? integer, p_lease_minutes? integer, p_prompt_rev? integer, p_schema_rev? integer, p_model_id? text, p_study? boolean, p_study_check_ids? uuid[], p_teacher_id? uuid)` | jsonb | definer | [0042_grade_suggestions.sql:552](../supabase/migrations/0042_grade_suggestions.sql#L552) | 1 | 0042, 0096 | worker |
 | `claim_teacher(p_attestation_version text)` | jsonb | definer | [0033_pending_admission.sql:259](../supabase/migrations/0033_pending_admission.sql#L259) | 1 | 0033 | app |
 | `class_gradebook(p_class_id uuid)` | jsonb | definer | [0102_class_gradebook.sql:58](../supabase/migrations/0102_class_gradebook.sql#L58) | 1 | 0102 | app |
@@ -46,8 +46,8 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `confirm_grade_suggestion(p_suggestion_id uuid, p_expected_updated_at timestamp with time zone, p_criteria jsonb, p_general_feedback text, p_struck_mis? jsonb)` | jsonb | definer | [0042_grade_suggestions.sql:1100](../supabase/migrations/0042_grade_suggestions.sql#L1100) | 1 | 0042 | app |
 | `copy_bank_activity(p_activity_id uuid)` | uuid | definer | [0088_period_planner.sql:37](../supabase/migrations/0088_period_planner.sql#L37) | 2 | 0054, 0055, 0057, 0088 | app |
 | `create_class(p_name text, p_expected_domain text, p_assertion_text_version text, p_includes_under_13? boolean)` | jsonb | definer | [0053_class_age_statement.sql:52](../supabase/migrations/0053_class_age_statement.sql#L52) | 3 | 0013-0014, 0027, 0033, 0053 | app, scripts |
-| `current_user_is_admin()` | boolean | definer | [0018_users_policy_recursion.sql:67](../supabase/migrations/0018_users_policy_recursion.sql#L67) | 1 | — | — |
-| `current_user_is_teacher()` | boolean | definer | [0013_student_identity.sql:114](../supabase/migrations/0013_student_identity.sql#L114) | 1 | 0013-0014, 0033 | — |
+| `current_user_is_admin()` | boolean | definer | [0018_users_policy_recursion.sql:67](../supabase/migrations/0018_users_policy_recursion.sql#L67) | 1 | 0111 | — |
+| `current_user_is_teacher()` | boolean | definer | [0013_student_identity.sql:114](../supabase/migrations/0013_student_identity.sql#L114) | 1 | 0013-0014, 0033, 0111 | — |
 | `discard_work_photo(p_id uuid)` | boolean | definer | [0094_photo_attach.sql:93](../supabase/migrations/0094_photo_attach.sql#L93) | 1 | 0094 | viewer, scripts |
 | `dol_optional_block(p_section jsonb, p_block_id text)` | boolean | invoker | [0096_photo_grading.sql:493](../supabase/migrations/0096_photo_grading.sql#L493) | 4 | 0075, 0094, 0096 | — |
 | `dol_pass_skill(p_activity_id uuid)` | text | definer | [0070_dol_retake.sql:128](../supabase/migrations/0070_dol_retake.sql#L128) | 1 | 0070, 0102, 0106 | — |
@@ -110,8 +110,8 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `help_target_classes(p_activity_id uuid)` | setof uuid | definer | [0090_help_requests.sql:126](../supabase/migrations/0090_help_requests.sql#L126) | 1 | 0090 | — |
 | `iana_zone_is_valid(p_zone text)` | boolean | definer | [0063_zone_name_lookup.sql:61](../supabase/migrations/0063_zone_name_lookup.sql#L61) | 1 | 0063 | — |
 | `is_bank_lister()` | boolean | definer | [0054_activity_bank.sql:78](../supabase/migrations/0054_activity_bank.sql#L78) | 1 | 0054 | app |
-| `is_class_member(p_class_id uuid)` | boolean | definer | [0014_classes.sql:127](../supabase/migrations/0014_classes.sql#L127) | 1 | 0013-0014, 0109 | — |
-| `is_class_teacher(p_class_id uuid)` | boolean | definer | [0027_admission_gate_hardening.sql:119](../supabase/migrations/0027_admission_gate_hardening.sql#L119) | 2 | 0013-0014, 0092, 0102, 0109 | — |
+| `is_class_member(p_class_id uuid)` | boolean | definer | [0014_classes.sql:127](../supabase/migrations/0014_classes.sql#L127) | 1 | 0013-0014, 0109, 0111 | — |
+| `is_class_teacher(p_class_id uuid)` | boolean | definer | [0027_admission_gate_hardening.sql:119](../supabase/migrations/0027_admission_gate_hardening.sql#L119) | 2 | 0013-0014, 0092, 0102, 0109, 0111 | — |
 | `is_manually_graded_type(p_type text)` | boolean | invoker | [0096_photo_grading.sql:41](../supabase/migrations/0096_photo_grading.sql#L41) | 1 | 0096 | — |
 | `join_class(p_join_code text)` | jsonb | definer | [0033_pending_admission.sql:387](../supabase/migrations/0033_pending_admission.sql#L387) | 3 | 0013-0014, 0025, 0027, 0030, 0033 | app, scripts |
 | `list_bank()` | table(id, title, description, course, unit, tags, pedagogical_role, activity_type, source_path, has_guide, version_num, published_at, author_name) | definer | [0056_bank_teaching_order.sql:21](../supabase/migrations/0056_bank_teaching_order.sql#L21) | 3 | 0054, 0055, 0056, 0106 | — |
