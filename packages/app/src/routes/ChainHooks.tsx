@@ -20,7 +20,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useParams } from 'react-router';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
-import { listClasses, type ClassInfo } from '../lib/classes';
+import { useClassList } from '../lib/classList';
 import { sortForOutline, unitOf } from '../lib/activityGrouping';
 import { classLocalDate } from '../lib/dueDates';
 import {
@@ -78,8 +78,6 @@ export default function ChainHooks() {
     const [hooks, setHooks] = useState<MyChainHooks | null>(null);
     const [hooksFailed, setHooksFailed] = useState(false);
     const [activities, setActivities] = useState<ChainActivity[]>([]);
-    const [classes, setClasses] = useState<ClassInfo[] | null>(null);
-    const [classesFailed, setClassesFailed] = useState(false);
     const [classId, setClassId] = useState<string>('');
     const [marks, setMarks] = useState<Record<string, string>>({});
     // PP-7: a mark's date is the CLASS's day (its teacher's zone), not the
@@ -142,22 +140,18 @@ export default function ChainHooks() {
         void loadHooks();
     }, [loadHooks]);
 
+    // The shared class list (lib/classList.ts). The stored choice is applied
+    // once, the first time the list is in hand.
+    const classList = useClassList();
+    const classes = classList.data;
+    const classesFailed = classList.failed;
+    const storedApplied = useRef(false);
     useEffect(() => {
-        let cancelled = false;
-        listClasses()
-            .then((list) => {
-                if (cancelled) return;
-                setClasses(list);
-                const stored = readStoredClass();
-                if (stored && list.some((c) => c.id === stored)) setClassId(stored);
-            })
-            .catch(() => {
-                if (!cancelled) setClassesFailed(true);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        if (!classes || storedApplied.current) return;
+        storedApplied.current = true;
+        const stored = readStoredClass();
+        if (stored && classes.some((c) => c.id === stored)) setClassId(stored);
+    }, [classes]);
 
     useEffect(() => {
         setMarks({});

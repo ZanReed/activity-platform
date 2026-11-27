@@ -1,5 +1,4 @@
 import {
-    createContext,
     useCallback,
     useContext,
     useEffect,
@@ -9,6 +8,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from './supabase';
+import { SessionContext } from './sessionContextObject';
 
 /** 'pending' (0033 R1) is a real, CONTAINED role, not a loading state: the
  *  account exists and holds nothing. roleStatus stays 'ready' for it — the
@@ -30,7 +30,7 @@ export type UserRole = 'teacher' | 'student' | 'admin' | 'pending';
  */
 export type RoleStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
-interface SessionContextValue {
+export interface SessionContextValue {
     session: Session | null;
     loading: boolean;
     /** UX-only trust: every data surface stays RLS-gated server-side. A stale
@@ -41,7 +41,6 @@ interface SessionContextValue {
     retryRole: () => void;
 }
 
-const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
 /** Same user holding the same access token: nothing a consumer could act on. */
 export function sameSession(a: Session | null, b: Session | null): boolean {

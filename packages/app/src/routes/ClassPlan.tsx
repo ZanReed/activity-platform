@@ -18,7 +18,7 @@ import { Link, useParams } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import TimezoneControl from '../components/TimezoneControl';
 import { formatActivityMinutes } from '../lib/activityMinutes';
-import { listClasses } from '../lib/classes';
+import { useClassInfo } from '../lib/classList';
 import { listTeacherClassActivities, type TeacherClassActivity } from '../lib/classActivities';
 import {
     addDays,
@@ -67,7 +67,7 @@ const LINK = 'text-xs font-medium text-muted underline underline-offset-2 hover:
 
 export default function ClassPlan() {
     const { classId = '' } = useParams();
-    const [className, setClassName] = useState<string | null>(null);
+    const className = useClassInfo(classId)?.name ?? null; // the shared class list
     const [start, setStart] = useState<string | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -143,9 +143,6 @@ export default function ClassPlan() {
         void fetchMyChainHooks()
             .then(setHooks)
             .catch(() => setHooks(null));
-        void listClasses()
-            .then((all) => setClassName(all.find((c) => c.id === classId)?.name ?? null))
-            .catch(() => setClassName(null));
         void loadOptions();
         // The total's parts: either read failing leaves that part out.
         void Promise.all([

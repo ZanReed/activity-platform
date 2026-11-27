@@ -22,9 +22,11 @@
 // every checkbox read the same server truth.
 // =============================================================================
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { listClasses, type ClassInfo } from '../lib/classes';
+import type { ClassInfo } from '../lib/classes';
+import { CLASS_LIST_KEY, useClassList } from '../lib/classList';
+import { reloadKey } from '../lib/useLoad';
 import {
     addActivitiesToClass,
     listTeacherClassActivities,
@@ -41,34 +43,42 @@ export interface ClassMembership {
 }
 
 /** The page-level membership data (A6). Errors leave status 'error'; the
- *  page renders without membership lines and the panel says it could not load. */
+ *  page renders without membership lines and the panel says it could not load.
+ *  The classes are the shared list (lib/classList.ts, review C5 slice 2): a
+ *  class made or renamed on another screen is already here. */
 export function useClassMembership(): ClassMembership {
-    const [status, setStatus] = useState<ClassMembership['status']>('loading');
-    const [classes, setClasses] = useState<ClassInfo[]>([]);
+    const list = useClassList();
+    const [rowsStatus, setRowsStatus] = useState<ClassMembership['status']>('loading');
     const [rows, setRows] = useState<TeacherClassActivity[]>([]);
 
-    const reload = useCallback(async () => {
+    const loadRows = useCallback(async () => {
         try {
-            const [nextClasses, nextRows] = await Promise.all([
-                listClasses(),
-                listTeacherClassActivities(),
-            ]);
-            // Name order: a teacher finds "7B" by reading, not by creation date.
-            setClasses(
-                [...nextClasses].sort((a, b) =>
-                    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
-                ),
-            );
-            setRows(nextRows);
-            setStatus('ready');
+            setRows(await listTeacherClassActivities());
+            setRowsStatus('ready');
         } catch {
-            setStatus('error');
+            setRowsStatus('error');
         }
     }, []);
 
     useEffect(() => {
-        void reload();
-    }, [reload]);
+        void loadRows();
+    }, [loadRows]);
+
+    const reload = useCallback(async () => {
+        reloadKey(CLASS_LIST_KEY);
+        await loadRows();
+    }, [loadRows]);
+
+    // Name order: a teacher finds "7B" by reading, not by creation date.
+    const classes = useMemo(
+        () =>
+            [...(list.data ?? [])].sort((a, b) =>
+                a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+            ),
+        [list.data],
+    );
+    const status: ClassMembership['status'] =
+        list.failed || rowsStatus === 'error' ? 'error' : list.data && rowsStatus === 'ready' ? 'ready' : 'loading';
 
     return { status, classes, rows, reload };
 }

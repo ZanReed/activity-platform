@@ -16,7 +16,7 @@ void import('../lib/clientErrors'); // the teacher-only error log, loaded beside
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
-import { listClasses, type ClassInfo } from '../lib/classes';
+import { useClassInfo } from '../lib/classList';
 import { fetchClassToday, type ClassToday } from '../lib/classToday';
 import {
     dayBlocks,
@@ -46,7 +46,8 @@ export default function ClassPresent() {
             ? PRESENT_FROM_CLASSES
             : facts;
 
-    const [cls, setCls] = useState<ClassInfo | null>(null);
+    // The shared class list (lib/classList.ts): a missing name just reads "Today".
+    const cls = useClassInfo(classId, isTeacher);
     const [today, setToday] = useState<ClassToday | null>(null);
     const [failed, setFailed] = useState(false);
     const [detail, setDetail] = useState<ClassPlan | null>(null);
@@ -71,9 +72,6 @@ export default function ClassPresent() {
                     .catch(() => undefined);
             })
             .catch(() => live && setFailed(true));
-        listClasses()
-            .then((all) => live && setCls(all.find((c) => c.id === classId) ?? null))
-            .catch(() => undefined);
         fetchMyChainHooks()
             .then((h) => live && setHooks(h))
             .catch(() => undefined);

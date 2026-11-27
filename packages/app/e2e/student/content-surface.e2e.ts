@@ -144,7 +144,7 @@ async function openPanel(page: Page): Promise<void> {
 test.describe('teacher share surface (board 3a/3b)', () => {
   test('share → row appears; unshare → gone; the STUDENT list mirrors both', async ({
     page,
-    context,
+    browser,
   }) => {
     const state = freshState();
     await signInAs(page, { userId: TEACHER_ID });
@@ -162,8 +162,13 @@ test.describe('teacher share surface (board 3a/3b)', () => {
     expect(state.shared).toEqual([E2E_ACTIVITY_ID]);
 
     // THE MIRROR: a student session (separate page, same stub state) sees the
-    // row on Home — the DR-1 verification affordance made literal.
-    const studentPage = await context.newPage();
+    // row on Home — the DR-1 verification affordance made literal. Its own
+    // browser CONTEXT, as a student's own device: a page in the teacher's
+    // context shares its localStorage, so signing the student in there would
+    // switch the teacher's tab to the student too (and lib/useLoad.ts then,
+    // correctly, forgets the teacher's copies — review C5 slice 2).
+    const studentContext = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+    const studentPage = await studentContext.newPage();
     await signInAs(studentPage, { userId: STUDENT_ID });
     await stubIdentityApi(studentPage, {
       role: 'student',
@@ -188,7 +193,7 @@ test.describe('teacher share surface (board 3a/3b)', () => {
     await expect(
       studentPage.getByText("Nothing here yet — your teacher hasn't added activities."),
     ).toBeVisible();
-    await studentPage.close();
+    await studentContext.close();
   });
 
   test('double-click Adds ONCE (disabled while in flight)', async ({ page }) => {

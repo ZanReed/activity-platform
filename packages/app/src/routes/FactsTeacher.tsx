@@ -33,7 +33,7 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { listClasses } from '../lib/classes';
+import { useClassInfo } from '../lib/classList';
 import {
     closeProbe,
     factsLink,
@@ -127,7 +127,7 @@ export default function FactsTeacher() {
     const [params, setParams] = useSearchParams();
     const chosen = params.get('snapshot');
     const [overview, setOverview] = useState<ProbeOverview | null>(null);
-    const [className, setClassName] = useState<string | null>(null);
+    const className = useClassInfo(classId)?.name ?? null; // the shared class list
     const [error, setError] = useState(false);
     // Which practices are on, as their panels report them: "Who to see first"
     // shows when either is (mixed practice slice 4, S4-1).
@@ -145,9 +145,6 @@ export default function FactsTeacher() {
 
     useEffect(() => {
         void load();
-        void listClasses()
-            .then((all) => setClassName(all.find((c) => c.id === classId)?.name ?? null))
-            .catch(() => setClassName(null));
     }, [load, classId]);
 
     const open = overview?.probes.find((p) => p.state === 'open') ?? null;

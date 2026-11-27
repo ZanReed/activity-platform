@@ -777,14 +777,22 @@ export const TEACHER_JOURNEYS = [
         // ("Added · Open it") and each unit heading gets "Add unit" with its
         // ask, progress, stop-on-failure and done lines. Measured 8.4; all
         // Bank-only code, no library crossed in.
-        maxGzKiB: 8.75,
+        // 8.75 → 11 (2026-11-27, author: "yes, raise them"): review C5 slice 2 put the screen on lib/useLoad.ts
+        // (one shared copy per key; 1.75 KiB gz) and components/LoadStatus.tsx (0.6). Both are
+        // shared chunks: a teacher downloads them once per visit, but a journey counts them on
+        // its first visit. Measured 10.8.
+        maxGzKiB: 11,
         forbid: ['prosemirror', 'mathlive'],
         why: 'The Bank list is cards and filters. The guide panel loads serialize.ts and the guide editor lazily (TR1).',
     },
     {
         name: 'activities',
         route: 'src/routes/Activities.tsx',
-        maxGzKiB: 48,
+        // 48 → 50 (2026-11-27, author: "yes, raise them"): review C5 slice 2 put the screen on lib/useLoad.ts
+        // (one shared copy per key; 1.75 KiB gz) and components/LoadStatus.tsx (0.6). Both are
+        // shared chunks: a teacher downloads them once per visit, but a journey counts them on
+        // its first visit. Measured 49.7.
+        maxGzKiB: 50,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A teacher landing page: a list, no editor.',
     },
@@ -805,7 +813,12 @@ export const TEACHER_JOURNEYS = [
         // 14.5 → 14.6 (2026-11-26, author: "keep the paging and raise the
         // caps"): review A5's paged class-activity read. Measured 14.502
         // (main, already over locally) → 14.531; the same loop, no library.
-        maxGzKiB: 14.6,
+        // 14.6 → 17.5 (2026-11-27, author: "yes, raise them"): review C5 slice 2 put the screen on lib/useLoad.ts
+        // (one shared copy per key; 1.75 KiB gz) and components/LoadStatus.tsx (0.6). Both are
+        // shared chunks: a teacher downloads them once per visit, but a journey counts them on
+        // its first visit.
+        // Also lib/classList.ts (the shared class list). Measured 17.1.
+        maxGzKiB: 17.5,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A list of classes, no editor.',
     },
@@ -834,7 +847,9 @@ export const TEACHER_JOURNEYS = [
     {
         name: 'progress',
         route: 'src/routes/ActivityProgress.tsx',
-        maxGzKiB: 38,
+        // 38 → 39 (2026-11-27, author: "yes, raise them"): review C5 slice 2 grew
+        // lib/useLoad.ts (the shared store) by ~0.6 KiB gz. Measured 38.7.
+        maxGzKiB: 39,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard, as for responses.',
     },

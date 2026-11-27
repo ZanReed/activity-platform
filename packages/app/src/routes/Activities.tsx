@@ -1,5 +1,7 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { reloadKey, updateLoaded, useLoad, type LoadKey } from '../lib/useLoad';
+import LoadStatus from '../components/LoadStatus';
 import type { Json } from '@activity/db-types';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
@@ -120,7 +122,7 @@ function RoleBadge({ role }: { role: string | null }) {
 
 /** G-6: what deleting an activity that sits in a class costs. */
 /** The My activities list read: the caller's live activities, newest first. */
-function fetchActivityRows() {
+function fetchActivityRowsRaw() {
     return supabase
         .from('activities')
         .select(
@@ -134,6 +136,22 @@ function fetchActivityRows() {
         .is('deleted_at', null) // redundant with RLS, but self-documenting
         .order('updated_at', { ascending: false });
 }
+
+/** The list's one copy (review C5 slice 2, lib/useLoad.ts): remembered for
+ *  the visit, so coming back from the editor shows it at once. */
+const ACTIVITY_LIST_KEY: LoadKey = ['myActivities'];
+async function fetchActivityRows(): Promise<ActivityRow[]> {
+    const { data, error } = await fetchActivityRowsRaw();
+    if (error) throw new Error(error.message);
+    // `as unknown as` is load-bearing, not laziness: supabase-js infers row
+    // types by PARSING the select string, and its parser does not understand
+    // PostgREST's `->` json-path syntax, so it degrades the whole row to
+    // GenericStringError[]. The runtime shape is correct (verified against
+    // the live API); the cast restores what the parser could not derive.
+    return data as unknown as ActivityRow[];
+}
+const setActivities = (change: (prev: ActivityRow[]) => ActivityRow[]) =>
+    updateLoaded(ACTIVITY_LIST_KEY, change);
 
 // G-6's confirm is loaded on first use: the Activities journey has no room
 // for it in the first download (perf-budgets: journey activities).
@@ -171,10 +189,10 @@ export default function Activities() {
     const [previewId, setPreviewId] = useState<string | null>(null);
     const location = useLocation();
 
-    const [activities, setActivities] = useState<ActivityRow[]>([]);
+    const list = useLoad(ACTIVITY_LIST_KEY, fetchActivityRows, { remember: true, refreshOnReturn: true });
+    const activities = useMemo(() => list.data ?? [], [list.data]);
     const [republishOpen, setRepublishOpen] = useState(false);
-    const [listLoading, setListLoading] = useState(true);
-    const [listError, setListError] = useState<string | null>(null);
+    const listLoading = list.data === null;
 
     // The Activity Bank curator controls (BK-3/BK-4): shown only to a lister
     // (caps-exempt teacher or admin). The server refuses anyone else anyway.
@@ -337,30 +355,6 @@ export default function Activities() {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
-    useEffect(() => {
-        // `cancelled` guards against StrictMode's double-invoke and against the
-        // component unmounting before the request resolves.
-        let cancelled = false;
-        (async () => {
-            const { data, error } = await fetchActivityRows();
-            if (cancelled) return;
-            if (error) {
-                setListError(error.message);
-            } else {
-                // `as unknown as` is load-bearing, not laziness: supabase-js
-                // infers row types by PARSING the select string, and its parser
-                // does not understand PostgREST's `->` json-path syntax, so it
-                // degrades the whole row to GenericStringError[]. The runtime
-                // shape is correct (verified against the live API); the cast
-                // restores what the parser could not derive.
-                setActivities(data as unknown as ActivityRow[]);
-            }
-            setListLoading(false);
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     // G-6: soft-deleted activities, restorable until the 30-day purge. A failed
     // read (or 0086 not applied yet) just hides the section.
@@ -374,8 +368,7 @@ export default function Activities() {
     const restoreFromDeleted = async (activityId: string) => {
         await restoreActivity(activityId);
         dismissUndo(activityId);
-        const { data, error } = await fetchActivityRows();
-        if (!error) setActivities(data as unknown as ActivityRow[]);
+        reloadKey(ACTIVITY_LIST_KEY);
         refreshDeleted();
     };
 
@@ -722,7 +715,7 @@ export default function Activities() {
         {/* Count line — aria-live so a filter's effect is ANNOUNCED, not just
             shown. Only rendered while a filter is active; an unfiltered list
             needs no running total. */}
-        {anyFilter && !listLoading && !listError && (
+        {anyFilter && !listLoading && (
             <p className="mt-2 text-xs text-muted" role="status" aria-live="polite">
             {visibleActivities.length} of {activities.length} shown
             {' · '}
@@ -738,11 +731,7 @@ export default function Activities() {
 
         <div className="mt-6">
         {listLoading ? (
-            <p className="text-muted">Loading your activities…</p>
-        ) : listError ? (
-            <p className="text-danger">
-            Couldn't load activities: {listError}
-            </p>
+            <LoadStatus state={list} what="your activities" />
         ) : activities.length === 0 ? (
             /* The empty library is a new teacher's first screen, so it names
                the two ways in and the step after (where students come from). */

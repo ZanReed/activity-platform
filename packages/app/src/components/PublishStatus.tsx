@@ -17,6 +17,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { listClasses, type ClassInfo } from '../lib/classes';
+import { CLASS_LIST_KEY, useClassList } from '../lib/classList';
+import { updateLoaded } from '../lib/useLoad';
 import {
     ADD_FAILED_COPY,
     ADD_REFUSED_COPY,
@@ -102,25 +104,13 @@ function AddToClass({ activityId }: { activityId: string }) {
     const [selected, setSelected] = useState('');
     const [adding, setAdding] = useState(false);
     const [addError, setAddError] = useState<string | null>(null);
-    const [hasClasses, setHasClasses] = useState<boolean | null>(null);
     const selectRef = useRef<HTMLSelectElement | null>(null);
 
-    // The link is ABSENT for a teacher with no classes — which needs one
-    // cheap probe up front. A probe failure just leaves the link out; the
-    // full load path below has the real error state.
-    useEffect(() => {
-        let cancelled = false;
-        listClasses()
-            .then((list) => {
-                if (!cancelled) setHasClasses(list.length > 0);
-            })
-            .catch(() => {
-                if (!cancelled) setHasClasses(false);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+    // The link is ABSENT for a teacher with no classes — read from the shared
+    // class list (lib/classList.ts). A failed read just leaves the link out;
+    // the full load path below has the real error state.
+    const classList = useClassList();
+    const hasClasses = classList.data ? classList.data.length > 0 : classList.failed ? false : null;
 
     useEffect(() => {
         if (phase.kind !== 'open') return;
@@ -146,6 +136,7 @@ function AddToClass({ activityId }: { activityId: string }) {
             ]);
             if (error) throw new Error(error.message);
             setClasses(list);
+            updateLoaded<ClassInfo[]>(CLASS_LIST_KEY, () => list); // every screen gets the fresher copy
             setAddedIds(
                 new Set(
                     ((data ?? []) as { class_id: string }[]).map((r) => r.class_id),

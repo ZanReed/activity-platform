@@ -7,6 +7,9 @@ import { policyChangedOn } from '../lib/policyDate';
 import { TeacherNav } from '../components/TeacherNav';
 import { listDeletedClasses, restoreClass, type DeletedItem } from '../lib/recentlyDeleted';
 import { useSession } from '../lib/SessionContext';
+import { CLASS_LIST_KEY, useClassList } from '../lib/classList';
+import { reloadKey, updateLoaded } from '../lib/useLoad';
+import LoadStatus from '../components/LoadStatus';
 import ClassActivitiesPanel, {
     useTeacherClassActivities,
     type TeacherActivitiesData,
@@ -18,7 +21,6 @@ import {
     createClass,
     formatDate,
     joinUrlFor,
-    listClasses,
     listClassMembers,
     regenerateJoinCode,
     renameClass,
@@ -672,9 +674,15 @@ const PhotoStorageLine = lazy(() => import('../components/PhotoStorageLine'));
 export default function Classes() {
     const { session, role } = useSession();
 
-    const [classes, setClasses] = useState<ClassInfo[]>([]);
-    const [listLoading, setListLoading] = useState(true);
-    const [listError, setListError] = useState<string | null>(null);
+    // The shared class list (lib/classList.ts, review C5 slice 2): remembered
+    // for the visit, re-read on a tab return, and every edit below writes into
+    // the one copy, so Present, Plan, Hooks and Practice show it too.
+    const classList = useClassList(role !== 'student');
+    const classes = classList.data ?? [];
+    const setClasses = (change: (prev: ClassInfo[]) => ClassInfo[]) => {
+        if (classList.data) updateLoaded(CLASS_LIST_KEY, change);
+        else reloadKey(CLASS_LIST_KEY); // no copy to edit yet: read the server's
+    };
     // Each card's "Roster (N)". A failed read just leaves the numbers off.
     const [studentCounts, setStudentCounts] = useState<ReadonlyMap<string, number>>(new Map());
     const refreshCounts = () => {
@@ -715,33 +723,13 @@ export default function Classes() {
         await restoreClass(id);
         // A class deleted before this page loaded had no activity rows (the
         // policy hides a deleted class's), so re-read them with the class.
-        const [list] = await Promise.all([listClasses(), classActivities.reload()]);
-        setClasses(list);
+        reloadKey(CLASS_LIST_KEY);
+        await classActivities.reload();
         refreshCounts();
         setUndo((u) => (u?.id === id ? null : u));
         refreshDeleted();
     };
 
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const list = await listClasses();
-                if (!cancelled) setClasses(list);
-            } catch (err) {
-                if (!cancelled) {
-                    setListError(
-                        err instanceof Error ? err.message : 'Could not load classes.',
-                    );
-                }
-            } finally {
-                if (!cancelled) setListLoading(false);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     if (!session) return null;
 
@@ -889,10 +877,8 @@ export default function Classes() {
         )}
 
         <div className="mt-6">
-        {listLoading ? (
-            <p className="text-muted">Loading your classes…</p>
-        ) : listError ? (
-            <p className="text-danger">Couldn't load classes: {listError}</p>
+        {!classList.data ? (
+            <LoadStatus state={classList} what="your classes" />
         ) : classes.length === 0 && !showCreate ? (
             <p className="text-muted">
             No classes yet. Create one to get a join code your students can

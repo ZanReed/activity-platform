@@ -14,7 +14,7 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Shared data loading (review C5) — RULED 2026-11-27 (yes to all 11); slices 1 and 4 LIVE
+## Shared data loading (review C5) — RULED 2026-11-27 (yes to all 11); slices 1 and 4 LIVE, slice 2 BUILT
 
 Design and rulings: [shared-data-loading.md](docs/design/shared-data-loading.md). Slice 1
 (`useLoad` + `LoadStatus`, the progress pages on it) and slice 4 (the teacher-only error log,
@@ -23,13 +23,14 @@ Design and rulings: [shared-data-loading.md](docs/design/shared-data-loading.md)
   was applied; reports in that window were swallowed 404s). `verify-0107` 5/5 and
   `verify-cron-jobs` 5/5 live. **Still owed:** one real failure on a teacher screen, read back
   from `client_errors` (the live B-block proved the writer as a teacher inside a rollback).
-- **Slice 2 — lists remember and refresh** (Activities, Classes, Bank; decisions 5 and 6).
-  Starts with the library check-in (decision 2): build the shared copy in `useLoad`, or swap in
-  SWR. The class list is fetched by 7 screens today. Trigger: the next change to any of those
-  three screens. Adds the ratchet on hand-written `cancelled/live/alive` flags (50 in 34 files on
-  2026-11-27).
-- **Slice 3 — the ~80 silent catches** (decision 9), after slice 4 so "report it" has somewhere
-  to go. Trigger: slice 2 landed, or the first `client_errors` row that a silent catch hid.
+- ~~Slice 2 — lists remember and refresh~~ — BUILT 2026-11-27 (our own hook kept over SWR;
+  Activities, Classes, Bank + the 7 class-list screens; flag ratchet at 46). Remaining screens
+  move onto `useLoad` when next touched; lower `FLAG_CEILING` in `loadRatchet.test.ts` each time.
+  **Watch:** the re-read on arrival can reorder Activities ~300 ms after a back-navigation (the
+  remembered list, then the fresh one by `updated_at`); accepted by decision 5, revisit if a
+  teacher misclicks a row because of it.
+- **Slice 3 — the ~80 silent catches** (decision 9). Its trigger has FIRED (slice 2 landed); it
+  waits for the author to queue it.
 - **Reading the log:** one saved query for now (newest first, grouped by route + source). A
   small panel only if the query gets read weekly.
 

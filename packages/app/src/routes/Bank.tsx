@@ -20,6 +20,8 @@ import { FILTER_KEYS, topicGroups } from '../lib/listFilters';
 import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { useLoad, type LoadKey } from '../lib/useLoad';
+import LoadStatus from '../components/LoadStatus';
 import { Link } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import {
@@ -230,9 +232,14 @@ type UnitRun =
     | { key: string; phase: 'done'; total: number }
     | { key: string; phase: 'failed'; message: string };
 
+
+const BANK_KEY: LoadKey = ['bank'];
+
 export default function Bank() {
-    const [entries, setEntries] = useState<BankEntry[] | null>(null);
-    const [loadError, setLoadError] = useState<string | null>(null);
+    // One copy for the visit (review C5 slice 2, lib/useLoad.ts): coming back
+    // to the Bank shows it at once and re-reads behind it.
+    const bank = useLoad(BANK_KEY, listBank, { remember: true, refreshOnReturn: true });
+    const entries = bank.data;
     // F-6: every filter lives in the URL (Back, refresh, a shared link).
     const filters = useUrlFilters();
     const [query, setQuery] = useUrlText(filters, FILTER_KEYS.query);
@@ -281,21 +288,6 @@ export default function Bank() {
         };
     }, []);
 
-    useEffect(() => {
-        let cancelled = false;
-        listBank()
-            .then((rows) => {
-                if (!cancelled) setEntries(rows);
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    setLoadError(err instanceof Error ? err.message : 'Could not load the Activity Bank.');
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     const courses = useMemo(
         () => [...new Set((entries ?? []).map((e) => e.course))],
@@ -546,12 +538,8 @@ export default function Bank() {
                 )}
 
                 <div className="mt-6 space-y-6">
-                    {loadError ? (
-                        <p className="text-sm text-danger" role="alert">
-                            {loadError}
-                        </p>
-                    ) : entries === null ? (
-                        <p className="text-sm text-muted">Loading the Activity Bank…</p>
+                    {entries === null ? (
+                        <LoadStatus state={bank} what="the Activity Bank" refusedText="The Activity Bank is for teachers." />
                     ) : entries.length === 0 ? (
                         <p className="text-sm text-muted">Nothing is in the Activity Bank yet.</p>
                     ) : groups.length === 0 ? (
