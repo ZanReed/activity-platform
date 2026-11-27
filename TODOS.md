@@ -14,14 +14,15 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## Shared data loading (review C5) — RULED 2026-11-27 (yes to all 11); slices 1 and 4 BUILT
+## Shared data loading (review C5) — RULED 2026-11-27 (yes to all 11); slices 1 and 4 LIVE
 
 Design and rulings: [shared-data-loading.md](docs/design/shared-data-loading.md). Slice 1
 (`useLoad` + `LoadStatus`, the progress pages on it) and slice 4 (the teacher-only error log,
 0107) are built. Left, each with its trigger:
-- **Apply 0107 live, then push** (author; UI that calls a new RPC is pushed only after its
-  migration is live). Then `verify-0107 --target live` (its cron row is live-only) and one real
-  failure on a teacher screen, read back from `client_errors`.
+- ~~Apply 0107 live, then push~~ — DONE 2026-11-27 (the UI reached `main` minutes before 0107
+  was applied; reports in that window were swallowed 404s). `verify-0107` 5/5 and
+  `verify-cron-jobs` 5/5 live. **Still owed:** one real failure on a teacher screen, read back
+  from `client_errors` (the live B-block proved the writer as a teacher inside a rollback).
 - **Slice 2 — lists remember and refresh** (Activities, Classes, Bank; decisions 5 and 6).
   Starts with the library check-in (decision 2): build the shared copy in `useLoad`, or swap in
   SWR. The class list is fetched by 7 screens today. Trigger: the next change to any of those

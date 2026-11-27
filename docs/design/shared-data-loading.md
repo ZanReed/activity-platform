@@ -4,7 +4,7 @@
 own `useLoad` shaped like SWR, the library question re-asked at slice 2, slices 1 and 4 built before
 the first February class.**
 **Slice 1 BUILT 2026-11-27:** `lib/useLoad.ts` + `components/LoadStatus.tsx`; both progress pages moved onto it and `useProgressLoad` deleted; 13 rendered-output rows in `__tests__/useLoad.test.tsx` (mutation-tested); `SHELL_EVICTED` holds both modules out of the student shell (0 shell bytes).
-**Slice 4 BUILT 2026-11-27, NOT LIVE:** migration 0107 (`client_errors`, `report_client_error`,
+**Slice 4 LIVE 2026-11-27** (0107 applied; `verify-0107` 5/5 live, CI green at `5f4af14f`): migration 0107 (`client_errors`, `report_client_error`,
 `prune_client_errors` scheduled 03:55 UTC on apply) + `scripts/verify-0107.sql` (7 behaviour proofs,
 green on the local stack) + `verify-cron-jobs.sql` roster; `lib/clientErrors.ts` (role check — teacher
 or admin, as `current_user_is_teacher()` — then at most 30 sends per page load and one per identical
@@ -14,7 +14,7 @@ page (`void import(…)`, roster-tested in `__tests__/clientErrors.test.tsx`), n
 static import put 0.6–0.8 KiB on every teacher journey and crossed three of their caps, which only
 the author raises. The cost: a page that throws in its first instant, before the reporter's chunk
 arrives, is not logged. `AppErrorBoundary` dispatches `app-render-threw` (+~56 B on the shell, inside
-the spend band). **Apply 0107 live BEFORE pushing.**
+the spend band).
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C5. The error-boundary half
 of C5 is BUILT (`AppErrorBoundary`, c9168fdc, pushed 12733c5c). This doc covers the rest: how screens
 load data, and how anyone learns that a load broke. Not in the build queue; ranking is the author's
