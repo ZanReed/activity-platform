@@ -201,7 +201,7 @@ export default function FactsEntry() {
                 if (!cls) return [];
                 const { activities } = await fetchClassToday(cls.id);
                 if (activities.length === 0) return [];
-                const progress = await listMyActivityProgress().catch(() => []);
+                const progress = await listMyActivityProgress().catch(() => []); // the list shows without its progress marks
                 return activities.map((a) => {
                     const p = progress.find((x) => x.activityId === a.activity_id);
                     const label = p ? progressLabel(p) : null;

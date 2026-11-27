@@ -41,6 +41,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useSessionUserId } from './sessionContextObject';
 import { SLOW_LOAD_MS } from './slowLoad';
+import { isRefusal, messageOf, reportLoadFailure } from './loadFailure';
 
 export type LoadKey = readonly (string | number | boolean | null | undefined)[];
 
@@ -62,38 +63,7 @@ export interface LoadState<T> {
     reload: () => void;
 }
 
-/** The database's refusals (42501): not the caller's class, activity, or
- *  student — or not a teacher at all (the Bank's reads, 0054). */
-export function isRefusal(e: unknown): boolean {
-    const m = e instanceof Error ? e.message : '';
-    return /not_class_teacher|not_your_activity|not_in_scope|The Activity Bank is for teachers/.test(m);
-}
-
-export type LoadFailureKind = 'load_failed' | 'refresh_failed' | 'refused';
-
-export interface LoadFailure {
-    /** The key's first part: names the data, never carries an id. */
-    what: string;
-    kind: LoadFailureKind;
-    error: unknown;
-}
-
-/** Where every failed load is reported: the console, and the teacher-only
- *  error log (slice 4, lib/clientErrors.ts — which checks the role itself).
- *  Loaded on demand: the teacher journeys' size caps (perf-budgets.mjs →
- *  TEACHER_JOURNEYS) count static imports, and the log never blocks a page. */
-export function reportLoadFailure(failure: LoadFailure): void {
-    console.warn(`[load] ${failure.what}: ${failure.kind}`, failure.error);
-    void import('./clientErrors').then(
-        (m) => m.reportClientError({ kind: failure.kind, source: failure.what || null, error: failure.error }),
-        () => undefined,
-    );
-}
-
-function messageOf(e: unknown): string {
-    if (e instanceof Error) return e.message;
-    return typeof e === 'string' ? e : 'Unknown error';
-}
+export { isRefusal, leaveOut, reportLoadFailure, type LoadFailure, type LoadFailureKind } from './loadFailure';
 
 /** A tab return re-reads a key at most this often (decision 6). */
 export const RETURN_REFRESH_MS = 30_000;

@@ -17,6 +17,7 @@
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link, useParams } from 'react-router';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/SessionContext';
@@ -165,7 +166,7 @@ export default function ChainHooks() {
             .then((d) => {
                 if (!cancelled) setClassToday(d);
             })
-            .catch(() => undefined)
+            .catch(leaveOut('classLocalDate')) // no "today" mark; the pool still reads
             .finally(() => {
                 if (!cancelled) setDayReady(true);
             });
@@ -173,9 +174,7 @@ export default function ChainHooks() {
             .then((rows) => {
                 if (!cancelled) setMarks(Object.fromEntries(rows.map((r) => [r.hook_id, r.used_on])));
             })
-            .catch(() => {
-                /* marks stay empty; the pool itself still reads */
-            });
+            .catch(leaveOut('hookMarks')); // marks stay empty; the pool itself still reads
         return () => {
             cancelled = true;
         };

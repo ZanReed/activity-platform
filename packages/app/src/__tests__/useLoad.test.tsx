@@ -17,6 +17,7 @@ import {
     type LoadOptions,
 } from '../lib/useLoad';
 import { SessionContext } from '../lib/sessionContextObject';
+import { leaveOut } from '../lib/loadFailure';
 import type { SessionContextValue } from '../lib/SessionContext';
 import { SLOW_LOAD_MS } from '../lib/slowLoad';
 
@@ -392,5 +393,21 @@ describe('useLoad — one copy per key (slice 2)', () => {
         }
         render(<Spy />);
         expect(frames).not.toContain('failed'); // not even the first frame
+    });
+});
+
+// Slice 3 (decision 9): an optional part of a teacher screen that fails is
+// left out as before, and the failure is reported, not thrown away.
+describe('leaveOut', () => {
+    it('L1. returns null (the part is left out) and reports the failure by name', () => {
+        expect(leaveOut('sprintOverview')(new Error('JWT expired'))).toBeNull();
+        expect(warn).toHaveBeenCalledWith('[load] sprintOverview: load_failed', expect.any(Error));
+    });
+
+    it('L2. a refusal is logged as one; a stated kind wins', () => {
+        leaveOut('classToday')(new Error('not_class_teacher'));
+        expect(warn).toHaveBeenCalledWith('[load] classToday: refused', expect.any(Error));
+        leaveOut('classToday', 'refresh_failed')(new Error('offline'));
+        expect(warn).toHaveBeenCalledWith('[load] classToday: refresh_failed', expect.any(Error));
     });
 });

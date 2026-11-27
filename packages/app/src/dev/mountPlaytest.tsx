@@ -84,7 +84,7 @@ const localStack: PlaytestBackend = {
     label: 'local stack',
     currentEmail,
     async signInAs(person) {
-        await signOutEverything().catch(() => undefined);
+        await signOutEverything().catch(() => undefined); // dev playtest: nobody signed in is fine
         const { error } = await supabase.auth.signInWithPassword({
             email: person.email,
             password: accounts.password,
@@ -188,11 +188,11 @@ async function bootLocalStack(url: string) {
     }
     if (recording) {
         installRecorder(url, (entry) => {
-            void devApi('record/entry', entry).catch(() => undefined);
+            void devApi('record/entry', entry).catch(() => undefined); // dev playtest: a missed recording entry
         });
         const session = storedSession(url);
         const email = (session?.user as { email?: string } | undefined)?.email;
-        if (session && email) void devApi('record/person', { email, session }).catch(() => undefined);
+        if (session && email) void devApi('record/person', { email, session }).catch(() => undefined); // dev playtest
     }
     mount(<PlaytestBar backend={localStack} people={PLAYTEST_PEOPLE} extra={<RecordPanel />} />);
 }
@@ -218,7 +218,7 @@ function ReplayPanel({ names, current }: { names: string[]; current: string | nu
                         window.sessionStorage.setItem(SCENARIO_PICK, e.target.value);
                         window.sessionStorage.removeItem(replayCursorKey(e.target.value));
                         void signOutEverything()
-                            .catch(() => undefined)
+                            .catch(() => undefined) // dev playtest: nobody signed in is fine
                             .then(() => window.location.assign('/'));
                     }}
                     className="rounded border border-amber-400 bg-white px-1 py-0.5 dark:bg-amber-900"
@@ -259,7 +259,7 @@ function replayBackend(url: string, scenario: Scenario): PlaytestBackend {
         async signInAs(person) {
             const recorded = scenario.people.find((p) => p.email === person.email);
             if (!recorded) throw new Error(`${person.name} was not signed in while "${scenario.name}" was recorded.`);
-            await signOutEverything().catch(() => undefined);
+            await signOutEverything().catch(() => undefined); // dev playtest: nobody signed in is fine
             // Far-future expiry: supabase-js never tries to refresh, so replay
             // never needs the token endpoint (which it deliberately lacks).
             const yearsAhead = 10 * 365 * 86_400;

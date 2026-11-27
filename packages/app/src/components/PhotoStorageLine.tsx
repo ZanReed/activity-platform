@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { useEffect, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { fetchMyPhotoUsage, photoUsageText } from '../lib/photoUsage';
 
 export default function PhotoStorageLine() {
@@ -19,7 +20,7 @@ export default function PhotoStorageLine() {
             (u) => {
                 if (!cancelled) setText(photoUsageText(u));
             },
-            () => undefined,
+            leaveOut('photoUsage'), // the line is left off
         );
         return () => {
             cancelled = true;

@@ -1,5 +1,6 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { reloadKey, updateLoaded, useLoad, type LoadKey } from '../lib/useLoad';
 import LoadStatus from '../components/LoadStatus';
 import type { Json } from '@activity/db-types';
@@ -219,9 +220,7 @@ export default function Activities() {
             .then((data) => {
                 if (!cancelled) setChainHooks(data);
             })
-            .catch(() => {
-                /* no links, no notice (D3) */
-            });
+            .catch(leaveOut('chainHooks')); // no links, no notice (D3)
         return () => {
             cancelled = true;
         };

@@ -1093,7 +1093,7 @@ export default function ActivityEditor() {
             label="Import"
             onClick={openImport}
             onIntent={() => {
-                loadImportDialog().catch(() => {});
+                loadImportDialog().catch(() => {}); // a warm-up only: the click loads it again and shows its own failure
             }}
             disabled={!editorInstance}
             title="Paste markdown and convert it to activity blocks"
@@ -1103,7 +1103,7 @@ export default function ActivityEditor() {
             label="Preview"
             onClick={() => void openPreview()}
             onIntent={() => {
-                loadDraftPreview().catch(() => {});
+                loadDraftPreview().catch(() => {}); // a warm-up only, as above
             }}
             disabled={!editorInstance}
             title="See this draft as a student would, and check answers. Nothing is saved."

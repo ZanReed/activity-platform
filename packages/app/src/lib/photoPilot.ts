@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { useEffect, useState } from 'react';
+import { leaveOut } from './loadFailure';
 import { supabase } from './supabase';
 import { setPhotoPilotOffered } from '../editor/slashMenuItems';
 
@@ -35,7 +36,7 @@ export function usePhotoPilot(userId: string | null | undefined): boolean {
                 setPhotoPilotOffered(on);
                 setPilot(on);
             },
-            () => undefined,
+            leaveOut('photoPilot'), // no pilot controls, as for a non-pilot teacher
         );
         return () => {
             alive = false;

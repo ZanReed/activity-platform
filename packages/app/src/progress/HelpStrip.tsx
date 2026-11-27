@@ -36,6 +36,8 @@ export function useClassHelp(classId: string): {
         const mine = ++seq.current;
         fetchClassHelp(classId).then(
             (h) => land(mine, h),
+            // Silent on purpose: this polls every 15 s, so reporting would
+            // log every tick of an offline afternoon; the strip keeps its last list.
             () => undefined,
         );
     }, [classId, land]);

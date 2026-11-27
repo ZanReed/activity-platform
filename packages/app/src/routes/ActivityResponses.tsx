@@ -48,6 +48,7 @@
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { useParams, useSearchParams } from 'react-router';
 import { HIDE_NAMES_KEY, pseudonyms, readFlag, safeProgressPath, writeFlag } from '../lib/classProgress';
 import { groupRows, nextOwedKey, rowKey } from '../lib/responsesQueue';
@@ -232,7 +233,7 @@ export default function ActivityResponses() {
     let live = true;
     listClassRosters().then(
       (r) => live && setRosters(r),
-      () => undefined,
+      leaveOut('classRosters'), // no Class picker
     );
     return () => {
       live = false;
@@ -401,7 +402,7 @@ export default function ActivityResponses() {
         const gen = ++dolGen.current;
         void fetchDolPassStatus(id).then(
           (passes) => gen === dolGen.current && setDolPasses(new Map(passes.map((p) => [p.student_id, p]))),
-          () => undefined,
+          leaveOut('dolPassStatus', 'refresh_failed'), // keeps the passes it had
         );
       }
     },

@@ -21,6 +21,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { ActivityDocument } from '@activity/schema';
 import { BankValueTable, bankRowValues } from '@activity/schema/bank-seed';
 import {
@@ -150,7 +151,7 @@ export default function BankItemPreview({ itemId }: { itemId: string }) {
                 for (const e of list) if (e.description) map.set(e.id, e.description);
                 setMisconceptionText(map);
             })
-            .catch(() => undefined); // the ids stay; nothing else depends on it
+            .catch(leaveOut('misconceptionList')); // the ids stay; nothing else depends on it
         return () => {
             live = false;
         };

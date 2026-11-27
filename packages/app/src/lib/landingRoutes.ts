@@ -64,6 +64,7 @@ export function preloadLandingRoute(pathname: string): Promise<void> {
     if (!hit) return Promise.resolve();
     return PRELOADS[hit.route]().then(
         () => undefined,
+        // A warm-up only: a failed preload is loaded again, with its own error, on navigation.
         () => undefined,
     );
 }

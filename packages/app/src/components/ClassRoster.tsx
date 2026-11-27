@@ -427,7 +427,7 @@ function RemoveStudentDialog({
                 void navigator.clipboard?.writeText(newCode).then(() => {
                     setCopied('code');
                     setTimeout(() => setCopied(null), 1500);
-                }).catch(() => undefined);
+                }).catch(() => undefined); // no clipboard: the code is on screen to read
             }}
             className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
             >
@@ -441,7 +441,7 @@ function RemoveStudentDialog({
                 void navigator.clipboard?.writeText(joinUrlFor(newCode)).then(() => {
                     setCopied('link');
                     setTimeout(() => setCopied(null), 1500);
-                }).catch(() => undefined);
+                }).catch(() => undefined); // no clipboard: the code is on screen to read
             }}
             className="rounded-md border border-line-strong bg-canvas px-4 py-2.5 text-sm font-medium text-strong shadow-sm transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink min-h-11"
             >

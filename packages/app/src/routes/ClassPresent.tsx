@@ -14,6 +14,7 @@
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useEffect, useMemo, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { fetchMyChainHooks, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
 import { useClassInfo } from '../lib/classList';
@@ -69,18 +70,19 @@ export default function ClassPresent() {
                 // The detail (minutes, the dated hook) is optional: titles alone still present.
                 fetchClassPlan(classId, t.on_date, t.on_date)
                     .then((d) => live && setDetail(d))
-                    .catch(() => undefined);
+                    .catch(leaveOut('classPlanDetail'));
             })
             .catch(() => live && setFailed(true));
+        // Each optional part, failing, is left off the projector and logged.
         fetchMyChainHooks()
             .then((h) => live && setHooks(h))
-            .catch(() => undefined);
+            .catch(leaveOut('chainHooks'));
         fetchSprintOverview(classId)
             .then((s) => live && setSprint(s))
-            .catch(() => undefined);
+            .catch(leaveOut('sprintOverview'));
         fetchMixedSummary(classId)
             .then((m) => live && setMixed(m))
-            .catch(() => undefined);
+            .catch(leaveOut('mixedSummary'));
         return () => {
             live = false;
         };

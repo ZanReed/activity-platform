@@ -1,5 +1,6 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
 import { PRESENT_FROM_CLASSES } from '../lib/presentFrom';
@@ -184,7 +185,7 @@ function DeleteClassDialog({
         let live = true;
         listClassMembers(info.id).then(
             (m) => live && setStudents(m.filter((x) => x.removedAt === null).length),
-            () => undefined,
+            leaveOut('classMembers'), // the count is left off
         );
         return () => {
             live = false;
@@ -686,7 +687,7 @@ export default function Classes() {
     // Each card's "Roster (N)". A failed read just leaves the numbers off.
     const [studentCounts, setStudentCounts] = useState<ReadonlyMap<string, number>>(new Map());
     const refreshCounts = () => {
-        countActiveStudents().then(setStudentCounts, () => undefined);
+        countActiveStudents().then(setStudentCounts, leaveOut('studentCounts'));
     };
     useEffect(refreshCounts, []);
     const setCount = (id: string, n: number) =>
@@ -895,7 +896,7 @@ export default function Classes() {
                 onStudentCount={setCount}
                 moveTargets={classes.filter((x) => x.id !== c.id).map((x) => ({ id: x.id, name: x.name }))}
                 onMembersMoved={() => {
-                    countActiveStudents().then(setStudentCounts, () => undefined);
+                    countActiveStudents().then(setStudentCounts, leaveOut('studentCounts'));
                 }}
                 onCodeChange={(id, code) =>
                     setClasses((prev) =>

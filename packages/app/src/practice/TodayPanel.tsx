@@ -10,6 +10,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link } from 'react-router';
 import { fetchMyChainHooks, hookShortName, NO_CHAIN_HOOKS, type MyChainHooks } from '../lib/chainHooks';
 import {
@@ -55,8 +56,8 @@ export default function TodayPanel({
             try {
                 const d = await fetchClassPlan(classId, onDate, onDate);
                 if (stillLive() && seq === detailSeq.current) setDetail(d);
-            } catch {
-                /* the card falls back to titles only */
+            } catch (e) {
+                leaveOut('classPlanDetail')(e); // the card falls back to titles only
             }
         },
         [classId],
@@ -80,10 +81,10 @@ export default function TodayPanel({
         // The hook link is a convenience: without it the card still reads.
         fetchMyChainHooks()
             .then((h) => live && setHooks(h))
-            .catch(() => undefined);
+            .catch(leaveOut('chainHooks'));
         fetchMixedSummary(classId)
             .then((m) => live && setMixed(m))
-            .catch(() => undefined);
+            .catch(leaveOut('mixedSummary')); // the card reads without its mixed line
         return () => {
             live = false;
         };
@@ -127,7 +128,7 @@ export default function TodayPanel({
                 setOptions(null);
                 await fetchClassToday(classId)
                     .then((t) => setToday(t.activities))
-                    .catch(() => undefined);
+                    .catch(leaveOut('classToday', 'refresh_failed')); // keeps the list it had
             }
         } finally {
             setBusy(false);

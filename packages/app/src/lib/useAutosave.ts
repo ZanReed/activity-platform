@@ -200,7 +200,7 @@ export function useAutosave(
             if (!inFlightPromise.current) runSave();
             const pending = inFlightPromise.current;
             if (!pending) break; // runSave declined to start one — avoid spinning
-            await pending.catch(() => {});
+            await pending.catch(() => {}); // the outcome is read just below, from savedKey
             // Save errored if the persisted key didn't advance and nothing new
             // is in flight — stop rather than retry forever.
             if (latestKey.current !== savedKey.current && !inFlightPromise.current) {
@@ -226,6 +226,9 @@ export function useAutosave(
                 latestKey.current !== null &&
                 latestKey.current !== savedKey.current
             ) {
+                // Silent on purpose: a save, not a load (review C5 §7 leaves saves
+                // alone). The conflict and permanent-error states already showed
+                // their banner; the next open shows the last save.
                 saveRef.current().catch(() => undefined);
             }
         };

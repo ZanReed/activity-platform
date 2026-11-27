@@ -20,6 +20,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link } from 'react-router';
 import { Settings, BookOpen, Calculator as CalculatorIcon, NotebookPen } from 'lucide-react';
 import type { JSONContent } from '@tiptap/react';
@@ -448,9 +449,7 @@ function UnitHooksLink({ activityId, open }: { activityId?: string; open: boolea
                 const c = data.activityChains[activityId];
                 if (alive.current && c && (data.chains[c]?.length ?? 0) > 0) setChain(c);
             })
-            .catch(() => {
-                /* no line (D3) */
-            });
+            .catch(leaveOut('chainHooks')); // no line (D3)
     }, [open, activityId]);
     if (!chain) return null;
     return (

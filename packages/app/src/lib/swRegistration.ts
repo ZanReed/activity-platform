@@ -319,7 +319,7 @@ export function scheduleUpdateChecks(
   const check = () => {
     void Promise.resolve()
       .then(() => registration.update())
-      .catch(() => {});
+      .catch(() => {}); // offline or a blip: the next interval or tab return checks again
   };
   const onVisible = () => {
     if (document.visibilityState === 'visible') check();

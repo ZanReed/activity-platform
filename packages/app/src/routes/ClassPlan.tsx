@@ -14,6 +14,7 @@
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link, useParams } from 'react-router';
 import { TeacherNav } from '../components/TeacherNav';
 import TimezoneControl from '../components/TimezoneControl';
@@ -125,7 +126,7 @@ export default function ClassPlan() {
                 .then((all) => setOptions(all.filter((a) => a.classId === classId && a.published)))
                 // A failed refresh keeps what the page had (review P2): an
                 // empty list would hide every Add option and due line.
-                .catch(() => undefined),
+                .catch(leaveOut('classActivities', 'refresh_failed')),
         [classId],
     );
 
@@ -133,7 +134,7 @@ export default function ClassPlan() {
         () =>
             listHookMarks(classId)
                 .then((rows) => setMarks(Object.fromEntries(rows.map((r) => [r.hook_id, r.used_on]))))
-                .catch(() => undefined),
+                .catch(leaveOut('hookMarks')), // the hooks read as unused
         [classId],
     );
 
@@ -142,12 +143,12 @@ export default function ClassPlan() {
         void loadMarks();
         void fetchMyChainHooks()
             .then(setHooks)
-            .catch(() => setHooks(null));
+            .catch((e: unknown) => setHooks(leaveOut('chainHooks')(e)));
         void loadOptions();
         // The total's parts: either read failing leaves that part out.
         void Promise.all([
-            fetchSprintOverview(classId).catch(() => null),
-            fetchMixedSummary(classId).catch(() => null),
+            fetchSprintOverview(classId).catch(leaveOut('sprintOverview')),
+            fetchMixedSummary(classId).catch(leaveOut('mixedSummary')),
         ]).then(([sprint, mixed]) => setShape(shapeFrom(sprint, mixed)));
     }, [classId, load, loadOptions, loadMarks]);
 
@@ -160,7 +161,7 @@ export default function ClassPlan() {
             wanted.map((d) =>
                 fetchReviewPreview(classId, d.review!.is_double, d.on_date)
                     .then((p) => [`${d.on_date}:${d.review!.is_double}`, p] as const)
-                    .catch(() => null),
+                    .catch(leaveOut('reviewPreview')), // that day's line is left out
             ),
         ).then((rows) => {
             if (live) setPreviews(Object.fromEntries(rows.filter((r) => r !== null)));

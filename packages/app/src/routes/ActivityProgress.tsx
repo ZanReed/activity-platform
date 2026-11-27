@@ -15,6 +15,7 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import { dolSectionId, servedDocument, type ServedDoc } from '../lib/answerText';
 import { fetchDolPassStatus } from '../lib/dolPass';
@@ -75,9 +76,10 @@ export default function ActivityProgress() {
     const loaded = useLoad<Loaded>(['activityProgress', id], async () => {
         const [grid, mis, first, passes] = await Promise.all([
             fetchActivityProgress(id),
-            fetchMisconceptions(null, id).catch(() => null),
-            fetchFirstTries(id).catch(() => null),
-            fetchDolPassStatus(id).catch(() => []),
+            // The optional parts: the grid shows without them.
+            fetchMisconceptions(null, id).catch(leaveOut('misconceptions')),
+            fetchFirstTries(id).catch(leaveOut('firstTries')),
+            fetchDolPassStatus(id).catch((e: unknown) => (leaveOut('dolPassStatus')(e), [])),
         ]);
         const dolPassed = new Set(passes.map((p) => p.student_id));
         const versionIds = [
@@ -94,8 +96,8 @@ export default function ActivityProgress() {
                     // Unreadable by this build: columns fall back to "Section N".
                 }
             }
-        } catch {
-            // Same fallback.
+        } catch (e) {
+            leaveOut('versionContents')(e); // the same fallback: "Section N"
         }
         // First tries name misconceptions from the document's choices and from
         // the verdicts; the other panel's rows already carry descriptions.
@@ -113,8 +115,8 @@ export default function ActivityProgress() {
         try {
             const more = await fetchMisconceptionDescriptions([...ids].filter((m) => !descriptions.has(m)));
             descriptions = new Map([...descriptions, ...more]);
-        } catch {
-            // Tags then read as unknown; the counts still show.
+        } catch (e) {
+            leaveOut('misconceptionDescriptions')(e); // tags read as unknown; the counts still show
         }
         return { grid, mis, first, descriptions, docs, dolPassed };
     });

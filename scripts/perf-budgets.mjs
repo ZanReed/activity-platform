@@ -777,22 +777,24 @@ export const TEACHER_JOURNEYS = [
         // ("Added · Open it") and each unit heading gets "Add unit" with its
         // ask, progress, stop-on-failure and done lines. Measured 8.4; all
         // Bank-only code, no library crossed in.
+        // 11 → 11.5 (2026-11-27, author: "yes, raise them"): review C5 slice 3 — the screen's optional reads report through lib/loadFailure.ts (leaveOut, a 0.5 KiB gz chunk). Measured 11.0, on the old cap.
         // 8.75 → 11 (2026-11-27, author: "yes, raise them"): review C5 slice 2 put the screen on lib/useLoad.ts
         // (one shared copy per key; 1.75 KiB gz) and components/LoadStatus.tsx (0.6). Both are
         // shared chunks: a teacher downloads them once per visit, but a journey counts them on
         // its first visit. Measured 10.8.
-        maxGzKiB: 11,
+        maxGzKiB: 11.5,
         forbid: ['prosemirror', 'mathlive'],
         why: 'The Bank list is cards and filters. The guide panel loads serialize.ts and the guide editor lazily (TR1).',
     },
     {
         name: 'activities',
         route: 'src/routes/Activities.tsx',
+        // 50 → 50.5 (2026-11-27, author: "yes, raise them"): review C5 slice 3 — the screen's optional reads report through lib/loadFailure.ts (leaveOut, a 0.5 KiB gz chunk). Measured 50.0, on the old cap.
         // 48 → 50 (2026-11-27, author: "yes, raise them"): review C5 slice 2 put the screen on lib/useLoad.ts
         // (one shared copy per key; 1.75 KiB gz) and components/LoadStatus.tsx (0.6). Both are
         // shared chunks: a teacher downloads them once per visit, but a journey counts them on
         // its first visit. Measured 49.7.
-        maxGzKiB: 50,
+        maxGzKiB: 50.5,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A teacher landing page: a list, no editor.',
     },
@@ -840,7 +842,9 @@ export const TEACHER_JOURNEYS = [
         // (upgrade.ts retireShapes, the problem + blank-width retirement,
         // review C3). Measured 38.6025, 2.6 bytes over; the two folds were
         // already merged into one walk to save space. No library.
-        maxGzKiB: 38.7,
+        // 38.7 → 39.5 (2026-11-27, author: "yes, raise them"): review C5 slice 3 — the screen's optional reads report through lib/loadFailure.ts (leaveOut, a 0.5 KiB gz chunk).
+        // It did not load the reporter before. Measured 39.1.
+        maxGzKiB: 39.5,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard of the whole class: it never seeds (studentId null), so it must not reach the evaluator (T4) or the editor.',
     },

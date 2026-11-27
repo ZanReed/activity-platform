@@ -17,6 +17,7 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
 import { dueWords, fetchClassDue, isPastDue, type ClassDue } from '../lib/dueDates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { gradebookCsv, gradebookFileName } from '../lib/progressCsv';
 import { fetchClassGradebook } from '../lib/gradebook';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
@@ -67,7 +68,7 @@ export default function ClassProgress() {
     const loaded = useLoad<Loaded>(['classProgress', classId], async () => {
         const [grid, mis] = await Promise.all([
             fetchClassProgress(classId),
-            fetchMisconceptions(classId).catch(() => null),
+            fetchMisconceptions(classId).catch(leaveOut('misconceptions')), // the grid shows without it
         ]);
         return { grid, mis };
     });
@@ -82,7 +83,7 @@ export default function ClassProgress() {
             (d) => {
                 if (live) setDue(d);
             },
-            () => undefined,
+            leaveOut('classDue'), // no due line
         );
         return () => {
             live = false;

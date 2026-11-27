@@ -17,6 +17,7 @@ void import('../lib/clientErrors'); // the teacher-only error log, loaded beside
 import { isManuallyGraded } from '@activity/schema';
 import { dolOptionalBlockIds } from '@activity/viewer';
 import { useEffect, useRef, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import {
     dolSectionId,
@@ -106,8 +107,8 @@ export default function AnswerPanel() {
                 let descriptions = new Map<string, string | null>();
                 try {
                     descriptions = await fetchMisconceptionDescriptions([...ids]);
-                } catch {
-                    // The answers still show; a tag then reads as unknown.
+                } catch (e) {
+                    leaveOut('misconceptionDescriptions')(e); // the answers still show; a tag reads as unknown
                 }
                 if (!cancelled) setState({ status: 'ready', work, docs, descriptions });
             } catch {

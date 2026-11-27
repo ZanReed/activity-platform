@@ -20,6 +20,7 @@ import { FILTER_KEYS, topicGroups } from '../lib/listFilters';
 import { useUrlFilters, useUrlText } from '../lib/useUrlFilters';
 import { ChosenTopics, TopicPicker } from '../components/TopicPicker';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { leaveOut } from '../lib/loadFailure';
 import { useLoad, type LoadKey } from '../lib/useLoad';
 import LoadStatus from '../components/LoadStatus';
 import { Link } from 'react-router';
@@ -272,7 +273,7 @@ export default function Bank() {
                 // Merge: a copy made on this page before this read landed wins.
                 if (live) setMyCopies((prev) => new Map([...m, ...prev]));
             })
-            .catch(() => undefined); // no marker is the safe failure
+            .catch(leaveOut('myBankCopies')); // no marker is the safe failure
         return () => {
             live = false;
         };
