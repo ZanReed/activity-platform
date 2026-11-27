@@ -1,5 +1,5 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { leaveOut } from '../lib/loadFailure';
 import { isDueThisWeek } from '../lib/dueDates';
 import { Link } from 'react-router';
@@ -55,9 +55,17 @@ function JoinCode({ code, className }: { code: string; className: string }) {
     // "the old link no longer works" copy already presumes exists).
     const [copied, setCopied] = useState<'code' | 'link' | null>(null);
     const [board, setBoard] = useState(false);
+    // The "Copied" flash's timer is cleared on unmount: left running, it set
+    // state after the page had gone (CI, 2026-11-28: it fired after its test
+    // file's window was torn down and failed the run).
+    const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (flashTimer.current) clearTimeout(flashTimer.current);
+    }, []);
     const flash = (what: 'code' | 'link') => {
         setCopied(what);
-        setTimeout(() => setCopied(null), 1500);
+        if (flashTimer.current) clearTimeout(flashTimer.current);
+        flashTimer.current = setTimeout(() => setCopied(null), 1500);
     };
     const copyCode = async () => {
         try {
