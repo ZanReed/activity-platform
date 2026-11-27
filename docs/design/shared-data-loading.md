@@ -4,7 +4,12 @@
 Source: [code review 2026-11-26](../reviews/2026-11-26-code-review.md) item C5. The error-boundary half
 of C5 is BUILT (`AppErrorBoundary`, c9168fdc, pushed 12733c5c). This doc covers the rest: how screens
 load data, and how anyone learns that a load broke. Not in the build queue; ranking is the author's
-(CLAUDE.md, "a new wish gets a trigger, not a slot").
+(CLAUDE.md, "a new wish gets a trigger, not a slot"). Decision 11 proposes building slices 1 and 4
+before the first February class.
+**Revised 2026-11-27 (same day, after the author asked "is there a benefit to waiting?"):** a second
+measurement (§2, "the same data on many screens") weakened the case against a library, so decision 1
+is now a choice between SWR and our own hook shaped like SWR, and decision 11 now builds slices 1 and
+4 before February instead of only filing a trigger.
 
 ## 1. The problem in one paragraph
 
@@ -53,6 +58,14 @@ Also: three small shared hooks for one dataset each (`useTeacherClassActivities`
   `console.error/warn` calls are the only record, and they live only in the teacher's own browser.
 - No cache between visits for any list. Leaving Activities and coming back reloads the whole list and
   shows "Loading your activities…" again (`routes/Activities.tsx:739`).
+- **The same data on many screens, each fetched on its own** (files outside `lib/` that call the
+  loader, measured 2026-11-27): the teacher's class list `listClasses()` in 7 places (`Classes`,
+  `ClassPlan`, `ClassPresent`, `ChainHooks`, `FactsTeacher`, `PublishStatus`, `AddToClass`), the chain
+  hooks `fetchMyChainHooks()` in 6, the class-activities list `listTeacherClassActivities()` in 4.
+  With no cache that is harmless — every screen reads a fresh copy. The moment lists remember their
+  last answer (decision 5), it raises two jobs: one shared copy across screens, and telling every
+  screen "this changed" after a save (a class rename, an activity added to a class). Those two jobs
+  are exactly what a data library is for.
 - No refresh on tab return for teacher screens, except the help strip (`HelpStrip.tsx:72`).
 - Teacher screens show "Loading…" with no time limit. On hung school wifi it stays forever.
 
@@ -136,8 +149,11 @@ Migration cost: medium, spread out. Each screen moves when it is next touched; a
 hand-rolled count from going back up. No new dependency, nothing to pin, nothing to audit for size.
 What it guards: failure cases 1, 2, 4, and the race-safety of every screen that moves; it gives case 5
 a single place to report from.
-Weakness: it is our code, so its tests are ours. It will not grow into mutations, pagination or
-deduping across screens unless we build those, and we should not.
+Weakness: it is our code, so its tests are ours. A shared copy across screens and "this changed"
+after a save (§2) are the parts we would end up building by hand. If a library comes later, every
+screen moved onto `useLoad` moves a second time — unless `useLoad` is shaped like SWR from the start
+(`useLoad(key, loader)`, `reload(key)` after a save), which makes a later swap a find-and-replace
+rather than a rewrite.
 
 ### Option B — adopt a query library on the teacher side (TanStack Query or SWR)
 
@@ -151,10 +167,16 @@ TanStack Query (core + React) about 12–14 KiB gz.
 - Migration cost: the same screen-by-screen work as Option A, plus learning the library's rules, plus
   a new pinned dependency to keep updated. Its default retries (TanStack retries 3 times) and its
   refetch-on-focus would need turning down to match the "never reload under a working user" ruling.
-- What it guards: the same as A. It adds things we do not need yet: shared cache across screens, and
-  mutation helpers (our saves already have their own careful paths — `useAutosave`, `saveQueue`).
-- Weakness: a dependency the student side must never touch, guarded forever; and the parts we would
-  use are the ~100 lines Option A would write.
+- What it guards: the same as A, plus the two jobs §2 found: one copy of the class list shared by its
+  7 screens, and `mutate(key)` to tell every screen a save changed it. We would NOT use its mutation
+  helpers — our saves already have their own careful paths (`useAutosave`, `saveQueue`).
+- Size is not the argument against it: teacher routes are lazy chunks, so it adds 0 bytes to the
+  student shell as long as the shell never imports it (the same guard as Option A).
+- Weakness: a dependency the student side must never touch, pinned and upgraded and guarded forever;
+  its defaults need tuning to fit "never reload under a working user".
+- **Of the two, SWR is the fit here:** smaller, no provider at the top of the app (so nothing to
+  keep out of the shell's root), and its defaults are milder. TanStack Query's extra power (mutation
+  state, query devtools, infinite lists) is the part this app would not use.
 
 ### Option C — leave loading alone; only add failure reporting
 
@@ -183,10 +205,26 @@ teacher-only error log (below), and route the existing `catch` blocks to it over
 
 ## 5. Recommendation
 
-**Option A plus the teacher-only error log.** It fixes what teachers can actually hit, costs the
-student shell nothing, adds no dependency, and grows out of a hook the repo already trusts. A library
-is not ruled out for ever; its trigger is the realtime-push arc (STATE follow-on 2) or a screen that
-needs data shared live between screens — at that point the extra parts start to pay.
+**Option A, with `useLoad` shaped like SWR, plus the teacher-only error log.** (Revised 2026-11-27;
+the first version said "Option A" with no shape rule and put the library off until the realtime-push
+arc.)
+
+Why A still edges out B: slice 1 needs none of what a library adds — the progress pages load one thing
+each, for one screen. The library starts to pay only at slice 2, when lists remember their answer and
+the class list's 7 screens should share one copy. So the choice can wait until then **without** costing
+a second migration, as long as `useLoad` takes the same form SWR does (`useLoad(key, loader)`, and
+`reload(key)` to tell every screen showing that key that a save changed it). At slice 2 we choose
+again, with real code in hand: build the shared copy ourselves if it stays small, or swap in SWR.
+
+The honest case for B (SWR now) is that the shared copy and "this changed" are well-worn library code,
+and we would otherwise be writing and testing them ourselves. If the author would rather not have that
+decision come back at slice 2, SWR now is a reasonable answer too — teacher side only, same shell
+guard.
+
+**When to build:** slices 1 and 4 before the first February class. Slice 1 gives teachers a way out of
+a stuck screen; slice 4 means the author hears about a broken screen without waiting for a teacher's
+message, and it gets tested on the author's own mistakes while the author is the only user. Slices 2
+and 3 follow as screens are touched (3 after 4, so a "report it" choice has somewhere to go).
 
 What stays exactly as it is: the student viewer (P7), the student practice screens (`FactsEntry`,
 `MixedRunner`, `FactRunner`), the saves (`useAutosave`, `saveQueue`, `pendingRowWrites`), and the four
@@ -196,15 +234,20 @@ module caches (P4), which can later sit under `useLoad`'s cache but do not need 
 
 **Slice 1 — the hook, on its two existing users.** Add `lib/useLoad.ts` and `<LoadState>` (promoted
 from `useProgressLoad`, plus the slow flag, the "Details" toggle and `reportLoadFailure()`, which in
-this slice only writes to the console). Move `ClassProgress` and `ActivityProgress` onto it and delete
+this slice only writes to the console). Its call shape is SWR's: `useLoad(key, loader)`, where the key
+names the data (`['classProgress', classId]`), so a later swap to SWR changes the import, not the
+screens. Move `ClassProgress` and `ActivityProgress` onto it and delete
 `useProgressLoad`. Guards: rendered-output tests for every state (first-load failed with Try again,
 refused, refresh-failed keeps the old grid, slow after 8 s, latest-wins with two answers out of order),
 each mutation-tested once by breaking the hook and watching it go red; a shell forbidden-marker so
 `useLoad` can never enter the entry chunk. No migration, no deploy.
 
-**Slice 2 — the lists, with the cache.** Move `Activities`, `Classes` and `Bank` onto `useLoad` with a
+**Slice 2 — the lists, with the cache.** First, the library check-in (decision 2): build the shared
+cache in `useLoad`, or swap in SWR. Then move `Activities`, `Classes` and `Bank` onto it with a
 keyed cache and re-read on tab return (throttled to once per 30 s; never on a screen with an open form
-or dialog). Back-navigation then shows the list at once. Cache cleared on sign-out and on a user switch
+or dialog). Back-navigation then shows the list at once. Screens that load the same key share one copy
+(the class list's 7 callers first), and a save that changes it calls `reload(key)` so every screen
+showing it updates. Cache cleared on sign-out and on a user switch
 (the pattern `versionContent.ts:47-51` already uses). Add the **ratchet test**: count the hand-rolled
 `cancelled/live/alive` flags in `packages/app/src` and fail if it rises (the same shape as
 `db-rpc.test.mjs`'s `CAST_CEILING`).
@@ -238,10 +281,14 @@ rewrite. The ratchet shows progress.
 
 ## 8. Decisions for the author (yes / no each)
 
-1. **Build our own small loading hook (`useLoad`) instead of adopting a library.** It grows out of
-   `useProgressLoad`, which the progress pages already use. *Recommend: yes.*
-2. **No data library anywhere for now, teacher side included.** Revisit when the realtime-push arc
-   starts or a screen needs data shared live between screens. *Recommend: yes.*
+1. **Which loader to build on — pick one:**
+   (a) our own small hook (`useLoad`), grown out of `useProgressLoad` and shaped like SWR so a later
+   swap is cheap; or (b) the SWR library on teacher screens now. Either way the student shell gets
+   none of it. *Recommend: (a).* (b) is reasonable if you'd rather not have the question come back at
+   slice 2.
+2. **If (a): ask the library question once more at slice 2**, the moment lists start sharing one copy
+   across screens (the class list is loaded by 7 screens today). Not at the realtime-push arc, as this
+   doc first said. *Recommend: yes.*
 3. **The student side is left alone.** The student viewer and the practice screens keep their own
    loaders, and a guard stops `useLoad` from ever entering the student shell. *Recommend: yes.*
 4. **One standard look for loading trouble on teacher screens:** a plain sentence and a "Try again"
@@ -265,6 +312,7 @@ rewrite. The ratchet shows progress.
    *Recommend: yes.*
 10. **The error log's prune is armed from the start** (nightly, real run), unlike the student-work
     prunes, because it holds no student work. *Recommend: yes* — only matters if 8 is yes.
-11. **Build order is slices 1 → 2 → 3 → 4 as above**, and the whole thing goes into TODOS with a trigger
-    ("before the first February class") rather than straight into the build queue. Ranking is yours.
-    *Recommend: yes.*
+11. **Build slices 1 and 4 before the first February class** (the hook with its "Try again" look, and
+    the error log). Slices 2 and 3 follow as screens are touched, with 3 after 4. This puts slices 1
+    and 4 into the build queue ahead of February rather than only filing them with a trigger; where
+    they sit against the rest of the queue is your call. *Recommend: yes.*
