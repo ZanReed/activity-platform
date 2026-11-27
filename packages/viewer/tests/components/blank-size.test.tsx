@@ -88,7 +88,7 @@ describe('blank input size', () => {
     expect(sizes(container)).toEqual(['4']);
   });
 
-  it('an authored width always wins', () => {
+  it('a stray width (retired 2026-11-27) is ignored: the size follows the rule', () => {
     const { container } = harness(
       <FillInBlank
         block={prose({ answerType: 'numeric', width: 3 }, { answerType: 'text', width: 12 }) as never}
@@ -96,7 +96,7 @@ describe('blank input size', () => {
         label={LABEL}
       />,
     );
-    expect(sizes(container)).toEqual(['3', '12']);
+    expect(sizes(container)).toEqual(['4', '4']);
   });
 
   it('print is unchanged: no default size on paper', () => {

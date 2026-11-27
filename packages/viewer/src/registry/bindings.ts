@@ -31,7 +31,6 @@ import OrderedList from '../blocks/OrderedList.js';
 import LearningObjectives from '../blocks/LearningObjectives.js';
 import Image from '../blocks/Image.js';
 import GraphFigure from '../blocks/GraphFigure.js';
-import Problem from '../blocks/Problem.js';
 import SelfExplanation from '../blocks/SelfExplanation.js';
 import Essay from '../blocks/Essay.js';
 import FillInBlank from '../blocks/FillInBlank.js';
@@ -66,7 +65,6 @@ export const blockBindings: Partial<
   learning_objectives: { loading: 'eager', component: LearningObjectives as never },
   image: { loading: 'eager', component: Image as never },
   graph_figure: { loading: 'eager', component: GraphFigure as never },
-  problem: { loading: 'eager', component: Problem as never },
   multiple_choice: { loading: 'eager', component: MultipleChoice as never },
   fill_in_blank: { loading: 'eager', component: FillInBlank as never },
   matching: { loading: 'eager', component: Matching as never },

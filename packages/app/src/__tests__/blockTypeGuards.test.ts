@@ -31,7 +31,6 @@ import {
     createMathBlock,
     createImageBlock,
     createCalloutBlock,
-    createProblemBlock,
     createFillInBlankBlock,
     createMultipleChoiceBlock,
     createMatchingBlock,
@@ -93,8 +92,6 @@ function representativeBlock(type: string): Block {
             return createImageBlock('https://example.com/x.png', 'an image');
         case 'callout':
             return createCalloutBlock();
-        case 'problem':
-            return createProblemBlock();
         case 'fill_in_blank': {
             const block = createFillInBlankBlock();
             block.content = [

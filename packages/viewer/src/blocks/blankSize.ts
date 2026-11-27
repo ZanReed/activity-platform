@@ -4,7 +4,8 @@
 // One rule for every blank the viewer renders (prose blanks in FillInBlank and
 // blanks in table cells), so the two can never disagree.
 //
-//   - An authored `width` always wins.
+//   - There is no authored width: the schema retired `width` on 2026-11-27
+//     (nothing ever wrote one; review C3), so the rules below are the whole rule.
 //   - An UNSIZED NUMERIC blank starts at NUMERIC_BLANK_MIN_CHARS on screen and
 //     GROWS with what is typed in it (one character of room past the value), up
 //     to NUMERIC_BLANK_MAX_CHARS. Author finding 2026-10-04: at the browser
@@ -33,11 +34,10 @@ export const NUMERIC_BLANK_MIN_CHARS = 4;
 export const NUMERIC_BLANK_MAX_CHARS = 20;
 
 export function blankInputSize(
-  blank: { width?: number; answerType?: string },
+  blank: { answerType?: string },
   mode: 'screen' | 'print',
   value: string,
 ): number | undefined {
-  if (blank.width) return blank.width;
   if (mode === 'screen' && blank.answerType !== 'math') {
     return Math.min(NUMERIC_BLANK_MAX_CHARS, Math.max(NUMERIC_BLANK_MIN_CHARS, value.length + 1));
   }

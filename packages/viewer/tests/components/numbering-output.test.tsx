@@ -94,14 +94,7 @@ describe('every `numbered: always` type actually renders a number', () => {
     const { container } = renderFixture();
     const rendered = numberedTypes(container);
 
-    const missing = alwaysNumbered.filter(
-      (type) =>
-        // `problem` is page-numbered but the fixture has no instance of it
-        // (it is a tombstoned type — answer-key ruling E1), so it cannot be
-        // asserted through a fixture render. Named rather than silently
-        // filtered, so the exemption is visible.
-        type !== 'problem' && !rendered.has(type),
-    );
+    const missing = alwaysNumbered.filter((type) => !rendered.has(type));
 
     expect(
       missing,

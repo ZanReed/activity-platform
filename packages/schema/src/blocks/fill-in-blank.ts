@@ -7,10 +7,8 @@ import { labelFields } from '../label.js';
 // Each blank's id is a stable reference used in submissions.responses, so
 // reordering blocks doesn't break grading on past submissions.
 //
-// auto-numbered like ProblemBlock for the problem header (e.g., "Problem 3").
-// Why not just use ProblemBlock? They have different rendering and different
-// student interaction; conflating them would force every problem to either
-// have or not have blanks, instead of being a per-problem decision.
+// auto-numbered for the problem header (e.g., "Problem 3"), like every
+// always-numbered question type (block-predicates.ts).
 //
 // Per-blank fields (hint, mistakeFeedback) live on BlankToken in inline.ts.
 // Per-block fields below:

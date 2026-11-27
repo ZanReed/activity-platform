@@ -109,7 +109,7 @@ test.describe('print baselines (viewer)', () => {
             // So the contract is asserted in the DOM, on THIS route, before any
             // pixel is compared. A missing number now fails with a sentence
             // instead of hiding inside an image that happens to match.
-            if (blockRegistry[type].numbered === 'always' && type !== 'problem') {
+            if (blockRegistry[type].numbered === 'always') {
                 await expect(
                     page.locator('.viewer-block__number').first(),
                     `${type} declares numbered:'always' but rendered no number on the ?mode=print route`,

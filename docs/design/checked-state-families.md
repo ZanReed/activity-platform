@@ -37,8 +37,8 @@ A type's declared family is its **maximal** family; an instance resolves through
   no chrome). *Conditional — see resolution rule.
 - **recorded:** `self_explanation`, `short_answer`, `essay` — exactly the manually
   reviewed free-text trio, and nothing else, ever, without a design pass.
-- **static:** everything else, including `problem` (numbered, has a solution, but emits
-  no gradable response — its solution disclosure is the 7.4A surface, not state chrome).
+- **static:** everything else. (`problem` sat here — numbered, with a solution, no gradable
+  response — until it left the schema on 2026-11-27.)
 
 ## Cross-cutting rules
 

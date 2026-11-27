@@ -23,7 +23,6 @@ import type {
   MathBlock,
   ImageBlock,
   CalloutBlock,
-  ProblemBlock,
   FillInBlankBlock,
   BulletListBlock,
   OrderedListBlock,
@@ -190,10 +189,6 @@ export function createPhotoResponseBlock(): PhotoResponseBlock {
     type: 'photo_response',
     prompt: [],
   };
-}
-
-export function createProblemBlock(): ProblemBlock {
-  return { id: uuid(), type: 'problem', content: [], skills: [] };
 }
 
 export function createFillInBlankBlock(): FillInBlankBlock {

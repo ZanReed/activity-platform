@@ -54,7 +54,7 @@ export const pxBlankDocument = () =>
         type: 'fill_in_blank',
         content: [
             text('A recipe uses 3 cups of flour for 12 muffins. For 20 muffins you need '),
-            { type: 'blank', id: PX_BLANK_ID, answer: '5', width: 6, answerType: 'text' },
+            { type: 'blank', id: PX_BLANK_ID, answer: '5', answerType: 'text' },
             text(' cups.'),
         ],
         solution: [text('1 muffin: 3 ÷ 12 = 0.25 cups. 20 muffins: 20 × 0.25 = 5 cups.')],

@@ -13,7 +13,7 @@
 // rather than coerce them into a mark.
 //
 // Solutions are attached for every block in the section that has one, INCLUDING
-// static blocks that produced no response (a `problem`'s worked explanation).
+// static blocks that produced no response (a display math_block's worked solution).
 // Collected by walking blocks, never by walking responses.
 //
 // Everything returned that came out of the raw document — feedback and

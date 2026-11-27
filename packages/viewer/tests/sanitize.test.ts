@@ -151,10 +151,9 @@ describe('wire-level leak tests (TV4-A)', () => {
     expect(blockRegistry.data_plot.sanitize.derivableFromServed).toBeTruthy();
   });
 
-  it('pre-check affordances survive: hint, answerType, width, gap ids', () => {
+  it('pre-check affordances survive: hint, answerType, gap ids', () => {
     expect(wire).toContain('HINT_SURVIVES');
     expect(wire).toContain('"answerType":"math"');
-    expect(wire).toContain('"width":8');
     // The math gap ids survive (they ARE the gaps); their answers do not.
     expect(wire).toContain('"g1"');
   });

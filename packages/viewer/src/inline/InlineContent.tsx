@@ -86,7 +86,7 @@ export interface InlineContentProps {
   nodes: readonly RenderableInlineNode[];
   /** Renders a blank token — supplied by fill_in_blank; static blocks omit it
    * and any stray blank renders as its bare underline placeholder. */
-  renderBlank?: (blank: { id: string; width?: number; answerType?: string }) => ReactNode;
+  renderBlank?: (blank: { id: string; answerType?: string }) => ReactNode;
 }
 
 export function InlineContent({ nodes, renderBlank }: InlineContentProps) {
@@ -126,7 +126,6 @@ function InlineNode({
       // numeric blank's input (blocks/blankSize.ts).
       const blank = {
         id: String(node.id),
-        ...(typeof node.width === 'number' ? { width: node.width } : {}),
         ...(typeof node.answerType === 'string' ? { answerType: node.answerType } : {}),
       };
       return (

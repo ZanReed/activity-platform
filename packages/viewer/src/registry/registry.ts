@@ -131,20 +131,6 @@ export const blockRegistry: BlockRegistry = {
     print: { breakInside: 'auto', treatment: 'variant-border-box' },
   },
 
-  problem: {
-    type: 'problem',
-    // Numbered legacy prose problem; carries a solution but no auto-graded
-    // response (isGradeable: false) → static family, no state chrome. Schema
-    // orphan: no editor NodeView; still renderable, so it keeps an entry.
-    family: 'static',
-    interactivity: 'container',
-    category: 'question',
-    numbered: 'always',
-    analyticsKey: 'problem',
-    sanitize: { strip: ['solution'] },
-    print: { breakInside: 'avoid', treatment: 'prose' },
-  },
-
   fill_in_blank: {
     type: 'fill_in_blank',
     family: 'auto_gradable',

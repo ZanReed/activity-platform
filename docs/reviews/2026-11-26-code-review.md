@@ -545,6 +545,11 @@ example's title each went red. **Two real losses found**, held as tracked
 expected failures (TODOS → "Editor round trip"): a `problem` block is deleted by
 the first open → save, and a blank's authored `width` is dropped (no extension
 attr). Neither is reachable from the app or importer today.
+**Both retired 2026-11-27** (author ruling; zero live documents held either):
+`problem` left the schema, viewer and registry, and a stored one reads as a
+paragraph with its text (`upgrade.ts` `retireShapes`); blank `width` left
+the schema and `blankSize.ts`, and zod strips a stored one. The round trip now
+has no exemptions; C8 records both as deliberate retirements.
 
 ### C4 The viewer ↔ graph-kit seam is untyped and tested only against fakes
 A1, A2 and A3 all live in `kitSurfaces.ts`, behind `as never` and

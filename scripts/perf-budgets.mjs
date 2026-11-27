@@ -822,7 +822,12 @@ export const TEACHER_JOURNEYS = [
         // is left to grade). Measured 37.960 → 38.494 before the last rule;
         // no library. Kept OUT of the shell: imported from grading.ts it cost
         // the shell +0.22 KiB.
-        maxGzKiB: 38.6,
+        // 38.6 → 38.7 (2026-11-27, author: "Yes, raise it"): the read path's
+        // fold now also turns a stored `problem` block into a paragraph
+        // (upgrade.ts retireShapes, the problem + blank-width retirement,
+        // review C3). Measured 38.6025, 2.6 bytes over; the two folds were
+        // already merged into one walk to save space. No library.
+        maxGzKiB: 38.7,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard of the whole class: it never seeds (studentId null), so it must not reach the evaluator (T4) or the editor.',
     },

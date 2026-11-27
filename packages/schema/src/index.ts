@@ -49,7 +49,6 @@ export {
   ImageBlock,
   CropRect,
   CalloutBlock,
-  ProblemBlock,
   FillInBlankBlock,
   BulletListBlock,
   OrderedListBlock,
@@ -182,7 +181,7 @@ export {
   ACTIVITY_SCHEMA_VERSION,
   UpgradeError,
   upgradeActivityDocument,
-  retireExactForm,
+  retireShapes,
 } from './upgrade.js';
 export type { UpgradeResult } from './upgrade.js';
 
@@ -229,7 +228,6 @@ export {
   createMathBlock,
   createImageBlock,
   createCalloutBlock,
-  createProblemBlock,
   createFillInBlankBlock,
   createBulletListBlock,
   createOrderedListBlock,

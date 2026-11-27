@@ -8,9 +8,8 @@
 //   3. problemNumberAt (delegates here)                 — @activity/app editor
 //   4. buildActivityIndex's docOrder walk               — @activity/app
 // The two sets are NOT the same: a display-mode graph is neither; an ungraded
-// self_explanation is GRADEABLE-reviewable but NOT page-numbered; a legacy
-// `problem` (prose, no blanks) is page-numbered but carries no auto-graded
-// response. So they need two predicates, not one.
+// self_explanation is GRADEABLE-reviewable but NOT page-numbered. So they need
+// two predicates, not one.
 //
 // ⚠ AMENDED 2026-08-20 (answer-key slice, ruling E7). This comment used to name
 // the whole free-text trio — "self_explanation / short_answer / essay" — as
@@ -39,7 +38,6 @@ import type { BlockLabel } from './label.js';
 // exception is handled separately below). This is the ONE membership list; the
 // renderer and the editor's ProseMirror walk both resolve through it.
 const ALWAYS_NUMBERED_TYPES: ReadonlySet<string> = new Set([
-  'problem',
   'fill_in_blank',
   'multiple_choice',
   'matching',
@@ -150,7 +148,7 @@ export function pageLabel(block: Block): PageLabel {
 // True if this block emits at least one gradeable response — i.e. it appears in
 // a submission and the teacher reviews it. Mirrors buildActivityIndex's indexed
 // set: free-text prompts count (they're reviewed, if not auto-scored); display
-// charts don't; a legacy prose `problem` carries no response. A math_block is
+// charts don't. A math_block is
 // gradeable exactly when it carries Model A in-equation gaps.
 //
 // NOTE: not yet wired into buildActivityIndex — that consolidation (and the

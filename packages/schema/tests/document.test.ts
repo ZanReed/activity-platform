@@ -12,7 +12,6 @@ import {
   createEmptyDocument,
   createParagraphBlock,
   createHeadingBlock,
-  createProblemBlock,
   createFillInBlankBlock,
   createBlankToken,
   createSection,
@@ -58,7 +57,6 @@ describe('ActivityDocument', () => {
       { id: crypto.randomUUID(), type: 'math_block', latex: 'x^2 + 1' },
       { id: crypto.randomUUID(), type: 'image', src: 'https://example.com/i.png', alt: '' },
       { id: crypto.randomUUID(), type: 'callout', variant: 'info', content: [] },
-      createProblemBlock(),
       fillIn,
     ];
     const result = ActivityDocument.safeParse(doc);

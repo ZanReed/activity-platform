@@ -354,10 +354,8 @@ Legend for **Import**: ✅ importable · ⚠️ partially importable · ❌ edit
 
 - **`callout`** (info/warning/success/note) — `callout.ts:1–15`. Editor-only;
   no fence.
-- **`problem`** — a plain numbered problem with a `solution`, no blanks
-  (`problem.ts:19–26`). Reachable via markdown only incidentally (a
-  blank-less paragraph is a `paragraph`, not a `problem`); the `problem` block
-  itself has no import syntax.
+- ~~**`problem`**~~ — REMOVED from the schema 2026-11-27 (dead since ruling E1;
+  a stored one reads as a paragraph, `upgrade.ts` `retireShapes`).
 
 ---
 
@@ -424,7 +422,7 @@ you built it, nothing in the import path invokes it):*
 8. **`underline` / `subscript` / `superscript` marks** (`inline.ts:26–33`).
 9. **Vocabulary `definition` mark** (popover definitions) (`inline.ts:140–146`).
 10. **`callout` block** (info/warning/success/note) (`callout.ts`).
-11. Per-block knobs: blank `width`, faded `showStepLabels`, data-plot
+11. Per-block knobs (blank `width` retired 2026-11-27): faded `showStepLabels`, data-plot
     `maxFrequency`, custom block **labels** (`labelFields`).
 12. All **activity-level settings** in §3 (submission/feedback mode, calculator,
     reference panel, print, typography).

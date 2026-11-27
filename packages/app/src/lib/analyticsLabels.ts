@@ -52,7 +52,6 @@ export const NOT_QUESTIONS: ReadonlySet<string> = new Set([
     'heading',
     'image',
     'callout',
-    'problem',
     'bullet_list',
     'ordered_list',
     'learning_objectives',

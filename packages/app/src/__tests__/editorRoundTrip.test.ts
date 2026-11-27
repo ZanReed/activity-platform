@@ -71,23 +71,12 @@ function canonical(value: unknown): unknown {
     for (const [k, v] of Object.entries(value)) rec[k] = canonical(v);
     if (rec.type === 'blank' && rec.equivalence === 'value') delete rec.equivalence;
     if (rec.type === 'video') delete rec.stale;
-    for (const strip of KNOWN_FIELD_LOSSES) strip(rec);
     return rec;
 }
 
-// ⚠ TRACKED EXPECTED FAILURES — TODOS.md → "Editor round trip: what the
-// editor drops on save (review C3)". Each is a real loss on current code,
-// hidden from the main comparison so the rest of the guard stays sharp, and
-// proved still-lost by an `it.fails` below: the day the loss is fixed that row
-// goes red, and the entry here must be deleted.
-const KNOWN_BLOCK_LOSSES = new Set<string>(['problem']);
-const KNOWN_FIELD_LOSSES: ((rec: Record<string, unknown>) => void)[] = [
-    // A blank's authored `width` (schema inline.ts BlankToken; the viewer's
-    // blankSize.ts honours it). The Blank extension declares no width attr.
-    (rec) => {
-        if (rec.type === 'blank') delete rec.width;
-    },
-];
+// No tracked losses: the two this guard found on 2026-11-26 (the `problem`
+// block and a blank's `width`) were retired from the schema on 2026-11-27, so
+// every block and field below must survive.
 
 const same = (doc: ActivityDocument): [unknown, unknown] => [
     normaliseIds(canonical(throughEditor(doc))),
@@ -251,15 +240,9 @@ describe('editor round trip (C3)', () => {
         ).toEqual([]);
     });
 
-    it('every KNOWN_BLOCK_LOSSES entry is a real schema block type', () => {
-        for (const t of KNOWN_BLOCK_LOSSES) expect(SCHEMA_BLOCK_TYPES).toContain(t);
-    });
-
     describe('viewer fixture blocks', () => {
         for (const [name, doc] of fixtureCases) {
-            const type = name.split(' ')[0]!;
-            const run = KNOWN_BLOCK_LOSSES.has(type) ? it.fails : it;
-            run(`${name} survives open → save`, () => {
+            it(`${name} survives open → save`, () => {
                 const [after, before] = same(doc);
                 expect(after).toEqual(before);
             });
@@ -267,36 +250,8 @@ describe('editor round trip (C3)', () => {
     });
 
     it('the whole fixture document survives (sections, rows, columns together)', () => {
-        const withoutLosses = ActivityDocument.parse({
-            ...fixture,
-            sections: fixture.sections.map((s) => ({
-                ...s,
-                rows: s.rows
-                    .map((r) => ({
-                        ...r,
-                        columns: r.columns.map((c) => ({
-                            ...c,
-                            blocks: c.blocks.filter((b) => !KNOWN_BLOCK_LOSSES.has(b.type)),
-                        })),
-                    }))
-                    // A row left with an empty column held only a known loss.
-                    .filter((r) => r.columns.every((c) => c.blocks.length > 0)),
-            })),
-        });
-        const [after, before] = same(withoutLosses);
+        const [after, before] = same(fixture);
         expect(after).toEqual(before);
-    });
-
-    // Split from the it.fails below so a fixture that stops carrying a width
-    // goes red here instead of letting the it.fails "pass" vacuously.
-    const blankWidths = (d: ActivityDocument): string[] =>
-        JSON.stringify(d).match(/"type":"blank"[^{}]*"width":\d+|"width":\d+[^{}]*"type":"blank"/g) ?? [];
-    const widthDoc = fixtureCases.find(([n]) => n.startsWith('fill_in_blank'))![1];
-    it('precondition: the fill_in_blank fixture carries an authored blank width', () => {
-        expect(blankWidths(widthDoc).length).toBeGreaterThan(0);
-    });
-    it.fails('KNOWN LOSS: a blank keeps its authored width', () => {
-        expect(blankWidths(throughEditor(widthDoc))).toEqual(blankWidths(widthDoc));
     });
 
     it('the layout document survives (section title + DoL, grid lines, widths, titles)', () => {

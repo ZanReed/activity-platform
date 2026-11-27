@@ -22,7 +22,7 @@ import { labelFields } from '../label.js';
 //     `[data-block-type="fill_in_blank"]` and finds NESTED ones. They ride the
 //     existing BlankResponse map, so there is NO submission wire/storage bump.
 //   - Scoring rides the child blanks; this frame reads no type-specific
-//     attributes itself → it is a CONTAINER (like `problem`), not INTERACTIVE.
+//     attributes itself → it is a CONTAINER (like `worked_example`), not INTERACTIVE.
 //   - Numbering (revised 2026-07-13): the WHOLE box is one numbered problem —
 //     its number leads the title, and the faded fill_in_blank steps are lettered
 //     (a)/(b)… LOCALLY (showStepLabels toggles them off), so they no longer

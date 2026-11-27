@@ -14,7 +14,6 @@ import { HeadingBlock } from './heading.js';
 import { MathBlock } from './math-block.js';
 import { ImageBlock, CropRect } from './image.js';
 import { CalloutBlock } from './callout.js';
-import { ProblemBlock } from './problem.js';
 import { FillInBlankBlock } from './fill-in-blank.js';
 import { BulletListBlock, OrderedListBlock, ListItem } from './list.js';
 import { InteractiveGraphBlock } from './interactive-graph.js';
@@ -40,7 +39,6 @@ export const Block = z.discriminatedUnion('type', [
   MathBlock,
   ImageBlock,
   CalloutBlock,
-  ProblemBlock,
   FillInBlankBlock,
   BulletListBlock,
   OrderedListBlock,
@@ -77,7 +75,6 @@ export {
   ImageBlock,
   CropRect,
   CalloutBlock,
-  ProblemBlock,
   FillInBlankBlock,
   BulletListBlock,
   OrderedListBlock,

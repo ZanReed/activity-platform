@@ -179,15 +179,15 @@ The pattern in `problem.ts` / `fill-in-blank.ts` (schema) plus the viewer's `Fil
 ```typescript
 import {
   createEmptyDocument,
-  createProblemBlock,
+  createParagraphBlock,
   ActivityDocument,
 } from '@activity/schema';
 
 // Build a document
 const doc = createEmptyDocument({ title: 'Logarithms warm-up' });
-const problem = createProblemBlock();
-problem.content = [{ type: 'text', text: 'Solve: log_2(8) = ?', marks: [] }];
-doc.sections[0]!.blocks = [problem];
+const intro = createParagraphBlock();
+intro.content = [{ type: 'text', text: 'Solve: log_2(8) = ?', marks: [] }];
+doc.sections[0]!.rows[0]!.columns[0]!.blocks = [intro];
 
 // Validate (always do this before persisting user-facing input)
 const result = ActivityDocument.safeParse(doc);

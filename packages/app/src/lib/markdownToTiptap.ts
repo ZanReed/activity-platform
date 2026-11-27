@@ -879,7 +879,7 @@ const DEFINITION_SUB = '\\[\\[(?<defInner>[^\\[\\]]+)\\]\\]';
 // This is a degrade-path concern ONLY. A `{{…}}` that stays literal by design
 // (a ```worked example's body, where blanks are not live) never routes through
 // these emitters and is untouched.
-const MASKED_BLANK = '______'; // ~the schema's default blank width (~6ch)
+const MASKED_BLANK = '______'; // about the width of an unsized blank
 
 function maskBlankSpecs(text: string): string {
     return text.replace(new RegExp(BLANK_SUB, 'g'), (whole, ...rest) => {

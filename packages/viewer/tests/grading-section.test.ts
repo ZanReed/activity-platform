@@ -464,7 +464,7 @@ describe('solutions unlock (ruling S4-13)', () => {
 
   it('includes the solution of a STATIC block that answered nothing', () => {
     // The bug this prevents: a grader that walks only responding blocks leaves
-    // a `problem`'s worked solution locked forever, and to the student that
+    // a static block's worked solution locked forever, and to the student that
     // reads as a broken box rather than as a grading rule.
     const respondingIds = new Set([
       ...inv.blankGroupsByBlock.map((g) => g.blockId),

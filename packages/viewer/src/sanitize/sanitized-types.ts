@@ -46,7 +46,7 @@ import type {
 export type BlankSecretField = (typeof BLANK_SECRET_FIELDS)[number];
 export type MathPromptSecretField = (typeof MATH_PROMPT_SECRET_FIELDS)[number];
 
-/** A blank as the student receives it: id/width/hint/answerType survive (they
+/** A blank as the student receives it: id/hint/answerType survive (they
  * shape the input and the pre-check affordances); the key does not. */
 export type SanitizedBlankToken = Omit<BlankToken, BlankSecretField>;
 
@@ -141,9 +141,7 @@ export interface SanitizedQuestionShape {
 
 export type SanitizeBlockType<B> = B extends { type: 'math_block' }
   ? Omit<DeepSanitizeInline<B>, 'solution'>
-  : B extends { type: 'problem' }
-    ? Omit<DeepSanitizeInline<B>, 'solution'>
-    : B extends { type: 'fill_in_blank' }
+  : B extends { type: 'fill_in_blank' }
       ? Omit<DeepSanitizeInline<B>, 'solution'>
       : B extends { type: 'interactive_graph' }
         ? Omit<

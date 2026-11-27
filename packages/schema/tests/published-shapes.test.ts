@@ -74,6 +74,25 @@ const DROPPED_E593: Frozen['droppedOnRead'] = [
   },
 ];
 
+// Retired on purpose after these documents were frozen, applied to EVERY
+// fixture (each must still match something in at least one of them, below).
+// A block type folded into another: its `keeps` keys must survive, its type
+// must read as `to`, and anything else under it may go.
+interface Fold { from: string; to: string; keeps: readonly string[]; why: string }
+const FOLDED: readonly Fold[] = [
+  {
+    from: 'problem',
+    to: 'paragraph',
+    keeps: ['id', 'content'],
+    why: 'the dead problem block, retired 2026-11-27 (ruling E1; review C3): retireShapes in upgrade.ts',
+  },
+];
+// A field retired from one object type: zod strips it on read.
+interface Retired { parentType: string; key: string; why: string }
+const RETIRED: readonly Retired[] = [
+  { parentType: 'blank', key: 'width', why: 'never authored; retired 2026-11-27 (review C3)' },
+];
+
 const FROZEN: readonly Frozen[] = [
   {
     file: '2026-08-16-viewer-fixture-e593a25d.json',
@@ -154,6 +173,35 @@ function leaves(value: unknown, path = ''): [string, unknown][] {
   }
   return [[path, value]];
 }
+/** Paths of every object in `root` whose `type` is `type`. */
+function pathsOfType(value: unknown, type: string, path = ''): string[] {
+  if (Array.isArray(value)) return value.flatMap((v, i) => pathsOfType(v, type, `${path}[${i}]`));
+  if (!value || typeof value !== 'object') return [];
+  const rec = value as Record<string, unknown>;
+  const here = rec.type === type ? [path] : [];
+  return here.concat(
+    Object.entries(rec).flatMap(([k, v]) => pathsOfType(v, type, path ? `${path}.${k}` : k)),
+  );
+}
+/** Is this stored leaf one a deliberate retirement may change or drop? */
+function retiredLeaf(raw: unknown, doc: unknown, path: string): boolean {
+  for (const f of FOLDED) {
+    for (const at of pathsOfType(raw, f.from)) {
+      if (path === `${at}.type`) return valueAt(doc, path) === f.to;
+      const rest = path.slice(at.length);
+      if (path.startsWith(at) && /^[.]/.test(rest)) {
+        const key = rest.slice(1).split(/[.[]/)[0]!;
+        if (!f.keeps.includes(key)) return true;
+      }
+    }
+  }
+  for (const r of RETIRED) {
+    for (const at of pathsOfType(raw, r.parentType)) {
+      if (path === `${at}.${r.key}` || path.startsWith(`${at}.${r.key}.`) || path.startsWith(`${at}.${r.key}[`)) return true;
+    }
+  }
+  return false;
+}
 function valueAt(root: unknown, path: string): unknown {
   let cur: unknown = root;
   for (const part of path.match(/[^.[\]]+/g) ?? []) {
@@ -187,6 +235,17 @@ describe('frozen published documents (C8)', () => {
     expect(onDisk).toEqual(FROZEN.map((f) => f.file).sort());
   });
 
+  it('every deliberate retirement still matches something a fixture holds', () => {
+    const raws = FROZEN.map((f) => JSON.parse(bytes(f.file).toString('utf8')) as unknown);
+    for (const f of FOLDED) expect(raws.some((r) => pathsOfType(r, f.from).length > 0), f.why).toBe(true);
+    for (const r of RETIRED) {
+      const held = raws.some((raw) =>
+        pathsOfType(raw, r.parentType).some((at) => valueAt(raw, `${at}.${r.key}`) !== undefined),
+      );
+      expect(held, r.why).toBe(true);
+    }
+  });
+
   it('the frozen fixtures span more than one date', () => {
     expect(new Set(FROZEN.map((f) => f.date)).size).toBeGreaterThan(1);
   });
@@ -201,7 +260,11 @@ describe('frozen published documents (C8)', () => {
       const trail = blockTrail(raw);
       expect(trail.length).toBeGreaterThan(0);
       const { doc } = upgradeActivityDocument(raw);
-      expect(blockTrail(doc)).toEqual(trail);
+      const folded = trail.map((e) => {
+        const f = FOLDED.find((x) => e.startsWith(`${x.from}:`));
+        return f ? `${f.to}:${e.slice(f.from.length + 1)}` : e;
+      });
+      expect(blockTrail(doc)).toEqual(folded);
     });
 
     it('the read keeps every stored value (defaults may only add)', () => {
@@ -210,6 +273,7 @@ describe('frozen published documents (C8)', () => {
       const allowed = frozen.droppedOnRead ?? [];
       const lost = leaves(raw)
         .filter(([path]) => !allowed.some((d) => d.path.test(path)))
+        .filter(([path]) => !retiredLeaf(raw, doc, path))
         .filter(([path, v]) => !Object.is(valueAt(doc, path), v))
         .map(([path, v]) => `${path}: ${JSON.stringify(v)} → ${JSON.stringify(valueAt(doc, path))}`);
       expect(lost).toEqual([]);

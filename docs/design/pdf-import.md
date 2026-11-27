@@ -53,7 +53,7 @@ Plants make food through [[__]].          <- blank, no answer on the page → im
 
 **Build the `DSL → Tiptap` converter once and it serves two features:** the **markdown-paste import** (shipped in Phase 1) already built this converter (`markdownToTiptap.ts`), so for PDF import it's reuse, not new work — the converter was shared by design.
 
-> Note: `callout` and `problem` are currently schema-only — no editor round-trip yet (see `serialize.ts`). The DSL can emit them, but the converter's coverage is bounded by what the Tiptap schema round-trips at implementation time. Sequence accordingly.
+> Note: the converter's coverage is bounded by what the Tiptap schema round-trips at implementation time (`callout` has since gained an editor node; `problem` left the schema on 2026-11-27). Sequence accordingly.
 
 ## Hard rule: transcription only, never inference (author decision, 2026-06-16)
 

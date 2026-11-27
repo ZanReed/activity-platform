@@ -496,8 +496,10 @@ export type InlineNode = z.infer<typeof InlineNode>;
 // stable id (referenced in submissions.responses.blanks[<id>]) and an answer
 // key.
 //
-// width is in CSS chars (`ch` units) — used to size the input. Optional
-// because the renderer has a sensible default (~6 chars).
+// No `width`: the viewer sizes the box from the answer type and the student's
+// typing (viewer blocks/blankSize.ts). An authored width was retired
+// 2026-11-27 — nothing ever wrote one (review C3), and zod strips it from any
+// stored blank that still carries it.
 //
 // hint and mistakeFeedback are the per-blank feedback layers (block-level
 // fields — solution, skills — live on FillInBlankBlock).
@@ -521,7 +523,6 @@ export const BlankToken = z.object({
   answer: z.string(),
   // Alternative correct answers. Empty array is the common case.
   acceptableAnswers: z.array(z.string()).default([]),
-  width: z.number().int().positive().optional(),
   // Optional teacher-authored nudge shown when this blank is wrong and no
   // mistakeFeedback entry matches. Rich inline content (formatted text + math).
   hint: z.array(InlineNode).optional(),

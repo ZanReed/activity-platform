@@ -105,12 +105,6 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
   });
   put('image', { id: uuid(), type: 'image', src: 'https://x.test/i.png', alt: 'a' });
   put('callout', { id: uuid(), type: 'callout', variant: 'info', content: [text('c')] });
-  put('problem', {
-    id: uuid(),
-    type: 'problem',
-    content: [text('p')],
-    solution: sentinelInline(),
-  });
   put('fill_in_blank', {
     id: uuid(),
     type: 'fill_in_blank',
@@ -121,7 +115,6 @@ export function fixturesByType(): Map<BlockType, Record<string, unknown>[]> {
         id: uuid(),
         answer: STR,
         acceptableAnswers: [STR],
-        width: 8,
         hint: [text('HINT_SURVIVES')],
         mistakeFeedback: [
           {

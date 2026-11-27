@@ -29,7 +29,6 @@ export const EAGER_BLOCKS: Partial<Record<BlockType, string>> = {
   graph_figure:
     'Y7 ER-9: static figures sit inline in worksheets. Making the static figure ' +
     'engine lazy is reserve rung R6 (~5 KiB est.), first in the reserve.',
-  problem: 'The container every question sits in.',
   multiple_choice: 'Near-universal question type; light (no kit).',
   fill_in_blank: 'Near-universal question type; light (no kit).',
   matching: 'Question type, light. Lazy is part of reserve rung R7.',

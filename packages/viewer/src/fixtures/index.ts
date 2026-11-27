@@ -174,12 +174,6 @@ function authoredRawByType(
       content: [text('Vertical lines have no slope at all — the run is zero.')],
     },
   );
-  put('problem', {
-    id: fid(),
-    type: 'problem',
-    content: [text('Find the slope of the line through (1, 7) and (3, 13).')],
-    solution: [text('m = (13 − 7) / (3 − 1) = 3.')],
-  });
   put('fill_in_blank', {
     id: fid(),
     type: 'fill_in_blank',
@@ -192,7 +186,6 @@ function authoredRawByType(
         id: fid(),
         answer: '3',
         acceptableAnswers: ['3.0'],
-        width: 6,
         hint: [text('Look at the coefficient of x.')],
         mistakeFeedback: [
           { match: '4', feedback: [text('4 is the y-intercept, not the slope.')] },
@@ -651,7 +644,6 @@ function authoredRawByType(
                 answer: '9.00',
                 acceptableAnswers: ['9', '9.0'],
                 answerType: 'numeric',
-                width: 6,
                 hint: [text('Twice one kilogram.')],
               },
             ],
@@ -671,7 +663,6 @@ function authoredRawByType(
                 answer: '13.50',
                 acceptableAnswers: ['13.5'],
                 answerType: 'numeric',
-                width: 6,
                 mistakeFeedback: [
                   { match: '9.00', feedback: [text('That is the cost of 2 kg.')] },
                 ],

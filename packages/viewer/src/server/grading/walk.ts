@@ -116,7 +116,7 @@ export interface GradableInventory {
    * photos it allows — recorded, never judged, like free text. */
   photos: Array<{ blockId: string; maxPhotos: number }>;
   /** blockId → authored solution content, for EVERY block in the section that
-   * has one. Includes STATIC blocks (a `problem`'s worked explanation), which
+   * has one. Includes STATIC blocks (a display math_block's worked solution), which
    * is the whole reason this is collected by walking blocks rather than by
    * walking the blocks that produced responses. */
   solutions: Array<{ blockId: string; solution: unknown[] }>;
@@ -402,7 +402,7 @@ function visit(
 
   // Solutions are collected for EVERY block that has one, including statics.
   // A grader that walked only responding blocks would never unlock a
-  // `problem`'s worked solution, and to a student that reads as a content bug
+  // static block's worked solution, and to a student that reads as a content bug
   // (the section says "checked" but one box stays shut).
   if (Array.isArray(block.solution) && block.solution.length > 0) {
     inv.solutions.push({ blockId: id, solution: block.solution as unknown[] });

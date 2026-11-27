@@ -52,16 +52,27 @@ interface UpgradeStep {
 const UPGRADES: readonly UpgradeStep[] = [];
 
 /**
- * Form grading FG-8: the retired equivalence 'exact-form' reads as 'form'
- * (widening-only — anything that string-matched also shape-matches — and zero
- * stored uses on 2026-11-14). An in-version fold, not a chain step: it changes
- * no schemaVersion. Copy-on-write; returns the input itself when nothing moved.
+ * In-version folds for shapes retired on purpose. None changes schemaVersion,
+ * and each is applied wherever a stored document is read through
+ * upgradeActivityDocument. One walk carries them all (the read path is on a
+ * performance budget). Copy-on-write; returns the input itself when nothing
+ * moved.
+ *
+ *  - Form grading FG-8: the retired equivalence 'exact-form' reads as 'form'
+ *    (widening-only — anything that string-matched also shape-matches — and
+ *    zero stored uses on 2026-11-14).
+ *  - The `problem` block, retired 2026-11-27 (ruling E1 of 2026-08-19, removed
+ *    on review C3's finding): a stored one reads as a paragraph holding its
+ *    text, so the teacher's words survive and the document still opens. Its
+ *    `number`, `solution` and `skills` are dropped — the editor never held a
+ *    problem, and zero stored documents carried one on the day of removal.
+ *  - (A blank's `width`, retired the same day, needs no fold: zod strips it.)
  */
-export function retireExactForm(node: unknown): unknown {
+export function retireShapes(node: unknown): unknown {
   if (Array.isArray(node)) {
     let changed = false;
     const out = node.map((n) => {
-      const r = retireExactForm(n);
+      const r = retireShapes(n);
       if (r !== n) changed = true;
       return r;
     });
@@ -69,9 +80,12 @@ export function retireExactForm(node: unknown): unknown {
   }
   if (node === null || typeof node !== 'object') return node;
   const obj = node as Record<string, unknown>;
+  if (obj.type === 'problem') {
+    return { id: obj.id, type: 'paragraph', content: retireShapes(obj.content) };
+  }
   let out: Record<string, unknown> | null = null;
   for (const [k, v] of Object.entries(obj)) {
-    const r = k === 'equivalence' && v === 'exact-form' ? 'form' : retireExactForm(v);
+    const r = k === 'equivalence' && v === 'exact-form' ? 'form' : retireShapes(v);
     if (r !== v) {
       out ??= { ...obj };
       out[k] = r;
@@ -127,7 +141,7 @@ export function upgradeActivityDocument(raw: unknown): UpgradeResult {
     at += 1;
   }
 
-  current = retireExactForm(current) as Record<string, unknown>;
+  current = retireShapes(current) as Record<string, unknown>;
 
   const parsed = ActivityDocument.safeParse(current);
   if (!parsed.success) {

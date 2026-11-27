@@ -113,7 +113,7 @@ and why the first attempt was a false start worth remembering.
 
 ## 5. NOT in scope
 
-- **Reviving `problem`** — overturned at the scope gate; removal is a TODO.
+- **Reviving `problem`** — overturned at the scope gate. Removed from the schema 2026-11-27.
 - **Per-block `workSpace` on these blocks** — cut (E6); revisit with the
   lines-based unit question attached, only on demonstrated divergence.
 - **The scan-grading arc itself** — [photo-grading.md](photo-grading.md);

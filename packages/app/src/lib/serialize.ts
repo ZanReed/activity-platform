@@ -642,9 +642,9 @@ function tiptapSelfExplanationToActivity(node: JSONContent): SelfExplanationBloc
 // schema exactly like every other attrs-stored InlineNode[] in this file.
 //
 // THIS FUNCTION IS THE TRAP THE ENG REVIEW PINNED (E5.1). The design pass's
-// original premise died on precisely this seam: `problem` has no editor
+// original premise died on precisely this seam: `problem` had no editor
 // mapping, so an imported problem block was silently DELETED by the first
-// autosave. Fields are lost the same way — an importer can write an `answer:`
+// autosave (the type left the schema 2026-11-27). Fields are lost the same way — an importer can write an `answer:`
 // attr the fence tests happily assert on, and if serialize does not read it
 // back, the teacher's answer key evaporates the first time the editor saves,
 // with nothing anywhere going red. Both directions or neither; the round-trip
@@ -1912,14 +1912,6 @@ function activityBlockToTiptapRaw(block: Block): JSONContent | null {
                 content: activityInlineToTiptap(block.content),
             };
 
-        case 'problem':
-            // problem has no editor mapping yet; it round-trips through storage
-            // but is omitted from the editor view.
-            console.warn(
-                `[serialize] No Tiptap mapping for problem yet; block omitted from editor view.`,
-            );
-            return null;
-
         case 'table':
             return activityTableToTiptap(block);
 
@@ -2405,7 +2397,6 @@ function activityBlankToTiptap(node: BlankToken): JSONContent {
     if (node.mistakeFeedback !== undefined) {
         attrs.mistakeFeedback = node.mistakeFeedback;
     }
-    if (node.width !== undefined) attrs.width = node.width;
 
     return {
         type: 'blank',

@@ -14,7 +14,8 @@ import {
   createRow,
   createColumn,
   createParagraphBlock,
-  createProblemBlock,
+  createHeadingBlock,
+  createFillInBlankBlock,
 } from '../src/index.js';
 
 const uuid = () => crypto.randomUUID();
@@ -87,7 +88,7 @@ describe('Column', () => {
 
   it('holds a STACK of blocks (block+), not a single block', () => {
     const col = createColumn();
-    col.blocks = [createProblemBlock(), createParagraphBlock(), createProblemBlock()];
+    col.blocks = [createHeadingBlock(2), createParagraphBlock(), createHeadingBlock(3)];
     expect(Column.safeParse(col).success).toBe(true);
   });
 
@@ -129,7 +130,7 @@ describe('layout is not a block (no nesting)', () => {
     // The old ColumnCellBlock "full union minus columns" carve-out is gone — a
     // column holds any leaf Block.
     const col = createColumn();
-    col.blocks = [createParagraphBlock(), createProblemBlock()];
+    col.blocks = [createParagraphBlock(), createFillInBlankBlock()];
     expect(Column.safeParse(col).success).toBe(true);
   });
 });

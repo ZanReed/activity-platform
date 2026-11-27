@@ -22,6 +22,7 @@ import {
   ActivityDocument,
   UpgradeError,
   createEmptyDocument,
+  retireShapes,
   upgradeActivityDocument,
 } from '../src/index.js';
 
@@ -89,5 +90,56 @@ describe('upgradeActivityDocument', () => {
       );
       expect((err as UpgradeError).message).toContain('failed validation');
     }
+  });
+});
+
+// The dead `problem` block and the never-authored blank `width`, retired
+// 2026-11-27 (review C3). Zero stored documents carried either that day.
+describe('retired shapes still open', () => {
+  const PROBLEM_ID = '11111111-1111-4111-8111-111111111111';
+  const BLANK_ID = '22222222-2222-4222-8222-222222222222';
+  function storedWith(blocks: unknown[]): Record<string, unknown> {
+    const doc = JSON.parse(JSON.stringify(createEmptyDocument({ title: 'Old' })));
+    doc.sections[0].rows[0].columns[0].blocks = blocks;
+    return doc;
+  }
+  const problem = {
+    id: PROBLEM_ID,
+    type: 'problem',
+    number: 5,
+    content: [{ type: 'text', text: 'Find the slope.', marks: [] }],
+    solution: [{ type: 'text', text: 'm = 3', marks: [] }],
+    skills: ['slope'],
+  };
+
+  it('the schema no longer accepts a problem block', () => {
+    expect(ActivityDocument.safeParse(storedWith([problem])).success).toBe(false);
+  });
+
+  it('a stored problem reads as a paragraph holding its text; number, solution and skills go', () => {
+    const { doc } = upgradeActivityDocument(storedWith([problem]));
+    const block = doc.sections[0]!.rows[0]!.columns[0]!.blocks[0]!;
+    expect(block).toEqual({
+      id: PROBLEM_ID,
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Find the slope.', marks: [] }],
+    });
+  });
+
+  it('leaves a document with no problem untouched (copy-on-write)', () => {
+    const stored = storedWith([]);
+    expect(retireShapes(stored)).toBe(stored);
+  });
+
+  it("a stored blank's width is dropped on read", () => {
+    const fitb = {
+      id: crypto.randomUUID(),
+      type: 'fill_in_blank',
+      content: [{ type: 'blank', id: BLANK_ID, answer: '3', width: 6 }],
+    };
+    const { doc } = upgradeActivityDocument(storedWith([fitb]));
+    const blank = (doc.sections[0]!.rows[0]!.columns[0]!.blocks[0] as { content: Record<string, unknown>[] }).content[0]!;
+    expect(blank.id).toBe(BLANK_ID);
+    expect('width' in blank).toBe(false);
   });
 });

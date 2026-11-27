@@ -229,7 +229,6 @@ describe('sanitize declarations (ruling TV4-A)', () => {
   it('solution strips wherever the schema carries one', () => {
     // The blocks whose schema has a `solution` field (inventory 2026-07-28).
     const withSolution: BlockType[] = [
-      'problem',
       'fill_in_blank',
       'multiple_choice',
       'matching',
@@ -323,7 +322,6 @@ describe('print declarations (faithful to the baseline print layer)', () => {
         'number_line',
         'ordering',
         'photo_response',
-        'problem',
         'self_explanation',
         'short_answer',
       'table',

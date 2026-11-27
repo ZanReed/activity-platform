@@ -9,7 +9,6 @@
 //     STRIPPED rather than merely absent, because the back-compat claim is
 //     that old stored documents carrying them still parse.
 //   - Section.isCheckpoint
-//   - ProblemBlock optional solution + skills default
 //   - FillInBlankBlock optional solution + hasConfidenceRating + skills default
 //   - Factory defaults / partial-meta overrides
 // v2 SubmissionResponses + migration coverage lives in submission.test.ts;
@@ -21,12 +20,10 @@ import {
   ActivityDocument,
   ActivityMeta,
   Section,
-  ProblemBlock,
   FillInBlankBlock,
   BlankToken,
   createEmptyDocument,
   createSection,
-  createProblemBlock,
   createFillInBlankBlock,
   createBlankToken,
 } from '../src/index.js';
@@ -102,33 +99,6 @@ describe('Section — isCheckpoint', () => {
   });
 });
 
-describe('ProblemBlock — optional solution + skills', () => {
-  it('factory defaults skills to an empty array', () => {
-    const parsed = ProblemBlock.parse(createProblemBlock());
-    expect(parsed.skills).toEqual([]);
-  });
-
-  it('solution is optional', () => {
-    const parsed = ProblemBlock.parse({ id: BLOCK_ID, type: 'problem', content: [] });
-    expect(parsed.solution).toBeUndefined();
-  });
-
-  it('accepts solution and skills together', () => {
-    const parsed = ProblemBlock.parse({
-      id: BLOCK_ID,
-      type: 'problem',
-      content: [],
-      solution: [{ type: 'text', text: 'First, distribute the 2 across (x + 3) to get 2x + 6.' }],
-      skills: ['distributive property'],
-    });
-    expect(parsed.solution?.[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining('distribute'),
-    });
-    expect(parsed.skills).toEqual(['distributive property']);
-  });
-});
-
 describe('FillInBlankBlock — optional solution + skills', () => {
   it('factory produces a schema-valid block with the new-field defaults', () => {
     const parsed = FillInBlankBlock.parse(createFillInBlankBlock());
@@ -185,7 +155,6 @@ describe('Factories — schema-valid output for the new fields', () => {
   });
 
   it('block factories touching the new fields all produce schema-valid output', () => {
-    expect(() => ProblemBlock.parse(createProblemBlock())).not.toThrow();
     expect(() => FillInBlankBlock.parse(createFillInBlankBlock())).not.toThrow();
   });
 });

@@ -27,11 +27,6 @@ const numberedTypes = schemaTypes.filter((type) =>
     isPageNumberedType(type, 'plot_point', true),
 );
 
-// `problem` is page-numbered in the schema but has NO editor mapping at all
-// (serialize drops it; see its tombstone), so it can never appear in a
-// ProseMirror document and needs no bridge entry. It never will.
-const PERMANENTLY_NO_EDITOR_FORM = new Set(['problem']);
-
 // A numbered type the editor cannot yet REPRESENT is unreachable for the same
 // reason — but during a multi-slice build that is a TEMPORARY state, and a
 // hand-listed exemption that outlived it would be exactly the silent
@@ -50,7 +45,6 @@ describe('the editor numbering bridge ↔ the schema numbering rule', () => {
     it('every numbered schema type has a bridge entry', () => {
         const mapped = new Set(Object.values(PM_NAME_TO_SCHEMA_TYPE));
         for (const type of numberedTypes) {
-            if (PERMANENTLY_NO_EDITOR_FORM.has(type)) continue;
             if (!hasEditorNode(type)) continue;
             expect(
                 mapped.has(type),
@@ -67,13 +61,13 @@ describe('the editor numbering bridge ↔ the schema numbering rule', () => {
         // renamed a node) fails here, and a temporary one (a block mid-build)
         // has to be acknowledged when it ends.
         //
-        //   problem — permanent; no editor mapping, ever.
-        //   (table was here through Slice 1 and lifted itself when the editor
+        //   (problem was here permanently until it left the schema 2026-11-27;
+        //    table was here through Slice 1 and lifted itself when the editor
         //    slice added the node — which is what the derivation above is for.)
         const exempt = numberedTypes
             .filter((type) => !hasEditorNode(type))
             .sort();
-        expect(exempt).toEqual(['problem']);
+        expect(exempt).toEqual([]);
     });
 
     it('the bridge names no type the schema does not have', () => {

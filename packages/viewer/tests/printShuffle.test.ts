@@ -396,6 +396,11 @@ describe('the declaration is where it is for a reason', () => {
     // redeploys are pending author actions, and no file using `{{^…}}` or a
     // question `hint:` may be imported before they are live.
     //
+    // MOVED 2026-11-27: '8-9ed721a8' → '8-8e0efa28'. The dead `problem` block
+    // left the registry (its strip list went with it; review C3). Both bundles
+    // regenerate in the same commit; get-activity and check-activity redeploys
+    // are pending author actions. Zero stored documents held a problem, so the
+    // order against the push does not matter, but redeploy first as usual.
     // MOVED 2026-11-26: '7-31b444a5' → '8-9ed721a8' (SANITIZER_ALGO_REV 8, the
     // served question shape gained `domain` and `partFamilies`). Both bundles
     // regenerate in the same commit; get-activity is redeployed BEFORE the
@@ -416,7 +421,7 @@ describe('the declaration is where it is for a reason', () => {
     // SANITIZER_ALGO_REV 3 → 4 (the in-band walk now drops non-https links).
     // Both bundles regenerate in the same commit; get-activity and
     // check-activity redeploys are pending author actions, BEFORE the push.
-    expect(SANITIZER_REV).toBe('8-9ed721a8');
+    expect(SANITIZER_REV).toBe('8-8e0efa28');
   });
 
   it('every serve-shuffled field is ALSO print-shuffled', () => {

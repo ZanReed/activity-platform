@@ -32,9 +32,6 @@ import { isPageNumberedType, stepLetter } from '@activity/schema';
 // claim — guard it or don't make it); the answer-key slice made it real, having
 // walked straight into the gap it warns about.
 //
-// `problem` is deliberately absent: it is page-numbered in the schema but the
-// editor has no mapping for it at all (see its tombstone), so it can never
-// appear in a ProseMirror document.
 export const PM_NAME_TO_SCHEMA_TYPE: Readonly<Record<string, string>> = {
     fillInBlank: 'fill_in_blank',
     multipleChoice: 'multiple_choice',

@@ -713,7 +713,7 @@ export const INTEGRITY_CASES: IntegrityCase[] = [
     name: 'broken: a solution that is not an array',
     // Today: silently dropped — the section says "checked" but the worked
     // explanation never unlocks, which reads as a content bug.
-    block: { id: 'b1', type: 'problem', solution: 'not-content' },
+    block: { id: 'b1', type: 'math_block', solution: 'not-content' },
     responses: {},
     expect: 'malformed',
   },

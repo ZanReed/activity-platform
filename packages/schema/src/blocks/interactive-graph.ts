@@ -270,7 +270,7 @@ export const GraphInteraction = z.discriminatedUnion('type', [
 export type GraphInteraction = z.infer<typeof GraphInteraction>;
 
 // ---- The block --------------------------------------------------------------
-// Auto-numbered like ProblemBlock / FillInBlankBlock. skills follows the same
+// Auto-numbered like FillInBlankBlock. skills follows the same
 // opt-in pattern FillInBlankBlock established; solution is shown post-check
 // regardless of correctness.
 export const InteractiveGraphBlock = z.object({

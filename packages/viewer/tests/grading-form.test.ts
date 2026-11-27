@@ -16,7 +16,7 @@ vi.mock('@activity/graph-kit/scorers', async (importOriginal) => {
 });
 
 import { mathEquivalent } from '@activity/graph-kit/scorers';
-import { upgradeActivityDocument, retireExactForm, BlankToken, MathPrompt } from '@activity/schema';
+import { upgradeActivityDocument, retireShapes, BlankToken, MathPrompt } from '@activity/schema';
 import {
   FORM_WRONG_LINE,
   scoreBlank,
@@ -258,14 +258,14 @@ describe('schema + upgrade (FG-8)', () => {
     expect(MathPrompt.safeParse({ id: 'p1', answer: '12ab', equivalence: 'form' }).success).toBe(true);
     expect(MathPrompt.safeParse({ id: 'p1', answer: '12ab', equivalence: 'nope' }).success).toBe(false);
   });
-  it('retireExactForm maps exact-form → form, copy-on-write', () => {
+  it('retireShapes maps exact-form → form, copy-on-write', () => {
     const doc = { a: [{ equivalence: 'exact-form' }, { equivalence: 'value' }], b: { c: 1 } };
-    const out = retireExactForm(doc) as typeof doc;
+    const out = retireShapes(doc) as typeof doc;
     expect(out.a[0]).toEqual({ equivalence: 'form' });
     expect(doc.a[0]).toEqual({ equivalence: 'exact-form' }); // input untouched
     expect(out.b).toBe(doc.b);
     const clean = { a: [{ equivalence: 'value' }] };
-    expect(retireExactForm(clean)).toBe(clean);
+    expect(retireShapes(clean)).toBe(clean);
   });
   it('upgradeActivityDocument serves a stored exact-form blank as form', () => {
     const raw = {

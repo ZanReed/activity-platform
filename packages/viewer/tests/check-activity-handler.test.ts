@@ -627,7 +627,6 @@ describe('seeded grading glue (wishlist #6)', () => {
                         id: '66666666-6666-4666-8666-666666666666',
                         answer: '2*a',
                         answerType: 'numeric',
-                        width: 6,
                       },
                     ],
                   },
@@ -983,7 +982,7 @@ describe('restore: a student gets their own checked work back', () => {
         id: sectionId, title: 'S',
         rows: [{ id: '99999999-9999-4999-8999-999999999999', columns: [{ id: '88888888-8888-4888-8888-888888888888', blocks: [{
           id: blockId, type: 'fill_in_blank',
-          content: [{ type: 'text', text: 'Twice {a}: ' }, { type: 'blank', id: '66666666-6666-4666-8666-666666666666', answer: '2*a', answerType: 'numeric', width: 6 }],
+          content: [{ type: 'text', text: 'Twice {a}: ' }, { type: 'blank', id: '66666666-6666-4666-8666-666666666666', answer: '2*a', answerType: 'numeric' }],
           solution: [{ type: 'text', text: 'The value was {a}.' }],
         }] }] }],
       }],

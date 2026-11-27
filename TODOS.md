@@ -61,21 +61,6 @@ whichever comes first. Author ruled 2026-11-27: file it, don't build it now.
 - **Production risk:** likely low — StrictMode's double run is dev-only — but
   not proven.
 
-## Editor round trip: what the editor drops on save (review C3, found 2026-11-26)
-
-`packages/app/src/__tests__/editorRoundTrip.test.ts` holds each as a tracked expected
-failure (`KNOWN_BLOCK_LOSSES` / `KNOWN_FIELD_LOSSES`, each proved by an `it.fails` row
-that goes red when the loss is fixed — then delete the entry).
-- **A `problem` block is deleted by the first open → save.** `activityToTiptap` has no
-  mapping (`serialize.ts`, `case 'problem'` returns null). Nothing in the app or the
-  importer creates one (only `createProblemBlock`), so no stored document is known to
-  carry one. Fix: give it a node, or retire the type from the schema.
-- **A blank's authored `width` is deleted by the first open → save.** The Blank
-  extension declares no `width` attr; the viewer honours one (`blankSize.ts`: "an
-  authored width always wins"). Nothing in the app or importer writes `width`, so only
-  hand-made JSON carries it. Fix: declare the attr and carry it, or drop the field.
-- Trigger for both: the next change to `serialize.ts`'s blank or block switch.
-
 ## SQL response-family arrays miss `photos` (review C6, found 2026-11-26)
 
 `activity_first_tries` (0062) and `class_misconceptions` (0064, which restated 0061's)
@@ -3823,19 +3808,6 @@ corpus reaching a size that tests it — i.e. dogfooding, not a slice.
 **Effort:** S (investigate + decide) / M (if the fix touches the baseline)
 **Priority:** P3
 **Depends on:** None.
-
-## Remove the dead `problem` block (ride the next schema-changing slice)
-
-**What:** Delete `problem` from schema, viewer (Problem.tsx, registry, bindings), sanitizer types, and the grading corpus row — with a P5 claims-grep for every comment citing it before deletion.
-
-**Why:** E1 of the answer-key eng review (2026-08-19, [problem-answer-key.md](docs/design/problem-answer-key.md)) ruled the block stays dead: the editor has NEVER been able to hold one ([serialize.ts](packages/app/src/lib/serialize.ts) drops it with a warning), no fence produces one, and its paper-problem job now belongs to the extended `short_answer`/`essay`. What remains is a zombie that renders in the viewer and looks alive to any future session — the resurrection-path hazard OV-DX-2 names.
-
-**Pros:** One less block type in schema/sanitizer/registry/grading to reason about; the E1 tombstone becomes temporary.
-**Cons:** A `packages/schema` change, so it pays the bundle-regeneration round — which is why it should RIDE a slice already paying it, never stand alone.
-
-**Context:** Registry calls it "numbered legacy prose problem" (registry.ts:133). The corpus is empty of them (nothing could ever author one). The answer-key review deliberately did NOT fold this into its own slice — deletions deserve their own focus (the S9 lesson).
-
-**Effort:** S · **Priority:** P3 · **Depends on:** the next slice that regenerates the server bundles anyway.
 
 ## Answer/solution editing UI in FreeResponseView
 

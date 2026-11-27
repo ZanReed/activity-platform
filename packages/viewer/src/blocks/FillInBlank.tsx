@@ -8,7 +8,7 @@
 //
 //  - A blank's id is the response key (R1: id-keyed, never positional), so
 //    reordering prose never re-assigns a student's answers.
-//  - `hint`, `width` and `answerType` SURVIVE sanitization deliberately — they shape the
+//  - `hint` and `answerType` SURVIVE sanitization deliberately — they shape the
 //    input before any check. `answer` and `acceptableAnswers` do not, and the
 //    type will not let this file name them.
 //  - Verdicts are PER BLANK, not per block: one sentence can hold three blanks
