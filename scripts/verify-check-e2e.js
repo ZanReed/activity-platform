@@ -144,8 +144,15 @@
     console.warn('  Use an activity with at least one blank, MC, or free-text block.');
   }
 
+  // The wire version is CHECK_WIRE_VERSION (packages/viewer/src/check/wire.ts).
+  // A paste-in script cannot import it, so scripts/tests/check-e2e-wire.test.mjs
+  // fails the build when the two disagree (this line said 2 from wire v3 until
+  // 2026-11-28). Every request carries a fresh UUID key: the server has
+  // required one since review B4 (2026-11-28).
+  const WIRE_VERSION = 4;
   const baseBody = (over = {}) => ({
-    wireVersion: 2,
+    wireVersion: WIRE_VERSION,
+    idempotencyKey: crypto.randomUUID(),
     activityId: ACT,
     versionId: VERSION,
     sectionId: SECTION,
@@ -163,7 +170,7 @@
   const firstMs = Math.round(performance.now() - t0);
   rec('B1 a real check returns 200', happy.status === 200, `${happy.status} in ${firstMs} ms`);
   rec('B2 response echoes the section + wire version',
-    happy.json.sectionId === SECTION && happy.json.wireVersion === 2,
+    happy.json.sectionId === SECTION && happy.json.wireVersion === WIRE_VERSION,
     JSON.stringify({ s: happy.json.sectionId === SECTION, w: happy.json.wireVersion }));
   rec('B3 the server assigned an attempt number',
     typeof happy.json.attemptNumber === 'number', String(happy.json.attemptNumber));
@@ -217,8 +224,13 @@
     staleWire.status === 400 && codeOf(staleWire) === 'wire_version_mismatch',
     `${staleWire.status} ${codeOf(staleWire)}`);
 
+  const badKey = await postCheck(baseBody({ idempotencyKey: 'not-a-key' }));
+  rec('C5 a malformed idempotency key → 400 code bad_idempotency_key (review B4)',
+    badKey.status === 400 && codeOf(badKey) === 'bad_idempotency_key',
+    `${badKey.status} ${codeOf(badKey)}`);
+
   const badSection = await postCheck(baseBody({ sectionId: 'no-such-section' }));
-  rec('C5 an unknown section → 400 unknown_section, not 500',
+  rec('C6 an unknown section → 400 unknown_section, not 500',
     badSection.status === 400 && codeOf(badSection) === 'unknown_section',
     `${badSection.status} ${codeOf(badSection)}`);
 
@@ -268,7 +280,7 @@
     Array.isArray(rows) && rows.length > 1 && rows[0].attempt_number > rows[1].attempt_number,
     rows?.slice(0, 3).map((r) => r.attempt_number).join(','));
 
-  const key = `e2e-idem-${Date.now()}`;
+  const key = crypto.randomUUID();
   const one = await postCheck(baseBody({ idempotencyKey: key }));
   const two = await postCheck(baseBody({ idempotencyKey: key }));
   rec('F3 a replayed request does NOT mint a second attempt',

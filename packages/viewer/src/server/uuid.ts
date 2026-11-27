@@ -9,11 +9,10 @@
 // Every legitimate id is a Postgres gen_random_uuid() (v4, RFC variant), so
 // strict costs no real client anything and rejects garbage earlier.
 //
-// The two remaining LOOSE copies live in ingest-submission and get-feedback's
-// Deno files, deliberately untouched: both functions serve only the anonymous
-// published-page wire and are deleted at S9 (cutover checklist C15) —
-// tightening a surface scheduled for demolition would buy two redeploys of a
-// doomed function. Their copies carry a pointer here.
+// There are no loose copies left: the two that stood in ingest-submission and
+// get-feedback died with those functions at S9 (2026-08-14). This rule also
+// shapes the check request's idempotency key since review B4 (2026-11-28):
+// `isCheckKey` in check-activity-handler.ts.
 // =============================================================================
 
 /** RFC 4122 v1–v5, variant 10xx — what gen_random_uuid() and every legitimate
