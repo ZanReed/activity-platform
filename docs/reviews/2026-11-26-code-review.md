@@ -367,7 +367,7 @@ deployed and hash-identical to the repo (viewer `ee636a71…`, grading
 `34457e4c…`); a garbage-token GET to get-activity returns 401 with the fixed
 message.
 
-### B4 A check row's size is bounded only by a header the client controls
+### B4 ✔ A check row's size is bounded only by a header the client controls
 `check-activity-handler.ts:713` trusts `content-length`; a chunked body has
 none. photo-handoff already fixed this ("the declared length is a hint, not a
 bound"). Response keys not in the section are stored verbatim, blank strings
@@ -377,6 +377,21 @@ keyed on (student, key) alone. Rows are kept ~400 days and no prune is armed.
 **Fix:** the capped reader from photo-handoff, drop unknown keys before
 recording, a minimal graph shape check returning 400, require a UUID key.
 **S–M.**
+
+**Fixed 2026-11-28** (`98853000`, built and verified locally; needs the
+`check-activity` redeploy). The body is read with a counting reader capped at
+256 KiB before parsing (`server/cappedBody.ts`, photo-handoff's reader). Keys
+the section's inventory does not name are dropped before grading and
+recording, for section AND practice checks (`grading/sectionResponses.ts`).
+Graph work gets a minimal shape check (`bad_graphs` 400). The key is required
+and must be a UUID; the store mints UUIDs and drops a key the server refuses.
+The pre-fix client shape is still accepted, so open tabs keep checking
+(TODOS → "B4 legacy check key"). Two things stay true: replay is still keyed
+on (student, key) alone, but a student who resends their own key on another
+section only gets their own verdicts back and nothing is written; and a blank
+string has no cap of its own, only the 256 KiB body cap. Each guard was
+mutation-tested. `scripts/verify-check-e2e.js` already sent the wrong wire
+version, so it was left as it was.
 
 ### B5 ✔ The verify suite runs the real purge on the live database
 `pnpm verify:auth --target live` runs `purge_soft_deleted()` in five registered
@@ -397,7 +412,7 @@ use it. A test in `verify-runner.test.mjs` fails if a NEW section runs
 sections (verify-0029, 0033, 0035, 0036, 0045, 0050, 0066) to it. The test names
 them (seven, with verify-0035), and that list may only shrink.
 
-### B6 Live database advisors (read 2026-11-26)
+### B6 ✔ Live database advisors (read 2026-11-26)
 - **4 functions with a mutable `search_path`:** `analytics_day`,
   `analytics_default_zone`, `analytics_rolled_boundary`, `users_timezone_guard`.
   All 194 SECURITY DEFINER functions do set it; these four are the invoker ones.
@@ -411,6 +426,13 @@ them (seven, with verify-0035), and that list may only shrink.
   one look.
 - 41 tables with RLS on and no policy, and 115 definer RPCs callable by signed-in
   users: this is the design (RPC-only access), not a finding.
+
+**Fixed 2026-11-28** (`7e2588b6`, migration 0109, applied locally only). The
+four `search_path`s are pinned with ALTER FUNCTION. The ten policies on the
+four tables are scoped `to authenticated` with ALTER POLICY … TO, so roles
+change and no predicate is restated (verify-0109 pins each USING expression).
+The eleven other `to public` policies were not flagged and are left alone.
+**Still the author's:** the leaked-password protection look in the dashboard.
 
 ---
 
@@ -686,6 +708,16 @@ next in there.
   is the conflict token and the list order. `classes` got a trigger stamp in
   0027 for exactly this reason. `ActivityPrint`'s read-merge-write is also not
   guarded by the token. One migration. **S.**
+  **Fixed 2026-11-28** (migration 0110, applied locally only). The trigger
+  stamps now() on insert, and on an update that changes the column. That is
+  not 0027's every-update rule, because `minutes` and the importer's file move
+  deliberately do not bump it. Clients ask for the stamp through
+  `lib/updatedAtStamp.ts` and read the stored value back. ActivityPrint's write
+  is now guarded by the token it re-read and merges again on a race. When
+  there is no draft, it also builds on the CURRENT published version instead
+  of the one it loaded. That was a pre-existing bug: a republish in another
+  tab was silently undone by a later margin change (found by the Fable review).
+  Both fixes are tested and mutation-tested.
 - 11 modal surfaces with 4 focus/Escape implementations; 13 separate Escape
   handlers. One `<Dialog>` shell on `useDialogFocus`. **M.**
 - ~14 date formatters with two locale rules (`en-NZ` hard-coded in two files,
@@ -753,7 +785,7 @@ win in this review. (TODOS says the legacy runtime is unreachable; it ships.)
 > chunks because the editor's node views use them directly, so the gain is the
 > guard, not bytes.
 
-### D2 The class grids call a definer function per block per student
+### D2 ✔ The class grids call a definer function per block per student
 `class_progress` and `activity_progress` (`0099:501-526`) unnest the whole
 document once per latest check and pass `photos_allowed_for(...)`, a definer
 query on three tables, for every block. The 0.54 s measured at 30 × 100 in 0064
@@ -762,12 +794,29 @@ way: once per activity, blocks walked once per version.
 **Fix:** port that shape; longer term a per-version derived table of
 hand-graded blocks. **M.** Unmeasured; measure before and after.
 
-### D3 "Who to see first" re-reads the class's whole practice history every 5 seconds
+**Fixed 2026-11-28** (`7a9b4a28`, migration 0108, applied locally only). Both
+grids now walk each version's hand-graded blocks once and read the photo rule
+once per activity. It was measured on the local stack, old and new bodies in
+one rolled-back transaction, and the results were `jsonb`-equal. With 30
+students × 20 activities × 100 blocks, `class_progress` went from 1,536 ms to
+426 ms (median of 6). With one 100-block activity, `activity_progress` went
+from 66 ms to 23 ms. The derived table is not needed at this size.
+
+### D3 ✔ "Who to see first" re-reads the class's whole practice history every 5 seconds
 `mixed_who_first` (`0091:1112`) runs two window functions over every
 `mixed_attempts` row the class has, per poll, per open teacher tab. The table
 grows with students × items × days and no prune is armed. The 5 s cadence is
 ruled; the cost per poll is not tracked.
 **Fix:** a date floor on both windows, or compute the window once. **M.**
+
+**Fixed 2026-11-28** (`7a9b4a28`, migration 0108). There is **no date floor**:
+a floor would drop a long-unpractised skill's old tries from its window and
+change who is listed. Instead, each window is read in index order (`limit
+window` per key), only for students who practised today. Group 1 reads only
+today's served pairs. Group 2 finds each student's keys with a loose index
+scan. The results are `jsonb`-equal to the old body. With 30 students and 20
+first tries a day, the poll went from 71 ms to 35 ms on 60 days of history and
+from 213 ms to 40 ms on 180 days, so it no longer grows with history.
 
 ### D4 Every served practice item stores a full copy of its document
 `mixed_session_items.document` and `dol_practice_items` copy the template on
@@ -776,7 +825,7 @@ when the document does. Likely the fastest-growing table.
 **Fix:** store once keyed `(owner, item, fingerprint)`; items reference it.
 Keeps the snapshot guarantee. **M.** Size unmeasured.
 
-### D5 Each Edge Function request builds one to three supabase-js clients
+### D5 ◐ Each Edge Function request builds one to three supabase-js clients
 ✔ `createClient` per call in `get-activity/index.ts:58, 70, 81, 140` and
 `check-activity/index.ts:65, 75, 166`, with no `autoRefreshToken: false`. In
 the pinned auth-js, each client starts a 30-second interval that is never
@@ -785,6 +834,11 @@ start of the two hot functions for about six PostgREST calls.
 **Fix:** the two flags now (**S**); later the plain-fetch helper photo-handoff
 and the sweep already use (**M**). Impact is bounded by isolate lifetime, which
 is the open question at TODOS efficiency item 8.
+
+**Small half fixed 2026-11-28** (`a2b32cd9`; needs both redeploys). Every
+`createClient` in the two functions now sets `autoRefreshToken: false`
+(`persistSession` was already off). The pinned auth-js's non-browser path was
+read to confirm the ticker. The plain-fetch rewrite stays open.
 
 ### D6 Foreign keys with no index, on the delete paths
 The live advisor lists 22. The ones that matter are where a bulk delete will
@@ -916,7 +970,8 @@ and the five local-only sections are skipped. The guard also covers
   authors to bind `'eager'`.
 - Comments that read as live: `_shared/cors.ts:4-8` ("published activities"),
   `server/uuid.ts:12-16` (two deleted functions), `grading/graphs.ts:121-124`
-  ("the handler rejects it", which it does not, B4),
+  ("the handler rejects it", which it does not, B4; ✔ corrected 2026-11-28 in
+  `98853000`),
   `schema/src/blocks/index.ts:4-7`, `block-predicates.ts:26` ("baked into
   published HTML"), `serialize.ts:4-6` ("the editor never imports from
   @activity/schema"; 7 extensions do), `blockTypeGuards.test.ts:18` (cites a
