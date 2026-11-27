@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // interactive-graph-stimulus.test.tsx — a graded graph's STIMULUS reaches the
 // student (graded stimuli, 2026-10-04)

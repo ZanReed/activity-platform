@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // glossary.test.tsx — the glossary dialog's contract (docs/design/glossary.md)
 // -----------------------------------------------------------------------------

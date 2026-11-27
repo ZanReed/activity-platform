@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // nested-lists.test.tsx — a sub-bullet a teacher typed reaches the student
 // -----------------------------------------------------------------------------

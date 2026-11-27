@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // tool-cluster.test.tsx — the summonable calculator's logic and failure paths
 // -----------------------------------------------------------------------------

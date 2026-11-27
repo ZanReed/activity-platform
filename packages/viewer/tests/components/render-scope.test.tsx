@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // render-scope.test.tsx — a student's input re-renders only the block it is in
 // (efficiency audit 2026-10 #5; TODOS item 1, decisions 1–8 ruled 2026-10-18)

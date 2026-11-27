@@ -240,6 +240,10 @@ does not work here. vitest 1.6 types it against **vite 5** while the app builds 
 **vite 6**, so it rejects the whole plugin array with a variance error. One narrow,
 commented cast instead of a second config file, so the alias keeps one home.
 
+> **Superseded 2026-11-27:** on vitest 5.1.2 (typed against vite 6) the cast is gone;
+> `vite.config.ts` imports `defineConfig` from `vitest/config` and the `test` block is
+> type-checked. Still one config file, so the alias still has one home.
+
 ## Verification matrix — as run
 
 | Row | Result |

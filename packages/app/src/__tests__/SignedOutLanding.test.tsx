@@ -23,8 +23,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const h = vi.hoisted(() => ({
-  signIn: vi.fn<[unknown], Promise<{ error: Error | null }>>(),
-  fetchMeta: vi.fn<[string], Promise<unknown>>(),
+  signIn: vi.fn<(arg: unknown) => Promise<{ error: Error | null }>>(),
+  fetchMeta: vi.fn<(id: string) => Promise<unknown>>(),
 }));
 
 vi.mock('../lib/auth', async (importOriginal) => ({

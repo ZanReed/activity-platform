@@ -22,8 +22,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const h = vi.hoisted(() => ({
-  redeem: vi.fn<[string], Promise<unknown>>(),
-  claim: vi.fn<[], Promise<void>>(),
+  redeem: vi.fn<(code: string) => Promise<unknown>>(),
+  claim: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock('../lib/classes', () => ({

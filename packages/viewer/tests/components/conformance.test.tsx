@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // conformance.test.tsx — runs the family suite over every bound component
 // -----------------------------------------------------------------------------

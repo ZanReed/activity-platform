@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // graph-figure.test.tsx — what a standalone graph figure actually draws
 // -----------------------------------------------------------------------------

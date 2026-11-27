@@ -320,7 +320,9 @@ Most sit in dev chains. The ones that reach shipped code:
 | zod 3.25.76 | memory exhaustion on oversized collections | listed as `<4.6.6` | both Edge Functions parse documents with it |
 
 The three criticals are vitest 1.6.1 and its tinypool (dev only: the UI server
-and worker options). Whether each advisory is exploitable here was **not**
+and worker options). **✔ Cleared 2026-11-27:** vitest 1.6.1 → 5.1.2 (which also
+fixed a Node 24 worker-thread SIGABRT in the test runs); `pnpm audit` then reports
+0 critical (13 low, 37 moderate, 44 high). Whether each advisory is exploitable here was **not**
 assessed beyond where the package runs. The Tiptap family bump is the one to do
 first (it also carries prosemirror-view), all `@tiptap/*` together per the
 house rule.

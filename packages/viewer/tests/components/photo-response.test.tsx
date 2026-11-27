@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // photo-response.test.tsx — the photo block's own behaviour (media submissions
 // slice 2). The family contract (recorded, never a verdict) is the conformance

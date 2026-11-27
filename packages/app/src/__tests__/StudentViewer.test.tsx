@@ -52,6 +52,36 @@ const h = vi.hoisted(() => ({
     restoreCalls: [] as Array<{ sectionIds: string[] }>,
 }));
 
+// MathLive under jsdom. Unit tests resolve mathlive's SERVER build (its
+// `node` export condition), which has no MathfieldElement, so the fixture's
+// transform-curve graphs threw "MathfieldElement is not a constructor" from
+// graph-question's fire-and-forget field load: an unhandled error after the
+// test had passed (about 1 run in 12 on vitest 1.6, about 1 in 2 on vitest 5,
+// 2026-11-27). An inert stand-in, as graph-kit's calculator tests use; no test
+// here reads the equation field.
+vi.mock('mathlive', async (importOriginal) => {
+  class MathfieldElement extends HTMLElement {
+    static fontsDirectory: string | null = null;
+    static soundsDirectory: string | null = null;
+    mathVirtualKeyboardPolicy = 'manual';
+    readOnly = false;
+    value = '';
+    getValue(): string {
+      return this.value;
+    }
+    setValue(v: string): void {
+      this.value = v;
+    }
+    executeCommand(): boolean {
+      return true;
+    }
+    insert(): boolean {
+      return true;
+    }
+  }
+  if (!customElements.get('math-field')) customElements.define('math-field', MathfieldElement);
+  return { ...(await importOriginal<Record<string, unknown>>()), MathfieldElement };
+});
 vi.mock('../lib/grading', () => ({
     fetchReleasedFeedbackRows: async () => [],
     fetchMyCheckedSectionIds: async (versionId: string) => {
@@ -148,6 +178,13 @@ afterEach(() => {
         items: {},
         solutions: {},
     });
+});
+
+// Bonds the stand-in above: without it, mathlive resolves to its server build
+// here and this is undefined (the unhandled-error source it replaced).
+it('MathLive resolves to a constructible MathfieldElement under jsdom', async () => {
+    const { MathfieldElement } = await import('mathlive');
+    expect(typeof MathfieldElement).toBe('function');
 });
 
 describe('pre-auth gate (ruling 3.2A)', () => {

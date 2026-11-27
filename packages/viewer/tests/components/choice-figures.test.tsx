@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // choice-figures.test.tsx — what a choice figure actually puts on the page
 // -----------------------------------------------------------------------------

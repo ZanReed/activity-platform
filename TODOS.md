@@ -1320,12 +1320,23 @@ unchanged writes `4fe728d`. The author's answers to the close-out queue:
   endpoint dots unless authored; side labels clear a vertical edge by their
   width; `hidden: off` as a fence-level line; rows holding a figure stack
   below ~656 px.
-- **Two unexplained one-off test aborts (2026-10-04)** — a SIGABRT while
-  loading modules in `@activity/grading-worker`'s tests, and one unhandled
-  error in the app's vitest run under `pnpm verify` (1 in 12 runs; text lost
-  to verify's truncated output). Different packages, one session. A third
-  sighting is a pattern: capture the full output (run `pnpm -r test`
-  directly) before calling it noise.
+- ✅ **EXPLAINED + FIXED 2026-11-27 — the one-off test aborts (2026-10-04).**
+  The grading-worker SIGABRT was the third and fourth sightings' cause too
+  (graph-kit and schema, 2026-11-27, about 1 full `pnpm -r test` run in 30):
+  vitest 1.6 ran tests in worker THREADS, and when it stopped a worker that
+  was still importing a CommonJS module, Node 24's native
+  `node::cjs_lexer::Parse` hit `FATAL ERROR: v8::ToLocalChecked Empty
+  MaybeLocal` and aborted the process (caught with `--report-on-fatalerror`;
+  it fired after the package's tests had all passed, i.e. during teardown).
+  Fix: vitest 5.1.2 with `pool: 'forks'` stated in every package's config —
+  child processes never reach that code. The app's 2026-10-04 "unhandled
+  error" was most likely `MathfieldElement is not a constructor` from
+  `StudentViewer.test.tsx`: unit tests resolve mathlive's SERVER build (its
+  `node` export condition, on vitest 1.6 too), so the fixture's
+  transform-curve graphs' fire-and-forget field load threw after the test
+  passed. Vitest 5 caught it in about half the runs; that test now stubs
+  `MathfieldElement` and asserts the stub. To see a crash's message, run
+  with `NODE_OPTIONS=--report-on-fatalerror`.
 
 ## ✅ BUILT 2026-10-04 — Graded stimuli: drawables shown BESIDE a graded graph's answer (Y7 D9)
 

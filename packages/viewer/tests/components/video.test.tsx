@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // video.test.tsx — the catch-up clip's card, gate and pause (D64 slice 2)
 // -----------------------------------------------------------------------------
@@ -33,7 +34,7 @@ type Answer = { data: unknown; error: unknown };
 const pauseSays = (state: string, feedback?: unknown[]): Answer => ({ data: { wireVersion: 3, state, feedback }, error: null });
 const invoke = vi.fn(async (): Promise<Answer> => pauseSays('right'));
 const CHECK_URL = 'https://edge.test/check-activity?forceFunctionRegion=us-east-2';
-const fetchStub = vi.fn<[string, RequestInit], Promise<{ ok: boolean; json: () => Promise<unknown> }>>(async () => {
+const fetchStub = vi.fn<(url: string, init: RequestInit) => Promise<{ ok: boolean; json: () => Promise<unknown> }>>(async () => {
   const answer = await invoke();
   return { ok: !answer.error, json: async () => answer.data };
 });

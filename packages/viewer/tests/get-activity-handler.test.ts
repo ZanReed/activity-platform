@@ -132,7 +132,7 @@ async function body(res: Response): Promise<Record<string, unknown>> {
 
 // The non-fatal fallbacks log deliberately; keep test output clean and let
 // individual tests assert the logging happened.
-let errorSpy: MockInstance<Parameters<typeof console.error>, void>;
+let errorSpy: MockInstance<typeof console.error>;
 beforeEach(() => {
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 });

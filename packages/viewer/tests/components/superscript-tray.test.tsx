@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // superscript-tray.test.tsx — the ² ³ keys on a blank, bound to rendered output
 // -----------------------------------------------------------------------------

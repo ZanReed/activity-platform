@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // container.test.tsx — the worksheet shell + block boundary (S3 V4, ruling D12)
 // -----------------------------------------------------------------------------
@@ -107,7 +108,7 @@ const Fine: ComponentType<BlockComponentProps> = ({ block }) => (
   <p>rendered {(block as { type: string }).type}</p>
 );
 
-let errorSpy: MockInstance<Parameters<typeof console.error>, void>;
+let errorSpy: MockInstance<typeof console.error>;
 beforeEach(() => {
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 });

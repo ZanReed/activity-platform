@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // canvas-restore-real-kit.test.tsx — graph and number-line work survives a
 // reload, through the REAL kit (review defect A2, 2026-11-26)

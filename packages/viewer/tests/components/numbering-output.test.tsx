@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // numbering-output.test.tsx — the registry's `numbered` binds to RENDERED OUTPUT
 // -----------------------------------------------------------------------------

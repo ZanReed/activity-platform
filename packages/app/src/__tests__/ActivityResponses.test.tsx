@@ -763,6 +763,10 @@ describe('narrowing the list: one student, only my classes, J / K', () => {
   it('J and K step through the list as shown, but not while typing', async () => {
     setup([MAYA, ARI, STRANGER]);
     await screen.findByRole('combobox', { name: 'Student' });
+    // J steps through the LOADED rows; the Student box can appear first, and
+    // a J pressed before the rows arrive is a no-op (about 1 run in 40 timed
+    // out here, 2026-11-27). Press once the list is there.
+    await waitFor(() => expect(document.querySelectorAll('[data-row-key]')).toHaveLength(3));
     fireEvent.keyDown(document.body, { key: 'j' });
     await waitFor(() => expect(header()).toContain('maya@school.example'));
     fireEvent.keyDown(document.body, { key: 'j' });

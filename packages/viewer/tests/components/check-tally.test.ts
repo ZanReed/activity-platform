@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // check-tally.test.ts — C-3 (ui-review-group-c.md): a checked group says how it
 // went, counted from the check's own verdicts. Written answers ('recorded')

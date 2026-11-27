@@ -1,5 +1,6 @@
 import { LANDING_ROUTES } from './src/lib/landingPaths';
-import { defineConfig, type Plugin, type UserConfig } from 'vite';
+import { type Plugin } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -366,37 +367,37 @@ export default defineConfig({
   // lives. Nothing else needs inlining: no other dependency is aliased.
   // ------------------------------------------------------------------
   //
-  // ON THE CAST: `test` is not part of vite's own UserConfig, and the usual
-  // fix — importing defineConfig from 'vitest/config' — does not work here.
-  // vitest 1.6 types that helper against vite 5 while this app builds on vite
-  // 6, so it rejects the whole plugin array with an unreadable variance error.
-  // The alternative (a separate vitest.config.ts) would give the alias two
-  // homes that must be kept in step by hand, which is the drift this slice is
-  // trying to avoid. One narrow cast, in the open.
-  ...({
-    test: {
-      // NO UNIT TEST REACHES A NETWORK (2026-10-18). Vitest loads .env.local,
-      // which points at the LIVE project, so an unmocked data call in a test
-      // used to send a real request to production (and made verify flaky).
-      // Two layers: the setup file refuses every fetch/XHR/WebSocket and FAILS
-      // the test that tried, naming the URL; and `env` repoints the client at
-      // the stub lanes' dead origin, so anything that slips past the setup file
-      // still cannot reach live. Reasoning: src/test/noNetwork.setup.ts.
-      setupFiles: ['./src/test/noNetwork.setup.ts'],
-      env: {
-        VITE_SUPABASE_URL: STUB_LANE_SUPABASE_URL,
-        VITE_SUPABASE_ANON_KEY: 'unit-test-anon-key-not-a-real-key',
-      },
-      server: {
-        deps: {
-          // auth-js is inlined for the same reason, one layer down: the
-          // activity:auth-js-dead-modules plugin only sees modules that go
-          // through Vite's pipeline.
-          inline: ['@supabase/supabase-js', '@supabase/auth-js'],
-        },
+  // `defineConfig` comes from 'vitest/config' so `test` is typed. Until
+  // 2026-11-27 this needed a cast: vitest 1.6 typed that helper against vite
+  // 5 while the app builds on vite 6. vitest 5 types it against vite 6. One
+  // config file still (not a separate vitest.config.ts), so the alias has one
+  // home.
+  test: {
+    // NO UNIT TEST REACHES A NETWORK (2026-10-18). Vitest loads .env.local,
+    // which points at the LIVE project, so an unmocked data call in a test
+    // used to send a real request to production (and made verify flaky).
+    // Two layers: the setup file refuses every fetch/XHR/WebSocket and FAILS
+    // the test that tried, naming the URL; and `env` repoints the client at
+    // the stub lanes' dead origin, so anything that slips past the setup file
+    // still cannot reach live. Reasoning: src/test/noNetwork.setup.ts.
+    setupFiles: ['./src/test/noNetwork.setup.ts'],
+    // Child processes, not worker threads: under Node 24, stopping a worker
+    // thread mid-import aborted the whole run (SIGABRT in node::cjs_lexer,
+    // 2026-11-27). Forks is vitest's default since v2; stated so it stays.
+    pool: 'forks',
+    env: {
+      VITE_SUPABASE_URL: STUB_LANE_SUPABASE_URL,
+      VITE_SUPABASE_ANON_KEY: 'unit-test-anon-key-not-a-real-key',
+    },
+    server: {
+      deps: {
+        // auth-js is inlined for the same reason, one layer down: the
+        // activity:auth-js-dead-modules plugin only sees modules that go
+        // through Vite's pipeline.
+        inline: ['@supabase/supabase-js', '@supabase/auth-js'],
       },
     },
-  } as UserConfig),
+  },
   // Default 5173 (the OAuth Site URL); a PORT env var overrides so a second
   // dev server (e.g. an agent-session preview) can run beside a manual one.
   server: {

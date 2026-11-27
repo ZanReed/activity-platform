@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // check-groups.test.tsx — the flow-mode guards, bound to RENDERED OUTPUT
 // -----------------------------------------------------------------------------
@@ -165,7 +166,7 @@ async function pressCheck(group: Element) {
 const groupsOf = (container: HTMLElement) =>
   Array.from(container.querySelectorAll('.viewer-check-group'));
 
-let errorSpy: MockInstance<Parameters<typeof console.error>, void>;
+let errorSpy: MockInstance<typeof console.error>;
 beforeEach(() => {
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 });

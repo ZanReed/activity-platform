@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // photo-handoff-panel.test.tsx — "Use my phone" on the Chromebook (media
 // submissions slice 2c, §4.1). The RPCs are faked at the seam; their server

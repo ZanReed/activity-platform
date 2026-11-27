@@ -4,8 +4,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const upload = vi.hoisted(() => ({
-  addPhoto: vi.fn<unknown[], Promise<string>>(async () => 'server-1'),
-  discardPhoto: vi.fn<[string], Promise<void>>(async () => undefined),
+  addPhoto: vi.fn<(...args: unknown[]) => Promise<string>>(async () => 'server-1'),
+  discardPhoto: vi.fn<(id: string) => Promise<void>>(async () => undefined),
 }));
 vi.mock('../src/blocks/photoUpload.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('../src/blocks/photoUpload.js')>();

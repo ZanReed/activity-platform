@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // =============================================================================
 // canvas-systems-domain-real-kit.test.tsx — a bounded curve and a system, end
 // to end through the REAL kit (A2 follow-up, 2026-11-26)
