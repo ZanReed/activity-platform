@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-27-draft-75`. Mirrors migrations 0001–**0107**, verified
+> Version `2026-11-28-draft-76`. Mirrors migrations 0001–**0108**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-76` (2026-11-28) — 0108 adds NO personal-data column or table.** It restates three teacher reads (`class_progress`, `activity_progress`, `mixed_who_first`) to cost less; what each returns, and to whom, is unchanged. The range moves to 0108.
 >
 > **`draft-75` (2026-11-27) — 0107 adds TEACHER personal data: the error log.** `client_errors` holds one row each time something fails on a TEACHER's screen (a load fails or is refused, a page crashes, an error nothing caught): which teacher, the page's route PATTERN (ids replaced with `:id`, no query string), the build, the kind of failure, which load or database function failed, and the error's message cut to 300 characters. **No student writes or appears in it**: the app sends nothing from a student's page and the one writer, `report_client_error`, refuses any account that is not a teacher. The message is the one column to watch: an error message can in principle quote an input, which is why it is cut to 300 characters and kept 30 days. No client can read the table; the author reads it. Kept **30 days**, by `prune_client_errors` (0107), **scheduled by the migration** (nightly, 03:55 UTC; author's yes 2026-11-27, docs/design/shared-data-loading.md decision 10). Removed with the teacher's account (CASCADE). The range moves to 0107.
 >

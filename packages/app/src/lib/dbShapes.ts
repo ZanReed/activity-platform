@@ -42,7 +42,7 @@ type RowsOf<F extends keyof Fn> = Fn[F]['Returns'] extends (infer R)[] ? { [K in
 export interface JsonShapes {
   /** @shape-as-of 0062 */
   activity_first_tries: FirstTries;
-  /** @shape-as-of 0099 */
+  /** @shape-as-of 0108 */
   activity_progress: ActivityProgress;
   /** @shape-as-of 0102 */
   class_gradebook: ClassGradebook;
@@ -50,7 +50,7 @@ export interface JsonShapes {
   class_misconceptions: ClassMisconceptions;
   /** @shape-as-of 0092 */
   class_plan: ClassPlan;
-  /** @shape-as-of 0099 */
+  /** @shape-as-of 0108 */
   class_progress: ClassProgress;
   /** @shape-as-of 0099 */
   class_student_work: StudentWork;
@@ -96,7 +96,7 @@ export interface JsonShapes {
   mixed_class_summary: MixedSummary;
   /** @shape-as-of 0091 */
   mixed_student_recent: RecentTry[];
-  /** @shape-as-of 0091 */
+  /** @shape-as-of 0108 */
   mixed_who_first: WhoFirst;
   /** @shape-as-of 0092 — returns class_plan(), restated in 0092; keys re-read 2026-11-26 */
   move_class_plan_item: ClassPlan;

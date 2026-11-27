@@ -1,6 +1,6 @@
 # Function index — GENERATED, do not edit
 
-Every function the migrations leave live in `public`, through **0107**:
+Every function the migrations leave live in `public`, through **0108**:
 230 overloads of 229 names; 42 return row sets,
 34 are `security invoker`, 126 names are called from the code, and
 26 names have been defined three or more times. Written by `pnpm db:index`; CI fails
@@ -17,7 +17,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 |---|---|---|---|---|---|---|
 | `activities_provenance_guard()` | trigger | invoker | [0066_mixed_practice.sql:103](../supabase/migrations/0066_mixed_practice.sql#L103) | 2 | 0057 | — |
 | `activity_first_tries(p_activity_id uuid)` | jsonb | definer | [0062_first_tries.sql:54](../supabase/migrations/0062_first_tries.sql#L54) | 1 | 0062 | app |
-| `activity_progress(p_activity_id uuid)` | jsonb | definer | [0099_photo_pilot.sql:271](../supabase/migrations/0099_photo_pilot.sql#L271) | 6 | 0061, 0064, 0075, 0096, 0097, 0099 | app |
+| `activity_progress(p_activity_id uuid)` | jsonb | definer | [0108_grid_and_panel_costs.sql:224](../supabase/migrations/0108_grid_and_panel_costs.sql#L224) | 7 | 0061, 0064, 0075, 0096, 0097, 0099, 0108 | app |
 | `analytics_day(p_at timestamp with time zone, p_zone text)` | date | invoker | [0036_check_rollup.sql:118](../supabase/migrations/0036_check_rollup.sql#L118) | 1 | 0036 | — |
 | `analytics_default_zone()` | text | invoker | [0036_check_rollup.sql:109](../supabase/migrations/0036_check_rollup.sql#L109) | 1 | 0036 | — |
 | `analytics_rolled_boundary()` | timestamp with time zone | invoker | [0036_check_rollup.sql:206](../supabase/migrations/0036_check_rollup.sql#L206) | 1 | 0036 | — |
@@ -38,7 +38,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `class_plan_limit(p_class_id uuid, p_today date)` | date | definer | [0088_period_planner.sql:131](../supabase/migrations/0088_period_planner.sql#L131) | 1 | 0088 | — |
 | `class_plan_prune(p_class_id uuid, p_today date)` | void | definer | [0088_period_planner.sql:109](../supabase/migrations/0088_period_planner.sql#L109) | 1 | 0088 | — |
 | `class_plan_visible(p_activity_id uuid)` | boolean | definer | [0088_period_planner.sql:144](../supabase/migrations/0088_period_planner.sql#L144) | 1 | 0088 | — |
-| `class_progress(p_class_id uuid)` | jsonb | definer | [0099_photo_pilot.sql:433](../supabase/migrations/0099_photo_pilot.sql#L433) | 6 | 0061, 0064, 0075, 0097, 0099 | app |
+| `class_progress(p_class_id uuid)` | jsonb | definer | [0108_grid_and_panel_costs.sql:41](../supabase/migrations/0108_grid_and_panel_costs.sql#L41) | 7 | 0061, 0064, 0075, 0097, 0099, 0108 | app |
 | `class_student_work(p_class_id uuid, p_student_id uuid, p_activity_id uuid)` | jsonb | definer | [0099_photo_pilot.sql:727](../supabase/migrations/0099_photo_pilot.sql#L727) | 4 | 0061, 0062, 0097, 0099 | app |
 | `class_today(p_class_id uuid)` | jsonb | definer | [0092_review_period_reads.sql:156](../supabase/migrations/0092_review_period_reads.sql#L156) | 3 | 0082, 0087, 0088, 0092 | app |
 | `class_unit_tracker(p_class_id uuid)` | jsonb | definer | [0074_unit_tracker.sql:269](../supabase/migrations/0074_unit_tracker.sql#L269) | 1 | 0074 | app |
@@ -61,7 +61,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `end_help(p_request_id uuid)` | jsonb | definer | [0090_help_requests.sql:400](../supabase/migrations/0090_help_requests.sql#L400) | 1 | 0090 | app |
 | `end_photo_handoff(p_handoff_id uuid)` | void | definer | [0095_photo_handoff.sql:306](../supabase/migrations/0095_photo_handoff.sql#L306) | 1 | 0095 | viewer, scripts |
 | `fact_attempt_judgment(p_rt_ms integer, p_typed text, p_skipped boolean, p_interrupted boolean, p_correct boolean, p_modality text, p_baseline_keyboard integer, p_baseline_keypad integer, p_criterion_ms numeric, p_ceiling_ms numeric)` | text | invoker | [0050_fact_sprint.sql:179](../supabase/migrations/0050_fact_sprint.sql#L179) | 1 | 0050 | — |
-| `fact_class_zone(p_class_id uuid)` | text | definer | [0063_zone_name_lookup.sql:87](../supabase/migrations/0063_zone_name_lookup.sql#L87) | 2 | 0050, 0063, 0087, 0088, 0090 | — |
+| `fact_class_zone(p_class_id uuid)` | text | definer | [0063_zone_name_lookup.sql:87](../supabase/migrations/0063_zone_name_lookup.sql#L87) | 2 | 0050, 0063, 0087, 0088, 0090, 0108 | — |
 | `fact_probe_allocate(p_rev text, p_grammar integer, p_year integer)` | table(family_id, n_items, part) | definer | [0047_fact_probe_two_parts.sql:395](../supabase/migrations/0047_fact_probe_two_parts.sql#L395) | 2 | 0045, 0047 | — |
 | `fact_probe_allocate_single(p_rev text, p_grammar integer, p_year integer)` | table(family_id, n_items) | definer | [0047_fact_probe_two_parts.sql:260](../supabase/migrations/0047_fact_probe_two_parts.sql#L260) | 1 | 0047 | — |
 | `fact_probe_entry(p_code text)` | jsonb | definer | [0047_fact_probe_two_parts.sql:588](../supabase/migrations/0047_fact_probe_two_parts.sql#L588) | 2 | 0045, 0047, 0048 | app |
@@ -133,7 +133,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `mixed_key_label(p_kind text, p_key text)` | text | definer | [0068_mixed_teacher_panel.sql:71](../supabase/migrations/0068_mixed_teacher_panel.sql#L71) | 1 | — | — |
 | `mixed_misconceptions_of(p_verdicts jsonb)` | text[] | invoker | [0067_mixed_misconceptions.sql:45](../supabase/migrations/0067_mixed_misconceptions.sql#L45) | 1 | 0067 | — |
 | `mixed_plan(p_class_id uuid, p_student_id uuid, p_session_id uuid, p_today date, p_ordinal integer, p_settings jsonb, p_items integer, p_zone text)` | table(seq, kind, bank_key, owner_id, item_id, early) | definer | [0091_review_period.sql:557](../supabase/migrations/0091_review_period.sql#L557) | 4 | 0066, 0081, 0091 | — |
-| `mixed_recent(p_class_id uuid, p_window integer)` | table(student_id, bank_key, tries, right_n, skipped_n) | definer | [0091_review_period.sql:1042](../supabase/migrations/0091_review_period.sql#L1042) | 3 | 0066, 0079, 0091 | — |
+| `mixed_recent(p_class_id uuid, p_window integer)` | table(student_id, bank_key, tries, right_n, skipped_n) | definer | [0091_review_period.sql:1042](../supabase/migrations/0091_review_period.sql#L1042) | 3 | 0066, 0079, 0091, 0108 | — |
 | `mixed_roster(p_class_id uuid)` | table(student_id, name) | definer | [0068_mixed_teacher_panel.sql:55](../supabase/migrations/0068_mixed_teacher_panel.sql#L55) | 1 | 0068 | — |
 | `mixed_row_index(p_session_id uuid, p_item_id text, p_rows integer)` | integer | invoker | [0066_mixed_practice.sql:710](../supabase/migrations/0066_mixed_practice.sql#L710) | 1 | 0066, 0077 | — |
 | `mixed_session_items_position()` | trigger | invoker | [0091_review_period.sql:264](../supabase/migrations/0091_review_period.sql#L264) | 1 | — | — |
@@ -143,7 +143,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `mixed_student_recent(p_class_id uuid, p_student_id uuid)` | jsonb | definer | [0091_review_period.sql:1075](../supabase/migrations/0091_review_period.sql#L1075) | 2 | 0068, 0091 | app |
 | `mixed_taught(p_class_id uuid, p_student_id uuid, p_zone text)` | table(skill_id, owner_id, taught_day, chain_order) | definer | [0066_mixed_practice.sql:470](../supabase/migrations/0066_mixed_practice.sql#L470) | 1 | 0066 | — |
 | `mixed_tier_ok(p_tier text, p_student_id uuid, p_skill_id text)` | boolean | definer | [0070_dol_retake.sql:717](../supabase/migrations/0070_dol_retake.sql#L717) | 1 | 0070 | — |
-| `mixed_who_first(p_class_id uuid)` | jsonb | definer | [0091_review_period.sql:1112](../supabase/migrations/0091_review_period.sql#L1112) | 3 | 0068, 0071 | app |
+| `mixed_who_first(p_class_id uuid)` | jsonb | definer | [0108_grid_and_panel_costs.sql:398](../supabase/migrations/0108_grid_and_panel_costs.sql#L398) | 4 | 0068, 0071, 0108 | app |
 | `move_class_member(p_student_id uuid, p_from_class uuid, p_to_class uuid)` | jsonb | definer | [0089_move_class_member.sql:28](../supabase/migrations/0089_move_class_member.sql#L28) | 1 | 0089 | app |
 | `move_class_plan_item(p_class_id uuid, p_from_date date, p_activity_id uuid, p_to_date date)` | jsonb | definer | [0088_period_planner.sql:321](../supabase/migrations/0088_period_planner.sql#L321) | 1 | 0088 | app |
 | `my_activity_progress()` | table(activity_id, current_version_id, sections_total, sections_checked, earlier_checked, earlier_done, feedback_released) | definer | [0059_student_progress.sql:207](../supabase/migrations/0059_student_progress.sql#L207) | 1 | 0059, 0061, 0106 | — |
@@ -163,7 +163,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `photo_handoff_allowed(p_content jsonb)` | boolean | invoker | [0095_photo_handoff.sql:193](../supabase/migrations/0095_photo_handoff.sql#L193) | 1 | 0095 | — |
 | `photo_handoff_status(p_handoff_id uuid)` | jsonb | definer | [0095_photo_handoff.sql:287](../supabase/migrations/0095_photo_handoff.sql#L287) | 1 | 0095 | viewer, scripts |
 | `photo_ids_of(p_responses jsonb, p_block_id uuid)` | jsonb | invoker | [0096_photo_grading.sql:59](../supabase/migrations/0096_photo_grading.sql#L59) | 1 | — | — |
-| `photos_allowed_for(p_activity_id uuid)` | boolean | definer | [0099_photo_pilot.sql:62](../supabase/migrations/0099_photo_pilot.sql#L62) | 1 | 0097, 0099 | — |
+| `photos_allowed_for(p_activity_id uuid)` | boolean | definer | [0099_photo_pilot.sql:62](../supabase/migrations/0099_photo_pilot.sql#L62) | 1 | 0097, 0099, 0108 | — |
 | `prune_client_errors(p_dry_run? boolean)` | jsonb | definer | [0107_client_errors.sql:152](../supabase/migrations/0107_client_errors.sql#L152) | 1 | 0107 | — |
 | `prune_fact_practice(p_dry_run? boolean)` | jsonb | definer | [0050_fact_sprint.sql:1110](../supabase/migrations/0050_fact_sprint.sql#L1110) | 2 | 0048, 0050 | — |
 | `prune_help_requests(p_dry_run? boolean)` | jsonb | definer | [0090_help_requests.sql:431](../supabase/migrations/0090_help_requests.sql#L431) | 1 | 0090 | — |
@@ -225,7 +225,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `sync_chain_hooks(p_owner uuid, p_hooks jsonb, p_apply? boolean)` | jsonb | definer | [0057_chain_hooks.sql:78](../supabase/migrations/0057_chain_hooks.sql#L78) | 1 | 0057 | scripts |
 | `sync_fact_scope(p_mirror jsonb, p_apply? boolean)` | jsonb | definer | [0049_fact_scope_sprint_keys.sql:88](../supabase/migrations/0049_fact_scope_sprint_keys.sql#L88) | 3 | 0044, 0047, 0049 | scripts |
 | `sync_glossary_entries(p_owner uuid, p_entries jsonb, p_apply? boolean)` | jsonb | definer | [0043_glossary_entry.sql:154](../supabase/migrations/0043_glossary_entry.sql#L154) | 1 | 0043 | scripts |
-| `sync_mixed_settings(p_mirror jsonb, p_apply? boolean)` | jsonb | definer | [0066_mixed_practice.sql:204](../supabase/migrations/0066_mixed_practice.sql#L204) | 1 | 0066, 0067, 0068, 0071, 0073, 0081, 0083, 0091, 0092, 0102 | scripts |
+| `sync_mixed_settings(p_mirror jsonb, p_apply? boolean)` | jsonb | definer | [0066_mixed_practice.sql:204](../supabase/migrations/0066_mixed_practice.sql#L204) | 1 | 0066, 0067, 0068, 0071, 0073, 0081, 0083, 0091, 0092, 0102, 0108 | scripts |
 | `sync_practice_items(p_owner uuid, p_items jsonb, p_apply? boolean, p_allow_unretire? boolean)` | jsonb | definer | [0070_dol_retake.sql:573](../supabase/migrations/0070_dol_retake.sql#L573) | 2 | 0058 | scripts |
 | `unit_tracker_rows(p_class_id uuid)` | table(unit, owner_id, skill_id, ord, label, wording, letters, has_harder, passable, dol_activity_id) | definer | [0074_unit_tracker.sql:76](../supabase/migrations/0074_unit_tracker.sql#L76) | 1 | 0074 | — |
 | `unshare_activity_from_class(p_class_id uuid, p_activity_id uuid)` | void | definer | [0030_class_activities.sql:137](../supabase/migrations/0030_class_activities.sql#L137) | 1 | 0030, 0082, 0087 | app |
