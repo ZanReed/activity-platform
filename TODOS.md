@@ -14,9 +14,9 @@ advisories; database error text reaches students). C–E are structural debt,
 efficiency and missed platform updates. Its section G is a suggested order
 only: ranking is the author's.
 
-## B4 legacy check key — retire the pre-UUID key shape (built 2026-11-28)
+## ~~B4 legacy check key~~ — DONE 2026-11-28
 
-`check-activity` requires a UUID idempotency key since review B4, but it also accepts the store's OLD key shape (`LEGACY_CHECK_KEY_RE` in `packages/viewer/src/server/check-activity-handler.ts`). The old shape is still out there in students' open tabs and in checks saved to localStorage while in flight. **What:** delete the regex and its test row ("still accepts the pre-B4 client key shape"), so only UUIDs pass. **Why:** until then, a hand-built client can still send a short, guessable key (the old shape has about 41 random bits), though replay only ever returns that student's own verdicts. **Trigger:** two weeks after the B4 client push reaches students (from February, a check that's been in flight that long is gone). The store already drops a refused key, so retiring the shape costs a stale tab one failed Check.
+Retired early, not on its two-week trigger: live had no check in 19 days and one student account, so no open tab could hold an old key. `isCheckKey` is UUID-only; the old test row now proves the refusal. A check saved in flight with an old key is refused once, then the store mints a UUID.
 
 ## Shared data loading (review C5) — RULED 2026-11-27 (yes to all 11); slices 1 and 4 LIVE, slices 2 and 3 BUILT
 

@@ -385,13 +385,15 @@ the section's inventory does not name are dropped before grading and
 recording, for section AND practice checks (`grading/sectionResponses.ts`).
 Graph work gets a minimal shape check (`bad_graphs` 400). The key is required
 and must be a UUID; the store mints UUIDs and drops a key the server refuses.
-The pre-fix client shape is still accepted, so open tabs keep checking
-(TODOS → "B4 legacy check key"). Two things stay true: replay is still keyed
+The pre-fix client shape was accepted for open tabs at first and **retired
+2026-11-28** (live had no check in 19 days), so only UUIDs pass. Two things stay true: replay is still keyed
 on (student, key) alone, but a student who resends their own key on another
 section only gets their own verdicts back and nothing is written; and a blank
 string has no cap of its own, only the 256 KiB body cap. Each guard was
 mutation-tested. `scripts/verify-check-e2e.js` already sent the wrong wire
-version, so it was left as it was.
+version; **fixed 2026-11-28**: it sends wire v4 and a UUID key per request, has
+a bad-key row (C5), and `scripts/tests/check-e2e-wire.test.mjs` holds its wire
+version to `CHECK_WIRE_VERSION`.
 
 ### B5 ✔ The verify suite runs the real purge on the live database
 `pnpm verify:auth --target live` runs `purge_soft_deleted()` in five registered
@@ -427,11 +429,13 @@ them (seven, with verify-0035), and that list may only shrink.
 - 41 tables with RLS on and no policy, and 115 definer RPCs callable by signed-in
   users: this is the design (RPC-only access), not a finding.
 
-**Fixed 2026-11-28** (`7e2588b6`, migration 0109, applied locally only). The
+**Fixed 2026-11-28** (`7e2588b6`, migration 0109, LIVE 2026-11-28). The
 four `search_path`s are pinned with ALTER FUNCTION. The ten policies on the
 four tables are scoped `to authenticated` with ALTER POLICY … TO, so roles
 change and no predicate is restated (verify-0109 pins each USING expression).
-The eleven other `to public` policies were not flagged and are left alone.
+The eleven other `to public` policies were not flagged; **0111 (2026-11-28)
+scopes them the same way**, and verify-0111's first row now fails if any policy
+in `public` applies to `public` again.
 **Still the author's:** the leaked-password protection look in the dashboard.
 
 ---
@@ -825,7 +829,7 @@ when the document does. Likely the fastest-growing table.
 **Fix:** store once keyed `(owner, item, fingerprint)`; items reference it.
 Keeps the snapshot guarantee. **M.** Size unmeasured.
 
-### D5 ◐ Each Edge Function request builds one to three supabase-js clients
+### D5 ✔ Each Edge Function request builds one to three supabase-js clients
 ✔ `createClient` per call in `get-activity/index.ts:58, 70, 81, 140` and
 `check-activity/index.ts:65, 75, 166`, with no `autoRefreshToken: false`. In
 the pinned auth-js, each client starts a 30-second interval that is never
@@ -838,7 +842,17 @@ is the open question at TODOS efficiency item 8.
 **Small half fixed 2026-11-28** (`a2b32cd9`; needs both redeploys). Every
 `createClient` in the two functions now sets `autoRefreshToken: false`
 (`persistSession` was already off). The pinned auth-js's non-browser path was
-read to confirm the ticker. The plain-fetch rewrite stays open.
+read to confirm the ticker.
+
+**Plain-fetch half fixed 2026-11-28.** Neither function imports supabase-js
+any more: both call PostgREST through `createRestClient`
+(`packages/viewer/src/server/restClient.ts`, in both bundles). It keeps what
+the ports and `rpcStatus.ts` read from postgrest-js 2.105.3 — `{ data, error,
+status }`, `.single()`'s object media type, `.maybeSingle()`'s one-row /
+PGRST116 rule, status 0 on a network failure, GET retries on 503 / 520 —
+each pinned in `restClient.test.ts`; `deno check` types every RPC name and
+argument, and the integration lane ran both functions against the local stack.
+`_shared/db.ts` (the supabase-js `EdgeClient` type) is deleted.
 
 ### D6 Foreign keys with no index, on the delete paths
 The live advisor lists 22. The ones that matter are where a bulk delete will
@@ -969,7 +983,7 @@ and the five local-only sections are skipped. The guard also covers
 - `packages/viewer/README.md:6-9, 177`: says the renderer exists and tells
   authors to bind `'eager'`.
 - Comments that read as live: `_shared/cors.ts:4-8` ("published activities"),
-  `server/uuid.ts:12-16` (two deleted functions), `grading/graphs.ts:121-124`
+  `server/uuid.ts:12-16` (two deleted functions; ✔ corrected 2026-11-28), `grading/graphs.ts:121-124`
   ("the handler rejects it", which it does not, B4; ✔ corrected 2026-11-28 in
   `98853000`),
   `schema/src/blocks/index.ts:4-7`, `block-predicates.ts:26` ("baked into
