@@ -121,8 +121,10 @@ export function scoreGraphBlock(
 
   // The served interaction is the authority. A payload naming a different
   // interaction than the block was served with is a malformed request, not a
-  // wrong answer — the handler rejects it before we get here, and this guard
-  // means a bug there can never silently mark a student wrong.
+  // wrong answer, so it gets no verdict at all. THIS guard is the check: the
+  // handler validates only the work's SHAPE (isGraphWorkShape, B4) and never
+  // compares it to the served question, so nothing upstream catches a
+  // mismatch — without this line it would be scored, and marked wrong.
   if (work.interaction && work.interaction !== type) return null;
 
   if (isUntouched(work)) return null;

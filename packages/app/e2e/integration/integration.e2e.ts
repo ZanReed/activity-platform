@@ -660,7 +660,9 @@ test('a `locked` activity refuses a second check, writes no row, and still repla
 
   // 1. The first check lands normally. Non-vacuity: if this were not 200 every
   //    assertion below would pass for the wrong reason.
-  const first = await check('lock-key-1', '4');
+  // UUID keys: check-activity refuses any other shape since review B4.
+  const firstKey = crypto.randomUUID();
+  const first = await check(firstKey, '4');
   expect(
     first.status,
     `the first check of a locked section must succeed; body: ${await first.clone().text()}`,
@@ -670,7 +672,7 @@ test('a `locked` activity refuses a second check, writes no row, and still repla
   // 2. A SECOND check — a different key, so genuinely a new attempt — is
   //    refused, with the code the client maps to copy that never says "try
   //    again". There is no unlock in v1, so a retry can never succeed.
-  const second = await check('lock-key-2', '5');
+  const second = await check(crypto.randomUUID(), '5');
   expect(second.status).toBe(409);
   const body = (await second.json()) as { details?: { code?: string } };
   expect(body.details?.code).toBe('section_locked');
@@ -684,7 +686,7 @@ test('a `locked` activity refuses a second check, writes no row, and still repla
   //    its original idempotency key, must replay — not 409. If the lock were
   //    checked before the replay lookup this returns 409 and a student whose
   //    response was lost in transit is locked out of work already graded.
-  const replay = await check('lock-key-1', '4');
+  const replay = await check(firstKey, '4');
   expect(
     replay.status,
     'the locking check’s own retry was REFUSED — the lock is being checked before the idempotent-replay lookup',

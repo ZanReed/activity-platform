@@ -48,7 +48,7 @@ import {
   type SectionCheckResult,
   type SectionResponses,
 } from '../check/wire.js';
-import { gradeSection } from './grading/index.js';
+import { gradeSection, responsesInSection } from './grading/index.js';
 import { displaySeededEntry } from '../seeded/resolveEntry.js';
 import { autoGradedIdsOf } from './grading/gradedIds.js';
 import { inventorySection, type RawSection } from './grading/walk.js';
@@ -610,7 +610,8 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     if (!validated.ok) {
       return cors.errorResponse(req, 400, validated.failure.message, { code: validated.failure.code });
     }
-    const { sessionId, seq, responses } = validated.request;
+    const { sessionId, seq } = validated.request;
+    let { responses } = validated.request;
     const skip = validated.request.skip === true;
 
     // ---- As the CALLER: the session is theirs, live, and the slot planned --
@@ -717,6 +718,8 @@ export function createPracticeHandlers(deps: PracticeHandlerDeps) {
     if (!skip) {
       let graded: SectionCheckResult;
       try {
+        // B4: only this item's parts are graded and recorded.
+        responses = responsesInSection(slot.raw as never, slot.sectionId, responses) ?? responses;
         graded = gradeSlot(slot, responses, sessionId, seq, studentId, deps.servedOrderings);
       } catch (err) {
         console.error('[check-activity] practice grading failed', JSON.stringify({ sessionId, seq }), err);

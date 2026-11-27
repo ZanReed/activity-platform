@@ -52,6 +52,7 @@ import { evaluateSeededKeys } from './seededKeys.js';
 import type { SeedValues } from '../../sanitize/seedValues.js';
 
 export { MalformedDocumentError } from './walk.js';
+export { responsesInSection } from './sectionResponses.js';
 
 export interface GradeSectionInput {
   /** The RAW (unsanitized, upgraded) document for the version the student was

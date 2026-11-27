@@ -91,6 +91,10 @@ export class CheckError extends Error {
   // slice builds a real retry decision derives it from `kind` at the point of
   // use, WITH the consumer that makes it true.
 
+  /** The server's own `code`, when it sent one. Read by the store for ONE
+   * decision only (B4): a refused idempotency key must not be retried. */
+  code?: string;
+
   constructor(kind: CheckErrorKind, message: string, status?: number) {
     super(message);
     this.name = 'CheckError';
@@ -194,6 +198,12 @@ interface ErrorBody {
  * payload", since both are 400. */
 export function checkErrorFor(status: number, body: ErrorBody): CheckError {
   const code = body.details?.code ?? body.code ?? '';
+  const err = checkErrorForCode(status, body, code);
+  if (code) err.code = code;
+  return err;
+}
+
+function checkErrorForCode(status: number, body: ErrorBody, code: string): CheckError {
   if (code === 'wire_version_mismatch') {
     return new CheckError(
       'stale_client',

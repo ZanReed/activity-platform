@@ -16,6 +16,8 @@
 // =============================================================================
 
 import { describe, expect, it, vi } from 'vitest';
+import { isCheckKey } from '../src/server/check-activity-handler.js';
+import { UUID_RE } from '../src/server/uuid.js';
 import {
   CheckError,
   checkErrorFor,
@@ -203,6 +205,25 @@ describe('a retry must not cost a student an extra attempt', () => {
     expect(service.calls).toHaveLength(2);
     expect(service.calls[0]!.idempotencyKey).toBeDefined();
     expect(service.calls[1]!.idempotencyKey).toBe(service.calls[0]!.idempotencyKey);
+    // B4: check-activity refuses a key that is not a UUID (or the pre-B4
+    // shape), so the store's default key is held to the SERVER's own rule.
+    expect(isCheckKey(service.calls[0]!.idempotencyKey)).toBe(true);
+    expect(UUID_RE.test(service.calls[0]!.idempotencyKey!)).toBe(true);
+  });
+
+  it('drops a key the server refused (B4), so the next Check mints a fresh one', async () => {
+    const service = scriptedService();
+    const store = createViewerStore({
+      userId: TEST_USER_ID,
+      activityId: ACTIVITY,
+      versionId: VERSION,
+      checkService: service,
+    });
+    service.failNext(checkErrorFor(400, { details: { code: 'bad_idempotency_key' } }));
+    await store.checkSection('s1', {});
+    await store.checkSection('s1', {});
+    expect(service.calls).toHaveLength(2);
+    expect(service.calls[1]!.idempotencyKey).not.toBe(service.calls[0]!.idempotencyKey);
   });
 
   it('mints a FRESH key for a deliberate re-check after success', async () => {

@@ -19,12 +19,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createCheckActivityHandler,
+  MAX_BODY_BYTES,
   validateCheckRequest,
   validateRestoreRequest,
     type CheckActivityDb,
     type OwnCheckRow,
 } from '../src/server/check-activity-handler.js';
-import { MalformedDocumentError } from '../src/server/grading/walk.js';
+import { findSection, inventorySection, MalformedDocumentError } from '../src/server/grading/walk.js';
+import type { SectionResponses } from '../src/check/wire.js';
 
 // The ONE mocked module in this file, and only as a pass-through with an
 // override hook. The malformed_document branch cannot be reached through the
@@ -62,6 +64,7 @@ const ACTIVITY = '11111111-1111-4111-8111-111111111111';
 const VERSION = '22222222-2222-4222-8222-222222222222';
 const OTHER_VERSION = '33333333-3333-4333-8333-333333333333';
 const STUDENT = '44444444-4444-4444-8444-444444444444';
+const KEY = '55555555-5555-4555-8555-555555555555';
 
 /** A real-shaped JWT: header.payload.signature, payload carrying `sub`. */
 function jwt(sub: string = STUDENT): string {
@@ -189,6 +192,7 @@ function validBody(over: Record<string, unknown> = {}): Record<string, unknown> 
     versionId: VERSION,
     sectionId,
     responses: { blanks: {} },
+    idempotencyKey: KEY,
     ...over,
   };
 }
@@ -505,9 +509,33 @@ describe('recording', () => {
 
   it('forwards an idempotency key so a retry replays instead of double-counting', async () => {
     const h = harness();
-    await h.handler(post(validBody({ idempotencyKey: 'attempt-abc' })));
+    await h.handler(post(validBody({ idempotencyKey: KEY })));
     const [record] = h.recorded() as Array<{ idempotencyKey: string | null }>;
-    expect(record!.idempotencyKey).toBe('attempt-abc');
+    expect(record!.idempotencyKey).toBe(KEY);
+  });
+
+  // B4 (2026-11-27): replay is keyed on (student, key) alone, so a missing,
+  // empty or shared key would replay an unrelated check. A UUID is required;
+  // the store's pre-B4 shape is accepted for open tabs during the transition.
+  it.each([
+    ['missing', undefined],
+    ['empty', ''],
+    ['an arbitrary string', 'attempt-abc'],
+    ['a number', 7],
+  ])('refuses a %s idempotency key with 400 before authorizing', async (_label, key) => {
+    const h = harness();
+    const res = await h.handler(post(validBody({ idempotencyKey: key })));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ details: { code: 'bad_idempotency_key' } });
+    expect(h.authorizationRan()).toBe(false);
+  });
+
+  it('still accepts the pre-B4 client key shape (open tabs, persisted in-flight checks)', async () => {
+    const h = harness();
+    const res = await h.handler(post(validBody({ idempotencyKey: 'mi1b2c3d-4-k9x8w7v6' })));
+    expect(res.status).toBe(200);
+    const [record] = h.recorded() as Array<{ idempotencyKey: string | null }>;
+    expect(record!.idempotencyKey).toBe('mi1b2c3d-4-k9x8w7v6');
   });
 
   // -------------------------------------------------------------------------
@@ -589,7 +617,7 @@ describe('recording', () => {
         error: null,
       }),
     });
-    const res = await h.handler(post(validBody({ idempotencyKey: 'k' })));
+    const res = await h.handler(post(validBody({ idempotencyKey: KEY })));
     expect((await res.json()).items).toEqual(original);
   });
 });
@@ -1130,6 +1158,107 @@ describe('photos retention had removed (slice 2b)', () => {
   it('a failed read back costs the note, never the check', async () => {
     const h = harness({ checkPhotos: async () => { throw new Error('down'); } });
     const res = await h.handler(post(body));
+    expect(res.status).toBe(200);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// B4 (review 2026-11-26): the row's size is bounded by the server, not a header
+// ---------------------------------------------------------------------------
+describe('B4 — what a check row can hold', () => {
+  /** A body with NO content-length (a stream is sent chunked). */
+  function chunked(text: string): Request {
+    const bytes = new TextEncoder().encode(text);
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let at = 0; at < bytes.length; at += 64 * 1024) {
+          controller.enqueue(bytes.slice(at, at + 64 * 1024));
+        }
+        controller.close();
+      },
+    });
+    return new Request('https://edge.test/check-activity', {
+      method: 'POST',
+      headers: { Authorization: jwt() },
+      body: stream,
+      // @ts-expect-error -- `duplex` is required by undici for a stream body
+      duplex: 'half',
+    });
+  }
+
+  it('refuses a chunked body over the cap with 413, though it declares no length', async () => {
+    const h = harness();
+    const huge = JSON.stringify(
+      validBody({ responses: { blanks: { x: 'y'.repeat(MAX_BODY_BYTES + 1) } } }),
+    );
+    const req = chunked(huge);
+    expect(req.headers.get('content-length')).toBeNull();
+    const res = await h.handler(req);
+    expect(res.status).toBe(413);
+    expect(h.authorizationRan()).toBe(false);
+  });
+
+  it('reads a chunked body under the cap normally', async () => {
+    const h = harness();
+    const res = await h.handler(chunked(JSON.stringify(validBody())));
+    expect(res.status).toBe(200);
+  });
+
+  it('records only the parts this section has — unknown keys are dropped', async () => {
+    const h = harness();
+    const section = findSection(doc as never, sectionId)!;
+    const inv = inventorySection(section);
+    const realBlank = inv.blankGroupsByBlock[0]?.keys[0]?.id;
+    expect(realBlank, 'the fixture section has a blank').toBeTruthy();
+    const res = await h.handler(
+      post(
+        validBody({
+          responses: {
+            blanks: { [realBlank!]: '4', 'not-in-this-section': 'z'.repeat(1000) },
+            freeText: { 'nor-this': 'essay' },
+            choices: { ghost: ['a'] },
+          },
+        }),
+      ),
+    );
+    expect(res.status).toBe(200);
+    const [record] = h.recorded() as Array<{ responses: SectionResponses }>;
+    expect(record!.responses.blanks).toEqual({ [realBlank!]: '4' });
+    expect(record!.responses.freeText).toEqual({});
+    expect(record!.responses.choices).toEqual({});
+  });
+
+  it.each([
+    ['points is not a list', { interaction: 'plot_point', points: 5 }],
+    ['a point is not a pair', { interaction: 'plot_point', points: [[1]] }],
+    ['a coordinate is a string', { interaction: 'plot_point', points: [['1', 2]] }],
+    ['no interaction', { points: [] }],
+    ['parts is an object', { interaction: 'plot_point', points: [], parts: {} }],
+    ['domain is a number', { interaction: 'plot_ray', points: [], domain: 3 }],
+    ['too many points', { interaction: 'plot_point', points: Array.from({ length: 1001 }, () => [0, 0]) }],
+  ])('refuses malformed graph work (%s) with 400 bad_graphs, not a 500', async (_label, work) => {
+    const h = harness();
+    const res = await h.handler(post(validBody({ responses: { graphs: { g: work } } })));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ details: { code: 'bad_graphs' } });
+    expect(h.authorizationRan()).toBe(false);
+  });
+
+  it('accepts well-formed graph work of every optional shape', async () => {
+    const h = harness();
+    const work = {
+      interaction: 'plot_segment',
+      points: [[1, 2], [3, 4]],
+      noSolution: false,
+      dragged: true,
+      equation: 'y=x',
+      shape: 'segment',
+      endpointStyles: ['open', 'closed'],
+      domain: { minX: 1, minStyle: 'open', maxX: 3, maxStyle: 'closed' },
+      parts: [{ points: [[0, 0]], strict: true, side: 'above' }],
+    };
+    const res = await h.handler(post(validBody({ responses: { graphs: { g: work } } })));
     expect(res.status).toBe(200);
   });
 });

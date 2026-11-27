@@ -307,17 +307,20 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
   // now lives in state and therefore in the buffer, so that retry is a replay
   // against S4-B2's idempotency index. Cleared on success, so a deliberate
   // re-check still creates a new attempt.
-  let counter = 0;
   const newCheckId =
     options.newCheckId ??
     (() => {
-      counter += 1;
-      // Enough entropy to be unique per student per section without depending
-      // on crypto being present (the store runs in tests and SSR too); the
-      // uniqueness that matters is scoped to one student's own rows.
-      return `${Date.now().toString(36)}-${counter}-${Math.random()
-        .toString(36)
-        .slice(2, 10)}`;
+      // A UUID: check-activity requires one since review B4 (2026-11-27) —
+      // replay is keyed on (student, key) alone, so a key must never repeat.
+      // crypto.randomUUID is in every browser the viewer supports and in Node;
+      // the fallback (a v4 from Math.random) covers a test or SSR runtime
+      // without it.
+      const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+      if (typeof c?.randomUUID === 'function') return c.randomUUID();
+      const hex = (n: number) =>
+        Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      const variant = '89ab'[Math.floor(Math.random() * 4)];
+      return `${hex(8)}-${hex(4)}-4${hex(3)}-${variant}${hex(3)}-${hex(12)}`;
     });
   let state: ViewerStoreState = {
     userId: options.userId,
@@ -599,6 +602,11 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
           return;
         }
 
+        // B4: the server refused the KEY itself (a key minted before the
+        // server required UUIDs, persisted mid-flight). Keeping it would make
+        // every later Check of this section resend it and fail the same way,
+        // across reloads; dropping it lets the next Check mint a fresh one.
+        const refusedKey = (err as { code?: string }).code === 'bad_idempotency_key';
         commit({
           ...state,
           sections: {
@@ -609,6 +617,15 @@ export function createViewerStore(options: ViewerStoreOptions): ViewerStore {
               ...(kind ? { kind } : {}),
             },
           },
+          ...(refusedKey
+            ? {
+                inFlight: (() => {
+                  const next = { ...state.inFlight };
+                  delete next[sectionId];
+                  return next;
+                })(),
+              }
+            : {}),
           // A reachable-but-failing server means this check is NOT queued:
           // retrying forever against a 500 would spin, and 2.1A gives the
           // student an explicit Retry instead. Dropping the queue entry is how

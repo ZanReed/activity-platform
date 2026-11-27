@@ -42,6 +42,7 @@ import {
   gradeSection,
   MalformedDocumentError,
   PhotosMismatchError,
+  responsesInSection,
   SectionNotFoundError,
 } from './grading/index.js';
 import type { CorsKit, DbResult } from './get-activity-handler.js';
@@ -50,6 +51,7 @@ import { jwtSub } from './jwt.js';
 import { dolAllowance, findDolSection } from '../sanitize/dolForm.js';
 import { dolPrimary, primaryCorrect, seedContextFor } from './dol.js';
 import { UUID_RE } from './uuid.js';
+import { readCappedBody } from './cappedBody.js';
 import { createPracticeHandlers, type DolPracticeDb, type PracticeDb } from './practice-handler.js';
 import { createVideoPauseHandler, type VideoPauseDb } from './video-pause-handler.js';
 
@@ -58,8 +60,30 @@ import { createVideoPauseHandler, type VideoPauseDb } from './video-pause-handle
 
 /** Hard ceiling on a single check request. A section is a handful of questions;
  * anything approaching this is not a worksheet. Enforced before parsing so a
- * huge body is never materialized into objects. */
-const MAX_BODY_BYTES = 256 * 1024;
+ * huge body is never materialized into objects — by a counting reader, not the
+ * client's `content-length` (B4: a chunked body has none). */
+export const MAX_BODY_BYTES = 256 * 1024;
+
+/** Most points (or parts) one graph answer may carry. A box plot has five
+ * handles and a dot plot one per value; a drawn curve sends tens. */
+const MAX_GRAPH_POINTS = 1000;
+const MAX_GRAPH_PARTS = 50;
+
+/**
+ * The idempotency key (B4). REQUIRED, and a UUID — what the store mints since
+ * 2026-11-27. Before that it minted `<base36 time>-<counter>-<base36 random>`,
+ * and a student's open tab (or a check persisted mid-flight) still carries one
+ * until the new client reaches it, so that exact shape is accepted too. What
+ * is refused is everything else: a missing key, `''`, or an arbitrary string —
+ * replay is keyed on (student, key) alone, so a shared or empty key replays an
+ * unrelated check's verdicts. LEGACY_CHECK_KEY_RE is a transition and has a
+ * trigger in TODOS (B4 legacy key) to come out.
+ */
+// The random tail can be empty (Math.random() === 0 gives '0'.slice(2) = '').
+const LEGACY_CHECK_KEY_RE = /^[0-9a-z]{1,12}-[0-9]{1,9}-[0-9a-z]{0,8}$/;
+export function isCheckKey(value: unknown): value is string {
+  return typeof value === 'string' && (UUID_RE.test(value) || LEGACY_CHECK_KEY_RE.test(value));
+}
 
 /** Hard ceiling on item count across all response categories. */
 const MAX_ITEMS = 500;
@@ -288,6 +312,59 @@ function countItems(responses: SectionResponses): number {
   );
 }
 
+const isPointList = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.length <= MAX_GRAPH_POINTS &&
+  v.every(
+    (p) =>
+      Array.isArray(p) &&
+      p.length === 2 &&
+      typeof p[0] === 'number' &&
+      typeof p[1] === 'number',
+  );
+
+const optional = (v: unknown, ok: (v: unknown) => boolean): boolean =>
+  v === undefined || ok(v);
+
+/** The wire's GraphWork, to the depth the grader reads it unguarded. */
+function isGraphWorkShape(value: unknown): boolean {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const w = value as Record<string, unknown>;
+  const isNum = (v: unknown) => typeof v === 'number';
+  const isStr = (v: unknown) => typeof v === 'string';
+  const isBool = (v: unknown) => typeof v === 'boolean';
+  return (
+    typeof w.interaction === 'string' &&
+    isPointList(w.points) &&
+    optional(w.noSolution, isBool) &&
+    optional(w.dragged, isBool) &&
+    optional(w.equation, isStr) &&
+    optional(w.shape, isStr) &&
+    optional(w.endpointStyles, (v) => Array.isArray(v) && v.length <= 2 && v.every(isStr)) &&
+    optional(w.domain, (v) => {
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) return false;
+      const d = v as Record<string, unknown>;
+      return (
+        optional(d.minX, isNum) &&
+        optional(d.maxX, isNum) &&
+        optional(d.minStyle, isStr) &&
+        optional(d.maxStyle, isStr)
+      );
+    }) &&
+    optional(
+      w.parts,
+      (v) =>
+        Array.isArray(v) &&
+        v.length <= MAX_GRAPH_PARTS &&
+        v.every((part) => {
+          if (part === null || typeof part !== 'object' || Array.isArray(part)) return false;
+          const p = part as Record<string, unknown>;
+          return optional(p.points, isPointList) && optional(p.strict, isBool) && optional(p.side, isStr);
+        }),
+    )
+  );
+}
+
 /** Three levels of string record: id → { id → { id → string } }. */
 function isDoublyNestedStringRecord(
   value: unknown,
@@ -368,9 +445,15 @@ export function validateResponses(
     if (raw.graphs === null || typeof raw.graphs !== 'object') {
       return fail('responses.graphs must be an object', 'bad_graphs');
     }
-    // Graph work is shape-checked by the grader, which dispatches on the
-    // SERVED interaction and refuses work that disagrees with it. Validating
-    // the geometry twice would duplicate that authority in two places.
+    // MINIMAL SHAPE ONLY (B4): the fields the grader dereferences without a
+    // guard. Whether the work MATCHES the served question stays the grader's
+    // call (it dispatches on the served interaction). Without this, `points:
+    // 5` threw inside a scorer and came back as a 500 logged as a grader bug.
+    for (const work of Object.values(raw.graphs as Record<string, unknown>)) {
+      if (!isGraphWorkShape(work)) {
+        return fail('responses.graphs must map id → graph work', 'bad_graphs');
+      }
+    }
     responses.graphs = raw.graphs as SectionResponses['graphs'];
   }
 
@@ -438,8 +521,8 @@ export function validateCheckRequest(
   if (typeof b.sectionId !== 'string' || b.sectionId.length === 0) {
     return fail('sectionId is required', 'bad_section_id');
   }
-  if (b.idempotencyKey !== undefined && typeof b.idempotencyKey !== 'string') {
-    return fail('idempotencyKey must be a string', 'bad_idempotency_key');
+  if (!isCheckKey(b.idempotencyKey)) {
+    return fail('idempotencyKey must be a UUID', 'bad_idempotency_key');
   }
   if (b.form !== undefined && (b.form !== 1 && b.form !== 2)) {
     return fail('form must be 1 or 2', 'bad_form');
@@ -457,6 +540,7 @@ export function validateCheckRequest(
       versionId: b.versionId,
       sectionId: b.sectionId,
       responses,
+      idempotencyKey: b.idempotencyKey,
       ...(b.form === 2 ? { form: 2 } : {}),
     },
   };
@@ -702,15 +786,20 @@ export function createCheckActivityHandler(
       return cors.errorResponse(req, 401, 'Missing Authorization header');
     }
 
-    // Size ceiling before parsing: a huge body must never become objects.
+    // Size ceiling before parsing: a huge body must never become objects. The
+    // header is the cheap early refusal; the counting reader is the bound (B4).
     const declared = Number(req.headers.get('content-length') ?? '0');
     if (declared > MAX_BODY_BYTES) {
+      return cors.errorResponse(req, 413, 'Request too large');
+    }
+    const bytes = await readCappedBody(req, MAX_BODY_BYTES);
+    if (bytes === 'too_big') {
       return cors.errorResponse(req, 413, 'Request too large');
     }
 
     let body: unknown;
     try {
-      body = await req.json();
+      body = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
       return cors.errorResponse(req, 400, 'Body must be valid JSON', {
         code: 'malformed_body',
@@ -757,10 +846,7 @@ export function createCheckActivityHandler(
       });
     }
     const request = validated.request;
-    const idempotencyKey =
-      typeof (body as { idempotencyKey?: unknown }).idempotencyKey === 'string'
-        ? ((body as { idempotencyKey: string }).idempotencyKey)
-        : null;
+    const idempotencyKey = request.idempotencyKey ?? null;
 
     // ---- The authorization chain, as the CALLER ---------------------------
     const {
@@ -824,11 +910,18 @@ export function createCheckActivityHandler(
 
     // ---- Grade -------------------------------------------------------------
     let result: SectionCheckResult;
+    // B4: the parts this section does not have are dropped BEFORE grading and
+    // recording, so the stored row holds only what a teacher can see. Inside
+    // the try: the walk is the grader's, and throws the grader's errors.
+    let responses: SectionResponses = request.responses;
     try {
+      responses =
+        responsesInSection(gradedDoc as never, request.sectionId, request.responses) ??
+        request.responses;
       result = gradeSection({
         document: gradedDoc as never,
         sectionId: request.sectionId,
-        responses: request.responses,
+        responses,
         seedValues,
         servedOrderings: deps.servedOrderings?.({
           document: gradedDoc,
@@ -912,7 +1005,7 @@ export function createCheckActivityHandler(
       activityId: request.activityId,
       versionId: request.versionId,
       sectionId: request.sectionId,
-      responses: request.responses,
+      responses,
       verdicts: result.items,
       idempotencyKey,
       locked,

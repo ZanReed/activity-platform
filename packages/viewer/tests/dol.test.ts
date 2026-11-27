@@ -193,6 +193,7 @@ async function check(h: ReturnType<typeof checkHarness>, answer: string, form?: 
     headers: { Authorization: jwt('student-1') },
     body: JSON.stringify({
       wireVersion: CHECK_WIRE_VERSION, activityId: ACTIVITY, versionId: VERSION, sectionId: DOL,
+      idempotencyKey: crypto.randomUUID(),
       responses: { ...emptySectionResponses(), blanks: { [BLANK]: answer } },
       ...(form ? { form } : {}),
     }),
