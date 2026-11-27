@@ -1,7 +1,7 @@
 # Data Map — where every piece of personal data lives
 
 > **DRAFT FOR DISTRICT / COUNSEL REVIEW — NOT LEGAL ADVICE.**
-> Version `2026-11-28-draft-76`. Mirrors migrations 0001–**0108**, verified
+> Version `2026-11-28-draft-77`. Mirrors migrations 0001–**0109**, verified
 > against the live schema (`information_schema`) rather than against migration
 > filenames. Regenerate whenever a migration adds/removes a personal-data
 > column (Q4A in-arc doc rule) — **now also a standing rule in CLAUDE.md,
@@ -11,6 +11,8 @@
 > SECURITY DEFINER RPCs (`class.create`/`class.update` audit rows, actor +
 > old/new metadata), and the assertion record became structurally immutable
 > (client column grants).
+>
+> **`draft-77` (2026-11-28) — 0109 adds NO personal-data column or table.** It pins four functions' `search_path` and scopes the ten policies on `class_members`, `classes`, `section_checks` and `submissions` to signed-in users; who can read what is unchanged (anon never could). The range moves to 0109.
 >
 > **`draft-76` (2026-11-28) — 0108 adds NO personal-data column or table.** It restates three teacher reads (`class_progress`, `activity_progress`, `mixed_who_first`) to cost less; what each returns, and to whom, is unchanged. The range moves to 0108.
 >
