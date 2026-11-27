@@ -33,6 +33,34 @@ Design and rulings: [shared-data-loading.md](docs/design/shared-data-loading.md)
 - **Reading the log:** one saved query for now (newest first, grouped by route + source). A
   small panel only if the query gets read weekly.
 
+## Editor helpers read `editor.view` before it exists (found 2026-11-27) — LEFT FOR LATER
+
+**Trigger:** the next change to `Editor.tsx`'s mount path or to either host
+below, OR a "Something went wrong on this page." report from the real editor —
+whichever comes first. Author ruled 2026-11-27: file it, don't build it now.
+
+- **What:** `editor/components/TableToolbarHost.tsx` (reads `editor.view.dom`
+  in an effect) and `editor/components/DefinitionPopoverHost.tsx` (reads the
+  selection's `marks`, null) assume the Tiptap view is mounted. Under React
+  StrictMode's dev double-effect run, Tiptap 3 destroys and re-creates the
+  editor; anything that shifts effect timing then has these effects run
+  against an editor with no view, and the page hits the error boundary.
+- **How it surfaced:** fixing `/playground`'s dev-only React warning ("Can't
+  perform a React state update on a component that hasn't mounted yet", from
+  `Editor.tsx`'s `onCreate` → the page's `setJson` during its first render).
+  Two versions of that fix (replay the first report after mount; drop it)
+  each crashed `/playground` on a DIRECT load: the editor lane went 192 red,
+  one spec 4/4 red with the change vs 4/4 green at HEAD. Even adding a bare
+  mount effect to `Playground.tsx` was enough. Reverted; the warning remains,
+  harmless.
+- **Fix shape:** guard both hosts until the view exists (Tiptap's
+  `editor.isInitialized` / try `editor.view` and bail; re-run on the editor's
+  `create` event), THEN make Playground drop its pre-mount report. Re-run the
+  editor lane (`pnpm --filter @activity/app test:e2e:editor`, `.env.local`
+  moved aside) and load `/playground?empty=1` directly, not by client nav.
+- **Production risk:** likely low — StrictMode's double run is dev-only — but
+  not proven.
+
 ## Editor round trip: what the editor drops on save (review C3, found 2026-11-26)
 
 `packages/app/src/__tests__/editorRoundTrip.test.ts` holds each as a tracked expected
