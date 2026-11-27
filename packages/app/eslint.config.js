@@ -109,7 +109,9 @@ export default tseslint.config(
           paths: [
             {
               name: '@activity/graph-kit',
-              allowTypeImports: true,
+              // No type-only exception (2026-11-27): the repo-wide
+              // scripts/tests/graph-kit-barrel.test.mjs has none either, and
+              // this rule is the in-editor warning for the same rule.
               message:
                 "The graph-kit barrel re-exports the mount functions, which pull " +
                 'JSXGraph and MathLive. Import a subpath from its package.json ' +

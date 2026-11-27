@@ -11,7 +11,6 @@
   "imports": {
     "@activity/schema": "../../packages/schema/src/index.ts",
     "@activity/schema/bank-seed": "../../packages/schema/src/bank-seed.ts",
-    "@activity/graph-kit": "../../packages/graph-kit/src/index.ts",
     "@activity/graph-kit/runtime-contract": "../../packages/graph-kit/src/runtime-contract.ts",
     "@activity/graph-kit/drawable-palette": "../../packages/graph-kit/src/drawable-palette.ts",
     "@activity/graph-kit/math-equivalent": "../../packages/graph-kit/src/math-equivalent.ts",
