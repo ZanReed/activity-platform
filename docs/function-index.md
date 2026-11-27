@@ -1,8 +1,8 @@
 # Function index — GENERATED, do not edit
 
-Every function the migrations leave live in `public`, through **0109**:
-230 overloads of 229 names; 42 return row sets,
-34 are `security invoker`, 126 names are called from the code, and
+Every function the migrations leave live in `public`, through **0110**:
+231 overloads of 230 names; 42 return row sets,
+35 are `security invoker`, 126 names are called from the code, and
 26 names have been defined three or more times. Written by `pnpm db:index`; CI fails
 when it is stale (`scripts/tests/function-index.test.mjs`). The parser and its limits:
 [scripts/lib/migrations.mjs](../scripts/lib/migrations.mjs). Design: review C1,
@@ -198,6 +198,7 @@ functions, triggers or cron; both overloads of an overloaded name show the same 
 | `save_fact_attempts(p_probe_id uuid, p_attempts jsonb, p_baselines? jsonb, p_finished? boolean, p_app_build? text)` | jsonb | definer | [0045_fact_probe.sql:892](../supabase/migrations/0045_fact_probe.sql#L892) | 1 | 0045, 0046, 0048, 0050, 0051, 0065, 0068 | app |
 | `save_sprint_attempts(p_session_id uuid, p_attempts jsonb, p_baselines? jsonb, p_finished? boolean, p_app_build? text)` | jsonb | definer | [0050_fact_sprint.sql:942](../supabase/migrations/0050_fact_sprint.sql#L942) | 1 | 0050, 0051, 0068 | app |
 | `section_checks_attach_photos()` | trigger | definer | [0099_photo_pilot.sql:171](../supabase/migrations/0099_photo_pilot.sql#L171) | 2 | 0094, 0099 | — |
+| `set_activities_updated_at()` | trigger | invoker | [0110_activities_updated_at_stamp.sql:30](../supabase/migrations/0110_activities_updated_at_stamp.sql#L30) | 1 | 0110 | — |
 | `set_activity_listing(p_activity_id uuid, p_listed boolean)` | text | definer | [0055_bank_authors.sql:96](../supabase/migrations/0055_bank_authors.sql#L96) | 2 | 0054, 0055, 0056, 0057 | app |
 | `set_class_activity_due(p_class_id uuid, p_activity_id uuid, p_due_on date)` | date | definer | [0087_class_activity_due.sql:36](../supabase/migrations/0087_class_activity_due.sql#L36) | 1 | 0087 | app |
 | `set_class_help(p_class_id uuid, p_on boolean)` | jsonb | definer | [0090_help_requests.sql:51](../supabase/migrations/0090_help_requests.sql#L51) | 1 | 0090 | app |

@@ -43,8 +43,12 @@ const h = vi.hoisted(() => ({
     /** Non-null models the activities SELECT failing outright (A12). */
     loadError: { current: null as { message: string } | null },
     version: { current: null as Record<string, unknown> | null },
-    /** Every update payload the route sent, in order. */
+    /** Every update payload that LANDED (its updated_at guard matched), in order. */
     updates: [] as Array<Record<string, unknown>>,
+    /** Every guarded update that matched nothing (the row moved: C10). */
+    refused: { current: 0 },
+    /** Runs once, between the route's read and its write — another tab saving. */
+    beforeWrite: { current: null as (() => void) | null },
     /** The document the container was handed (see the viewer mock). */
     servedDoc: { current: null as unknown },
 }));
@@ -61,9 +65,32 @@ vi.mock('../lib/supabase', () => {
                 }),
             }),
         }),
+        // The real update's shape: .eq filters, then .select('updated_at').
+        // An `updated_at` filter is the C10 guard: it matches only the row's
+        // current token, and a landed write gets a fresh SERVER token.
         update: (payload: Record<string, unknown>) => {
-            h.updates.push(payload);
-            return { eq: async () => ({ error: null }) };
+            const filters: Record<string, unknown> = {};
+            const builder = {
+                eq: (column: string, value: unknown) => {
+                    filters[column] = value;
+                    return builder;
+                },
+                select: async () => {
+                    const hook = h.beforeWrite.current;
+                    h.beforeWrite.current = null;
+                    hook?.();
+                    const row = h.row.current;
+                    if (!row || ('updated_at' in filters && filters.updated_at !== row.updated_at)) {
+                        h.refused.current += 1;
+                        return { data: [], error: null };
+                    }
+                    h.updates.push(payload);
+                    const stamped = `server-${h.updates.length}`;
+                    h.row.current = { ...row, ...payload, updated_at: stamped };
+                    return { data: [{ updated_at: stamped }], error: null };
+                },
+            };
+            return builder;
         },
     });
     const versions = () => ({
@@ -127,6 +154,8 @@ function renderRoute() {
 
 beforeEach(() => {
     h.updates.length = 0;
+    h.refused.current = 0;
+    h.beforeWrite.current = null;
     h.row.current = { id: ACTIVITY_ID, title: 'T', draft_content: authored(), current_version_id: null };
     h.loadError.current = null;
     h.version.current = null;
@@ -566,6 +595,53 @@ describe('saving a print setting (ruling D20A)', () => {
         // The other tab's work is still there. Before D20A this assertion
         // failed: the route wrote back the stale document it had loaded.
         expect(written.meta.title).toBe('Edited in another tab');
+    });
+
+    it('never overwrites an editor save that lands between its read and its write (C10)', async () => {
+        renderRoute();
+        await waitFor(() =>
+            expect(document.querySelector('.viewer')).not.toBeNull(),
+        );
+        h.row.current = { ...h.row.current!, updated_at: 'server-before' };
+
+        // The other tab saves AFTER this page re-read the row, BEFORE it wrote.
+        const raced = authored();
+        raced.meta.title = 'Saved mid-write in another tab';
+        h.beforeWrite.current = () => {
+            h.row.current = {
+                ...h.row.current!, draft_content: raced, updated_at: 'server-raced',
+            };
+        };
+
+        fireEvent.change(screen.getByLabelText(/body text/i), { target: { value: '13' } });
+        await waitFor(() => expect(h.updates.length).toBeGreaterThan(0), { timeout: 4000 });
+
+        // The stale write was refused, the merge ran again on the newer draft,
+        // and the other tab's work survived.
+        expect(h.refused.current).toBe(1);
+        const written = h.updates.at(-1)!.draft_content as { meta: { title: string } };
+        expect(written.meta.title).toBe('Saved mid-write in another tab');
+    });
+
+    it('builds on the CURRENT published version when there is no draft, not the one it loaded (C10)', async () => {
+        renderRoute();
+        await waitFor(() =>
+            expect(document.querySelector('.viewer')).not.toBeNull(),
+        );
+        // Another tab republished since this page loaded: the draft is gone and
+        // the current version is the newer content.
+        const republished = authored();
+        republished.meta.title = 'Republished in another tab';
+        h.version.current = { content: republished };
+        h.row.current = {
+            ...h.row.current!, draft_content: null, current_version_id: 'v-new', updated_at: 'server-pub',
+        };
+
+        fireEvent.change(screen.getByLabelText(/body text/i), { target: { value: '13' } });
+        await waitFor(() => expect(h.updates.length).toBeGreaterThan(0), { timeout: 4000 });
+
+        const written = h.updates.at(-1)!.draft_content as { meta: { title: string } };
+        expect(written.meta.title).toBe('Republished in another tab');
     });
 });
 

@@ -118,6 +118,7 @@ import { collectTagVocabulary, normalizeTags } from '../lib/normalizeTags';
 import { activityChangeKey } from '../lib/activityChangeKey';
 import { applyImportedMeta } from '../lib/applyImportedMeta';
 import { mergeImportedMinutes, minutesUpdate } from '../lib/activityMinutes';
+import { requestUpdatedAtStamp } from '../lib/updatedAtStamp';
 import type { ImportedMeta } from '../lib/markdownToTiptap';
 import {
     asPedagogicalRole,
@@ -792,7 +793,9 @@ export default function ActivityEditor() {
             title: safeMeta.title,
             tags,
             pedagogical_role: pedagogicalRole,
-            updated_at: new Date().toISOString(),
+            // The server stamps the time (0110); the token is the stored value
+            // read back below.
+            ...requestUpdatedAtStamp(),
         })
         .eq('id', id);
         // G-8: only over the version this tab last saw (overwrite() skips it).

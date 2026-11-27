@@ -15,6 +15,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
+import { requestUpdatedAtStamp } from './updatedAtStamp';
 
 export const DISCARD_COPY = {
     button: 'Discard changes',
@@ -54,7 +55,7 @@ export async function discardDraft(activityId: string, knownUpdatedAt: string | 
 
     let query = supabase
         .from('activities')
-        .update({ draft_content: null, title, updated_at: new Date().toISOString() })
+        .update({ draft_content: null, title, ...requestUpdatedAtStamp() })
         .eq('id', activityId);
     if (knownUpdatedAt !== null) query = query.eq('updated_at', knownUpdatedAt);
     const { data, error } = await query.select('updated_at');

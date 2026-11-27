@@ -69,6 +69,7 @@ import {
 } from '../lib/swRegistration';
 import { buildFoldableDocument } from '../lib/foldable';
 import { PermanentSaveError, useAutosave } from '../lib/useAutosave';
+import { requestUpdatedAtStamp } from '../lib/updatedAtStamp';
 import { PrintSettingsBody } from '../components/PrintSettingsBody';
 
 type PrintLayout = 'worksheet' | 'foldable';
@@ -87,6 +88,72 @@ interface ActivityLoadRow {
     title: string;
     draft_content: unknown;
     current_version_id: string | null;
+}
+
+/** How many times a print-settings write re-reads and re-merges when the row
+ * moved under it before it gives up (and useAutosave retries later). */
+const PRINT_MERGE_TRIES = 3;
+
+/**
+ * One read-merge-write of `meta.print` (D20A + review C10). Returns false when
+ * the row changed between the read and the write — the guarded update matched
+ * nothing, so nothing was written and the caller merges again.
+ */
+async function mergePrintOnce(id: string, print: PrintConfig): Promise<boolean> {
+    const { data, error: readErr } = await supabase
+        .from('activities')
+        .select('draft_content, current_version_id, updated_at')
+        .eq('id', id)
+        .is('deleted_at', null)
+        .maybeSingle();
+    if (readErr) throw readErr;
+    if (!data) throw new PermanentSaveError('This activity is no longer available.');
+
+    const row = data as { draft_content: unknown; current_version_id: string | null; updated_at: string };
+    // No draft (published, never edited since): build on the CURRENT published
+    // version, read now. Not the document this page loaded: a republish in
+    // another tab since then clears the draft, and writing the mount-time
+    // document back would silently undo it (review C10's Fable pass). Creating
+    // the draft is correct — it mirrors what any editor edit does.
+    let base: unknown = row.draft_content;
+    if (base === null) {
+        if (!row.current_version_id) {
+            throw new PermanentSaveError('This activity has no content to save print settings into.');
+        }
+        const { data: version, error: vErr } = await supabase
+            .from('activity_versions')
+            .select('content')
+            .eq('id', row.current_version_id)
+            .single();
+        if (vErr || !version) throw vErr ?? new Error('Could not read the published version.');
+        try {
+            base = upgradeActivityDocument((version as { content: unknown }).content).doc;
+        } catch {
+            throw new PermanentSaveError('Print settings failed validation; not saved.');
+        }
+    }
+    const parsed = ActivityDocument.safeParse(base);
+    if (!parsed.success) {
+        throw new PermanentSaveError('Print settings failed validation; not saved.');
+    }
+    const next: ActivityDocument = {
+        ...parsed.data,
+        meta: { ...parsed.data.meta, print },
+    };
+
+    const { data: written, error } = await supabase
+        .from('activities')
+        .update({
+            // A jsonb column: the generated `Json` has an index signature the document
+            // interface lacks, so it is cast for the TYPE only (review C1 slice 4).
+            draft_content: next as unknown as Json,
+            ...requestUpdatedAtStamp(),
+        })
+        .eq('id', id)
+        .eq('updated_at', row.updated_at)
+        .select('updated_at');
+    if (error) throw error;
+    return (written ?? []).length > 0;
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -292,42 +359,19 @@ export default function ActivityPrint() {
     // editor open in another tab could lose editor work by nudging a margin
     // here — silently, with no error and no trace. Print settings are the only
     // thing this page owns, so they are the only thing it writes.
+    //
+    // AND ONLY OVER THE ROW IT READ (review C10). The write is guarded by the
+    // updated_at it re-fetched, so an editor save landing between the read
+    // and the write is not overwritten: the guard matches nothing, and the
+    // merge runs again on the newer draft. A few tries, then a plain error
+    // (useAutosave retries it) — print settings never win by overwriting.
     const writePrintNow = useCallback(async () => {
         if (!id || !print) return;
-        const { data, error: readErr } = await supabase
-            .from('activities')
-            .select('draft_content, current_version_id')
-            .eq('id', id)
-            .is('deleted_at', null)
-            .maybeSingle();
-        if (readErr) throw readErr;
-        if (!data) throw new PermanentSaveError('This activity is no longer available.');
-
-        const current = (data as { draft_content: unknown }).draft_content;
-        // No draft yet (published, never edited): fall back to the document we
-        // loaded, which came from the published version. Creating the draft is
-        // correct — it mirrors what any editor edit does.
-        const base = current ?? doc;
-        const parsed = ActivityDocument.safeParse(base);
-        if (!parsed.success) {
-            throw new PermanentSaveError('Print settings failed validation; not saved.');
+        for (let attempt = 0; attempt < PRINT_MERGE_TRIES; attempt++) {
+            if (await mergePrintOnce(id, print)) return;
         }
-        const next: ActivityDocument = {
-            ...parsed.data,
-            meta: { ...parsed.data.meta, print },
-        };
-
-        const { error } = await supabase
-            .from('activities')
-            .update({
-                // A jsonb column: the generated `Json` has an index signature the document
-                // interface lacks, so it is cast for the TYPE only (review C1 slice 4).
-                draft_content: next as unknown as Json,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', id);
-        if (error) throw error;
-    }, [id, doc, print]);
+        throw new Error('The activity kept changing while print settings saved; trying again.');
+    }, [id, print]);
     // G-8: registered, so the editor opened straight after this page waits
     // for it before reading the row (lib/pendingRowWrites.ts).
     const savePrint = useCallback(
