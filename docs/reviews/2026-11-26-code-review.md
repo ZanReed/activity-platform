@@ -436,7 +436,7 @@ change and no predicate is restated (verify-0109 pins each USING expression).
 The eleven other `to public` policies were not flagged; **0111 (2026-11-28)
 scopes them the same way**, and verify-0111's first row now fails if any policy
 in `public` applies to `public` again.
-**Still the author's:** the leaked-password protection look in the dashboard.
+**Leaked-password protection: closed 2026-11-28 another way.** It is a Pro-plan setting; instead the author turned the Email auth provider off live, so no account can sign in (or sign up) with a password at all. Revisit only if password sign-in comes back.
 
 ---
 

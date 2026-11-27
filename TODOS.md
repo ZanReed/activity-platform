@@ -108,8 +108,8 @@ constraint. Slices 3–5 are ruled but NOT queued (ranking is the author's):
 - **Slice 5 BUILT 2026-11-26:** worker client and viewer seams typed through `@activity/db-types/rpc`;
   `packages/viewer/src/server/dbPorts.check.ts` checks the server ports' row types against the schema at
   compile time (bundles byte-identical). **Edge Functions typechecked 2026-11-26 (author: "yes, add it"):** CI runs `deno check` with the
-  check-only `scripts/deno-check/deno.json` (Deno v2.9.8); check-activity's and get-activity's clients are
-  `EdgeClient`, and photo-handoff's and sweep's fetch helpers are typed the same way.
+  check-only `scripts/deno-check/deno.json` (Deno v2.9.8); check-activity's and get-activity's clients were
+  `EdgeClient` until D5 (2026-11-28) moved them to `createRestClient`, typed the same way as photo-handoff's and sweep's fetch helpers.
   It found and fixed three real type gaps (a served-orderings cast, two `Uint8Array` bodies). A select
   typo on a port field typed `unknown` passes the type check (SelectQueryError fits `unknown`), so
   `db-types.test.mjs` also checks every Edge Function `.select()` column by name. **Redeployed 2026-11-26** (author's request): all four
