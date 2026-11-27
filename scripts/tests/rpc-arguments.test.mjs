@@ -47,6 +47,8 @@ import { rpcCalls, quotedFunctionNames, aliasConflicts } from '../lib/rpc-calls.
 
 /** Calls the scan cannot read, keyed `file:token`. Say why it is safe. */
 export const UNREAD = {
+  'packages/viewer/src/server/restClient.ts:fn: F':
+    "the REST client's own `rpc<F extends FnName>(fn: F, …)` declaration, not a call; its callers (both Edge Functions' index.ts) pass literal names, which this scan reads, and `deno check` types them",
   'scripts/playtest.mjs:name':
     "the playtest seeder's `extras` table ([label, 'fn', {args}] rows) — local stack only, and a wrong name or argument fails the seed loudly the first time it runs",
 };

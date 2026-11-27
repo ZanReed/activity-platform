@@ -530,12 +530,12 @@ describe('recording', () => {
     expect(h.authorizationRan()).toBe(false);
   });
 
-  it('still accepts the pre-B4 client key shape (open tabs, persisted in-flight checks)', async () => {
+  it('refuses the pre-B4 client key shape (retired 2026-11-28) and records nothing', async () => {
     const h = harness();
     const res = await h.handler(post(validBody({ idempotencyKey: 'mi1b2c3d-4-k9x8w7v6' })));
-    expect(res.status).toBe(200);
-    const [record] = h.recorded() as Array<{ idempotencyKey: string | null }>;
-    expect(record!.idempotencyKey).toBe('mi1b2c3d-4-k9x8w7v6');
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ details: { code: 'bad_idempotency_key' } });
+    expect(h.recorded()).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------

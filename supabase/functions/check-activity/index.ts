@@ -10,7 +10,7 @@
 //   - reads the auto-injected env (no new secrets),
 //   - implements CheckActivityDb, PracticeDb (mixed practice, 0066) and
 //     DolPracticeDb (DoL targeted practice, 0072)
-//     against real supabase-js clients,
+//     over plain fetch to PostgREST (createRestClient, review D5),
 //   - passes _shared/cors.ts through the CorsKit port,
 //   - recomputes this student's serve-time `ordering` permutation,
 //   - serves the handler.
@@ -22,7 +22,7 @@
 // and do NOT add --no-verify-jwt to it.
 //
 // TWO CLIENTS, AND THE DIFFERENCE MATTERS:
-//   * userClient  — carries the student's JWT. Used for the authorization RPC
+//   * asCaller()  — carries the student's JWT. Used for the authorization RPC
 //                   so the DATABASE decides what they may check.
 //   * admin       — service role. Used for the RAW document (answer keys
 //                   included) and for record_check, which is service-role-only
@@ -31,14 +31,10 @@
 // authorization RPC has succeeded.
 // =============================================================================
 
-// supabase-js is pinned EXACT, to the app's version (packages/app/package.json):
-// a floating `@2` let each deploy resolve a different minor (audit 2026-10).
-// Bump the two functions and the app together.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
-import type { Database, EdgeClient } from '../_shared/db.ts';
 import {
   computeServedOrderings,
   createCheckActivityHandler,
+  createRestClient,
   type CheckActivityDb,
   type DolPracticeDb,
   type PracticeDb,
@@ -57,32 +53,26 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Missing required Supabase environment variables');
 }
 
-// D5 (review 2026-11-26): every client here sets autoRefreshToken: false. In
-// the pinned auth-js a client otherwise starts a 30-second refresh interval
-// that is never cleared — one per request, alive for the isolate's lifetime.
-// None of these clients holds a session to refresh: the service key and the
-// caller's own JWT are fixed headers. (persistSession was already off.)
-const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-}) as unknown as EdgeClient;
+// The database, over plain fetch to PostgREST (review D5): no supabase-js on
+// this function's cold start, and no auth client (or its refresh timer) per
+// request. createRestClient keeps postgrest-js's `{ data, error, status }`,
+// which the handler and rpcStatus.ts read.
+const admin = createRestClient({
+  url: SUPABASE_URL,
+  apikey: SUPABASE_SERVICE_ROLE_KEY,
+  authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+});
 
 /** A client that carries the caller's JWT, so the RPC runs AS the caller. */
 function asCaller(authHeader: string) {
-  return createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  }) as unknown as EdgeClient;
+  return createRestClient({ url: SUPABASE_URL, apikey: SUPABASE_ANON_KEY, authorization: authHeader });
 }
 
 const db: CheckActivityDb = {
   async versionForCheck(authHeader, activityId, versionId) {
     // User-scoped: the RPC runs as the caller, so the DB enforces the rule
     // (authenticated + published + the version BELONGS to the activity).
-    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as EdgeClient;
-    return await userClient
+    return await asCaller(authHeader)
       .rpc('get_activity_version_for_check', {
         p_activity_id: activityId,
         p_version_id: versionId,
@@ -113,21 +103,15 @@ const db: CheckActivityDb = {
   async readVersion(versionId) {
     // Service role: this is the RAW document. Only reached after the
     // authorization RPC above has succeeded.
-    return await admin
-      .from('activity_versions')
-      .select('content')
-      .eq('id', versionId)
-      .maybeSingle();
+    return await admin.select<{ content: unknown }>(
+      'activity_versions', 'content', [['id', 'eq', versionId]], { maybeSingle: true });
   },
 
   async checkPhotos(checkId) {
     // Service role: the stored row, read back only for a check that named
     // photos, so the student hears which ones retention had removed (0094).
-    return await admin
-      .from('section_checks')
-      .select('responses')
-      .eq('id', checkId)
-      .maybeSingle();
+    return await admin.select<{ responses: unknown }>(
+      'section_checks', 'responses', [['id', 'eq', checkId]], { maybeSingle: true });
   },
 
   async recordCheck(args) {
@@ -171,11 +155,7 @@ const db: CheckActivityDb = {
     // reached, while a class teacher's RLS policy admits students' rows (F6).
     // verify-0060 now proves the teacher case. `_studentId` (the same JWT
     // subject) stays in the port for the handler's own bookkeeping.
-    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as EdgeClient;
-    return await userClient.rpc('my_latest_checks', {
+    return await asCaller(authHeader).rpc('my_latest_checks', {
       p_version_id: versionId,
       p_section_ids: sectionIds,
     });
@@ -213,19 +193,18 @@ const practice: PracticeDb & DolPracticeDb = {
   },
 
   async readSnapshots(sessionId, seq) {
-    let q = admin
-      .from('mixed_session_items')
-      .select('seq, document, row_values, position, retry_of')
-      .eq('session_id', sessionId);
-    if (seq !== undefined) q = q.eq('seq', seq);
-    return await q.order('seq');
+    return (await admin.select(
+      'mixed_session_items',
+      'seq, document, row_values, position, retry_of',
+      [['session_id', 'eq', sessionId], ...(seq !== undefined ? [['seq', 'eq', seq] as const] : [])],
+      { order: 'seq' },
+    )) as Awaited<ReturnType<PracticeDb['readSnapshots']>>;
   },
 
   async readAttempts(sessionId) {
-    return await admin
-      .from('mixed_attempts')
-      .select('seq, correct, skipped, verdicts')
-      .eq('session_id', sessionId);
+    return (await admin.select('mixed_attempts', 'seq, correct, skipped, verdicts', [
+      ['session_id', 'eq', sessionId],
+    ])) as Awaited<ReturnType<PracticeDb['readAttempts']>>;
   },
 
   async recordAttempt(args) {
@@ -259,19 +238,18 @@ const practice: PracticeDb & DolPracticeDb = {
   },
 
   async readDolSnapshots(sessionId, seq) {
-    let q = admin
-      .from('dol_practice_items')
-      .select('seq, document, row_values')
-      .eq('session_id', sessionId);
-    if (seq !== undefined) q = q.eq('seq', seq);
-    return await q.order('seq');
+    return (await admin.select(
+      'dol_practice_items',
+      'seq, document, row_values',
+      [['session_id', 'eq', sessionId], ...(seq !== undefined ? [['seq', 'eq', seq] as const] : [])],
+      { order: 'seq' },
+    )) as Awaited<ReturnType<DolPracticeDb['readDolSnapshots']>>;
   },
 
   async readDolAttempts(sessionId) {
-    return await admin
-      .from('dol_practice_attempts')
-      .select('seq, correct, skipped, verdicts')
-      .eq('session_id', sessionId);
+    return (await admin.select('dol_practice_attempts', 'seq, correct, skipped, verdicts', [
+      ['session_id', 'eq', sessionId],
+    ])) as Awaited<ReturnType<DolPracticeDb['readDolAttempts']>>;
   },
 
   async recordDolAttempt(args) {

@@ -109,7 +109,7 @@ test('the live diff ignores the hosted preamble and helper formatting, not a rea
 // deno check (scripts/deno-check/) types these reads, but a port field typed
 // `unknown` (a jsonb the handler validates, e.g. `content`) accepts even
 // supabase-js's SelectQueryError — so `.select('contents')` passed it (probed
-// 2026-11-26). This reads every `.from('t').select('a, b')` in the four
+// 2026-11-26). This reads every `.select('t', 'a, b')` (the REST client) in the four
 // index.ts files and checks each column against the generated table row.
 test("every column an Edge Function selects exists in the generated table", () => {
   const tables = new Map();
@@ -127,7 +127,8 @@ test("every column an Edge Function selects exists in the generated table", () =
     const p = join(fnDir, fn, 'index.ts');
     let src;
     try { src = readFileSync(p, 'utf8'); } catch { continue; }
-    for (const m of src.matchAll(/\.from\(\s*'([a-z_0-9]+)'\s*\)\s*\.select\(\s*'([^']*)'/g)) {
+    // The REST client's form (review D5): `.select<Row>('table', 'a, b', …)`.
+    for (const m of src.matchAll(/\.select(?:<[^>]*>)?\(\s*'([a-z_0-9]+)',\s*'([^']*)'/g)) {
       seen++;
       const cols = tables.get(m[1]);
       if (!cols) { problems.push(`${fn}: table ${m[1]} is not in the generated schema`); continue; }

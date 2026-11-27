@@ -734,6 +734,8 @@ test('a `locked` activity refuses a second check, writes no row, and still repla
       versionId: freeVersionId,
       sectionId: freeSectionId,
       responses: {},
+      // Required since review B4 (2026-11-28); this request was missed then.
+      idempotencyKey: crypto.randomUUID(),
     }),
   });
   expect(

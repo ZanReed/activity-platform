@@ -27,7 +27,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -227,18 +227,29 @@ test('vite.config.ts still redirects all THREE auth-js modules at the stubs', ()
     );
 });
 
-// The two Edge Functions import supabase-js from esm.sh. They used a floating
-// `@2` until the 2026-10 efficiency audit, so each deploy could resolve a
-// different minor than the one the app (and its stubs) were audited against.
-// They now name the app's exact pin; this keeps the three in step.
-test('both Edge Functions import supabase-js at the app\'s exact pin', () => {
+// The Edge Functions imported supabase-js from esm.sh, at a floating `@2` until
+// the 2026-10 efficiency audit and at the app's exact pin after it. Since
+// review D5 (2026-11-28) get-activity and check-activity import none: they call
+// PostgREST through createRestClient, so supabase-js is off their cold start.
+// This keeps it off, and keeps any other function's import at the app's pin.
+test('get-activity and check-activity import no supabase-js; any other import is at the app\'s pin', () => {
     const pin = declaredPin();
-    for (const fn of ['get-activity', 'check-activity']) {
-        const src = readFileSync(join(repo, 'supabase/functions', fn, 'index.ts'), 'utf8');
-        const versions = [...src.matchAll(/esm\.sh\/@supabase\/supabase-js@([^'"/?]+)/g)].map((m) => m[1]);
-        assert.ok(versions.length > 0, `${fn}/index.ts no longer imports supabase-js from esm.sh — update this test`);
-        for (const v of versions) {
-            assert.equal(v, pin, `${fn}/index.ts imports supabase-js@${v}; the app pins ${pin}. Bump them together.`);
+    const fnDir = join(repo, 'supabase/functions');
+    let scanned = 0;
+    for (const fn of readdirSync(fnDir)) {
+        let files;
+        try { files = readdirSync(join(fnDir, fn)); } catch { continue; }
+        for (const f of files.filter((x) => x.endsWith('.ts'))) {
+            const src = readFileSync(join(fnDir, fn, f), 'utf8');
+            scanned++;
+            const versions = [...src.matchAll(/esm\.sh\/@supabase\/supabase-js@([^'"/?]+)/g)].map((m) => m[1]);
+            if ((fn === 'get-activity' || fn === 'check-activity') && f === 'index.ts') {
+                assert.deepEqual(versions, [], `${fn}/index.ts imports supabase-js again; it calls PostgREST through createRestClient (review D5)`);
+            }
+            for (const v of versions) {
+                assert.equal(v, pin, `${fn}/${f} imports supabase-js@${v}; the app pins ${pin}. Bump them together.`);
+            }
         }
     }
+    assert.ok(scanned >= 6, `only ${scanned} .ts files scanned under supabase/functions — the scan is broken`);
 });

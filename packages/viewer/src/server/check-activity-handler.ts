@@ -71,18 +71,16 @@ const MAX_GRAPH_PARTS = 50;
 
 /**
  * The idempotency key (B4). REQUIRED, and a UUID — what the store mints since
- * 2026-11-27. Before that it minted `<base36 time>-<counter>-<base36 random>`,
- * and a student's open tab (or a check persisted mid-flight) still carries one
- * until the new client reaches it, so that exact shape is accepted too. What
- * is refused is everything else: a missing key, `''`, or an arbitrary string —
- * replay is keyed on (student, key) alone, so a shared or empty key replays an
- * unrelated check's verdicts. LEGACY_CHECK_KEY_RE is a transition and has a
- * trigger in TODOS (B4 legacy key) to come out.
+ * 2026-11-27. Everything else is refused: a missing key, `''`, an arbitrary
+ * string — replay is keyed on (student, key) alone, so a shared or empty key
+ * replays an unrelated check's verdicts. The store's older
+ * `<base36 time>-<counter>-<base36 random>` shape was accepted for a while for
+ * open tabs; it was retired on 2026-11-28, when live showed no check in 19
+ * days (one student account). A check saved in flight with an old key is
+ * refused once, and the store drops the key and mints a UUID for the retry.
  */
-// The random tail can be empty (Math.random() === 0 gives '0'.slice(2) = '').
-const LEGACY_CHECK_KEY_RE = /^[0-9a-z]{1,12}-[0-9]{1,9}-[0-9a-z]{0,8}$/;
 export function isCheckKey(value: unknown): value is string {
-  return typeof value === 'string' && (UUID_RE.test(value) || LEGACY_CHECK_KEY_RE.test(value));
+  return typeof value === 'string' && UUID_RE.test(value);
 }
 
 /** Hard ceiling on item count across all response categories. */

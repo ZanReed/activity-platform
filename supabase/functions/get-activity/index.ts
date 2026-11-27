@@ -10,8 +10,8 @@
 //
 //   - reads the auto-injected env (SUPABASE_URL / SUPABASE_ANON_KEY /
 //     SUPABASE_SERVICE_ROLE_KEY — no new secrets),
-//   - implements the handler's GetActivityDb port against real supabase-js
-//     clients (RPCs + activity_version_reads + activity_versions, plus the S7
+//   - implements the handler's GetActivityDb port over plain fetch to
+//     PostgREST (createRestClient, review D5; RPCs + activity_version_reads + activity_versions, plus the S7
 //     analytics side-channel: write_version_census + the stale-rev cache GC),
 //   - passes the _shared/cors.ts helpers through the CorsKit port,
 //   - serves the handler.
@@ -24,13 +24,9 @@
 // PostgREST auth error on a bad/expired JWT, which the handler maps to 401.
 // =============================================================================
 
-// supabase-js is pinned EXACT, to the app's version (packages/app/package.json):
-// a floating `@2` let each deploy resolve a different minor (audit 2026-10).
-// Bump the two functions and the app together.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.3';
-import type { Database, EdgeClient } from '../_shared/db.ts';
 import {
   createGetActivityHandler,
+  createRestClient,
   type GetActivityDb,
 } from '../_shared/viewer-server.bundle.js';
 import {
@@ -47,74 +43,74 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Missing required Supabase environment variables');
 }
 
-// Service-role client, shared across requests (stateless REST wrapper).
-// D5 (review 2026-11-26): every client here sets autoRefreshToken: false. In
-// the pinned auth-js a client otherwise starts a 30-second refresh interval
-// that is never cleared — one per request, alive for the isolate's lifetime.
-// None of these clients holds a session to refresh: the service key and the
-// caller's own JWT are fixed headers. (persistSession was already off.)
-const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-}) as unknown as EdgeClient;
+// The database, over plain fetch to PostgREST (review D5): no supabase-js on
+// this function's cold start, and no auth client (or its refresh timer) per
+// request. createRestClient keeps postgrest-js's `{ data, error, status }`,
+// which the handler and rpcStatus.ts read. Three identities:
+//   * admin   — the service key, shared across requests;
+//   * anon    — the anon key, for the two anon-callable meta RPCs;
+//   * caller  — the anon key + the caller's own Authorization header, so the
+//               RPC runs AS the caller and the database enforces the rule.
+const admin = createRestClient({
+  url: SUPABASE_URL,
+  apikey: SUPABASE_SERVICE_ROLE_KEY,
+  authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+});
+const anon = createRestClient({
+  url: SUPABASE_URL,
+  apikey: SUPABASE_ANON_KEY,
+  authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+});
+const asCaller = (authHeader: string) =>
+  createRestClient({ url: SUPABASE_URL, apikey: SUPABASE_ANON_KEY, authorization: authHeader });
 
 const db: GetActivityDb = {
   async publicMeta(activityId) {
-    // Anon client — get_activity_public_meta is the one anon-callable RPC
-    // (postgres-owned DEFINER; 0017 documents the deliberate grant).
-    const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as EdgeClient;
-    return await anonClient
+    // get_activity_public_meta is an anon-callable RPC (postgres-owned
+    // DEFINER; 0017 documents the deliberate grant).
+    return await anon
       .rpc('get_activity_public_meta', { p_activity_id: activityId })
       .maybeSingle();
   },
 
   async classMeta(joinCode) {
-    // Anon client — get_class_public_meta joined the anon-RPC roster at 0030
-    // (the join gate's pre-auth class-name lookup; verify-0028 §A pins the
-    // roster at exactly two).
-    const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as EdgeClient;
-    return await anonClient
+    // get_class_public_meta joined the anon-RPC roster at 0030 (the join
+    // gate's pre-auth class-name lookup; verify-0028 §A pins the roster at
+    // exactly two).
+    return await anon
       .rpc('get_class_public_meta', { p_join_code: joinCode })
       .maybeSingle();
   },
 
   async publishedActivity(authHeader, activityId) {
-    // User-scoped client: the RPC runs as the caller, so the DB enforces the
-    // access rule (authenticated + published + not deleted) — not this file.
-    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as EdgeClient;
-    return await userClient
+    // As the caller: the database enforces the access rule (authenticated +
+    // published + not deleted), not this file.
+    return await asCaller(authHeader)
       .rpc('get_published_activity', { p_activity_id: activityId })
       .maybeSingle();
   },
 
   async readCache(versionId, sanitizerRev) {
-    return await admin
-      .from('activity_version_reads')
-      .select('content')
-      .eq('version_id', versionId)
-      .eq('sanitizer_rev', sanitizerRev)
-      .maybeSingle();
+    return await admin.select<{ content: unknown }>(
+      'activity_version_reads',
+      'content',
+      [['version_id', 'eq', versionId], ['sanitizer_rev', 'eq', sanitizerRev]],
+      { maybeSingle: true },
+    );
   },
 
   async readVersion(versionId) {
-    return await admin
-      .from('activity_versions')
-      .select('content')
-      .eq('id', versionId)
-      .maybeSingle();
+    return await admin.select<{ content: unknown }>(
+      'activity_versions',
+      'content',
+      [['id', 'eq', versionId]],
+      { maybeSingle: true },
+    );
   },
 
   async upsertCache(row) {
-    const { error } = await admin
-      .from('activity_version_reads')
-      // `content` is the sanitized document (unknown to the port; jsonb here).
-      .upsert(row as Database['public']['Tables']['activity_version_reads']['Insert'], { onConflict: 'version_id,sanitizer_rev' });
+    // `content` is the sanitized document (unknown to the port; jsonb here).
+    const { error } = await admin.upsert('activity_version_reads', row, 'version_id,sanitizer_rev');
     return { error };
   },
 
@@ -133,23 +129,18 @@ const db: GetActivityDb = {
   async deleteStaleCache(versionId, keepRev) {
     // The exact half of the read-cache GC: this version is now cached under
     // keepRev, so any row it has under a different rev is unreachable.
-    const { error } = await admin
-      .from('activity_version_reads')
-      .delete()
-      .eq('version_id', versionId)
-      .neq('sanitizer_rev', keepRev);
+    const { error } = await admin.delete('activity_version_reads', [
+      ['version_id', 'eq', versionId],
+      ['sanitizer_rev', 'neq', keepRev],
+    ]);
     return { error };
   },
 
   async dolState(authHeader, args) {
     // 0070 (D65, DE-1): AS THE CALLER — the student's own DoL state, keyed on
     // auth.uid() in the SQL. Only reached for a document that has a DoL.
-    const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    }) as unknown as EdgeClient;
     // jsonb result: its shape is the port's own (the handler validates it).
-    return (await userClient.rpc('my_dol_state', {
+    return (await asCaller(authHeader).rpc('my_dol_state', {
       p_activity_id: args.activityId,
       p_version_id: args.versionId,
       p_section_id: args.sectionId,

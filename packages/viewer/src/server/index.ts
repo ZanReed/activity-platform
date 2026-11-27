@@ -48,3 +48,8 @@ export type {
   GetActivityHandlerDeps,
   PublishedActivityRow,
 } from './get-activity-handler.js';
+
+// The database client the Edge Function binds its ports to: plain fetch to
+// PostgREST, no supabase-js (review D5, the plain-fetch half).
+export { createRestClient } from './restClient.js';
+export type { RestClient, RestResult } from './restClient.js';
