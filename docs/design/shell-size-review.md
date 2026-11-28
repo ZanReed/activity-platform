@@ -107,6 +107,7 @@ modules at 0.3–0.6 each.
 | 2026-11-04 | 0a0f0350 | 158.5 → **158.6** | 158.533 | Period assembly, 34 B over |
 | 2026-11-12 | 15f458ab | 158.6 → **158.7** | 158.621 | Released-feedback fix, 22 B over |
 | 2026-11-13 | — | 158.7 | **158.667** | today, 33 B headroom |
+| 2026-11-28 | — | 158.7 → **159.6** | 159.36 | Maths retry under a new URL, +855 B; a reserve rung was offered, author chose the raise |
 
 CSS: 14 (08-05) → 15 (08-23, db0c2d65) → 16.5 (10-14, b60bd1ce). Measured 11.3 → 13.13 → 15.02 → 16.0.
 

@@ -20,12 +20,16 @@ import {
     reloadOnceForStaleBuild,
     clearStaleBuildGuard,
 } from '../lib/swRegistration';
+import { claimChunkFailure, reportChunkGaveUp } from '@activity/viewer/chunk-retry';
 
-function firePreloadError(): boolean {
-    // Vite's real event is cancelable; preventDefault is how we stop it
-    // rethrowing while the reload is in flight.
-    const event = new Event('vite:preloadError', { cancelable: true });
-    return window.dispatchEvent(event);
+/** Raise Vite's event, then let the recovery's one-task-later decision run.
+ * Returns dispatchEvent's answer (false only if something cancelled it). */
+function firePreloadError(payload?: unknown): boolean {
+    const event = new Event('vite:preloadError', { cancelable: true }) as Event & { payload?: unknown };
+    event.payload = payload;
+    const notCancelled = window.dispatchEvent(event);
+    vi.runOnlyPendingTimers();
+    return notCancelled;
 }
 
 describe('stale-chunk recovery', () => {
@@ -42,21 +46,57 @@ describe('stale-chunk recovery', () => {
 
     beforeEach(() => {
         sessionStorage.clear();
+        vi.useFakeTimers({ toFake: ['setTimeout'] });
     });
     afterEach(() => {
         installed?.stop();
         installed = null;
+        vi.useRealTimers();
     });
 
     it('reloads once when a chunk has vanished', () => {
         const reload = vi.fn();
         install(reload);
 
-        const notCancelled = firePreloadError();
+        firePreloadError();
 
         expect(reload).toHaveBeenCalledTimes(1);
-        // preventDefault called ⇒ dispatchEvent returns false.
-        expect(notCancelled).toBe(false);
+    });
+
+    it('decides one task later, so a caller can claim the failure first (2026-11-28)', () => {
+        const reload = vi.fn();
+        install(reload);
+        window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+        expect(reload, 'not while the rejection is still on its way').not.toHaveBeenCalled();
+        vi.runOnlyPendingTimers();
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a CLAIMED failure alone: no reload, no notice, no guard spent', () => {
+        resetUpdateReadyForTests();
+        const reload = vi.fn();
+        install(reload);
+        const error = new TypeError('Failed to fetch dynamically imported module');
+        // What the maths retry schedule does with the rejection it receives
+        // (viewer/src/lazy/retryableChunk.ts), before the recovery looks.
+        claimChunkFailure(error);
+        firePreloadError(error);
+        expect(reload).not.toHaveBeenCalled();
+        expect(isUpdateReady()).toBe(false);
+        expect(sessionStorage.getItem('activity-viewer:reloaded-for-stale-chunk')).toBeNull();
+    });
+
+    it('acts on a failure the schedule handed back when it gave up', () => {
+        const reload = vi.fn();
+        install(reload);
+        const error = new TypeError('gone after a deploy');
+        claimChunkFailure(error);
+        firePreloadError(error);
+        expect(reload).not.toHaveBeenCalled();
+        // reportChunkGaveUp clears the claim and raises the event again.
+        reportChunkGaveUp(error);
+        vi.runOnlyPendingTimers();
+        expect(reload).toHaveBeenCalledTimes(1);
     });
 
     it('does NOT reload a second time — a broken deploy must not loop', () => {
@@ -72,12 +112,13 @@ describe('stale-chunk recovery', () => {
         expect(reload).toHaveBeenCalledTimes(1);
     });
 
-    it('lets the error through once the guard is set, rather than swallowing it', () => {
+    it('never cancels the event: the failure reaches whatever asked for the chunk', () => {
+        // Until 2026-11-28 the first failure was cancelled, which made Vite
+        // resolve the import as `undefined` — a caller broke on that just as
+        // surely as on the error, and a caller that retries could not tell it
+        // had failed. The decision now comes a task later, too late to cancel.
         install(vi.fn());
-        firePreloadError();
-
-        // Second time: not cancelled, so Vite's own handling still happens and
-        // the failure is at least visible instead of a silently dead page.
+        expect(firePreloadError()).toBe(true);
         expect(firePreloadError()).toBe(true);
     });
 
@@ -334,8 +375,11 @@ describe('a missing chunk under someone using the page', () => {
     it('raises the notice and does NOT reload (author ruling 2026-10-04)', () => {
         resetUpdateReadyForTests();
         const reload = vi.fn();
+        vi.useFakeTimers({ toFake: ['setTimeout'] });
         const recovery = installStaleChunkRecovery({ reload, inUse: () => true });
         window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+        vi.runOnlyPendingTimers();
+        vi.useRealTimers();
         expect(reload).not.toHaveBeenCalled();
         expect(isUpdateReady()).toBe(true);
         recovery.stop();
@@ -345,8 +389,11 @@ describe('a missing chunk under someone using the page', () => {
         sessionStorage.clear();
         resetUpdateReadyForTests();
         const reload = vi.fn();
+        vi.useFakeTimers({ toFake: ['setTimeout'] });
         const recovery = installStaleChunkRecovery({ reload, inUse: () => false });
         window.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+        vi.runOnlyPendingTimers();
+        vi.useRealTimers();
         expect(reload).toHaveBeenCalledTimes(1);
         expect(isUpdateReady()).toBe(false);
         recovery.stop();

@@ -201,8 +201,19 @@ export const APP_DIST_DIR = 'packages/app/dist';
  * it brings a rung from the reserve in the same slice (P-3; the reserve, ranked,
  * is §2 of the review: R6 figure engine, R5 Home + JoinClass, R7 rare blocks).
  * perf-budgets.test.mjs pins the value.
+ *
+ * ⚖ CEILING RULING 158.7 → 159.6 — author, 2026-11-28. The maths retry under
+ * a new URL (viewer/src/lazy/retryableChunk.ts, its schedule in
+ * inline/math.ts, the stale-chunk recovery's claim check) measured +855 B gz
+ * under CI's env, with 182 B left under 158.7. WHAT THE BYTES BUY: one dropped
+ * request on school Wi-Fi no longer leaves every equation as raw LaTeX until a
+ * reload (Chromium and WebKit refuse to fetch a failed URL again), and no
+ * longer reloads an untouched page. They must be eager: the retry runs exactly
+ * when a lazy fetch has just failed. Offered a reserve rung (R6/R7) instead,
+ * the author chose to raise the ceiling. The next addition that crosses 159.6
+ * gets a rung or a ruling.
  */
-export const SHELL_JS_GZ_KIB = 158.7;
+export const SHELL_JS_GZ_KIB = 159.6;
 
 /**
  * THE SPEND METER (review D3, policy P-2): the shell's EXACT gz bytes under
@@ -320,8 +331,13 @@ export const SHELL_SPEND = [
         change: 'Review D1 (graph-kit subpaths): each kit seam and the preload import its own widget instead of the barrel, so the preload tracks kit types per document and Vite\'s preload map names each widget\'s chunks. +148 B measured against main with the two seam files swapped back; the other 106 B is in-band drift already on main (measured 162179 there)',
         bytes: 254,
     },
+    {
+        date: '2026-11-28',
+        change: 'Maths retry under a new URL (review A7 follow-up): the lazy-chunk retry helper (a new-URL retry read from the importer\'s own source, a fresh <link> for a failed stylesheet, the claim, one bounded schedule), the maths load on it, the stale-chunk recovery deciding a task later and leaving a claimed failure alone, and the kit loaders wrapped (22 B of the total), measured against the recorded baseline. Ceiling raised 158.7 → 159.6 by author ruling the same day',
+        bytes: 855,
+    },
 ];
-export const SHELL_JS_BASELINE_BYTES = 162327;
+export const SHELL_JS_BASELINE_BYTES = 163182;
 export const SHELL_SPEND_BAND_BYTES = 256;
 
 /**

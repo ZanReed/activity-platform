@@ -315,6 +315,21 @@ confirm before a one-way lock. **Fix:** call `graphWorkTouched`. **S.**
 > someone touched it. The guard is now a time (one reload a minute at most).
 > `e2e/sw/math-chunk.e2e.ts` counts page loads; with the old guard it reads
 > 141, with the new one 2.
+>
+> **The maths retry: FIXED 2026-11-28 (later the same day; built, not pushed).**
+> WebKit has the same trap, and its error says only "Importing a module script
+> failed." with no URL, so the retry reads the chunk's URL from the import the
+> build writes (`()=>…import("./katex-….js")`) and asks for it under
+> `?retry=n`. The stylesheet had a second trap: Vite's own retry finds the
+> failed `<link>` by its address and reports success, so KaTeX drew every
+> equation twice; it gets a fresh `<link>` instead. One schedule for the page
+> (2 s, 5 s, 15 s); while it runs, the stale-chunk recovery leaves the failure
+> alone, so a dropped request no longer reloads the page; when it runs out the
+> student sees the Refresh notice. `e2e/sw/math-chunk.e2e.ts` now asserts one
+> page load in all three rows (dropped once; stylesheet dropped once; never
+> comes back), and each part of the fix was reverted once to watch its row go
+> red. Measured once in WebKit by hand: green. What is left is in TODOS →
+> "Review C4 built", item 2.
 
 ---
 

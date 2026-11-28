@@ -56,13 +56,43 @@ import type {
 import type { MathPromptMountOptions } from '@activity/graph-kit/math-prompt-mount';
 import type { CalculatorConfig, MountHooks } from '@activity/graph-kit/calculator';
 import type { GraphWork } from '../check/wire.js';
+import { retryableModule } from '../lazy/retryableChunk.js';
 
 /** The chunk boundary for each widget: ONE dynamic import per subpath, shared
  * with the preload (kitPreload.ts) so the two cannot drift apart and the
- * student shell carries each import site once. */
-export const loadGraphQuestion = () => import('@activity/graph-kit/graph-question');
-export const loadNumberLineQuestion = () => import('@activity/graph-kit/number-line-question');
-export const loadDataPlotQuestion = () => import('@activity/graph-kit/data-plot-question');
+ * student shell carries each import site once.
+ *
+ * Each goes through retryableModule (2026-11-28, lazy/retryableChunk.ts):
+ * Chromium and WebKit refuse to fetch again a URL whose import failed, so
+ * after a failure the next call — the mount after a failed preload, a later
+ * mount — asks for the chunk under a new URL. There is no timed schedule here
+ * and the failure is not claimed, so the app's stale-chunk recovery still
+ * answers the first failure as it always has. LIMITS, as built today: the
+ * graph and number-line widgets sit inside SHARED chunks (their importers end
+ * `.then(n=>n.D)`), so they get no URL retry, only the old re-call; data plot,
+ * maths prompts and the calculator do. And a new URL cannot revive a failed
+ * shared dependency or stylesheet of a chunk; those stay failed until a
+ * reload. */
+export const loadGraphQuestion = retryableModule(
+  () => import('@activity/graph-kit/graph-question'),
+  import.meta.url,
+);
+export const loadNumberLineQuestion = retryableModule(
+  () => import('@activity/graph-kit/number-line-question'),
+  import.meta.url,
+);
+export const loadDataPlotQuestion = retryableModule(
+  () => import('@activity/graph-kit/data-plot-question'),
+  import.meta.url,
+);
+const loadMathPromptMount = retryableModule(
+  () => import('@activity/graph-kit/math-prompt-mount'),
+  import.meta.url,
+);
+const loadCalculator = retryableModule(
+  () => import('@activity/graph-kit/calculator'),
+  import.meta.url,
+);
 
 // ---- Restore, and its echo --------------------------------------------------
 // Every kit's restore moves the handles through the same path a drag takes, so
@@ -582,7 +612,7 @@ export function mathPromptsSurface(): MathPromptsSurface {
 }
 
 const kitMathPromptsSurface: MathPromptsSurface = async (host, opts) => {
-  const kit = await import('@activity/graph-kit/math-prompt-mount');
+  const kit = await loadMathPromptMount();
   const mounted = kit.mountMathPrompts(host, opts);
   return { destroy: () => mounted.destroy() };
 };
@@ -638,6 +668,6 @@ const kitCalculatorSurface: CalculatorSurface = async (mount, restrictions, hook
   // The calculator module itself, not the barrel's async wrapper around it:
   // one boundary instead of two (barrel, then calculator), and the barrel's
   // own static imports stay off this path too. Its mount is synchronous.
-  const kit = await import('@activity/graph-kit/calculator');
+  const kit = await loadCalculator();
   return kit.mountCalculator(mount, restrictions, hooks);
 };

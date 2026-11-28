@@ -113,12 +113,12 @@ export async function awaitPrintReady(
   if (mathPending()) {
     waited.push('math');
     if (!residentMathRenderer()) {
-      try {
-        await loadMathRenderer();
-      } catch {
-        // A chunk that will not load is exactly when the readable-LaTeX
-        // fallback earns its place. Nothing to do but print it.
-      }
+      // Pull the chunk in, but do not AWAIT it: since 2026-11-28 the load
+      // retries for up to ~22 s before it gives up, far past this barrier's
+      // budget. The marker wait below is bounded by the deadline either way.
+      // A chunk that will not load is exactly when the readable-LaTeX
+      // fallback earns its place. Nothing to do but print it.
+      void loadMathRenderer().catch(() => {});
     }
     if (!(await until(() => !mathPending(), deadline, now, sleep))) {
       timedOut.push('math');

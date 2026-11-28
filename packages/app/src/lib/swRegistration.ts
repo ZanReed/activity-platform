@@ -33,6 +33,8 @@
 // not hold until 2026-11-28: see STALE_CHUNK_RELOAD_GUARD_MS.)
 // =============================================================================
 
+import { isChunkFailureClaimed } from '@activity/viewer/chunk-retry';
+
 const RELOAD_GUARD_KEY = 'activity-viewer:reloaded-for-stale-chunk';
 
 /**
@@ -85,7 +87,14 @@ export function installStaleChunkRecovery(
   const inUse = options.inUse ?? (() => pageIsInUse(tracker!.interacted()));
   const now = options.now ?? (() => Date.now());
 
-  const onPreloadError = (event: Event) => {
+  const decide = (payload: unknown) => {
+    // A failure whose caller fetches the chunk again by itself (the maths
+    // chunk's retry schedule, viewer/src/lazy/retryableChunk.ts) is that
+    // caller's. Reloading over it would cost a working student the page, and
+    // on an untouched one it was a reload the retry makes unnecessary. When
+    // the schedule runs out it hands the failure back, unclaimed, and it is
+    // decided here like any other.
+    if (isChunkFailureClaimed(payload)) return;
     // NEVER reload under someone using the page (author ruling 2026-10-04,
     // extended to this path the same day). The control they opened stays dead
     // until they refresh, so say so: raise the update notice and let the
@@ -102,17 +111,31 @@ export function installStaleChunkRecovery(
       const at = Number(stamp);
       const sinceReload = at > 1 ? now() - at : 0;
       if (sinceReload < STALE_CHUNK_RELOAD_GUARD_MS) {
-        // Already tried. A second reload would loop; let the error surface so
-        // the failure is at least visible instead of a spinning page, and so
-        // whatever asked for the chunk can try again by itself.
+        // Already tried. A second reload would loop; the failure has already
+        // surfaced to whatever asked for the chunk, which can try again.
         return;
       }
     }
-    // Prevent Vite's default (rethrow) so the page is not left in a broken
-    // state while the reload is in flight.
-    event.preventDefault();
     store?.setItem(RELOAD_GUARD_KEY, String(now()));
     reload();
+  };
+
+  const pending = new Set<ReturnType<typeof setTimeout>>();
+
+  const onPreloadError = (event: Event) => {
+    // DECIDED ONE TASK LATER (2026-11-28). Vite raises this event before the
+    // failed import's rejection reaches the code that asked for it, so at this
+    // moment nobody has had the chance to claim it. Every promise reaction runs
+    // before the next task, so by then a caller that will retry has said so.
+    // The event is no longer cancelled: the failure reaches its caller as an
+    // error (it used to resolve as `undefined`, which broke the caller just as
+    // surely), and a reload, if one is due, follows a moment later.
+    const payload = (event as Event & { payload?: unknown }).payload;
+    const timer = setTimeout(() => {
+      pending.delete(timer);
+      decide(payload);
+    }, 0);
+    pending.add(timer);
   };
 
   window.addEventListener('vite:preloadError', onPreloadError);
@@ -121,6 +144,8 @@ export function installStaleChunkRecovery(
     stop: () => {
       tracker?.stop();
       window.removeEventListener('vite:preloadError', onPreloadError);
+      for (const timer of pending) clearTimeout(timer);
+      pending.clear();
     },
   };
 }

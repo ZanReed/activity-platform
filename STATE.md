@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch and its follow-ups is LIVE (0108–0111; record: HISTORY → 2026-11-28). Owed from it: one real `client_errors` row read back (TODOS → Shared data loading). **C4 + A7 PUSHED 2026-11-28, CI green at fa8d7da6** (log → C4, A7): typed kit seam; real-board specs; a touch lane (`test:e2e:touch`; Chromium half in CI); fixed on the way: data plots ignored the keyboard, a finger on a graph could not scroll the page, a failed chunk at open reloaded the page in a loop. No migration. **Owed by the author:** the 3-step iPad check (log → A7); rulings on TODOS → "Review C4 built" items 1–2 (data plots under a scrolling finger; a maths retry Chromium honours). Both server bundles changed in source maps only: a redeploy is optional; until one, the live hash differs from the repo's.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch and its follow-ups is LIVE (0108–0111; record: HISTORY → 2026-11-28). Owed from it: one real `client_errors` row read back (TODOS → Shared data loading). **C4 + A7 PUSHED 2026-11-28, CI green at fa8d7da6** (log → C4, A7): typed kit seam; real-board specs; a touch lane (`test:e2e:touch`; Chromium half in CI); fixed on the way: data plots ignored the keyboard, a finger on a graph could not scroll the page, a failed chunk at open reloaded the page in a loop. No migration. **Owed by the author:** the 3-step iPad check (log → A7); a ruling on TODOS → "Review C4 built" item 1 (data plots under a scrolling finger); a push of the maths retry (item 2, BUILT 2026-11-28: new-URL retry, no reload). Server bundles differ from live in source maps only; redeploy optional.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
@@ -195,7 +195,7 @@ HISTORY, not re-argued here.)*
 
 ## The shell budget — a FIXED ceiling and a spend meter (2026-11-13)
 
-**`SHELL_JS_GZ_KIB` is fixed at 158.7; cap rulings are over**
+**`SHELL_JS_GZ_KIB` is fixed at 159.6 (author moved it from 158.7 on 2026-11-28 for the maths retry); cap rulings are over**
 ([shell-size-review.md](docs/design/shell-size-review.md), every decision built
 or closed). Each shell change records a `SHELL_SPEND` row (±256 B, red both
 ways); crossing the ceiling brings a reserve rung (R6, R7). New blocks are lazy
@@ -266,7 +266,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-11-28 — review C4 + A7 pushed, CI green (typed kit seam, real-board and touch lanes). NEXT: the author's iPad check and two rulings.
+**Last updated:** 2026-11-28 — maths retry under a new URL built, unpushed. NEXT: push it; the iPad check; item 1 ruling.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 

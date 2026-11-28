@@ -176,12 +176,12 @@ test('a chunk that both names AND contains a library is still detected', () => {
 // The fixed ceiling and the spend ledger (shell-size review D2/D3, 2026-11-13)
 // -----------------------------------------------------------------------------
 
-test('the shell JS ceiling is FIXED at 158.7 (P-1)', () => {
+test('the shell JS ceiling is FIXED at 159.6 (P-1; moved 158.7 → 159.6 by author ruling 2026-11-28, see perf-budgets.mjs)', () => {
     // If this fails, someone moved the ceiling. That takes a design pass that
     // names what the bytes buy and which reserve rung would undo it
     // (docs/design/shell-size-review.md §5), not a +0.1 ruling. A shell that
     // grew should have recorded a SHELL_SPEND row instead.
-    assert.equal(SHELL_JS_GZ_KIB, 158.7);
+    assert.equal(SHELL_JS_GZ_KIB, 159.6);
 });
 
 test('baseline = anchor + every spend row: the ledger cannot be skipped (P-2)', () => {

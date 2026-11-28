@@ -18,7 +18,8 @@
     "./seeded-print": "./src/print/seededPrint.ts",
     "./seed-values": "./src/sanitize/seedValues.ts",
     "./draft-preview": "./src/preview/draftPreview.ts",
-    "./photo-handoff": "./src/blocks/photoHandoffPhone.ts"
+    "./photo-handoff": "./src/blocks/photoHandoffPhone.ts",
+    "./chunk-retry": "./src/lazy/retryableChunk.ts"
   },
   "scripts": {
     "test": "vitest run",

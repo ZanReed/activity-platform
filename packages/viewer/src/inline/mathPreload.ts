@@ -117,8 +117,10 @@ export function preloadMathIfNeeded(doc: unknown): boolean {
     if (residentMathRenderer()) return false; // already loaded; nothing to do
     if (!documentUsesMath(doc)) return false;
     void loadMathRenderer().catch(() => {
-        // Swallowed deliberately: the math components try again themselves
-        // (whenMathReady) and the fallback is legible. A preload must never be able to break a page.
+        // Swallowed deliberately: this call STARTED the page's one retry
+        // schedule (loadMathRenderer tries again under a new URL), the math
+        // components join it, and the fallback is legible meanwhile. A
+        // preload must never be able to break a page.
     });
     return true;
 }

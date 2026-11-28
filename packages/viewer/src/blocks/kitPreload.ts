@@ -14,9 +14,12 @@
 //     graph-free page the whole kit chunk the lazy tier exists to withhold.
 //   - Depth-capped: a pathological object must not hang the student's
 //     critical path.
-//   - Fire-and-forget, rejection swallowed: the ES module cache dedupes with
-//     the mount-time imports in kitSurfaces.ts, which retry on mount — a
-//     failed preload degrades to exactly the behaviour that shipped before it.
+//   - Fire-and-forget, rejection swallowed: the loader is the SAME function
+//     the mount calls (kitSurfaces.ts), so the two share one request; after a
+//     failed preload the mount's call fetches the chunk again under a new URL
+//     where the build allows it (lazy/retryableChunk.ts; data plot yes, graph
+//     and number line no — see kitSurfaces.ts). Re-asking for the failed URL,
+//     as before 2026-11-28, is refused at once by Chromium and WebKit.
 //   - PER WIDGET, by subpath (review D1, 2026-11-26): it used to fetch the
 //     package barrel, which carries MathLive and mathjs, so a data plot paid
 //     for both before it drew a dot. Each kit type now preloads the same
@@ -113,9 +116,10 @@ export function preloadGraphKitIfNeeded(doc: unknown): boolean {
         fired.add(type);
         triggered = true;
         void load().catch(() => {
-            // Swallowed deliberately: kit surfaces retry on mount and render
-            // their own load-failure state. A preload must never be able to
-            // break a page.
+            // Swallowed deliberately: the mount calls the same loader (which
+            // retries under a new URL where it can) and renders its own
+            // load-failure state. A preload must never be able to break
+            // a page.
             fired.delete(type); // allow a later attempt to try again
         });
     }
