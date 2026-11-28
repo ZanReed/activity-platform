@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch and its follow-ups is LIVE (0108–0111; record: HISTORY → 2026-11-28). Owed from it: one real `client_errors` row read back (TODOS → Shared data loading). **C4 + A7 PUSHED 2026-11-28, CI green at fa8d7da6** (log → C4, A7): typed kit seam; real-board specs; a touch lane (`test:e2e:touch`; Chromium half in CI); fixed on the way: data plots ignored the keyboard, a finger on a graph could not scroll the page, a failed chunk at open reloaded the page in a loop. No migration. **Owed by the author:** the 3-step iPad check (log → A7); a ruling on TODOS → "Review C4 built" item 1 (data plots under a scrolling finger); a push of the maths retry (item 2, BUILT 2026-11-28: new-URL retry, no reload). Server bundles differ from live in source maps only; redeploy optional.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch and its follow-ups is LIVE (0108–0111; record: HISTORY → 2026-11-28). Owed from it: one real `client_errors` row read back (TODOS → Shared data loading). **C4 + A7 PUSHED 2026-11-28, CI green at fa8d7da6** (log → C4, A7): typed kit seam; real-board specs; a touch lane (`test:e2e:touch`; Chromium half in CI); fixed on the way: data plots ignored the keyboard, a finger on a graph could not scroll the page, a failed chunk at open reloaded the page in a loop. No migration. **Owed by the author:** the 3-step iPad check (log → A7); a ruling on TODOS → "Review C4 built" item 1 (data plots under a scrolling finger). **Maths retry (item 2) PUSHED 2026-11-28, CI green at 7ac6d9c4:** new-URL retry, no reload. Server bundles differ from live in source maps only; redeploy optional.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
@@ -266,7 +266,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-11-28 — maths retry under a new URL built, unpushed. NEXT: push it; the iPad check; item 1 ruling.
+**Last updated:** 2026-11-28 — maths retry under a new URL pushed, CI green at 7ac6d9c4. NEXT: the iPad check; item 1 ruling.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
