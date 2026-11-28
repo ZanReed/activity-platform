@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch and its follow-ups is LIVE (0108–0111; record: HISTORY → 2026-11-28). Owed from it: one real `client_errors` row read back (TODOS → Shared data loading). **C4 + A7 PUSHED 2026-11-28, CI green at fa8d7da6** (log → C4, A7): typed kit seam; real-board specs; a touch lane (`test:e2e:touch`; Chromium half in CI); fixed on the way: data plots ignored the keyboard, a finger on a graph could not scroll the page, a failed chunk at open reloaded the page in a loop. No migration. **Owed by the author:** the 3-step iPad check (log → A7); a ruling on TODOS → "Review C4 built" item 1 (data plots under a scrolling finger). **Maths retry (item 2) PUSHED 2026-11-28, CI green at 7ac6d9c4:** new-URL retry, no reload. Server bundles differ from live in source maps only; redeploy optional.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch is LIVE (0108–0111; HISTORY → 2026-11-28). Owed: one real `client_errors` row read back (TODOS → Shared data loading). C4 + A7 + maths retry PUSHED, CI green at 7ac6d9c4 (log → C4, A7). **Owed by the author:** the 3-step iPad check (log → A7); a ruling on TODOS → "Review C4 built" item 1. **Small-items batch COMMITTED 2026-11-28, unpushed** (log → C7, C10, D7): a failed save names its place; one date helper under the browser's locale (author ruling, students included; three journey caps raised by ruling); every server fetch has a time limit; the refresh notice no longer says "updated" when a part failed to load (author's wording A). **Author:** push, then redeploy `pnpm deploy:check`, `pnpm deploy:get-activity`, `pnpm deploy:photo-handoff`, `pnpm deploy:sweep`, and hash-verify. No migration. Open from D7: the sweep's statement_timeout (log → D7).
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
@@ -266,7 +266,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-11-28 — maths retry under a new URL pushed, CI green at 7ac6d9c4. NEXT: the iPad check; item 1 ruling.
+**Last updated:** 2026-11-28 — review small items (C7, C10, D7, notice wording) committed, unpushed. NEXT: push + four redeploys; the iPad check.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 
