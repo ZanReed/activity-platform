@@ -100,7 +100,10 @@ export function installStaleChunkRecovery(
     // until they refresh, so say so: raise the update notice and let the
     // error surface as it would have.
     if (inUse()) {
-      announceUpdateReady();
+      // 'part': the notice must not claim an update. A chunk that will not
+      // load is a deploy OR a dropped connection, and this page cannot tell
+      // which without another request.
+      announceUpdateReady('part');
       return;
     }
     const store = safeSession();
@@ -281,10 +284,23 @@ export const UPDATE_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
 const UPDATE_READY_EVENT = 'activity:update-ready';
 let updateReady = false;
+/**
+ * Why the notice is up: 'update' = a newer build took over (it IS updated);
+ * 'part' = a part of the page failed to load, by deploy or by network, so its
+ * sentence must be true of both. A real update outranks a failed part.
+ */
+export type UpdateCause = 'update' | 'part';
+let cause: UpdateCause = 'part';
 
-/** True once a newer build has taken over and this page is still the old one. */
+/** True once a newer build has taken over and this page is still the old one,
+ *  or once a part of it would not load (updateCause says which). */
 export function isUpdateReady(): boolean {
   return updateReady;
+}
+
+/** What raised the notice; read only while isUpdateReady() is true. */
+export function updateCause(): UpdateCause {
+  return cause;
 }
 
 /** Subscribe to "a newer build is ready" (the notice bar's source). */
@@ -294,7 +310,8 @@ export function onUpdateReady(listener: () => void): () => void {
 }
 
 /** Mark this page as outdated and tell the notice bar. */
-function announceUpdateReady(): void {
+function announceUpdateReady(why: UpdateCause): void {
+  if (!updateReady || why === 'update') cause = why;
   updateReady = true;
   window.dispatchEvent(new Event(UPDATE_READY_EVENT));
 }
@@ -302,6 +319,7 @@ function announceUpdateReady(): void {
 /** Test seam: forget a previous announcement. */
 export function resetUpdateReadyForTests(): void {
   updateReady = false;
+  cause = 'part';
 }
 
 export interface UpdateArrivalOptions {
@@ -320,7 +338,7 @@ export function handleUpdateArrival(options: UpdateArrivalOptions): 'reloaded' |
     (options.reload ?? (() => window.location.reload()))();
     return 'reloaded';
   }
-  announceUpdateReady();
+  announceUpdateReady('update');
   return 'announced';
 }
 

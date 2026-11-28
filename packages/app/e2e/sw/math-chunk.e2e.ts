@@ -169,6 +169,9 @@ test('a maths chunk that never comes back: a bounded number of tries, no reload,
   // the page is long past its fresh-load window by then, so it says so
   // rather than reloading.
   await expect(page.getByRole('button', { name: 'Refresh now' })).toBeVisible({ timeout: total + 10_000 });
+  // Nothing was deployed: the notice must not say the page was updated.
+  await expect(page.locator('[data-update-notice]')).toContainText('Part of this page didn’t load.');
+  await expect(page.locator('[data-update-notice]')).not.toContainText('updated');
   // The first try and one per delay, each under its own URL. Not a storm.
   expect(blocker.requests).toEqual([
     'dropped',
