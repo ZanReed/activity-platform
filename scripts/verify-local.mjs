@@ -152,7 +152,8 @@ if (failures.length === 0) {
     // Named, not silently omitted — see the header.
     console.log('NOT covered here (separate CI jobs, they need a browser):');
     console.log('  print-gates   pnpm --filter @activity/app test:e2e:print');
-    console.log('  perf-gates    test:e2e:perf · test:e2e:sw · test:e2e:student · test:e2e:a11y');
+    console.log('  perf-gates    test:e2e:perf · test:e2e:sw · test:e2e:student · test:e2e:a11y · test:e2e:touch');
+    console.log('                (CI runs the Chromium half of the touch lane; its WebKit half is local only)');
     console.log('  integration   test:e2e:integration (needs Docker + a local Supabase stack)');
     console.log('');
     process.exit(0);

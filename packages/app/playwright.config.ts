@@ -132,6 +132,7 @@ export default defineConfig({
                 '**/sw/**',
                 '**/perf/**',
                 '**/a11y/**',
+                '**/touch/**',
                 '**/integration/**',
             ],
         },
@@ -150,6 +151,42 @@ export default defineConfig({
             name: 'a11y',
             testMatch: '**/a11y/**/*.e2e.ts',
             use: { ...devices['Desktop Chrome'], baseURL: STUDENT_BASE_URL },
+        },
+        {
+            // The touch lane (review C4 + A7, 2026-11-28). Students work on
+            // iPads and Chromebooks, and until this lane every project here
+            // was Desktop Chrome with a mouse. Two projects run the SAME
+            // specs (e2e/touch/), because each engine can prove a different
+            // half and neither can prove both:
+            //
+            //   touch-chromium  a touchscreen Chromebook. Fingers are REAL
+            //       gestures here (CDP Input.dispatchTouchEvent goes through
+            //       the browser's own gesture recogniser), so "a finger over a
+            //       graph scrolls the page" is measured as an actual scroll.
+            //   touch-webkit    the iPad's engine, with the iPad's viewport,
+            //       user agent and touch support. Playwright cannot make
+            //       WebKit perform a touch SCROLL, so here fingers are
+            //       dispatched pointer + touch events: they prove the boards'
+            //       own handlers behave in WebKit, and that the board cancels
+            //       exactly the touches it should. They do not prove iPadOS
+            //       then scrolls; that one stays on the author's hand
+            //       checklist (docs/reviews/2026-11-26-code-review.md, C4).
+            //
+            // Both share the student lane's pinned-env dev server.
+            name: 'touch-chromium',
+            testMatch: '**/touch/**/*.e2e.ts',
+            use: {
+                ...devices['Desktop Chrome'],
+                hasTouch: true,
+                // A common Chromebook panel.
+                viewport: { width: 1366, height: 768 },
+                baseURL: STUDENT_BASE_URL,
+            },
+        },
+        {
+            name: 'touch-webkit',
+            testMatch: '**/touch/**/*.e2e.ts',
+            use: { ...devices['iPad (gen 7)'], baseURL: STUDENT_BASE_URL },
         },
         {
             name: 'sw',

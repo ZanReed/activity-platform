@@ -290,13 +290,25 @@ jobs:
           name: app-dist
           path: packages/app/dist
 
-      - name: Perf, service-worker, student and a11y lanes
+      # THE TOUCH LANE, AND WHY ONLY HALF OF IT RUNS HERE (2026-11-28). The lane
+      # is two projects over the same specs (playwright.config.ts has the
+      # reasons): touch-chromium, a touchscreen Chromebook with real finger
+      # gestures, and touch-webkit, the iPad's engine. touch-chromium needs
+      # nothing this job does not already install, and was 8/8 green over
+      # repeated local runs, so it gates here. touch-webkit was just as stable
+      # locally, but it needs a WebKit install with its own system packages,
+      # which has never run on this runner and could not be tried from the
+      # session that built the lane. It stays a named LOCAL lane
+      # (`pnpm --filter @activity/app test:e2e:touch` runs both) until someone
+      # adds that install here and watches it pass.
+      - name: Perf, service-worker, student, a11y and touch lanes
         env:
           # Serve the downloaded dist; do not rebuild (see playwright.config.ts).
           E2E_SKIP_BUILD: '1'
         run: |
           pnpm --filter @activity/app exec playwright test \
-            --project=perf --project=sw --project=student --project=a11y
+            --project=perf --project=sw --project=student --project=a11y \
+            --project=touch-chromium
 
       # The timing artifact. Recorded every run whether or not anything failed:
       # the numbers are the input to the calibration baseline and to the open
