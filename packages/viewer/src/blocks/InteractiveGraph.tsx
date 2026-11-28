@@ -122,21 +122,17 @@ export default function InteractiveGraph({
         // The STIMULUS (graded stimuli): fixed drawables shown with the
         // question. Question material, kept by sanitize; the same
         // stimulusDrawables() the print twin uses, so screen and paper agree.
-        ...(!isDisplay && (block.stimulus?.length ?? 0) > 0
-          ? { stimulus: stimulusDrawables(block as Parameters<typeof stimulusDrawables>[0]) }
+        ...((block.stimulus?.length ?? 0) > 0
+          ? { stimulus: stimulusDrawables(block) }
           : {}),
         // transform_curve: the SHOWN parent + the reload channels. `start`
         // survives sanitize by design — it is the question. The buffered
         // equation/drag bit ride the config because the kit's restore has no
         // channel for them (design A2 of draggable-curve.md).
-        ...(interactionType === 'transform_curve'
+        ...(block.interaction?.type === 'transform_curve'
           ? {
-              startModel: (
-                block.interaction as { start?: unknown } | undefined
-              )?.start,
-              requireEquation:
-                (block.interaction as { requireEquation?: boolean } | undefined)
-                  ?.requireEquation !== false,
+              startModel: block.interaction.start,
+              requireEquation: block.interaction.requireEquation !== false,
               ...(seed?.equation !== undefined
                 ? { initialEquation: seed.equation }
                 : {}),
@@ -302,9 +298,9 @@ export default function InteractiveGraph({
             ? // A key still shows the QUESTION under the answer: for
               // transform_curve that is the dashed start curve (empty for
               // every other variant), so a teacher reads "from here, to here".
-              [...questionDrawables(block as Parameters<typeof questionDrawables>[0]), ...answerOverlay]
+              [...questionDrawables(block), ...answerOverlay]
             : block.interaction?.type === 'display'
-              ? (block.interaction.drawables as Parameters<typeof renderGraphSvg>[1])
+              ? block.interaction.drawables
               : // The empty-axes invariant's current spelling: questionDrawables
                 // returns only QUESTION material — an authored stimulus (the
                 // pre-image and mirror line a student reflects in) and
@@ -313,7 +309,7 @@ export default function InteractiveGraph({
                 // a parent, that is not on the sheet. Centralized in graph-kit
                 // so the print twin and the live board agree on what a
                 // question shows.
-                questionDrawables(block as Parameters<typeof questionDrawables>[0]),
+                questionDrawables(block),
           block.id,
           // A distinct neutral ink, so a teacher reads the overlay as "added
           // for the key" rather than as authored content.
@@ -369,7 +365,7 @@ export default function InteractiveGraph({
               dangerouslySetInnerHTML: {
                 __html: renderGraphSvg(
                   block.axisConfig,
-                  block.interaction.drawables as Parameters<typeof renderGraphSvg>[1],
+                  block.interaction.drawables,
                   `${block.id}-s`,
                 ),
               },

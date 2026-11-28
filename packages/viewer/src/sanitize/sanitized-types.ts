@@ -25,6 +25,7 @@ import type {
   Block,
   Column,
   DataPlotInteraction,
+  FunctionModel,
   GraphInteraction,
   HardBreakNode,
   InlineMathNode,
@@ -81,7 +82,12 @@ export type DeepSanitizeInline<T> = T extends InlineMathNode
     : T extends MathPrompt
       ? SanitizedMathPrompt
       : T extends readonly (infer U)[]
-        ? DeepSanitizeInline<U>[]
+        ? number extends T['length']
+          ? DeepSanitizeInline<U>[]
+          : // A TUPLE keeps its length (review C4, 2026-11-28). Mapping it to
+            // an array turned every served `[x, y]` into `number[]`, which is
+            // why the graph block reached the kit through casts.
+            { [K in keyof T]: DeepSanitizeInline<T[K]> }
         : T extends object
           ? { [K in keyof T]: DeepSanitizeInline<T[K]> }
           : T;
@@ -131,12 +137,12 @@ export type SanitizedDataPlotInteraction = DistributiveOmit<
  * takes no input and gets none. */
 export interface SanitizedQuestionShape {
   handleCount?: number;
-  family?: string;
+  family?: FunctionModel['family'];
   vertexCount?: number;
   /** Which ends of a bounded plot_function are bounded (sanitize.ts). */
   domain?: { min?: true; max?: true };
   /** A system's per-part families, in authored order (sanitize.ts). */
-  partFamilies?: string[];
+  partFamilies?: FunctionModel['family'][];
 }
 
 export type SanitizeBlockType<B> = B extends { type: 'math_block' }

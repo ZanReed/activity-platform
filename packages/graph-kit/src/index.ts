@@ -18,14 +18,14 @@
 // sites (the summon sidecar, the editor preview) were updated with it.
 export async function mountCalculator(
   mount: HTMLElement,
-  rawConfig?: unknown,
+  rawConfig?: CalculatorConfig,
   hooks: MountHooks = {},
 ): Promise<CalculatorHandle> {
   const mod = await import('./calculator.js');
   return mod.mountCalculator(mount, rawConfig, hooks);
 }
 export type { CalculatorConfig, CalculatorHandle, MountHooks } from './calculator.js';
-import type { CalculatorHandle, MountHooks } from './calculator.js';
+import type { CalculatorConfig, CalculatorHandle, MountHooks } from './calculator.js';
 
 // The evaluation seam — exported so the future graded regression block can score
 // with the SAME engine (see docs/design/interactive-graph-block.md), and so it

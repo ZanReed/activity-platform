@@ -28,6 +28,7 @@ import type {
   BoxplotBoardController,
   FiveHandles,
 } from './data-plot-board.js';
+import type { DataPlotConfig } from '@activity/schema';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -65,12 +66,15 @@ function readData(raw: unknown): number[] {
     : [];
 }
 
-type BuildType = 'build_dotplot' | 'build_histogram' | 'build_boxplot';
+export type BuildType = 'build_dotplot' | 'build_histogram' | 'build_boxplot';
 
+// The mount takes THIS type (review C4, 2026-11-28; it took `unknown`), so the
+// compiler checks what a typed caller passes. Fields are still read
+// defensively at runtime.
 export interface DataPlotQuestionConfig {
-  interactionType: BuildType | string;
-  config: unknown; // DataPlotConfig
-  data: unknown; // number[] — the dataset (the answer source)
+  interactionType: BuildType;
+  config: DataPlotConfig;
+  data: readonly number[]; // the dataset (the answer source)
   answerKey?: unknown; // build_boxplot: { tolerance } (the only authored field)
 }
 
@@ -108,7 +112,7 @@ export interface DataPlotQuestionHandle {
 
 export async function mountDataPlotQuestion(
   mount: HTMLElement,
-  rawConfig: unknown,
+  rawConfig: DataPlotQuestionConfig,
   hooks: DataPlotQuestionHooks = {},
 ): Promise<DataPlotQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<DataPlotQuestionConfig>;

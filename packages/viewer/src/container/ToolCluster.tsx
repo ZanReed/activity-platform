@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import type { CalculatorConfig } from '@activity/graph-kit/calculator';
 import {
   calculatorSurface,
   type CalculatorSurfaceHandle,
@@ -37,7 +38,7 @@ export interface ToolClusterProps {
    * Undefined or disabled renders NOTHING — not a hidden button, not an empty
    * corner. */
   readonly calculator?:
-    | { enabled?: boolean; restrictions?: unknown }
+    | { enabled?: boolean; restrictions?: CalculatorConfig }
     | undefined;
   /** Label + accessible name for the summon. */
   readonly label?: string | undefined;

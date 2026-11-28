@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { JSXGraph } from 'jsxgraph';
+import { sharePageScroll } from './touch-scroll.js';
 import {
     ANSWER as ANSWER_COLOR,
     AXIS as AXIS_COLOR,
@@ -77,6 +78,9 @@ interface JxgObj {
 interface JxgBoard {
   create(type: string, parents: unknown[], attrs?: unknown): unknown;
   update(): void;
+  // The interaction mode, read by sharePageScroll (touch-scroll.ts).
+  mode: number;
+  BOARD_MODE_DRAG: number;
 }
 
 let boardSeq = 0;
@@ -115,6 +119,9 @@ export function createNumberLineBoard(
     zoom: { wheel: false, needShift: true, min: 1, max: 1 },
     keyboard: { enabled: false },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
+
+  // A finger that misses every handle scrolls the page (review A7).
+  const stopSharingScroll = sharePageScroll(container, board);
 
   // Re-apply focusable application semantics JSXGraph overwrites on init.
   container.setAttribute('role', 'application');
@@ -314,6 +321,7 @@ export function createNumberLineBoard(
       applyIntervalVisuals();
     },
     destroy(): void {
+      stopSharingScroll();
       JSXGraph.freeBoard(
         board as unknown as Parameters<typeof JSXGraph.freeBoard>[0],
       );

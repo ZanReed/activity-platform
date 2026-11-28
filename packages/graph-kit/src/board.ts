@@ -23,6 +23,7 @@ import {
   type ArrowSpec,
 } from './display-arrows.js';
 import { resolveDrawableColor } from './drawable-palette.js';
+import { isCancelledPointer, sharePageScroll } from './touch-scroll.js';
 import {
   angleMark,
   chevrons,
@@ -102,6 +103,9 @@ interface JxgBoard {
   getBoundingBox(): [number, number, number, number];
   getUsrCoordsOfMouse(evt: Event): [number, number];
   on(event: string, handler: (e: Event) => void): void;
+  // The interaction mode, read by sharePageScroll (touch-scroll.ts).
+  mode: number;
+  BOARD_MODE_DRAG: number;
   // Pixels per graph unit and the canvas width — read by the Y7 mark drawing
   // to map graph coordinates into figure-marks' pixel space.
   unitX: number;
@@ -751,6 +755,9 @@ export function createPointAnswerBoard(
     keyboard: { enabled: false },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
 
+  // A finger that misses every handle scrolls the page (review A7).
+  const stopSharingScroll = sharePageScroll(container, board);
+
   const theme = detectBoardTheme(container);
   const openFill = boardColors(theme).openFill;
   applyBoardTheme(board, theme);
@@ -1139,6 +1146,9 @@ export function createPointAnswerBoard(
     });
     points.forEach((p) => p.on('drag', () => { draggedSinceDown = true; }));
     board.on('up', (e: Event) => {
+      // A touch the browser turned into a page scroll ends in a cancel, which
+      // JSXGraph reports here too. It is not a tap, so it shades nothing.
+      if (isCancelledPointer(e)) return;
       if (draggedSinceDown || !downUsr) return;
       const [cx, cy] = board.getUsrCoordsOfMouse(e);
       if (Math.abs(cx - downUsr[0]) > xSpan / 100 || Math.abs(cy - downUsr[1]) > ySpan / 100) {
@@ -1316,6 +1326,7 @@ export function createPointAnswerBoard(
       board.update();
     },
     destroy(): void {
+      stopSharingScroll();
       JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
     },
   };
@@ -1412,6 +1423,9 @@ export function createSystemAnswerBoard(
     zoom: { wheel: false, needShift: true, min: 1, max: 1 },
     keyboard: { enabled: false },
   } as Parameters<typeof JSXGraph.initBoard>[1]) as unknown as JxgBoard;
+
+  // A finger that misses every handle scrolls the page (review A7).
+  const stopSharingScroll = sharePageScroll(container, board);
 
   const theme = detectBoardTheme(container);
   applyBoardTheme(board, theme);
@@ -1646,6 +1660,7 @@ export function createSystemAnswerBoard(
   });
   boundaries.forEach((b) => b.points.forEach((p) => p.on('drag', () => { draggedSinceDown = true; })));
   board.on('up', (e: Event) => {
+    if (isCancelledPointer(e)) return; // a scroll, not a tap (see the single board)
     if (!interactive || draggedSinceDown || !downUsr) return;
     const [cx, cy] = board.getUsrCoordsOfMouse(e);
     if (Math.abs(cx - downUsr[0]) > xSpan / 100 || Math.abs(cy - downUsr[1]) > ySpan / 100) return;
@@ -1718,6 +1733,7 @@ export function createSystemAnswerBoard(
       for (const b of boundaries) for (const p of b.points) p.setAttribute({ fixed: !on });
     },
     destroy(): void {
+      stopSharingScroll();
       JSXGraph.freeBoard(board as unknown as Parameters<typeof JSXGraph.freeBoard>[0]);
     },
   };

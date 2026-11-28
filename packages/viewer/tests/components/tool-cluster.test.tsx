@@ -128,7 +128,7 @@ describe('ToolCluster — summon', () => {
   it("hands the teacher's restrictions to the kit verbatim", async () => {
     const { surface, state } = fakeKit();
     setCalculatorSurface(surface);
-    const restrictions = { mode: 'graphing', allowTrig: false, maxExpressions: 3 };
+    const restrictions = { mode: 'graphing', allowTrig: false, maxExpressions: 3 } as const;
     render(<ToolCluster calculator={{ enabled: true, restrictions }} />);
 
     fireEvent.click(screen.getByRole('button'));

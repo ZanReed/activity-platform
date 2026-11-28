@@ -29,7 +29,7 @@
 
 import { isHttpsHref } from './https.js';
 export { isHttpsHref };
-import type { ActivityDocument, Block } from '@activity/schema';
+import type { ActivityDocument, Block, FunctionModel } from '@activity/schema';
 import {
   BLANK_SECRET_FIELDS,
   MATH_PROMPT_SECRET_FIELDS,
@@ -222,9 +222,14 @@ function stripInBandSecrets(value: unknown): void {
  * corrupt or hostile length can't become an absurd allocation downstream. */
 const MAX_HANDLES = 24;
 
+/** A curve family, as the schema names it. Typing the whitelist against it
+ * means a misspelt name here is a compile error, and the served shape reaches
+ * the graph kit as the closed set its mount takes (review C4). */
+type CurveFamily = FunctionModel['family'];
+
 /** Curve families the widget lays out. Closed set: an unrecognized family is
  * dropped and the widget falls back to its own default. */
-const KNOWN_FAMILIES: ReadonlySet<string> = new Set([
+const KNOWN_FAMILIES: ReadonlySet<string> = new Set<CurveFamily>([
   'linear',
   'quadratic',
   'exponential',
@@ -238,7 +243,7 @@ const KNOWN_FAMILIES: ReadonlySet<string> = new Set([
 
 export interface QuestionShape {
   handleCount?: number;
-  family?: string;
+  family?: CurveFamily;
   vertexCount?: number;
   /** plot_function with a range: WHICH ends are bounded, as two booleans.
    * Never the bound's value or its open/closed style: those are the answer.
@@ -247,7 +252,7 @@ export interface QuestionShape {
   /** A system (several curves, or several inequalities): each part's family,
    * in authored order. The count is the question ("graph both lines"); the
    * grader matches parts in any order, so the order gives nothing away. */
-  partFamilies?: string[];
+  partFamilies?: CurveFamily[];
 }
 
 /** A count survives only as a small positive integer. */
@@ -261,9 +266,9 @@ function safeCount(value: unknown): number | undefined {
 }
 
 /** A family survives only if it is a known name. */
-function safeFamily(value: unknown): string | undefined {
+function safeFamily(value: unknown): CurveFamily | undefined {
   return typeof value === 'string' && KNOWN_FAMILIES.has(value)
-    ? value
+    ? (value as CurveFamily)
     : undefined;
 }
 

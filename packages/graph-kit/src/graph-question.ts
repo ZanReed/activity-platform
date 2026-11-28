@@ -58,6 +58,7 @@ import {
   type ChromeColors,
 } from './graph-colors.js';
 import { parseGraphFormula } from './formula.js';
+import type { Drawable, GraphInteraction } from '@activity/schema';
 
 const isPointPair = (p: unknown): p is [number, number] =>
   Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number';
@@ -421,10 +422,27 @@ function createLinearShapeControls(
   };
 }
 
-// The parsed block config the runtime hands us (from the data-* attributes).
+/** The interactions a question board answers: every graph interaction except
+ *  `display`, which takes no input and has its own mount. Derived from the
+ *  schema, so a new interaction type reaches this union on its own. */
+export type GraphQuestionInteractionType = Exclude<GraphInteraction['type'], 'display'>;
+
+/** The authored window: the eight axis fields, and none of the board's own
+ *  mount-time options (handle count, starts, curve derivation), which the
+ *  mount works out from the question. */
+export type GraphAxisConfig = Pick<
+  PointAnswerConfig,
+  'xMin' | 'xMax' | 'yMin' | 'yMax' | 'xGridStep' | 'yGridStep' | 'showGrid' | 'snapToGrid'
+>;
+
+// The block config a caller mounts a question with. The mounts take THIS type
+// (review C4, 2026-11-28; they took `unknown` while the callers were parsed
+// data-* attributes), so the compiler checks every option a typed caller
+// passes. Each field is still read defensively: a value that arrives malformed
+// at runtime falls back to a default instead of throwing.
 export interface GraphQuestionConfig {
-  interactionType: string;
-  axisConfig: PointAnswerConfig;
+  interactionType: GraphQuestionInteractionType;
+  axisConfig: GraphAxisConfig;
   /**
    * The answer key. OPTIONAL since the server-authoritative viewer
    * (components-as-data arc, ruling Q2B): that client never receives a key —
@@ -440,7 +458,12 @@ export interface GraphQuestionConfig {
    * When absent, pass `questionShape` — the widget still needs to know how
    * many handles to draw, which it otherwise derives FROM the key.
    */
-  answerKey?: PointAnswerKey;
+  // `unknown` on purpose: the key's shape depends on the interaction (points,
+  // models, regions, inequalities, rays, segments, vectors), and each
+  // interaction's own reader coerces it. It was declared `PointAnswerKey`,
+  // which only plot_point's key ever matched; nothing noticed while the mounts
+  // took `unknown` (review C4).
+  answerKey?: unknown;
   /**
    * Question SHAPE, for ungraded mode: how many handles, and (for
    * plot_function / graph_inequality) which family's handle layout to use.
@@ -477,14 +500,14 @@ export interface GraphQuestionConfig {
    * it and the viewer passes it through here. Handles seed ON this curve and
    * it draws muted+dashed under the student's own.
    */
-  startModel?: unknown;
+  startModel?: FunctionModel;
   /**
    * STIMULUS: raw Drawable[] shown WITH the question on every graded board
    * (graded-stimuli slice). Question material, like startModel — the served
    * block carries it and the viewer passes it through. Coerced defensively by
    * readDrawables; never scored.
    */
-  stimulus?: unknown;
+  stimulus?: readonly Drawable[];
   /** transform_curve: false = drag-only (no equation field). Default true. */
   requireEquation?: boolean;
   /** transform_curve reload: the previously typed equation (ascii-math). */
@@ -747,7 +770,7 @@ import { assertHostAttached } from './host-attached.js';
 
 export async function mountGraphQuestion(
   mount: HTMLElement,
-  rawConfig: unknown,
+  rawConfig: GraphQuestionConfig,
   hooks: GraphQuestionHooks = {},
 ): Promise<GraphQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
@@ -1296,7 +1319,7 @@ export async function mountGraphQuestion(
 // reaches here; the runtime routes by inequalities.length.
 export async function mountGraphSystemQuestion(
   mount: HTMLElement,
-  rawConfig: unknown,
+  rawConfig: GraphQuestionConfig,
   hooks: GraphQuestionHooks = {},
 ): Promise<GraphQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;
@@ -1603,7 +1626,7 @@ export async function mountGraphSystemQuestion(
 // the unchanged mountGraphQuestion.
 export async function mountGraphFunctionSystemQuestion(
   mount: HTMLElement,
-  rawConfig: unknown,
+  rawConfig: GraphQuestionConfig,
   hooks: GraphQuestionHooks = {},
 ): Promise<GraphQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<GraphQuestionConfig>;

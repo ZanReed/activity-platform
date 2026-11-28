@@ -11,12 +11,13 @@ import {
   mountDataPlotQuestion,
   type DataPlotQuestionHandle,
   type DataPlotResponseData,
+  type DataPlotQuestionConfig,
 } from '@activity/graph-kit/data-plot-question';
 
 interface Scenario {
   label: string;
   interactionType: 'build_dotplot' | 'build_histogram' | 'build_boxplot';
-  config: unknown;
+  config: DataPlotQuestionConfig['config'];
   data: number[];
   answerKey?: unknown;
   hint: string;

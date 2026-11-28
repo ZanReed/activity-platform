@@ -29,12 +29,32 @@
 // below imports only its own widget; scripts/tests/graph-kit-barrel.test.mjs
 // fails on a barrel import anywhere in the repo, and the perf budget's student
 // journeys check the built chunks.
+//
+// TYPED AGAINST THE KIT (review C4, 2026-11-28). Every config below is the
+// kit's own config type minus its answer-key fields, every response is read
+// from the kit's own response type, and the kit's mounts take those types
+// instead of `unknown`. So an option the kit does not have, a field it reports
+// in another shape, or a restore argument it does not take is a compile error
+// here. The three defects the 2026-11-26 review found in this file (A1, A2,
+// A3) all sat behind `as never` / `as unknown as` on these calls.
+// `kitSeam.test.ts` fails if a cast returns to this file.
 import type {
+  DataPlotQuestionConfig,
   DataPlotQuestionHandle,
   DataPlotResponseData,
 } from '@activity/graph-kit/data-plot-question';
-import type { GraphQuestionHandle } from '@activity/graph-kit/graph-question';
-import type { NumberLineQuestionHandle } from '@activity/graph-kit/number-line-question';
+import type {
+  GraphQuestionConfig,
+  GraphQuestionHandle,
+  GraphResponseData,
+} from '@activity/graph-kit/graph-question';
+import type {
+  NumberLineQuestionConfig,
+  NumberLineQuestionHandle,
+  NumberLineResponseData,
+} from '@activity/graph-kit/number-line-question';
+import type { MathPromptMountOptions } from '@activity/graph-kit/math-prompt-mount';
+import type { CalculatorConfig, MountHooks } from '@activity/graph-kit/calculator';
 import type { GraphWork } from '../check/wire.js';
 
 /** The chunk boundary for each widget: ONE dynamic import per subpath, shared
@@ -87,19 +107,14 @@ export interface GraphSurfaceResponse {
   answered: boolean;
   noSolution?: boolean;
   strict?: boolean;
-  side?: string;
-  domain?: {
-    minX?: number;
-    minStyle?: 'open' | 'closed';
-    maxX?: number;
-    maxStyle?: 'open' | 'closed';
-  };
+  side?: GraphSide;
+  domain?: GraphResponseData['domain'];
   /** plot_ray / plot_segment: the chosen shape and the endpoint open/closed
    * choices. These are ANSWER CONTENT ("2 ≤ x < 7" ≠ "2 < x < 7"), not
    * presentation — they were being dropped here, which left the two
    * linear-piece interactions ungradable server-side. Work-only still holds:
    * a shape is what the student drew, not whether it was right. */
-  shape?: 'ray_positive' | 'ray_negative' | 'segment';
+  shape?: GraphResponseData['shape'];
   endpointStyles?: Array<'open' | 'closed'>;
   /** transform_curve: the typed equation (ascii-math) + the drag channel's
    * answered bit. Work-only still holds — a typed equation is what the
@@ -112,35 +127,16 @@ export interface GraphSurfaceResponse {
   parts?: Array<{
     points: [number, number][];
     strict?: boolean;
-    side?: 'above' | 'below' | 'left' | 'right';
+    side?: GraphSide;
   }>;
 }
 
-export interface GraphSurfaceConfig {
-  interactionType: string;
-  axisConfig: unknown;
-  questionShape?: {
-    handleCount?: number;
-    family?: string;
-    vertexCount?: number;
-    /** Which ends of a bounded curve the student places (sanitize.ts). */
-    domain?: { min?: boolean; max?: boolean };
-    /** A system's per-part families: present ⇒ the system board. */
-    partFamilies?: string[];
-  };
-  allowNoSolution?: boolean;
-  /** transform_curve: the SHOWN parent curve (served interaction material —
-   * the sanitizer deliberately leaves `interaction.start`; it is the
-   * question). Raw model object, passed to the kit verbatim. */
-  startModel?: unknown;
-  /** Fixed question drawables (graded stimuli); drawn under the handles. */
-  stimulus?: unknown;
-  requireEquation?: boolean;
-  /** transform_curve reload: the buffered work's typed equation + drag bit,
-   * so a restored board keeps both channels answered. */
-  initialEquation?: string;
-  initialDragged?: boolean;
-}
+type GraphSide = NonNullable<GraphResponseData['side']>;
+
+/** The kit's own question config, minus the two fields that carry the answer:
+ * a caller of this seam CANNOT pass a key, by type. Each remaining field is
+ * documented on the kit's `GraphQuestionConfig`. */
+export type GraphSurfaceConfig = Omit<GraphQuestionConfig, 'answerKey' | 'noSolutionCorrect'>;
 
 export interface GraphSurfaceHandle {
   getResponse(): GraphSurfaceResponse;
@@ -297,25 +293,7 @@ export function toGraphRestore(work: GraphWork, system = false): GraphRestoreArg
 /** Narrow the kit's response to the work-only shape. `correct`, `scored`,
  * `earned`, `total`, and mistake fields are dropped HERE so no grading signal
  * can reach the viewer from the client side. */
-function toSurfaceResponse(resp: {
-  studentPoints: [number, number][];
-  answered: boolean;
-  noSolution?: boolean;
-  strict?: boolean;
-  side?: string;
-  domain?: GraphSurfaceResponse['domain'];
-  shape?: 'ray_positive' | 'ray_negative' | 'segment';
-  fromStyle?: 'open' | 'closed';
-  endpoints?: ['open' | 'closed', 'open' | 'closed'];
-  equation?: string;
-  dragged?: boolean;
-  parts?: Array<{
-    points: [number, number][];
-    strict: boolean;
-    side?: 'above' | 'below' | 'left' | 'right';
-  }>;
-  curveParts?: Array<{ points: [number, number][] }>;
-}): GraphSurfaceResponse {
+function toSurfaceResponse(resp: GraphResponseData): GraphSurfaceResponse {
   // The kit reports a ray's single endpoint style as `fromStyle` and a
   // segment's pair as `endpoints`; the wire carries one ordered array for
   // both, matching the kit scorer's own `endpointStyles` parameter.
@@ -357,19 +335,11 @@ function toSurfaceResponse(resp: {
 export interface NumberLineSurfaceResponse {
   values: number[];
   answered: boolean;
-  interval?: {
-    min?: number;
-    minStyle?: 'open' | 'closed';
-    max?: number;
-    maxStyle?: 'open' | 'closed';
-  };
+  interval?: NumberLineResponseData['interval'];
 }
 
-export interface NumberLineSurfaceConfig {
-  interactionType: string;
-  config: unknown;
-  questionShape?: { handleCount?: number };
-}
+/** The kit's number-line config, minus the answer key. */
+export type NumberLineSurfaceConfig = Omit<NumberLineQuestionConfig, 'answerKey'>;
 
 export interface NumberLineSurfaceHandle {
   /** What the board shows now, narrowed like `onChange`. Read back by the
@@ -429,9 +399,7 @@ const kitNumberLineSurface: NumberLineSurface = async (mount, config, hooks) => 
 };
 
 /** The kit's number-line report, minus `correct` and `scored`. */
-function toNumberLineResponse(
-  resp: ReturnType<NumberLineQuestionHandle['getResponse']>,
-): NumberLineSurfaceResponse {
+function toNumberLineResponse(resp: NumberLineResponseData): NumberLineSurfaceResponse {
   return {
     values: resp.studentPoints ?? [],
     answered: resp.answered,
@@ -478,11 +446,9 @@ export interface DataPlotSurfaceResponse {
   answered: boolean;
 }
 
-export interface DataPlotSurfaceConfig {
-  interactionType: string;
-  data: number[];
-  config: unknown;
-}
+/** The kit's data-plot config, minus the answer key (a box plot's tolerance,
+ * a grading knob the server owns). */
+export type DataPlotSurfaceConfig = Omit<DataPlotQuestionConfig, 'answerKey'>;
 
 export interface DataPlotSurfaceHandle {
   /** What the board shows now, narrowed like `onChange` (restore tests). */
@@ -567,7 +533,7 @@ function readPlotValues(resp: DataPlotResponseData): number[] {
  * the kit restores from for this chart. A box plot with fewer than five stored
  * values has nothing to restore. */
 function toPlotRestore(
-  interactionType: string,
+  interactionType: DataPlotSurfaceConfig['interactionType'],
   values: number[],
 ): Parameters<DataPlotQuestionHandle['restore']>[0] {
   if (interactionType === 'build_histogram') return { studentBins: values };
@@ -601,11 +567,7 @@ export interface MathPromptsSurfaceHandle {
 export interface MathPromptsSurface {
   (
     host: HTMLElement,
-    opts: {
-      latex: string;
-      initialValues: Record<string, string>;
-      onValue: (promptId: string, ascii: string) => void;
-    },
+    opts: MathPromptMountOptions,
   ): Promise<MathPromptsSurfaceHandle>;
 }
 
@@ -657,8 +619,8 @@ export interface CalculatorSurfaceHandle {
 export interface CalculatorSurface {
   (
     mount: HTMLElement,
-    restrictions: unknown,
-    hooks: { onToggle?: (open: boolean) => void; floating?: boolean },
+    restrictions: CalculatorConfig | undefined,
+    hooks: MountHooks,
   ): Promise<CalculatorSurfaceHandle>;
 }
 

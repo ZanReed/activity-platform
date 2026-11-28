@@ -11,12 +11,13 @@ import {
   type NumberLineQuestionHandle,
   type NumberLineResponseData,
   type NumberLineRestoreExtras,
+  type NumberLineQuestionConfig,
 } from '@activity/graph-kit/number-line-question';
 
 interface Scenario {
   label: string;
   interactionType: 'plot_point' | 'plot_interval';
-  config: unknown;
+  config: NumberLineQuestionConfig['config'];
   answerKey: unknown;
   /** Values (+ interval extras) that satisfy the key — the "Restore" seed. */
   restore: { values: number[]; extras?: NumberLineRestoreExtras };

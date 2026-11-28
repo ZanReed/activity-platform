@@ -277,7 +277,7 @@ function numericLayoutWithComma(vk: VirtualKeyboardConfig): unknown {
 
 export function mountCalculator(
   mount: HTMLElement,
-  rawConfig?: unknown,
+  rawConfig?: CalculatorConfig,
   hooks: MountHooks = {},
 ): CalculatorHandle {
   history = []; // a fresh mount starts a fresh history (see its declaration)

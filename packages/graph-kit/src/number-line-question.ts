@@ -32,6 +32,7 @@ import {
     type ChromeColors,
 } from './graph-colors.js';
 import { assertHostAttached } from './host-attached.js';
+import type { NumberLineConfig, NumberLineInteraction } from '@activity/schema';
 
 const numOr = (v: unknown, d: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -86,9 +87,12 @@ function readIntervalKey(raw: unknown): {
   return { correctInterval: interval, tolerance: tol };
 }
 
+// The mount takes THIS type (review C4, 2026-11-28; it took `unknown`), so the
+// compiler checks what a typed caller passes. Fields are still read
+// defensively at runtime.
 export interface NumberLineQuestionConfig {
-  interactionType: 'plot_point' | 'plot_interval' | string;
-  config: unknown; // NumberLineConfig
+  interactionType: NumberLineInteraction['type'];
+  config: NumberLineConfig;
   /**
    * The answer key. OPTIONAL for the same reason as graph-question's: the
    * server-authoritative viewer never receives one (the read API strips
@@ -292,7 +296,7 @@ function makeControlBar(chrome: ChromeColors): HTMLDivElement {
 
 export async function mountNumberLineQuestion(
   mount: HTMLElement,
-  rawConfig: unknown,
+  rawConfig: NumberLineQuestionConfig,
   hooks: NumberLineQuestionHooks = {},
 ): Promise<NumberLineQuestionHandle> {
   const cfg = (rawConfig ?? {}) as Partial<NumberLineQuestionConfig>;

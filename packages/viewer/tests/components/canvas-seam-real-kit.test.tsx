@@ -21,15 +21,18 @@ import { dataPlotSurface, setDataPlotSurface } from '../../src/index.js';
 import { authoredVariantFixtures } from '../../src/fixtures/index.js';
 import { gradeSection } from '../../src/server/grading/index.js';
 import { emptySectionResponses } from '../../src/check/wire.js';
+import type { DataPlotSurfaceConfig } from '../../src/blocks/kitSurfaces.js';
+
+type BuildType = DataPlotSurfaceConfig['interactionType'];
 
 type Plot = {
   id: string;
   data: number[];
-  config: unknown;
+  config: DataPlotSurfaceConfig['config'];
   interaction: { type: string };
 };
 
-const variant = (type: string): Plot =>
+const variant = (type: BuildType): Plot =>
   authoredVariantFixtures('data_plot').find(
     (b) => (b as unknown as Plot).interaction.type === type,
   ) as unknown as Plot;
@@ -41,7 +44,7 @@ function rightAnswer(block: Plot): number[] {
   const type = block.interaction.type;
   if (type === 'build_dotplot') return data;
   if (type === 'build_histogram') {
-    const c = block.config as { min: number; max: number; binWidth?: number; tickStep?: number };
+    const c = block.config;
     const width = c.binWidth ?? c.tickStep ?? 1;
     const bins: number[] = [];
     for (let lo = c.min; lo < c.max; lo += width) {
@@ -86,7 +89,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe.each(['build_dotplot', 'build_histogram', 'build_boxplot'])(
+describe.each(['build_dotplot', 'build_histogram', 'build_boxplot'] as const)(
   'data_plot %s through the real kit',
   (type) => {
     it('what the kit reports reaches the grader, and a saved answer is restored', async () => {
@@ -158,7 +161,7 @@ describe('moving the keyboard cursor is not an answer', () => {
   it.each([
     ['build_histogram', 'ArrowRight'],
     ['build_boxplot', 'Tab'],
-  ])('%s: %s reports answered=false', async (type, key) => {
+  ] as const)('%s: %s reports answered=false', async (type, key) => {
     const block = variant(type);
     const host = document.createElement('div');
     document.body.appendChild(host);

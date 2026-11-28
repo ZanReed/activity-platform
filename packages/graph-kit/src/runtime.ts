@@ -30,16 +30,19 @@ import {
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
+  type GraphQuestionConfig,
 } from './graph-question.js';
 import {
   mountNumberLineQuestion,
   type NumberLineQuestionHandle,
   type NumberLineResponseData,
+  type NumberLineQuestionConfig,
 } from './number-line-question.js';
 import {
   mountDataPlotQuestion,
   type DataPlotQuestionHandle,
   type DataPlotResponseData,
+  type DataPlotQuestionConfig,
 } from './data-plot-question.js';
 import { fitFunction, handlesForFamily } from './graph-score.js';
 import type {
@@ -329,13 +332,16 @@ export function attachGraphRuntime(ctx: GraphRuntimeContext): GraphRuntimeExt {
   // Mount each graded widget. Each mount is async (the board chunk is fetched
   // on demand); state/chrome are updated as handles resolve.
   for (const [blockId, chrome] of chromes) {
+    // Parsed data-* attributes, so nothing below is typed: the casts on the
+    // three configs in this file mark that boundary, and each mount reads
+    // every field defensively.
     const config = {
       interactionType: chrome.interactionType,
       axisConfig: chrome.config,
       answerKey: chrome.answerKey,
       allowNoSolution: chrome.allowNoSolution,
       noSolutionCorrect: chrome.noSolutionCorrect,
-    };
+    } as GraphQuestionConfig;
 
     // A "system" is a graph_inequality whose answer key has more than one
     // inequality — it mounts the N-boundary system widget instead of the single
@@ -642,7 +648,7 @@ export function attachNumberLineRuntime(
       interactionType: chrome.interactionType,
       config: chrome.config,
       answerKey: chrome.answerKey,
-    };
+    } as NumberLineQuestionConfig;
 
     mountNumberLineQuestion(chrome.canvas, config, {
       onChange: (resp: NumberLineResponseData) => {
@@ -855,7 +861,7 @@ export function attachDataPlotRuntime(
       config: chrome.config,
       data: chrome.data,
       answerKey: chrome.answerKey, // build_boxplot: { tolerance }
-    };
+    } as DataPlotQuestionConfig;
 
     mountDataPlotQuestion(chrome.canvas, config, {
       onChange: (resp: DataPlotResponseData) => {

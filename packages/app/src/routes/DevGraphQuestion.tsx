@@ -15,11 +15,12 @@ import {
   mountGraphDisplay,
   type GraphQuestionHandle,
   type GraphResponseData,
+  type GraphQuestionConfig,
 } from '@activity/graph-kit/graph-question';
 
 interface Scenario {
   label: string;
-  interactionType: string;
+  interactionType: GraphQuestionConfig['interactionType'] | 'display';
   answerKey: unknown;
   /** Handle positions that satisfy the key — the "Restore to answer" seed. */
   restorePoints: [number, number][];
@@ -317,6 +318,9 @@ export default function DevGraphQuestion() {
         el.remove();
       };
     }
+    // A display scenario always carries drawables and returned above.
+    const interactionType = scenario.interactionType;
+    if (interactionType === 'display') return;
     // Route a multi-object key to the matching SYSTEM widget, exactly as the
     // runtime does (packages/graph-kit/src/runtime.ts routes by array length).
     const ineqs = (scenario.answerKey as { inequalities?: unknown } | null)?.inequalities;
@@ -330,7 +334,7 @@ export default function DevGraphQuestion() {
     void mountFn(
       el,
       {
-        interactionType: scenario.interactionType,
+        interactionType,
         axisConfig: {
           xMin: -10, xMax: 10, yMin: -10, yMax: 10,
           xGridStep: 1, yGridStep: 1, showGrid: true, snapToGrid: true,

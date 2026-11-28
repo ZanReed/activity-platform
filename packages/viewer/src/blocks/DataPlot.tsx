@@ -20,7 +20,7 @@
 // The `display` variant renders a static chart and takes no input.
 // =============================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { DataPlotBlock } from '@activity/schema';
 import { InlineContent } from '../inline/InlineContent.js';
 import {
@@ -216,7 +216,7 @@ export default function DataPlot({
           ? // role=img from FIRST PAINT — see InteractiveGraph: aria-label on
             // a role-less div is axe's aria-prohibited-attr.
             { role: 'img' }
-          : { tabIndex: 0, role: 'application' })}
+          : { tabIndex: 0, role: 'application', onKeyDown: forwardKeyToBoard })}
         aria-label={isDisplay ? 'Chart' : 'Interactive chart'}
       />
 
@@ -266,6 +266,40 @@ export default function DataPlot({
 // against auto if the parent only has a min — and the kit then falls back to
 // its own (very tall) default. Caught in /dev/viewer, where the dotplot filled
 // the viewport.
+/**
+ * Hand a key pressed on the chart to its board.
+ *
+ * The chart's tab stop is this block's wrapper; the kit listens for keys on
+ * the element it mounted into, which since the per-mount host (2026-07-31) is
+ * a CHILD of the wrapper. A key event travels up from the focused element,
+ * never down, so no key ever reached the board: a dot plot, histogram or box
+ * plot could not be answered from the keyboard at all. Nothing saw it, because
+ * the unit tests dispatch their keys on the host directly. Found 2026-11-28 by
+ * the first browser spec to press a key on a real chart (review C4;
+ * e2e/student/canvas-data-plot.e2e.ts pins it).
+ *
+ * The copy does not bubble, so it cannot come back here; and when the board
+ * handles the key (it calls preventDefault), the original is cancelled too, so
+ * an arrow key moves the cursor without also scrolling the page.
+ */
+function forwardKeyToBoard(event: KeyboardEvent<HTMLDivElement>): void {
+  if (event.target !== event.currentTarget) return;
+  // A modified key is the browser's or the system's (Cmd/Ctrl +/- zooms, Alt+Arrow navigates), never the board's.
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const host = event.currentTarget.querySelector('[data-graph-board-host]');
+  if (!host) return;
+  const copy = new window.KeyboardEvent('keydown', {
+    key: event.key,
+    code: event.code,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    cancelable: true,
+  });
+  if (!host.dispatchEvent(copy)) event.preventDefault();
+}
+
 const CANVAS_SIZE = { width: '100%', height: '18rem' } as const;
 
 /** A data value as a student reads it: no float noise (0.1 + 0.2 drawn by a
