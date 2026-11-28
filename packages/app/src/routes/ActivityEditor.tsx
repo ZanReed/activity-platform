@@ -56,6 +56,8 @@ import {
 } from '../lib/serialize';
 import { emptyDocJSON, wrapBlocksStrict } from '../editor/strictGrid';
 import { PermanentSaveError, SaveConflictError, useAutosave } from '../lib/useAutosave';
+import { validateForSave } from '../lib/saveFailure';
+import SaveFailedNotice from '../components/SaveFailedNotice';
 import { rowWritesSettled } from '../lib/pendingRowWrites';
 import { usePublish, type PrePublishResult } from '../lib/usePublish';
 import { findPublishProblems, problemText } from '../lib/prePublishCheck';
@@ -772,12 +774,10 @@ export default function ActivityEditor() {
         if (!tiptapJson || !meta || !id) return;
         const doc = currentDocument();
         const safeMeta = doc!.meta;
-        const parsed = ActivityDocument.safeParse(doc);
-        if (!parsed.success) {
-            // Shouldn't happen — serialize produces valid docs and the title is
-            // sanitized. Fail loud rather than persist a draft the editor can't read.
-            throw new PermanentSaveError('Document failed validation; not saved.');
-        }
+        // Shouldn't fail — serialize produces valid docs and the title is
+        // sanitized — but when it does, fail loud rather than persist a draft
+        // the editor can't read, and say WHERE (review C7).
+        const valid = validateForSave(doc);
         // ONE update statement carries the document and the row-native
         // taxonomy, so a metadata edit is atomic with the document it
         // describes — they cannot half-commit. course/unit are NOT here:
@@ -789,7 +789,7 @@ export default function ActivityEditor() {
         .update({
             // A jsonb column: the generated `Json` has an index signature the document
             // interface lacks, so it is cast for the TYPE only (review C1 slice 4).
-            draft_content: parsed.data as unknown as Json,
+            draft_content: valid as unknown as Json,
             title: safeMeta.title,
             tags,
             pedagogical_role: pedagogicalRole,
@@ -814,10 +814,10 @@ export default function ActivityEditor() {
             throw new SaveConflictError();
         }
         knownUpdatedAt.current = written[0]?.updated_at ?? knownUpdatedAt.current;
-        lastPersistedDraft.current = parsed.data;
+        lastPersistedDraft.current = valid;
     };
 
-        const { status, permanentError, flush, retry: retrySave, overwrite: overwriteSave } = useAutosave(changeKey, save);
+        const { status, permanentError, permanentDetail, flush, retry: retrySave, overwrite: overwriteSave } = useAutosave(changeKey, save);
         // Pre-publish step (E-1/OV-2): flush the autosave and ABORT the publish
         // when the latest edits could not persist — publishing would otherwise
         // snapshot a stale draft. On success, hand usePublish the exact payload
@@ -1281,14 +1281,13 @@ export default function ActivityEditor() {
             ) : (
                 <div className="mt-2 flex justify-end" data-save-status={status}>
                 {status === 'error' ? (
-                    <span className="text-xs text-danger" role="alert">
-                    {permanentError ? `Not saved: ${permanentError}` : SAVE_COPY.failed}{' '}
-                    {!permanentError && (
-                        <button type="button" onClick={retrySave} className="font-medium underline underline-offset-2">
-                        {SAVE_COPY.retry}
-                        </button>
-                    )}
-                    </span>
+                    <SaveFailedNotice
+                    permanentError={permanentError}
+                    permanentDetail={permanentDetail}
+                    failedText={SAVE_COPY.failed}
+                    retryText={SAVE_COPY.retry}
+                    onRetry={retrySave}
+                    />
                 ) : status === 'saving' || status === 'saved' ? (
                     <span className="text-xs text-muted" role="status">
                     {status === 'saving' ? SAVE_COPY.saving : SAVE_COPY.saved}

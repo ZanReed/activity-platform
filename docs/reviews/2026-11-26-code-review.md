@@ -781,6 +781,27 @@ failed validation; not saved." Autosave stops for the whole document. The load
 path already has `describeParseFailure`. Pass the first issue path through.
 **S.**
 
+> **Fixed 2026-11-28.** Re-derived first: the claim held (the throw had moved
+> to `save()` about line 779). One correction: autosave does not stop for good.
+> The next edit tries again, but every try fails until the cause is fixed.
+> `lib/saveFailure.ts` `validateForSave` is now the editor's pre-save gate. It
+> turns zod's first issue into a place the teacher can find: "This activity
+> can't be saved: something in the 2nd Multiple choice in Section 2
+> ("Warm-up") isn't valid. Fix or remove it and saving starts again." The raw
+> path and message sit under a closed "Details", the LoadStatus split
+> (`components/SaveFailedNotice.tsx`; `PermanentSaveError` carries `detail`,
+> and `useAutosave` exposes `permanentDetail`). It places a block by its rank
+> among blocks of its TYPE, not as "block 4". The saved document leaves out
+> placeholders the editor still shows (an empty image, an unfinished video or
+> chart, an empty column), so a plain count can be off by one (Fable review).
+> The rank by type is the convention `prePublishCheck.ts` already uses. Guard:
+> `__tests__/saveFailure.test.tsx` sends a real invalid document through the
+> gate, the real hook and the notice, and asserts the rendered sentence and the
+> Details. Mutation-tested three ways: the detail not passed, the type count
+> broken, the old count. Not done: `ActivityPrint.tsx` still throws "Print
+> settings failed validation" with no place, and that page never shows
+> `permanentError` at all.
+
 ### C8 Nothing checks that today's schema still parses yesterday's published rows
 `schemaVersion` has been 2 since the hard cut, the upgrade table is empty, and
 the ruled policy is additive in-version change. 46 commits have touched the

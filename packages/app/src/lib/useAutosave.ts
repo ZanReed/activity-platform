@@ -38,9 +38,13 @@ export class SaveConflictError extends Error {
 /** Thrown by a save() that can never succeed by retrying (a document that
  *  fails validation, a row that is gone): status 'error', no retries. */
 export class PermanentSaveError extends Error {
-    constructor(message: string) {
+    /** Technical words for a "Details" disclosure (review C7); the message
+     *  stays the plain sentence a teacher reads. */
+    readonly detail: string | null;
+    constructor(message: string, detail?: string) {
         super(message);
         this.name = 'PermanentSaveError';
+        this.detail = detail || null;
     }
 }
 
@@ -51,6 +55,8 @@ export interface Autosave {
     status: SaveStatus;
     /** The last failure's message when it won't be retried (PermanentSaveError). */
     permanentError: string | null;
+    /** That failure's technical detail, if it carried one (shown under Details). */
+    permanentDetail: string | null;
     /**
      * Force any pending/in-flight save to complete. Resolves `true` once the
      * latest document state has reached the server, `false` when a save
@@ -72,6 +78,7 @@ export function useAutosave(
 ): Autosave {
     const [status, setStatus] = useState<SaveStatus>('idle');
     const [permanentError, setPermanentError] = useState<string | null>(null);
+    const [permanentDetail, setPermanentDetail] = useState<string | null>(null);
 
     // Latest values, read at save time without re-running the debounce effect.
     const saveRef = useRef(save);
@@ -120,6 +127,7 @@ export function useAutosave(
             if (alive.current) {
                 setStatus('saved');
                 setPermanentError(null);
+                setPermanentDetail(null);
             }
         })
         .catch((err: unknown) => {
@@ -133,9 +141,11 @@ export function useAutosave(
             if (err instanceof PermanentSaveError) {
                 // Retrying can't help; say why instead of "trying again".
                 setPermanentError(err.message);
+                setPermanentDetail(err.detail);
                 return;
             }
             setPermanentError(null);
+            setPermanentDetail(null);
             // G-8: retry on a back-off rather than wait for the next keystroke.
             const wait = RETRY_DELAYS_MS[Math.min(failures.current, RETRY_DELAYS_MS.length - 1)];
             failures.current += 1;
@@ -263,5 +273,5 @@ export function useAutosave(
         return () => clearTimeout(timer);
     }, [key, delayMs, runSave]);
 
-    return { status, permanentError, flush, retry, overwrite };
+    return { status, permanentError, permanentDetail, flush, retry, overwrite };
 }
