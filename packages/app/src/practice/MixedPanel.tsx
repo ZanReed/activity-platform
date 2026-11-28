@@ -22,6 +22,7 @@
 // this file formats it. Lazy: it ships in the teacher page's chunk.
 // =============================================================================
 
+import { browserTimeZone } from '../lib/timeZone';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { setClassYearEnd } from '../lib/factProbe';
 import {
@@ -76,7 +77,7 @@ export default function MixedPanel({
     const [studentsFailed, setStudentsFailed] = useState(false);
     const bounds = yearEndBounds(new Date());
     const [endsOn, setEndsOn] = useState(() =>
-        guessYearEnd(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
+        guessYearEnd(new Date(), browserTimeZone() ?? 'UTC'),
     );
 
     const load = useCallback(async () => {

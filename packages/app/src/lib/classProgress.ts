@@ -13,6 +13,7 @@
 // keep it out of anything the student shell imports.
 // =============================================================================
 
+import { clock, listDate, weekdayDayMonth } from './dates';
 import { supabase } from './supabase';
 import { rpcOrThrow } from './db';
 import { getVersionContents, type VersionContent } from './versionContent';
@@ -337,12 +338,7 @@ export function lastCheckAgo(iso: string | null, now: Date = new Date()): string
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;
-    return then.toLocaleDateString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        // "12 Nov" alone could be last year's.
-        ...(then.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
-    });
+    return listDate(then, now);
 }
 
 // ---- Hide names (CP-5) -------------------------------------------------------
@@ -399,9 +395,9 @@ export function responsesHref(activityId: string, fromPath: string): string {
 
 /** "9:41", or "Mon 9:41" when it is not today. */
 export function clockTime(d: Date, now: Date = new Date()): string {
-    const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const time = clock(d);
     if (d.toDateString() === now.toDateString()) return time;
-    return `${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`;
+    return `${weekdayDayMonth(d)} ${time}`;
 }
 
 /** 0097's hand_grade_owed, for the panel's own count: a photo answer that

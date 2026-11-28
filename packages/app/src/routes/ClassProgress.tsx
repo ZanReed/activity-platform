@@ -15,6 +15,7 @@
 // =============================================================================
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
+import { fullDateTime } from '../lib/dates';
 import { dueWords, fetchClassDue, isPastDue, type ClassDue } from '../lib/dueDates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { leaveOut } from '../lib/loadFailure';
@@ -320,7 +321,7 @@ function Body({
                                         {(() => {
                                             const at = studentLastCheck(grid.cells, s.student_id);
                                             return at ? (
-                                                <time dateTime={at} title={new Date(at).toLocaleString()}>
+                                                <time dateTime={at} title={fullDateTime(at)}>
                                                     {lastCheckAgo(at)}
                                                 </time>
                                             ) : (

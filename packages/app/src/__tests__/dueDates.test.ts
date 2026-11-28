@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dueWords, isDueThisWeek, isPastDue, studentDueLabel } from '../lib/dueDates';
 
 const DUE_WORDS = fileURLToPath(new URL('../lib/dueWords.ts', import.meta.url));
+const DATES = fileURLToPath(new URL('../lib/dates.ts', import.meta.url));
 
 /** Run the pure helpers in a FRESH Node process with `tz` as its zone: Node
  *  caches its default timezone, so setting TZ inside this process proves
@@ -17,6 +18,8 @@ const DUE_WORDS = fileURLToPath(new URL('../lib/dueWords.ts', import.meta.url));
 function inZone(tz: string): Record<string, unknown> {
     const code = `
         import { daysUntil, dueWords, studentDueLabel } from ${JSON.stringify(DUE_WORDS)};
+        import { setDateLocaleForTests } from ${JSON.stringify(DATES)};
+        setDateLocaleForTests('en-NZ'); // the setup file does not reach a child process
         console.log(JSON.stringify({
             zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             sat: dueWords('2026-11-14', '2026-11-13'),

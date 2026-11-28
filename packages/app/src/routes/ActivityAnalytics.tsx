@@ -25,6 +25,7 @@
 // =============================================================================
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
+import { dayMonthClock } from '../lib/dates';
 import ActivityResultsHeader from '../components/ActivityResultsHeader';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
@@ -59,12 +60,7 @@ export interface AnalyticsPayload {
 
 function formatWhen(iso: string | null): string {
     if (!iso) return 'never';
-    return new Date(iso).toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return dayMonthClock(iso);
 }
 
 function percent(correct: number, of: number): string {

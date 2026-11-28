@@ -82,7 +82,7 @@ describe('the mixed practice panel', () => {
         const onState = vi.fn();
         const view = panel(onState);
         await screen.findByText(/Practised today 18 of 28/);
-        expect(screen.getByTestId('ft-mixed-state').textContent).toBe('On since February 10');
+        expect(screen.getByTestId('ft-mixed-state').textContent).toBe('On since 10 February');
         expect(onState).toHaveBeenCalledWith(true);
         for (const col of ['Skill', 'Students practising', 'Getting stuck', 'First tries right (last 5)', 'Skips']) {
             expect(screen.getByRole('columnheader', { name: col })).toBeTruthy();

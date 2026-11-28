@@ -10,6 +10,7 @@
  * DR-2 edit diff THERE. The client never decides confirmed-vs-edited; it only
  * reports chip strikes.
  */
+import { dayMonth } from './dates';
 import { dolOptionalBlockIds } from '@activity/viewer';
 import { rpc } from './db';
 import { GRADE_SUGGESTIONS_RPC } from './gradingQueueRpc';
@@ -292,10 +293,7 @@ export const ASSIST_COPY = {
 
 export function quotaPausedLine(resumesAt: string | null | undefined): string {
   const date = resumesAt
-    ? new Date(resumesAt).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-      })
+    ? dayMonth(resumesAt)
     : 'next month';
   return ASSIST_COPY.quotaPaused.replace('{date}', date);
 }

@@ -13,6 +13,7 @@
 // activity titles under RLS, and can_read_activity must not widen).
 // =============================================================================
 
+import { listDate } from './dates';
 import { functionsBase, supabase } from './supabase';
 import { rpc } from './db';
 import { signedInUserId } from './currentUser';
@@ -349,13 +350,7 @@ export async function fetchClassMeta(code: string): Promise<ClassMetaResult> {
  * (the read-aloud test). Shared by both sides of the mirror so the teacher's
  * "Added Aug 13" and the student's are the same string. */
 export function formatListDate(iso: string): string {
-    const d = new Date(iso);
-    const withYear = d.getFullYear() !== new Date().getFullYear();
-    return d.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        ...(withYear ? { year: 'numeric' as const } : {}),
-    });
+    return listDate(iso);
 }
 
 /** Is this work finished, for due-date purposes (DD-3)? "Done ✓" on the

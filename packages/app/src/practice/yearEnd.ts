@@ -1,6 +1,8 @@
 // The class's school-year end (migration 0048, RP-1/RP-2): date helpers shared
 // by the open-snapshot screen and the daily-practice panel. Lazy with them.
 
+import { longDate } from '../lib/dates';
+
 /** A DATE (yyyy-mm-dd) as a local calendar day. `new Date('2027-12-17')` is
  *  UTC midnight, which reads as the 16th west of Greenwich. */
 function localDay(date: string): Date {
@@ -11,8 +13,7 @@ function localDay(date: string): Date {
 /** "17 December 2027": a date the year matters for. A timestamp is read as
  *  the local day it falls on. */
 export function longDay(dateOrIso: string): string {
-    const when = dateOrIso.length > 10 ? new Date(dateOrIso) : localDay(dateOrIso);
-    return when.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+    return longDate(dateOrIso.length > 10 ? new Date(dateOrIso) : localDay(dateOrIso));
 }
 
 function isoDate(d: Date): string {

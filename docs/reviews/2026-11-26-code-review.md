@@ -864,6 +864,22 @@ next in there.
 - ~14 date formatters with two locale rules (`en-NZ` hard-coded in two files,
   browser locale in ten). A US teacher sees "28 Nov" and "Nov 28" on one page.
   One `lib/dates.ts`. **S.**
+  **Fixed 2026-11-28.** Re-derived first, and the claim held, with one
+  correction: STUDENTS saw it too. The student Home page in the app listed
+  "Added Nov 13" beside "Was due Thu 12 Nov". The viewer formats no dates.
+  `lib/dates.ts` now holds every preset under ONE rule, the reader's browser
+  locale, students included (author's ruling, 2026-11-28, on the session's
+  recommendation). A 'YYYY-MM-DD' calendar day is formatted in UTC, so it
+  never moves a day. All 17 call sites moved, and `lib/timeZone.ts` reads the
+  browser zone. Unit tests pin en-NZ (`src/test/dateLocale.setup.ts`; the CI
+  and dev machines are en-US). Guard: `__tests__/dates.test.ts` checks both
+  orders, the calendar-day rule, and a ratchet that fails on any
+  `toLocaleDateString` / `toLocaleTimeString` / `toLocaleString` /
+  `Intl.DateTimeFormat` outside the helper, in the app and the viewer.
+  Mutation-tested by restoring the old en-NZ `dueWords`. Cost: one shared
+  0.4 KiB chunk; the author raised three journey caps (home 9.1, classes
+  17.8, progress 39.4). The shell did not move. Visible change: an en-US
+  browser now reads due dates and the class plan as "Thu Nov 12".
 - Three hand-rolled pollers with different visibility rules. One `usePoll`
   now means one shape to convert at the realtime arc. **S.**
 - 32 `[error, setError]` + 30 busy booleans + three undo toasts with two

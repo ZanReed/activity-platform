@@ -380,7 +380,7 @@ export default defineConfig({
     // the test that tried, naming the URL; and `env` repoints the client at
     // the stub lanes' dead origin, so anything that slips past the setup file
     // still cannot reach live. Reasoning: src/test/noNetwork.setup.ts.
-    setupFiles: ['./src/test/noNetwork.setup.ts', './src/test/forgetLoads.setup.ts'],
+    setupFiles: ['./src/test/noNetwork.setup.ts', './src/test/forgetLoads.setup.ts', './src/test/dateLocale.setup.ts'],
     // Child processes, not worker threads: under Node 24, stopping a worker
     // thread mid-import aborted the whole run (SIGABRT in node::cjs_lexer,
     // 2026-11-27). Forks is vitest's default since v2; stated so it stays.

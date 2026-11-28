@@ -5,12 +5,11 @@
 // on its row and leaves the row in place.
 // =============================================================================
 
+import { dayMonth } from '../lib/dates';
 import { useState } from 'react';
 import type { DeletedItem } from '../lib/recentlyDeleted';
 
-function day(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-}
+const day = dayMonth;
 
 export default function RecentlyDeleted({
     items,

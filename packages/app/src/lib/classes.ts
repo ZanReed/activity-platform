@@ -11,6 +11,7 @@
 // join can't fetch student names).
 // =============================================================================
 
+import { dayMonthYear } from './dates';
 import { supabase } from './supabase';
 import { rpc } from './db';
 import { signedInUserId } from './currentUser';
@@ -407,11 +408,7 @@ export async function listMyClasses(): Promise<JoinedClass[]> {
 // ---- Shared by the Classes page, its lazy roster, and the join link ---------
 
 export function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
+    return dayMonthYear(iso);
 }
 
 /**

@@ -3,6 +3,7 @@
 // bound to rendered output. The server's numbers are mocked in the exact shape
 // fact_probe_results / fact_probe_overview return (verify-0045 asserts those
 // shapes against the real functions).
+import { longDate } from '../lib/dates';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -192,7 +193,7 @@ describe('opening a snapshot', () => {
         api.openProbe.mockResolvedValue({ probe_id: 'probe-1' });
         page();
         const shown = await screen.findByTestId('ft-year-end');
-        expect(shown.textContent).toContain(`school year ends on ${soon.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`);
+        expect(shown.textContent).toContain(`school year ends on ${longDate(soon)}`);
         expect(screen.queryByLabelText(/When does this class’s school year end\?/)).toBeNull();
         fireEvent.click(screen.getAllByRole('radio')[0]!);
         await act(async () => {

@@ -7,6 +7,7 @@
 // anything: a teacher places every day by hand (§18 as read in C-188).
 // =============================================================================
 
+import { weekdayDayMonth } from './dates';
 import { rpc, rpcOrThrow } from './db';
 import { MIXED_PRACTICE_RPC } from './mixedPracticeRpc';
 
@@ -102,13 +103,7 @@ export function windowEnd(start: string, count: number): string {
 
 /** "Tue 18 Nov" — the plan's own label, read in UTC from the ISO date. */
 export function dayLabel(iso: string): string {
-    const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
-    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-NZ', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        timeZone: 'UTC',
-    }).replace(/,/g, '');
+    return weekdayDayMonth(iso);
 }
 
 // ---- the day's total (PP-6) --------------------------------------------------

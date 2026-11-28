@@ -1,4 +1,5 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
+import { dayMonthYear } from '../lib/dates';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { leaveOut } from '../lib/loadFailure';
 import { reloadKey, updateLoaded, useLoad, type LoadKey } from '../lib/useLoad';
@@ -81,13 +82,7 @@ const RECENT_LIMIT = 5;
 /** F-5: how many recent pills show before "+N" (one line at page width). */
 const RECENT_SHOWN = 3;
 
-function formatEdited(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
-}
+const formatEdited = dayMonthYear;
 
 function StatusBadge({ status }: { status: ActivityRow['status'] }) {
     const styles: Record<ActivityRow['status'], string> = {

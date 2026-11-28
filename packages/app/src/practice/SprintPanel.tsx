@@ -18,6 +18,7 @@
 // Lazy: it ships in the teacher page's chunk, never in the shell.
 // =============================================================================
 
+import { browserTimeZone } from '../lib/timeZone';
 import { useCallback, useEffect, useState } from 'react';
 import { factsLink, setClassYearEnd } from '../lib/factProbe';
 import { fetchSprintOverview, setFactSprint, type SprintOverview } from '../lib/factSprint';
@@ -58,7 +59,7 @@ export default function SprintPanel({
     const [showStudents, setShowStudents] = useState(false);
     const bounds = yearEndBounds(new Date());
     const [endsOn, setEndsOn] = useState(() =>
-        guessYearEnd(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
+        guessYearEnd(new Date(), browserTimeZone() ?? 'UTC'),
     );
 
     const load = useCallback(async () => {

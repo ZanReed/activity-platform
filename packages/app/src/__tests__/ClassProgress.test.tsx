@@ -3,6 +3,7 @@
 // CP-8, DR-1, DR-4, DR-7, DR-8, DR-10, DR-11), bound to rendered output. The
 // RPC payloads are typed by the lib's own shapes, which verify-0061 asserts
 // against the real functions; SQL correctness is verify-0061's, not this file's.
+import { dayMonth } from '../lib/dates';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router';
@@ -582,7 +583,7 @@ describe('the Last check column', () => {
         // Another year names it.
         expect(lastCheckAgo(new Date(2026, 10, 3, 12, 0).toISOString(), now)).toContain('2026');
         expect(lastCheckAgo(new Date(2027, 1, 1, 12, 0).toISOString(), now)).toBe(
-            new Date(2027, 1, 1, 12, 0).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+            dayMonth(new Date(2027, 1, 1, 12, 0)),
         );
     });
 });

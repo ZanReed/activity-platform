@@ -31,6 +31,8 @@
 // =============================================================================
 
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
+import { dayMonthLong } from '../lib/dates';
+import { browserTimeZone } from '../lib/timeZone';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useClassInfo } from '../lib/classList';
@@ -93,9 +95,7 @@ export function familySummary(s: StudentRow): string {
         .join(' · ');
 }
 
-function day(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
-}
+const day = dayMonthLong;
 
 /** One line saying what a year adds (DR-18); composed when the registry has none. */
 export function yearLine(y: YearOption): string {
@@ -282,7 +282,7 @@ function OpenScreen({
     // change it; it starts at the stored date or a guess (RP-2).
     const [editingEnd, setEditingEnd] = useState(!storedUsable);
     const [endsOn, setEndsOn] = useState(() =>
-        storedUsable ? stored : guessYearEnd(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
+        storedUsable ? stored : guessYearEnd(new Date(), browserTimeZone() ?? 'UTC'),
     );
     const endValid = endsOn >= bounds.min && endsOn <= bounds.max;
 

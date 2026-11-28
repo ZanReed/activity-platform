@@ -18,6 +18,7 @@
 // Words (W-9): never "struggling", "behind", "weak", "at risk" or "slow".
 // =============================================================================
 
+import { clock } from '../lib/dates';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
     fetchStudentRecent,
@@ -50,9 +51,6 @@ function skillsShort(skills: SkillRef[]): { shown: string; full: string } {
     return { shown, full: names.join('; ') };
 }
 
-function clock(at: Date): string {
-    return at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
 
 export default function WhoFirst({ classId }: { classId: string }) {
     const [open, setOpen] = useState(false);

@@ -1,9 +1,12 @@
 // =============================================================================
 // dueWords.ts — the pure half of due dates (docs/design/due-dates.md): calendar
-// sums and the words for them. NO imports, on purpose: dueDates.test.ts runs
-// this file in fresh Node processes under different TZ values, which only a
-// fresh process can prove (Node caches its default timezone).
+// sums and the words for them. ONE import, dates.ts, which imports nothing, on
+// purpose: dueDates.test.ts runs this file in fresh Node processes under
+// different TZ values, which only a fresh process can prove (Node caches its
+// default timezone). The `.ts` suffix is what lets plain Node load it.
 // =============================================================================
+
+import { dayMonth, weekday } from './dates.ts';
 
 const DAY = 86_400_000;
 const toUtc = (d: string): number => Date.parse(`${d}T00:00:00Z`);
@@ -12,10 +15,6 @@ const toUtc = (d: string): number => Date.parse(`${d}T00:00:00Z`);
 export function daysUntil(due: string, today: string): number {
     return Math.round((toUtc(due) - toUtc(today)) / DAY);
 }
-
-const weekday = (d: string) => new Date(toUtc(d)).toLocaleDateString('en-NZ', { weekday: 'short', timeZone: 'UTC' });
-const dayMonth = (d: string) =>
-    new Date(toUtc(d)).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** The short form a column header or a Home row uses: "today", "Fri", "28 Nov". */
 export function dueWords(due: string, today: string): string {

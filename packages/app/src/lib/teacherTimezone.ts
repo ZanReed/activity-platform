@@ -9,6 +9,7 @@
 // clients hold no UPDATE on users at all).
 // =============================================================================
 
+import { browserTimeZone } from './timeZone';
 import { rpc } from './db';
 
 /** RPC names, exported so test mocks derive from them (policy P2). */
@@ -28,14 +29,7 @@ export function zoneCity(zone: string): string {
 }
 
 /** The browser's own zone, or null when the platform can't say. */
-export function browserZone(): string | null {
-    try {
-        const z = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        return typeof z === 'string' && z.includes('/') ? z : null;
-    } catch {
-        return null;
-    }
-}
+export const browserZone = browserTimeZone;
 
 /** Every IANA zone the browser knows, sorted, always including `current`. */
 export function zoneOptions(current: string): string[] {

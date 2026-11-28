@@ -745,7 +745,11 @@ export const TEACHER_JOURNEYS = [
         // caps"): review A5 pages the teacher's class-activity read, which
         // PostgREST cut at 1,000 rows with no error. Measured 8.742 → 8.757,
         // the loop in classActivities.ts (shared with this chunk); no library.
-        maxGzKiB: 8.8,
+        // 8.8 → 9.1 (2026-11-28, author's ruling: "Raise the three caps"):
+        // review C10's one date formatter, lib/dates.ts, a shared 0.4 KiB gz
+        // chunk replacing small inline copies in dueWords + classActivities.
+        // Measured 8.757 → 9.0; no library.
+        maxGzKiB: 9.1,
         forbid: ['prosemirror', 'mathlive', 'mathjs', 'katex'],
         why: 'The signed-in landing for students and teachers. Preloaded by URL from index.html; must stay a list, never a heavy library.',
     },
@@ -836,7 +840,9 @@ export const TEACHER_JOURNEYS = [
         // shared chunks: a teacher downloads them once per visit, but a journey counts them on
         // its first visit.
         // Also lib/classList.ts (the shared class list). Measured 17.1.
-        maxGzKiB: 17.5,
+        // 17.5 → 17.8 (2026-11-28, author's ruling: "Raise the three caps"):
+        // review C10's shared lib/dates.ts chunk. Measured 17.6.
+        maxGzKiB: 17.8,
         forbid: ['prosemirror', 'mathlive'],
         why: 'A list of classes, no editor.',
     },
@@ -869,7 +875,9 @@ export const TEACHER_JOURNEYS = [
         route: 'src/routes/ActivityProgress.tsx',
         // 38 → 39 (2026-11-27, author: "yes, raise them"): review C5 slice 2 grew
         // lib/useLoad.ts (the shared store) by ~0.6 KiB gz. Measured 38.7.
-        maxGzKiB: 39,
+        // 39 → 39.4 (2026-11-28, author's ruling: "Raise the three caps"):
+        // review C10's shared lib/dates.ts chunk. Measured 39.3.
+        maxGzKiB: 39.4,
         forbid: ['prosemirror', 'mathlive', 'mathjs'],
         why: 'A dashboard, as for responses.',
     },

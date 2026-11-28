@@ -1,4 +1,5 @@
 void import('../lib/clientErrors'); // the teacher-only error log, loaded beside the page (review C5 slice 4)
+import { dayMonthYear } from '../lib/dates';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { leaveOut } from '../lib/loadFailure';
 import { isDueThisWeek } from '../lib/dueDates';
@@ -452,7 +453,7 @@ function ClassCard({
             data-policy-notice
             >
             The privacy policy changed on{' '}
-            {policyChangedOn().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}.{' '}
+            {dayMonthYear(policyChangedOn())}.{' '}
             <Link
             to="/privacy"
             target="_blank"
