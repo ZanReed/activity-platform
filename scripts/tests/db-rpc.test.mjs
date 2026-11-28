@@ -36,7 +36,7 @@ const WRAPPER = 'packages/app/src/lib/db.ts';
 const SHAPES = 'packages/app/src/lib/dbShapes.ts';
 
 /** Result casts outside lib/db.ts. Lower it when you remove one (rule 2). */
-export const CAST_CEILING = 76;
+export const CAST_CEILING = 75;
 
 function appFiles(dir = APP, out = []) {
   for (const name of readdirSync(dir)) {
