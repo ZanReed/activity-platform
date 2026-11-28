@@ -206,3 +206,41 @@ describe('tables', () => {
     expect(u.searchParams.get('sanitizer_rev')).toBe('neq.4');
   });
 });
+
+// Review D7 (2026-11-28): a connection that stops answering. The fake honours
+// the request's signal exactly as fetch does, so this proves the limit fires
+// at a real (small) value and becomes a named status-0 result, not a hang.
+describe('time limit (D7)', () => {
+  function hangingFetch() {
+    const calls: RequestInit[] = [];
+    const fn = ((_url: string, init: RequestInit) => {
+      calls.push(init);
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+      });
+    }) as unknown as typeof fetch;
+    return { fn, calls };
+  }
+
+  it('a hung call ends as a TimeoutError result, and a timed-out GET is not retried', async () => {
+    const { fn, calls } = hangingFetch();
+    const c = createRestClient({ url: 'https://p.example', apikey: 'A', authorization: 'Bearer A', fetch: fn, sleep: async () => {}, timeoutMs: 20 });
+    const rpc = await c.rpc('record_check', {} as never);
+    expect(rpc.status).toBe(0);
+    expect(rpc.error?.message).toMatch(/^TimeoutError: /);
+    const read = await c.select('activities', 'id', []);
+    expect(read.status).toBe(0);
+    expect(read.error?.message).toMatch(/^TimeoutError: /);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('every attempt carries its own signal, at the production limit by default', async () => {
+    const { REQUEST_TIMEOUT_MS } = await import('../src/server/restClient.js');
+    expect(REQUEST_TIMEOUT_MS).toBe(15_000);
+    const { fn, calls } = fakeFetch(new Response('', { status: 503 }), json([]));
+    await client(fn).select('activities', 'id', []);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal);
+    expect(calls[1]!.init.signal).not.toBe(calls[0]!.init.signal);
+  });
+});

@@ -132,6 +132,18 @@ export async function processItems(
         return false;
       }
     }
+    // D7: a server that took the request and never answered is not retried.
+    // A retry would cost the same INFERENCE_TIMEOUT_MS again, and so would
+    // every item after it, so the run stops with the fix, as for unreachable.
+    if (!inference.ok && inference.reason === 'timeout') {
+      counters.inferenceErrors++;
+      console.error(
+        `\nABORTING RUN: ${inference.detail}\n` +
+          `  Fix: check the inference server is answering (\`pnpm worker:check\`), then\n` +
+          `  re-run. Claimed leases release on their own.`,
+      );
+      return false;
+    }
     if (!inference.ok) {
       counters.inferenceErrors++;
       if (inference.reason === 'bad_json') {

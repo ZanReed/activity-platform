@@ -29,17 +29,39 @@ export interface InferenceSuccess {
 
 export interface InferenceFailure {
   ok: false;
-  reason: 'unreachable' | 'http_error' | 'bad_json';
+  reason: 'unreachable' | 'timeout' | 'http_error' | 'bad_json';
   detail: string;
   capturePath?: string;
 }
 
 export type InferenceResult = InferenceSuccess | InferenceFailure;
 
+/**
+ * How long one model call may take, response and body together (review D7,
+ * 2026-11-28). Before this a server that accepted the connection and never
+ * answered hung the run for good, with every claimed lease waiting out its
+ * own expiry.
+ *
+ * Why 180 s: a grade draft is a few hundred output tokens under guided
+ * decoding. Even a slow local GPU at ~5 tokens/s finishes in about a minute,
+ * and a cold model load is part of the first call. Three minutes is past any
+ * honest call and still short enough that a stuck server is noticed in the
+ * same sitting. Override with `timeoutMs` (worker:check uses the default).
+ */
+export const INFERENCE_TIMEOUT_MS = 180_000;
+
 export async function callModel(
   req: InferenceRequest,
   failedOutputDir: string,
+  timeoutMs: number = INFERENCE_TIMEOUT_MS,
 ): Promise<InferenceResult> {
+  const timedOut = (): InferenceFailure => ({
+    ok: false,
+    reason: 'timeout',
+    detail: `inference server did not answer within ${timeoutMs / 1000} s at ${req.inferenceUrl}`,
+  });
+  // One signal bounds the response AND the body read.
+  const signal = AbortSignal.timeout(timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${req.inferenceUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -57,8 +79,10 @@ export async function callModel(
           json_schema: { name: 'grade_draft', strict: true, schema: req.schema },
         },
       }),
+      signal,
     });
   } catch (err) {
+    if ((err as Error).name === 'TimeoutError') return timedOut();
     return {
       ok: false,
       reason: 'unreachable',
@@ -66,7 +90,13 @@ export async function callModel(
     };
   }
 
-  const body = await res.text();
+  let body: string;
+  try {
+    body = await res.text();
+  } catch (err) {
+    if ((err as Error).name === 'TimeoutError') return timedOut();
+    return { ok: false, reason: 'unreachable', detail: `inference reply lost: ${(err as Error).message}` };
+  }
   if (!res.ok) {
     return { ok: false, reason: 'http_error', detail: `${res.status}: ${body.slice(0, 500)}` };
   }

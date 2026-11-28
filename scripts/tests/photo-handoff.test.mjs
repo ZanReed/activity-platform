@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { handleHandoff, MAX_PHOTO_BYTES } from '../../supabase/functions/photo-handoff/handler.ts';
+import { handleHandoff, MAX_PHOTO_BYTES, TIMED_OUT } from '../../supabase/functions/photo-handoff/handler.ts';
 import { stripJpegMetadata } from '../../supabase/functions/photo-handoff/jpegStrip.ts';
 
 const CODE = 'A'.repeat(42) + '_';
@@ -255,4 +255,41 @@ test('a confirm that fails for a transient reason is retried once (it is idempot
   const reply = await handleHandoff(form({ action: 'upload', code: CODE, photo: new Blob([jpegWithExif()]) }), ports);
   assert.equal(reply.status, 200);
   assert.equal(n, 2);
+});
+
+// Review D7 (2026-11-28): index.ts gives every fetch a time limit. A timed-out
+// rpc answers { ok:false, message: TIMED_OUT }; a timed-out PUT throws the
+// TimeoutError AbortSignal.timeout raises. Both are a named, retryable 504.
+test('a Storage PUT that times out releases the slot and says timed_out', async () => {
+  const ports = fakePorts();
+  ports.putObject = async () => {
+    throw new DOMException('The signal has been aborted', 'TimeoutError');
+  };
+  const reply = await handleHandoff(form({ action: 'upload', code: CODE, photo: new Blob([jpegWithExif()]) }), ports);
+  assert.deepEqual(reply, { status: 504, body: { error: 'timed_out' } });
+  assert.deepEqual(ports.calls.map((c) => c[0]), ['handoff_reserve', 'handoff_release']);
+});
+
+test('a database call that times out is a 504 timed_out, not a 500', async () => {
+  const ports = fakePorts({ reserve: { ok: false, message: TIMED_OUT } });
+  const reply = await handleHandoff(form({ action: 'upload', code: CODE, photo: new Blob([jpegWithExif()]) }), ports);
+  assert.deepEqual(reply, { status: 504, body: { error: 'timed_out' } });
+  const peek = await handleHandoff(form({ action: 'peek', code: CODE }), fakePorts({ peek: { ok: false, message: TIMED_OUT } }));
+  assert.deepEqual(peek, { status: 504, body: { error: 'timed_out' } });
+});
+
+
+test('a confirm that times out twice gives the slot back (Fable review, D7)', async () => {
+  const ports = fakePorts();
+  const rpc = ports.rpc;
+  ports.rpc = async (name, args) => {
+    if (name === 'handoff_confirm') {
+      ports.calls.push([name, args]);
+      return { ok: false, message: TIMED_OUT };
+    }
+    return rpc(name, args);
+  };
+  const reply = await handleHandoff(form({ action: 'upload', code: CODE, photo: new Blob([jpegWithExif()]) }), ports);
+  assert.deepEqual(reply, { status: 504, body: { error: 'timed_out' } });
+  assert.deepEqual(ports.calls.map((c) => c[0]), ['handoff_reserve', 'handoff_confirm', 'handoff_confirm', 'handoff_release']);
 });

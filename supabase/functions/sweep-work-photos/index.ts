@@ -64,6 +64,34 @@ const BATCH = 500; // keys per round
 const BUDGET_MS = 45_000; // stop starting new rounds after this; `more: true`
 const CHUNK = 100; // object keys per Storage bulk-delete request
 
+// TIME LIMITS (review D7, 2026-11-28). Every fetch has one; before, a hung
+// call held the run until the platform's 150 s wall clock killed it, with no
+// reply for pg_net to log.
+//
+// RPC_TIMEOUT_MS = 30 s: sweep_work_photos_due may delete a whole school
+// year's rows in one statement on the night they fall due (the trigger queues
+// each one's bytes), so it is the one call here that can be slow; 30 s allows
+// for that and still ends the run with a named error, inside the wall clock.
+// The batch reads (500 keys) are far below it. If the database's own
+// statement_timeout for this role is lower, it fires first; that limit is not
+// verified here (see the review log, D7).
+//
+// DELETE_TIMEOUT_MS = 20 s per 100-key bulk delete: Storage removes the rows and
+// the objects together, normally in well under a second. A chunk that times
+// out is recorded in `failures` and the rest continue, exactly like a chunk
+// that answered an error; SQL decides what really left, so a delete that
+// landed after we stopped waiting is counted on the next run.
+//
+// BUDGET_MS (45 s) stops STARTING rounds; these limits bound the round in
+// flight. A timed-out chunk also skips the round's remaining chunks
+// (deleteObjects), so a round waits on Storage for at most one 20 s timeout.
+// A round that clears nothing and records a failure already ends the loop.
+const RPC_TIMEOUT_MS = 30_000;
+const DELETE_TIMEOUT_MS = 20_000;
+
+/** True for the error AbortSignal.timeout raises. */
+const isTimeout = (e: unknown) => (e as { name?: unknown } | null)?.name === 'TimeoutError';
+
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
     status,
@@ -86,14 +114,22 @@ const serviceHeaders = {
 };
 
 // Name, arguments and result typed by the schema (deno check, review C1).
+// A timeout throws `<name>: timed out after 30 s`, which the handler below
+// reports as its 500's error: the run stops, named, and the next run resumes.
 async function rpc<F extends FnName>(name: F, ...args: RpcArgs<F>): Promise<ReturnsOf<F>> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
-    method: 'POST',
-    headers: serviceHeaders,
-    body: JSON.stringify(args[0] ?? {}),
-  });
-  if (!res.ok) throw new Error(`${name}: HTTP ${res.status} ${await res.text()}`);
-  return (await res.json()) as ReturnsOf<F>;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: serviceHeaders,
+      body: JSON.stringify(args[0] ?? {}),
+      signal: AbortSignal.timeout(RPC_TIMEOUT_MS), // bounds the body read too
+    });
+    if (!res.ok) throw new Error(`${name}: HTTP ${res.status} ${await res.text()}`);
+    return (await res.json()) as ReturnsOf<F>;
+  } catch (e) {
+    if (isTimeout(e)) throw new Error(`${name}: timed out after ${RPC_TIMEOUT_MS / 1000} s`);
+    throw e;
+  }
 }
 
 /** Asks Storage to delete `names`; returns how many it reported deleted. A
@@ -102,17 +138,26 @@ async function deleteObjects(names: string[], failures: string[]): Promise<numbe
   let deleted = 0;
   for (let i = 0; i < names.length; i += CHUNK) {
     const chunk = names.slice(i, i + CHUNK);
-    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
-      method: 'DELETE',
-      headers: serviceHeaders,
-      body: JSON.stringify({ prefixes: chunk }),
-    });
-    if (!res.ok) {
-      failures.push(`delete chunk ${i / CHUNK}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
-      continue;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+        method: 'DELETE',
+        headers: serviceHeaders,
+        body: JSON.stringify({ prefixes: chunk }),
+        signal: AbortSignal.timeout(DELETE_TIMEOUT_MS), // bounds the body read too
+      });
+      if (!res.ok) {
+        failures.push(`delete chunk ${i / CHUNK}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+        continue;
+      }
+      const body = await res.json().catch(() => []);
+      deleted += Array.isArray(body) ? body.length : 0;
+    } catch (e) {
+      if (!isTimeout(e)) throw e;
+      // Storage stopped answering: record it and stop this round's deletes
+      // rather than wait 20 s for each remaining chunk. The keys stay queued.
+      failures.push(`delete chunk ${i / CHUNK}: timed out after ${DELETE_TIMEOUT_MS / 1000} s; later chunks this round skipped`);
+      break;
     }
-    const body = await res.json().catch(() => []);
-    deleted += Array.isArray(body) ? body.length : 0;
   }
   return deleted;
 }

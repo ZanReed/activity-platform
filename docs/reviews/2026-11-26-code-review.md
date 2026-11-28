@@ -1026,6 +1026,33 @@ two are exempted by name (retirement filed).
   `sweep-work-photos/index.ts:90, 105`, the grading worker). A hung Storage PUT
   holds a reserved photo slot. `AbortSignal.timeout`. **S.**
 
+  > **Timeouts: fixed 2026-11-28.** Re-derived first: the claim held, and the
+  > plain-fetch REST client that get-activity and check-activity moved to on
+  > 2026-11-28 (`viewer/src/server/restClient.ts`) had the same gap. Every
+  > fetch now has a time limit, chosen per call and justified at its
+  > definition, and each caller turns the abort into a named failure:
+  > photo-handoff rpc 10 s, Storage PUT 30 s; a timeout releases the slot and
+  > answers 504 `timed_out`, which the phone reads as "try again". A confirm
+  > that times out twice also releases (Fable review). The sweep's rpc is 30 s
+  > (a named 500), its bulk delete 20 s a chunk (recorded in `failures`, and
+  > the round's other chunks skipped). restClient is 15 s an attempt (a
+  > status-0 `TimeoutError` result, never retried; both bundles rebuilt). In
+  > the worker, the model call is 180 s (reason `timeout`, which stops the
+  > run, as an unreachable server does) and supabase-js is 30 s through a
+  > global fetch that keeps any caller's own signal. A PUT that lands after
+  > the timeout leaves only an orphan, which the sweep's orphan pass removes.
+  > Guards: `scripts/tests/fetch-timeouts.test.mjs` fails on a new `fetch(`
+  > without a `signal` in these trees. The limits are proved to FIRE against a
+  > never-answering peer in restClient.test.ts and grading-worker
+  > timeouts.test.ts, and the handler mapping in photo-handoff.test.mjs.
+  > Mutation-tested. **Not proved:** the `index.ts` timeout branches of the
+  > two Deno functions run only under Deno, so no test executes them (P3
+  > gap). Also unverified: whether the service role's `statement_timeout`
+  > (Supabase's default may be 8 s) would stop `sweep_work_photos_due`'s
+  > unbatched delete on a big night, before this 30 s limit. Check
+  > `select rolname, rolconfig from pg_roles` before the sweep is armed.
+  > Redeploys: photo-handoff, sweep, check, get-activity.
+
 ### D8 CI: the print lane is the usual red
 Of the last 40 runs on `main`, 9 failed: **6 in the print gates**, 2 in unit
 tests, 1 in the budget script tests. Print baselines are authoritative only on

@@ -22,6 +22,13 @@
 //     no error, and a 404 whose body is an array is an empty 200.
 //   * GET reads retry a 503 / 520 or a network failure up to 3 times (1 s,
 //     2 s, 4 s), as postgrest-js does for idempotent methods.
+//   * ONE DIFFERENCE, on purpose (review D7, 2026-11-28): every attempt has a
+//     time limit, REQUEST_TIMEOUT_MS, covering the response AND its body.
+//     postgrest-js has none, so a hung connection held the student's open or
+//     check until the platform's own wall clock killed the function. A timed-
+//     out call is a status-0 result like any network failure, its error
+//     named `TimeoutError`, and it is NOT retried: a database that is slow
+//     enough to time out is not helped by three more requests.
 // Bound by restClient.test.ts, which checks each of these against a fake fetch.
 // =============================================================================
 
@@ -79,6 +86,28 @@ export interface RestClientConfig {
   fetch?: typeof fetch;
   /** Injected in tests so a retry does not wait; real timers otherwise. */
   sleep?: (ms: number) => Promise<void>;
+  /** Per-attempt limit; REQUEST_TIMEOUT_MS unless a test sets it. */
+  timeoutMs?: number;
+}
+
+/**
+ * How long one PostgREST attempt may take, response and body together.
+ *
+ * Why 15 s: every call these functions make is a short query or one small
+ * RPC, answered in tens of milliseconds, so 15 s is far past a slow answer
+ * and catches a connection that has stopped answering. For a call made as
+ * the signed-in student, Postgres's own limit (Supabase's default
+ * `statement_timeout` for `authenticated` is 8 s) fires first, with the
+ * database's own error. It also leaves room under the platform's 150 s wall
+ * clock for the function to answer at all: a timeout is not retried, so a
+ * GET's worst case is about a minute (three slow failures and their 1 + 2 +
+ * 4 s waits, then one timeout).
+ */
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+/** True for the error AbortSignal.timeout raises (Deno and Node alike). */
+export function isTimeout(e: unknown): boolean {
+  return (e as { name?: unknown } | null)?.name === 'TimeoutError';
 }
 
 const OBJECT = 'application/vnd.pgrst.object+json';
@@ -103,6 +132,7 @@ export function createRestClient(config: RestClientConfig): RestClient {
   const base = `${config.url.replace(/\/+$/, '')}/rest/v1`;
   const doFetch = config.fetch ?? fetch;
   const sleep = config.sleep ?? sleepFor;
+  const timeoutMs = config.timeoutMs ?? REQUEST_TIMEOUT_MS;
 
   async function send<T>(
     method: 'GET' | 'POST' | 'DELETE',
@@ -118,15 +148,17 @@ export function createRestClient(config: RestClientConfig): RestClient {
     }
     if (opts.accept) headers.Accept = opts.accept;
     if (opts.prefer) headers.Prefer = opts.prefer;
-    const init: RequestInit = { method, headers };
-    if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
+    const payload = opts.body !== undefined ? JSON.stringify(opts.body) : undefined;
 
     let res: Response | undefined;
     for (let attempt = 0; ; attempt++) {
+      // A fresh limit per attempt; the same signal also bounds the body read.
+      const init: RequestInit = { method, headers, signal: AbortSignal.timeout(timeoutMs) };
+      if (payload !== undefined) init.body = payload;
       try {
         res = await doFetch(`${base}${path}`, init);
       } catch (e) {
-        if (method === 'GET' && attempt < MAX_RETRIES) {
+        if (method === 'GET' && attempt < MAX_RETRIES && !isTimeout(e)) {
           await sleep(Math.min(1000 * 2 ** attempt, 30000));
           continue;
         }

@@ -18,11 +18,29 @@ import type { WorkerConfig } from './config.ts';
 
 const CALLBACK_PORT = 54329;
 
+/**
+ * Every database and auth call the worker makes has a time limit (review D7,
+ * 2026-11-28). The calls are one small RPC or a token refresh each; 30 s is
+ * far past a slow answer and turns a hung connection into an ordinary
+ * supabase-js error (`TimeoutError: …`) that the run loop already reports.
+ * A signal supabase-js passes itself is kept: whichever fires first wins.
+ */
+export const DB_TIMEOUT_MS = 30_000;
+
+export function fetchWithTimeout(timeoutMs: number = DB_TIMEOUT_MS): typeof fetch {
+  return (input, init) => {
+    const limit = AbortSignal.timeout(timeoutMs);
+    const signal = init?.signal ? AbortSignal.any([init.signal, limit]) : limit;
+    return fetch(input, { ...init, signal });
+  };
+}
+
 function makeClient(config: WorkerConfig): WorkerClient {
   // The ONE cast to the loosened call type (db.ts): supabase-js's own rpc()
   // signature is stricter (no null arguments) and overloaded, so it is not
   // assignable to TypedRpc; the runtime object is the same client.
   return createClient<Database>(config.supabaseUrl, config.supabaseAnonKey, {
+    global: { fetch: fetchWithTimeout() },
     auth: {
       flowType: 'pkce',
       persistSession: true,

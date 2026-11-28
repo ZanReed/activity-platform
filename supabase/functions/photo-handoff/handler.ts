@@ -55,12 +55,24 @@ export const HANDOFF_REFUSALS = {
 
 export type HandoffRefusal = keyof typeof HANDOFF_REFUSALS;
 
+/**
+ * A port call that ran out of time (review D7, 2026-11-28): index.ts gives
+ * every fetch a limit, and an rpc that hits it answers `{ ok: false, message:
+ * TIMED_OUT }`. The phone is told `timed_out` (504), which its page reads as
+ * "didn't send, try again" and keeps the code usable.
+ */
+export const TIMED_OUT = 'timed_out';
+
+/** True for the error AbortSignal.timeout raises. */
+export const isTimeout = (e: unknown): boolean => (e as { name?: unknown } | null)?.name === 'TimeoutError';
+
 export type RpcResult = { ok: true; data: unknown } | { ok: false; message: string };
 
 export interface HandoffPorts {
   /** Name and arguments typed by the schema (deno check, review C1). */
   rpc<F extends FnName>(name: F, ...args: RpcArgs<F>): Promise<RpcResult>;
-  /** Write the JPEG at `objectName` in the student-work bucket, never overwriting. */
+  /** Write the JPEG at `objectName` in the student-work bucket, never
+   *  overwriting. Throws a TimeoutError when its time limit passes. */
   putObject(objectName: string, jpeg: Uint8Array<ArrayBuffer>): Promise<boolean>;
 }
 
@@ -72,6 +84,7 @@ export interface HandoffReply {
 const refuse = (error: string, status: number): HandoffReply => ({ status, body: { error } });
 
 function refusalFrom(message: string): HandoffReply {
+  if (message === TIMED_OUT) return refuse(TIMED_OUT, 504);
   for (const [code, status] of Object.entries(HANDOFF_REFUSALS)) {
     if (message.includes(code)) {
       // A teacher's account behind a code cannot happen (start refuses it), but
@@ -134,15 +147,20 @@ export async function handleHandoff(req: Request, ports: HandoffPorts): Promise<
   if (typeof photoId !== 'string' || typeof objectName !== 'string') return refuse('failed', 500);
 
   let stored = false;
+  let timedOut = false;
   try {
     stored = await ports.putObject(objectName, clean);
-  } catch {
+  } catch (e) {
     stored = false;
+    timedOut = isTimeout(e);
   }
   if (!stored) {
     // The slot comes back and the reservation goes: the phone can try again.
+    // A PUT that timed out may still have landed in Storage after we stopped
+    // waiting; its object then has no row, and the sweep's orphan pass
+    // (sweep-work-photos, step 3) removes it.
     await ports.rpc('handoff_release', { p_code: code, p_photo_id: photoId });
-    return refuse('upload_failed', 502);
+    return timedOut ? refuse(TIMED_OUT, 504) : refuse('upload_failed', 502);
   }
 
   // Confirm is idempotent, so one retry is free: a lost reply here would
@@ -150,6 +168,14 @@ export async function handleHandoff(req: Request, ports: HandoffPorts): Promise<
   let confirmed = await ports.rpc('handoff_confirm', { p_code: code, p_photo_id: photoId });
   if (!confirmed.ok && !confirmed.message.includes('handoff_')) {
     confirmed = await ports.rpc('handoff_confirm', { p_code: code, p_photo_id: photoId });
+  }
+  if (!confirmed.ok && confirmed.message === TIMED_OUT) {
+    // Twice out of time: give the slot back rather than spend it on a photo
+    // that never arrives (on a one-photo code the next try would read "All
+    // sent"). Safe either way: release does nothing to a photo a confirm
+    // already took, and an unconfirmed photo's bytes follow its row out
+    // (Fable review, 2026-11-28).
+    await ports.rpc('handoff_release', { p_code: code, p_photo_id: photoId });
   }
   if (!confirmed.ok) return refusalFrom(confirmed.message);
   return { status: 200, body: { slots_left: typeof confirmed.data === 'number' ? confirmed.data : 0 } };

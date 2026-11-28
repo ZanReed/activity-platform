@@ -19,26 +19,52 @@
 // =============================================================================
 
 import { corsHeaders, handlePreflight } from '../_shared/cors.ts';
-import { handleHandoff, type HandoffPorts } from './handler.ts';
+import { handleHandoff, isTimeout, TIMED_OUT, type HandoffPorts } from './handler.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const BUCKET = 'student-work';
 
+// TIME LIMITS (review D7, 2026-11-28). Before these, a hung fetch held the
+// phone holder's request until the platform's 150 s wall clock, and a hung
+// Storage PUT held a reserved photo slot for all of it.
+//
+// RPC_TIMEOUT_MS = 10 s: each of the four 0095 functions is one indexed lookup
+// plus a row write, answered in milliseconds. 10 s is far past a slow-but-alive
+// database and short enough that someone holding a phone is told "try again"
+// while they are still looking at it.
+//
+// PUT_TIMEOUT_MS = 30 s: the body is at most 1.5 MB (MAX_PHOTO_BYTES), sent
+// from inside Supabase's own network to its Storage, normally well under a
+// second. 30 s allows a slow Storage moment without abandoning a real upload,
+// and still leaves the release (10 s) and the reply far inside the wall clock.
+const RPC_TIMEOUT_MS = 10_000;
+const PUT_TIMEOUT_MS = 30_000;
+
 const ports: HandoffPorts = {
   async rpc(name, ...args) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        apikey: SERVICE_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(args[0] ?? {}),
-    });
-    const text = await res.text();
-    if (!res.ok) return { ok: false, message: text };
-    return { ok: true, data: text ? JSON.parse(text) : null };
+    // One signal bounds the response AND the body read.
+    const signal = AbortSignal.timeout(RPC_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          apikey: SERVICE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(args[0] ?? {}),
+        signal,
+      });
+      const text = await res.text();
+      if (!res.ok) return { ok: false, message: text };
+      return { ok: true, data: text ? JSON.parse(text) : null };
+    } catch (e) {
+      // A timeout is a named refusal (handler.ts → 504 timed_out); anything
+      // else still throws, to the 500 below, as before.
+      if (isTimeout(e)) return { ok: false, message: TIMED_OUT };
+      throw e;
+    }
   },
   async putObject(objectName, jpeg) {
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${objectName}`, {
@@ -50,6 +76,8 @@ const ports: HandoffPorts = {
         'x-upsert': 'false',
       },
       body: jpeg,
+      // A timeout throws; handler.ts releases the slot and answers timed_out.
+      signal: AbortSignal.timeout(PUT_TIMEOUT_MS),
     });
     await res.body?.cancel();
     return res.ok;
