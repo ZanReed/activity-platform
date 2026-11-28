@@ -16,6 +16,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
     installStaleChunkRecovery,
+    STALE_CHUNK_RELOAD_GUARD_MS,
     reloadOnceForStaleBuild,
     clearStaleBuildGuard,
 } from '../lib/swRegistration';
@@ -80,19 +81,46 @@ describe('stale-chunk recovery', () => {
         expect(firePreloadError()).toBe(true);
     });
 
-    it('a healthy load clears the guard, so a LATER deploy gets its own retry', () => {
+    it('a page LOAD does not clear the guard: a chunk that fails at every open reloads once', () => {
+        // What a browser really does, which the row above leaves out: every
+        // reload ends in a `load` event, and only then does the page ask for
+        // its lazy chunks. The guard used to be cleared on `load`, so a chunk
+        // that kept failing at open reloaded the page for ever (2026-11-28,
+        // about 17 times a second in Chromium; e2e/sw/math-chunk.e2e.ts).
         const reload = vi.fn();
         install(reload);
+
+        for (let opens = 0; opens < 5; opens += 1) {
+            firePreloadError();
+            window.dispatchEvent(new Event('load'));
+        }
+
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('the guard runs out after a minute, so a LATER deploy gets its own reload', () => {
+        const reload = vi.fn();
+        let clock = 1_800_000_000_000;
+        installed = installStaleChunkRecovery({ reload, inUse: () => false, now: () => clock });
 
         firePreloadError();
         expect(reload).toHaveBeenCalledTimes(1);
 
-        // The page loaded fine this time — that is the signal the previous
-        // failure is behind us.
-        window.dispatchEvent(new Event('load'));
-
+        clock += STALE_CHUNK_RELOAD_GUARD_MS - 1;
         firePreloadError();
-        expect(reload).toHaveBeenCalledTimes(2);
+        expect(reload, 'still inside the guard').toHaveBeenCalledTimes(1);
+
+        clock += 1;
+        firePreloadError();
+        expect(reload, 'the guard has run out').toHaveBeenCalledTimes(2);
+    });
+
+    it("reads an older build's flag as set, not as a time long past", () => {
+        sessionStorage.setItem('activity-viewer:reloaded-for-stale-chunk', '1');
+        const reload = vi.fn();
+        install(reload);
+        firePreloadError();
+        expect(reload).not.toHaveBeenCalled();
     });
 
     it('still reloads when sessionStorage is unavailable', () => {

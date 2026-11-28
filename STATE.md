@@ -20,7 +20,7 @@ they have stopped moving (CLAUDE.md → Working style, first bullet).
 
 Author-only: pushes, deploys, migrations.
 
-**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** A5, G-2, C1, D1, G-4, vitest 5.1.2, the `problem`/`width` retirement and C5 slices 1–4 are LIVE (record: HISTORY → 2026-11-28). Owed from those: one real `client_errors` row read back (TODOS → Shared data loading). **Database batch LIVE 2026-11-28 (nothing owed):** B4 `98853000`, D5 `a2b32cd9`, D2+D3 **0108** `7a9b4a28`, B6 **0109** `7e2588b6`, C10 **0110** `e1107b81`. 0108–0110 applied (live verify 575/0), both functions redeployed and hash-verified, pushed. **Follow-ups LIVE 2026-11-28** (pushed `81420feb`, CI green): 0111 (no policy in `public` is `to public`; live verify 578/0), D5's plain-fetch half (`restClient.ts`; neither hot function imports supabase-js; both redeployed and hash-verified), the legacy check key retired, `verify-check-e2e.js` on wire v4, the Classes timer flake. B6's leaked-password item is CLOSED another way: the author turned the **Email auth provider off** live (2026-11-28), so no account signs in with a password; the Pro-only check is moot unless password sign-in returns. Open items: the review log.
+**[Review 2026-11-26](docs/reviews/2026-11-26-code-review.md):** everything through the database batch and its follow-ups is LIVE (0108–0111; record: HISTORY → 2026-11-28). Owed from it: one real `client_errors` row read back (TODOS → Shared data loading). **C4 + A7 BUILT 2026-11-28, on `main`, UNPUSHED** (log → C4, A7): typed kit seam; real-board specs; a touch lane (`test:e2e:touch`; Chromium half in CI); fixed on the way: data plots ignored the keyboard, a finger on a graph could not scroll the page, a failed chunk at open reloaded the page in a loop. No migration. **Owed by the author:** push; the 3-step iPad check (log → A7); rulings on TODOS → "Review C4 built" items 1–2 (data plots under a scrolling finger; a maths retry Chromium honours). Both server bundles changed in source maps only: a redeploy is optional; until one, the live hash differs from the repo's.
 
 **0100, 0101, 0103 LIVE 2026-11-20**, verified live (0103 cleared 7 stale `audit_log.ip_hash` values).
 
@@ -183,7 +183,7 @@ decision. What stays live:
 **Suite — no counts here, by rule.** Run `pnpm test` (unit), `node --test
 scripts/tests/*.test.mjs` (script guards), `node scripts/check-perf-budget.mjs`
 (budgets + their caps). What is durable is WHICH lanes exist: the print lane,
-and the editor / student / sw / perf / a11y lanes, plus the local-only
+and the editor / student / sw / perf / a11y / touch lanes, plus the local-only
 integration lane. Every one was green locally 2026-08-24 with the local
 Supabase stack running — the configuration that used to be red (see the
 e2e-origins trap under Standing constraints). *(Three separate rows here once
@@ -266,7 +266,7 @@ Working style; reasons and triggers in [TODOS.md](TODOS.md) → "BUILD ORDER".
 
 ---
 
-**Last updated:** 2026-11-17 — review period and skills diagnostic designed and ruled; RV-0 importer change built. NEXT: after the push, clear curriculum #98/#99, then the review build (review-period.md §5).
+**Last updated:** 2026-11-28 — review C4 + A7 built (typed kit seam, real-board and touch lanes). NEXT: the author's push, iPad check and two rulings.
 
 The curriculum-alignment arc's correspondence lesson (the two most expensive mistakes were each caught by the OTHER side, plus three corollaries) moved to [docs/HISTORY.md](docs/HISTORY.md) on 2026-10-04.
 

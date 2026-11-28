@@ -36,6 +36,14 @@ Effort: S = under a day, M = a few days, L = a week or more.
 > the module loads. Chromium has at times remembered a failed `import()` for the
 > life of a page, in which case the retry would do nothing there. Worth one
 > check on a Chromebook with request blocking before crediting it (P3).
+>
+> **Both "not checked in a browser" items were checked 2026-11-28** (C4's
+> build; details under A7 and C4). The graph freeze holds against real boards,
+> by key, mouse and finger, right after the lock and after a reload
+> (`e2e/student/canvas-lock.e2e.ts`). **The maths retry does NOT work in
+> Chromium:** it remembers the failed `import()`, exactly as feared. A7's touch
+> scrolling is fixed and measured; what is left for an iPad is a three-step
+> hand check.
 
 ### A0 Histogram and box-plot questions have never recorded an answer
 Found while writing A1's test, and worse than A1. In
@@ -253,6 +261,60 @@ confirm before a one-way lock. **Fix:** call `graphWorkTouched`. **S.**
 - A finger on a graph cannot scroll the page: JSXGraph sets
   `touch-action: none` unless `browserPan` is on, and it is set nowhere. Needs
   a real iPad to confirm. **S.**
+
+> **Touch scrolling: ✔ confirmed and fixed 2026-11-28.** Measured with real
+> finger gestures in Chromium (a touchscreen Chromebook, as far as the engine
+> is concerned): a 160px finger drag over a graph or a number line moved the
+> page by 0px. `browserPan` is not the fix: it sets the rule for the NEXT touch
+> from where the LAST one landed, so the first handle drag after a scroll goes
+> to the page and the first scroll after a drag does nothing. The fix is
+> `graph-kit/src/touch-scroll.ts`: the board allows scrolling
+> (`touch-action: manipulation`, put back after each pointerdown because
+> JSXGraph rewrites `none`), and claims a touch only when it has caught a
+> handle, by cancelling that touch's `touchstart`. A locked board's handles
+> are fixed, so the whole board scrolls. A cancelled touch is no longer read as
+> a tap (it could have shaded a side of an inequality). Rows:
+> `e2e/touch/canvas-touch.e2e.ts`, six mutations, each red.
+> **What a browser lane cannot show:** Playwright cannot make WebKit perform a
+> touch scroll, so on the iPad's engine the rows prove what the board does with
+> a touch and whether it claims it, not that iPadOS then scrolls. That is the
+> author's hand check, below.
+>
+> **The iPad hand check (Safari, after the push has deployed).** Sign in as a
+> student and open "Translations — Sliding a Shape" (it has four graphs).
+> 1. *Scrolling.* Put a finger on an empty part of the first graph's grid, away
+>    from the purple dots, and slide it up. **The page should scroll**, as it
+>    does over text. No dot should move.
+> 2. *Dragging.* Put a finger on a purple dot and slide it. **The dot should
+>    follow the finger and the page should stay still.** Lift, then do step 1
+>    again straight away: the page should scroll on the first try.
+> 3. *A locked section.* In the editor, open a scratch activity that has a
+>    graph, set its checking mode to "Check each section, then lock", publish
+>    it, and open it on the iPad. Drag a dot, press Check, then "Check and
+>    lock". Now try to drag the dot. **It should not move, and sliding a
+>    finger over the graph should scroll the page.**
+> If step 1 fails only on the iPad, the touch lane's WebKit rows were green
+> for a reason that does not hold on a real device: say so and send a short
+> screen recording.
+> **Found by the same lane, NOT fixed (author's call; TODOS → "Review C4
+> built"):** a scroll that starts on a DATA PLOT edits it. The page scrolls,
+> and a dot is added, a bar is set or a box handle jumps to the finger.
+>
+> **The maths retry: checked 2026-11-28, and it does not work in Chromium.**
+> Against the production build, with the KaTeX chunk dropped and then made
+> reachable: a second `import()` of the same URL rejected at once ("Failed to
+> fetch dynamically imported module") and sent no request; the same file under
+> another URL loaded. The retry added on 2026-11-26 is therefore inert in
+> Chromium, and the unit tests could not see it. Proposed fix, not built
+> (TODOS → "Review C4 built", item 2): retry under a new URL.
+> **The check found a worse thing on the way, and that one IS fixed:** a failed
+> chunk on an untouched page triggers the stale-chunk recovery
+> (`app/src/lib/swRegistration.ts`), which reloads "once", and the guard for
+> "once" was cleared by every page load. A chunk that kept failing at open
+> reloaded the page about 17 times a second (141 loads in 8 seconds) until
+> someone touched it. The guard is now a time (one reload a minute at most).
+> `e2e/sw/math-chunk.e2e.ts` counts page loads; with the old guard it reads
+> 141, with the new one 2.
 
 ---
 
@@ -587,6 +649,45 @@ no touch, while students are on iPads and Chromebooks.
 finds A1 and the data-plot restore), one student-lane spec per canvas family
 that keyboard-moves a handle, asserts the payload on the check request, reloads
 and asserts the board, and a small WebKit + touch smoke project. **M.**
+
+> **✔ Built 2026-11-28.** Re-derived first: the `as never` / `as unknown as`
+> casts had already gone from `kitSurfaces.ts` with the A1 to A3 fixes, but the
+> finding still held, because the kit's mounts took `unknown`: the compiler
+> checked nothing on the way in, and the graph block still reached the kit
+> through six casts of its own.
+>
+> **1. The seam is typed.** The kit's question mounts and `mountCalculator`
+> take their config types; the seam's configs are the kit's types minus the
+> answer-key fields, so a key cannot be passed by type. What the compiler then
+> found, none of it a behaviour a student could see:
+> - the served question shape typed a curve family as `string`; the kit takes
+>   the nine names. Typed through from the sanitizer's whitelist.
+> - the served-document type turned every `[x, y]` into `number[]` (a mapped
+>   type that lost tuples). That was the reason for the graph block's casts.
+> - the kit declared every graph's answer key as a point key, right for one
+>   interaction in nine. Nothing had noticed, the mounts being `unknown`.
+> - the calculator's settings crossed as `unknown`.
+> `viewer/tests/kitSeam.test.ts` fails if a cast, `@ts-ignore`,
+> `@ts-expect-error` or `: any` returns to the seam or a mount goes back to
+> `unknown`. Both server bundles were regenerated; only their
+> source maps changed, so no redeploy is needed for behaviour.
+>
+> **2. Real boards, in a browser.** `e2e/student/canvas-{graph,number-line,
+> data-plot,lock}.e2e.ts`: nine rows that press keys on the real kit, read the
+> work off the check request, reload and read the board's own SVG. Thirteen
+> mutations of the wiring, each red. **Writing them found a defect no test
+> could have:** in the student viewer a dot plot, histogram or box plot could
+> not be answered from the keyboard at all, since 2026-07-31. Focus lands on
+> the block's wrapper, the kit listens on a child, and a key never travels
+> down; the unit tests press their keys on the child. Fixed (the wrapper hands
+> an unmodified key to the board; Ctrl, Cmd and Alt combinations stay the
+> browser's, and a row proves it). A graph and a number line have the milder form, a
+> dead first tab stop, which is filed and not changed (TODOS).
+>
+> **3. The touch lane.** Two projects over one set of specs:
+> `touch-chromium` (real finger gestures; in CI) and `touch-webkit` (the
+> iPad's engine with dispatched touches; local only, see TODOS). 112 of 112
+> over eight repeats locally. Findings are under A7 above.
 
 ### C5 The app has no shared way to load data, and no way to know it broke
 - 48 hand-rolled `cancelled/live/alive` flags across 32 files, 6 separate

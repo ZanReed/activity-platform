@@ -27,12 +27,31 @@
 //    are perfectly valid. Unlike the chunk case there is no browser event to
 //    listen for: the failure is a zod result, so the CALLER reports it here.
 //
-// Both reloads are guarded by their own session flag so a genuinely broken
-// deploy — or a genuinely broken document — cannot put anyone in a reload loop,
-// which would be worse than the dead button or the error page.
+// Both reloads are guarded in session storage so a genuinely broken deploy —
+// or a genuinely broken document — cannot put anyone in a reload loop, which
+// would be worse than the dead button or the error page. (The chunk guard did
+// not hold until 2026-11-28: see STALE_CHUNK_RELOAD_GUARD_MS.)
 // =============================================================================
 
 const RELOAD_GUARD_KEY = 'activity-viewer:reloaded-for-stale-chunk';
+
+/**
+ * How long one stale-chunk reload stands before another may happen.
+ *
+ * The guard is a TIME, not a flag cleared by the next page load (2026-11-28).
+ * It used to be cleared on `load`, on the reasoning that a page that loaded is
+ * healthy. But `load` fires on the reloaded page too, before its lazy chunks
+ * are asked for; so when a chunk kept failing at open (the maths chunk on a
+ * network that drops it), each reload cleared the guard and the next failure
+ * reloaded again. Measured in Chromium against the production build: about 17
+ * reloads a second, for as long as the chunk stayed unreachable and nobody
+ * touched the page. The unit test for "does not reload a second time" fired
+ * two errors with no `load` between them, which a browser never does.
+ *
+ * A minute is far longer than a reload takes and far shorter than the gap
+ * between deploys, so a LATER deploy still gets its own single reload.
+ */
+export const STALE_CHUNK_RELOAD_GUARD_MS = 60_000;
 
 /** Session storage, or null in a profile that forbids it. */
 function safeSession(): Storage | null {
@@ -51,6 +70,8 @@ export interface StaleChunkRecoveryOptions {
   /** Is someone using this page? Injectable for tests; defaults to "a key or
    * pointer press, or open past its first seconds" (pageIsInUse). */
   inUse?: () => boolean;
+  /** The clock the reload guard reads. Injectable for tests. */
+  now?: () => number;
 }
 
 /** Returns a detacher, matching `watchIdle`'s shape. Production calls this once
@@ -62,6 +83,7 @@ export function installStaleChunkRecovery(
   const reload = options.reload ?? (() => window.location.reload());
   const tracker = options.inUse ? null : trackInteraction();
   const inUse = options.inUse ?? (() => pageIsInUse(tracker!.interacted()));
+  const now = options.now ?? (() => Date.now());
 
   const onPreloadError = (event: Event) => {
     // NEVER reload under someone using the page (author ruling 2026-10-04,
@@ -73,32 +95,32 @@ export function installStaleChunkRecovery(
       return;
     }
     const store = safeSession();
-    if (store?.getItem(RELOAD_GUARD_KEY)) {
-      // Already tried. A second reload would loop; let the error surface so
-      // the failure is at least visible instead of a spinning page.
-      return;
+    const stamp = store?.getItem(RELOAD_GUARD_KEY);
+    if (stamp != null) {
+      // A stamp that is not a time (an older build wrote '1') reads as "just
+      // now": the safe reading of a guard is that it is set.
+      const at = Number(stamp);
+      const sinceReload = at > 1 ? now() - at : 0;
+      if (sinceReload < STALE_CHUNK_RELOAD_GUARD_MS) {
+        // Already tried. A second reload would loop; let the error surface so
+        // the failure is at least visible instead of a spinning page, and so
+        // whatever asked for the chunk can try again by itself.
+        return;
+      }
     }
     // Prevent Vite's default (rethrow) so the page is not left in a broken
     // state while the reload is in flight.
     event.preventDefault();
-    store?.setItem(RELOAD_GUARD_KEY, '1');
+    store?.setItem(RELOAD_GUARD_KEY, String(now()));
     reload();
   };
 
-  // A load that got this far is healthy: clear the guard so a LATER deploy
-  // gets its own single retry rather than inheriting this one's.
-  const onLoad = () => {
-    safeSession()?.removeItem(RELOAD_GUARD_KEY);
-  };
-
   window.addEventListener('vite:preloadError', onPreloadError);
-  window.addEventListener('load', onLoad);
 
   return {
     stop: () => {
       tracker?.stop();
       window.removeEventListener('vite:preloadError', onPreloadError);
-      window.removeEventListener('load', onLoad);
     },
   };
 }
@@ -139,7 +161,9 @@ export function reloadOnceForStaleBuild(
   // NO SESSION STORAGE → DO NOTHING, and note that this DIVERGES from the
   // chunk recovery above, which reloads anyway. The divergence is the point:
   // a preloadError fires when a student opens something lazy, so an unguarded
-  // reload there costs one extra load. This trigger is a parse failure during
+  // reload there is tolerated (though since the maths preload fires at open, a
+  // chunk that keeps failing can reload repeatedly without session storage —
+  // the pinned choice in TODOS). This trigger is a parse failure during
   // PAGE LOAD, so without a guard every load would reload — an infinite loop,
   // and the teacher could never reach the error message either. Refusing leaves
   // them with a real error they can act on.
@@ -150,8 +174,9 @@ export function reloadOnceForStaleBuild(
 }
 
 /** Clear the stale-build guard once a document has parsed. Called on a healthy
- * load so a LATER deploy gets its own single retry, exactly as the chunk
- * recovery clears its own guard on `load`. */
+ * load so a LATER deploy gets its own single retry. (The chunk recovery no
+ * longer clears its guard on `load`; its guard expires after
+ * STALE_CHUNK_RELOAD_GUARD_MS.) */
 export function clearStaleBuildGuard(): void {
   safeSession()?.removeItem(STALE_DOC_GUARD_KEY);
 }
